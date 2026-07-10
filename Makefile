@@ -20,6 +20,11 @@ test:
 purity:
 	$(SBCL) $(SBCL_FLAGS) --load scripts/purity-scan.lisp
 
+## conformance — test262 parse phase: 0 crashes + no pass-list regressions.
+## CLUN_GEN=1 make conformance regenerates the pass-list (only grows).
+conformance:
+	$(SBCL) --dynamic-space-size 3072 $(SBCL_FLAGS) --load scripts/test262.lisp
+
 ## clean — remove the built binary and any in-tree fasls.
 clean:
 	rm -rf build

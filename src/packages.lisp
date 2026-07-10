@@ -40,7 +40,18 @@
    #:double->int32 #:double->uint32 #:number->js-string #:js-string->number
    ;; coercions
    #:to-primitive #:to-boolean #:to-number #:to-string #:to-int32 #:to-uint32
-   #:js-truthy #:*ordinary-to-primitive*))
+   #:js-truthy #:*ordinary-to-primitive*
+   ;; lexer (Phase 02)
+   #:make-lexer #:next-token #:lex-all #:reread-regexp #:reread-template
+   #:lexer #:lexer-p #:lexer-pos #:lexer-comments #:lexer-line #:lexer-src
+   #:token #:token-p #:token-type #:token-value #:token-raw #:token-start
+   #:token-end #:token-line #:token-col #:token-nl-before #:token-tmpl-part
+   ;; parser / AST (Phase 02)
+   #:parse-program #:make-parser #:parse-assignment #:parse-statement
+   #:node #:node-p #:node-start #:node-end
+   #:program #:program-p #:program-body #:program-source-type
+   #:identifier #:identifier-p #:identifier-name #:literal #:literal-p #:literal-value
+   #:literal-kind #:analyze #:ast->sexp #:binding-bound-names))
 
 (defpackage :clun.loop
   (:use :cl)

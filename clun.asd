@@ -21,7 +21,12 @@
                                            (:file "conditions")
                                            (:file "strings")
                                            (:file "numbers")
-                                           (:file "coercions")))
+                                           (:file "coercions")
+                                           (:file "lexer")
+                                           (:file "ast")
+                                           (:file "parser")
+                                           (:file "analyzer")
+                                           (:file "ast-printer")))
                              (:file "main")))))
 
 (defsystem "clun/tests"
@@ -40,4 +45,6 @@
                                                          (:file "conditions-tests")
                                                          (:file "strings-tests")
                                                          (:file "numbers-tests")
-                                                         (:file "coercions-tests")))))))))
+                                                         (:file "coercions-tests")
+                                                         (:file "lexer-tests")
+                                                         (:file "parser-tests")))))))))
