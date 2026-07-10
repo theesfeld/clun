@@ -92,3 +92,40 @@ the coverage claim true rather than asserted.
 `clun.asd` uses `:version "0.0.1"` (ASDF requires dotted integers; `"0.0.1-dev"` triggers a
 PARSE-VERSION warning). The user-facing version — asserted by the Phase 00 gate as `clun 0.0.1-dev`
 — lives only in `src/version.lisp` (`*clun-version*`). The two are intentionally distinct.
+
+### 2026-07-10 — Phase 01 value representation: native CL types + keyword singletons (not tagged structs)
+Decided by micro-benchmark on this host (SBCL 2.6.4, `speed 3 safety 0`, 200M dispatches over 1M
+mixed values): native `typecase` dispatch (numbers = `double-float`, strings = CL `string`, objects
+= struct, singletons = keywords) measured **0.88 ns/dispatch and 21.4 MB**; a uniform tagged struct
+`(defstruct jsval tag data)` measured **3.77 ns/dispatch and 48.0 MB** — native is 4.3× faster and
+~2.25× lighter. Native also lets SBCL keep `double-float`s unboxed in typed arithmetic contexts,
+which a wrapper struct defeats. This confirms §3.1 (CL strings; `double-float`; structs never
+hash-table-per-object). Rejected: the uniform tagged struct (uniform dispatch, but boxes every
+number and adds a pointer hop). Singletons `+undefined+/+null+/+true+/+false+` are keywords behind
+named constants + predicates so the representation stays swappable (fallback `(unsigned-byte 16)`
+string vectors, if memory ever dominates, touches only strings). BigInt (Phase 11) will be its own
+struct/tag, not a change to this scheme.
+
+### 2026-07-10 — Phase 01 review: StringToNumber is ASCII-digit-only, huge exponents clamped
+Two fixes from the Phase 01 adversarial panel (both in `src/engine/numbers.lisp`):
+(1) **ASCII-only digits.** CL `digit-char-p` accepts every Unicode Nd char, so `Number("١")`
+(Arabic-Indic) wrongly returned 1. ECMA-262 §12.9.3 admits only ASCII 0-9/a-f. Replaced
+`digit-char-p`/`parse-integer` in the StringToNumber path with `%ascii-digit`/`%ascii-decimal-digit-p`;
+non-ASCII digits now yield NaN. Regression tests cover Arabic-Indic/Devanagari/fullwidth digits in
+integer, fraction, exponent, and 0x positions.
+(2) **Adversarial-length clamp (§6).** `Number("1e1000000")` built a million-digit `(expt 10 exp)`
+bignum (measured 470 ms from a 9-char input — asymmetric amplification). Now the result magnitude
+(`decimal-length(mantissa) + exponent`) is bounds-checked first: `> 310` → ±Infinity, `<= -324` →
+±0, else exact. The clamp is exact-safe (a value is `< 10^mag`), so no representable double is
+mis-clamped; `"1e1000000"` is now instant. A huge *digit-string* mantissa is still built (cost
+proportional to input, no amplification) — acceptable for Phase 01.
+Panel outcome: 5 confirmed / 5 refuted (adversarially verified by running code). The other three
+confirmed were test-completeness nits (huge-string, ToInt32/Uint32 modulo-2^32, WTF-8 multibyte
+maximal-subpart) — implementations were already correct; tests added.
+
+### 2026-07-10 — Phase 01 Number→String uses naive bignum shortest-round-trip (Ryū deferred to Phase 04)
+Per §3.1 the Ryū port is a Phase 04 task; Phase 01 still needs a correct `ToString(number)`. Chose
+the plan's named fallback — shortest-round-trip via exact rational arithmetic (try increasing
+significant digits until read-back `=` the source double), framed by the ECMA-262 Number::toString
+algorithm (sign, NaN/±Infinity/±0, the ≤-6 / ≥21 exponent thresholds). Correct but O(17) per format;
+Phase 04 swaps the digit core for Ryū for speed. Pure CL, no SBCL float-printer internals.

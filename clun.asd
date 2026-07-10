@@ -15,6 +15,13 @@
                 :serial t
                 :components ((:file "packages")
                              (:file "version")
+                             (:module "engine"
+                              :serial t
+                              :components ((:file "values")
+                                           (:file "conditions")
+                                           (:file "strings")
+                                           (:file "numbers")
+                                           (:file "coercions")))
                              (:file "main")))))
 
 (defsystem "clun/tests"
@@ -25,4 +32,12 @@
   :components ((:module "tests"
                 :components ((:module "lisp"
                               :serial t
-                              :components ((:file "smoke")))))))
+                              :components ((:file "package")
+                                           (:file "smoke")
+                                           (:module "engine"
+                                            :serial t
+                                            :components ((:file "values-tests")
+                                                         (:file "conditions-tests")
+                                                         (:file "strings-tests")
+                                                         (:file "numbers-tests")
+                                                         (:file "coercions-tests")))))))))

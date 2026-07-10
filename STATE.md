@@ -5,14 +5,16 @@ Update before every commit. Seeded from PLAN.md §5.
 
 ---
 
-## Current phase: **01 — Engine values & coercions**  (Phase 00 gate PASSED)
+## Current phase: **02 — Lexer + parser + scope analysis**  (Phase 01 gate PASSED + committed)
 
-**Next action:** Begin Phase 01. Write `docs/design/phase-01.md` first (value representation
-decision — keywords vs tagged structs; micro-benchmark typecase dispatch and log in DECISIONS.md).
-Depends only on Phase 00 (done). Then implement the value substrate task list below.
+**Next action:** Begin Phase 02. Write `docs/design/phase-02.md` first (tokenizer state: ASI newline
+flags, parser-driven regex-vs-divide, template mode stack, exact offsets, trivia retention, no global
+state — these also serve the TS-strip lexer, §3.3). Then tokenizer → ES2017 parser → scope analyzer →
+AST printer, and vendor the test262 slice @ `d1d583d` + frontmatter parser + runner skeleton.
+Depends on Phase 01 (done). ⚡ fixture authoring is fan-out-friendly.
 
-**Independent phases available if the main track blocks (◇):** 05 (event loop, deps 01),
-19 (crypto foundation, deps 00), 21-semver (deps 00). Pull forward if Phase 01 stalls.
+**Independent phases available if the main track blocks (◇):** 05 (event loop, deps 01, now
+unblocked), 19 (crypto foundation, deps 00), 21-semver (deps 00). Pull forward if Phase 02 stalls.
 
 ---
 
@@ -31,6 +33,17 @@ _(nothing blocked)_
   - Fresh-clone build verified (ASDF cache cleared) + documented in README + docs/design/phase-00.md. ✔
   - Review panel (12 agents, 5 dimensions): 7 raw findings, 3 confirmed, all fixed — purity scanner
     now unions the ASDF load plan (closed a tests/ scan gap); STATE/DECISIONS/design wording corrected.
+
+- **Phase 01 — PASSED + committed (2026-07-10).**
+  - `make build` clean (zero warnings; fixed a constant-fold NaN trap); `make test` 261 passed / 0
+    failed; `make purity` clean (73 files). Value-rep decided by micro-bench (native typecase 4.3x
+    faster than tagged struct — DECISIONS.md).
+  - Substrate: values/singletons, condition bridge, WTF-8 UTF-8⇄code-unit (WHATWG maximal-subpart),
+    NaN/Inf/−0 + ToInt32/Uint32, Number↔String (shortest-round-trip), ToPrimitive/Boolean/Number/String.
+  - Review panel (15 agents, 5 dims, verified by running code): 5 confirmed / 5 refuted. Fixed: major
+    ASCII-digit-only StringToNumber (Unicode Nd digits were wrongly accepted); huge-exponent clamp
+    (`"1e1000000"` 470ms→0ms); +completeness tests (huge strings, ToInt32 modulo, WTF-8 multibyte);
+    trimmed an over-long comment.
 
 ---
 
@@ -51,18 +64,18 @@ Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-earl
 - [x] DECISIONS.md seeded with §3 pins + vendored SHAs
 - [x] Phase 00 review panel (5 dimensions, adversarially verified) + phase-00 commit
 
-### Phase 01 — Engine values & coercions  (deps: 00) ~2k LOC — **CURRENT**
-- [ ] docs/design/phase-01.md (data structures, ownership, risks)
-- [ ] value representation decision (keywords vs tagged structs; micro-bench typecase; log in DECISIONS.md)
-- [ ] UTF-16-code-unit strings + UTF-8/WTF-8 boundary converters
-- [ ] doubles + trap-mask entry macro
-- [ ] NaN/Inf/−0 helpers
-- [ ] JS-exception-as-CL-condition bridge
-- [ ] ToPrimitive/ToNumber/ToString/ToInt32/ToUint32/ToBoolean kernel
-- **Gate:** parachute suites over every abstract-op edge (NaN, −0, "", "0x10", huge strings);
-  UTF-8⇄code-unit round-trips incl. lone surrogates.
+### Phase 01 — Engine values & coercions  (deps: 00) ~2k LOC — **DONE**
+- [x] docs/design/phase-01.md (data structures, ownership, risks)
+- [x] value representation decision (native typecase; micro-bench 4.3x vs tagged struct; DECISIONS.md)
+- [x] UTF-16-code-unit strings + UTF-8/WTF-8 boundary converters (WHATWG maximal-subpart decode)
+- [x] doubles + trap-mask entry macro (with-js-floats)
+- [x] NaN/Inf/−0 helpers
+- [x] JS-exception-as-CL-condition bridge (js-condition / js-native-error)
+- [x] ToPrimitive/ToNumber/ToString/ToInt32/ToUint32/ToBoolean kernel (+ js-string↔number)
+- **Gate PASSED:** 261 parachute assertions over abstract-op edges + UTF-8⇄code-unit round-trips
+  incl. lone surrogates/astral pairs; zero regressions; make build/test/purity green.
 
-### Phase 02 — Lexer + parser + scope analysis  (deps: 01) ~7k LOC ⚡(fixtures)
+### Phase 02 — Lexer + parser + scope analysis  (deps: 01) ~7k LOC ⚡(fixtures) — **CURRENT**
 - [ ] tokenizer (ASI flags, regex-vs-divide, template mode stack, escapes, exact offsets, trivia, no global state)
 - [ ] full ES2017 parser (classes, destructuring, arrows, generator/async, modules, spread, computed props)
 - [ ] scope analyzer (hoisting, slot indices, TDZ, eval/with/arguments flags, strict directives)

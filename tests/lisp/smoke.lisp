@@ -1,9 +1,4 @@
-;;;; smoke.lisp — Phase 00 parachute smoke suite: proves the build/test rails
-;;;; work end to end. Real coverage begins in Phase 01.
-
-(defpackage :clun-test
-  (:use :cl)
-  (:import-from :parachute #:define-test #:is #:true #:false))
+;;;; smoke.lisp — build/test rails (Phase 00). Real coverage lives in engine/.
 
 (in-package :clun-test)
 

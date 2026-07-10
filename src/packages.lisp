@@ -20,7 +20,27 @@
 
 (defpackage :clun.engine
   (:use :cl)
-  (:documentation "From-scratch ECMAScript engine: lexer, parser, analyzer, emitter, objects, stdlib."))
+  (:documentation "From-scratch ECMAScript engine: lexer, parser, analyzer, emitter, objects, stdlib.")
+  ;; Phase 01 — value substrate & coercions.
+  (:export
+   ;; values
+   #:+undefined+ #:+null+ #:+true+ #:+false+ #:js-object #:js-object-p #:make-js-object
+   #:js-undefined-p #:js-null-p #:js-nullish-p #:js-boolean-p #:js-number-p
+   #:js-string-p #:js-primitive-p #:js-boolean #:js-type
+   ;; conditions
+   #:js-condition #:js-condition-value #:js-native-error #:js-native-error-kind
+   #:js-native-error-message #:js-native-error-name #:throw-js-value
+   #:throw-native-error #:throw-type-error #:throw-range-error
+   #:throw-syntax-error #:throw-reference-error
+   ;; strings (WTF-8 boundary)
+   #:code-units->utf8 #:utf8->code-units #:high-surrogate-p #:low-surrogate-p
+   ;; numbers
+   #:with-js-floats #:+js-infinity+ #:+js-neg-infinity+ #:*js-nan*
+   #:js-nan-p #:js-infinite-p #:js-finite-p #:js-neg-zero-p #:js-zero-p
+   #:double->int32 #:double->uint32 #:number->js-string #:js-string->number
+   ;; coercions
+   #:to-primitive #:to-boolean #:to-number #:to-string #:to-int32 #:to-uint32
+   #:js-truthy #:*ordinary-to-primitive*))
 
 (defpackage :clun.loop
   (:use :cl)
