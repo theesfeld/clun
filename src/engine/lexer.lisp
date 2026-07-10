@@ -18,7 +18,8 @@
   (line 1 :type fixnum)
   (col 0 :type fixnum)
   (nl-before nil)
-  (tmpl-part nil))             ; :full :head :middle :tail for templates
+  (tmpl-part nil)              ; :full :head :middle :tail for templates
+  (escaped nil))              ; :name contained a \u escape (so it is never a keyword)
 
 (defstruct (lexer (:constructor %make-lexer) (:copier nil))
   (src "" :type simple-string)
@@ -58,7 +59,10 @@
 (defun hex-digit-p (ch)
   (and ch (or (char<= #\0 ch #\9) (char<= #\a ch #\f) (char<= #\A ch #\F))))
 (defun id-start-code-p (code)
-  (or (<= 65 code 90) (<= 97 code 122) (= code #x24) (= code #x5F) (>= code #x80)))
+  ;; ASCII letters / $ / _, or any non-ASCII that is not whitespace or a line
+  ;; terminator (a coarse approximation of ID_Start until the UCD tables land).
+  (or (<= 65 code 90) (<= 97 code 122) (= code #x24) (= code #x5F)
+      (and (>= code #x80) (not (ws-p code)) (not (line-terminator-p code)))))
 (defun id-part-code-p (code)
   (or (id-start-code-p code) (<= 48 code 57) (= code #x200C) (= code #x200D)))
 
@@ -118,11 +122,11 @@
 
 ;;; --- token constructor ------------------------------------------------------
 
-(defun make-tok (lx type value start nl &key raw tmpl-part)
+(defun make-tok (lx type value start nl &key raw tmpl-part escaped)
   (%make-token :type type :value value :raw raw :start start :end (lexer-pos lx)
                :line (lexer-line lx)
                :col (- start (lexer-line-start lx))
-               :nl-before nl :tmpl-part tmpl-part))
+               :nl-before nl :tmpl-part tmpl-part :escaped escaped))
 
 ;;; --- identifiers & keywords -------------------------------------------------
 
@@ -155,11 +159,12 @@
 (defun read-name (lx start nl)
   "Read an IdentifierName (value = cooked name with escapes resolved)."
   (let ((out (make-array 8 :element-type 'character :adjustable t :fill-pointer 0))
-        (first t))
+        (first t) (escaped nil))
     (loop
       (let ((c (lx-peek lx)))
         (cond
           ((and c (eql c #\\))
+           (setf escaped t)
            (let ((cp (read-unicode-escape-value lx)))
              (unless (if first (id-start-code-p cp) (id-part-code-p cp))
                (lex-error lx "invalid identifier escape"))
@@ -168,7 +173,7 @@
            (vector-push-extend c out) (incf (lexer-pos lx)))
           (t (return))))
       (setf first nil))
-    (make-tok lx :name (coerce out 'simple-string) start nl)))
+    (make-tok lx :name (coerce out 'simple-string) start nl :escaped escaped)))
 
 ;;; --- numbers ----------------------------------------------------------------
 
@@ -179,8 +184,8 @@
           for d = (and c (digit-char-p c radix))
           while d do (setf v (+ (* v radix) d) any t) (incf (lexer-pos lx)))
     (unless any (lex-error lx "missing digits in numeric literal"))
-    (when (and (lx-peek lx) (id-start-code-p (lx-code lx)))
-      (lex-error lx "identifier directly after number"))
+    ;; the trailing id-start check is done by finish-int-number, AFTER the optional
+    ;; BigInt `n` suffix (which is itself an id-start char).
     v))
 
 (defun read-number (lx start nl strict)
@@ -220,12 +225,16 @@
         (make-tok lx :num (js-string->number lexeme) start nl)))))
 
 (defun finish-int-number (lx int start nl)
-  (if (eql (lx-peek lx) #\n)
-      (progn (incf (lexer-pos lx))
-             (when (and (lx-peek lx) (id-start-code-p (lx-code lx)))
-               (lex-error lx "identifier directly after number"))
-             (make-tok lx :bigint int start nl))
-      (with-js-floats (make-tok lx :num (coerce int 'double-float) start nl))))
+  (cond
+    ((eql (lx-peek lx) #\n)
+     (incf (lexer-pos lx))
+     (when (and (lx-peek lx) (id-start-code-p (lx-code lx)))
+       (lex-error lx "identifier directly after number"))
+     (make-tok lx :bigint int start nl))
+    (t
+     (when (and (lx-peek lx) (id-start-code-p (lx-code lx)))
+       (lex-error lx "identifier directly after number"))
+     (with-js-floats (make-tok lx :num (coerce int 'double-float) start nl)))))
 
 (defun read-legacy-octal (lx start nl)
   ;; leading 0 then digits: octal if all 0-7, else NonOctalDecimal (Annex B)
@@ -306,7 +315,9 @@ Returns :ok, or :invalid for an escape only legal in tagged templates (cooked=ni
         (cond
           ((null c) (lex-error lx "unterminated string literal"))
           ((eql c quote) (incf (lexer-pos lx)) (return))
-          ((line-terminator-p (char-code c)) (lex-error lx "unterminated string literal"))
+          ;; only CR/LF terminate a string; LS/PS (U+2028/2029) are allowed (ES2019)
+          ((or (= (char-code c) 10) (= (char-code c) 13))
+           (lex-error lx "unterminated string literal"))
           ((eql c #\\) (read-string-escape lx out strict nil))
           (t (vector-push-extend c out) (incf (lexer-pos lx))))))
     (make-tok lx :string (coerce out 'simple-string) start nl)))
@@ -374,11 +385,19 @@ token start; returns a :regexp token (value=pattern, raw=flags)."
           (t (incf (lexer-pos lx))))))
     (let ((pat-end (1- (lexer-pos lx)))
           (flags-start (lexer-pos lx)))
-      (loop while (and (lx-peek lx) (id-part-code-p (lx-code lx)))
+      ;; flags are IdentifierPart, but all real flags are ASCII letters — stopping at
+      ;; ASCII letters avoids the Unicode-whitespace over-acceptance of id-part-code-p
+      (loop for c = (lx-peek lx)
+            while (and c (let ((cc (char-code c))) (or (<= 97 cc 122) (<= 65 cc 90))))
             do (incf (lexer-pos lx)))
-      (make-tok lx :regexp
-                (subseq (lexer-src lx) (1+ start) pat-end) start nl
-                :raw (subseq (lexer-src lx) flags-start (lexer-pos lx))))))
+      (let ((flags (subseq (lexer-src lx) flags-start (lexer-pos lx))) (seen '()))
+        ;; validate flags: only g/i/m/s/u/y, no duplicates (pattern validation is Phase 10)
+        (loop for ch across flags do
+          (unless (find ch "gimsuy")
+            (lex-error lx "invalid regular expression flag '~:c'" ch))
+          (when (member ch seen) (lex-error lx "duplicate regular expression flag '~:c'" ch))
+          (push ch seen))
+        (make-tok lx :regexp (subseq (lexer-src lx) (1+ start) pat-end) start nl :raw flags)))))
 
 ;;; --- punctuators ------------------------------------------------------------
 

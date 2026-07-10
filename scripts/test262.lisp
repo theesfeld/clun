@@ -39,11 +39,16 @@
                 for tt = (string-trim '(#\Space #\Tab #\Newline #\Return) tok)
                 unless (string= tt "") collect tt))))))
 
-(defun neg-parse-p (fm) (and fm (search "negative:" fm) (search "phase: parse" fm)))
+(defun neg-parse-p (fm)
+  (let ((n (and fm (search "negative:" fm))))
+    (and n (search "phase: parse" fm :start2 n))))
 
 (defun read-source (path)
-  (with-open-file (in path :external-format :latin-1)
-    (let ((s (make-string (file-length in)))) (subseq s 0 (read-sequence s in)))))
+  "Read PATH as UTF-8 into a code-unit string (as clun loads source)."
+  (with-open-file (in path :element-type '(unsigned-byte 8))
+    (let ((bytes (make-array (file-length in) :element-type '(unsigned-byte 8))))
+      (read-sequence bytes in)
+      (utf8->code-units bytes))))
 
 (defun classify (path)
   "Return :pass, :fail, :skip, or :crash for a single test file."
@@ -59,7 +64,9 @@
         (cond (negp :pass)                      ; correctly rejected
               ((intersection features *skip-features* :test #'string=) :skip)
               (t :fail)))                       ; positive we couldn't parse (gap)
-      (error () :crash))))
+      ;; serious-condition (not just error) so stack/heap exhaustion counts as a
+      ;; crash rather than aborting the whole runner
+      (serious-condition () :crash))))
 
 (defun rel-name (path)
   (let ((full (namestring path)) (root (namestring *lang-root*)))
@@ -94,13 +101,28 @@
           (length pass) fail skip (length crash))
   (cond
     ((sb-ext:posix-getenv "CLUN_GEN")
-     (ensure-directories-exist *passlist-path*)
-     (with-open-file (out *passlist-path* :direction :output :if-exists :supersede
-                                          :if-does-not-exist :create)
-       (format out "# test262 parse-phase pass-list (PLAN.md §3.1). Sorted; only grows.~%")
-       (format out "# Regenerate: CLUN_GEN=1 make conformance. ~a entries.~%" (length pass))
-       (dolist (e (sort (copy-list pass) #'string<)) (format out "~a~%" e)))
-     (format t "wrote pass-list (~a entries)~%" (length pass))
+     ;; UNION with the existing list so the pass-list can only grow — a correctness
+     ;; fix that removes false-passes must be recorded as a dated DECISIONS.md entry,
+     ;; not silently shrink the baseline. If crashes exist, refuse to regenerate.
+     (when crash
+       (format t "refusing to regenerate pass-list with ~a crashes present~%" (length crash))
+       (sb-ext:exit :code 1))
+     (let* ((existing (load-passlist))
+            (union (sort (remove-duplicates (append existing pass) :test #'string=) #'string<))
+            (dropped (set-difference existing pass :test #'string=)))
+       (when dropped
+         (format t "~a pass-list entries no longer pass; KEEPING them (only-grows). If this is a~%~
+                    deliberate false-pass correction, remove them by hand + log in DECISIONS.md:~%"
+                 (length dropped))
+         (dolist (d dropped) (format t "  - ~a~%" d)))
+       (ensure-directories-exist *passlist-path*)
+       (with-open-file (out *passlist-path* :direction :output :if-exists :supersede
+                                            :if-does-not-exist :create)
+         (format out "# test262 parse-phase pass-list (PLAN.md §3.1). Sorted; only grows.~%")
+         (format out "# Regenerate: CLUN_GEN=1 make conformance. ~a entries.~%" (length union))
+         (dolist (e union) (format out "~a~%" e)))
+       (format t "wrote pass-list (~a entries; +~a new)~%"
+               (length union) (- (length union) (length existing))))
      (sb-ext:exit :code 0))
     (t
      (let* ((current (let ((h (make-hash-table :test 'equal)))

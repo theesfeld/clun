@@ -71,8 +71,65 @@
                 "try {} catch {} " "try {} catch (e) {}" "do x; while (y);"
                 "switch(x){ case 1: break; default: }" "with(o){}"
                 "a, b, c;" "!function(){}();" "({a, b} = c);" "[a, b] = c;"
-                "typeof void delete x.y;" "new.target;" "yield;"))
+                "typeof void delete x.y;" "function f(){ new.target; }" "yield;"))
     (true (parses? ok))))
+
+(define-test parser/early-errors
+  ;; these must all be rejected (parser-level early errors)
+  (dolist (bad '("(a, a) => {}" "(x = 0, x) => {}" "'use strict'; function f(a, a){}"
+                 "let let = 1;" "let x; var x;" "var x; let x;"
+                 "({ get x(a){} })" "({ set x(){} })" "({ *a })"
+                 "class C { constructor(){} constructor(){} }"
+                 "class C { get constructor(){} }" "class C { static prototype(){} }"
+                 "async function f(a = await x){}" "function* g(a = yield){}"
+                 "[...a, b] = c;" "new.target;" "`\\x`"
+                 "switch(x){ case 1: let y; default: let y; }"))
+    (false (parses? bad)))
+  ;; these must still parse (guard against over-rejection)
+  (dolist (ok '("function f(a, a){}" "({ get x(){}, set x(v){} })" "class C { m(){} m(){} }"
+                "class C { *['constructor'](){} }" "[a, ...b] = c;" "tag`\\x`;"
+                "function f(){ new.target; }" "l\\u0065t; var a;"))
+    (true (parses? ok))))
+
+(define-test parser/context-early-errors
+  (dolist (bad '("super.x;" "function f(){ super.x; }" "super();"
+                 "x: y: x: ;" "break foo;" "continue bar;"
+                 "for (a + b in c);"))
+    (false (parses? bad)))
+  (dolist (ok '("class C { m(){ super.x; } }" "({ m(){ super.x; } })"
+                "class C extends D { constructor(){ super(); } }"
+                "class C { m(){ return () => super.m(); } }"
+                "a: b: c: ;" "foo: for(;;) break foo;" "foo: { break foo; }"
+                "l: function f(){ l: ; }"))
+    (true (parses? ok))))
+
+(define-test lexer/regexp-flags-and-unicode
+  (false (parses? "/a/gg;"))                   ; duplicate flag
+  (false (parses? "/a/x;"))                    ; invalid flag
+  (true (parses? "/a/gimsuy;"))
+  ;; LS/PS (U+2028/2029) are allowed inside string literals (ES2019)
+  (true (parses? (format nil "var s = '~a';" (code-char #x2028))))
+  ;; a line separator between tokens is whitespace, not part of an identifier
+  (true (parses? (format nil "var~ax~a=~a1;" (code-char #x2028) (code-char #x2028)
+                         (code-char #x2028)))))
+
+(define-test parser/review-panel-regressions
+  ;; valid code that earlier early-error batches wrongly rejected (Phase 02 review panel)
+  (dolist (ok '("0xFFn;" "0o17n;" "0b101n;"                 ; non-decimal BigInt
+                "for (const [a, b] of pairs) {}" "for (let {x} of y) {}"
+                "for (var [a] in obj) {}" "for (const [k, v] of Object.entries(o)) {}"
+                "(-2) ** 3;" "(~2) ** 3;" "(typeof x) ** 2;" ; parenthesized ** base
+                "async => async;" "var f = async => 1;"      ; `async` sole arrow param
+                "for ((a in b);;) {}" "for ([a in b];;) {}" "f(a in b);" ; `in` in brackets
+                "'a'; 'b'; 'c'; foo();"))                    ; directive prologue keeps all
+    (true (parses? ok)))
+  ;; must still reject:
+  (dolist (bad '("-2 ** 3;"                                  ; bare unary ** base
+                 "function* g(a, a){}" "async function h(a, a){}"  ; gen/async dup params
+                 "for (const [a, a] of x) {}" "for (let [a, a] in y) {}")) ; dup for-binding
+    (false (parses? bad)))
+  ;; all 3 directives are retained (double-nreverse bug)
+  (is = 3 (length (eng:program-body (eng:parse-program "'a';'b';'c';")))))
 
 (define-test parser/strict-mode-errors
   (false (parses? "'use strict'; with (o) {}"))

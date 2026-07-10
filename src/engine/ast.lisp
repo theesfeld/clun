@@ -6,7 +6,8 @@
 
 (defstruct (node (:constructor nil))
   (start 0 :type fixnum)
-  (end 0 :type fixnum))
+  (end 0 :type fixnum)
+  (parenthesized nil))         ; came from a ( ) — a valid ** base even if a UnaryExpression
 
 (defmacro defnode (name &rest slots)
   "Define an AST node struct NAME including `node`, with SLOTS (default NIL)."
@@ -18,6 +19,7 @@
   "Stamp N's source span and return it."
   (setf (node-start n) start (node-end n) end)
   n)
+
 
 ;;; Programs & identifiers
 (defnode program body (source-type :script))
@@ -104,3 +106,18 @@
 (defnode export-default-declaration declaration)
 (defnode export-all-declaration exported source)
 (defnode export-specifier local exported)
+
+(defun binding-bound-names (node)
+  "The identifier names bound by a binding target / pattern NODE. Defined after all
+node types so the struct accessors are known at compile time (warning-free)."
+  (typecase node
+    (identifier (list (identifier-name node)))
+    (array-pattern (loop for e in (array-pattern-elements node)
+                         when e append (binding-bound-names e)))
+    (object-pattern (loop for pr in (object-pattern-properties node)
+                          append (if (rest-element-p pr)
+                                     (binding-bound-names (rest-element-argument pr))
+                                     (binding-bound-names (property-value pr)))))
+    (assignment-pattern (binding-bound-names (assignment-pattern-left node)))
+    (rest-element (binding-bound-names (rest-element-argument node)))
+    (t nil)))

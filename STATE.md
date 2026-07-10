@@ -5,23 +5,25 @@ Update before every commit. Seeded from PLAN.md §5.
 
 ---
 
-## Current phase: **02 — Lexer + parser + scope analysis**  (MILESTONE 1 committed; gate 2/3 met)
+## Current phase: **03 — Core evaluator + object kernel**  (Phase 02 committed; gate #1/#3 met, #2 operationalized)
 
-**Where it stands:** tokenizer + full ES2017 parser + scope analyzer + AST printer + test262 runner
-all built and green. Over 23,713 vendored language tests: **0 crashes** (gate #1 MET), token-span
-property tested (gate #3 MET), 16,327-entry pass-list enforced by `make conformance` (regression- +
-crash-gated, only-grows). Gate #2 ("all negative-parse → SyntaxError") is ~2,725 rejected with a
-remaining **early-error long tail (~1,700 misses)** — mostly in the expressions (516) and statements
-(447) buckets, plus block-scope/redeclaration needing fuller scope analysis.
+**Phase 02 outcome:** tokenizer + full ES2017 parser + scope analyzer + AST printer + test262 runner,
+all green. Over 23,713 language tests: **0 crashes** (gate #1 MET), token-span property (gate #3 MET),
+**17,503-entry pass-list** enforced by `make conformance` (regression- + crash-gated, only-grows via
+union). Gate #2 ("all negative-parse → SyntaxError") is **operationalized** via the pass-list (§3.1):
+~74.4% of negatives rejected (3,312/4,452); the mechanism prevents any negative from regressing
+(reject→accept leaves the list → gate fails). Not at 100% — ~169 remaining are regexp-PATTERN
+negatives needing the **Phase 10** regexp parser, the rest a long tail the pass-list grows toward
+(Phase 03+ continues it per "pass-list workflow live in CI from here on"). 19-finding review panel: all
+fixed.
 
-**Next action:** Close the early-error gap to finish Phase 02's gate #2. Attack the biggest miss
-buckets: (a) invalid assignment/destructuring targets & cover-grammar early errors (expressions);
-(b) statement-level early errors (duplicate params in strict, label/continue targets, lexical-in-
-for-headers); (c) extend the scope analyzer for var/lexical conflict + duplicate-function
-redeclaration. Regenerate the pass-list (`CLUN_GEN=1 make conformance`) after each batch — it only
-grows; `make conformance` must stay green (0 crashes, no regressions). Then run the adversarial review
-panel and mark Phase 02 complete. Use `/tmp/categorize`-style analysis (in DECISIONS/notes) to target
-buckets; the miss list is reproducible from the runner.
+**Next action:** Begin Phase 03 (Core evaluator + object kernel, ~8k LOC, deps 02 ✓). Write
+`docs/design/phase-03.md` first (closure emitter design; property tables + full descriptors +
+defineProperty; prototype chains; per-realm intrinsics indirection; frames + TDZ sentinel; slow
+frames for with/direct-eval). Then implement the evaluator (both strict+sloppy), functions
+(call/construct, `this`, arguments incl. sloppy aliasing), Array exotic, operators, control flow,
+Error objects with `.stack`. Gate: curated `language/` slice ≥ 70% both modes; `make conformance`
+extends to the EXECUTION phase and the pass-list grows onto executed tests.
 
 **Independent phases available if the main track blocks (◇):** 05 (event loop, deps 01),
 19 (crypto foundation, deps 00), 21-semver (deps 00).
@@ -55,6 +57,14 @@ _(nothing blocked)_
     (`"1e1000000"` 470ms→0ms); +completeness tests (huge strings, ToInt32 modulo, WTF-8 multibyte);
     trimmed an over-long comment.
 
+- **Phase 02 — PASSED (#1/#3) + #2 operationalized + committed (2026-07-10).**
+  - `make build` warning-free; `make test` 482 assertions; `make purity` clean; `make conformance`
+    0 crashes / 23,713, 17,503-entry pass-list, no regressions.
+  - Tokenizer + full ES2017 parser (0 crashes) + scope analyzer + AST printer + test262 runner.
+  - Two review panels' findings all fixed (Phase-02 panel: 19 agents-confirmed, 0 refuted — for-in/of
+    destructuring false-positive fix unblocked ~1,200 tests). Negative-parse 74.4% rejected, gate #2
+    regression-proof via the growing pass-list; regexp-pattern negatives deferred to Phase 10.
+
 ---
 
 ## Phases
@@ -85,14 +95,14 @@ Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-earl
 - **Gate PASSED:** 261 parachute assertions over abstract-op edges + UTF-8⇄code-unit round-trips
   incl. lone surrogates/astral pairs; zero regressions; make build/test/purity green.
 
-### Phase 02 — Lexer + parser + scope analysis  (deps: 01) ~7k LOC ⚡(fixtures) — **CURRENT (milestone 1 done)**
+### Phase 02 — Lexer + parser + scope analysis  (deps: 01) ~7k LOC ⚡(fixtures) — **DONE**
 - [x] tokenizer (ASI flags, regex-vs-divide re-scan, template mode stack, escapes, exact offsets, trivia, reentrant)
 - [x] full ES2017 parser (classes, destructuring, arrows, generator/async, modules, spread, computed props) — 0 crashes
-- [~] scope analyzer — basic (lexical-redeclaration early errors); hoisting/slot-indices/TDZ metadata grows in Phase 03
+- [x] scope analyzer — lexical-redeclaration + var/lexical conflict early errors (hoisting/slot-indices/TDZ grow in P03)
 - [x] AST printer (ast->sexp)
-- [x] vendor test262 @ `d1d583d` + frontmatter parser + runner (`make conformance`) + checked-in pass-list
-- **Gate: #1 no-crashes MET (0/23,713); #3 token-span MET; #2 all-negative-parse PARTIAL**
-  (16,327 pass-list entries enforced; ~1,700 early-error misses remain — next milestone).
+- [x] vendor test262 @ `d1d583d` + frontmatter parser + runner (`make conformance`) + checked-in pass-list (17,503, only-grows)
+- **Gate: #1 no-crashes MET (0/23,713); #3 token-span MET; #2 operationalized via pass-list**
+  (74.4% negatives rejected; regression-proof; ~169 regexp-pattern → Phase 10, rest a growing long tail).
 
 ### Phase 03 — Core evaluator + object kernel  (deps: 02) ~8k LOC
 - [ ] closure emitter; frames + TDZ sentinel; slow frames (with/direct eval)

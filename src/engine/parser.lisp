@@ -16,7 +16,9 @@
   (allow-yield nil)
   (allow-await nil)
   (allow-in t)
-  (allow-return nil)
+  (in-parameters nil)
+  (labels nil)                 ; active enclosing label names (reset per function)
+  (allow-super nil)            ; super.x / super() allowed (inside a method)
   (source-type :script))
 
 (defmacro with-iteration (p &body body)
@@ -25,6 +27,14 @@
     `(let ((,old (parser-in-iteration ,p)))
        (setf (parser-in-iteration ,p) t)
        (unwind-protect (progn ,@body) (setf (parser-in-iteration ,p) ,old)))))
+
+(defmacro with-in (p &body body)
+  "Parse BODY with `in` re-enabled — the [~In] restriction of a for-init only
+applies to its top-level relational chain, not to bracketed sub-expressions."
+  (let ((old (gensym)))
+    `(let ((,old (parser-allow-in ,p)))
+       (setf (parser-allow-in ,p) t)
+       (unwind-protect (progn ,@body) (setf (parser-allow-in ,p) ,old)))))
 
 (defun syntax-error (p fmt &rest args)
   (let ((tok (parser-cur p)))
@@ -71,6 +81,10 @@
 (defun punct? (p str) (and (eq (cur-type p) :punct) (string= (cur-val p) str)))
 (defun name? (p str)  (and (eq (cur-type p) :name) (string= (cur-val p) str)))
 (defun name-tok? (p) (eq (cur-type p) :name))
+(defun cur-escaped-p (p) (token-escaped (parser-cur p)))
+(defun kw? (p str)
+  "CUR is the keyword STR written WITHOUT escapes (an escaped keyword is an identifier)."
+  (and (name? p str) (not (cur-escaped-p p))))
 
 (defun eat-punct (p str)
   (unless (punct? p str) (syntax-error p "expected '~a' but got ~a" str (describe-cur p)))
@@ -151,8 +165,7 @@ expression is not a directive — we snapshot and rewind so the caller parses it
                                     :directive dir)
                                    start (parser-prev-end p))
                            dirs))
-                   (progn (restore p save) (return))))
-          finally (return (nreverse dirs)))
+                   (progn (restore p save) (return)))))
     (nreverse dirs)))
 
 ;;; --- statements -------------------------------------------------------------
@@ -170,27 +183,27 @@ expression is not a directive — we snapshot and rewind so the caller parses it
 
 (defun parse-statement-or-decl (p)
   (cond
-    ((name? p "function") (parse-function-declaration p nil))
-    ((name? p "class") (parse-class p t))
-    ((or (name? p "const") (name-let-decl-p p))
+    ((kw? p "function") (parse-function-declaration p nil))
+    ((kw? p "class") (parse-class p t))
+    ((or (kw? p "const") (name-let-decl-p p))
      (parse-variable-statement p (intern (string-upcase (cur-val p)) :keyword)))
-    ((and (name? p "async") (let ((n (peek p)))
-                              (and (eq (token-type n) :name) (string= (token-value n) "function")
-                                   (not (token-nl-before n)))))
+    ((and (kw? p "async") (let ((n (peek p)))
+                            (and (eq (token-type n) :name) (string= (token-value n) "function")
+                                 (not (token-nl-before n)))))
      (parse-function-declaration p t))
     ((and (eq (parser-source-type p) :module)
-          (or (name? p "import") (name? p "export"))
+          (or (kw? p "import") (kw? p "export"))
           ;; import( and import. are expressions, not declarations
-          (not (and (name? p "import")
+          (not (and (kw? p "import")
                     (let ((n (peek p)))
                       (and (eq (token-type n) :punct)
                            (member (token-value n) '("(" ".") :test #'string=))))))
-     (if (name? p "import") (parse-import p) (parse-export p)))
+     (if (kw? p "import") (parse-import p) (parse-export p)))
     (t (parse-statement p))))
 
 (defun name-let-decl-p (p)
-  "True if CUR is `let` beginning a lexical declaration (let [ / let { / let name)."
-  (and (name? p "let")
+  "True if CUR is `let` (unescaped) beginning a lexical declaration (let [ / { / name)."
+  (and (kw? p "let")
        (let ((n (peek p)))
          (or (and (eq (token-type n) :punct) (member (token-value n) '("[" "{") :test #'string=))
              (eq (token-type n) :name)))))
@@ -206,6 +219,8 @@ expression is not a directive — we snapshot and rewind so the caller parses it
       (:name
        (let ((n (cur-val p)))
          (cond
+           ;; an escaped keyword is never a keyword — it is a plain identifier
+           ((cur-escaped-p p) (parse-expression-or-labeled p))
            ((string= n "var") (parse-variable-statement p :var))
            ((string= n "if") (parse-if p))
            ((string= n "for") (parse-for p))
@@ -237,8 +252,13 @@ expression is not a directive — we snapshot and rewind so the caller parses it
     (if (and (name-tok? p) (not (reserved-word-p p (cur-val p)))
              (let ((n (peek p))) (and (eq (token-type n) :punct) (string= (token-value n) ":"))))
         (let ((label (cur-val p)))
+          (when (member label (parser-labels p) :test #'string=)
+            (syntax-error p "label '~a' has already been declared" label))
           (advance p) (advance p)              ; name :
-          (let ((body (parse-statement-or-decl p)))
+          (let ((body (let ((old (parser-labels p)))
+                        (setf (parser-labels p) (cons label old))
+                        (unwind-protect (parse-statement-or-decl p)
+                          (setf (parser-labels p) old)))))
             (finish (make-labeled-statement :label label :body body) start (parser-prev-end p))))
         (parse-expression-statement p))))
 
@@ -270,10 +290,15 @@ expression is not a directive — we snapshot and rewind so the caller parses it
         (let* ((dstart (cur-start p))
                (id (parse-binding-target p))
                (init nil))
+          ;; a LexicalDeclaration may not bind `let` (§14.3.1)
+          (when (and (member kind '(:let :const))
+                     (member "let" (binding-bound-names id) :test #'string=))
+            (syntax-error p "'let' is disallowed as a lexically-bound name"))
           (when (punct? p "=")
             (advance p)
             (setf init (if no-in (parse-assignment-no-in p) (parse-assignment p))))
-          (when (and (null init) (not (identifier-p id)))
+          ;; a for-in/of ForBinding (no-in) may be a pattern without an initializer
+          (when (and (null init) (not no-in) (not (identifier-p id)))
             (syntax-error p "destructuring declaration must have an initializer"))
           (when (and (null init) (eq kind :const) (not no-in))
             (syntax-error p "const declaration must have an initializer"))
@@ -366,7 +391,13 @@ expression is not a directive — we snapshot and rewind so the caller parses it
           ;; only sloppy `for (var x = ... in ...)` is allowed (Annex B); never for-of/lexical
           (unless (and (not for-of) (eq kind :var) (not (parser-strict p)))
             (syntax-error p "for-~a binding may not have an initializer"
-                          (if for-of "of" "in")))))))
+                          (if for-of "of" "in"))))
+        ;; a lexical for-binding's bound names must be unique (§14.7.5)
+        (when (member kind '(:let :const))
+          (let ((names (binding-bound-names (variable-declarator-id d))))
+            (unless (= (length names) (length (remove-duplicates names :test #'string=)))
+              (syntax-error p "duplicate binding name in for-~a head"
+                            (if for-of "of" "in"))))))))
   ;; `for (let ... of ...)` / `for (async of ...)` head restriction: an expression
   ;; left side must be a valid assignment target (checked by expr-to-pattern)
   (unless (or (variable-declaration-p init) init)
@@ -441,10 +472,12 @@ expression is not a directive — we snapshot and rewind so the caller parses it
       (when (and (name-tok? p) (not (nl-before-p p)) (not (reserved-word-p p (cur-val p))))
         (setf label (cur-val p)) (advance p))
       (consume-semicolon p)
-      (unless label
-        (cond (break-p (unless (or (parser-in-iteration p) (parser-in-switch p))
-                         (syntax-error p "illegal break")))
-              (t (unless (parser-in-iteration p) (syntax-error p "illegal continue")))))
+      (if label
+          (unless (member label (parser-labels p) :test #'string=)
+            (syntax-error p "undefined label '~a'" label))
+          (cond (break-p (unless (or (parser-in-iteration p) (parser-in-switch p))
+                           (syntax-error p "illegal break")))
+                (t (unless (parser-in-iteration p) (syntax-error p "illegal continue")))))
       (if break-p
           (finish (make-break-statement :label label) start (parser-prev-end p))
           (finish (make-continue-statement :label label) start (parser-prev-end p))))))
@@ -488,6 +521,8 @@ expression is not a directive — we snapshot and rewind so the caller parses it
   (let ((start (cur-start p)))
     ;; yield (in generator)
     (when (and (parser-allow-yield p) (name? p "yield"))
+      (when (parser-in-parameters p)
+        (syntax-error p "yield is not allowed in generator parameters"))
       (return-from parse-assignment (parse-yield p)))
     ;; arrow fast paths
     (let ((arrow (try-parse-arrow p start)))
@@ -573,7 +608,8 @@ expression is not a directive — we snapshot and rewind so the caller parses it
         (left (parse-unary p)))
     (if (punct? p "**")
         (progn
-          (when (unary-expression-p left)
+          ;; a bare (unparenthesized) UnaryExpression is not a valid ** base (§13.6)
+          (when (and (unary-expression-p left) (not (node-parenthesized left)))
             (syntax-error p "unary operand of ** must be parenthesized"))
           (advance p)
           (finish (make-binary-expression :operator "**" :left left :right (parse-exponent p))
@@ -602,6 +638,8 @@ expression is not a directive — we snapshot and rewind so the caller parses it
                                          :argument (check-simple-target p (parse-unary p)))
                  start (parser-prev-end p))))
       ((and (parser-allow-await p) (name? p "await"))
+       (when (parser-in-parameters p)
+         (syntax-error p "await is not allowed in async function parameters"))
        (advance p)
        (finish (make-await-expression :argument (parse-unary p)) start (parser-prev-end p)))
       (t (parse-postfix p)))))
@@ -631,6 +669,8 @@ expression is not a directive — we snapshot and rewind so the caller parses it
     (when (punct? p ".")                       ; new.target
       (advance p)
       (unless (name? p "target") (syntax-error p "expected 'target' after 'new.'"))
+      (unless (parser-in-function p)
+        (syntax-error p "new.target is only allowed inside functions"))
       (advance p)
       (return-from parse-new
         (finish (make-meta-property :meta "new" :property "target") start (parser-prev-end p))))
@@ -648,11 +688,11 @@ expression is not a directive — we snapshot and rewind so the caller parses it
                                                   :computed nil)
                           start (parser-prev-end p))))
       ((punct? p "[") (advance p)
-       (let ((prop (parse-expression p))) (eat-punct p "]")
+       (let ((prop (with-in p (parse-expression p)))) (eat-punct p "]")
          (setf expr (finish (make-member-expression :object expr :property prop :computed t)
                             start (parser-prev-end p)))))
       ((eq (cur-type p) :template)
-       (setf expr (finish (make-tagged-template :tag expr :quasi (parse-template p))
+       (setf expr (finish (make-tagged-template :tag expr :quasi (parse-template p t))
                           start (parser-prev-end p))))
       (t (return expr)))))
 
@@ -664,14 +704,14 @@ expression is not a directive — we snapshot and rewind so the caller parses it
                                                   :computed nil)
                           start (parser-prev-end p))))
       ((punct? p "[") (advance p)
-       (let ((prop (parse-expression p))) (eat-punct p "]")
+       (let ((prop (with-in p (parse-expression p)))) (eat-punct p "]")
          (setf expr (finish (make-member-expression :object expr :property prop :computed t)
                             start (parser-prev-end p)))))
       ((punct? p "(")
        (setf expr (finish (make-call-expression :callee expr :arguments (parse-arguments p))
                           start (parser-prev-end p))))
       ((eq (cur-type p) :template)
-       (setf expr (finish (make-tagged-template :tag expr :quasi (parse-template p))
+       (setf expr (finish (make-tagged-template :tag expr :quasi (parse-template p t))
                           start (parser-prev-end p))))
       (t (return expr)))))
 
@@ -684,17 +724,18 @@ expression is not a directive — we snapshot and rewind so the caller parses it
 
 (defun parse-arguments (p)
   (eat-punct p "(")
-  (let ((args '()))
-    (loop until (punct? p ")")
-          do (if (punct? p "...")
-                 (let ((s (cur-start p))) (advance p)
-                   (push (finish (make-spread-element :argument (parse-assignment p))
-                                 s (parser-prev-end p))
-                         args))
-                 (push (parse-assignment p) args))
-             (if (punct? p ",") (advance p) (return)))
-    (eat-punct p ")")
-    (nreverse args)))
+  (with-in p                                   ; `in` is allowed inside argument lists
+    (let ((args '()))
+      (loop until (punct? p ")")
+            do (if (punct? p "...")
+                   (let ((s (cur-start p))) (advance p)
+                     (push (finish (make-spread-element :argument (parse-assignment p))
+                                   s (parser-prev-end p))
+                           args))
+                   (push (parse-assignment p) args))
+               (if (punct? p ",") (advance p) (return)))
+      (eat-punct p ")")
+      (nreverse args))))
 
 ;;; --- primary expressions ----------------------------------------------------
 
@@ -727,7 +768,12 @@ expression is not a directive — we snapshot and rewind so the caller parses it
     (cond
       ((string= name "this") (advance p)
        (finish (make-this-expression) start (parser-prev-end p)))
-      ((string= name "super") (advance p)
+      ((string= name "super")
+       (unless (parser-allow-super p)
+         (syntax-error p "'super' is only allowed inside methods"))
+       (advance p)
+       (unless (or (punct? p ".") (punct? p "[") (punct? p "("))
+         (syntax-error p "'super' must be followed by a member access or arguments"))
        (finish (make-super-node) start (parser-prev-end p)))
       ((string= name "null") (advance p)
        (finish (make-literal :value +null+ :kind :null) start (parser-prev-end p)))
@@ -745,16 +791,24 @@ expression is not a directive — we snapshot and rewind so the caller parses it
       ((member name '("in" "instanceof" "new" "delete" "typeof" "void" "return"
                       "if" "else" "for" "while" "do" "switch" "case" "default"
                       "break" "continue" "var" "const" "with" "throw" "try" "catch"
-                      "finally" "debugger" "export" "extends") :test #'string=)
+                      "finally" "debugger" "export" "extends" "import" "catch"
+                      "enum") :test #'string=)
+       ;; `import` as an expression = dynamic import / import.meta — not in the v1
+       ;; tier; reject cleanly (also rejects the dynamic-import negative-parse corpus).
        (syntax-error p "unexpected reserved word '~a'" name))
       (t (advance p)
          (finish (make-identifier :name name) start (parser-prev-end p))))))
 
-(defun parse-template (p)
-  "Assemble a TemplateLiteral (or NoSubstitutionTemplate)."
+(defun parse-template (p &optional tagged)
+  "Assemble a TemplateLiteral. Untagged templates reject invalid escapes (cooked=nil);
+tagged templates allow them (TRV survives, TV = undefined)."
   (let ((start (cur-start p))
         (quasis '()) (exprs '()))
+    (flet ((check-cooked (tok)
+             (when (and (not tagged) (null (token-value tok)))
+               (syntax-error p "invalid escape sequence in template literal"))))
     (let ((head (parser-cur p)))
+      (check-cooked head)
       (advance p)
       (push (te head) quasis)
       (when (eq (token-tmpl-part head) :full)
@@ -763,19 +817,20 @@ expression is not a directive — we snapshot and rewind so the caller parses it
                   start (parser-prev-end p))))
       ;; head ended at ${ : parse expr, then `}`->reread middle/tail
       (loop
-        (push (parse-expression p) exprs)
+        (push (with-in p (parse-expression p)) exprs)
         (unless (punct? p "}") (syntax-error p "expected '}' in template"))
         ;; cur is the `}`; resume the template from just past it via reread-template,
         ;; then lex the token following the middle/tail into cur.
         (let* ((lx (parser-lexer p))
                (cont (progn (setf (lexer-pos lx) (1+ (token-start (parser-cur p))))
                             (reread-template lx))))
+          (check-cooked cont)
           (setf (parser-prev-end p) (token-end cont)
                 (parser-cur p) (next-token lx (parser-strict p)))
           (push (te cont) quasis)
           (when (eq (token-tmpl-part cont) :tail) (return))))
       (finish (make-template-literal :quasis (nreverse quasis) :expressions (nreverse exprs))
-              start (parser-prev-end p)))))
+              start (parser-prev-end p))))))
 
 (defun te (tok)
   (finish (make-template-element :cooked (token-value tok) :raw (token-raw tok)
@@ -785,7 +840,8 @@ expression is not a directive — we snapshot and rewind so the caller parses it
 (defun parse-array-literal (p)
   (let ((start (cur-start p)))
     (eat-punct p "[")
-    (let ((elts '()))
+    (with-in p                                 ; `in` is allowed inside array literals
+     (let ((elts '()))
       (loop until (punct? p "]")
             do (cond
                  ((punct? p ",") (advance p) (push nil elts))   ; hole
@@ -798,17 +854,22 @@ expression is not a directive — we snapshot and rewind so the caller parses it
                  (t (push (parse-assignment p) elts)
                     (unless (punct? p "]") (eat-punct p ",")))))
       (eat-punct p "]")
-      (finish (make-array-expression :elements (nreverse elts)) start (parser-prev-end p)))))
+      (finish (make-array-expression :elements (nreverse elts)) start (parser-prev-end p))))))
 
 (defun parse-object-literal (p)
+  ;; NOTE: the duplicate-__proto__ early error is deferred — it applies to object
+  ;; LITERALS but not to object destructuring PATTERNS, and the cover grammar parses
+  ;; both as an object-expression first. A correct check belongs in a post-refinement
+  ;; pass (future milestone), not here.
   (let ((start (cur-start p)))
     (eat-punct p "{")
-    (let ((props '()))
+    (with-in p                                 ; `in` is allowed inside object literals
+     (let ((props '()))
       (loop until (punct? p "}")
             do (push (parse-object-member p) props)
                (unless (punct? p "}") (eat-punct p ",")))
       (eat-punct p "}")
-      (finish (make-object-expression :properties (nreverse props)) start (parser-prev-end p)))))
+      (finish (make-object-expression :properties (nreverse props)) start (parser-prev-end p))))))
 
 (defun parse-object-member (p)
   (let ((start (cur-start p)))
@@ -817,7 +878,7 @@ expression is not a directive — we snapshot and rewind so the caller parses it
       (return-from parse-object-member
         (finish (make-spread-element :argument (parse-assignment p)) start (parser-prev-end p))))
     (let ((async nil) (gen nil) (kind :init))
-      (when (and (name? p "async") (not (member-follows-p p)))
+      (when (name? p "async")
         (let ((n (peek p)))
           (unless (or (token-nl-before n) (and (eq (token-type n) :punct)
                                                (member (token-value n) '(":" "," "}" "(" "=") :test #'string=)))
@@ -832,10 +893,12 @@ expression is not a directive — we snapshot and rewind so the caller parses it
         (cond
           ((punct? p "(")                      ; method
            (let ((fn (parse-method-tail p async gen)))
+             (check-accessor-arity p kind (function-node-params fn))
              (finish (make-property :key key :value fn :kind (if (member kind '(:get :set)) kind :init)
                                     :computed computed :method (eq kind :init))
                      start (parser-prev-end p))))
           ((member kind '(:get :set)) (syntax-error p "accessor must be a method"))
+          ((or async gen) (syntax-error p "a generator/async object member must be a method"))
           ((punct? p ":")                      ; key: value
            (advance p)
            (finish (make-property :key key :value (parse-assignment p) :kind :init
@@ -852,13 +915,11 @@ expression is not a directive — we snapshot and rewind so the caller parses it
            (finish (make-property :key key :value key :kind :init :shorthand t)
                    start (parser-prev-end p))))))))
 
-(defun member-follows-p (p) (declare (ignore p)) nil)
-
 (defun parse-property-key (p)
   "Return (values key computed?)."
   (cond
     ((punct? p "[") (advance p)
-     (let ((e (parse-assignment p))) (eat-punct p "]") (values e t)))
+     (let ((e (with-in p (parse-assignment p)))) (eat-punct p "]") (values e t)))
     ((eq (cur-type p) :string)
      (let ((s (cur-start p)) (v (cur-val p))) (advance p)
        (values (finish (make-literal :value v :kind :string) s (parser-prev-end p)) nil)))
@@ -891,56 +952,90 @@ expression is not a directive — we snapshot and rewind so the caller parses it
       (when (and declaration (null id)) (syntax-error p "function declaration requires a name"))
       (let ((old-y (parser-allow-yield p)) (old-a (parser-allow-await p))
             (old-f (parser-in-function p)) (old-i (parser-in-iteration p))
-            (old-s (parser-in-switch p)))
+            (old-s (parser-in-switch p)) (old-strict (parser-strict p))
+            (old-labels (parser-labels p)) (old-super (parser-allow-super p)))
         (setf (parser-allow-yield p) gen (parser-allow-await p) async
-              (parser-in-function p) t (parser-in-iteration p) nil (parser-in-switch p) nil)
+              (parser-in-function p) t (parser-in-iteration p) nil (parser-in-switch p) nil
+              (parser-labels p) nil (parser-allow-super p) nil)
         (unwind-protect
              (let* ((params (parse-params p))
-                    (body (parse-function-body p)))
+                    (body (parse-function-body p)))    ; may set strict via prologue
+               ;; params must be unique if strict, generator, async, or non-simple
+               (when (or (parser-strict p) gen async (not (simple-params-p params)))
+                 (check-unique-params p params))
                (finish (make-function-node :id id :params params :body body :generator gen
                                            :async async :declaration declaration)
                        start (parser-prev-end p)))
           (setf (parser-allow-yield p) old-y (parser-allow-await p) old-a
                 (parser-in-function p) old-f (parser-in-iteration p) old-i
-                (parser-in-switch p) old-s))))))
+                (parser-in-switch p) old-s (parser-strict p) old-strict
+                (parser-labels p) old-labels (parser-allow-super p) old-super))))))
 
 (defun parse-method-tail (p async gen)
-  "Parse `(params) { body }` for an object/class method with the given flags."
+  "Parse `(params) { body }` for an object/class method with the given flags.
+Method parameters must always be unique."
   (let ((start (cur-start p))
         (old-y (parser-allow-yield p)) (old-a (parser-allow-await p))
-        (old-f (parser-in-function p)) (old-i (parser-in-iteration p)) (old-s (parser-in-switch p)))
+        (old-f (parser-in-function p)) (old-i (parser-in-iteration p)) (old-s (parser-in-switch p))
+        (old-strict (parser-strict p)) (old-labels (parser-labels p))
+        (old-super (parser-allow-super p)))
     (setf (parser-allow-yield p) gen (parser-allow-await p) async
-          (parser-in-function p) t (parser-in-iteration p) nil (parser-in-switch p) nil)
+          (parser-in-function p) t (parser-in-iteration p) nil (parser-in-switch p) nil
+          (parser-labels p) nil (parser-allow-super p) t)  ; methods may use super
     (unwind-protect
          (let* ((params (parse-params p)) (body (parse-function-body p)))
+           (check-unique-params p params)
            (finish (make-function-node :params params :body body :generator gen :async async)
                    start (parser-prev-end p)))
       (setf (parser-allow-yield p) old-y (parser-allow-await p) old-a
-            (parser-in-function p) old-f (parser-in-iteration p) old-i (parser-in-switch p) old-s))))
+            (parser-in-function p) old-f (parser-in-iteration p) old-i (parser-in-switch p) old-s
+            (parser-strict p) old-strict (parser-labels p) old-labels
+            (parser-allow-super p) old-super))))
 
 (defun parse-function-body (p)
+  "Parse `{ ... }`. May set the parser's strict flag via a directive prologue; the
+caller is responsible for restoring it (functions/methods/arrows do so)."
   (let ((start (cur-start p)))
     (eat-punct p "{")
-    (let ((old (parser-strict p)))
-      (let ((body (parse-statements-until p "}" t)))
-        (eat-punct p "}")
-        (prog1 (finish (make-block-statement :body body) start (parser-prev-end p))
-          (setf (parser-strict p) old))))))
+    (let ((body (parse-statements-until p "}" t)))
+      (eat-punct p "}")
+      (finish (make-block-statement :body body) start (parser-prev-end p)))))
 
 (defun parse-params (p)
   (eat-punct p "(")
-  (let ((params '()))
-    (loop until (punct? p ")")
-          do (if (punct? p "...")
-                 (let ((s (cur-start p))) (advance p)
-                   (push (finish (make-rest-element :argument (parse-binding-target p))
-                                 s (parser-prev-end p))
-                         params)
-                   (unless (punct? p ")") (syntax-error p "rest parameter must be last")))
-                 (push (parse-binding-element p) params))
-             (if (punct? p ",") (advance p) (return)))
+  (let ((params '()) (old-ip (parser-in-parameters p)))
+    (setf (parser-in-parameters p) t)          ; forbid await/yield exprs in params
+    (unwind-protect
+         (loop until (punct? p ")")
+               do (if (punct? p "...")
+                      (let ((s (cur-start p))) (advance p)
+                        (push (finish (make-rest-element :argument (parse-binding-target p))
+                                      s (parser-prev-end p))
+                              params)
+                        (unless (punct? p ")") (syntax-error p "rest parameter must be last")))
+                      (push (parse-binding-element p) params))
+                  (if (punct? p ",") (advance p) (return)))
+      (setf (parser-in-parameters p) old-ip))
     (eat-punct p ")")
     (nreverse params)))
+
+(defun simple-params-p (params)
+  (every #'identifier-p params))
+
+(defun check-unique-params (p params)
+  "Signal a SyntaxError on any duplicate bound parameter name."
+  (let ((seen (make-hash-table :test 'equal)))
+    (dolist (pp params)
+      (dolist (n (binding-bound-names pp))
+        (when (gethash n seen) (syntax-error p "duplicate parameter name '~a'" n))
+        (setf (gethash n seen) t)))))
+
+(defun check-accessor-arity (p kind params)
+  "Getter takes no params; setter takes exactly one non-rest param (§B / class)."
+  (case kind
+    (:get (when params (syntax-error p "getter must not have parameters")))
+    (:set (unless (and (= 1 (length params)) (not (rest-element-p (first params))))
+            (syntax-error p "setter must have exactly one parameter")))))
 
 (defun parse-class (p declaration)
   (let ((start (cur-start p))
@@ -953,10 +1048,14 @@ expression is not a directive — we snapshot and rewind so the caller parses it
                (super nil))
            (when (name? p "extends") (advance p) (setf super (parse-lhs p)))
            (eat-punct p "{")
-           (let ((members '()))
+           (let ((members '()) (ctors 0))
              (loop until (punct? p "}")
                    do (if (punct? p ";") (advance p)
-                          (push (parse-class-member p) members)))
+                          (let ((m (parse-class-member p)))
+                            (when (eq (method-definition-kind m) :constructor)
+                              (when (> (incf ctors) 1)
+                                (syntax-error p "a class may only have one constructor")))
+                            (push m members))))
              (eat-punct p "}")
              (let ((cbody (finish (make-class-body :body (nreverse members))
                                   start (parser-prev-end p))))
@@ -987,12 +1086,23 @@ expression is not a directive — we snapshot and rewind so the caller parses it
     (multiple-value-bind (key computed) (parse-property-key p)
       (unless (punct? p "(")
         (syntax-error p "class fields are not supported (ES2017 tier)"))
-      (let ((fn (parse-method-tail p async gen)))
+      (let* ((fn (parse-method-tail p async gen))
+             ;; a computed key is never the real constructor/prototype name
+             (name (unless computed
+                     (cond ((identifier-p key) (identifier-name key))
+                           ((and (literal-p key) (eq (literal-kind key) :string)) (literal-value key))
+                           (t nil))))
+             (is-ctor (and (equal name "constructor") (not static)))
+             (is-proto (and (equal name "prototype") static)))
+        (check-accessor-arity p kind (function-node-params fn))
+        (when is-ctor
+          (when (or async gen (member kind '(:get :set)))
+            (syntax-error p "class constructor may not be an accessor, generator, or async")))
+        (when is-proto
+          (syntax-error p "a static class method may not be named 'prototype'"))
         (finish (make-method-definition :key key :value fn
                                         :kind (cond ((member kind '(:get :set)) kind)
-                                                    ((and (identifier-p key)
-                                                          (string= (identifier-name key) "constructor")
-                                                          (not static) (not computed)) :constructor)
+                                                    (is-ctor :constructor)
                                                     (t :method))
                                         :static static :computed computed)
                 start (parser-prev-end p))))))
@@ -1020,6 +1130,8 @@ expression is not a directive — we snapshot and rewind so the caller parses it
             (advance p)                        ; async
             (or (parse-arrow-paren p start t)
                 (progn (restore p save) nil))))
+         ;; `async => …`: `async` is itself the (non-async) single arrow parameter
+         ((arrow-after-ident-p p) (parse-arrow-ident p start nil))
          (t nil))))
     ;; x => ...
     ((and (name-tok? p) (not (reserved-word-p p (cur-val p))) (arrow-after-ident-p p))
@@ -1053,19 +1165,22 @@ expression is not a directive — we snapshot and rewind so the caller parses it
 
 (defun parse-arrow-paren (p start async)
   "Speculatively parse `(params) =>`. Returns the arrow node, or NIL if not an arrow
-(caller restores). Only genuine syntax after a valid param list + => commits."
-  (handler-case
-      (let ((params (parse-params p)))
-        (if (and (punct? p "=>") (not (nl-before-p p)))
-            (progn (advance p) (parse-arrow-body p start params async))
-            nil))
-    (js-native-error () nil)))                 ; not arrow params → let caller fall back
+(caller restores). Errors during param parsing mean 'not an arrow'; once `=>` is
+seen the arrow is committed and body errors propagate."
+  (let ((params (handler-case (parse-params p)
+                  (js-native-error () (return-from parse-arrow-paren nil)))))
+    (if (and (punct? p "=>") (not (nl-before-p p)))
+        (progn (advance p) (parse-arrow-body p start params async))
+        nil)))
 
 (defun parse-arrow-body (p start params async)
+  (check-unique-params p params)               ; arrow params are always unique
   (let ((old-a (parser-allow-await p)) (old-y (parser-allow-yield p))
-        (old-f (parser-in-function p)) (old-i (parser-in-iteration p)) (old-s (parser-in-switch p)))
+        (old-f (parser-in-function p)) (old-i (parser-in-iteration p)) (old-s (parser-in-switch p))
+        (old-strict (parser-strict p)) (old-labels (parser-labels p)))
     (setf (parser-allow-await p) async (parser-allow-yield p) nil
-          (parser-in-function p) t (parser-in-iteration p) nil (parser-in-switch p) nil)
+          (parser-in-function p) t (parser-in-iteration p) nil (parser-in-switch p) nil
+          (parser-labels p) nil)
     (unwind-protect
          (if (punct? p "{")
              (let ((body (parse-function-body p)))
@@ -1075,15 +1190,17 @@ expression is not a directive — we snapshot and rewind so the caller parses it
                (finish (make-arrow-function :params params :body body :async async :expression t)
                        start (parser-prev-end p))))
       (setf (parser-allow-await p) old-a (parser-allow-yield p) old-y
-            (parser-in-function p) old-f (parser-in-iteration p) old-i (parser-in-switch p) old-s))))
+            (parser-in-function p) old-f (parser-in-iteration p) old-i (parser-in-switch p) old-s
+            (parser-strict p) old-strict (parser-labels p) old-labels))))
 
 (defun parse-paren-or-arrow-expr (p)
   "A `(` in primary position that was NOT an arrow (arrows are handled earlier):
 a parenthesized expression."
   (eat-punct p "(")
   (when (punct? p ")") (syntax-error p "unexpected ')'"))
-  (let ((expr (parse-expression p)))
+  (let ((expr (with-in p (parse-expression p))))   ; `in` is allowed inside parens
     (eat-punct p ")")
+    (setf (node-parenthesized expr) t)             ; a valid ** base
     expr))
 
 ;;; --- bindings & patterns ----------------------------------------------------
@@ -1177,27 +1294,31 @@ a parenthesized expression."
     (member-expression node)
     (array-expression
      (finish (make-array-pattern
-              :elements (mapcar (lambda (e)
-                                  (cond ((null e) nil)
-                                        ((spread-element-p e)
-                                         (finish (make-rest-element
-                                                  :argument (expr-to-pattern p (spread-element-argument e)))
-                                                 (node-start e) (node-end e)))
-                                        (t (expr-to-pattern p e))))
-                                (array-expression-elements node)))
+              :elements (loop for rest on (array-expression-elements node)
+                              for e = (car rest)
+                              collect (cond ((null e) nil)
+                                            ((spread-element-p e)
+                                             (when (cdr rest)
+                                               (syntax-error p "rest element must be last"))
+                                             (finish (make-rest-element
+                                                      :argument (expr-to-pattern p (spread-element-argument e)))
+                                                     (node-start e) (node-end e)))
+                                            (t (expr-to-pattern p e)))))
              (node-start node) (node-end node)))
     (object-expression
      (finish (make-object-pattern
-              :properties (mapcar (lambda (pr)
-                                    (cond
-                                      ((spread-element-p pr)
-                                       (finish (make-rest-element
-                                                :argument (expr-to-pattern p (spread-element-argument pr)))
-                                               (node-start pr) (node-end pr)))
-                                      (t (setf (property-value pr)
-                                               (expr-to-pattern p (property-value pr)))
-                                         pr)))
-                                  (object-expression-properties node)))
+              :properties (loop for rest on (object-expression-properties node)
+                                for pr = (car rest)
+                                collect (cond
+                                          ((spread-element-p pr)
+                                           (when (cdr rest)
+                                             (syntax-error p "rest element must be last"))
+                                           (finish (make-rest-element
+                                                    :argument (expr-to-pattern p (spread-element-argument pr)))
+                                                   (node-start pr) (node-end pr)))
+                                          (t (setf (property-value pr)
+                                                   (expr-to-pattern p (property-value pr)))
+                                             pr))))
              (node-start node) (node-end node)))
     (assignment-expression
      (if (string= (assignment-expression-operator node) "=")

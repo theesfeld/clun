@@ -6,20 +6,6 @@
 
 (in-package :clun.engine)
 
-(defun binding-bound-names (node)
-  "The identifier names bound by a binding target / pattern NODE."
-  (typecase node
-    (identifier (list (identifier-name node)))
-    (array-pattern (loop for e in (array-pattern-elements node)
-                         when e append (binding-bound-names e)))
-    (object-pattern (loop for pr in (object-pattern-properties node)
-                          append (if (rest-element-p pr)
-                                     (binding-bound-names (rest-element-argument pr))
-                                     (binding-bound-names (property-value pr)))))
-    (assignment-pattern (binding-bound-names (assignment-pattern-left node)))
-    (rest-element (binding-bound-names (rest-element-argument node)))
-    (t nil)))
-
 (defun stmt-lexical-names (s)
   "Lexically-declared names introduced directly by statement S (let/const/class)."
   (typecase s
@@ -35,14 +21,53 @@
                                   nil))
     (t nil)))
 
+(defun var-declared-names (stmts)
+  "VarDeclaredNames of a StatementList: `var` names recursing through nested
+statements but NOT into function/arrow/class bodies (§ static semantics)."
+  (let ((names '()))
+    (labels ((walk (node)
+               (typecase node
+                 (null nil)
+                 (variable-declaration
+                  (when (eq (variable-declaration-kind node) :var)
+                    (dolist (d (variable-declaration-declarations node))
+                      (setf names (nconc names (binding-bound-names (variable-declarator-id d)))))))
+                 (block-statement (mapc #'walk (block-statement-body node)))
+                 (if-statement (walk (if-statement-consequent node))
+                               (walk (if-statement-alternate node)))
+                 (for-statement (walk (for-statement-init node)) (walk (for-statement-body node)))
+                 (for-in-statement (walk (for-in-statement-left node))
+                                   (walk (for-in-statement-body node)))
+                 (for-of-statement (walk (for-of-statement-left node))
+                                   (walk (for-of-statement-body node)))
+                 (while-statement (walk (while-statement-body node)))
+                 (do-while-statement (walk (do-while-statement-body node)))
+                 (with-statement (walk (with-statement-body node)))
+                 (labeled-statement (walk (labeled-statement-body node)))
+                 (switch-statement (dolist (c (switch-statement-cases node))
+                                     (mapc #'walk (switch-case-consequent c))))
+                 (try-statement (walk (try-statement-block node))
+                                (when (try-statement-handler node)
+                                  (walk (catch-clause-body (try-statement-handler node))))
+                                (walk (try-statement-finalizer node)))
+                 (t nil))))                     ; do NOT descend into function/class bodies
+      (mapc #'walk stmts))
+    names))
+
 (defun check-lexical-scope (stmts)
-  "Signal a SyntaxError on duplicate lexical declarations directly in STMTS."
-  (let ((seen (make-hash-table :test 'equal)))
+  "SyntaxError on duplicate lexical declarations directly in STMTS, or a lexical
+name that also appears among the block's VarDeclaredNames (§14.2.1)."
+  (let ((lex (make-hash-table :test 'equal)))
     (dolist (s stmts)
       (dolist (n (stmt-lexical-names s))
-        (when (gethash n seen)
+        (when (gethash n lex)
           (throw-syntax-error (format nil "duplicate lexical declaration '~a'" n)))
-        (setf (gethash n seen) t)))))
+        (setf (gethash n lex) t)))
+    (when (plusp (hash-table-count lex))
+      (dolist (v (var-declared-names stmts))
+        (when (gethash v lex)
+          (throw-syntax-error
+           (format nil "'~a' is declared both lexically and with var" v)))))))
 
 (defun analyze-scope-body (stmts)
   "Check STMTS as one lexical scope, then recurse into sub-scopes."
