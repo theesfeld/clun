@@ -1,0 +1,24 @@
+# Build output
+/build/
+
+# Compiled Lisp
+*.fasl
+*.fasl-tmp
+*.abcl
+*.dx64fsl
+
+# ASDF / implementation caches that might leak in-tree
+.cache/
+.asdf-cache/
+
+# Editor / OS cruft
+*~
+.#*
+\#*\#
+.DS_Store
+
+# Test scratch
+/tmp-test/
+
+# Claude Code local settings (per-user, not shared)
+/.claude/settings.local.json

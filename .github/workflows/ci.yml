@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-test-purity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Pin SBCL to the version the plan targets (PLAN.md host toolchain).
+      - name: Install SBCL 2.6.4
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential zstd libzstd-dev curl bzip2
+          curl -L -o sbcl.tar.bz2 \
+            https://downloads.sourceforge.net/project/sbcl/sbcl/2.6.4/sbcl-2.6.4-x86-64-linux-binary.tar.bz2
+          tar xjf sbcl.tar.bz2
+          cd sbcl-2.6.4-x86-64-linux
+          sudo bash install.sh
+          sbcl --version
+
+      - name: make build
+        run: make build
+
+      - name: clun --version
+        run: |
+          out="$(./build/clun --version)"
+          echo "$out"
+          test "$out" = "clun 0.0.1-dev"
+
+      - name: make test
+        run: make test
+
+      - name: make purity
+        run: make purity
