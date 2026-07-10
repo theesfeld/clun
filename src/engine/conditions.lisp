@@ -36,10 +36,15 @@
   "Propagate a JS `throw VALUE` as a CL condition."
   (error 'js-condition :value value))
 
+(defvar *make-error-object* nil
+  "Installed by realm.lisp (Phase 03): (kind message) -> a real JS Error object.")
+
 (defun throw-native-error (kind message)
-  ;; Until Phase 04 the placeholder :value is the condition's own message; Phase 04
-  ;; redefines this to construct a real JS Error object and pass it as :value.
-  (error 'js-native-error :kind kind :message message :value message))
+  ;; With a realm, throw a real Error object wrapped in a js-condition; before the
+  ;; realm exists (early bootstrap / unit tests) fall back to the js-native-error.
+  (if *make-error-object*
+      (error 'js-condition :value (funcall *make-error-object* kind message))
+      (error 'js-native-error :kind kind :message message :value message)))
 
 (defun throw-type-error (message)      (throw-native-error :type-error message))
 (defun throw-range-error (message)     (throw-native-error :range-error message))

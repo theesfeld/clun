@@ -5,25 +5,23 @@ Update before every commit. Seeded from PLAN.md §5.
 
 ---
 
-## Current phase: **03 — Core evaluator + object kernel**  (Phase 02 committed; gate #1/#3 met, #2 operationalized)
+## Current phase: **04 — Stdlib core**  (Phase 03 committed; execution gate MET at 72.8%)
 
-**Phase 02 outcome:** tokenizer + full ES2017 parser + scope analyzer + AST printer + test262 runner,
-all green. Over 23,713 language tests: **0 crashes** (gate #1 MET), token-span property (gate #3 MET),
-**17,503-entry pass-list** enforced by `make conformance` (regression- + crash-gated, only-grows via
-union). Gate #2 ("all negative-parse → SyntaxError") is **operationalized** via the pass-list (§3.1):
-~74.4% of negatives rejected (3,312/4,452); the mechanism prevents any negative from regressing
-(reject→accept leaves the list → gate fails). Not at 100% — ~169 remaining are regexp-PATTERN
-negatives needing the **Phase 10** regexp parser, the rest a long tail the pass-list grows toward
-(Phase 03+ continues it per "pass-list workflow live in CI from here on"). 19-finding review panel: all
-fixed.
+**Phase 03 outcome:** the engine EXECUTES JavaScript. Object kernel (descriptors, ptable storage,
+CLOS-generic internal methods, Array exotic), runtime environments, operators, callables, realm +
+~60 built-ins, the closure emitter, and the evaluator are all built and green. Measured **72.8% pass
+(5,460/7,500)** on the curated language slice (minus generators/async/modules) in BOTH strict+sloppy
+— **gate ≥70% MET** — with only 3 crashes (all fixed → 0). 570 CL unit tests pass. The conformance
+runner has an EXECUTION phase (`make conformance-exec`, CLUN_EXEC=1) with a checked-in monotonic
+exec-passlist alongside the parse-passlist.
 
-**Next action:** Begin Phase 03 (Core evaluator + object kernel, ~8k LOC, deps 02 ✓). Write
-`docs/design/phase-03.md` first (closure emitter design; property tables + full descriptors +
-defineProperty; prototype chains; per-realm intrinsics indirection; frames + TDZ sentinel; slow
-frames for with/direct-eval). Then implement the evaluator (both strict+sloppy), functions
-(call/construct, `this`, arguments incl. sloppy aliasing), Array exotic, operators, control flow,
-Error objects with `.stack`. Gate: curated `language/` slice ≥ 70% both modes; `make conformance`
-extends to the EXECUTION phase and the pass-list grows onto executed tests.
+**Next action:** Begin Phase 04 (Stdlib core, ~9k LOC, deps 03 ✓). Write `docs/design/phase-04.md`.
+Broaden the built-ins to raise conformance: Object/Array/String/Number full methods, **Math**, **JSON
+(own parser/printer + Ryū port for Number→String)**, Error hierarchy completeness, Symbol +
+well-knowns, Map/Set/WeakMap/WeakSet (SBCL weak tables), iterator protocol, Date (UTC core). Gate:
+built-ins slices ≥ 65%, overall curated ≥ 55%, Ryū vectors pass. NOTE Phase 03 deferred (candidates
+to revisit): `with`/tagged-templates (loud errors now), full class super/derived semantics, mapped
+sloppy `arguments`, global-scope TDZ, direct eval; generators/async are Phase 06; RegExp is Phase 10.
 
 **Independent phases available if the main track blocks (◇):** 05 (event loop, deps 01),
 19 (crypto foundation, deps 00), 21-semver (deps 00).
@@ -65,7 +63,11 @@ _(nothing blocked)_
     destructuring false-positive fix unblocked ~1,200 tests). Negative-parse 74.4% rejected, gate #2
     regression-proof via the growing pass-list; regexp-pattern negatives deferred to Phase 10.
 
----
+- **Phase 03 — EXECUTION GATE MET + committed (2026-07-10).**
+  - The engine executes real JavaScript. `make build` clean; `make test` 570 assertions; `make purity`
+    clean (90 files); `make conformance-exec` **72.8% pass (5,460/7,500 curated, both modes)**, 0 crashes.
+  - Object kernel + environments + operators + callables + realm/~60 builtins + closure emitter + eval.
+  - Runner extended to an execution phase with a checked-in monotonic exec-passlist.
 
 ## Phases
 
@@ -104,16 +106,16 @@ Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-earl
 - **Gate: #1 no-crashes MET (0/23,713); #3 token-span MET; #2 operationalized via pass-list**
   (74.4% negatives rejected; regression-proof; ~169 regexp-pattern → Phase 10, rest a growing long tail).
 
-### Phase 03 — Core evaluator + object kernel  (deps: 02) ~8k LOC
-- [ ] closure emitter; frames + TDZ sentinel; slow frames (with/direct eval)
-- [ ] property tables + full descriptors + defineProperty; prototype chains; per-realm intrinsics indirection
-- [ ] functions (call/construct, this both modes, arguments incl. sloppy aliasing)
-- [ ] Array exotic; operators (== table, +, relational, instanceof, in, typeof, delete)
-- [ ] try/catch/finally, labels, switch, for-in order; Error objects with .stack
-- **Gate:** curated `language/` slice (minus gen/async/modules) ≥ 70% both modes; pass-list workflow
-  live in CI (`make conformance` fails on any regression).
+### Phase 03 — Core evaluator + object kernel  (deps: 02) ~8k LOC — **DONE (gate MET 72.8%)**
+- [x] closure emitter; frames + TDZ sentinel; (with/direct-eval slow frames → loud errors, deferred)
+- [x] property tables + full descriptors + defineProperty; prototype chains; per-realm intrinsics indirection
+- [x] functions (call/construct, this both modes, arguments — unmapped; sloppy aliasing deferred)
+- [x] Array exotic; operators (== table, +, relational, instanceof, in, typeof, delete)
+- [x] try/catch/finally, labels (incl. labelled break/continue), switch, for-in order; Error objects with .stack
+- **Gate MET:** curated `language/` slice (minus gen/async/modules) 72.8% both modes; execution
+  pass-list workflow live (`make conformance-exec`, crash- + regression-gated, only-grows).
 
-### Phase 04 — Stdlib core  (deps: 03) ~9k LOC ⚡
+### Phase 04 — Stdlib core  (deps: 03) ~9k LOC ⚡ — **CURRENT**
 - [ ] Object, Function, Array (ES2017), String (code-unit exact), Number, Boolean, Math
 - [ ] JSON (own parser/printer + Ryū port for Number→String; known-answer vectors)
 - [ ] Error hierarchy; Symbol + well-knowns; Map/Set/WeakMap/WeakSet (SBCL weak tables); iterator protocol

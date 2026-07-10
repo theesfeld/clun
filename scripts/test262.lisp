@@ -51,7 +51,7 @@
       (utf8->code-units bytes))))
 
 (defun classify (path)
-  "Return :pass, :fail, :skip, or :crash for a single test file."
+  "Return :pass, :fail, :skip, or :crash for a single test file (parse phase)."
   (let* ((src (read-source path))
          (fm (frontmatter src))
          (features (fm-list fm "features:"))
@@ -68,6 +68,57 @@
       ;; crash rather than aborting the whole runner
       (serious-condition () :crash))))
 
+;;; --- execution phase (Phase 03): run harness + includes + test in a fresh realm
+
+(defparameter *exec* (and (sb-ext:posix-getenv "CLUN_EXEC") t))
+(defparameter *harness-root*
+  (merge-pathnames "vendor-data/test262/harness/" cl-user::*clun-root*))
+(defparameter *exec-passlist-path*
+  (merge-pathnames "tests/conformance/exec-passlist.txt" cl-user::*clun-root*))
+(defparameter *harness-cache* (make-hash-table :test 'equal))
+(defun harness (name)
+  (or (gethash name *harness-cache*)
+      (setf (gethash name *harness-cache*)
+            (read-source (merge-pathnames name *harness-root*)))))
+
+;; Post-ES2017 + non-Phase-03 features skipped for the execution gate.
+(defparameter *exec-skip*
+  (append *skip-features*
+          '("generators" "async-iteration" "async-functions" "top-level-await" "class-fields-public"
+            "class-fields-private" "class-methods-private" "class-static-methods-private"
+            "class-static-fields-public" "class-static-fields-private" "class-static-block" "decorators"
+            "Proxy" "Reflect" "SharedArrayBuffer" "Atomics" "BigInt" "object-spread" "object-rest"
+            "iterator-helpers" "tail-call-optimization" "IsHTMLDDA" "cross-realm" "TypedArray"
+            "Array.prototype.flat" "Array.prototype.flatMap" "String.prototype.replaceAll"
+            "regexp-named-groups" "regexp-lookbehind" "regexp-unicode-property-escapes")))
+
+(defun classify-exec (path)
+  "Run PATH's harness+includes+source in both modes; :pass/:fail/:skip/:crash/:tmo."
+  (let* ((src (read-source path))
+         (fm (frontmatter src))
+         (features (fm-list fm "features:"))
+         (flags (fm-list fm "flags:")))
+    (cond
+      ((neg-parse-p fm) :skip)                              ; negative-parse handled by parse phase
+      ((intersection features *exec-skip* :test #'string=) :skip)
+      ((member "module" flags :test #'string=) :skip)
+      ((member "raw" flags :test #'string=) :skip)          ; raw = no harness; handle rarely
+      (t (let ((inc (apply #'concatenate 'string
+                           (mapcar #'harness (fm-list fm "includes:"))))
+               (modes (cond ((member "onlyStrict" flags :test #'string=) '(t))
+                            ((member "noStrict" flags :test #'string=) '(nil))
+                            (t '(nil t))))
+               (result :pass))
+           (dolist (m modes result)
+             (handler-case
+                 (sb-ext:with-timeout 5
+                   (run-source (concatenate 'string (if m "\"use strict\";" "")
+                                            (harness "sta.js") (harness "assert.js") inc src)
+                               :realm (make-realm)))
+               (sb-ext:timeout () (return :fail))
+               (js-condition () (return :fail))
+               (serious-condition () (return-from classify-exec :crash)))))))))
+
 (defun rel-name (path)
   (let ((full (namestring path)) (root (namestring *lang-root*)))
     (subseq full (length root))))
@@ -78,25 +129,28 @@
         #'string< :key #'namestring))
 
 (defun run ()
-  (let ((pass '()) (fail 0) (skip 0) (crash '()) (n 0))
+  (let ((pass '()) (fail 0) (skip 0) (crash '()) (tmo 0) (n 0))
     (dolist (path (all-tests))
       (incf n)
-      (case (classify path)
+      (case (if *exec* (classify-exec path) (classify path))
         (:pass (push (rel-name path) pass))
         (:fail (incf fail))
         (:skip (incf skip))
+        (:tmo (incf tmo) (incf fail))
         (:crash (push (rel-name path) crash))))
     (values (nreverse pass) fail skip (nreverse crash) n)))
 
+(defun passlist-file () (if *exec* *exec-passlist-path* *passlist-path*))
+
 (defun load-passlist ()
-  (when (probe-file *passlist-path*)
-    (with-open-file (in *passlist-path*)
+  (when (probe-file (passlist-file))
+    (with-open-file (in (passlist-file))
       (loop for line = (read-line in nil nil) while line
             for tt = (string-trim '(#\Space #\Return) line)
             unless (or (string= tt "") (char= (char tt 0) #\#)) collect tt))))
 
 (multiple-value-bind (pass fail skip crash total) (run)
-  (format t "~&=== test262 parse phase — ~a files ===~%" total)
+  (format t "~&=== test262 ~a phase — ~a files ===~%" (if *exec* "execution" "parse") total)
   (format t "pass ~a | fail(gap) ~a | skip(unsupported syntax) ~a | CRASH ~a~%"
           (length pass) fail skip (length crash))
   (cond
@@ -115,11 +169,13 @@
                     deliberate false-pass correction, remove them by hand + log in DECISIONS.md:~%"
                  (length dropped))
          (dolist (d dropped) (format t "  - ~a~%" d)))
-       (ensure-directories-exist *passlist-path*)
-       (with-open-file (out *passlist-path* :direction :output :if-exists :supersede
+       (ensure-directories-exist (passlist-file))
+       (with-open-file (out (passlist-file) :direction :output :if-exists :supersede
                                             :if-does-not-exist :create)
-         (format out "# test262 parse-phase pass-list (PLAN.md §3.1). Sorted; only grows.~%")
-         (format out "# Regenerate: CLUN_GEN=1 make conformance. ~a entries.~%" (length union))
+         (format out "# test262 ~a-phase pass-list (PLAN.md §3.1). Sorted; only grows.~%"
+                 (if *exec* "execution" "parse"))
+         (format out "# Regenerate: CLUN_GEN=1 ~:[~;CLUN_EXEC=1 ~]make conformance. ~a entries.~%"
+                 *exec* (length union))
          (dolist (e union) (format out "~a~%" e)))
        (format t "wrote pass-list (~a entries; +~a new)~%"
                (length union) (- (length union) (length existing))))

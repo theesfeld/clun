@@ -115,6 +115,44 @@ in expression position, asks the lexer to rescan a `/` token as a regexp — Aco
 the brittle previous-token heuristic. Template continuations use the same re-scan approach with a
 depth stack. Lexer is fully reentrant (state in a struct; no specials) so it can back up and rescan.
 
+### 2026-07-10 — Phase 03 built: engine executes JS; 72.8% curated execution (gate ≥70% MET)
+The core engine is live and runs real JavaScript. Object kernel (objects.lisp: descriptors, ptable
+storage, CLOS-generic internal methods, Array exotic), runtime environments (environment.lisp),
+operators (operators.lisp), callables (functions.lisp), realm + ~60 built-ins (realm.lisp +
+realm-builtins.lisp), the closure emitter (emitter.lisp, ~1300 lines), and the evaluator (eval.lisp).
+Executes expressions, statements, functions/closures, `this`/arguments, objects/arrays, prototype
+chains, operators, control flow (incl. labelled break/continue), try/catch/finally, destructuring,
+spread, basic classes, and `eval`. 570 CL unit tests + a measured **72.8% pass (5,460/7,500)** on the
+curated language slice (minus generators/async/modules) in BOTH strict+sloppy, with only 3 crashes.
+The conformance runner now has an EXECUTION phase (`make conformance-exec`, CLUN_EXEC=1) with its own
+monotonic exec-passlist, alongside the parse phase.
+Simplifications recorded (refined in later phases): global scope resolves to global-object properties
+(the split global environment record + global-scope TDZ are approximated); `with` and tagged
+templates are loud unsupported errors (not Phase 03); generators/async are clean SyntaxErrors
+(Phase 06); RegExp literals error (Phase 10); property storage uses an order-preserving ptable
+struct (the inline-small-vector memory optimization is deferred to Phase 25); direct eval is treated
+as indirect. Wins that crossed the gate: function-name inference (NamedEvaluation for `var f=()=>{}`)
+and a basic indirect `eval`. Fixed during bring-up: a struct-constructor name mismatch, a realm slot
+name, parse-time SyntaxErrors needing *realm* bound (so speculation must catch js-condition), class-
+declaration binding, and a labelled-continue tag via a pending-label mechanism.
+
+### 2026-07-10 — Phase 03 architecture: CLOS-generic internal methods, closure emitter, env=vector chain
+Engine core decisions (docs/design/phase-03.md): (1) the spec internal methods ([[Get]]/[[Set]]/
+[[DefineOwnProperty]]/…) are **CLOS generic functions dispatching on the js-object struct subtype** —
+SBCL structs are classes, so this is the "struct-dispatched, Proxy-shaped" protocol §3.1 calls for;
+ordinary objects get default methods, exotics (Array/arguments/function) override only what they
+change. (2) Property storage = small insertion-ordered `key desc …` simple-vector promoting to an
+`equal` hash-table (~8 keys); descriptors use an `:unset` sentinel to distinguish absent from false.
+(3) Execution = compile analyzed AST → CL closures ONCE (no per-node dispatch, no per-fn COMPILE);
+the emitter carries a compile-time lexical env resolving refs to local `(depth.index)` / global /
+dynamic (with/eval). (4) Runtime environment = struct `{slots:simple-vector, parent}`; TDZ via a
+`+tdz+` sentinel; global scope's slots are properties of globalThis. (5) Non-local control flow
+(return/break/continue) via CL `catch`/`throw` tags; `throw` via the Phase 01 js-condition bridge;
+try/finally = `unwind-protect`. (6) Per-realm intrinsics indirection from the start (§3.1). Rejected:
+hash-table-per-object (Appendix C.12), generic per-node interpreter dispatch (too slow), COMPILE-per-
+function at load (0.16-0.5 ms/fn). Full stdlib breadth is Phase 04; Phase 03 wires the minimum to run
+the test262 harness and clear 70% of the curated slice.
+
 ### 2026-07-10 — Phase 02 milestone 2: early errors + review panel; gate #2 operationalized
 Drove the negative-parse gap down and hardened the parser. Added parser-level early errors
 (duplicate params incl. generator/async, getter/setter arity, class constructor/prototype rules,

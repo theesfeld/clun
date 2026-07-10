@@ -17,7 +17,19 @@
 ;;; Root of the object hierarchy. The full object kernel (descriptors, prototype
 ;;; chains, exotic behaviors) is Phase 03; this empty base only makes js-object-p
 ;;; stable from Phase 01 so the value domain is complete. Phase 03 :includes it.
-(defstruct (js-object (:predicate js-object-p) (:copier nil)))
+;;; Root of the object hierarchy. Slots: property storage, [[Prototype]],
+;;; [[Extensible]], and a [[Class]]/brand tag. Exotic objects (Array, Function,
+;;; arguments, ...) :include this in objects.lisp and override internal methods.
+(defstruct (js-object (:predicate js-object-p) (:copier nil))
+  (props nil)                  ; nil | insertion-ordered (key desc …) simple-vector | equal hash-table
+  (proto +null+)               ; [[Prototype]]: a js-object or +null+
+  (extensible t)
+  (class :object))             ; [[Class]] / brand keyword
+
+;;; Symbols are primitives (NOT js-objects). description is a string or +undefined+.
+(defstruct (js-symbol (:predicate js-symbol-p) (:copier nil) (:constructor %make-js-symbol))
+  (description +undefined+)
+  (well-known nil))            ; e.g. :iterator :to-primitive :has-instance for @@-symbols
 
 (declaim (inline js-undefined-p js-null-p js-nullish-p js-boolean-p
                  js-number-p js-string-p js-primitive-p))
@@ -43,6 +55,7 @@
   (typecase v
     (double-float :number)
     (string :string)
+    (js-symbol :symbol)
     (js-object :object)
     (t (cond ((js-boolean-p v) :boolean)
              ((js-undefined-p v) :undefined)

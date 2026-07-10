@@ -1167,8 +1167,10 @@ caller is responsible for restoring it (functions/methods/arrows do so)."
   "Speculatively parse `(params) =>`. Returns the arrow node, or NIL if not an arrow
 (caller restores). Errors during param parsing mean 'not an arrow'; once `=>` is
 seen the arrow is committed and body errors propagate."
+  ;; catch js-condition (the base) — with a realm bound, syntax errors are real
+  ;; Error objects wrapped in js-condition, not the bare js-native-error.
   (let ((params (handler-case (parse-params p)
-                  (js-native-error () (return-from parse-arrow-paren nil)))))
+                  (js-condition () (return-from parse-arrow-paren nil)))))
     (if (and (punct? p "=>") (not (nl-before-p p)))
         (progn (advance p) (parse-arrow-body p start params async))
         nil)))

@@ -51,7 +51,12 @@
    #:node #:node-p #:node-start #:node-end
    #:program #:program-p #:program-body #:program-source-type
    #:identifier #:identifier-p #:identifier-name #:literal #:literal-p #:literal-value
-   #:literal-kind #:analyze #:ast->sexp #:binding-bound-names))
+   #:literal-kind #:analyze #:ast->sexp #:binding-bound-names
+   ;; evaluator / object kernel (Phase 03)
+   #:make-realm #:run-source #:run-program #:eval-source #:*realm*
+   #:js-make-object #:js-get #:js-set #:has-property #:has-own-property
+   #:create-data-property #:jm-get #:jm-own-property-keys #:callable-p
+   #:js-call #:js-symbol-p #:js-array-p #:js-condition #:js-condition-value))
 
 (defpackage :clun.loop
   (:use :cl)

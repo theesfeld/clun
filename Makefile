@@ -25,6 +25,11 @@ purity:
 conformance:
 	$(SBCL) --dynamic-space-size 3072 $(SBCL_FLAGS) --load scripts/test262.lisp
 
+## conformance-exec — test262 EXECUTION phase (Phase 03+): run harness+test in a
+## fresh realm, both modes; gates on 0 crashes + no exec-passlist regressions.
+conformance-exec:
+	CLUN_EXEC=1 $(SBCL) --dynamic-space-size 4096 $(SBCL_FLAGS) --load scripts/test262.lisp
+
 ## clean — remove the built binary and any in-tree fasls.
 clean:
 	rm -rf build
