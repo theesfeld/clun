@@ -9,12 +9,17 @@
   ;; ASDF wants dotted integers; the user-facing string is src/version.lisp's
   ;; *clun-version* = "0.0.1-dev".
   :version "0.0.1"
-  ;; No :depends-on yet — cl-ppcre lands with the RegExp phase (PLAN.md Phase 10).
+  ;; SBCL contribs for the event loop (Phase 05). cl-ppcre lands with the RegExp
+  ;; phase (PLAN.md Phase 10). sb-thread is built in (feature :sb-thread).
+  :depends-on ((:require "sb-posix") (:require "sb-concurrency"))
   :serial t
   :components ((:module "src"
                 :serial t
                 :components ((:file "packages")
                              (:file "version")
+                             (:module "sys"
+                              :serial t
+                              :components ((:file "sbcl-compat")))
                              (:module "engine"
                               :serial t
                               :components ((:file "values")
@@ -46,6 +51,14 @@
                                            (:file "builtins-global")
                                            (:file "emitter")
                                            (:file "eval")))
+                             (:module "loop"
+                              :serial t
+                              :components ((:file "loop-core")
+                                           (:file "timers")
+                                           (:file "reactor")
+                                           (:file "signals")
+                                           (:file "workers")
+                                           (:file "event-loop")))
                              (:file "main")))))
 
 (defsystem "clun/tests"
@@ -69,4 +82,7 @@
                                                          (:file "parser-tests")
                                                          (:file "objects-tests")
                                                          (:file "eval-tests")
-                                                         (:file "builtins-tests")))))))))
+                                                         (:file "builtins-tests")))
+                                           (:module "loop"
+                                            :serial t
+                                            :components ((:file "loop-tests")))))))))

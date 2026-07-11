@@ -12,7 +12,10 @@
 
 (defpackage :clun.sys
   (:use :cl)
-  (:documentation "Path discipline, JSON, errors, sbcl-compat, platform."))
+  (:documentation "Path discipline, JSON, errors, sbcl-compat, platform.")
+  ;; Phase 05 — quarantined internal-SBCL bits (§3.2/§6): self-pipe + poll probe.
+  (:export #:make-self-pipe #:self-pipe #:self-pipe-p #:self-pipe-read-fd
+           #:self-pipe-wake #:self-pipe-drain #:self-pipe-close #:poll-backend-p))
 
 (defpackage :clun.cli
   (:use :cl)
@@ -60,7 +63,25 @@
 
 (defpackage :clun.loop
   (:use :cl)
-  (:documentation "Event loop: reactor, timers, mailbox, handles, signals, workers."))
+  (:documentation "Event loop: reactor, timers, mailbox, handles, signals, workers.")
+  ;; Phase 05.
+  (:export
+   ;; loop lifecycle
+   #:event-loop #:event-loop-p #:make-event-loop #:destroy-event-loop
+   #:run-loop #:loop-post #:loop-stop #:el-ref-count #:now-ms
+   ;; queues (stub in P05; JS jobs wire in P06)
+   #:enqueue-task #:enqueue-microtask #:enqueue-next-tick #:drain-microtasks
+   ;; handles / refcount
+   #:make-handle #:handle #:handle-p #:handle-ref #:handle-unref
+   #:handle-activate #:handle-deactivate
+   ;; timers
+   #:set-timer #:clear-timer #:timer #:timer-p #:next-timer-delay
+   ;; reactor (sockets land in P16)
+   #:reactor-add #:reactor-remove
+   ;; signals
+   #:install-signal-handler #:remove-signal-handler
+   ;; workers
+   #:worker-submit))
 
 (defpackage :clun.resolver
   (:use :cl)

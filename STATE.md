@@ -5,7 +5,24 @@ Update before every commit. Seeded from PLAN.md §5.
 
 ---
 
-## Current phase: **05 — Event loop / async substrate**  (Phase 04 committed; stdlib gate MET)
+## Current phase: **06 — Async engine (generators, promises, modules)**  (Phase 05 committed; event-loop gate MET)
+
+**Phase 05 outcome:** the pure-SBCL reactor is live (`src/loop/` + `src/sys/sbcl-compat.lisp`, ~600
+LOC). serve-event poll reactor + self-pipe wakeup (verified: signals don't wake serve-event, a byte
+does — and the fd handler MUST be registered on the thread that runs serve-event, else it silently
+never fires; `run-loop` registers it on the loop thread); own binary-heap timers (FIFO ties,
+repeating, lazy cancel); handle refcounting (ref/unref real, loop exits at refs=0 ∧ queues empty);
+enqueue-only signal delivery (atomic counter + self-pipe, §6 iron rule); sb-thread worker pool
+(mailbox + loop-post completions); nextTick/microtask/task stub queues with Node-faithful drain
+(nextTick priority, microtasks after each macrotask). Callbacks are CL thunks — Phase 06 wires JS
+jobs into the same queues. **Gate MET:** timer ordering ✓, cross-thread wake <5 ms ✓, alive-iff-refs
+✓, SIGINT→loop event ✓, microtask-drain ordering ✓. 674 unit tests; purity clean (110 files); 0
+test262 regressions (parse 17,503 / exec 14,813, 0 crashes).
+
+**Next action:** Begin Phase 06 (Async engine: regenerator-style generator lowering, Promise + job
+queue wired into the loop's microtask queue, async/await, for-await, ESM linking/eval/TLA,
+unhandled-rejection tracking). Deps 04 ✓ + 05 ✓. The loop's `enqueue-microtask`/`enqueue-next-tick`
+are the promise/nextTick job sinks; `run-loop` dispatch points already drain them.
 
 **Phase 04 outcome:** the stdlib core is broad and correct. Added 12 `builtins-*.lisp` modules
 (~2,600 LOC): **Ryū** Number→String (interval method, exact-rational backend; cross-checked 0
@@ -28,8 +45,8 @@ Phase 10; full UCD casing/normalize → later; TZif local time → Phase 26; Pro
 → later. Phase 03 deferrals still open (`with`, tagged templates, full class super, mapped sloppy
 `arguments`, global-scope TDZ); generators/async are Phase 06.
 
-**Independent phases available if the main track blocks (◇):** 05 (event loop, deps 01),
-19 (crypto foundation, deps 00), 21-semver (deps 00).
+**Independent phases available if the main track blocks (◇):** 19 (crypto foundation, deps 00),
+21-semver (deps 00), 16 (sockets, deps 05 ✓ — but respect the serve-event thread-registration rule).
 
 ---
 
@@ -90,6 +107,25 @@ _(nothing blocked)_
     canonicalization, Date.parse calendar/hour-24 validation, String.lastIndexOf position arg, Math.clz32
     (integer-length), Math.log10 exact powers of ten. Post-fix: +7 passes, 0 regressions, 0 crashes.
 
+- **Phase 05 — EVENT-LOOP GATE MET + committed (2026-07-11).**
+  - `make build` clean; `make test` **674 assertions** (17 loop tests); `make purity` clean (110
+    files); `make conformance` 17,503 / 0 crashes; `make conformance-exec` 14,813 / 0 crashes — no
+    regressions (engine untouched).
+  - `src/loop/` (loop-core/timers/reactor/signals/workers/event-loop) + `src/sys/sbcl-compat.lisp`
+    (self-pipe + poll probe). serve-event poll reactor, self-pipe wakeup, binary-heap timers, handle
+    refcounting, enqueue-only signals, sb-thread worker pool, nextTick/microtask/task drain.
+  - **Gate:** timer ordering ✓; cross-thread wake <5 ms ✓; alive-iff-refs ✓; SIGINT→event ✓;
+    microtask-drain ordering ✓.
+  - Verified gotcha (design doc + DECISIONS): SBCL dispatches an fd handler only on the thread that
+    registered it → `run-loop` registers the self-pipe handler on the loop thread (Phase 16 must too).
+  - Adversarial review panel (4 dims × verify-by-running-Lisp): **6 confirmed / 0 refuted**, all fixed
+    + locked as regressions: (1) `loop-alive-p` ignored the mailbox → external/worker/callback
+    loop-posts dropped at shutdown; (2) liveness ignored pending signal deltas → signal at shutdown
+    dropped; (3) `destroy-event-loop` left OS signal handlers installed → stale handler wrote to the
+    closed/recycled self-pipe fd (§6 use-after-close); (4) per-loop install flag guarded a
+    process-global `enable-interrupt` → second live loop clobbered the first (now a loud error +
+    ownership released on destroy). 680 unit tests after fixes; 0 regressions.
+
 ## Phases
 
 Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-early.
@@ -143,12 +179,12 @@ Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-earl
 - [x] Date (UTC core; TZif deferred); global wiring + URI fns; eval/Function (parser in-image)
 - **Gate:** built-ins slices for these globals ≥ 65% ✔ (83.5%); overall curated ≥ 55% ✔ (81.0%); Ryū vectors pass ✔.
 
-### Phase 05 — Event loop core  (deps: 01; independent of 02–04) ◇ ~2.3k LOC — **CURRENT**
-- [ ] serve-event wrapper + startup capability probe (poll, fd>1023); self-pipe; mailbox integration
-- [ ] binary-heap timers; handle refcounting + ref/unref
-- [ ] signal delivery (enqueue-only); worker pool; graceful stop
-- **Gate:** timer-ordering tests; cross-thread wake < 5 ms; process alive iff refs>0; SIGINT → loop
-  event; microtask-drain points honored (stub queue).
+### Phase 05 — Event loop core  (deps: 01; independent of 02–04) ◇ ~2.3k LOC — **DONE (gate MET)**
+- [x] serve-event wrapper + startup capability probe (poll, fd>1023); self-pipe; mailbox integration
+- [x] binary-heap timers; handle refcounting + ref/unref
+- [x] signal delivery (enqueue-only); worker pool; graceful stop
+- **Gate:** timer-ordering ✓; cross-thread wake < 5 ms ✓; process alive iff refs>0 ✓; SIGINT → loop
+  event ✓; microtask-drain points honored (stub queue) ✓.
 
 ### Phase 06 — Async engine: generators, promises, modules  (deps: 04, 05) ~2.5k LOC
 - [ ] regenerator-style lowering (state machine + try-entry tables); Generator objects

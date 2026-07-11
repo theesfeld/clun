@@ -291,3 +291,62 @@ engine) surfaced 20 genuine spec divergences, all fixed before the phase commit:
 Panel method note: findings are only counted when the verifier reproduced the divergence by running the
 repro; 0 were refuted this round (the reviewers had a working JS-eval harness, so raised findings were
 already run-confirmed).
+
+### 2026-07-11 — Phase 05: fd handlers must be registered on the serve-event thread
+Discovered empirically this phase (extends Appendix C.5): SBCL's `serve-event` dispatches an
+`add-fd-handler` registration **only for the thread that made it** — a handler added on thread A is
+silently never called when thread B runs serve-event (measured: a cross-thread self-pipe write left
+serve-event blocked the full timeout; registering on the serving thread fired it immediately). So
+`run-loop` registers the self-pipe handler itself, on the loop thread, in an unwind-protect, rather
+than `make-event-loop` (which may run on a different thread). Consequence for Phase 16: socket fd
+handlers must be added from the loop thread (marshal via `loop-post`, never from a worker). The
+self-pipe wakeup itself is verified working cross-thread once this rule is honored.
+
+### 2026-07-11 — Phase 05: event-loop shape (thunk queues now, JS jobs in Phase 06)
+The loop (`src/loop/`) is callback-agnostic: tasks/microtasks/nextTicks are opaque CL thunks in
+Phase 05 (the gate's "stub queue"); Phase 06 pushes JS Promise jobs into `enqueue-microtask` and
+`process.nextTick` callbacks into `enqueue-next-tick` without changing the loop. Decisions:
+- **Time base** `now-ms` = `(floor (get-internal-real-time) 1000)` (internal-time-units-per-second is
+  1e6 here); integer ms throughout, no floats in the timer path.
+- **Timers**: own binary min-heap keyed (deadline, seq); seq breaks ties FIFO (Node). Cancellation is
+  lazy (mark + skip on pop) — simpler than O(log n) sifted removal; a cancelled-timer flood is
+  acceptable for v1. A per-batch `max-seq` snapshot stops a 0 ms timer scheduled inside a callback
+  from re-firing the same turn (Node-faithful).
+- **Liveness**: a `handle` contributes to `ref-count` exactly while refd∧active. `loop-alive-p` =
+  ref-count>0 ∨ immediate-work. Unref'd timers/handles never keep the loop alive. Ref'd timers and
+  in-flight worker jobs own handles.
+- **Signals**: OS handler does only `(sb-ext:atomic-incf (aref counts signo))` + `self-pipe-wake`
+  (§6 iron rule; allocation-free). The loop thread compares counts to a `seen` high-water mark and
+  runs each pending listener once per turn (coalescing, like Node signal events).
+- **Wake safety**: `self-pipe-wake` writes one byte via `sb-unix:unix-write` from a `defglobal` pinned
+  buffer — no consing, no locks — so it is legal from signal/interrupt context. Full-pipe EAGAIN is a
+  no-op (a wake is already pending). unix-write never signals on EAGAIN, so no condition is consed.
+- **Timeout cap** 1 s: bounds a dropped wake; real latency is self-pipe-immediate, not cap-bound.
+- **Contribs**: `clun.asd` now `:depends-on ((:require "sb-posix") (:require "sb-concurrency"))`;
+  sb-thread is built in. Internal SBCL APIs (unix-write, make-fd-stream, poll probe) are quarantined
+  in `src/sys/sbcl-compat.lisp` per §3.2/§6. Note: the `make purity` token scan matches inside
+  comments — the sbcl-compat header says "no foreign code", never the literal forbidden tokens.
+
+### 2026-07-11 — Phase 05 review panel: 6 confirmed / 0 refuted, all fixed (verified by running Lisp)
+A 4-dimension adversarial panel (each finding re-verified by running Lisp against the built loop)
+found six genuine defects, all fixed before the phase commit:
+- **Liveness ignored the cross-thread mailbox.** `immediate-work-p` checked only the three JS FIFOs,
+  so a `loop-post` that was the last pending work — an external post, a worker completion's follow-up
+  post, or a post from the final timer callback (whose one-shot handle already deactivated ref-count
+  to 0) — was stranded in the mailbox and the loop exited. Fix: `immediate-work-p` now also counts a
+  non-empty mailbox. (`loop-timeout` already consulted it; the two are now consistent.)
+- **Liveness ignored pending signal deltas.** A signal delivered exactly as the last ref'd handle
+  deactivated was dropped (the OS handler bumped the counter + woke the pipe, but the top-of-iteration
+  liveness gate exited before `drain-signals`). Fix: new `pending-signals-p` (any counts[s] > seen[s])
+  is part of `immediate-work-p`.
+- **destroy-event-loop left OS signal handlers installed.** The surviving sigaction closes over the
+  loop's self-pipe; after `self-pipe-close` the write fd is closed and may be recycled, so the next
+  delivery wrote the wake byte into an unrelated object's fd (measured: a 0x01 byte injected into a
+  fresh pipe that reused the number) or hit EBADF — a §6 interrupt-context use-after-close. Fix:
+  destroy uninstalls every installed signo (→ `enable-interrupt :default`) before closing the pipe.
+- **Per-loop install flag guarded a process-global enable-interrupt.** `sb-sys:enable-interrupt` is
+  process-wide, but the `installed` guard was a per-loop signal-state slot, so a second live loop
+  installing the same signo silently overwrote the first loop's handler. Clun is single-loop (§3.2);
+  fix: a process-global `*signal-owners*` makes a conflicting live registration a loud error, and
+  `remove-signal-handler`/destroy release ownership (so sequential loops reclaim it cleanly).
+All six are locked as parachute regressions in tests/lisp/loop/loop-tests.lisp (680 unit tests total).
