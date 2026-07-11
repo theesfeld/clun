@@ -295,7 +295,8 @@
 
 (defun js-same-value (x y)
   (cond ((and (js-number-p x) (js-number-p y))
-         (cond ((and (js-nan-p x) (js-nan-p y)) t)
+         ;; NaN guard first: never feed a NaN to `=` (traps outside the float mask).
+         (cond ((or (js-nan-p x) (js-nan-p y)) (and (js-nan-p x) (js-nan-p y)))
                ((and (js-neg-zero-p x) (not (js-neg-zero-p y))) nil)
                ((and (js-neg-zero-p y) (not (js-neg-zero-p x))) nil)
                (t (= x y))))
@@ -304,7 +305,8 @@
 
 (defun js-same-value-zero (x y)
   (cond ((and (js-number-p x) (js-number-p y))
-         (cond ((and (js-nan-p x) (js-nan-p y)) t) (t (= x y))))
+         (cond ((or (js-nan-p x) (js-nan-p y)) (and (js-nan-p x) (js-nan-p y)))
+               (t (= x y))))
         ((and (stringp x) (stringp y)) (string= x y))
         (t (eq x y))))
 
@@ -421,8 +423,10 @@
   (if (not (pd-set-p (pd-value desc)))
       (ordinary-define-own-property a "length" desc)
       (let* ((num (to-number (pd-value desc)))
-             (new-len (double->uint32 (pd-value desc))))
-        (unless (= (coerce new-len 'double-float) num)
+             (new-len (double->uint32 num)))
+        ;; ToUint32(value) must equal ToNumber(value); NaN (e.g. undefined) fails.
+        ;; NaN-safe: never feed NaN to `=` (it would trap outside the float mask).
+        (unless (and (not (js-nan-p num)) (= (coerce new-len 'double-float) num))
           (throw-range-error "invalid array length"))
         (let* ((len-desc (obj-own-desc a "length"))
                (old-len (floor (pd-value len-desc)))

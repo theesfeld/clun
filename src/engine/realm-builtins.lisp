@@ -159,20 +159,20 @@
     (macrolet ((m (name arity &body body) `(install-method ap ,name ,arity ,@body)))
       (m "push" 1
          (lambda (this args)
-           (let* ((o (to-object this)) (len (floor (to-number (js-getv o "length")))))
+           (let* ((o (to-object this)) (len (length-of-array-like o)))
              (dolist (v args) (js-set o (princ-to-string len) v t) (incf len))
              (js-set o "length" (coerce len 'double-float) t)
              (coerce len 'double-float))))
       (m "pop" 0
          (lambda (this args) (declare (ignore args))
-           (let* ((o (to-object this)) (len (floor (to-number (js-getv o "length")))))
+           (let* ((o (to-object this)) (len (length-of-array-like o)))
              (if (zerop len) (progn (js-set o "length" 0d0 t) +undefined+)
                  (let* ((i (1- len)) (v (js-getv o (princ-to-string i))))
                    (jm-delete o (princ-to-string i))
                    (js-set o "length" (coerce i 'double-float) t) v)))))
       (m "join" 1
          (lambda (this args)
-           (let* ((o (to-object this)) (len (floor (to-number (js-getv o "length"))))
+           (let* ((o (to-object this)) (len (length-of-array-like o))
                   (sep (let ((s (arg args 0))) (if (js-undefined-p s) "," (to-string s)))))
              (with-output-to-string (out)
                (dotimes (i len)
@@ -181,7 +181,7 @@
                    (unless (js-nullish-p e) (write-string (to-string e) out))))))))
       (m "indexOf" 1
          (lambda (this args)
-           (let* ((o (to-object this)) (len (floor (to-number (js-getv o "length")))) (target (arg args 0)))
+           (let* ((o (to-object this)) (len (length-of-array-like o)) (target (arg args 0)))
              (coerce (or (loop for i below len
                                when (and (has-property o (princ-to-string i))
                                          (js-strict-eq (js-getv o (princ-to-string i)) target))
@@ -189,24 +189,24 @@
                          -1) 'double-float))))
       (m "includes" 1
          (lambda (this args)
-           (let* ((o (to-object this)) (len (floor (to-number (js-getv o "length")))) (target (arg args 0)))
+           (let* ((o (to-object this)) (len (length-of-array-like o)) (target (arg args 0)))
              (js-boolean (loop for i below len
                                thereis (js-same-value-zero (js-getv o (princ-to-string i)) target))))))
       (m "slice" 2
          (lambda (this args)
-           (let* ((o (to-object this)) (len (floor (to-number (js-getv o "length"))))
+           (let* ((o (to-object this)) (len (length-of-array-like o))
                   (start (clamp-index (arg args 0) len 0)) (end (clamp-index (arg args 1) len len)))
              (new-array (loop for i from start below end collect (js-getv o (princ-to-string i)))))))
       (m "forEach" 1
          (lambda (this args)
-           (let* ((o (to-object this)) (len (floor (to-number (js-getv o "length"))))
+           (let* ((o (to-object this)) (len (length-of-array-like o))
                   (f (arg args 0)) (that (arg args 1)))
              (dotimes (i len +undefined+)
                (when (has-property o (princ-to-string i))
                  (js-call f that (list (js-getv o (princ-to-string i)) (coerce i 'double-float) o)))))))
       (m "map" 1
          (lambda (this args)
-           (let* ((o (to-object this)) (len (floor (to-number (js-getv o "length"))))
+           (let* ((o (to-object this)) (len (length-of-array-like o))
                   (f (arg args 0)) (that (arg args 1)))
              (new-array (loop for i below len
                               collect (js-call f that (list (js-getv o (princ-to-string i))
@@ -236,13 +236,15 @@
 (defun array-constructor (args)
   (if (and (= 1 (length args)) (js-number-p (first args)))
       (let ((n (double->uint32 (first args))))
-        (unless (= (coerce n 'double-float) (first args)) (throw-range-error "invalid array length"))
+        ;; NaN-safe: ToUint32(len) must equal len exactly, else RangeError.
+        (unless (and (not (js-nan-p (first args))) (= (coerce n 'double-float) (first args)))
+          (throw-range-error "invalid array length"))
         (js-make-array (intrinsic :array-prototype) n))
       (new-array args)))
 
 (defun clamp-index (v len default)
   (if (js-undefined-p v) default
-      (let ((n (floor (to-number v))))
+      (let ((n (%int v)))
         (cond ((minusp n) (max 0 (+ len n))) (t (min n len))))))
 
 ;;; --- Errors -----------------------------------------------------------------
@@ -278,14 +280,16 @@
 
 (defun make-error-constructor (name proto)
   (make-constructor name 1
-    (lambda (this args) (declare (ignore this)) (build-error proto name (arg args 0)))
+    (lambda (this args) (declare (ignore this)) (build-error proto args))
     :prototype proto
-    :construct-fn (lambda (args nt) (declare (ignore nt)) (build-error proto name (arg args 0)))))
+    :construct-fn (lambda (args nt) (declare (ignore nt)) (build-error proto args))))
 
-(defun build-error (proto name message)
-  (declare (ignore name))
-  (let ((e (js-make-object proto :error)))
+(defun build-error (proto args)
+  "NewError: message + ES2022 options.cause (InstallErrorCause, §20.5.8.1)."
+  (let ((e (js-make-object proto :error)) (message (arg args 0)) (options (arg args 1)))
     (unless (js-undefined-p message) (hidden-prop e "message" (to-string message)))
+    (when (and (js-object-p options) (has-property options "cause"))
+      (hidden-prop e "cause" (js-get options "cause")))
     (hidden-prop e "stack" (format nil "~a" (js-get proto "name")))
     e))
 
@@ -330,10 +334,10 @@
     (install-method sp "valueOf" 0 (lambda (this args) (declare (ignore args)) (this-string this)))
     (install-method sp "toString" 0 (lambda (this args) (declare (ignore args)) (this-string this)))
     (install-method sp "charAt" 1
-      (lambda (this args) (let ((s (this-string this)) (i (floor (to-number (arg args 0)))))
+      (lambda (this args) (let ((s (this-string this)) (i (%int (arg args 0))))
                             (if (and (<= 0 i) (< i (length s))) (string (char s i)) ""))))
     (install-method sp "charCodeAt" 1
-      (lambda (this args) (let ((s (this-string this)) (i (floor (to-number (arg args 0)))))
+      (lambda (this args) (let ((s (this-string this)) (i (%int (arg args 0))))
                             (if (and (<= 0 i) (< i (length s))) (coerce (char-code (char s i)) 'double-float) *js-nan*))))
     (install-method sp "indexOf" 1
       (lambda (this args) (let ((s (this-string this)) (sub (to-string (arg args 0))))
@@ -410,6 +414,14 @@
       (glob "Number" (intrinsic :number-constructor))
       (glob "String" (intrinsic :string-constructor))
       (glob "Symbol" (intrinsic :symbol-constructor))
+      (glob "Math" (intrinsic :math))
+      (glob "JSON" (intrinsic :json))
+      (glob "Map" (intrinsic :map-constructor))
+      (glob "Set" (intrinsic :set-constructor))
+      (glob "WeakMap" (intrinsic :weakmap-constructor))
+      (glob "WeakSet" (intrinsic :weakset-constructor))
+      (glob "Date" (intrinsic :date-constructor))
+      (glob "Reflect" (intrinsic :reflect))
       (glob "Error" (intrinsic :error-constructor))
       (dolist (k '(:type-error-constructor :range-error-constructor :syntax-error-constructor
                    :reference-error-constructor :eval-error-constructor :uri-error-constructor))
@@ -417,33 +429,56 @@
       (install-method g "parseInt" 2
         (lambda (this args) (declare (ignore this)) (js-parse-int (to-string (arg args 0)) (arg args 1))))
       (install-method g "parseFloat" 1
-        (lambda (this args) (declare (ignore this)) (js-string->number (string-left-trim '(#\Space) (to-string (arg args 0))))))
+        (lambda (this args) (declare (ignore this)) (js-parse-float (to-string (arg args 0)))))
       (install-method g "isNaN" 1 (lambda (this args) (declare (ignore this)) (js-boolean (js-nan-p (to-number (arg args 0))))))
       (install-method g "isFinite" 1 (lambda (this args) (declare (ignore this)) (js-boolean (js-finite-p (to-number (arg args 0))))))
       (install-method g "eval" 1
         (lambda (this args) (declare (ignore this))
-          (let ((code (arg args 0))) (if (stringp code) (indirect-eval code) code))))
-      (install-method g "String" 1 (lambda (this args) (declare (ignore this)) (if args (to-string (arg args 0)) ""))))
+          (let ((code (arg args 0))) (if (stringp code) (indirect-eval code) code)))))
     g))
 
 (defun make-function-constructor ()
   (make-constructor "Function" 1
-    (lambda (this args) (declare (ignore this args)) (throw-type-error "Function constructor is not supported"))
+    (lambda (this args) (declare (ignore this)) (%build-function args))
     :prototype (intrinsic :function-prototype)
-    :construct-fn (lambda (args nt) (declare (ignore args nt)) (throw-type-error "Function constructor is not supported"))))
+    :construct-fn (lambda (args nt) (declare (ignore nt)) (%build-function args))))
+
+(defun %build-function (args)
+  "new Function(p1, …, pN, body): join params, wrap body, compile in global scope
+(§20.2.1.1). SyntaxError in either part propagates as a JS SyntaxError."
+  (let* ((n (length args))
+         (body (if (zerop n) "" (to-string (car (last args)))))
+         (params (if (<= n 1) ""
+                     (with-output-to-string (o)
+                       (loop for a in (butlast args) for first = t then nil
+                             do (unless first (write-string "," o)) (write-string (to-string a) o)))))
+         (source (format nil "(function anonymous(~a~%) {~%~a~%})" params body)))
+    (indirect-eval source)))
 
 (defun js-parse-int (s radix)
-  (let* ((str (string-trim '(#\Space #\Tab #\Newline #\Return) s))
-         (r (if (js-undefined-p radix) 10 (double->int32 radix)))
+  ;; RADIX is a raw JS value → ToInt32 (§19.2.5). Trim JS whitespace, not just ASCII.
+  (let* ((str (%trim-js-whitespace s))
+         (r (if (js-undefined-p radix) 0 (to-int32 radix)))
          (sign 1) (i 0) (n (length str)))
     (when (zerop n) (return-from js-parse-int *js-nan*))
     (case (char str 0) (#\+ (incf i)) (#\- (setf sign -1) (incf i)))
     (when (zerop r) (setf r 10))
-    (when (and (or (= r 16) (= r 0)) (< (+ i 1) n) (char= (char str i) #\0)
+    (when (and (= r 16) (< (+ i 1) n) (char= (char str i) #\0)
+               (member (char str (1+ i)) '(#\x #\X)))
+      (incf i 2))
+    (when (and (= r 10) (< (+ i 1) n) (char= (char str i) #\0)
                (member (char str (1+ i)) '(#\x #\X)))
       (incf i 2) (setf r 16))
+    (unless (<= 2 r 36) (return-from js-parse-int *js-nan*))   ; out-of-range radix -> NaN
     (let ((acc nil) (any nil))
       (loop for j from i below n
-            for d = (digit-char-p (char str j) r)
+            for d = (%radix-digit (char str j) r)             ; ASCII digits only (§19.2.5)
             while d do (setf acc (+ (* (or acc 0) r) d) any t))
       (if any (coerce (* sign acc) 'double-float) *js-nan*))))
+
+(defun %radix-digit (ch radix)
+  "Weight of ASCII digit CH in RADIX (2..36), or NIL. 0-9 then a-z/A-Z; ASCII-only."
+  (let ((c (char-code ch)))
+    (cond ((<= 48 c 57) (let ((d (- c 48))) (and (< d radix) d)))                    ; 0-9
+          ((<= 97 (logior c 32) 122) (let ((d (- (logior c 32) 87))) (and (< d radix) d))) ; a-z/A-Z
+          (t nil))))

@@ -119,19 +119,33 @@
                (js-condition () (return :fail))
                (serious-condition () (return-from classify-exec :crash)))))))))
 
+(defparameter *builtins-root*
+  (merge-pathnames "vendor-data/test262/test/built-ins/" cl-user::*clun-root*))
+
 (defun rel-name (path)
-  (let ((full (namestring path)) (root (namestring *lang-root*)))
-    (subseq full (length root))))
+  "Language tests stay relative to lang-root (pass-list back-compat); built-ins are
+prefixed 'built-ins/' so both live in one exec pass-list without collision."
+  (let* ((full (namestring path)) (lr (namestring *lang-root*)) (br (namestring *builtins-root*)))
+    (cond ((eql 0 (search lr full)) (subseq full (length lr)))
+          ((eql 0 (search br full)) (concatenate 'string "built-ins/" (subseq full (length br))))
+          (t full))))
 
 (defun all-tests ()
+  ;; Parse phase: language only (Phase 02 tier). Execution phase (Phase 03+): also
+  ;; the built-ins slice (Phase 04), which the stdlib gate measures.
   (sort (remove-if (lambda (p) (search "_FIXTURE" (namestring p)))
-                   (directory (merge-pathnames "**/*.js" *lang-root*)))
+                   (append (directory (merge-pathnames "**/*.js" *lang-root*))
+                           (when *exec* (directory (merge-pathnames "**/*.js" *builtins-root*)))))
         #'string< :key #'namestring))
 
 (defun run ()
   (let ((pass '()) (fail 0) (skip 0) (crash '()) (tmo 0) (n 0))
     (dolist (path (all-tests))
       (incf n)
+      ;; The exec phase runs ~21k program executions (language + built-ins × 2 modes)
+      ;; in one image; a full GC every 500 keeps discarded realms/ASTs from
+      ;; accumulating into an old generation and exhausting the heap.
+      (when (and *exec* (zerop (mod n 500))) (sb-ext:gc :full t))
       (case (if *exec* (classify-exec path) (classify path))
         (:pass (push (rel-name path) pass))
         (:fail (incf fail))

@@ -54,3 +54,45 @@
 
 (defun to-int32 (v)  "§7.1.6."  (double->int32 (to-number v)))
 (defun to-uint32 (v) "§7.1.7."  (double->uint32 (to-number v)))
+
+(defun to-integer-or-infinity (v)
+  "§7.1.5 -> a double-float integer value (or ±Infinity). NaN -> +0."
+  (let ((n (to-number v)))
+    (cond ((js-nan-p n) 0d0)
+          ((js-infinite-p n) n)
+          ((js-zero-p n) 0d0)
+          (t (ftruncate n)))))
+
+(defconstant +max-safe-length+ (1- (expt 2 53)))
+
+(defun to-length (v)
+  "§7.1.20 -> a non-negative CL integer clamped to [0, 2^53-1]."
+  (let ((n (to-integer-or-infinity v)))
+    (cond ((<= n 0d0) 0)
+          ((js-infinite-p n) +max-safe-length+)
+          (t (min (floor n) +max-safe-length+)))))
+
+(defun to-index (v)
+  "§7.1.22 -> a CL integer in [0, 2^53-1], else RangeError."
+  (if (js-undefined-p v) 0
+      (let ((n (to-integer-or-infinity v)))
+        (when (or (< n 0d0) (> n +max-safe-length+) (js-infinite-p n))
+          (throw-range-error "invalid index"))
+        (floor n))))
+
+(defun require-object-coercible (v)
+  "§7.2.1 — throw if V is nullish, else return V."
+  (if (js-nullish-p v)
+      (throw-type-error "cannot convert undefined or null to object")
+      v))
+
+(defun length-of-array-like (o)
+  "§7.3.18 LengthOfArrayLike — ToLength of O.length."
+  (to-length (js-getv o "length")))
+
+(defun %int (v)
+  "ToIntegerOrInfinity of V as a CL integer, mapping ±Infinity to fixnum bounds so
+it can be clamped/compared. Never traps (unlike (floor/truncate) on NaN/Infinity),
+which matters because most builtins run outside the JS float-trap mask."
+  (let ((n (to-integer-or-infinity v)))
+    (if (js-infinite-p n) (if (plusp n) most-positive-fixnum most-negative-fixnum) (truncate n))))

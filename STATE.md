@@ -5,23 +5,28 @@ Update before every commit. Seeded from PLAN.md §5.
 
 ---
 
-## Current phase: **04 — Stdlib core**  (Phase 03 committed; execution gate MET at 72.8%)
+## Current phase: **05 — Event loop / async substrate**  (Phase 04 committed; stdlib gate MET)
 
-**Phase 03 outcome:** the engine EXECUTES JavaScript. Object kernel (descriptors, ptable storage,
-CLOS-generic internal methods, Array exotic), runtime environments, operators, callables, realm +
-~60 built-ins, the closure emitter, and the evaluator are all built and green. Measured **72.8% pass
-(5,460/7,500)** on the curated language slice (minus generators/async/modules) in BOTH strict+sloppy
-— **gate ≥70% MET** — with only 3 crashes (all fixed → 0). 570 CL unit tests pass. The conformance
-runner has an EXECUTION phase (`make conformance-exec`, CLUN_EXEC=1) with a checked-in monotonic
-exec-passlist alongside the parse-passlist.
+**Phase 04 outcome:** the stdlib core is broad and correct. Added 12 `builtins-*.lisp` modules
+(~2,600 LOC): **Ryū** Number→String (interval method, exact-rational backend; cross-checked 0
+mismatches vs the retained oracle over 40k+ random doubles + known-answer vectors), **JSON**
+(own recursive-descent parser + SerializeJSONProperty printer), **Math** (full, trap-masked),
+**Number** formatting (toFixed/toExponential/toPrecision/toString(radix)), **String** (~40 methods,
+code-unit exact), **Array** (ES2017 prototype + statics, stable merge sort), **Object** extras +
+**Reflect**, **Symbol** registry, **Map/Set/WeakMap/WeakSet** (SameValueZero + insertion order; SBCL
+weak tables), **iterator protocol** (%IteratorPrototype% + concrete iterators), **Date** (UTC core,
+pure gregorian math, ISO parse/format), **URI** functions, and a real **Function** constructor.
+Measured **built-ins slice 83.5%** (8,912/10,673, gate ≥65% MET), **overall curated 81.0%**
+(14,806/18,288 non-skip, gate ≥55% MET), **Ryū vectors pass**, **0 crashes** across the full
+34,779-file exec phase. 583 CL unit tests pass; purity clean (101 files). exec-passlist regenerated
+(+9,334 entries, monotonic). Key fix theme: NaN/Infinity float-trap discipline in builtins (new `%int`
+helper; NaN-safe `js-zero-p`/`js-same-value(-zero)`; see DECISIONS 2026-07-10).
 
-**Next action:** Begin Phase 04 (Stdlib core, ~9k LOC, deps 03 ✓). Write `docs/design/phase-04.md`.
-Broaden the built-ins to raise conformance: Object/Array/String/Number full methods, **Math**, **JSON
-(own parser/printer + Ryū port for Number→String)**, Error hierarchy completeness, Symbol +
-well-knowns, Map/Set/WeakMap/WeakSet (SBCL weak tables), iterator protocol, Date (UTC core). Gate:
-built-ins slices ≥ 65%, overall curated ≥ 55%, Ryū vectors pass. NOTE Phase 03 deferred (candidates
-to revisit): `with`/tagged-templates (loud errors now), full class super/derived semantics, mapped
-sloppy `arguments`, global-scope TDZ, direct eval; generators/async are Phase 06; RegExp is Phase 10.
+**Next action:** Begin Phase 05 (Event loop / async substrate, deps 01 ✓ — independent of the engine
+track). NOTE Phase 04 deferred: RegExp-taking String overloads (match/replace/split with regexp) →
+Phase 10; full UCD casing/normalize → later; TZif local time → Phase 26; Proxy → later; typed arrays
+→ later. Phase 03 deferrals still open (`with`, tagged templates, full class super, mapped sloppy
+`arguments`, global-scope TDZ); generators/async are Phase 06.
 
 **Independent phases available if the main track blocks (◇):** 05 (event loop, deps 01),
 19 (crypto foundation, deps 00), 21-semver (deps 00).
@@ -69,6 +74,22 @@ _(nothing blocked)_
   - Object kernel + environments + operators + callables + realm/~60 builtins + closure emitter + eval.
   - Runner extended to an execution phase with a checked-in monotonic exec-passlist.
 
+- **Phase 04 — STDLIB GATE MET + committed (2026-07-11).**
+  - `make build` clean; `make test` **583 assertions** (incl. Ryū known-answer + 40k oracle
+    cross-check); `make purity` clean (101 files); `make conformance-exec` over **34,779 files**:
+    14,806 pass, **0 crashes**, exec-passlist +9,334 (monotonic).
+  - **Gate:** built-ins slice **83.5%** (8,912/10,673 executed) ≥65% ✔; overall curated **81.0%**
+    (14,806/18,288 non-skip) ≥55% ✔; **Ryū vectors pass** (0 mismatches vs oracle) ✔.
+  - 12 `builtins-*.lisp` modules: Ryū, JSON, Math, Number-fmt, String, Array, Object+Reflect, Symbol,
+    Map/Set/Weak*, iterator protocol, Date (UTC), URI; Function constructor. Runner extended to include
+    the built-ins slice + periodic GC (21k execs/image).
+  - Crash sweep: 278 → 0 (NaN/Infinity float-trap discipline — `%int`, NaN-safe zero/SameValue).
+  - Adversarial review panel (6 dims × find→verify-by-running-code): **20 confirmed / 0 refuted**, all
+    fixed then re-verified: JSON.parse EOF crashes (bounds-checked `jr-next`), pad/repeat heap-exhaustion
+    → RangeError, toExponential/toPrecision ties-away rounding, JSON empty-replacer-array, Set −0
+    canonicalization, Date.parse calendar/hour-24 validation, String.lastIndexOf position arg, Math.clz32
+    (integer-length), Math.log10 exact powers of ten. Post-fix: +7 passes, 0 regressions, 0 crashes.
+
 ## Phases
 
 Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-early.
@@ -115,14 +136,14 @@ Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-earl
 - **Gate MET:** curated `language/` slice (minus gen/async/modules) 72.8% both modes; execution
   pass-list workflow live (`make conformance-exec`, crash- + regression-gated, only-grows).
 
-### Phase 04 — Stdlib core  (deps: 03) ~9k LOC ⚡ — **CURRENT**
-- [ ] Object, Function, Array (ES2017), String (code-unit exact), Number, Boolean, Math
-- [ ] JSON (own parser/printer + Ryū port for Number→String; known-answer vectors)
-- [ ] Error hierarchy; Symbol + well-knowns; Map/Set/WeakMap/WeakSet (SBCL weak tables); iterator protocol
-- [ ] Date (UTC core; TZif deferred); global wiring; eval/Function (parser in-image)
-- **Gate:** built-ins slices for these globals ≥ 65%; overall curated ≥ 55%; Ryū vectors pass.
+### Phase 04 — Stdlib core  (deps: 03) ~9k LOC ⚡ — **DONE (gate MET: built-ins 83.5%, curated 81.0%)**
+- [x] Object, Function, Array (ES2017), String (code-unit exact), Number, Boolean, Math
+- [x] JSON (own parser/printer + Ryū port for Number→String; known-answer vectors)
+- [x] Error hierarchy (+ES2022 cause); Symbol + well-knowns + registry; Map/Set/WeakMap/WeakSet (SBCL weak tables); iterator protocol; +Reflect
+- [x] Date (UTC core; TZif deferred); global wiring + URI fns; eval/Function (parser in-image)
+- **Gate:** built-ins slices for these globals ≥ 65% ✔ (83.5%); overall curated ≥ 55% ✔ (81.0%); Ryū vectors pass ✔.
 
-### Phase 05 — Event loop core  (deps: 01; independent of 02–04) ◇ ~2.3k LOC
+### Phase 05 — Event loop core  (deps: 01; independent of 02–04) ◇ ~2.3k LOC — **CURRENT**
 - [ ] serve-event wrapper + startup capability probe (poll, fd>1023); self-pipe; mailbox integration
 - [ ] binary-heap timers; handle refcounting + ref/unref
 - [ ] signal delivery (enqueue-only); worker pool; graceful stop

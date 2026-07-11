@@ -34,6 +34,35 @@
                   (-0.0000001d0 . "-1e-7")))
     (is string= (cdr pair) (eng:number->js-string (car pair)))))
 
+(define-test numbers/ryu-known-answers
+  ;; The Ryū interval generator (the default number->string path) on published
+  ;; hard cases. See src/engine/numbers.lisp %ryu-shortest.
+  (dolist (pair '((0.1d0 . "0.1") (0.2d0 . "0.2") (0.3d0 . "0.3")
+                  (1d21 . "1e+21") (1d-7 . "1e-7") (5d-324 . "5e-324")
+                  (1.7976931348623157d308 . "1.7976931348623157e+308")
+                  (9007199254740992d0 . "9007199254740992")
+                  (123456789012345680d0 . "123456789012345680")
+                  (0.000001d0 . "0.000001") (4.35d0 . "4.35")))
+    (is string= (cdr pair) (eng:number->js-string (car pair)))))
+
+(define-test numbers/ryu-matches-oracle
+  ;; The Ryū digit generator must agree with the exact-rational oracle across a
+  ;; deterministic pseudo-random corpus of finite positive doubles (bit patterns).
+  (let ((state 88172645463325252) (mismatches 0) (checked 0))
+    (flet ((nb () (setf state (ldb (byte 64 0) (logxor state (ash state 13))))
+                 (setf state (ldb (byte 64 0) (logxor state (ash state -7))))
+                 (setf state (ldb (byte 64 0) (logxor state (ash state 17)))) state))
+      (dotimes (i 40000)
+        (let* ((bits (nb)) (hi (ldb (byte 32 32) bits)) (lo (ldb (byte 32 0) bits))
+               (x (sb-kernel:make-double-float (if (>= hi #x80000000) (- hi #x100000000) hi) lo)))
+          (when (and (typep x 'double-float) (eng:js-finite-p x) (plusp x))
+            (incf checked)
+            (multiple-value-bind (d1 k1 n1) (eng::%ryu-shortest x)
+              (multiple-value-bind (d2 k2 n2) (eng::%shortest-digits-oracle x)
+                (unless (and (string= d1 d2) (= k1 k2) (= n1 n2)) (incf mismatches))))))))
+    (is = 0 mismatches)
+    (true (> checked 15000))))
+
 (define-test numbers/to-string-nan-inf
   (is string= "NaN" (eng:number->js-string eng:*js-nan*))
   (is string= "Infinity" (eng:number->js-string eng:+js-infinity+))

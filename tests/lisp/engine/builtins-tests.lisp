@@ -1,0 +1,105 @@
+;;;; builtins-tests.lisp — Phase 04 stdlib end-to-end tests. Beyond a broad sanity
+;;;; sweep, every case flagged by the Phase 04 adversarial review panel is locked
+;;;; here as a regression (see DECISIONS.md 2026-07-11).
+
+(in-package :clun-test)
+
+(define-test builtins/math
+  (is eql 3d0 (ev "Math.max(1,2,3)"))
+  (is eql 1d0 (ev "Math.min(1,2,3)"))
+  (is eql 1024d0 (ev "Math.pow(2,10)"))
+  (is eql 4d0 (ev "Math.floor(4.7)"))
+  (is eql 5d0 (ev "Math.round(4.5)"))
+  (is eq eng:+true+ (ev "Number.isNaN(Math.sqrt(-1))"))
+  (is eq eng:+true+ (ev "Math.abs(-0) === 0"))
+  ;; panel: clz32 near 2^32 must be 0..32, never -1
+  (is eql 0d0 (ev "Math.clz32(4294967295)"))
+  (is eql 31d0 (ev "Math.clz32(1)"))
+  (is eql 32d0 (ev "Math.clz32(0)"))
+  ;; panel: log10 exact powers of ten
+  (is eql 3d0 (ev "Math.log10(1000)"))
+  (is eq eng:+true+ (ev "Math.log10(1000) === 3")))
+
+(define-test builtins/json-roundtrip
+  (is string= "{\"a\":1,\"b\":[2,3]}" (ev "JSON.stringify({a:1,b:[2,3]})"))
+  (is eql 2d0 (ev "JSON.parse('{\"x\":[1,2,3]}').x[1]"))
+  (is string= "[1,2,3]" (ev "JSON.stringify([1,2,3])"))
+  (is string= "null" (ev "JSON.stringify(NaN)"))
+  ;; panel: empty replacer array = whitelist of no keys
+  (is string= "{}" (ev "JSON.stringify({a:1,b:2},[])"))
+  (is string= "{\"a\":1}" (ev "JSON.stringify({a:1,b:2},['a'])")))
+
+(define-test builtins/json-parse-eof-is-syntaxerror
+  ;; panel: truncated literal/escape at EOF must be a catchable SyntaxError, not a host crash
+  (dolist (src '("JSON.parse('tru')" "JSON.parse('nul')" "JSON.parse('fals')"
+                 "JSON.parse('\"\\\\')" "JSON.parse('\"\\\\u12')"))
+    (true (ev-throws src)))
+  (is eq eng:+true+ (ev "(function(){ try { JSON.parse('tru') } catch(e) { return e instanceof SyntaxError } })()")))
+
+(define-test builtins/number-formatting
+  (is string= "3.14" (ev "(3.14159).toFixed(2)"))
+  (is string= "ff" (ev "(255).toString(16)"))
+  (is string= "1010" (ev "(10).toString(2)"))
+  ;; panel: toExponential / toPrecision round ties away from zero ("pick larger n")
+  (is string= "3e+0" (ev "(2.5).toExponential(0)"))
+  (is string= "1.3e+1" (ev "(12.5).toExponential(1)"))
+  (is string= "5" (ev "(4.5).toPrecision(1)"))
+  (is string= "1.3" (ev "(1.25).toPrecision(2)"))
+  (is string= "13" (ev "(12.5).toPrecision(2)"))
+  (is string= "3" (ev "(2.5).toPrecision(1)")))
+
+(define-test builtins/string-methods
+  (is string= "HELLO" (ev "'Hello'.toUpperCase()"))
+  (is string= "hi" (ev "'  hi  '.trim()"))
+  (is string= "xxxab" (ev "'ab'.padStart(5,'x')"))
+  (is eql 3d0 (ev "'a-b-c'.split('-').length"))
+  (is string= "bbb" (ev "'aaa'.replaceAll('a','b')"))
+  (is string= "abcabc" (ev "'abc'.repeat(2)"))
+  ;; panel: lastIndexOf honors the position argument
+  (is eql 1d0 (ev "'canal'.lastIndexOf('a',2)"))
+  (is eql 3d0 (ev "'abcabcabc'.lastIndexOf('abc',4)"))
+  (is eql 3d0 (ev "'canal'.lastIndexOf('a')")))
+
+(define-test builtins/string-length-guard
+  ;; panel: oversized pad/repeat throws RangeError instead of exhausting the heap
+  (true (ev-throws "'5'.padStart(1e9,'0')"))
+  (true (ev-throws "'5'.padStart(Infinity,'0')"))
+  (true (ev-throws "'ab'.repeat(1e9)"))
+  (is eq eng:+true+ (ev "(function(){ try { '5'.padStart(1e9,'0') } catch(e) { return e instanceof RangeError } })()")))
+
+(define-test builtins/array-methods
+  (is string= "1,2,3" (ev "[3,1,2].sort().join(',')"))
+  (is string= "2,4" (ev "[1,2,3,4].filter(x=>x%2==0).join(',')"))
+  (is eql 6d0 (ev "[1,2,3].reduce((a,b)=>a+b,0)"))
+  (is string= "2,3" (ev "[1,2,3,4,5].splice(1,2).join(',')"))
+  (is string= "1,2,3" (ev "[[1],[2,[3]]].flat(2).join(',')"))
+  (is eql 3d0 (ev "Array.from('abc').length"))
+  (is eq eng:+true+ (ev "Array.isArray([])")))
+
+(define-test builtins/collections
+  (is eql 1d0 (ev "var m=new Map();m.set('x',1);m.get('x')"))
+  (is eql 3d0 (ev "new Set([1,2,2,3]).size"))
+  (is string= "1,2" (ev "[...new Set([1,1,2])].join(',')"))
+  (is eql 5d0 (ev "var wm=new WeakMap();var k={};wm.set(k,5);wm.get(k)"))
+  ;; panel: Set canonicalizes -0 to +0 (SameValueZero) in the stored element
+  (is eq eng:+true+ (ev "var s=new Set();s.add(-0);1/[...s.values()][0] === Infinity"))
+  (is eq eng:+true+ (ev "var e=[...new Set([-0]).entries()][0]; 1/e[0]===Infinity && 1/e[1]===Infinity")))
+
+(define-test builtins/date-utc
+  (is string= "1970-01-01T00:00:00.000Z" (ev "new Date(0).toISOString()"))
+  (is eql 2020d0 (ev "new Date('2020-01-15T12:30:00Z').getUTCFullYear()"))
+  (is eql 946684800000d0 (ev "Date.UTC(2000,0,1)"))
+  (is eql 1582934400000d0 (ev "Date.parse('2020-02-29')"))       ; valid leap day
+  ;; panel: calendar-invalid days and hour-24-with-nonzero fields are NaN
+  (is eq eng:+true+ (ev "Number.isNaN(Date.parse('2021-02-29'))"))
+  (is eq eng:+true+ (ev "Number.isNaN(Date.parse('2021-04-31'))"))
+  (is eq eng:+true+ (ev "Number.isNaN(Date.parse('2021-01-01T24:30:00Z'))"))
+  (is eql 1609545600000d0 (ev "Date.parse('2021-01-01T24:00:00Z')")))  ; 24:00:00 is valid
+
+(define-test builtins/symbol-reflect-uri
+  (is eq eng:+true+ (ev "Symbol.for('x') === Symbol.for('x')"))
+  (is string= "desc" (ev "Symbol('desc').description"))
+  (is string= "a%20b%26c" (ev "encodeURIComponent('a b&c')"))
+  (is string= "a b" (ev "decodeURIComponent('a%20b')"))
+  (is eql 5d0 (ev "Reflect.apply(function(a,b){return a+b},null,[2,3])"))
+  (is eq eng:+true+ (ev "Reflect.has({a:1},'a')")))

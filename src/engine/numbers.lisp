@@ -29,7 +29,7 @@
 (defun js-finite-p (x)   (and (typep x 'double-float) (not (sb-ext:float-nan-p x))
                               (not (sb-ext:float-infinity-p x))))
 (defun js-neg-zero-p (x) (eql x -0d0))          ; (eql -0d0 0d0) => NIL
-(defun js-zero-p (x)     (and (typep x 'double-float) (zerop x)))  ; +0 or -0
+(defun js-zero-p (x)     (or (eql x 0d0) (eql x -0d0)))  ; +0 or -0; NaN-safe (eql, not =)
 
 ;;; --- ToInt32 / ToUint32 numeric core (§7.1.6 / §7.1.7) ---------------------
 ;;; These take an already-ToNumber'd double; coercions.lisp adds the ToNumber step.
@@ -64,18 +64,72 @@ Returns (values s n): integer S has K digits, value = S * 10^(N-K)."
       (incf scale-exp))
     (values s (+ k scale-exp))))
 
-(defun %shortest-digits (x)
-  "For positive finite double X: (values digit-string k n), shortest round-trip."
+(defun %shortest-digits-oracle (x)
+  "Reference oracle: shortest round-trip digits of positive finite double X by
+increasing exact-rational precision. Correct but O(digits) bignum ops per value;
+used as the cross-check for the Ryū path in the test suite."
   (with-js-floats
     (let* ((r (rational x))
            (e10 (%floor-log10 r)))
       (loop for k from 1 to 17 do
         (multiple-value-bind (s n) (%round-to-k r e10 k)
           (when (= (coerce (* s (expt 10 (- n k))) 'double-float) x)
-            (return-from %shortest-digits (values (format nil "~d" s) k n)))))
+            (return-from %shortest-digits-oracle (values (format nil "~d" s) k n)))))
       ;; 17 digits always round-trip a double; defensive fallthrough
       (multiple-value-bind (s n) (%round-to-k r e10 17)
         (values (format nil "~d" s) 17 n)))))
+
+;;; --- Ryū: shortest decimal in the rounding interval ------------------------
+;;; A port of Ulf Adams' Ryū *algorithm* — decode the double, form the halfway
+;;; interval to the two neighbours as exact scaled values, then emit the decimal
+;;; with the fewest significant digits that lands inside. Ryū's 128-bit fixed
+;;; power-of-5 tables are a speed optimization only; we keep the interval logic
+;;; exact with CL rationals (pure, and verifiable against the oracle). Tie policy
+;;; matches round-half-to-even: the interval is closed iff the mantissa is even.
+
+(defun %ryu-decode (x)
+  "Positive finite double X -> (values f e boundary-p even-p): x = f·2^e, F,E
+integers; BOUNDARY-P true at a lower power-of-two binade edge (half-gap below)."
+  (multiple-value-bind (f e sign) (integer-decode-float x)
+    (declare (ignore sign))
+    (values f e (and (= f (expt 2 52)) (/= e -1074)) (evenp f))))
+
+(defun %ryu-shortest (x)
+  "For positive finite double X: (values digit-string k n), the shortest decimal
+S·10^(n-k) (S has K digits) whose value round-trips to X. N is the position of the
+decimal point relative to the digits (value = 0.<digits> · 10^n in %format terms)."
+  (multiple-value-bind (f e boundary evenp) (%ryu-decode x)
+    ;; Endpoints of the interval that rounds to X, as exact rationals.
+    (let* ((half   (expt 2 (- e 1)))                 ; 2^(e-1)  (rational if e<1)
+           (hi     (* (+ (* 2 f) 1) half))           ; (f+1/2)·2^e
+           (lo     (if boundary
+                       (* (- (* 4 f) 1) (expt 2 (- e 2)))   ; (f-1/4)·2^e
+                       (* (- (* 2 f) 1) half)))             ; (f-1/2)·2^e
+           (xr     (* f (expt 2 e)))                 ; the value itself
+           ;; Start at or above the largest valid power-of-ten step, then descend
+           ;; to it. Seed from XR (always coerces finite; HI can exceed DBL_MAX).
+           (p (+ 2 (%floor-log10 xr))))
+      (loop
+        (let* ((scale (expt 10 p))                   ; 10^p (rational if p<0)
+               (lo-c  (let ((c (ceiling lo scale)))  ; smallest s with s·10^p >= lo
+                        (if (and (not evenp) (= (* c scale) lo)) (1+ c) c)))
+               (hi-f  (let ((fl (floor hi scale)))    ; largest s with s·10^p <= hi
+                        (if (and (not evenp) (= (* fl scale) hi)) (1- fl) fl))))
+          (when (<= lo-c hi-f)
+            ;; pick the s in [lo-c, hi-f] nearest X (ties to even), clamped in-range
+            (let* ((target (/ xr scale))
+                   (s (round target)))
+              (setf s (min (max s lo-c) hi-f))
+              ;; strip trailing zeros so K counts significant digits only
+              (loop while (and (> s 0) (zerop (mod s 10)))
+                    do (setf s (truncate s 10)) (incf p))
+              (let* ((ds (format nil "~d" s)) (k (length ds)))
+                (return-from %ryu-shortest (values ds k (+ k p)))))))
+        (decf p)))))
+
+(defun %shortest-digits (x)
+  "For positive finite double X: (values digit-string k n), shortest round-trip."
+  (%ryu-shortest x))
 
 (defun %format-decimal (digits k n)
   "ECMA-262 §6.1.6.1.20 steps 6-10 given the K digit string DIGITS and position N."

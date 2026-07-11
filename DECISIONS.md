@@ -225,3 +225,69 @@ the plan's named fallback — shortest-round-trip via exact rational arithmetic 
 significant digits until read-back `=` the source double), framed by the ECMA-262 Number::toString
 algorithm (sign, NaN/±Infinity/±0, the ≤-6 / ≥21 exponent thresholds). Correct but O(17) per format;
 Phase 04 swaps the digit core for Ryū for speed. Pure CL, no SBCL float-printer internals.
+
+### 2026-07-10 — Phase 04: Ryū port is the interval method with a bignum backend (tables deferred)
+Replaced the Phase 01 naive "increase precision until round-trip" digit core with Ulf Adams' Ryū
+*algorithm*: decode the double (`integer-decode-float`), form the exact rounding interval to the two
+neighbours (halved gap at a lower power-of-two boundary; closed iff the mantissa is even), and emit
+the decimal with the fewest significant digits inside it (largest power-of-ten step with a
+representable in range; nearest to x, ties-to-even). Kept exact with CL rationals — Ryū's 128-bit
+fixed power-of-5 *tables* are a speed optimization only and are deferred to Phase 25; correctness and
+purity are unaffected. The Phase 01 exact-rational routine is retained as `%shortest-digits-oracle`
+and cross-checks the Ryū path in the unit suite: known-answer vectors (0.1, 1e21, 5e-324, DBL_MAX,
+2^53, …) **plus** a 40k deterministic-random-bitpattern corpus, **0 mismatches** (and 0 across 250k
+in ad-hoc runs). Seeded the log estimate from the value (not the upper endpoint) so it never
+overflows `coerce` to Infinity at DBL_MAX.
+
+### 2026-07-10 — Phase 04: the NaN/Infinity float-trap discipline for builtins
+JS arithmetic masks the IEEE traps (Appendix C fact 4), but built-ins run *outside* that mask, and CL
+signals `FLOATING-POINT-INVALID-OPERATION` on any *numeric* comparison with NaN (`= < > zerop minusp`)
+and on `floor`/`truncate` of NaN/±Infinity. The first built-ins crash sweep surfaced 278 such crashes.
+Fixes: (1) `js-zero-p` is now `(or (eql x 0d0) (eql x -0d0))` — `eql`, never `=`, so NaN is safe;
+(2) a new `%int` (coercions.lisp) does ToIntegerOrInfinity→CL-integer mapping ±Infinity to fixnum
+bounds, and *all* index/length/digit sites go through it or `length-of-array-like`/`to-length` instead
+of raw `(floor (to-number …))`; (3) `array-set-length` feeds `double->uint32` the ToNumber'd value
+(was the raw JS value → CL type-error on `:undefined`) and guards the NaN compare; (4) the comparator
+in `Array.prototype.sort` treats a NaN result as +0; (5) `Function.prototype.apply`/CreateListFromArrayLike
+reject a non-object argArray. Rule going forward: any builtin comparing a possibly-NaN double must test
+`js-nan-p` first or run under `with-js-floats`.
+
+### 2026-07-10 — Phase 04: Reflect included; Math.random fixed-seed; Date local == UTC
+- **Reflect** (§28.1) is implemented (thin wrappers over the object internal methods) though not in the
+  literal Phase 04 list: it is stdlib-core and unblocks the `isConstructor.js` harness (`Reflect.construct`)
+  that `is-a-constructor` tests across every intrinsic depend on. **Proxy** stays deferred.
+- **Math.random** uses a fixed-seed xorshift64* — deterministic and pure. Unpredictability is not
+  observable by test262 (only the [0,1) range/type are), so no entropy source is pulled in.
+- **Date**: local time == UTC (`getTimezoneOffset()` ≡ 0); the UTC and "local" getter/setter families
+  are aliased. `Date.now` uses `get-universal-time` (second precision; determinism/purity over
+  sub-ms). Gregorian⇄ms is pure integer CL (exact: |tv| ≤ 8.64e15 < 2^53). TZif local zones deferred
+  to Phase 26 (PLAN.md §3.1).
+- **Function constructor** (`new Function(args…, body)`) compiles `(function anonymous(params){body})`
+  via `indirect-eval` in global scope; SyntaxError in either part propagates as a JS SyntaxError.
+
+### 2026-07-11 — Phase 04 review panel: 20 confirmed / 0 refuted, all fixed (verified by running JS)
+A 6-dimension adversarial panel (each finding re-verified by running the repro against the built
+engine) surfaced 20 genuine spec divergences, all fixed before the phase commit:
+- **JSON.parse host crashes at EOF** (`"tru"`, `"\`, `"\u12`): `jr-next` did an unchecked `(char …)`
+  → SBCL INVALID-ARRAY-INDEX escaping JS try/catch. Now EOF-safe → JS SyntaxError.
+- **padStart/padEnd/repeat heap-exhaustion** on Infinity/1e9 length: `%int` maps ∞→fixnum, then a
+  ~GB string was materialized and killed the process. Added `+max-js-string-length+` (2^28) cap →
+  RangeError("Invalid string length"). A clun materialization limit under the host heap, not a spec bound.
+- **toExponential/toPrecision ties-to-even**: `%round-to-k` (CL `round`) is correct for the Ryū
+  shortest-digits path but §21.1.3 wants ties-away ("pick the larger n"). Split off `%round-to-digits`
+  with half-away rounding; Ryū/oracle path unchanged. (toFixed was already correct.)
+- **JSON.stringify(x, [])** serialized all keys: `(or prop-list …)` can't tell an empty whitelist from
+  "no array replacer". Added a `prop-list-p` presence flag.
+- **Set −0 not canonicalized**: `md-set` canonicalized the entry KEY but stored the VALUE raw, and Set
+  iteration reads the value. Set add/ctor now store `(%svz-store element)` in both slots (Map values
+  stay raw — only Set elements are SameValueZero-canonicalized).
+- **Date.parse over-permissive**: blanket `(<= 1 date 31)` rolled Feb 29 (non-leap)/Apr 31 into the next
+  month, and hour 24 was accepted with nonzero min/sec/ms. Now validates day against leap-aware
+  days-in-month and requires min=sec=ms=0 when hour=24.
+- **String.lastIndexOf ignored its position arg**: now clamps position and bounds the from-end search.
+- **Math.clz32** returned −1 near 2^32 (log2 rounds up) → `(- 32 (integer-length …))`, always 0..32.
+- **Math.log10** of exact powers of ten (1000→2.9999999999999996): special-cased to the exact exponent
+  for Node parity (spec permits approximation, but Node is the stated oracle).
+Panel method note: findings are only counted when the verifier reproduced the divergence by running the
+repro; 0 were refuted this round (the reviewers had a working JS-eval harness, so raised findings were
+already run-confirmed).
