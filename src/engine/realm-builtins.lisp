@@ -298,11 +298,20 @@
 
 (defun build-error (proto args &optional nt)
   "NewError: message + ES2022 options.cause (InstallErrorCause, §20.5.8.1)."
-  (let ((e (js-make-object (nt-prototype nt proto) :error)) (message (arg args 0)) (options (arg args 1)))
-    (unless (js-undefined-p message) (hidden-prop e "message" (to-string message)))
+  (let* ((e (js-make-object (nt-prototype nt proto) :error))
+         (message (arg args 0)) (options (arg args 1))
+         ;; coerce the message ONCE — a message object's toString is observable
+         ;; (test262 built-ins/Error/constructor.js asserts the access sequence).
+         (msg (unless (js-undefined-p message) (to-string message))))
+    (when msg (hidden-prop e "message" msg))
     (when (and (js-object-p options) (has-property options "cause"))
       (hidden-prop e "cause" (js-get options "cause")))
-    (hidden-prop e "stack" (format nil "~a" (js-get proto "name")))
+    ;; `.stack` first line is "Name: message" (or just "Name" when no message),
+    ;; matching V8/Node's stack header (Phase 08 has no frames yet).
+    (let ((name (to-string (js-get proto "name"))))
+      (hidden-prop e "stack" (if (and msg (plusp (length msg)))
+                                 (format nil "~a: ~a" name msg)
+                                 name)))
     e))
 
 ;;; --- Boolean / Number / String ---------------------------------------------

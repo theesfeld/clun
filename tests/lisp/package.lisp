@@ -4,5 +4,5 @@
 (defpackage :clun-test
   (:use :cl)
   (:local-nicknames (:eng :clun.engine) (:lp :clun.loop) (:sys :clun.sys)
-                    (:rslv :clun.resolver))
+                    (:rslv :clun.resolver) (:rt :clun.runtime) (:cli :clun.cli))
   (:import-from :parachute #:define-test #:is #:isnt #:true #:false #:of-type #:fail))

@@ -472,3 +472,65 @@ regressions; 887 CL unit tests (+~148); purity clean (128 files).
 (acyclic is live+correct); top-level await; the Module Namespace exotic object is a value
 snapshot; test262 `module`-flagged exec tests stay skipped (follow-up: route them through
 `run-module-file` to grow the pass-list).
+
+### 2026-07-12 — Phase 08: CLI shell, console, process (runtime layer + shared inspector)
+**Layering.** `eng:make-realm` stays runtime-free (test262 conformance uses a bare
+realm). A separate `clun.runtime:install-runtime (realm &key argv cwd silent colors)`
+hook augments a fresh realm with `console`, the full `process`, and a `Clun` stub;
+the CLI calls it. Package order in packages.lisp is now base-first (sys/loop/engine/
+resolver) then dependents (runtime/cli/clun) because `:local-nicknames` must resolve
+at defpackage time.
+**The inspector lives in clun.engine** (`src/engine/inspect.lisp`, exports only
+`inspect-value` + `*inspect-defaults*`) — it needs deep access to descriptors,
+Map/Set/Promise internals, and wrapper primitives, which would mean exporting ~20
+engine internals if it lived in the runtime. It is the ONE renderer for console.*,
+util.inspect, Clun.inspect, and (later) test diffs. Bun-flavored (verified against
+`bun/test/js/web/console/console-log.expected.txt`): double-quoted strings, objects
+ALWAYS multiline with a trailing comma (even single-prop), arrays inline, `[Object
+...]` beyond depth 2, `[Circular]` (not Node's `[Circular *1]`), `[Function: name]`/
+`[Function]`, `Name {}` class instances, `[Number: 5]` wrappers, `Promise {
+<pending> }`, `Map(n) { k: v }`/`Set(n) { v }` colon form.
+**`-e`/`-p` run as a SCRIPT via eval-source** (not an ESM `[eval]` module) — script
+semantics give the completion value for free and `-p` awaits a settled promise by
+reading its value; the divergence (no import/top-level-await in `-e/-p`) is acceptable
+since TLA is unsupported anyway. `clun <file>` uses the Phase-07 `run-module-file`.
+**process** is a plain object (env is a snapshot — no live OS interceptor); `exit`
+throws a `process-exit` CL condition caught only in `main` (unwinds past the loop-
+owning drive path); `'exit'` listeners fire exactly once (guarded), with `*realm*`
+re-bound because finish-exit runs after eval-source unbinds it. **Node version pinned
+`22.11.0`** ("Jod" LTS) for `process.versions.node`.
+**Verified SBCL facts (Appendix-C-worthy):** `sb-posix:isatty` does NOT exist — TTY
+detection uses `sb-unix:unix-isatty` on `sb-sys:fd-stream-fd`; `hrtime` uses
+`sb-ext:get-time-of-day` (MICROSECOND resolution — nanos end in 000, documented);
+`memoryUsage` uses `sb-kernel:dynamic-usage` (approximations; external/arrayBuffers=0);
+`machine-type` "X86-64" → arch "x64".
+**Fixed a pre-existing inconsistency:** the Error CONSTRUCTOR set `.stack` to the name
+only; now it is "Name: message" (matching engine-thrown errors + V8's stack header),
+so uncaught rendering shows `TypeError: boom`.
+**JS-fixture harness** `scripts/run-js-fixtures.lisp` + `tests/js/` (file convention:
+`<case>.<ext>` + `<case>.out`/`.exit`/`.err`/`.argv`), wired into `make test` via a
+new `test-js` target (depends on `build`). Divergences to document in Appendix A:
+console targets Bun (not Node util.inspect); `%d`-on-string = Node parseInt (TODO);
+`process.env` snapshot; hrtime µs-resolution + `hrtime.bigint` returns a Number until
+Phase 11; `--silent` suppresses log/info/debug only; `on('exit')` is the only process
+event that fires; `[class X]`/SetIterator-MapIterator display + exact 80-col array
+wrapping deferred.
+
+### 2026-07-12 — Phase 08 review panel (6 dims × find→verify-by-running-the-binary)
+23 agents, **17 findings confirmed + fixed**, all verified by running build/clun. The
+theme: several HIGH findings were **raw Lisp backtraces reaching the user** — the
+runtime/CLI runs OUTSIDE the engine's float-trap mask, so `console.log("%d",NaN)`,
+`process.exit(NaN)`, and `process.hrtime([NaN])` signalled FLOATING-POINT-INVALID
+(a constitutional violation). Fixed with a trap-safe `rt:safe-integer` + `js-nan-p`/
+`js-infinite-p` bit checks; `%s` on a Symbol now inspects instead of throwing; a
+stack overflow is caught as a `storage-condition` → `RangeError: Maximum call stack
+size exceeded` (SBCL prints two `INFO:` guard-page lines first — documented noise).
+Also: `process.chdir`/`--cwd` to a bad dir now raises a catchable JS error / clean
+usage message (was a raw sb-posix condition); getter-only/setter-only accessors
+render `[Getter]`/`[Setter]` (was always `[Getter/Setter]` — the absent half holds
++undefined+, so test callability not presence); a class instance with an explicit
+constructor keeps its name (`P { … }`) by reading the constructor's `.name` own
+property, not the internal fname; `-p '"x"'` prints the string RAW; `process.on(
+'exit')` fires on an uncaught throw/rejection; execPath is absolutised; `.env` bare
+`#` mid-token is literal + `$VAR`/`${VAR}` expansion (unquoted + double-quoted, not
+single). `[class X]` display + `hrtime.bigint` real BigInt remain documented 🟡.

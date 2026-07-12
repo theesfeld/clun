@@ -4,7 +4,7 @@
 SBCL       ?= sbcl
 SBCL_FLAGS := --non-interactive --no-userinit --no-sysinit
 
-.PHONY: all build test purity clean
+.PHONY: all build test test-lisp test-js purity clean
 
 all: build
 
@@ -12,9 +12,15 @@ all: build
 build:
 	$(SBCL) $(SBCL_FLAGS) --load scripts/build.lisp
 
-## test — run the parachute CL suites (exit nonzero on any failure).
-test:
+## test — parachute CL suites + the tests/js end-to-end harness (needs the binary).
+test: test-lisp test-js
+
+test-lisp:
 	$(SBCL) $(SBCL_FLAGS) --load scripts/test.lisp
+
+## test-js — run the tests/js fixtures against build/clun (Phase 08).
+test-js: build
+	$(SBCL) $(SBCL_FLAGS) --load scripts/run-js-fixtures.lisp
 
 ## purity — fail on any CFFI/foreign-code token under src/ or vendor/ (§1.1).
 purity:

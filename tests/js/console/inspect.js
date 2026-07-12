@@ -1,0 +1,16 @@
+console.log({ a: "" });
+console.log("Hello World!");
+console.log(0);
+console.log(-0);
+console.log(123);
+console.log(123.567);
+console.log(true, false, null, undefined);
+console.log(1 / 0, -1 / 0);
+console.log(Symbol("Symbol Description"));
+console.log([123, 456, 789]);
+console.log({ name: "foo" });
+console.log({ a: 123, b: 456, c: 789 });
+console.log({ a: { b: { c: 123 } }, name: "bar" });
+console.log(Promise.resolve());
+console.log({});
+console.log([Number(5), String("Hello"), Boolean(true)]);

@@ -1,0 +1,2 @@
+-e
+process.on("exit", c => console.log("exit:"+c)); process.exitCode = 7

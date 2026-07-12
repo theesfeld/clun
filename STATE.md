@@ -5,7 +5,35 @@ Update before every commit. Seeded from PLAN.md §5.
 
 ---
 
-## Current phase: **08 — CLI shell, console, process**  (Phase 07 committed; module gate MET)
+## Current phase: **09 — TypeScript stripping**  (Phase 08 committed; CLI gate MET)
+
+**Phase 08 outcome:** `clun` is a real CLI. A `clun.runtime:install-runtime` hook augments a fresh
+(runtime-free) realm with `console`, a full `process`, and a `Clun` stub; the CLI (`clun.cli` +
+`main.lisp`) parses flags, autoloads `.env`, runs the entry, and renders uncaught errors. **The ONE
+shared inspector** lives in `clun.engine` (`inspect-value`), Bun-flavored (verified vs Bun's
+`console-log.expected.txt`): double-quoted strings, multiline objects + trailing comma, inline arrays,
+`[Object ...]` past depth 2, `[Circular]`, `[Function: name]`, `Name {}` instances, `[Number: 5]`
+wrappers, `Promise { … }`, `Map(n){ k: v }`. **console** log/info/debug→stdout, warn/error/trace→stderr,
+`util.format` specifiers (`%s %d %i %f %j %o %O %c %%`). **process** argv/env(snapshot)/exit/exitCode/
+platform/arch/pid/cwd/chdir/versions(node 22.11.0)/stdout.write/isTTY/hrtime(µs)/memoryUsage/on('exit').
+**CLI** positional-stop flags (`-e`/`-p` as script, `-p` awaits a settled promise; `--cwd`/`--silent`/
+`--revision`/`--backtrace`); extension routing → `run-module-file`; uncaught JS → `Name: message` +
+stack on stderr, exit 1; stack overflow → `RangeError`; no Lisp backtrace without `--backtrace`; exit
+0/1/2. **JS-fixture harness** `scripts/run-js-fixtures.lisp` + `tests/js/` wired into `make test`.
+**Gate MET:** run/eval fixture matrix (13 JS fixtures: console/format/streams/process/exit/onexit/eval/
+errors/env) green; console subset matches Bun; `make build`/`test`(**976 parachute + 13 JS**)/`purity`
+(**138 files**) green; **conformance parse 17,512 / exec 19,540, 0 crashes, 0 regressions.** Review panel
+(6 dims × find→verify-by-running, 23 agents): **17/17 confirmed + fixed** — several raw Lisp backtraces
+(float-trap crashes in `%d`/`process.exit`/`hrtime` on NaN/Inf) that violated the no-backtrace contract,
+plus getter/setter labels, class-instance names, `-p` string raw, `on('exit')` on throw, chdir errors,
+`.env` `#`/`$VAR`. **Deferred 🟡:** `[class X]` display, SetIterator/MapIterator, exact 80-col array
+wrapping, `hrtime.bigint` real BigInt (Phase 11), `.ts` execution (Phase 09).
+
+**Next action:** Begin Phase 09 (TypeScript stripping, deps 08 ✓): erasable-syntax strip pass sharing
+the engine lexer (§3.3); error catalog (enum/namespace/param-props/decorators/`import =`); `.tsx`
+rejection; ≥60-pair corpus incl. adversarial (`<` ambiguity, generics-in-arrows, multiline annotations);
+loader wiring for `.ts/.mts/.cts` (route through the Phase-08 CLI's TS branch). Gate: corpus green +
+strip→run stack-trace line:col identical to source + each catalog error fires.
 
 **Phase 07 outcome:** real multi-file projects run from `node_modules`. Three engine-free layers:
 `src/sys/` (`clun.sys`: path discipline via `parse-native-namestring`, sb-posix+`truename` fs
@@ -219,6 +247,27 @@ _(nothing blocked)_
     top-level await; namespace-object snapshot; test262 `module`-flagged exec tests stay skipped
     (follow-up: route through `run-module-file`).
 
+- **Phase 08 — CLI GATE MET + committed (2026-07-12).**
+  - `make build` clean; `make test` = **976 parachute + 13 tests/js** (0 failed); `make purity` clean
+    (**138 files**); `make conformance` parse **17,512** (0 crashes, held); `make conformance-exec`
+    **19,540** (0 crashes, 0 regressions).
+  - **Gate:** run/eval fixture matrix (console/format/streams/process/exit/onexit/eval/pstring/errors/
+    onexit-throw/env, 13 cases) green; console subset matches Bun's `console-log.expected.txt`; `-p`
+    awaits a settled promise; uncaught JS → stack on stderr + exit 1; exit codes 0/1/2.
+  - Runtime layer `src/runtime/` (install/console/process/clun-global) + shared inspector
+    `src/engine/inspect.lisp` (in clun.engine) + CLI `src/cli/` (args/dotenv) + `src/main.lisp` rewrite
+    + `src/sys/platform.lisp` (tty/env/hrtime/mem via sb-unix/sb-ext/sb-kernel). `make-realm` stays
+    runtime-free; `clun.runtime:install-runtime` augments it (conformance uses the bare realm).
+  - Adversarial review panel (6 dims × find→**verify-by-running-the-binary**, 23 agents): **17/17
+    confirmed + fixed** — HIGH: float-trap crashes leaking raw Lisp backtraces (`%d`/`process.exit`/
+    `hrtime` on NaN/Inf → trap-safe `safe-integer`), stack overflow → `RangeError` (storage-condition),
+    getter/setter labels, `on('exit')` on uncaught throw, `.env` bare-`#`; MED/LOW: class-instance
+    names, `-p` string raw, chdir errors→catchable, execPath absolutised, `$VAR` expansion.
+  - Verified SBCL facts: no `sb-posix:isatty` (use `sb-unix:unix-isatty`); hrtime via
+    `sb-ext:get-time-of-day` (µs); Node version pinned **22.11.0**.
+  - DEFERRED 🟡: `[class X]` display, SetIterator/MapIterator, exact 80-col array wrapping,
+    `hrtime.bigint` real BigInt (Phase 11), `.ts` execution (Phase 09).
+
 ## Phases
 
 Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-early.
@@ -293,13 +342,13 @@ Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-earl
 - [x] ESM linking (Option-A frame, live thunks, early errors) + ESM↔CJS interop; JSON modules; import.meta.url/dirname/filename/main
 - **Gate MET:** resolution corpus green; fixture app (ESM entry → CJS dep + scoped ESM pkg w/ exports maps + JSON + import.meta) runs; build/test(887)/purity(128) ✓; parse 17,512 / exec 19,540, 0 crashes, 0 regressions.
 
-### Phase 08 — CLI shell, console, process  (deps: 07) ~3k LOC
-- [ ] dispatcher + exact flags (-e/-p as [eval] module, positional-stop, --cwd, --silent, --revision, --backtrace)
-- [ ] .env autoload; the shared inspector + full console spec (§3.6)
-- [ ] process core (argv/env/exit/exitCode/platform/arch/pid/cwd/chdir/versions/stdout.write/isTTY/hrtime/memoryUsage/on('exit'))
-- [ ] uncaught-error rendering (message + JS stack, exit 1; no Lisp backtrace w/o --backtrace); exit codes 0/1/2
-- [ ] **activate tests/js harness runner** (scripts/run-js-fixtures.lisp; wire into make test)
-- **Gate:** run/eval fixture matrix (exit codes, stacks, -p awaiting a promise); console conformance vs Bun fixture subset.
+### Phase 08 — CLI shell, console, process  (deps: 07) ~3k LOC — **DONE (gate MET)**
+- [x] dispatcher + exact flags (-e/-p as script — awaits promise; positional-stop; --cwd/--silent/--revision/--backtrace)
+- [x] .env autoload ($VAR expansion, quotes, comments); the shared inspector (clun.engine) + full console spec (§3.6)
+- [x] process core (argv/env/exit/exitCode/platform/arch/pid/cwd/chdir/versions/stdout.write/isTTY/hrtime/memoryUsage/on('exit'))
+- [x] uncaught-error rendering (Name: message + stack, exit 1; stack overflow → RangeError; no Lisp backtrace w/o --backtrace); exit 0/1/2
+- [x] **tests/js harness runner** (scripts/run-js-fixtures.lisp, `.out`/`.exit`/`.err`/`.argv` convention; wired into make test via test-js)
+- **Gate MET:** run/eval matrix (13 JS fixtures) green; console subset matches Bun; build/test(976 parachute + 13 JS)/purity(138) ✓; parse 17,512 / exec 19,540, 0 crashes, 0 regressions.
 
 ### Phase 09 — TypeScript stripping  (deps: 08) ~2.5k LOC ⚡(corpus)
 - [ ] strip pass per §3.3 sharing the engine lexer

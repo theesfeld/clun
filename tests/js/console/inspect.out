@@ -1,0 +1,31 @@
+{
+  a: "",
+}
+Hello World!
+0
+-0
+123
+123.567
+true false null undefined
+Infinity -Infinity
+Symbol(Symbol Description)
+[ 123, 456, 789 ]
+{
+  name: "foo",
+}
+{
+  a: 123,
+  b: 456,
+  c: 789,
+}
+{
+  a: {
+    b: {
+      c: 123,
+    },
+  },
+  name: "bar",
+}
+Promise { undefined }
+{}
+[ 5, "Hello", true ]

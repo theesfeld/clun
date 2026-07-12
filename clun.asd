@@ -22,7 +22,8 @@
                               :components ((:file "sbcl-compat")
                                            (:file "paths")
                                            (:file "fs")
-                                           (:file "json")))
+                                           (:file "json")
+                                           (:file "platform")))
                              ;; the Node resolver is pure substrate too (depends only
                              ;; on clun.sys, no engine — §3.6) and loads before the
                              ;; engine, whose loader hooks + CJS require both call it.
@@ -76,6 +77,7 @@
                                                          (:file "generator")
                                                          (:file "promise")
                                                          (:file "async-function")))
+                                           (:file "inspect")
                                            (:file "emitter")
                                            (:file "eval")
                                            ;; module system (Phase 07): records +
@@ -86,6 +88,19 @@
                                                          (:file "module-compile")
                                                          (:file "require")
                                                          (:file "module-loader")))))
+                             ;; runtime globals (Phase 08): console/process/Clun,
+                             ;; installed onto a realm by the CLI (not by make-realm).
+                             (:module "runtime"
+                              :serial t
+                              :components ((:file "install")
+                                           (:file "console")
+                                           (:file "process")
+                                           (:file "clun-global")))
+                             ;; CLI (Phase 08): arg parsing, .env, dispatch.
+                             (:module "cli"
+                              :serial t
+                              :components ((:file "dotenv")
+                                           (:file "args")))
                              (:file "main")))))
 
 (defsystem "clun/tests"
@@ -117,7 +132,11 @@
                                                          (:file "eval-tests")
                                                          (:file "builtins-tests")
                                                          (:file "async-tests")
-                                                         (:file "modules-tests")))
+                                                         (:file "modules-tests")
+                                                         (:file "inspect-tests")))
+                                           (:module "runtime"
+                                            :serial t
+                                            :components ((:file "runtime-tests")))
                                            (:module "loop"
                                             :serial t
                                             :components ((:file "loop-tests")))))))))

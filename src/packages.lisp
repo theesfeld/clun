@@ -5,10 +5,9 @@
 
 (in-package :cl-user)
 
-(defpackage :clun
-  (:use :cl)
-  (:documentation "Toplevel: argv dispatch, version, condition->exit-code.")
-  (:export #:main))
+;; NOTE: packages with :local-nicknames must be defined AFTER their targets, so the
+;; base layer (sys/loop/engine/resolver) comes first, then the dependents
+;; (runtime/cli/clun). Do not reorder without preserving that invariant.
 
 (defpackage :clun.sys
   (:use :cl)
@@ -24,11 +23,11 @@
            #:read-directory
            ;; Phase 07 — JSON reader (hand-rolled, engine-free; §3.5)
            #:parse-json #:json-error #:json-null #:json-false #:json-true
-           #:jget #:jobject-p))
-
-(defpackage :clun.cli
-  (:use :cl)
-  (:documentation "Per-command argument parsing, help/version, .env loader."))
+           #:jget #:jobject-p
+           ;; Phase 08 — platform primitives for the runtime (process/console)
+           #:stream-fd #:tty-p #:environ-alist #:getenv #:getpid
+           #:current-directory #:change-directory #:machine-arch #:platform-name
+           #:monotonic-nanoseconds #:heap-bytes-used #:bytes-consed))
 
 ;; Defined before clun.engine so the engine's :lp local-nickname can target it.
 (defpackage :clun.loop
@@ -93,7 +92,17 @@
    #:make-realm #:run-source #:run-program #:eval-source #:*realm*
    #:js-make-object #:js-get #:js-set #:has-property #:has-own-property
    #:create-data-property #:jm-get #:jm-own-property-keys #:callable-p
-   #:js-call #:js-symbol-p #:js-array-p #:js-condition #:js-condition-value))
+   #:js-call #:js-symbol-p #:js-array-p #:js-condition #:js-condition-value
+   ;; inspector (Phase 08) — the one shared value renderer
+   #:inspect-value #:*inspect-defaults*
+   ;; runtime hooks (Phase 08): completion capture for -p, error introspection,
+   ;; realm accessors the runtime/CLI need
+   #:run-module-file #:run-module-source #:eval-source #:realm-global
+   #:js-promise-p #:js-promise-pstate #:js-promise-value #:to-string #:js-object-class
+   #:make-native-function #:install-method #:install-getter #:data-prop #:hidden-prop
+   #:new-object #:new-array #:throw-type-error #:js-undefined-p #:js-truthy #:js-boolean
+   #:to-number #:arg #:intrinsic #:function-name #:js-function-p #:js-native-function-p
+   #:js-nullish-p #:array-like->list #:array-length))
 
 (defpackage :clun.resolver
   (:use :cl)
@@ -109,13 +118,31 @@
    ;; package.json access (reused by the loader for import.meta/type)
    #:read-package-json #:nearest-package-json #:package-type))
 
-(defpackage :clun.transpiler
+;; --- dependent layer (local-nicknames into the base packages above) ---------
+
+(defpackage :clun.cli
   (:use :cl)
-  (:documentation "TypeScript type-stripping (shares the engine lexer)."))
+  (:local-nicknames (:eng :clun.engine) (:sys :clun.sys))
+  (:documentation "Per-command argument parsing, help/version, .env loader.")
+  (:export #:parse-cli-args #:cli-action #:cli-get #:load-dotenv))
 
 (defpackage :clun.runtime
   (:use :cl)
-  (:documentation "Globals wiring: console/inspector, process, timers, Clun global, node/ modules."))
+  (:local-nicknames (:eng :clun.engine) (:sys :clun.sys) (:lp :clun.loop))
+  (:documentation "Globals wiring: console/inspector, process, timers, Clun global, node/ modules.")
+  (:export #:install-runtime #:process-exit #:process-exit-code
+           #:run-exit-handlers #:*runtime* #:runtime-exit-code #:format-log-args
+           #:safe-integer))
+
+(defpackage :clun
+  (:use :cl)
+  (:local-nicknames (:eng :clun.engine) (:sys :clun.sys) (:cli :clun.cli) (:rt :clun.runtime))
+  (:documentation "Toplevel: argv dispatch, version, condition->exit-code.")
+  (:export #:main))
+
+(defpackage :clun.transpiler
+  (:use :cl)
+  (:documentation "TypeScript type-stripping (shares the engine lexer)."))
 
 (defpackage :clun.net
   (:use :cl)
