@@ -15,7 +15,16 @@
   (:documentation "Path discipline, JSON, errors, sbcl-compat, platform.")
   ;; Phase 05 — quarantined internal-SBCL bits (§3.2/§6): self-pipe + poll probe.
   (:export #:make-self-pipe #:self-pipe #:self-pipe-p #:self-pipe-read-fd
-           #:self-pipe-wake #:self-pipe-drain #:self-pipe-close #:poll-backend-p))
+           #:self-pipe-wake #:self-pipe-drain #:self-pipe-close #:poll-backend-p
+           ;; Phase 07 — path discipline (parse-native-namestring boundary, §3.2)
+           #:native->pathname #:pathname->native #:path-join #:path-dirname
+           #:path-basename #:path-extension #:absolute-path-p #:normalize-path
+           ;; Phase 07 — filesystem primitives (engine-free)
+           #:path-exists-p #:file-p #:directory-p #:realpath #:read-file-string
+           #:read-directory
+           ;; Phase 07 — JSON reader (hand-rolled, engine-free; §3.5)
+           #:parse-json #:json-error #:json-null #:json-false #:json-true
+           #:jget #:jobject-p))
 
 (defpackage :clun.cli
   (:use :cl)
@@ -88,7 +97,17 @@
 
 (defpackage :clun.resolver
   (:use :cl)
-  (:documentation "Pure-CL Node module resolution (no engine dependency)."))
+  (:local-nicknames (:sys :clun.sys))
+  (:documentation "Pure-CL Node module resolution (no engine dependency).")
+  (:export
+   ;; entry point + result
+   #:resolve #:*default-conditions*
+   ;; conditions (engine maps these to JS errors at the boundary)
+   #:resolution-error #:resolution-error-specifier #:resolution-error-referrer
+   #:module-not-found #:package-path-not-exported #:invalid-package-target
+   #:invalid-package-specifier #:unsupported-directory-import
+   ;; package.json access (reused by the loader for import.meta/type)
+   #:read-package-json #:nearest-package-json #:package-type))
 
 (defpackage :clun.transpiler
   (:use :cl)

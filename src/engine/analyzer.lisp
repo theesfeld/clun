@@ -17,8 +17,9 @@
                   (list (identifier-name (class-node-id s)))))
     (export-named-declaration (when (export-named-declaration-declaration s)
                                 (stmt-lexical-names (export-named-declaration-declaration s))))
-    (export-default-declaration (when (class-node-p (export-default-declaration-declaration s))
-                                  nil))
+    ;; `export default class C {}` binds `C` lexically in the module (Phase 07);
+    ;; a named/anonymous default function is hoisted / anonymous, not lexical here.
+    (export-default-declaration (stmt-lexical-names (export-default-declaration-declaration s)))
     (t nil)))
 
 (defun var-declared-names (stmts)

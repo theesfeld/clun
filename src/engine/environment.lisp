@@ -40,9 +40,21 @@
   global
   (loop nil)                     ; the event-loop hosting this realm's jobs (Phase 06)
   (coroutines '())               ; live coroutines, for teardown (Phase 06)
-  (pending-rejections nil))      ; hash promise->reason of unhandled rejections (Phase 06)
+  (pending-rejections nil)       ; hash promise->reason of unhandled rejections (Phase 06)
+  (modules nil)                  ; module registry: resolved-path(string) -> module-record (Phase 07)
+  (entry-module nil))            ; the graph's entry module (import.meta.main, Phase 07)
 
 (defvar *realm* nil "The realm current code runs in (bound by the evaluator).")
+
+(defun realm-module (realm path)
+  "The module-record registered under real PATH in REALM, or NIL."
+  (let ((tbl (realm-modules realm)))
+    (and tbl (gethash path tbl))))
+
+(defun (setf realm-module) (record realm path)
+  (let ((tbl (or (realm-modules realm)
+                 (setf (realm-modules realm) (make-hash-table :test 'equal)))))
+    (setf (gethash path tbl) record)))
 
 (declaim (inline realm-intrinsic))
 (defun realm-intrinsic (r key) (gethash key (realm-intrinsics r)))

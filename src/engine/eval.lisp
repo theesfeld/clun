@@ -50,15 +50,20 @@
   "Parse SOURCE, run top-level, drive the job loop to idle, then surface any
 unhandled rejection as an uncaught error (§ Phase 06). Teardown force-finishes live
 coroutines and destroys the loop (leak control). *realm* is bound around parsing too."
-  (let ((*realm* realm))
-    (unwind-protect
-         (progn
-           (run-program (parse-program source :source-type source-type) realm :strict strict)
-           (drive-jobs realm)
-           (report-unhandled-rejections realm))
-      (teardown-coroutines realm)
-      (destroy-realm-loop realm)))
-  realm)
+  ;; A :module source runs through the module loader (its own drive + teardown);
+  ;; a :script source runs top-level directly here.
+  (if (eq source-type :module)
+      (run-module-source source :realm realm)
+      (progn
+        (let ((*realm* realm))
+          (unwind-protect
+               (progn
+                 (run-program (parse-program source :source-type source-type) realm :strict strict)
+                 (drive-jobs realm)
+                 (report-unhandled-rejections realm))
+            (teardown-coroutines realm)
+            (destroy-realm-loop realm)))
+        realm)))
 
 (defun indirect-eval (source)
   "Indirect eval: parse SOURCE and run it in the CURRENT realm's global scope,

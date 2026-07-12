@@ -784,6 +784,23 @@ expression is not a directive — we snapshot and rewind so the caller parses it
        (finish (make-literal :value +false+ :kind :boolean) start (parser-prev-end p)))
       ((string= name "function") (parse-function-expression p nil))
       ((string= name "class") (parse-class p nil))
+      ;; `import.meta` (module meta-property). Dynamic `import(...)` is still out of
+      ;; the v1 tier and rejected below.
+      ((and (string= name "import")
+            (let ((n (peek p))) (and (eq (token-type n) :punct) (string= (token-value n) "."))))
+       ;; keywords in a meta-property must not carry an escape (`import` etc.).
+       (when (cur-escaped-p p)
+         (syntax-error p "'import' in import.meta must not contain an escape sequence"))
+       (advance p)                       ; consume `import`
+       (advance p)                       ; consume `.`
+       (unless (and (eq (cur-type p) :name) (string= (cur-val p) "meta"))
+         (syntax-error p "expected 'meta' after 'import.'"))
+       (when (cur-escaped-p p)
+         (syntax-error p "'meta' in import.meta must not contain an escape sequence"))
+       (unless (eq (parser-source-type p) :module)
+         (syntax-error p "import.meta is only valid in a module"))
+       (advance p)                       ; consume `meta`
+       (finish (make-meta-property :meta "import" :property "meta") start (parser-prev-end p)))
       ((and (string= name "async") (let ((n (peek p)))
                                      (and (eq (token-type n) :name)
                                           (string= (token-value n) "function")
@@ -942,7 +959,7 @@ tagged templates allow them (TRV survives, TV = undefined)."
 (defun parse-function-expression (p async)
   (parse-function p async nil))
 
-(defun parse-function (p async declaration)
+(defun parse-function (p async declaration &optional allow-anon)
   (let ((start (cur-start p)))
     (when async (advance p))                   ; async
     (advance p)                                ; function
@@ -950,7 +967,9 @@ tagged templates allow them (TRV survives, TV = undefined)."
           (id nil))
       (when (name-tok? p)
         (setf id (parse-binding-identifier p)))
-      (when (and declaration (null id)) (syntax-error p "function declaration requires a name"))
+      ;; `export default function(){}` is an anonymous declaration (ALLOW-ANON).
+      (when (and declaration (null id) (not allow-anon))
+        (syntax-error p "function declaration requires a name"))
       (let ((old-y (parser-allow-yield p)) (old-a (parser-allow-await p))
             (old-f (parser-in-function p)) (old-i (parser-in-iteration p))
             (old-s (parser-in-switch p)) (old-strict (parser-strict p))
@@ -1393,11 +1412,11 @@ a parenthesized expression."
     (cond
       ((name? p "default")
        (advance p)
-       (let ((decl (cond ((name? p "function") (parse-function-declaration p nil))
+       (let ((decl (cond ((name? p "function") (parse-function p nil t t))     ; allow anon
                          ((and (name? p "async")
                                (let ((n (peek p))) (and (eq (token-type n) :name)
                                                         (string= (token-value n) "function"))))
-                          (parse-function-declaration p t))
+                          (parse-function p t t t))                            ; allow anon
                          ((name? p "class") (parse-class p t))
                          (t (prog1 (parse-assignment p) (consume-semicolon p))))))
          (finish (make-export-default-declaration :declaration decl) start (parser-prev-end p))))

@@ -1,5 +1,5 @@
 # test262 parse-phase pass-list (PLAN.md §3.1). Sorted; only grows.
-# Regenerate: CLUN_GEN=1 make conformance. 17503 entries.
+# Regenerate: CLUN_GEN=1 make conformance. 17512 entries.
 arguments-object/10.5-1-s.js
 arguments-object/10.5-7-b-1-s.js
 arguments-object/10.5-7-b-2-s.js
@@ -6718,13 +6718,18 @@ expressions/grouping/S11.1.6_A3_T3.js
 expressions/grouping/S11.1.6_A3_T4.js
 expressions/grouping/S11.1.6_A3_T6.js
 expressions/grouping/S11.1.6_A3_T7.js
+expressions/import.meta/distinct-for-each-module.js
+expressions/import.meta/import-meta-is-an-ordinary-object.js
 expressions/import.meta/not-accessible-from-direct-eval.js
+expressions/import.meta/same-object-returned.js
 expressions/import.meta/syntax/escape-sequence-import.js
 expressions/import.meta/syntax/escape-sequence-meta.js
 expressions/import.meta/syntax/goal-async-function-params-or-body.js
 expressions/import.meta/syntax/goal-async-generator-params-or-body.js
 expressions/import.meta/syntax/goal-function-params-or-body.js
 expressions/import.meta/syntax/goal-generator-params-or-body.js
+expressions/import.meta/syntax/goal-module-nested-function.js
+expressions/import.meta/syntax/goal-module.js
 expressions/import.meta/syntax/goal-script.js
 expressions/import.meta/syntax/invalid-assignment-target-array-destructuring-expr.js
 expressions/import.meta/syntax/invalid-assignment-target-array-rest-destructuring-expr.js
@@ -9876,7 +9881,9 @@ module-code/eval-export-dflt-expr-fn-named.js
 module-code/eval-export-dflt-expr-gen-anon.js
 module-code/eval-export-dflt-expr-gen-named.js
 module-code/eval-export-dflt-expr-in.js
+module-code/eval-export-dflt-fun-anon-semi.js
 module-code/eval-export-dflt-fun-named-semi.js
+module-code/eval-export-dflt-gen-anon-semi.js
 module-code/eval-export-dflt-gen-named-semi.js
 module-code/eval-export-fun-semi.js
 module-code/eval-export-gen-semi.js
@@ -9946,7 +9953,9 @@ module-code/instn-named-bndng-cls.js
 module-code/instn-named-bndng-const.js
 module-code/instn-named-bndng-dflt-cls.js
 module-code/instn-named-bndng-dflt-expr.js
+module-code/instn-named-bndng-dflt-fun-anon.js
 module-code/instn-named-bndng-dflt-fun-named.js
+module-code/instn-named-bndng-dflt-gen-anon.js
 module-code/instn-named-bndng-dflt-gen-named.js
 module-code/instn-named-bndng-dflt-named.js
 module-code/instn-named-bndng-dflt-star.js

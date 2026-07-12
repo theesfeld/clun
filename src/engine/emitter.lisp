@@ -10,6 +10,7 @@
 (defstruct (cscope (:conc-name cs-) (:constructor make-cscope (kind)))
   (names (make-hash-table :test 'equal))
   (count 0)
+  (imports nil)                  ; name -> t for ESM import slots (deref via thunk, Phase 07)
   kind)                          ; :function :block
 
 (defstruct (comp (:conc-name comp-) (:constructor make-comp ()))
@@ -17,7 +18,21 @@
   (strict nil)
   (labels '())                   ; (name break-tag . continue-tag)
   (loops '())                    ; (break-tag . continue-tag) for unlabelled targets
-  (pending-label nil))           ; a label to attach to the next loop's own tags
+  (pending-label nil)            ; a label to attach to the next loop's own tags
+  (module nil))                  ; the module-record being compiled, or NIL (Phase 07)
+
+(defun cs-mark-import (scope name)
+  "Mark NAME (already declared as a slot in SCOPE) as an ESM import binding."
+  (unless (cs-imports scope) (setf (cs-imports scope) (make-hash-table :test 'equal)))
+  (setf (gethash name (cs-imports scope)) t))
+
+(defun resolved-import-p (comp depth name)
+  "True iff NAME, resolved to :local at DEPTH in COMP, lands on an import slot.
+Because comp-resolve returns the INNERMOST binding, a shadowing local (in a closer
+scope) makes this NIL automatically — the shadowing scope has no import mark."
+  (let* ((scope (nth depth (comp-scopes comp)))
+         (imps (and scope (cs-imports scope))))
+    (and imps (gethash name imps))))
 
 (defvar *current-return-tag* nil
   "The CL catch tag `return` throws to; bound while a function body is compiled.")
@@ -64,6 +79,10 @@
                       (setf vars (nconc vars (binding-bound-names (variable-declarator-id d)))))))
                  (function-node (when (and top (function-node-declaration node) (function-node-id node))
                                   (push (identifier-name (function-node-id node)) funcs)))
+                 ;; `export var x` / `export function f` hoist through the wrapper (Phase 07).
+                 (export-named-declaration (walk (export-named-declaration-declaration node) top))
+                 ;; `export default function foo(){}` hoists `foo` like a normal decl.
+                 (export-default-declaration (walk (export-default-declaration-declaration node) top))
                  (block-statement (mapc #'walk (block-statement-body node)))
                  (if-statement (walk (if-statement-consequent node)) (walk (if-statement-alternate node)))
                  (for-statement (walk (for-statement-init node)) (walk (for-statement-body node)))
@@ -138,7 +157,38 @@
     (break-statement (compile-break comp node))
     (continue-statement (compile-continue comp node))
     (labeled-statement (compile-labeled comp node))
-    (with-statement (compile-with comp node))))
+    (with-statement (compile-with comp node))
+    ;; --- ESM module declarations (Phase 07) ---------------------------------
+    ;; imports + `export {..}` / `export * from` are pure link-time metadata: the
+    ;; import slots are filled by the linker before the body runs, and re-exports
+    ;; are resolved in the export map — so the runtime closures are no-ops.
+    (import-declaration (lambda (env) (declare (ignore env)) :normal))
+    (export-all-declaration (lambda (env) (declare (ignore env)) :normal))
+    (export-named-declaration
+     (let ((decl (export-named-declaration-declaration node)))
+       (if decl
+           (compile-node comp decl)     ; `export const x = …` / `export function f`
+           (lambda (env) (declare (ignore env)) :normal))))
+    (export-default-declaration (compile-export-default comp node))))
+
+(defun compile-export-default (comp node)
+  "Compile `export default <decl|expr>`. A NAMED function default is hoisted like a
+normal function declaration (runtime no-op here); a NAMED class default binds its
+own name slot; an anonymous fn/class or an expression binds the reserved `*default*`
+slot."
+  (let ((decl (export-default-declaration-declaration node)))
+    (cond
+      ((and (function-node-p decl) (function-node-id decl))
+       (lambda (env) (declare (ignore env)) :normal))       ; hoisted as `foo`
+      ((and (class-node-p decl) (class-node-id decl))
+       (let ((val-fn (compile-class comp decl))
+             (binder (compile-bind-target comp (class-node-id decl))))
+         (lambda (env) (funcall binder env (funcall val-fn env)) :normal)))
+      (t (let ((val-fn (cond ((function-node-p decl) (compile-function-expr comp decl))
+                             ((class-node-p decl) (compile-class comp decl))
+                             (t (compile-node comp decl))))
+               (binder (compile-bind-target comp (make-identifier :name "*default*"))))
+           (lambda (env) (funcall binder env (funcall val-fn env)) :normal))))))
 
 (defun compile-seq (comp stmts)
   "Compile a statement list into one closure returning the last completion."
@@ -165,9 +215,13 @@
 (defun compile-identifier (comp node)
   (let ((name (identifier-name node)))
     (multiple-value-bind (kind depth index) (comp-resolve comp name)
-      (if (eq kind :local)
-          (lambda (env) (frame-ref env depth index name))
-          (lambda (env) (declare (ignore env)) (global-get name))))))
+      (cond
+        ;; ESM import binding: the slot holds a getter thunk into the exporter.
+        ((and (eq kind :local) (resolved-import-p comp depth name))
+         (lambda (env) (funcall (frame-ref env depth index name))))
+        ((eq kind :local)
+         (lambda (env) (frame-ref env depth index name)))
+        (t (lambda (env) (declare (ignore env)) (global-get name)))))))
 
 (defun compile-this (comp)
   (multiple-value-bind (kind depth index) (comp-resolve comp "%this%")
@@ -176,11 +230,17 @@
         (lambda (env) (declare (ignore env)) (realm-global *realm*)))))
 
 (defun compile-meta (comp node)
-  (declare (ignore node))
-  (multiple-value-bind (kind depth index) (comp-resolve comp "%new.target%")
-    (if (eq kind :local)
-        (lambda (env) (frame-ref env depth index "new.target"))
-        (lambda (env) (declare (ignore env)) +undefined+))))
+  (if (string= (meta-property-meta node) "import")
+      ;; import.meta -> the per-module object stashed in the reserved module slot.
+      (multiple-value-bind (kind depth index) (comp-resolve comp "%import.meta%")
+        (if (eq kind :local)
+            (lambda (env) (frame-ref env depth index "import.meta"))
+            (lambda (env) (declare (ignore env)) +undefined+)))
+      ;; new.target
+      (multiple-value-bind (kind depth index) (comp-resolve comp "%new.target%")
+        (if (eq kind :local)
+            (lambda (env) (frame-ref env depth index "new.target"))
+            (lambda (env) (declare (ignore env)) +undefined+)))))
 
 ;;; --- references (get/set pairs for assignment targets) ----------------------
 
@@ -190,12 +250,18 @@
     (identifier
      (let ((name (identifier-name node)))
        (multiple-value-bind (kind depth index) (comp-resolve comp name)
-         (if (eq kind :local)
-             (values (lambda (env) (frame-ref env depth index name))
-                     (lambda (env v) (frame-set env depth index v)))
-             (let ((strict (comp-strict comp)))
-               (values (lambda (env) (declare (ignore env)) (global-get name))
-                       (lambda (env v) (declare (ignore env)) (global-set name v strict))))))))
+         (cond
+           ;; ESM import: reads deref the thunk; writes are a TypeError (const binding).
+           ((and (eq kind :local) (resolved-import-p comp depth name))
+            (values (lambda (env) (funcall (frame-ref env depth index name)))
+                    (lambda (env v) (declare (ignore env v))
+                      (throw-type-error "Assignment to constant variable."))))
+           ((eq kind :local)
+            (values (lambda (env) (frame-ref env depth index name))
+                    (lambda (env v) (frame-set env depth index v))))
+           (t (let ((strict (comp-strict comp)))
+                (values (lambda (env) (declare (ignore env)) (global-get name))
+                        (lambda (env v) (declare (ignore env)) (global-set name v strict)))))))))
     (member-expression
      (let ((obj-fn (compile-node comp (member-expression-object node))))
        (if (member-expression-computed node)
@@ -701,8 +767,15 @@ the live coroutine that yield/await suspend."
 
 (defun collect-function-decls (stmts)
   (loop for s in stmts
-        when (and (function-node-p s) (function-node-declaration s) (function-node-id s))
-        collect s))
+        ;; unwrap `export function f(){}` / `export default function f(){}` (Phase 07)
+        for node = (cond ((and (export-named-declaration-p s)
+                               (export-named-declaration-declaration s))
+                          (export-named-declaration-declaration s))
+                         ((export-default-declaration-p s)
+                          (export-default-declaration-declaration s))
+                         (t s))
+        when (and (function-node-p node) (function-node-declaration node) (function-node-id node))
+        collect node))
 
 (defun compile-function-expr (comp node)
   (compile-function-common comp (function-node-params node) (function-node-body node)

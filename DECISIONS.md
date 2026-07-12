@@ -423,3 +423,52 @@ was also made spec-faithful (thenFinally/catchFinally length 1; internal `Promis
 with a length-0 thunk and a SINGLE `then` argument) to satisfy the strict observable-then-calls tests
 while keeping the await-the-result behavior. Net over the whole panel round: +91 passlist entries, 0
 regressions, 0 crashes.
+
+### 2026-07-11 — Phase 07: module resolution & CJS/ESM (three engine-free layers)
+**Layering (§3.6).** The Node algorithm is a standalone pure-CL library `src/resolver/`
+(package `clun.resolver`, zero engine dependency), over a `src/sys/` layer (`clun.sys`:
+`paths.lisp` path discipline, `fs.lisp` sb-posix+truename primitives, `json.lisp` a hand-
+rolled JSON reader — the resolver must read package.json without the engine's JSON). The
+engine's ESM loader hooks and the CJS `require` both call the resolver. Verified: resolver
+and sys have no `clun.engine` reference.
+**Module environment = a frame (Option A, not a namespace object).** A module's top-level
+scope is compiled like a function body (reusing `compile-function-common`'s scope machinery):
+top-level bindings are `simple-vector` slots (TDZ for free), NOT global-object properties —
+so every module-local access stays a `frame-ref` (the §3.1 design bet). Imports are getter-
+thunks stored in slots MARKED on the `cscope` (`cs-imports`); `compile-identifier`/`compile-
+reference` deref/const-guard an import iff the resolved slot's scope carries the mark — which
+is shadow-safe for free because `comp-resolve` returns the innermost binding, and cscope
+objects are shared down the `comp-scopes` chain (no per-comp propagation needed). `import.meta`
+is a reserved `%import.meta%` slot; module `this` is a `%this%` slot (undefined).
+**Load→evaluate is one post-order pass** (link+evaluate collapsed): a dep is fully evaluated
+before its importer, so import thunks bind against already-live state — ESM→ESM imports close
+over the exporter's LIVE frame slot (true live bindings, acyclic), ESM→CJS reads `module.exports`.
+Cross-module live binding through an ESM *cycle* is a documented 🟡 (snapshot). Registry keyed
+by `truename` (symlink dedup).
+**CJS `require`** runs the body sloppy inside a synthesized `(function(exports,require,module,
+__filename,__dirname){…})` compiled via the ordinary function machinery; the wrapper is invoked
+with `module.exports` as `this` (Node `.call`); cache = the realm registry; a re-entrant require
+of an `:evaluating` module returns partial exports (cycle); a throwing module is EVICTED so the
+next require re-runs it. **Interop:** import-of-CJS default = `module.exports`, named = its
+enumerable keys (🟡); `require()` of ESM throws; JSON module default = the parsed value
+(`import {default as X}` too), any other named import is a link SyntaxError.
+**Adversarial review panel (6 dims × find→verify-by-running-code, 24 agents): 18 findings, 17
+confirmed + fixed, 1 correctly self-refuted.** Resolver: exports subpath-pattern precedence now
+matches Node PATTERN_KEY_COMPARE (longest BASE before `*`, then total length — was total-only +
+order-dependent); a bare-specifier target is Invalid Package Target under `exports` (legal only
+under `imports`, threaded via an is-imports flag); a `.`/`..` consumer subpath is rejected
+(invalidSegmentRegEx) so a `./*` export can't be escaped with `pkg/../secret`. JSON reader:
+an overflowing magnitude coerces to ±Infinity via an exact-rational parse (was a parse error
+that discarded the whole package.json → wrong module); trailing-dot/bare-exponent numbers
+rejected; duplicate keys keep the LAST value at the FIRST position. `read-directory` returns
+verbatim names (was escaping `[` via file-namestring). CJS: top-level `this` === `module.exports`;
+throwing module evicted from cache. ESM early errors (were raw Lisp crashes / silent last-wins):
+`export {undeclared}`, duplicate exported name, duplicate `export default`, duplicate import
+binding all throw clean SyntaxErrors; `export default function foo(){}`/`class C{}` now also
+bind a usable local `foo`/`C`; anonymous `export default function(){}` (+`async`/`*`) parses.
+Net: parse 17,503→17,512 (+9, import.meta + anon-default-fn), exec 19,540 held, 0 crashes, 0
+regressions; 887 CL unit tests (+~148); purity clean (128 files).
+**Deferred (documented 🟡, not gate-blocking):** ESM cyclic live-binding-through-reassignment
+(acyclic is live+correct); top-level await; the Module Namespace exotic object is a value
+snapshot; test262 `module`-flagged exec tests stay skipped (follow-up: route them through
+`run-module-file` to grow the pass-list).

@@ -19,7 +19,18 @@
                              (:file "version")
                              (:module "sys"
                               :serial t
-                              :components ((:file "sbcl-compat")))
+                              :components ((:file "sbcl-compat")
+                                           (:file "paths")
+                                           (:file "fs")
+                                           (:file "json")))
+                             ;; the Node resolver is pure substrate too (depends only
+                             ;; on clun.sys, no engine — §3.6) and loads before the
+                             ;; engine, whose loader hooks + CJS require both call it.
+                             (:module "resolver"
+                              :serial t
+                              :components ((:file "conditions")
+                                           (:file "package-json")
+                                           (:file "resolve")))
                              ;; the event loop is pure substrate (no engine deps) and
                              ;; loads before the engine so the async files can call it.
                              (:module "loop"
@@ -66,7 +77,15 @@
                                                          (:file "promise")
                                                          (:file "async-function")))
                                            (:file "emitter")
-                                           (:file "eval")))
+                                           (:file "eval")
+                                           ;; module system (Phase 07): records +
+                                           ;; ESM compile + CJS require + loader.
+                                           (:module "modules"
+                                            :serial t
+                                            :components ((:file "module-record")
+                                                         (:file "module-compile")
+                                                         (:file "require")
+                                                         (:file "module-loader")))))
                              (:file "main")))))
 
 (defsystem "clun/tests"
@@ -79,6 +98,12 @@
                               :serial t
                               :components ((:file "package")
                                            (:file "smoke")
+                                           (:module "sys"
+                                            :serial t
+                                            :components ((:file "sys-tests")))
+                                           (:module "resolver"
+                                            :serial t
+                                            :components ((:file "resolver-tests")))
                                            (:module "engine"
                                             :serial t
                                             :components ((:file "values-tests")
@@ -91,7 +116,8 @@
                                                          (:file "objects-tests")
                                                          (:file "eval-tests")
                                                          (:file "builtins-tests")
-                                                         (:file "async-tests")))
+                                                         (:file "async-tests")
+                                                         (:file "modules-tests")))
                                            (:module "loop"
                                             :serial t
                                             :components ((:file "loop-tests")))))))))

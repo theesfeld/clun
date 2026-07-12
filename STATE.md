@@ -5,7 +5,35 @@ Update before every commit. Seeded from PLAN.md §5.
 
 ---
 
-## Current phase: **07 — Module resolution & CJS**  (Phase 06 committed; async gate MET)
+## Current phase: **08 — CLI shell, console, process**  (Phase 07 committed; module gate MET)
+
+**Phase 07 outcome:** real multi-file projects run from `node_modules`. Three engine-free layers:
+`src/sys/` (`clun.sys`: path discipline via `parse-native-namestring`, sb-posix+`truename` fs
+primitives, a hand-rolled JSON reader) → `src/resolver/` (`clun.resolver`: the full Node CJS+ESM
+algorithm — relative/absolute/bare, extension probing, dir index, `main`/`type`/`exports`/`imports`
+with conditions + subpath patterns + `null` blocks, self-refs, scoped `@scope/pkg`, node_modules
+walk, symlink realpath; **no engine dep**) → `src/engine/modules/` (records + a frame-based ESM
+compile + CJS `require` + loader). **Module env = a frame** (Option A): compiled like a function
+body, imports are getter-thunk slots MARKED on the cscope (shadow-safe deref via `compile-
+identifier`); `import.meta` a reserved slot. **Load→evaluate = one post-order pass**: ESM→ESM imports
+are live thunks into the exporter's frame slot (true live bindings, acyclic); ESM→CJS reads
+`module.exports`. **CJS** runs sloppy in the Node `(function(exports,require,module,__filename,
+__dirname){…})` wrapper (`this`===`module.exports`); realm-registry cache; cycle→partial; throw→evict.
+**Interop:** import-of-CJS default=`module.exports`/named=enumerable keys 🟡; `require()` of ESM
+throws; JSON module default=parsed value. **Gate MET:** resolution corpus green (101 assertions,
+40+ scenarios); the fixture app (ESM entry → CJS dep + scoped ESM pkg via exports maps + JSON +
+import.meta) runs; `make build`/`test`(887)/`purity`(128) green; **conformance parse 17,512
+(+9), exec 19,540 held, 0 crashes, 0 regressions.** Review panel (6 dims × find→verify-by-running,
+24 agents): 17/18 findings confirmed + fixed (exports pattern precedence, bare-in-exports reject,
+`..`-escape block, JSON overflow→Infinity/strict-grammar/dup-key-last, CJS this+throw-evict, JSON
+`{default as X}`, ESM early errors, named/anon default-export). **Deferred 🟡 (not gate-blocking):**
+ESM cyclic live-binding-through-reassignment; TLA; namespace-object is a snapshot; test262
+`module`-flagged exec tests stay skipped (follow-up: route via `run-module-file`).
+
+**Next action:** Begin Phase 08 (CLI shell, console, process, deps 07 ✓): dispatcher + exact flags
+(`-e`/`-p` as `[eval]` module — `run-module-source` exists, positional-stop, `--cwd`/`--silent`/
+`--revision`/`--backtrace`); `.env` autoload; the shared inspector + full console; process core
+(argv/env/exit/cwd/platform/versions/stdout.write/hrtime/…); uncaught-error rendering.
 
 **Phase 06 outcome:** the async engine is live via **thread-per-coroutine** (the §3.1 fallback, taken
 deliberately over state-machine lowering — see DECISIONS 2026-07-11 + docs/design/phase-06.md).
@@ -168,6 +196,29 @@ _(nothing blocked)_
     a builtin now preserves both identities), and finally was made spec-faithful (single-arg internal
     `.then`, length-1 wrappers). Post-fix: 739 unit tests, **0 regressions, 0 crashes**.
 
+- **Phase 07 — MODULE GATE MET + committed (2026-07-11).**
+  - `make build` clean; `make test` **887 assertions** (sys/paths/fs/json + resolver corpus + module
+    system + review regressions); `make purity` clean (**128 files**); `make conformance` parse
+    **17,512** (+9: import.meta + anon-default-fn, pass-list regenerated, monotonic);
+    `make conformance-exec` **pass 19,540 held, 0 crashes, 0 regressions**.
+  - **Gate:** resolution corpus green (101 assertions / 40+ scenarios, engine-free); the fixture app
+    (ESM entry → CJS dep + scoped ESM pkg via `exports` conditions + JSON module + `import.meta.main`)
+    runs and produces `hi world|9|42|true`.
+  - Three engine-free layers: `src/sys/` (`clun.sys`, ~430 LOC: path discipline, sb-posix/truename fs,
+    hand-rolled JSON) → `src/resolver/` (`clun.resolver`, ~430 LOC: full Node CJS+ESM algorithm) →
+    `src/engine/modules/` (~620 LOC: records, frame-based ESM compile, CJS require, loader). Emitter/
+    parser/analyzer/eval extended for module scopes, import deref+const, `import.meta`, four
+    import/export `compile-node` clauses, ESM early errors.
+  - Adversarial review panel (6 dims × find→**verify-by-running-code**, 24 agents): **17 confirmed /
+    1 self-refuted**, all 17 fixed + locked as regressions — resolver exports pattern precedence
+    (Node PATTERN_KEY_COMPARE), bare-in-exports rejection, `..`-escape block; JSON overflow→Infinity,
+    strict grammar, dup-key-last; CJS `this`=`module.exports` + throw→evict; JSON `{default as X}` +
+    named-import error; ESM early errors (dup export/default, undeclared export, dup import) throw
+    clean SyntaxErrors; named + anonymous `export default` function/class.
+  - DEFERRED 🟡 (not gate-blocking): ESM cyclic live-binding-through-reassignment (acyclic is live);
+    top-level await; namespace-object snapshot; test262 `module`-flagged exec tests stay skipped
+    (follow-up: route through `run-module-file`).
+
 ## Phases
 
 Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-early.
@@ -235,12 +286,12 @@ Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-earl
 - [x] unhandled-rejection tracking → error (exit 1 at CLI); async-test262 runner support ($DONE/doneprintHandle)
 - **Gate:** Promise 76.1% / generators ~78.5% / async 78.1% / for-await 78.7% (each ≥75% ✔); 0 regressions ✔; ordering corpus ✔.
 
-### Phase 07 — Module resolution & CJS  (deps: 06) ~2.5k LOC ⚡(fixtures)
-- [ ] src/resolver/ pure CL (relative/absolute/bare, ext probing, dir index, main/exports/imports, self-refs, scoped, symlink realpath)
-- [ ] ~40-tree fixture corpus (engine-free parachute tests)
-- [ ] loader-hook wiring; CJS require (wrapper idiom, cache, cycles→partial, .cjs/.mjs/"type" gating)
-- [ ] ESM↔CJS interop; JSON modules; import.meta.url/dirname/filename/main
-- **Gate:** resolution corpus green; fixture app (ESM entry importing CJS dep w/ exports maps + scoped) runs.
+### Phase 07 — Module resolution & CJS  (deps: 06) ~2.5k LOC ⚡(fixtures) — **DONE (gate MET)**
+- [x] src/resolver/ pure CL (relative/absolute/bare, ext probing, dir index, main/exports/imports w/ conditions+patterns, self-refs, scoped, symlink realpath); + src/sys/ paths/fs/json (engine-free)
+- [x] resolution corpus green (101 assertions / 40+ scenarios, engine-free parachute); + review-panel edge cases
+- [x] loader-hook wiring; CJS require (wrapper idiom, this=module.exports, cache, cycles→partial, throw→evict, .cjs/.mjs/"type" gating)
+- [x] ESM linking (Option-A frame, live thunks, early errors) + ESM↔CJS interop; JSON modules; import.meta.url/dirname/filename/main
+- **Gate MET:** resolution corpus green; fixture app (ESM entry → CJS dep + scoped ESM pkg w/ exports maps + JSON + import.meta) runs; build/test(887)/purity(128) ✓; parse 17,512 / exec 19,540, 0 crashes, 0 regressions.
 
 ### Phase 08 — CLI shell, console, process  (deps: 07) ~3k LOC
 - [ ] dispatcher + exact flags (-e/-p as [eval] module, positional-stop, --cwd, --silent, --revision, --backtrace)
