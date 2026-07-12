@@ -58,9 +58,15 @@
     (obj-set-desc f "length" (data-pd (coerce param-count 'double-float)
                                       :writable nil :enumerable nil :configurable t))
     (obj-set-desc f "name" (data-pd fname :writable nil :enumerable nil :configurable t))
-    ;; a normal (non-arrow, non-method) function gets a fresh .prototype
-    (when (and constructable (eq kind :normal))
-      (let ((proto (js-make-object (intrinsic :object-prototype))))
-        (obj-set-desc proto "constructor" (data-pd f :writable t :enumerable nil :configurable t))
-        (obj-set-desc f "prototype" (data-pd proto :writable t :enumerable nil :configurable nil))))
+    (cond
+      ;; a normal (non-arrow, non-method) function gets a fresh constructable .prototype
+      ((and constructable (eq kind :normal))
+       (let ((proto (js-make-object (intrinsic :object-prototype))))
+         (obj-set-desc proto "constructor" (data-pd f :writable t :enumerable nil :configurable t))
+         (obj-set-desc f "prototype" (data-pd proto :writable t :enumerable nil :configurable nil))))
+      ;; a generator function's .prototype inherits %GeneratorPrototype% (instances' proto)
+      ((eq kind :generator)
+       (obj-set-desc f "prototype"
+                     (data-pd (js-make-object (intrinsic :generator-prototype))
+                              :writable t :enumerable nil :configurable nil))))
     f))

@@ -21,8 +21,33 @@
   (:use :cl)
   (:documentation "Per-command argument parsing, help/version, .env loader."))
 
+;; Defined before clun.engine so the engine's :lp local-nickname can target it.
+(defpackage :clun.loop
+  (:use :cl)
+  (:documentation "Event loop: reactor, timers, mailbox, handles, signals, workers.")
+  (:export
+   ;; loop lifecycle
+   #:event-loop #:event-loop-p #:make-event-loop #:destroy-event-loop
+   #:run-loop #:loop-post #:loop-stop #:el-ref-count #:now-ms
+   ;; queues (stub in P05; JS jobs wire in P06)
+   #:enqueue-task #:enqueue-microtask #:enqueue-next-tick #:drain-microtasks
+   ;; handles / refcount
+   #:make-handle #:handle #:handle-p #:handle-ref #:handle-unref
+   #:handle-activate #:handle-deactivate
+   ;; timers
+   #:set-timer #:clear-timer #:timer #:timer-p #:next-timer-delay
+   ;; reactor (sockets land in P16)
+   #:reactor-add #:reactor-remove
+   ;; signals
+   #:install-signal-handler #:remove-signal-handler
+   ;; workers
+   #:worker-submit))
+
 (defpackage :clun.engine
   (:use :cl)
+  ;; :lp (not :loop — that shadows the CL macro) reaches the Phase 05 event loop that
+  ;; the async engine (Phase 06) feeds jobs into.
+  (:local-nicknames (:lp :clun.loop))
   (:documentation "From-scratch ECMAScript engine: lexer, parser, analyzer, emitter, objects, stdlib.")
   ;; Phase 01 — value substrate & coercions.
   (:export
@@ -60,28 +85,6 @@
    #:js-make-object #:js-get #:js-set #:has-property #:has-own-property
    #:create-data-property #:jm-get #:jm-own-property-keys #:callable-p
    #:js-call #:js-symbol-p #:js-array-p #:js-condition #:js-condition-value))
-
-(defpackage :clun.loop
-  (:use :cl)
-  (:documentation "Event loop: reactor, timers, mailbox, handles, signals, workers.")
-  ;; Phase 05.
-  (:export
-   ;; loop lifecycle
-   #:event-loop #:event-loop-p #:make-event-loop #:destroy-event-loop
-   #:run-loop #:loop-post #:loop-stop #:el-ref-count #:now-ms
-   ;; queues (stub in P05; JS jobs wire in P06)
-   #:enqueue-task #:enqueue-microtask #:enqueue-next-tick #:drain-microtasks
-   ;; handles / refcount
-   #:make-handle #:handle #:handle-p #:handle-ref #:handle-unref
-   #:handle-activate #:handle-deactivate
-   ;; timers
-   #:set-timer #:clear-timer #:timer #:timer-p #:next-timer-delay
-   ;; reactor (sockets land in P16)
-   #:reactor-add #:reactor-remove
-   ;; signals
-   #:install-signal-handler #:remove-signal-handler
-   ;; workers
-   #:worker-submit))
 
 (defpackage :clun.resolver
   (:use :cl)

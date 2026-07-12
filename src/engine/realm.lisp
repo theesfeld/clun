@@ -58,14 +58,14 @@
                                          (:error :error-prototype))
                              (js-native-error-name kind) message))))
 
-(defun make-wrapper (proto-key class primitive)
-  (let ((o (js-make-object (intrinsic proto-key) class)))
+(defun make-wrapper (proto-key class primitive &optional proto)
+  (let ((o (js-make-object (or proto (intrinsic proto-key)) class)))
     (obj-set-desc o "%primitive%" (data-pd primitive :writable nil :enumerable nil :configurable nil))
     o))
 (defun wrapper-primitive (o) (pd-value (obj-own-desc o "%primitive%")))
 
-(defun make-string-object (s)
-  (let ((o (make-wrapper :string-prototype :string s)))
+(defun make-string-object (s &optional proto)
+  (let ((o (make-wrapper :string-prototype :string s proto)))
     (obj-set-desc o "length" (data-pd (coerce (length s) 'double-float)
                                       :writable nil :enumerable nil :configurable nil))
     (dotimes (i (length s))
@@ -138,6 +138,9 @@
       (bootstrap-primitives)
       (bootstrap-symbol)
       (bootstrap-iterator)          ; needs Array/String prototypes
+      (bootstrap-generator)         ; needs %IteratorPrototype%
+      (bootstrap-promise)
+      (bootstrap-async)             ; %AsyncIteratorPrototype% + %AsyncGeneratorPrototype%
       (bootstrap-reflect)
       (bootstrap-object-extra)
       (bootstrap-array-extra)
@@ -152,7 +155,8 @@
       (bootstrap-math)
       (bootstrap-json)
       (bootstrap-global)
-      (bootstrap-global-extra))
+      (bootstrap-global-extra)
+      (bootstrap-async-globals))    ; Promise + timers/microtask/nextTick globals
     *realm*))
 
 (defun bootstrap-well-known-symbols ()
@@ -176,12 +180,16 @@
                          (t (throw-type-error "CreateListFromArrayLike called on non-object")))))))
     (install-method fp "bind" 1
       (lambda (this args)
-        (let ((target this) (bound-this (arg args 0)) (bound-args (if args (rest args) '())))
-          (make-native-function "bound" 0
-            (lambda (call-this call-args) (declare (ignore call-this))
-              (js-call target bound-this (append bound-args call-args)))
-            :construct (lambda (cargs nt) (declare (ignore nt))
-                         (js-construct target (append bound-args cargs)))))))
+        (let* ((target this) (bound-this (arg args 0)) (bound-args (if args (rest args) '()))
+               (bound (make-native-function "bound" 0
+                        (lambda (call-this call-args) (declare (ignore call-this))
+                          (js-call target bound-this (append bound-args call-args))))))
+          ;; [[Construct]] (§10.4.1.2): if new-target is the bound fn itself, use the
+          ;; target as new-target; else thread it (so `class C extends bound {}` works).
+          (setf (js-native-function-construct-fn bound)
+                (lambda (cargs nt)
+                  (js-construct target (append bound-args cargs) (if (eq nt bound) target nt))))
+          bound)))
     (install-method fp "toString" 0
       (lambda (this args) (declare (ignore args))
         (format nil "function ~a() { [native code] }"
@@ -200,6 +208,13 @@
   (let ((len (length-of-array-like o)))    ; ToLength: NaN-safe (never traps on `floor`)
     (loop for i below len collect (js-getv o (princ-to-string i)))))
 
+(defun nt-prototype (new-target default-proto)
+  "OrdinaryCreateFromConstructor's [[Prototype]]: NEW-TARGET's .prototype when it is an
+object (a subclass instance), else DEFAULT-PROTO. For a base `new X()` new-target is X
+itself, so this returns X.prototype = DEFAULT-PROTO — subclassing changes nothing else."
+  (let ((p (and (js-object-p new-target) (js-get new-target "prototype"))))
+    (if (js-object-p p) p default-proto)))
+
 ;;; forward decls filled below
 (defun bootstrap-object () (%bootstrap-object))
 (defun bootstrap-array () (%bootstrap-array))
@@ -207,6 +222,10 @@
 (defun bootstrap-primitives () (%bootstrap-primitives))
 (defun bootstrap-symbol () (%bootstrap-symbol))
 (defun bootstrap-iterator () (%bootstrap-iterator))
+(defun bootstrap-generator () (%bootstrap-generator))
+(defun bootstrap-promise () (%bootstrap-promise))
+(defun bootstrap-async () (%bootstrap-async))
+(defun bootstrap-async-globals () (%bootstrap-async-globals))
 (defun bootstrap-reflect () (%bootstrap-reflect))
 (defun bootstrap-object-extra () (%bootstrap-object-extra))
 (defun bootstrap-array-extra () (%bootstrap-array-extra))

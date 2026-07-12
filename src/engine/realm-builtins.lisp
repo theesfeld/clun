@@ -38,11 +38,19 @@
       (lambda (this args) (declare (ignore args))
         (cond ((js-undefined-p this) "[object Undefined]")
               ((js-null-p this) "[object Null]")
-              (t (let ((o (to-object this)))
-                   (format nil "[object ~a]"
-                           (case (js-object-class o) (:array "Array") (:function "Function")
-                                 (:error "Error") (:boolean "Boolean") (:number "Number")
-                                 (:string "String") (:arguments "Arguments") (t "Object"))))))))
+              (t (let* ((o (to-object this))
+                        ;; builtin tag from the brand (§20.1.3.6), then @@toStringTag override
+                        (builtin (cond ((js-array-p o) "Array")
+                                       ((eq (js-object-class o) :arguments) "Arguments")
+                                       ((callable-p o) "Function")
+                                       ((eq (js-object-class o) :error) "Error")
+                                       ((eq (js-object-class o) :boolean) "Boolean")
+                                       ((eq (js-object-class o) :number) "Number")
+                                       ((eq (js-object-class o) :string) "String")
+                                       ((eq (js-object-class o) :date) "Date")
+                                       (t "Object")))
+                        (tag (js-get o (well-known :to-string-tag))))
+                   (format nil "[object ~a]" (if (stringp tag) tag builtin)))))))
     (install-method op "valueOf" 0 (lambda (this args) (declare (ignore args)) (to-object this)))
     (install-method op "toLocaleString" 0
       (lambda (this args) (declare (ignore args)) (js-call (js-get (to-object this) "toString") this '())))
@@ -51,8 +59,11 @@
               (lambda (this args) (declare (ignore this))
                 (let ((v (arg args 0))) (if (js-nullish-p v) (new-object) (to-object v))))
               :prototype op
-              :construct-fn (lambda (args nt) (declare (ignore nt))
-                              (let ((v (arg args 0))) (if (js-nullish-p v) (new-object) (to-object v)))))))
+              :construct-fn (lambda (args nt)
+                              (let ((v (arg args 0)))
+                                (if (js-nullish-p v)
+                                    (js-make-object (nt-prototype nt (intrinsic :object-prototype)))
+                                    (to-object v)))))))
       (macrolet ((m (name arity &body body) `(install-method object-ctor ,name ,arity ,@body)))
         (m "defineProperty" 3
            (lambda (this args) (declare (ignore this))
@@ -226,21 +237,22 @@
             (make-constructor "Array" 1
               (lambda (this args) (declare (ignore this)) (array-constructor args))
               :prototype ap
-              :construct-fn (lambda (args nt) (declare (ignore nt)) (array-constructor args)))))
+              :construct-fn (lambda (args nt) (array-constructor args nt)))))
       (install-method array-ctor "isArray" 1
         (lambda (this args) (declare (ignore this)) (js-boolean (js-array-p (arg args 0)))))
       (install-method array-ctor "of" 0
         (lambda (this args) (declare (ignore this)) (new-array args)))
       (setf (realm-intrinsic *realm* :array-constructor) array-ctor))))
 
-(defun array-constructor (args)
-  (if (and (= 1 (length args)) (js-number-p (first args)))
-      (let ((n (double->uint32 (first args))))
-        ;; NaN-safe: ToUint32(len) must equal len exactly, else RangeError.
-        (unless (and (not (js-nan-p (first args))) (= (coerce n 'double-float) (first args)))
-          (throw-range-error "invalid array length"))
-        (js-make-array (intrinsic :array-prototype) n))
-      (new-array args)))
+(defun array-constructor (args &optional nt)
+  (let ((proto (nt-prototype nt (intrinsic :array-prototype))))
+    (if (and (= 1 (length args)) (js-number-p (first args)))
+        (let ((n (double->uint32 (first args))))
+          ;; NaN-safe: ToUint32(len) must equal len exactly, else RangeError.
+          (unless (and (not (js-nan-p (first args))) (= (coerce n 'double-float) (first args)))
+            (throw-range-error "invalid array length"))
+          (js-make-array proto n))
+        (array-of proto args))))
 
 (defun clamp-index (v len default)
   (if (js-undefined-p v) default
@@ -282,11 +294,11 @@
   (make-constructor name 1
     (lambda (this args) (declare (ignore this)) (build-error proto args))
     :prototype proto
-    :construct-fn (lambda (args nt) (declare (ignore nt)) (build-error proto args))))
+    :construct-fn (lambda (args nt) (build-error proto args nt))))
 
-(defun build-error (proto args)
+(defun build-error (proto args &optional nt)
   "NewError: message + ES2022 options.cause (InstallErrorCause, §20.5.8.1)."
-  (let ((e (js-make-object proto :error)) (message (arg args 0)) (options (arg args 1)))
+  (let ((e (js-make-object (nt-prototype nt proto) :error)) (message (arg args 0)) (options (arg args 1)))
     (unless (js-undefined-p message) (hidden-prop e "message" (to-string message)))
     (when (and (js-object-p options) (has-property options "cause"))
       (hidden-prop e "cause" (js-get options "cause")))
@@ -304,8 +316,9 @@
     (setf (realm-intrinsic *realm* :boolean-constructor)
           (make-constructor "Boolean" 1 (lambda (this args) (declare (ignore this)) (to-boolean (arg args 0)))
                             :prototype bp
-                            :construct-fn (lambda (args nt) (declare (ignore nt))
-                                            (make-wrapper :boolean-prototype :boolean (to-boolean (arg args 0)))))))
+                            :construct-fn (lambda (args nt)
+                                            (make-wrapper :boolean-prototype :boolean (to-boolean (arg args 0))
+                                                          (nt-prototype nt (intrinsic :boolean-prototype)))))))
   ;; Number
   (let ((np (make-wrapper-prototype :number-prototype :number 0d0)))
     (install-method np "valueOf" 0 (lambda (this args) (declare (ignore args)) (this-number this)))
@@ -315,8 +328,9 @@
           (let ((c (make-constructor "Number" 1
                      (lambda (this args) (declare (ignore this)) (if args (to-number (arg args 0)) 0d0))
                      :prototype np
-                     :construct-fn (lambda (args nt) (declare (ignore nt))
-                                     (make-wrapper :number-prototype :number (if args (to-number (arg args 0)) 0d0))))))
+                     :construct-fn (lambda (args nt)
+                                     (make-wrapper :number-prototype :number (if args (to-number (arg args 0)) 0d0)
+                                                   (nt-prototype nt (intrinsic :number-prototype)))))))
             (hidden-prop c "MAX_SAFE_INTEGER" 9007199254740991d0)
             (hidden-prop c "MIN_SAFE_INTEGER" -9007199254740991d0)
             (hidden-prop c "POSITIVE_INFINITY" +js-infinity+)
@@ -350,8 +364,9 @@
           (make-constructor "String" 1
             (lambda (this args) (declare (ignore this)) (if args (to-string (arg args 0)) ""))
             :prototype sp
-            :construct-fn (lambda (args nt) (declare (ignore nt))
-                            (make-string-object (if args (to-string (arg args 0)) "")))))))
+            :construct-fn (lambda (args nt)
+                            (make-string-object (if args (to-string (arg args 0)) "")
+                                                (nt-prototype nt (intrinsic :string-prototype))))))))
 
 (defun make-wrapper-prototype (key class primitive)
   (let ((p (js-make-object (intrinsic :object-prototype) class)))
@@ -441,7 +456,11 @@
   (make-constructor "Function" 1
     (lambda (this args) (declare (ignore this)) (%build-function args))
     :prototype (intrinsic :function-prototype)
-    :construct-fn (lambda (args nt) (declare (ignore nt)) (%build-function args))))
+    :construct-fn (lambda (args nt)
+                    (let ((f (%build-function args)))
+                      (when (js-object-p f)
+                        (setf (js-object-proto f) (nt-prototype nt (intrinsic :function-prototype))))
+                      f))))
 
 (defun %build-function (args)
   "new Function(p1, …, pN, body): join params, wrap body, compile in global scope

@@ -350,3 +350,76 @@ found six genuine defects, all fixed before the phase commit:
   fix: a process-global `*signal-owners*` makes a conflicting live registration a loud error, and
   `remove-signal-handler`/destroy release ownership (so sequential loops reclaim it cleanly).
 All six are locked as parachute regressions in tests/lisp/loop/loop-tests.lisp (680 unit tests total).
+
+### 2026-07-11 — Phase 06: generators/async via thread-coroutines, NOT state-machine lowering
+Took the §3.1 documented fallback (thread-per-coroutine + semaphore handoff) over the plan's primary
+bet (regenerator-style AST→AST state-machine lowering) — a deliberate, up-front decision (§2.4),
+pressure-tested by a Plan agent. Rationale specific to this engine: Clun compiles AST directly to CL
+closures that run on the real CL stack, with try/finally/loops/labels/TDZ already implemented via CL
+`unwind-protect`/`catch`/`handler-case`. State-machine lowering would require reimplementing ALL of
+that a second time in resumable switch-state form with try-entry tables — the exact "try/finally ×
+yield × return" correctness risk the Risk Register flags (silent-wrong-answer failure modes), on the
+critical path of a phase whose gate is only ≥75%. The coroutine approach reuses the emitter verbatim:
+a generator/async body compiles as an ordinary closure run on its own sb-thread; `yield`/`await` are
+plain calls that suspend via a strict semaphore ping-pong (exactly one of {driver, coroutine} runnable
+→ the single-heap-owner invariant holds cooperatively). try/finally × yield × return works for free
+because the CL stack is preserved across suspension; `.return()`/`.throw()` inject via the same
+handoff (unwind through finally / raise at the yield site). ~600 LOC (mostly Promise/async) vs an
+estimated 1500-2000 for lowering. Cost: two context switches per yield/await (slow) — §3.1 rules this
+acceptable; Phase 25 may revisit hot-path generators behind the identical Generator object contract.
+Correctness-critical SBCL details (all implemented + unit-tested): the coroutine thread rebinds
+`*realm*` and re-enters `with-js-floats`; teardown force-`.return()`s suspended coroutines (bounded
+wait) and `terminate-thread`s runaways (an infinite-loop test the runner timed out) — verified 0
+thread leak across the gate dirs. Files: src/engine/async/{coroutine,generator,promise,async-function}.lisp.
+
+### 2026-07-11 — Phase 06: Promise capability/species model; combinators reject-on-abrupt
+Promises use the spec capability model (NewPromiseCapability §27.2.1.5) so subclass-aware `this`-as-
+constructor works: `then` builds its result via SpeciesConstructor(this, %Promise%); statics
+(all/allSettled/race/any, resolve/reject) use the receiver `this` as C and settle via the capability's
+resolve/reject; `Symbol.species` getter returns `this`. Jobs feed the Phase 05 loop's
+`enqueue-microtask`; `process.nextTick` sits ahead of microtasks for free (the loop's drain does
+nextTick-fully-then-microtask). `run-source`/`eval-source` host a per-realm event loop (`:workers 0` —
+coroutines use their own threads), run top-level, drive the loop to idle, then surface any unhandled
+rejection as an uncaught error (→ exit 1 at the CLI). Two conformance-driven fixes that each lifted the
+Promise slice sharply: (1) the runner must auto-include `doneprintHandle.js` for `async`-flagged tests
+(defines `$DONE`; not in the frontmatter includes) — it was missing, failing every async test; (2)
+combinators must REJECT the result promise on an abrupt completion during iteration/setup
+(IfAbruptRejectPromise §27.2.4.1.1), not throw synchronously — plus a per-element AlreadyCalled guard
+(§25.4.4.1.2) and `+undefined+`-initialized value arrays (SBCL `make-array` fills with 0, which leaked
+as a non-JS value). ESM linking + top-level await are DEFERRED to Phase 07 (which owns module
+resolution); the gate (Promise/generator/async/for-await ≥75%) does not require them.
+
+### 2026-07-11 — Phase 06 review panel: 11 confirmed / 0 refuted (7 fixed, 4 deferred)
+Verify-by-running-JS panel over the async engine. Fixed + regression-locked: (1)
+`Object.prototype.toString` now reads @@toStringTag after the builtin brand, so generators/Map/Set/
+Promise/user-tagged objects report the right `[object X]` (§20.1.3.6); (2/3) `Promise.prototype.finally`
+awaits the promise onFinally returns and propagates its rejection (was fire-and-forget); (4) a DEFAULT
+derived-class ctor (`class X extends Base {}`) now binds `this` to `super()`'s return with new-target
+threaded — so subclassing a builtin with a struct/exotic instance (Promise, Map, Error, …) preserves
+identity (`x instanceof X`, prototype methods work); previously it discarded super()'s object and
+returned a plain one. (emitter.lisp default-ctor construct-fn.) (5) `AggregateError` is a real global
+constructor + prototype (Error subclass); Promise.any rejects with an instance. (6) `for await` over a
+sync iterable Awaits each value (async-from-sync, §27.1.4.1) — `get-iterator` now reports async-from-
+sync so the loop re-Awaits. (10) `setTimeout`/`setInterval` return an opaque **js-object** id (was the
+raw CL timer struct → circular-print stack-exhaustion on string coercion); `clearTimeout` unboxes it.
+(11) delays > 2^31−1 (incl. ∞/NaN) clamp to 1 ms (WHATWG) so a huge-delay timer never hangs the loop.
+DEFERRED (async-iteration edge cases — NOT a gate dir; documented in async-function.lisp): the
+AsyncGenerator [[AsyncGeneratorQueue]] request queue for concurrent next(); AsyncGenerator.return
+awaiting its argument; `yield*` over an async iterable inside an async generator. Also still deferred:
+EXPLICIT `super()` in a derived constructor (Phase 03 class-super deferral) — caps Promise-subclass
+tests that write an explicit constructor.
+
+### 2026-07-11 — Phase 06: new-target-honoring builtin constructors (subclassing builtins)
+Fixing the panel's `class extends Promise` finding surfaced a broader gap: making a DERIVED default
+ctor bind `this` to `super()`'s return exposed that the builtin constructors ignored new-target, so a
+subclass instance got the BASE prototype (`new (class extends Array{})() instanceof <subclass>` was
+false). Generalized fix: Array/Boolean/Number/String/Error(+native errors)/Object/Function and bound
+functions now build their instance with `nt-prototype(new-target, <base-proto>)` (OrdinaryCreateFrom-
+Constructor, §10.4.1.2 for bound). Crucially this is a **no-op for base `new X()`** (new-target is X
+itself → X.prototype), so it only changes subclass construction — 0 regressions to normal use, and the
+28 `class/subclass-builtins` tests flip to pass. Bound-function `[[Construct]]` threads new-target,
+using `target` when new-target is the bound function itself (§10.4.1.2). `Promise.prototype.finally`
+was also made spec-faithful (thenFinally/catchFinally length 1; internal `PromiseResolve(...).then(thunk)`
+with a length-0 thunk and a SINGLE `then` argument) to satisfy the strict observable-then-calls tests
+while keeping the await-the-result behavior. Net over the whole panel round: +91 passlist entries, 0
+regressions, 0 crashes.

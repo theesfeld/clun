@@ -84,7 +84,7 @@
 ;; Post-ES2017 + non-Phase-03 features skipped for the execution gate.
 (defparameter *exec-skip*
   (append *skip-features*
-          '("generators" "async-iteration" "async-functions" "top-level-await" "class-fields-public"
+          '("top-level-await" "class-fields-public"
             "class-fields-private" "class-methods-private" "class-static-methods-private"
             "class-static-fields-public" "class-static-fields-private" "class-static-block" "decorators"
             "Proxy" "Reflect" "SharedArrayBuffer" "Atomics" "BigInt" "object-spread" "object-rest"
@@ -92,8 +92,19 @@
             "Array.prototype.flat" "Array.prototype.flatMap" "String.prototype.replaceAll"
             "regexp-named-groups" "regexp-lookbehind" "regexp-unicode-property-escapes")))
 
+(defun %install-print (realm)
+  "Install a capturing `print` global on REALM (async tests' $DONE uses it via
+doneprintHandle.js). Returns a thunk fetching the accumulated output."
+  (let ((buf (make-string-output-stream)))
+    (let ((*realm* realm))
+      (install-method (realm-global realm) "print" 1
+        (lambda (this args) (declare (ignore this))
+          (write-line (to-string (arg args 0)) buf) +undefined+)))
+    (lambda () (get-output-stream-string buf))))
+
 (defun classify-exec (path)
-  "Run PATH's harness+includes+source in both modes; :pass/:fail/:skip/:crash/:tmo."
+  "Run PATH's harness+includes+source in both modes; :pass/:fail/:skip/:crash/:tmo.
+An `async`-flagged test passes iff $DONE printed AsyncTestComplete (and no Failure)."
   (let* ((src (read-source path))
          (fm (frontmatter src))
          (features (fm-list fm "features:"))
@@ -101,23 +112,33 @@
     (cond
       ((neg-parse-p fm) :skip)                              ; negative-parse handled by parse phase
       ((intersection features *exec-skip* :test #'string=) :skip)
-      ((member "module" flags :test #'string=) :skip)
+      ((member "module" flags :test #'string=) :skip)       ; ESM linking lands in Phase 07
       ((member "raw" flags :test #'string=) :skip)          ; raw = no harness; handle rarely
       (t (let ((inc (apply #'concatenate 'string
                            (mapcar #'harness (fm-list fm "includes:"))))
+               (asyncp (member "async" flags :test #'string=))
                (modes (cond ((member "onlyStrict" flags :test #'string=) '(t))
                             ((member "noStrict" flags :test #'string=) '(nil))
                             (t '(nil t))))
                (result :pass))
            (dolist (m modes result)
-             (handler-case
-                 (sb-ext:with-timeout 5
-                   (run-source (concatenate 'string (if m "\"use strict\";" "")
-                                            (harness "sta.js") (harness "assert.js") inc src)
-                               :realm (make-realm)))
-               (sb-ext:timeout () (return :fail))
-               (js-condition () (return :fail))
-               (serious-condition () (return-from classify-exec :crash)))))))))
+             (let* ((realm (make-realm))
+                    (getout (when asyncp (%install-print realm)))
+                    ;; test262 auto-includes doneprintHandle.js for async tests (defines
+                    ;; $DONE via print) — it is not in the frontmatter includes list.
+                    (full (concatenate 'string (if m "\"use strict\";" "")
+                                       (harness "sta.js") (harness "assert.js")
+                                       (if asyncp (harness "doneprintHandle.js") "") inc src)))
+               (handler-case
+                   (sb-ext:with-timeout 5 (run-source full :realm realm))
+                 (sb-ext:timeout () (return :fail))
+                 (js-condition () (return :fail))
+                 (serious-condition () (return-from classify-exec :crash)))
+               (when asyncp
+                 (let ((out (funcall getout)))
+                   (unless (and (search "Test262:AsyncTestComplete" out)
+                                (not (search "Test262:AsyncTestFailure" out)))
+                     (return :fail)))))))))))
 
 (defparameter *builtins-root*
   (merge-pathnames "vendor-data/test262/test/built-ins/" cl-user::*clun-root*))

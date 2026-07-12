@@ -20,6 +20,16 @@
                              (:module "sys"
                               :serial t
                               :components ((:file "sbcl-compat")))
+                             ;; the event loop is pure substrate (no engine deps) and
+                             ;; loads before the engine so the async files can call it.
+                             (:module "loop"
+                              :serial t
+                              :components ((:file "loop-core")
+                                           (:file "timers")
+                                           (:file "reactor")
+                                           (:file "signals")
+                                           (:file "workers")
+                                           (:file "event-loop")))
                              (:module "engine"
                               :serial t
                               :components ((:file "values")
@@ -49,16 +59,14 @@
                                            (:file "builtins-math")
                                            (:file "builtins-json")
                                            (:file "builtins-global")
+                                           (:module "async"
+                                            :serial t
+                                            :components ((:file "coroutine")
+                                                         (:file "generator")
+                                                         (:file "promise")
+                                                         (:file "async-function")))
                                            (:file "emitter")
                                            (:file "eval")))
-                             (:module "loop"
-                              :serial t
-                              :components ((:file "loop-core")
-                                           (:file "timers")
-                                           (:file "reactor")
-                                           (:file "signals")
-                                           (:file "workers")
-                                           (:file "event-loop")))
                              (:file "main")))))
 
 (defsystem "clun/tests"
@@ -82,7 +90,8 @@
                                                          (:file "parser-tests")
                                                          (:file "objects-tests")
                                                          (:file "eval-tests")
-                                                         (:file "builtins-tests")))
+                                                         (:file "builtins-tests")
+                                                         (:file "async-tests")))
                                            (:module "loop"
                                             :serial t
                                             :components ((:file "loop-tests")))))))))

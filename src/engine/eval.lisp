@@ -17,7 +17,9 @@
     (dolist (fd (collect-function-decls stmts))
       (let* ((name (identifier-name (function-node-id fd)))
              (fn (funcall (compile-function-common comp (function-node-params fd)
-                                                   (function-node-body fd) name)
+                                                   (function-node-body fd) name
+                                                   :generator (function-node-generator fd)
+                                                   :async (function-node-async fd))
                           nil)))
         (js-set g name fn t)))
     (multiple-value-bind (vars funcs) (collect-var-names stmts)
@@ -36,12 +38,26 @@
     (funcall (compile-seq comp (program-body program)) nil))
   +undefined+)
 
+(defun drive-jobs (realm)
+  "Run the event loop (Promise microtasks, timers, nextTick) to idle, if one exists."
+  (let ((l (realm-loop realm))) (when l (lp:run-loop l))))
+
+(defun destroy-realm-loop (realm)
+  (let ((l (realm-loop realm)))
+    (when l (ignore-errors (lp:destroy-event-loop l)) (setf (realm-loop realm) nil))))
+
 (defun run-source (source &key (realm (make-realm)) strict (source-type :script))
-  "Parse and execute SOURCE in REALM (created if not given). Returns REALM.
-Signals a js-condition on an uncaught JS throw; the caller inspects the value.
-*realm* is bound around PARSING too so a SyntaxError builds a real Error object."
+  "Parse SOURCE, run top-level, drive the job loop to idle, then surface any
+unhandled rejection as an uncaught error (§ Phase 06). Teardown force-finishes live
+coroutines and destroys the loop (leak control). *realm* is bound around parsing too."
   (let ((*realm* realm))
-    (run-program (parse-program source :source-type source-type) realm :strict strict))
+    (unwind-protect
+         (progn
+           (run-program (parse-program source :source-type source-type) realm :strict strict)
+           (drive-jobs realm)
+           (report-unhandled-rejections realm))
+      (teardown-coroutines realm)
+      (destroy-realm-loop realm)))
   realm)
 
 (defun indirect-eval (source)
@@ -63,10 +79,17 @@ returning the completion value (§19.2.1). *realm* is already bound by the calle
          (comp (make-comp)))
     (when (or strict (program-strict-p program)) (setf (comp-strict comp) t))
     (global-instantiate (program-body program) comp)
-    ;; return the completion value of the last expression statement
-    (let ((body (program-body program)) (result +undefined+))
-      (dolist (s body result)
-        (let ((c (compile-node comp s)))
-          (if (expression-statement-p s)
-              (setf result (funcall c nil))
-              (funcall c nil)))))))
+    (unwind-protect
+         ;; return the completion value of the last expression statement, after
+         ;; draining the job loop (so promise reactions/timers have run)
+         (let ((body (program-body program)) (result +undefined+))
+           (dolist (s body)
+             (let ((c (compile-node comp s)))
+               (if (expression-statement-p s)
+                   (setf result (funcall c nil))
+                   (funcall c nil))))
+           (drive-jobs realm)
+           (report-unhandled-rejections realm)
+           result)
+      (teardown-coroutines realm)
+      (destroy-realm-loop realm))))

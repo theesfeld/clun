@@ -117,9 +117,8 @@
                     (compile-class comp node)))
     (arrow-function (compile-arrow comp node))
     (super-node (lambda (env) (declare (ignore env)) (throw-syntax-error "super outside method")))
-    ;; generators/async land in Phase 06 — reach here only for non-skipped tests
-    (yield-expression (lambda (env) (declare (ignore env)) (throw-syntax-error "generators are not supported yet (Phase 06)")))
-    (await-expression (lambda (env) (declare (ignore env)) (throw-syntax-error "async is not supported yet (Phase 06)")))
+    (yield-expression (compile-yield comp node))
+    (await-expression (compile-await comp node))
     ;; statements
     (expression-statement (compile-node comp (expression-statement-expression node)))
     (block-statement (compile-block comp node))
@@ -586,15 +585,19 @@
         (when (string= (expression-statement-directive s) "use strict") (return t))
         (return nil))))
 
-(defun compile-function-common (comp params body fname &key arrow method)
-  "Return (lambda (env) -> js-function). Sets up the function scope and body closure."
+(defun compile-function-common (comp params body fname &key arrow method generator async)
+  "Return (lambda (env) -> js-function). Sets up the function scope and body closure.
+GENERATOR/ASYNC bodies run in a coroutine (Phase 06): a hidden %coro% frame slot holds
+the live coroutine that yield/await suspend."
   (let* ((strict (or (comp-strict comp) (function-body-strict-p body)))
          (scope (make-cscope :function))
-         (stmts (block-statement-body body)))
+         (stmts (block-statement-body body))
+         (coro-p (or generator async)))  ; generator/async bodies run in a coroutine
     ;; reserved bindings
     (let ((this-idx (unless arrow (cs-declare scope "%this%")))
           (nt-idx (unless arrow (cs-declare scope "%new.target%")))
-          (args-idx (unless arrow (cs-declare scope "arguments"))))
+          (args-idx (unless arrow (cs-declare scope "arguments")))
+          (coro-idx (when coro-p (cs-declare scope "%coro%"))))
       ;; parameters
       (let ((param-binders '()) (simple-params (every #'identifier-p params)))
         ;; declare param names in the scope
@@ -621,32 +624,58 @@
                                         collect (cons (gethash (identifier-name (function-node-id fd)) (cs-names scope))
                                                       (compile-function-common sub (function-node-params fd)
                                                                                (function-node-body fd)
-                                                                               (identifier-name (function-node-id fd))))))
+                                                                               (identifier-name (function-node-id fd))
+                                                                               :generator (function-node-generator fd)
+                                                                               :async (function-node-async fd)))))
                    (body-fn (compile-seq sub stmts))
                    (count (cs-count scope))
                    (this-mode (cond (arrow :lexical) (strict :strict) (t :global))))
               (declare (ignore method))
               (lambda (defenv)
-                (instantiate-function
-                 (lambda (fn this args new-target)
-                   (declare (ignore fn))
-                   (let ((frame (new-frame count defenv)))
-                     (unless arrow
-                       (setf (svref (env-slots frame) this-idx) (coerce-this this this-mode)
-                             (svref (env-slots frame) nt-idx) new-target
-                             (svref (env-slots frame) args-idx) (make-arguments-object args)))
-                     ;; TDZ for lexicals
-                     (dolist (li lexical-idxs) (setf (svref (env-slots frame) li) +tdz+))
-                     ;; bind params
-                     (bind-parameters param-binders args frame simple-params)
-                     ;; hoist function declarations
-                     (dolist (fc func-compiled)
-                       (setf (svref (env-slots frame) (car fc)) (funcall (cdr fc) frame)))
-                     (catch return-tag (funcall body-fn frame) +undefined+)))
-                 defenv
-                 :fname fname :param-count (count-if (lambda (p) (and (identifier-p p))) params)
-                 :strict strict :this-mode this-mode
-                 :constructable (not arrow) :kind (if (or arrow method) :method :normal)))))))))))
+                (labels ((setup-frame (this args new-target)
+                           (let ((frame (new-frame count defenv)))
+                             (unless arrow
+                               (setf (svref (env-slots frame) this-idx) (coerce-this this this-mode)
+                                     (svref (env-slots frame) nt-idx) new-target
+                                     (svref (env-slots frame) args-idx) (make-arguments-object args)))
+                             (dolist (li lexical-idxs) (setf (svref (env-slots frame) li) +tdz+))
+                             (bind-parameters param-binders args frame simple-params)
+                             (dolist (fc func-compiled)
+                               (setf (svref (env-slots frame) (car fc)) (funcall (cdr fc) frame)))
+                             frame))
+                         (run-body (frame) (catch return-tag (funcall body-fn frame) +undefined+)))
+                  (instantiate-function
+                   (cond
+                     ((and generator async)
+                      (lambda (fn this args new-target)
+                        (declare (ignore fn))
+                        (let ((frame (setup-frame this args new-target)))
+                          (let ((co (make-coroutine (lambda () (run-body frame)))))
+                            (setf (svref (env-slots frame) coro-idx) co)
+                            (make-async-generator co)))))
+                     (generator
+                      (lambda (fn this args new-target)
+                        (let ((frame (setup-frame this args new-target)))
+                          (let ((co (make-coroutine (lambda () (run-body frame)))))
+                            (setf (svref (env-slots frame) coro-idx) co)
+                            (make-generator fn co)))))
+                     (async
+                      (lambda (fn this args new-target)
+                        (declare (ignore fn))
+                        (let ((frame (setup-frame this args new-target)))
+                          (let ((co (make-coroutine (lambda () (run-body frame)))))
+                            (setf (svref (env-slots frame) coro-idx) co)
+                            (drive-async-function co)))))
+                     (t
+                      (lambda (fn this args new-target)
+                        (declare (ignore fn))
+                        (run-body (setup-frame this args new-target)))))
+                   defenv
+                   :fname fname :param-count (count-if (lambda (p) (and (identifier-p p))) params)
+                   :strict strict :this-mode this-mode
+                   :constructable (and (not arrow) (not coro-p))
+                   :kind (cond (generator :generator)
+                               ((or arrow method) :method) (t :normal)))))))))))))
 
 (defun bind-parameters (binders args frame simple)
   (declare (ignore simple))
@@ -677,16 +706,19 @@
 
 (defun compile-function-expr (comp node)
   (compile-function-common comp (function-node-params node) (function-node-body node)
-                           (if (function-node-id node) (identifier-name (function-node-id node)) "")))
+                           (if (function-node-id node) (identifier-name (function-node-id node)) "")
+                           :generator (function-node-generator node)
+                           :async (function-node-async node)))
 
 (defun compile-arrow (comp node &optional (name ""))
   (let ((body (arrow-function-body node)))
     (if (block-statement-p body)
-        (compile-function-common comp (arrow-function-params node) body name :arrow t)
+        (compile-function-common comp (arrow-function-params node) body name :arrow t
+                                 :async (arrow-function-async node))
         ;; expression-bodied arrow: wrap the expression in a return
         (compile-function-common comp (arrow-function-params node)
                                  (make-block-statement :body (list (make-return-statement :argument body)))
-                                 name :arrow t))))
+                                 name :arrow t :async (arrow-function-async node)))))
 
 (defun anon-fn-node-p (node)
   "An anonymous function/arrow/class expression eligible for NamedEvaluation."
@@ -700,11 +732,94 @@
     ((or (null name) (string= name "")) (compile-node comp node))
     ((arrow-function-p node) (compile-arrow comp node name))
     ((and (function-node-p node) (null (function-node-id node)))
-     (compile-function-common comp (function-node-params node) (function-node-body node) name))
+     (compile-function-common comp (function-node-params node) (function-node-body node) name
+                               :generator (function-node-generator node)
+                               :async (function-node-async node)))
     (t (compile-node comp node))))
 
 (defun compile-method (comp fn-node)
-  (compile-function-common comp (function-node-params fn-node) (function-node-body fn-node) "" :method t))
+  (compile-function-common comp (function-node-params fn-node) (function-node-body fn-node) "" :method t
+                           :generator (function-node-generator fn-node)
+                           :async (function-node-async fn-node)))
+
+;;; --- yield / await (Phase 06) ------------------------------------------------
+;;; yield/await are plain calls into the coroutine primitive: they return a js-value
+;;; on the real CL stack, so they compose inside any expression with no special case.
+;;; The enclosing generator/async function's live coroutine is read from %coro%.
+
+(defun compile-coro-ref (comp)
+  (multiple-value-bind (kind depth index) (comp-resolve comp "%coro%")
+    (if (eq kind :local)
+        (lambda (env) (frame-ref env depth index "%coro%"))
+        (lambda (env) (declare (ignore env))
+          (throw-syntax-error "yield/await outside a generator or async function")))))
+
+(defun compile-yield (comp node)
+  (let ((arg-fn (and (yield-expression-argument node)
+                     (compile-node comp (yield-expression-argument node))))
+        (coro-ref (compile-coro-ref comp)))
+    (if (yield-expression-delegate node)
+        (lambda (env)
+          (%yield-delegate (funcall coro-ref env) (get-iterator (funcall arg-fn env))))
+        (lambda (env)
+          (coroutine-suspend (funcall coro-ref env) :yield
+                             (if arg-fn (funcall arg-fn env) +undefined+))))))
+
+(defun compile-await (comp node)
+  (let ((arg-fn (compile-node comp (await-expression-argument node)))
+        (coro-ref (compile-coro-ref comp)))
+    (lambda (env) (await-value (funcall coro-ref env) (funcall arg-fn env)))))
+
+;;; --- lazy iterator protocol (yield*, for-of/for-await) -----------------------
+
+(defun get-iterator (obj &optional async)
+  "Returns (values iterator async-from-sync-p). ASYNC-FROM-SYNC-P is true when an
+async iterator was requested but only a sync @@iterator exists — the caller must
+then Await each yielded value (§27.1.4.1)."
+  (let ((iter-fn (and async (get-method obj (well-known :async-iterator)))))
+    (when (or (null iter-fn) (js-undefined-p iter-fn))
+      (let ((sync-fn (get-method obj (well-known :iterator))))
+        (when (js-undefined-p sync-fn) (throw-type-error "value is not iterable"))
+        (let ((iter (js-call sync-fn obj '())))
+          (unless (js-object-p iter) (throw-type-error "iterator is not an object"))
+          (return-from get-iterator (values iter async)))))
+    (let ((iter (js-call iter-fn obj '())))
+      (unless (js-object-p iter) (throw-type-error "iterator is not an object"))
+      (values iter nil))))
+
+(defun iterator-step (iter &optional (value +undefined+))
+  "Call iter.next(value); returns the result object (validated)."
+  (let ((r (js-call (js-get iter "next") iter (list value))))
+    (unless (js-object-p r) (throw-type-error "iterator result is not an object"))
+    r))
+
+(defun %yield-delegate (co iter)
+  "yield* (§15.5.5): forward next/throw/return to the inner iterator, yielding each
+value to the outer driver and returning the inner iterator's final value."
+  (let ((sent (cons :next +undefined+)))
+    (loop
+      (let* ((mode (car sent)) (v (cdr sent))
+             (result
+              (ecase mode
+                (:next (iterator-step iter v))
+                (:throw
+                 (let ((m (js-get iter "throw")))
+                   (if (callable-p m) (js-call m iter (list v))
+                       (progn (%iterator-close iter) (throw-type-error "iterator has no throw method")))))
+                (:return
+                 (let ((m (js-get iter "return")))
+                   (if (callable-p m) (js-call m iter (list v))
+                       (throw *coroutine-return-tag* (cons :return v))))))))
+        (unless (js-object-p result) (throw-type-error "iterator result is not an object"))
+        (when (js-truthy (js-get result "done"))
+          (let ((rv (js-get result "value")))
+            ;; a forwarded .return whose inner iterator finished completes the outer generator
+            (if (eq mode :return) (throw *coroutine-return-tag* (cons :return rv)) (return rv))))
+        (setf sent (coroutine-suspend-raw co (js-get result "value")))))))
+
+(defun %iterator-close (iter)
+  (let ((m (js-get iter "return")))
+    (when (callable-p m) (ignore-errors (js-call m iter '())))))
 
 ;;; --- statements -------------------------------------------------------------
 
@@ -729,7 +844,9 @@
                                           collect (cons (gethash (identifier-name (function-node-id fd)) (cs-names scope))
                                                         (compile-function-common sub (function-node-params fd)
                                                                                  (function-node-body fd)
-                                                                                 (identifier-name (function-node-id fd))))))
+                                                                                 (identifier-name (function-node-id fd))
+                                                                                 :generator (function-node-generator fd)
+                                                                                 :async (function-node-async fd)))))
                      (body-fn (compile-seq sub stmts))
                      (count (cs-count scope)))
                 (lambda (env)
@@ -848,8 +965,47 @@
                     (for-in-statement-body node) :in))
 
 (defun compile-for-of (comp node)
-  (compile-for-each comp node (for-of-statement-left node) (for-of-statement-right node)
-                    (for-of-statement-body node) :of))
+  (if (for-of-statement-await node)
+      (compile-for-await comp node)
+      (compile-for-each comp node (for-of-statement-left node) (for-of-statement-right node)
+                        (for-of-statement-body node) :of)))
+
+(defun compile-for-await (comp node)
+  "for await (x of obj): lazily step an async iterator, awaiting each next() result.
+Runs inside the enclosing async function/generator's coroutine (%coro%)."
+  (with-loop (comp bt ct)
+    (let* ((left (for-of-statement-left node)) (right (for-of-statement-right node))
+           (body (for-of-statement-body node))
+           (lexical (and (variable-declaration-p left) (member (variable-declaration-kind left) '(:let :const))))
+           (names (when lexical (loop for d in (variable-declaration-declarations left)
+                                      append (binding-bound-names (variable-declarator-id d)))))
+           (scope (when lexical (make-cscope :block))))
+      (when lexical (dolist (n names) (cs-declare scope n)))
+      (let ((sub comp))
+        (when lexical
+          (setf sub (make-comp))
+          (setf (comp-scopes sub) (cons scope (comp-scopes comp)) (comp-strict sub) (comp-strict comp)
+                (comp-loops sub) (comp-loops comp) (comp-labels sub) (comp-labels comp)))
+        (let* ((coro-ref (compile-coro-ref comp))
+               (right-fn (compile-node comp right))
+               (binder (for-each-binder sub left))
+               (body-fn (compile-node sub body))
+               (count (and lexical (cs-count scope))))
+          (lambda (env)
+            (let ((co (funcall coro-ref env)))
+              (multiple-value-bind (iter from-sync) (get-iterator (funcall right-fn env) t)
+                (catch bt
+                  (loop
+                    (let ((result (await-value co (iterator-step iter))))
+                      (unless (js-object-p result) (throw-type-error "iterator result is not an object"))
+                      (when (js-truthy (js-get result "done")) (return))
+                      ;; async-from-sync: Await the value too (§27.1.4.1); a native
+                      ;; async iterator yields already-settled values (no re-Await).
+                      (let ((val (if from-sync (await-value co (js-get result "value")) (js-get result "value")))
+                            (frame (if lexical (new-frame count env) env)))
+                        (funcall binder frame val)
+                        (catch ct (funcall body-fn frame)))))))
+              :normal)))))))
 
 (defun compile-for-each (comp node left right body kind)
   (declare (ignore node))
@@ -1039,9 +1195,14 @@
                          (lambda (this args)
                            (when super (js-construct super args))
                            this)
-                         :construct (lambda (args nt) (declare (ignore nt))
-                                      (let ((o (js-make-object proto)))
-                                        (when super (js-construct super args)) o))))))
+                         ;; default ctor: a DERIVED class binds `this` to super()'s
+                         ;; return (new-target threaded so the instance gets this
+                         ;; class's prototype) — else builtin subclasses (Promise,
+                         ;; Error, …) lose their exotic/struct identity.
+                         :construct (lambda (args nt)
+                                      (if super
+                                          (js-construct super args nt)
+                                          (js-make-object proto)))))))
         (when (js-function-p ctor)
           (setf (js-function-home-object ctor) proto))
         (obj-set-desc ctor "prototype" (data-pd proto :writable nil :enumerable nil :configurable nil))

@@ -338,9 +338,9 @@ expression is not a directive — we snapshot and rewind so the caller parses it
         (finish (make-do-while-statement :body body :test test) start (parser-prev-end p))))))
 
 (defun parse-for (p)
-  (let ((start (cur-start p)))
+  (let ((start (cur-start p)) (await nil))
     (advance p)
-    (when (name? p "await") (advance p))       ; for-await (async ctx) — accept, tag below
+    (when (name? p "await") (advance p) (setf await t))   ; for-await (async ctx)
     (eat-punct p "(")
     (let ((init nil) (kind nil))
       (cond
@@ -364,6 +364,7 @@ expression is not a directive — we snapshot and rewind so the caller parses it
          (let ((right (parse-assignment p)))
            (eat-punct p ")")
            (finish (make-for-of-statement :left (for-target p init) :right right
+                                          :await await
                                           :body (with-iteration p (parse-statement p)))
                    start (parser-prev-end p))))
         (t

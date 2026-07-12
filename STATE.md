@@ -5,7 +5,27 @@ Update before every commit. Seeded from PLAN.md §5.
 
 ---
 
-## Current phase: **06 — Async engine (generators, promises, modules)**  (Phase 05 committed; event-loop gate MET)
+## Current phase: **07 — Module resolution & CJS**  (Phase 06 committed; async gate MET)
+
+**Phase 06 outcome:** the async engine is live via **thread-per-coroutine** (the §3.1 fallback, taken
+deliberately over state-machine lowering — see DECISIONS 2026-07-11 + docs/design/phase-06.md).
+`src/engine/async/` (coroutine/generator/promise/async-function, ~900 LOC): generators (next/return/
+throw, yield*, try/finally×yield×return via the real CL stack — for free), Promises (capability +
+Symbol.species subclass model, thenable adoption, then/catch/finally, all/allSettled/race/any,
+IfAbruptRejectPromise, unhandled-rejection→exit), async/await, for-await-of (sync + async iterables),
+async generators. `run-source`/`eval-source` host a per-realm event loop (`:workers 0`), run top-level,
+drive to idle, report unhandled rejections; runaway/abandoned coroutines are force-finished/terminated
+at teardown (0 thread leak verified). **Gate MET (each dir ≥75%):** Promise 76.1%, async-fn 78.1%,
+for-await 78.7%, generators ~78.5%; ordering corpus (nextTick<microtask<timer) passes; **0 crashes, 0
+regressions** across the 34,779-file exec phase (pass 19,449, +3,118). 719 CL unit tests; purity clean
+(115 files). Key conformance fixes: runner auto-includes doneprintHandle.js for `async` tests;
+combinators reject-on-abrupt + AlreadyCalled guard. **DEFERRED to Phase 07:** ESM linking + TLA (Phase
+07 owns module resolution); the gate does not require them. Phase 03 deferral `class extends` super
+caps the Promise-subclass tests (revisit later).
+
+**Next action:** Begin Phase 07 (Module resolution & CJS): `src/resolver/` pure-CL Node resolution +
+~40-tree fixture corpus, loader hooks, CJS `require`, ESM↔CJS interop, JSON modules, import.meta. This
+subsumes the deferred Phase 06 ESM linking. Deps 06 ✓.
 
 **Phase 05 outcome:** the pure-SBCL reactor is live (`src/loop/` + `src/sys/sbcl-compat.lisp`, ~600
 LOC). serve-event poll reactor + self-pipe wakeup (verified: signals don't wake serve-event, a byte
@@ -18,11 +38,6 @@ enqueue-only signal delivery (atomic counter + self-pipe, §6 iron rule); sb-thr
 jobs into the same queues. **Gate MET:** timer ordering ✓, cross-thread wake <5 ms ✓, alive-iff-refs
 ✓, SIGINT→loop event ✓, microtask-drain ordering ✓. 674 unit tests; purity clean (110 files); 0
 test262 regressions (parse 17,503 / exec 14,813, 0 crashes).
-
-**Next action:** Begin Phase 06 (Async engine: regenerator-style generator lowering, Promise + job
-queue wired into the loop's microtask queue, async/await, for-await, ESM linking/eval/TLA,
-unhandled-rejection tracking). Deps 04 ✓ + 05 ✓. The loop's `enqueue-microtask`/`enqueue-next-tick`
-are the promise/nextTick job sinks; `run-loop` dispatch points already drain them.
 
 **Phase 04 outcome:** the stdlib core is broad and correct. Added 12 `builtins-*.lisp` modules
 (~2,600 LOC): **Ryū** Number→String (interval method, exact-rational backend; cross-checked 0
@@ -126,6 +141,33 @@ _(nothing blocked)_
     process-global `enable-interrupt` → second live loop clobbered the first (now a loud error +
     ownership released on destroy). 680 unit tests after fixes; 0 regressions.
 
+- **Phase 06 — ASYNC GATE MET + committed (2026-07-11).**
+  - `make build` clean; `make test` **739 assertions** (generators/promises/async/for-await + ordering
+    + subclass-builtins + panel regressions); `make purity` clean (115 files); `make conformance-exec`
+    over 34,779 files: **pass 19,540** (+4,209 over Phase 05), **0 crashes**, exec-passlist regenerated
+    (19,540, monotonic), **0 regressions**.
+  - **Gate (each dir ≥75%):** Promise **76.1%** (542/712), async-function **78.1%**, for-await
+    **78.7%**, generators **~78.5%**; ordering corpus (nextTick<microtask<timer) ✔.
+  - Thread-per-coroutine engine (`src/engine/async/`): generators, Promises (capability/species),
+    async/await, for-await, async generators. `run-source`/`eval-source` host + drive a per-realm loop;
+    teardown terminates runaway/abandoned coroutines (0 thread leak). Vendored built-ins/Promise +
+    Generator/Async prototypes (1,024 files) from the pinned d1d583d clone.
+  - Fixes that unblocked the gate: runner auto-includes doneprintHandle.js for `async` tests; Promise
+    combinators reject-on-abrupt (IfAbruptRejectPromise) + per-element AlreadyCalled guard.
+  - DEFERRED: ESM linking + TLA → Phase 07 (owns module resolution); `class extends` super (Phase 03
+    deferral) caps Promise-subclass tests.
+  - Adversarial review panel (4 dims × verify-by-running-JS): **11 confirmed / 0 refuted**; 7 fixed +
+    locked as regressions (Object.prototype.toString reads @@toStringTag; Promise.finally awaits
+    onFinally's result + propagates its rejection; AggregateError global; for-await Awaits sync values
+    (async-from-sync); `class extends Promise` derived default ctor binds `this` to super()'s result —
+    real subclass Promises; setTimeout returns an opaque coercible id + clamps huge/∞ delays). 4
+    DEFERRED (async-iteration edge cases, not a gate dir): async-generator request queue for concurrent
+    next(); AsyncGenerator.return awaiting its arg; async `yield*`; + the `class extends` EXPLICIT-super
+    ceiling (Phase 03 deferral). The `class extends Promise` fix generalized to **new-target-honoring in
+    all builtin constructors** (Array/Boolean/Number/String/Error/Object/Function/bound-fn — subclassing
+    a builtin now preserves both identities), and finally was made spec-faithful (single-arg internal
+    `.then`, length-1 wrappers). Post-fix: 739 unit tests, **0 regressions, 0 crashes**.
+
 ## Phases
 
 Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-early.
@@ -186,12 +228,12 @@ Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-earl
 - **Gate:** timer-ordering ✓; cross-thread wake < 5 ms ✓; process alive iff refs>0 ✓; SIGINT → loop
   event ✓; microtask-drain points honored (stub queue) ✓.
 
-### Phase 06 — Async engine: generators, promises, modules  (deps: 04, 05) ~2.5k LOC
-- [ ] regenerator-style lowering (state machine + try-entry tables); Generator objects
-- [ ] Promise + job queue (engine-owned; nextTick queue ahead of microtasks); async functions
-- [ ] for-await; async generators; ESM linking + evaluation + TLA
-- [ ] unhandled-rejection tracking → error + exit 1; async-test262 runner support
-- **Gate:** Promise/generator/async/for-await 262 dirs ≥ 75%; zero regressions; ordering corpus passes.
+### Phase 06 — Async engine: generators, promises, modules  (deps: 04, 05) ~2.5k LOC — **DONE (gate MET)**
+- [x] **thread-per-coroutine** (§3.1 fallback, not lowering — DECISIONS 2026-07-11); Generator objects (next/return/throw, yield*)
+- [x] Promise + job queue (engine-owned; nextTick ahead of microtasks); capability+species; async functions
+- [x] for-await (sync+async iterables); async generators; ~ESM linking/TLA → **deferred to Phase 07**
+- [x] unhandled-rejection tracking → error (exit 1 at CLI); async-test262 runner support ($DONE/doneprintHandle)
+- **Gate:** Promise 76.1% / generators ~78.5% / async 78.1% / for-await 78.7% (each ≥75% ✔); 0 regressions ✔; ordering corpus ✔.
 
 ### Phase 07 — Module resolution & CJS  (deps: 06) ~2.5k LOC ⚡(fixtures)
 - [ ] src/resolver/ pure CL (relative/absolute/bare, ext probing, dir index, main/exports/imports, self-refs, scoped, symlink realpath)

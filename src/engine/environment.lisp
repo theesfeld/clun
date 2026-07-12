@@ -37,7 +37,10 @@
 
 (defstruct (realm (:conc-name realm-) (:constructor %make-realm) (:copier nil))
   (intrinsics (make-hash-table :test 'eq))
-  global)
+  global
+  (loop nil)                     ; the event-loop hosting this realm's jobs (Phase 06)
+  (coroutines '())               ; live coroutines, for teardown (Phase 06)
+  (pending-rejections nil))      ; hash promise->reason of unhandled rejections (Phase 06)
 
 (defvar *realm* nil "The realm current code runs in (bound by the evaluator).")
 
