@@ -63,6 +63,7 @@
                                            (:file "builtins-iterator")
                                            (:file "builtins-object")
                                            (:file "builtins-number")
+                                           (:file "builtins-bigint")
                                            (:file "builtins-string")
                                            ;; RegExp (Phase 10): own JS parser → AST →
                                            ;; CL-PPCRE parse trees; RegExp object + String
@@ -77,6 +78,10 @@
                                            (:file "builtins-array")
                                            (:file "builtins-symbol")
                                            (:file "builtins-collections")
+                                           ;; binary data (Phase 11): ArrayBuffer, the 11
+                                           ;; TypedArray exotics, DataView, TextEncoder/Decoder.
+                                           ;; After collections (iterator protocol), before global.
+                                           (:file "builtins-binary")
                                            (:file "builtins-date")
                                            (:file "builtins-math")
                                            (:file "builtins-json")
@@ -152,7 +157,8 @@
                                                          (:file "async-tests")
                                                          (:file "modules-tests")
                                                          (:file "inspect-tests")
-                                                         (:file "regexp-tests")))
+                                                         (:file "regexp-tests")
+                                                         (:file "binary-tests")))
                                            (:module "runtime"
                                             :serial t
                                             :components ((:file "runtime-tests")))

@@ -32,13 +32,17 @@
   (well-known nil))            ; e.g. :iterator :to-primitive :has-instance for @@-symbols
 
 (declaim (inline js-undefined-p js-null-p js-nullish-p js-boolean-p
-                 js-number-p js-string-p js-primitive-p))
+                 js-number-p js-bigint-p js-string-p js-primitive-p))
 
 (defun js-undefined-p (v) (eq v +undefined+))
 (defun js-null-p       (v) (eq v +null+))
 (defun js-nullish-p    (v) (or (eq v +undefined+) (eq v +null+)))
 (defun js-boolean-p    (v) (or (eq v +true+) (eq v +false+)))
 (defun js-number-p     (v) (typep v 'double-float))
+;; BigInt IS a CL integer — no engine value is ever a raw integer otherwise (numbers
+;; are doubles, indices/lengths are consumed locally but never stored as a JS value),
+;; so this is a total, unambiguous slot in the value domain (§3.1).
+(defun js-bigint-p     (v) (integerp v))
 (defun js-string-p     (v) (stringp v))
 
 (defun js-boolean (generalized-boolean)
@@ -54,6 +58,7 @@
   "The ECMA-262 §6.1 Type of V, as a keyword (for internal dispatch, not `typeof`)."
   (typecase v
     (double-float :number)
+    (integer :bigint)
     (string :string)
     (js-symbol :symbol)
     (js-object :object)

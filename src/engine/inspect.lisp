@@ -76,7 +76,7 @@ recursion budget (2), BREADTH the per-container item cap (100)."
     ((typep v 'double-float)
      (cond ((js-neg-zero-p v) "-0")
            (t (number->js-string v))))
-    ((integerp v) (princ-to-string v))          ; (bigint arrives Phase 11)
+    ((integerp v) (format nil "~dn" v))         ; BigInt prints with the `n` suffix
     ((stringp v) (%quote-string v))
     ((js-symbol-p v)
      (let ((d (js-symbol-description v)))

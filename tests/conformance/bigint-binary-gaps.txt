@@ -1,0 +1,61 @@
+# Phase 11 (BigInt + binary data) — deliberate conformance gaps
+#
+# Every gap below is DELIBERATE and either (a) skipped by a test262 feature tag, or
+# (b) raises a LOUD RangeError/TypeError — never a silent mismatch (the purity/honesty
+# contract). Measured @ test262 d1d583db95, both strict + sloppy modes:
+#   BigInt                   73/76  = 96.1%   (gate ≥65%)
+#   TypedArray               831/1231 = 67.5% (gate ≥65%)
+#   DataView                 346/491 = 70.5%  (gate ≥65%)
+#   TypedArrayConstructors   457/536 = 85.3%
+#   ArrayBuffer              90/139  = 64.7%
+#
+# BigInt is a plain CL integer; ArrayBuffers are ub8 vectors; the 11 TypedArrays are
+# integer-indexed exotics over a shared buffer (detach = buffer bytes → NIL); byte
+# assembly is pure SBCL (ldb/dpb + sb-kernel float-bit primitives). See DECISIONS
+# 2026-07-12 and docs/design/phase-11.md.
+#
+# ============================================================================
+# A. FEATURE-SKIPPED (scripts/test262.lisp *exec-skip* — not run)
+# ============================================================================
+#   resizable-arraybuffer      maxByteLength / resize / grow, length-tracking views.
+#       Not modeled; the ctor `maxByteLength` option is simply ignored (fixed-length).
+#   SharedArrayBuffer, Atomics  (Phase 12 / non-goal) — constructors absent.
+#
+# ============================================================================
+# B. RUN-AND-FAIL (documented gaps; counted against the rates)
+# ============================================================================
+#
+# B1. @@species-driven subclass return types
+#     TypedArray.prototype.{map,filter,slice,subarray} and ArrayBuffer.prototype.slice
+#     return the BASE intrinsic kind, not a subclass chosen via @@species / the
+#     receiver's `constructor`. (Ties into the generic species-construct protocol.)
+#
+# B2. ES2023 change-array-by-copy on TypedArrays
+#     %TypedArray%.prototype.{toSorted,toReversed,with} and .findLast/.findLastIndex —
+#     not implemented (property is undefined).
+#
+# B3. TextDecoder streaming + non-UTF-8 labels
+#     `{stream:true}` partial-sequence carry-over across chunks is single-shot only;
+#     any non-UTF-8 label (utf-16le/be, iso-8859-*, …) is a LOUD RangeError, never a
+#     wrong decode. `fatal:true` currently decodes non-fatally (maximal-subpart U+FFFD).
+#     (encode/decode DO substitute lone surrogates → U+FFFD and strip a leading BOM.)
+#
+# B4. TextEncoder.encodeInto — not implemented (method undefined).
+#
+# B5. Full generic constructor/coercion-order protocol
+#     Some TypedArray/DataView constructor + method tests assert an exact ordering of
+#     observable ToIndex/ToNumber/Get side effects, buffer-species lookup, and
+#     detach-during-coercion re-checks that the fast path does not fully model.
+#
+# B6. Data Block allocation cap
+#     A requested buffer byte length above 2^31 raises RangeError (rather than
+#     attempting a heap-exhausting allocation) — matches AllocateArrayBuffer's
+#     "impossible to create → RangeError", but the exact threshold is ours.
+#
+# B7. Number(bigint) / implicit BigInt→Number — a deliberate TypeError (spec), listed so
+#     reviewers know it is intentional, not a missing coercion. (BigInt.asIntN/asUintN
+#     widths above 2^27 also throw RangeError, a DoS guard.)
+#
+# The remaining scattered fails share these roots (B1 species, B5 coercion-order) plus a
+# few exotic OwnPropertyKeys/DefineProperty ordering checks — the bulk of the remaining
+# TypedArray headroom for a later phase.

@@ -670,3 +670,60 @@ the real @@ methods, whose builtin fast-path `exec` (not the spec's user-overrid
 the B1 documented gap. A 4th flagged test, `call_with_regexp_match_falsy.js`, WAS a real regression
 from the RegExp(re) short-circuit and was fixed in code (gate the short-circuit on IsRegExp, which
 consults @@match, not js-regexp-p), not removed.
+
+### 2026-07-12 — Phase 11: Binary data + BigInt (BigInt = a plain CL integer; TypedArray exotics)
+BigInt is represented as a **plain CL integer** (bignum/fixnum), NOT a wrapper struct: no
+engine-internal JS value is ever a raw integer (numbers are `double-float`; lengths/indices are
+consumed locally but never stored as a JS value), so `js-bigint-p` = `(integerp v)` is a total,
+unambiguous slot in the value domain (`values.lisp:10-11`'s stated intent). This is faithful AND
+cheaper than a wrapper — `=`/`js-strict-eq`/`js-same-value` work for free, no per-literal
+allocation. The front-end was already done (lexer emits `:bigint` tokens with a CL integer;
+parser builds a `:bigint` literal; `compile-literal` passes it through), so Phase 11 is runtime +
+stdlib only. Threaded through `js-type`/`js-typeof`/`js-strict-eq`, `js-loose-eq` (BigInt==Number
+is MATHEMATICAL equality `1n==1`→true, not auto-false; via `(= b (rational d))` guarding NaN/Inf),
+relational (`%numeric-lt` compares BigInt↔double EXACTLY by rationalizing finite doubles),
+arithmetic (a single `numeric-binary` doing **full ToNumeric(l) then full ToNumeric(r)** — order
+is observable; `/` truncates, `%`=rem, `**`/`<<` bounded to 2^27 bits → RangeError, mixing →
+TypeError), bitwise (CL `logand/logior/logxor/lognot/ash`, `>>>`→TypeError), unary (`+bigint`→
+TypeError; `to-primitive` computed ONCE), `++`/`--`; ToBoolean/ToString/`to-numeric`/`to-bigint`
+(number→TypeError is the honesty linchpin); inspector (`123n`); `BigInt()`
+callable-not-constructor + `toString(radix)` + `asIntN/asUintN`; `Object(1n)` wrapper + JSON.stringify
+BigInt→TypeError. **Binary data** (`builtins-binary.lisp`): `js-array-buffer` (ub8 vector, detach =
+bytes→NIL), ONE `js-typed-array` struct with a `kind` slot (11 kinds incl. Uint8Clamped +
+Big{Int,Uint}64), `js-data-view`; integer-indexed exotic overrides the `jm-*` generics
+(CanonicalNumericIndexString → element get/set over the buffer; OOB read→undefined, write→no-op;
+OwnPropertyKeys = ascending indices then string keys then symbols); byte assembly is pure SBCL
+(`ldb`/`dpb` + `sb-kernel:single/double-float-bits`/`make-single/double-float`), fixed
+little-endian for TypedArrays, DataView chooses endianness (default big-endian). Allocation is
+capped at half the runtime heap (`sb-ext:dynamic-space-size`) → catchable RangeError, never a raw
+SBCL heap-exhaustion abort. TextEncoder/Decoder reuse the `strings.lisp` WTF-8 codec with a
+USV-string step (lone surrogates→U+FFFD) + leading-BOM strip; non-UTF-8 label → RangeError.
+**Gate MET:** BigInt **96.1%** (73/76), TypedArray **67.8%** (835/1231), DataView **70.5%**
+(346/491) — each ≥65%; overall curated **80.4%** (22,638/28,163) ≥80%; 0 crashes. **Alternative
+rejected:** a BigInt wrapper struct (contradicts the benchmarked flat value representation, forces
+`=`/`eq` special-casing, adds allocation) and 11 separate TypedArray structs (a `kind` slot is
+enough). Gaps in `tests/conformance/bigint-binary-gaps.txt`: resizable/growable buffers, SAB/Atomics,
+@@species subclass returns, ES2023 change-by-copy TypedArray methods, TextDecoder streaming/fatal/
+non-UTF-8 labels, encodeInto, the 2^27-bit BigInt DoS cap, and Number(bigint)=deliberate TypeError.
+
+### 2026-07-12 — Phase 11 review panel (5 dims × find→verify-by-running-the-binary)
+19 agents, **14/14 candidates confirmed real**, ALL fixed + re-verified by running `build/clun -e`.
+The theme was crash-safety (raw Lisp backtraces reaching the user — a §6 contract violation) and a
+few silent wrong-answers the vendored slice passed while mismatching. Fixes: (1) JSON.stringify of a
+BigInt silently dropped/nulled it → now TypeError (+ wrapper-unwrap arm). (2) TypedArray
+OwnPropertyKeys emitted indices DESCENDING (a stray trailing `nreverse`) → ascending. (3) sort used
+`sort` not `stable-sort` → stable. (4) default sort mis-placed NaN → a CompareTypedArrayElements
+predicate (NaN last). (5) `.set` with an overlapping same-buffer source corrupted data → snapshot
+first. (6) reading a **signaling-NaN Float32** aborted the process with an uncaught host
+FLOATING-POINT-INVALID-OPERATION → wrapped the coerce in `with-js-floats`. (7) `new ArrayBuffer` at/
+below 2^31 but over the ~1 GB heap dumped a raw SBCL heap-exhaustion → cap at half the runtime heap.
+(8) DataView getters with a detaching `valueOf` offset crashed on a NIL buffer → re-check detach
+AFTER ToIndex (mirroring the setter). (9) TypedArray `fill`/`set` with a detaching-`valueOf` element
+crashed → re-check detach after coercion (no-op). (10) `2n**10000000000n` heap-crashed → bound the
+result bit length. (11) `new Int8Array({length: 2**40})` heap-crashed in `array-like->list` → cap
+before materializing. (12) TextEncoder emitted WTF-8 for lone surrogates → U+FFFD. (13) TextDecoder
+didn't strip a leading BOM → strip it. (14) BigInt size guards were looser than the heap → unified to
+2^27 bits. **Also fixed 7 order-of-eval regressions** the earlier `numeric-binary` refactor introduced:
+for `-`/`*`/`/`/`%`/`**` (unlike `+`) each operand's ToNumeric must run in full before the next, and
+`js-unary-plus` was calling `to-primitive` twice (double `valueOf`). Net: exec 22,624 → **22,638**,
+0 crashes, 0 regressions; build/test(1110 parachute + 42 TS + 49 JS)/purity(151) green.

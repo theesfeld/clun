@@ -5,7 +5,45 @@ Update before every commit. Seeded from PLAN.md §5.
 
 ---
 
-## Current phase: **11 — Binary data + BigInt**  (Phase 10 committed; RegExp gate MET)
+## Current phase: **12 — Node-compat wave 1 (sync)**  (Phase 11 committed; binary+BigInt gate MET)
+
+**Phase 11 outcome:** BigInt + binary data. **BigInt is a plain CL integer** (`js-bigint-p` =
+`integerp` — no engine value is ever a raw integer otherwise, so it's an unambiguous value-domain
+slot; faithful + cheaper than a wrapper). The front-end was already done (lexer/parser/emitter flow
+`123n` through as a CL integer), so the work threaded BigInt through values/typeof/dispatch,
+coercions (ToNumeric/ToBigInt; ToNumber→TypeError = the honesty linchpin), all operators (==/=== ,
+`1n==1`→true mathematical eq; relational exact bigint↔double; a `numeric-binary` doing full
+ToNumeric(l) then ToNumeric(r); bitwise incl. `>>>`→TypeError; `+bigint`→TypeError), inspector
+(`123n`), and `BigInt()`/toString(radix)/asIntN/asUintN (`builtins-bigint.lisp`). **Binary data**
+(`builtins-binary.lisp`): `js-array-buffer` (ub8 vector, detach = bytes→NIL), ONE `js-typed-array`
+struct with a `kind` slot (11 kinds incl. Uint8Clamped + Big{Int,Uint}64) as an integer-indexed
+exotic (overrides the `jm-*` generics; CanonicalNumericIndexString element get/set; OOB read→
+undefined/write→no-op; ascending OwnPropertyKeys), `js-data-view`; byte assembly is pure SBCL
+(`ldb`/`dpb` + `sb-kernel` float-bit primitives), LE for TypedArrays, DataView chooses endianness;
+alloc capped at half the runtime heap → catchable RangeError. TextEncoder/Decoder reuse the WTF-8
+codec with a USV-string step (lone surrogates→U+FFFD) + BOM strip. **Gate MET:** BigInt **96.1%**
+(73/76), TypedArray **67.8%** (835/1231), DataView **70.5%** (346/491) each ≥65%; overall curated
+**80.4%** (22,638/28,163) ≥80%; 0 crashes. `make build`/`test`(**1110 parachute + 42 TS + 49 JS**)/
+`purity`(**151 files**) green; conformance parse 17,512 / exec **22,638** (0 crashes, 0 regressions).
+Adversarial review panel (5 dims × find→verify-by-running-the-binary, 19 agents): **14/14 confirmed
++ fixed** — mostly crash-safety (raw Lisp backtraces reaching the user: signaling-NaN Float32 read,
+ArrayBuffer/TypedArray huge-alloc heap-exhaustion, DataView/fill/set detaching-`valueOf`, BigInt
+`**`/`<<` DoS) + silent wrong-answers (JSON.stringify BigInt, descending TypedArray keys, unstable/
+NaN-misplacing sort, overlapping `.set`, lone-surrogate/BOM codecs); also fixed 7 order-of-eval
+regressions from the `numeric-binary` refactor + a `js-unary-plus` double-`valueOf`. Gaps in
+tests/conformance/bigint-binary-gaps.txt: resizable/growable buffers, SAB/Atomics, @@species subclass
+returns, ES2023 change-by-copy TA methods, TextDecoder streaming/fatal/non-UTF-8 labels, encodeInto,
+the 2^27-bit BigInt DoS cap, Number(bigint)=deliberate TypeError.
+
+**Next action:** Begin Phase 12 (Node-compat wave 1, deps 08 ✓; 10 for assert.match ✓): the flagship
+fan-out phase — one subagent per module (node:path/os/querystring/util/events/assert), each ships
+module + conformance tests; + Clun.inspect/deepEquals/which/nanoseconds/fileURLToPath/pathToFileURL,
+structuredClone, crypto.randomUUID/getRandomValues (vendor ironclad with KATs). Gate: per-module
+conformance; kitchen-sink fixture runs identically under node where shared.
+
+---
+
+## Recent phase outcomes (most recent first)
 
 **Phase 10 outcome:** RegExp is a from-scratch JS-regex parser → own AST → CL-PPCRE **parse trees**
 → `create-scanner` (`src/engine/regex/` ast/parser/translate/regexp-object, ~1.1k LOC). Translating
@@ -38,10 +76,6 @@ TypedArray kinds (ldb/dpb, make-double-float fast path, detach); TextEncoder/Tex
 (literals, ops, ToBigInt, mixing TypeErrors, toString radix, BigInt64Array). Gate: TypedArray/DataView/
 BigInt curated slices ≥65%; overall curated ≥80%. RegExp deferrals to revisit later: the generic @@
 RegExpExec protocol + @@species, RegExp.escape, /d indices, \p{} (needs the UCD generator), /v flag.
-
----
-
-## Recent phase outcomes (most recent first)
 
 **Phase 09 outcome:** `.ts/.mts/.cts` run by type-stripping. A **recursive-descent strip scanner**
 (`clun.transpiler`, `src/transpiler/`) over the shared engine token stream erases type syntax to
@@ -383,6 +417,30 @@ _(nothing blocked)_
     property escapes (loud; UCD gen scaffolded), /v flag, inline modifiers, /d match-indices, 2
     CL-PPCRE-vs-ECMAScript NFA-backtracking edge cases.
 
+- **Phase 11 — BINARY+BIGINT GATE MET + committed (2026-07-12).**
+  - `make build` clean; `make test` = **1110 parachute + 42 tests/ts + 49 tests/js** (0 failed);
+    `make purity` clean (**151 files**); `make conformance` parse **17,512**; `make conformance-exec`
+    over 40,654 files: **pass 22,638**, **0 crashes**, exec-passlist regenerated (monotonic), **0
+    regressions**.
+  - **Gate:** BigInt **96.1%** (73/76), TypedArray **67.8%** (835/1231), DataView **70.5%** (346/491)
+    each ≥65% ✔; overall curated **80.4%** (22,638/28,163) ≥80% ✔; gaps in
+    tests/conformance/bigint-binary-gaps.txt.
+  - BigInt = plain CL integer (`js-bigint-p`=`integerp`), threaded through values/operators/coercions;
+    `builtins-bigint.lisp` (ctor/statics/prototype) + `builtins-binary.lisp` (ArrayBuffer, 11 TypedArray
+    exotics over the `jm-*` generics, DataView, TextEncoder/Decoder). Byte assembly pure SBCL (ldb/dpb +
+    sb-kernel float bits). + `tests/lisp/engine/binary-tests.lisp` (56 assertions). Vendored built-ins/
+    {BigInt,TypedArray,TypedArrayConstructors,ArrayBuffer,DataView} (3,043 files).
+  - Adversarial review panel (5 dims × find→**verify-by-running-the-binary**, 19 agents): **14/14
+    confirmed + fixed** — crash-safety (signaling-NaN Float32 read, ArrayBuffer/TypedArray huge-alloc
+    heap-exhaustion, DataView/fill/set detaching-valueOf, BigInt `**`/`<<` DoS — all now catchable
+    RangeError/TypeError, no raw Lisp backtrace) + silent wrong-answers (JSON.stringify BigInt→TypeError,
+    descending→ascending TypedArray keys, unstable+NaN-misplacing sort, overlapping `.set` snapshot,
+    lone-surrogate→U+FFFD + BOM strip). Also fixed 7 order-of-eval regressions from the `numeric-binary`
+    refactor (full ToNumeric per-operand for `-`/`*`/`/`/`%`/`**`) + a `js-unary-plus` double-`valueOf`.
+  - DEFERRED 🟡 (bigint-binary-gaps.txt): resizable/growable buffers, SAB/Atomics, @@species subclass
+    returns, ES2023 change-by-copy TA methods, TextDecoder streaming/fatal/non-UTF-8 labels, encodeInto,
+    the 2^27-bit BigInt DoS cap, Number(bigint)=deliberate TypeError.
+
 ## Phases
 
 Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-early.
@@ -478,11 +536,11 @@ Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-earl
 - [x] loud SyntaxError for documented gaps (\p{}, /v, var-length lookbehind, bad flags/names); UCD table generator scaffolded (scripts/gen-unicode-tables.lisp) for later \p{}
 - **Gate MET:** built-ins/RegExp/** 76.1% (696/915) ≥60%; String regex methods 96.9% (283/292) ≥75%; zero crashes/regressions; gaps enumerated in tests/conformance/regexp-gaps.txt.
 
-### Phase 11 — Binary data + BigInt  (deps: 04) ~3k LOC
-- [ ] ArrayBuffer (ub8), DataView + all TypedArray kinds (ldb/dpb; make-double-float fast path), detach
-- [ ] TextEncoder/TextDecoder (UTF-8)
-- [ ] BigInt (literals, ops, ToBigInt, mixing TypeErrors, toString radix, BigInt64Array)
-- **Gate:** TypedArray/DataView/BigInt curated slices ≥ 65%; overall curated ≥ 80%.
+### Phase 11 — Binary data + BigInt  (deps: 04) ~3k LOC — **DONE (gate MET: BigInt 96.1%, TypedArray 67.8%, DataView 70.5%, overall 80.4%)**
+- [x] ArrayBuffer (ub8, half-heap alloc cap), DataView + all 11 TypedArray kinds (ldb/dpb + sb-kernel float bits; integer-indexed exotic over the buffer), detach (bytes→NIL, all views observe)
+- [x] TextEncoder/TextDecoder (UTF-8; USV lone-surrogate→U+FFFD + BOM strip; non-utf8 label → RangeError)
+- [x] BigInt = plain CL integer, threaded through values/typeof/coercions/all operators; literals (front-end already done); BigInt() ctor + toString(radix) + asIntN/asUintN; mixing/`+bigint`/`Number(bigint)`/JSON → TypeError
+- **Gate MET:** BigInt 96.1% (73/76) / TypedArray 67.8% (835/1231) / DataView 70.5% (346/491) each ≥65%; overall curated 80.4% (22,638/28,163) ≥80%; 0 crashes; 0 regressions; gaps in tests/conformance/bigint-binary-gaps.txt.
 
 ### Phase 12 — Node-compat wave 1 (sync)  (deps: 08; 10 for assert.match) ~4k LOC ⚡⚡ (flagship fan-out)
 - [ ] node:path (posix; win32 throwing), node:os, node:querystring (null-proto parse)

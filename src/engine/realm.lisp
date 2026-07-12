@@ -45,6 +45,7 @@
         (lambda (v)
           (typecase v
             (double-float (make-wrapper :number-prototype :number v))
+            (integer (make-wrapper :bigint-prototype :bigint v))
             (string (make-string-object v))
             (js-symbol (make-wrapper :symbol-prototype :symbol v))
             (t (cond ((js-boolean-p v) (make-wrapper :boolean-prototype :boolean v))
@@ -136,6 +137,7 @@
       (bootstrap-array)
       (bootstrap-errors)
       (bootstrap-primitives)
+      (bootstrap-bigint)            ; BigInt reflective surface (Phase 11); needs primitives
       (bootstrap-symbol)
       (bootstrap-iterator)          ; needs Array/String prototypes
       (bootstrap-generator)         ; needs %IteratorPrototype%
@@ -154,6 +156,7 @@
       (bootstrap-date)
       (bootstrap-math)
       (bootstrap-json)
+      (bootstrap-binary)            ; ArrayBuffer/TypedArray/DataView/Text codecs (Phase 11)
       (bootstrap-global)
       (bootstrap-regexp)            ; RegExp (Phase 10); needs the global + re-installs String regex methods
       (bootstrap-global-extra)
@@ -227,6 +230,7 @@ itself, so this returns X.prototype = DEFAULT-PROTO — subclassing changes noth
 (defun bootstrap-array () (%bootstrap-array))
 (defun bootstrap-errors () (%bootstrap-errors))
 (defun bootstrap-primitives () (%bootstrap-primitives))
+(defun bootstrap-bigint () (%bootstrap-bigint))
 (defun bootstrap-symbol () (%bootstrap-symbol))
 (defun bootstrap-iterator () (%bootstrap-iterator))
 (defun bootstrap-generator () (%bootstrap-generator))
@@ -247,5 +251,6 @@ itself, so this returns X.prototype = DEFAULT-PROTO — subclassing changes noth
 (defun bootstrap-date () (%bootstrap-date))
 (defun bootstrap-math () (%bootstrap-math))
 (defun bootstrap-json () (%bootstrap-json))
+(defun bootstrap-binary () (%bootstrap-binary))
 (defun bootstrap-global () (%bootstrap-global))
 (defun bootstrap-global-extra () (%bootstrap-global-extra))

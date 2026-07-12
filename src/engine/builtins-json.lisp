@@ -194,18 +194,21 @@
         (when (callable-p to-json) (setf value (js-call to-json value (list key))))))
     (when (jw-replacer-fn w)
       (setf value (js-call (jw-replacer-fn w) holder (list key value))))
-    ;; unwrap Number/String/Boolean wrapper objects
+    ;; unwrap Number/String/Boolean/BigInt wrapper objects
     (when (js-object-p value)
       (case (js-object-class value)
         (:number (setf value (to-number value)))
         (:string (setf value (to-string value)))
-        (:boolean (setf value (wrapper-primitive value)))))
+        (:boolean (setf value (wrapper-primitive value)))
+        (:bigint (setf value (wrapper-primitive value)))))
     (cond
       ((js-null-p value) "null")
       ((eq value +true+) "true")
       ((eq value +false+) "false")
       ((stringp value) (json-quote value))
       ((js-number-p value) (if (js-finite-p value) (number->js-string value) "null"))
+      ((js-bigint-p value)                        ; §25.5.2.2 step 10: BigInt is not serializable
+       (throw-type-error "Do not know how to serialize a BigInt"))
       ((and (js-object-p value) (not (callable-p value)))
        (if (js-array-p value) (json-serialize-array w value) (json-serialize-object w value)))
       (t nil))))                                 ; undefined, function, symbol

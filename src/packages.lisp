@@ -62,7 +62,7 @@
    ;; values
    #:+undefined+ #:+null+ #:+true+ #:+false+ #:js-object #:js-object-p #:make-js-object
    #:js-undefined-p #:js-null-p #:js-nullish-p #:js-boolean-p #:js-number-p
-   #:js-string-p #:js-primitive-p #:js-boolean #:js-type
+   #:js-bigint-p #:js-string-p #:js-primitive-p #:js-boolean #:js-type
    ;; conditions
    #:js-condition #:js-condition-value #:js-native-error #:js-native-error-kind
    #:js-native-error-message #:js-native-error-name #:throw-js-value

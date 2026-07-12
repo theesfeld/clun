@@ -87,9 +87,12 @@
           '("top-level-await" "class-fields-public"
             "class-fields-private" "class-methods-private" "class-static-methods-private"
             "class-static-fields-public" "class-static-fields-private" "class-static-block" "decorators"
-            "Proxy" "Reflect" "SharedArrayBuffer" "Atomics" "BigInt" "object-spread" "object-rest"
-            "iterator-helpers" "tail-call-optimization" "IsHTMLDDA" "cross-realm" "TypedArray"
+            "Proxy" "Reflect" "SharedArrayBuffer" "Atomics" "object-spread" "object-rest"
+            "iterator-helpers" "tail-call-optimization" "IsHTMLDDA" "cross-realm"
             "Array.prototype.flat" "Array.prototype.flatMap" "String.prototype.replaceAll"
+            ;; Phase 11 RUNS BigInt + TypedArray/ArrayBuffer/DataView. Deliberate gaps kept
+            ;; skipped (tests/conformance/bigint-binary-gaps.txt): resizable/growable buffers.
+            "resizable-arraybuffer"
             ;; Phase 10 RUNS named-groups / lookbehind / dotall / sticky / u-flag (BMP).
             ;; Deliberate gaps kept skipped (tests/conformance/regexp-gaps.txt): \p{}
             ;; property escapes, the /v flag, inline modifiers, duplicate named groups

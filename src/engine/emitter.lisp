@@ -362,10 +362,12 @@ slot."
 (defun compile-update (comp node)
   (let ((op (update-expression-operator node)) (prefix (update-expression-prefix node)))
     (multiple-value-bind (get set) (compile-reference comp (update-expression-argument node))
-      (let ((delta (if (string= op "++") 1d0 -1d0)))
+      (let ((step (if (string= op "++") 1 -1)))
         (lambda (env)
-          (let* ((old (to-number (funcall get env)))
-                 (new (with-js-floats (+ old delta))))
+          ;; ToNumeric so `let x=1n; x++` stays a BigInt (not a TypeError via to-number).
+          (let* ((old (to-numeric (funcall get env)))
+                 (new (if (integerp old) (+ old step)
+                          (with-js-floats (+ old (coerce step 'double-float))))))
             (funcall set env new)
             (if prefix new old)))))))
 

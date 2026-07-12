@@ -20,6 +20,7 @@
   "The CL-boolean core of ToBoolean (§7.1.2) — used directly by control flow."
   (typecase v
     (double-float (not (or (js-nan-p v) (zerop v))))
+    (integer (not (zerop v)))              ; BigInt: 0n is falsy
     (string (plusp (length v)))
     (js-object t)
     (t (eq v +true+))))                    ; of the singletons only +true+ is truthy
@@ -32,6 +33,7 @@
   "§7.1.4 -> a double-float."
   (typecase v
     (double-float v)
+    (integer (throw-type-error "Cannot convert a BigInt value to a number"))
     (string (js-string->number v))
     (js-object (to-number (to-primitive v :number)))
     (t (cond ((js-undefined-p v) *js-nan*)
@@ -40,17 +42,57 @@
              ((eq v +false+) 0d0)
              (t (throw-type-error (format nil "cannot convert ~s to a number" v)))))))
 
+(defun to-numeric (v)
+  "§7.1.3 ToNumeric — ToPrimitive(:number) then a Number (double) or a BigInt (integer)."
+  (let ((p (to-primitive v :number)))
+    (if (integerp p) p (to-number p))))
+
 (defun to-string (v)
   "§7.1.17 -> a CL string (UTF-16 code units)."
   (typecase v
     (string v)
     (double-float (number->js-string v))
+    (integer (format nil "~d" v))          ; BigInt → decimal, no `n` suffix
     (js-object (to-string (to-primitive v :string)))
     (t (cond ((js-undefined-p v) "undefined")
              ((js-null-p v) "null")
              ((eq v +true+) "true")
              ((eq v +false+) "false")
              (t (throw-type-error (format nil "cannot convert ~s to a string" v)))))))
+
+;;; --- BigInt coercions (§7.1.13/14) ------------------------------------------
+
+(defun %string->bigint (s)
+  "StringToBigInt (§7.1.14): a CL integer, or NIL on parse failure. Whitespace-only → 0.
+Accepts a signed decimal or an unsigned 0x/0o/0b literal (no sign on non-decimal)."
+  (let* ((str (%trim-js-whitespace s)) (len (length str)))
+    (cond
+      ((zerop len) 0)
+      ((and (>= len 2) (char= (char str 0) #\0) (find (char-downcase (char str 1)) "xob"))
+       (let ((radix (ecase (char-downcase (char str 1)) (#\x 16) (#\o 8) (#\b 2)))
+             (digits (subseq str 2)))
+         (and (plusp (length digits))
+              (every (lambda (c) (digit-char-p c radix)) digits)
+              (parse-integer digits :radix radix :junk-allowed nil))))
+      (t (let* ((neg (char= (char str 0) #\-))
+                (body (if (or neg (char= (char str 0) #\+)) (subseq str 1) str)))
+           (and (plusp (length body))
+                (every (lambda (c) (digit-char-p c 10)) body)
+                (let ((n (parse-integer body :radix 10))) (if neg (- n) n))))))))
+
+(defun to-bigint (v)
+  "§7.1.13 ToBigInt — a CL integer. Number → TypeError; bad string → SyntaxError."
+  (let ((p (to-primitive v :number)))
+    (typecase p
+      (integer p)
+      (string (or (%string->bigint p)
+                  (throw-syntax-error "Cannot convert string to a BigInt")))
+      (double-float (throw-type-error "Cannot convert a number to a BigInt"))
+      (js-symbol (throw-type-error "Cannot convert a Symbol value to a BigInt"))
+      (t (cond ((eq p +true+) 1)
+               ((eq p +false+) 0)
+               (t (throw-type-error (format nil "Cannot convert ~a to a BigInt"
+                                            (if (js-null-p p) "null" "undefined")))))))))
 
 (defun to-int32 (v)  "§7.1.6."  (double->int32 (to-number v)))
 (defun to-uint32 (v) "§7.1.7."  (double->uint32 (to-number v)))
