@@ -1,0 +1,1 @@
+const a: number = 2; const b: string = "x"; console.log(a + b.length);

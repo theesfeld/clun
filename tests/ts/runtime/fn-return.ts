@@ -1,0 +1,1 @@
+function sq(n: number): number { return n * n; } console.log(sq(5));

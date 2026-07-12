@@ -1,0 +1,1 @@
+function f(o?: { v: number }): number { return o!.v; } console.log(f({ v: 9 }));

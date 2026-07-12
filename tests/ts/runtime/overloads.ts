@@ -1,0 +1,1 @@
+function pick(x: number): number; function pick(x: string): string; function pick(x: any): any { return x; } console.log(pick(3) + "," + pick("q"));

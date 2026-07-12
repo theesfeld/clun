@@ -56,7 +56,8 @@
         (push (format nil "stderr:~%  want ~s~%  got  ~s" want-err got-err) fails))
       (values (null fails) (format nil "~{    ~a~%~}" (nreverse fails))))))
 
-(let ((cases (sort (directory (merge-pathnames "tests/js/**/*.out" *clun-root*))
+(let ((cases (sort (append (directory (merge-pathnames "tests/js/**/*.out" *clun-root*))
+                           (directory (merge-pathnames "tests/ts/runtime/*.out" *clun-root*)))
                    #'string< :key #'namestring))
       (pass 0) (fail 0))
   (unless (probe-file *clun-bin*)

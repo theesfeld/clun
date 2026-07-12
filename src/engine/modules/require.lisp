@@ -20,7 +20,7 @@
   "Run MR's CJS body with the wrapper's 5 bindings bound. Node invokes the wrapper
 via `.call(module.exports, …)`, so top-level `this` === module.exports."
   (let* ((path (mr-resolved-path mr))
-         (source (or (mr-source mr) (clun.sys:read-file-string path)))
+         (source (or (mr-source mr) (read-source-for path)))
          (program (parse-program source :source-type :script))
          (wrapper (make-cjs-wrapper (program-body program)))
          (require-fn (make-require-function path))

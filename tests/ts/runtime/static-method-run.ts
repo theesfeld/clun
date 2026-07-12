@@ -1,0 +1,1 @@
+class C { static() { return 7; } } console.log(new C().static());

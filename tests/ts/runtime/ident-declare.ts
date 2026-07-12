@@ -1,0 +1,1 @@
+function declare(x){return x+1;} console.log(declare(41));

@@ -1,0 +1,1 @@
+type T = A | B<C> | { x: number };

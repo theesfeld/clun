@@ -10,10 +10,10 @@
   "Default `exports`/`imports` conditions for an ESM importer. The engine passes
 '(\"node\" \"require\") for a CJS require(). \"default\" always matches implicitly.")
 
-(defparameter *extensions* '(".js" ".json" ".mjs" ".cjs" ".ts" ".tsx" ".jsx")
+(defparameter *extensions* '(".js" ".json" ".mjs" ".cjs" ".ts" ".mts" ".cts" ".tsx" ".jsx")
   "Extension-probing order for a file specifier (Bun-leniency: probes even for ESM
-imports, and includes TS extensions the Phase-09 transpiler will load). The exact
-path is tried before any of these.")
+imports, and includes TS extensions the Phase-09 transpiler loads). The exact path is
+tried before any of these.")
 
 (defparameter *index-bases* '("index")
   "Directory-index basenames, tried with each of *extensions*.")
@@ -24,7 +24,9 @@ path is tried before any of these.")
   "The module format of the resolved file PATH."
   (let ((ext (sys:path-extension path)))
     (cond ((string= ext ".mjs") :esm)
+          ((string= ext ".mts") :esm)          ; .mts is always ESM (TS)
           ((string= ext ".cjs") :cjs)
+          ((string= ext ".cts") :cjs)          ; .cts is always CJS (TS)
           ((string= ext ".json") :json)
           ((member ext '(".js" ".jsx" ".ts" ".tsx") :test #'string=)
            (if (eq (package-type (sys:path-dirname path)) :module) :esm :cjs))

@@ -1,0 +1,1 @@
+try { throw new Error("e"); } catch (err: unknown) { console.log((err as Error).message); }

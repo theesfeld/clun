@@ -5,7 +5,38 @@ Update before every commit. Seeded from PLAN.md §5.
 
 ---
 
-## Current phase: **09 — TypeScript stripping**  (Phase 08 committed; CLI gate MET)
+## Current phase: **10 — RegExp**  (Phase 09 committed; TS-strip gate MET)
+
+**Phase 09 outcome:** `.ts/.mts/.cts` run by type-stripping. A **recursive-descent strip scanner**
+(`clun.transpiler`, `src/transpiler/`) over the shared engine token stream erases type syntax to
+EXACT-LENGTH whitespace (newlines kept → line+col preserved, no sourcemaps) and hard-errors on
+non-erasable constructs (`unsupported-ts-syntax` → JS SyntaxError w/ line:col). It drives the lexer's
+regex-vs-divide + template `${}` context exactly (via `reread-regexp`/`reread-template`), uses a
+balanced `skip-type` (counts `()[]{}<>`, `>>` split, `=>`-after-`)` function types), and errors loudly
+rather than mis-strip. Erases: annotations (var/param/return/field/for/catch), generics (decl/call/
+arrow), `as`/`satisfies`, non-null `!`, interface/type/declare/type-only-namespace, import type/export
+type + inline `{type X}`, implements, modifiers, overload signatures. Errors: enum/decorator/param-
+property/`import=`/`export=`/runtime-namespace/`.tsx`/angle-cast. **The `<` ambiguity**: type-args only
+when the matched `>` is followed by `(`/tag with type-list content (so `a < b` never stripped; arrow
+generics handled); `a<b>(c)` comparison-call is the documented accepted corner. Loader: engine
+`*ts-strip-hook*` (transpiler installs it), `read-source-for` strips before parse; resolver
+`.mts`→ESM/`.cts`→CJS. **Gate MET:** 78-pair corpus green (33 byte-exact strip + same-length, 9 catalog
+errors w/ line:col, 36 strip→run incl line-preservation); `make build`/`test`(**1004 parachute + 42 TS
++ 49 JS**)/`purity`(**143 files**) green; conformance parse 17,512 / exec 19,540, 0 crashes, 0
+regressions. Review panel (6 dims × find→verify-by-running-the-stripper, 24 agents): **18/18 confirmed +
+fixed** — contextual keywords as value idents (declare()/interface()/namespace()/abstract/static()),
+arrow return types ending in `)`, arrow generics w/ default, tag templates + `as`-in-`${}`, `x!!`/`x! as`,
+superclass type args, angle-cast→error, declare-namespace-ambient.
+**Documented limits (not strip bugs):** class FIELD syntax unsupported by the ES2017 parser (annotation
+strips fine); `class extends` method resolution a pre-existing engine gap; `??`/`?.` post-ES2017.
+
+**Next action:** Begin Phase 10 (RegExp, deps 04 ✓): JS regex parser → own AST → CL-PPCRE parse trees
+(group numbering, named-group map, i/m/s flags, `u` down-translation over code-unit strings); RegExp
+object (lastIndex/exec/test/indices); String match/matchAll/replace/replaceAll/split/search with
+`$1`/`$<name>`; loud SyntaxError for documented gaps; UCD generator for later `\p{…}`. Gate:
+`built-ins/RegExp/**` ≥60% (gaps enumerated), String regex methods ≥75%, zero regressions.
+
+
 
 **Phase 08 outcome:** `clun` is a real CLI. A `clun.runtime:install-runtime` hook augments a fresh
 (runtime-free) realm with `console`, a full `process`, and a `Clun` stub; the CLI (`clun.cli` +
@@ -268,6 +299,26 @@ _(nothing blocked)_
   - DEFERRED 🟡: `[class X]` display, SetIterator/MapIterator, exact 80-col array wrapping,
     `hrtime.bigint` real BigInt (Phase 11), `.ts` execution (Phase 09).
 
+- **Phase 09 — TS-STRIP GATE MET + committed (2026-07-12).**
+  - `make build` clean; `make test` = **1004 parachute + 42 tests/ts (strip+errors) + 49 tests/js**
+    (0 failed); `make purity` clean (**143 files**); `make conformance` parse **17,512**;
+    `make conformance-exec` **19,540** (0 crashes, 0 regressions).
+  - **Gate:** 78-pair corpus (tests/ts/strip byte-exact + same-length; tests/ts/errors message +
+    line:col; tests/ts/runtime strip→run→known-output incl a line-preservation case) all green; each
+    catalog error fires with its documented message; strip→run line:col identical to source (whitespace
+    render preserves newlines + length).
+  - `clun.transpiler` (`src/transpiler/` conditions/ts-type/ts-scan/strip): a recursive-descent strip
+    scanner over the shared engine token stream — drives regex/template context via reread-*, balanced
+    `skip-type` (`>>` split, arrow-return mode), records erase-spans, space-fills (newlines kept).
+    Engine `*ts-strip-hook*` + `read-source-for`; resolver `.mts`→ESM/`.cts`→CJS; CLI rejects `.tsx`.
+  - Adversarial review panel (6 dims × find→**verify-by-running-the-stripper**, 24 agents): **18/18
+    confirmed + fixed** — contextual keywords as value idents, arrow return types ending in `)`, arrow
+    generics w/ default, tag templates + `as`-in-`${}`, `x!!`/`x! as`, superclass type args,
+    angle-cast→error, declare-namespace-ambient.
+  - DEFERRED 🟡 (documented corners): `a<b>(c)` comparison-call & bare function-type arrow return
+    `(): () => X =>` (rare; recommend parens); enum errors (Bun transpiles); class FIELD syntax + `class
+    extends` method resolution + `??`/`?.` are pre-existing ENGINE limits (not strip bugs).
+
 ## Phases
 
 Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-early.
@@ -350,11 +401,11 @@ Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-earl
 - [x] **tests/js harness runner** (scripts/run-js-fixtures.lisp, `.out`/`.exit`/`.err`/`.argv` convention; wired into make test via test-js)
 - **Gate MET:** run/eval matrix (13 JS fixtures) green; console subset matches Bun; build/test(976 parachute + 13 JS)/purity(138) ✓; parse 17,512 / exec 19,540, 0 crashes, 0 regressions.
 
-### Phase 09 — TypeScript stripping  (deps: 08) ~2.5k LOC ⚡(corpus)
-- [ ] strip pass per §3.3 sharing the engine lexer
-- [ ] error catalog (enum/namespace/param-props/decorators/import=); .tsx rejection
-- [ ] ≥60-pair corpus (vendor amaro/TS-conformance fixtures) incl. adversarial; loader wiring for .ts/.mts/.cts
-- **Gate:** corpus green; strip→run throwing line:col identical to source; each catalog error fires w/ documented message.
+### Phase 09 — TypeScript stripping  (deps: 08) ~2.5k LOC ⚡(corpus) — **DONE (gate MET)**
+- [x] strip pass per §3.3 sharing the engine lexer (recursive-descent scanner over the token stream; balanced skip-type; exact-length whitespace / position-preserving)
+- [x] error catalog (enum/namespace-runtime/param-props/decorators/import=/export=/angle-cast); .tsx rejection — all clean unsupported-ts-syntax → JS SyntaxError w/ line:col
+- [x] 65-pair corpus (authored, no vendored amaro) incl. adversarial (< ambiguity, arrow generics, multiline, regex-after-type, template-with-type, postfix !); loader wiring (*ts-strip-hook*, read-source-for) for .ts/.mts/.cts + resolver .mts/.cts formats
+- **Gate MET:** corpus green (strip byte-exact+same-length, errors w/ line:col, strip→run outputs); build/test(1004 parachute + 33 TS + 45 JS)/purity(143) ✓; parse 17,512 / exec 19,540, 0 crashes, 0 regressions.
 
 ### Phase 10 — RegExp  (deps: 04) ~3k LOC
 - [ ] JS regex parser → own AST; AST → CL-PPCRE parse trees (group numbering, named-group map, i/m/s; u via down-translation)

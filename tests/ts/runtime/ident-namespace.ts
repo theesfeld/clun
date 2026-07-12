@@ -1,0 +1,1 @@
+let namespace = 5; namespace = namespace + 1; console.log(namespace);

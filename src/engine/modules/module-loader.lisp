@@ -9,6 +9,25 @@
 
 (in-package :clun.engine)
 
+;;; --- TS strip hook (Phase 09) ----------------------------------------------
+;;; The transpiler installs this at load time; the engine calls it on .ts/.mts/.cts
+;;; source before parse-program. Keeps the engine free of a compile-time dependency
+;;; on clun.transpiler (which loads AFTER the engine).
+
+(defvar *ts-strip-hook* nil
+  "A function (source path) -> stripped-source, applied to TS files before parse.")
+
+(defun ts-source-extension-p (path)
+  (let ((dot (position #\. path :from-end t)))
+    (and dot (member (subseq path dot) '(".ts" ".mts" ".cts") :test #'string=))))
+
+(defun read-source-for (path)
+  "Read PATH's text; strip types first when it is a TS source and a hook is installed."
+  (let ((src (clun.sys:read-file-string path)))
+    (if (and *ts-strip-hook* (ts-source-extension-p path))
+        (funcall *ts-strip-hook* src path)
+        src)))
+
 ;;; --- resolver boundary: map clun.resolver errors to JS errors ---------------
 
 (defun resolve-specifier (specifier referrer-dir conditions)
@@ -71,7 +90,7 @@ placeholder is evaluated lazily via load-cjs-module / load-json-value)."
   "Load the ESM at real PATH: parse, compile, register, and recurse into deps."
   (let ((mr (make-module-record :resolved-path path :format :esm :status :loading)))
     (setf (realm-module *realm* path) mr
-          (mr-source mr) (clun.sys:read-file-string path)
+          (mr-source mr) (read-source-for path)
           (mr-ast mr) (parse-program (mr-source mr) :source-type :module))
     (compile-esm-module mr)
     (let ((dir (clun.sys:path-dirname path)))

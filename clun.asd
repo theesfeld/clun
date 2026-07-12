@@ -88,6 +88,14 @@
                                                          (:file "module-compile")
                                                          (:file "require")
                                                          (:file "module-loader")))))
+                             ;; TypeScript type-stripping (Phase 09): shares the
+                             ;; engine lexer; installs the loader's *ts-strip-hook*.
+                             (:module "transpiler"
+                              :serial t
+                              :components ((:file "conditions")
+                                           (:file "ts-type")
+                                           (:file "ts-scan")
+                                           (:file "strip")))
                              ;; runtime globals (Phase 08): console/process/Clun,
                              ;; installed onto a realm by the CLI (not by make-realm).
                              (:module "runtime"
@@ -137,6 +145,9 @@
                                            (:module "runtime"
                                             :serial t
                                             :components ((:file "runtime-tests")))
+                                           (:module "transpiler"
+                                            :serial t
+                                            :components ((:file "ts-strip-tests")))
                                            (:module "loop"
                                             :serial t
                                             :components ((:file "loop-tests")))))))))

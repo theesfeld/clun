@@ -1,0 +1,1 @@
+const p: [number, string] = [1, "a"];

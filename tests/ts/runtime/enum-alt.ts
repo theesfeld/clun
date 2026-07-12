@@ -1,0 +1,1 @@
+const Dir = { Up: 0, Down: 1 } as const; console.log(Dir.Up + "," + Dir.Down);

@@ -1,0 +1,1 @@
+type Id = string | number; const v: Id = 42; console.log(typeof v + ":" + v);

@@ -1,0 +1,1 @@
+function s(...ns: number[]): number { let t = 0; for (const n of ns) t += n; return t; } console.log(s(1,2,3,4));

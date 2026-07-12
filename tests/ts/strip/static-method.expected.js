@@ -1,0 +1,1 @@
+class C { static() { return 1; } m() { return 2; } }

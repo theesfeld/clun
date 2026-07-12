@@ -1,0 +1,1 @@
+type R<T> = T extends string ? number : boolean;

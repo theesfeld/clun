@@ -1,0 +1,1 @@
+async function af(x: number): Promise<number> { return x + 1; } af(4).then((v: number) => console.log(v));

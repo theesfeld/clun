@@ -1,0 +1,1 @@
+function len(x: string | string[]): number { return typeof x === "string" ? x.length : x.length; } console.log(len("abcd") + "," + len(["a","b"]));

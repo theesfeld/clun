@@ -1,0 +1,1 @@
+class C { @dec method() {} }

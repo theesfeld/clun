@@ -102,7 +102,13 @@
    #:make-native-function #:install-method #:install-getter #:data-prop #:hidden-prop
    #:new-object #:new-array #:throw-type-error #:js-undefined-p #:js-truthy #:js-boolean
    #:to-number #:arg #:intrinsic #:function-name #:js-function-p #:js-native-function-p
-   #:js-nullish-p #:array-like->list #:array-length))
+   #:js-nullish-p #:array-like->list #:array-length
+   ;; TS strip hook (Phase 09): the loader applies this to .ts/.mts/.cts source
+   ;; before parse-program; the transpiler installs it (engine stays dep-free).
+   #:*ts-strip-hook* #:make-lexer #:next-token #:reread-regexp #:reread-template
+   #:lexer-pos #:lexer-src #:token-type #:token-value #:token-start #:token-end
+   #:token-line #:token-col #:token-nl-before #:token-tmpl-part #:token-escaped
+   #:line-terminator-p))
 
 (defpackage :clun.resolver
   (:use :cl)
@@ -142,7 +148,10 @@
 
 (defpackage :clun.transpiler
   (:use :cl)
-  (:documentation "TypeScript type-stripping (shares the engine lexer)."))
+  (:local-nicknames (:eng :clun.engine) (:sys :clun.sys))
+  (:documentation "TypeScript type-stripping (shares the engine lexer).")
+  (:export #:strip-types #:unsupported-ts-syntax #:uts-message #:uts-line #:uts-col
+           #:uts-path #:ts-source-p #:tsx-path-p))
 
 (defpackage :clun.net
   (:use :cl)

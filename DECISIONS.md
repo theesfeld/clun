@@ -534,3 +534,63 @@ property, not the internal fname; `-p '"x"'` prints the string RAW; `process.on(
 'exit')` fires on an uncaught throw/rejection; execPath is absolutised; `.env` bare
 `#` mid-token is literal + `$VAR`/`${VAR}` expansion (unquoted + double-quoted, not
 single). `[class X]` display + `hrtime.bigint` real BigInt remain documented 🟡.
+
+### 2026-07-12 — Phase 09: TypeScript type-stripping (a strip scanner over the engine lexer)
+Node/amaro `--experimental-strip-types` semantics: erase type syntax to EXACT-LENGTH
+whitespace (newlines kept → line+col preserved, no sourcemaps), hard-error on
+non-erasable constructs. `.ts/.mts/.cts` only; `.tsx` rejected. Package
+`clun.transpiler` (`src/transpiler/`): conditions, ts-type (balanced type skipper),
+ts-scan (tokenizer + recursive-descent walker), strip (public `strip-types` +
+whitespace renderer).
+**Architecture.** A pure token peephole can't place `:`/`<`/modifiers (context-
+sensitive) and a full TS parser is overkill — so a **recursive-descent strip scanner
+over the shared engine token stream**. It (1) drives the lexer exactly as the parser
+does (regex-vs-divide via prev-significant-token; template `${}` via a brace-stack +
+`reread-regexp`/`reread-template`), (2) tracks just enough JS structure to find type
+positions, (3) uses a balanced `skip-type` (counts `()[]{}<>`, splits `>>`/`>>>`,
+stays in-type across `| & => extends ?:`, `=>` continues only after a `)` param list),
+and (4) records erase-spans rendered by space-filling (newlines untouched). It errors
+loudly (`unsupported-ts-syntax` → JS SyntaxError with line:col) rather than mis-strip.
+**Loader wiring.** The engine owns `*ts-strip-hook*` (avoids a compile-time engine→
+transpiler dep); the transpiler `setf`s it at load. `read-source-for` strips
+.ts/.mts/.cts before `parse-program` at both source-read sites (esm-load, run-cjs-body).
+Resolver: `detect-format` gains `.mts`→:esm/`.cts`→:cjs; `.mts`/`.cts` added to
+`*extensions*`. CLI rejects `.tsx`.
+**The `<` ambiguity.** Type-args only when a balanced `<…>` reaches a `>` immediately
+followed by `(`/template with type-list content (so `a < b` is never taken, regardless
+of the preceding token → also handles arrow generics `<T,>(x)=>`). Angle-bracket casts
+`<T>x` → error (amaro parity). Accepted corner (documented, same as SWC/Babel): a
+genuine `a<b>(c)` chained comparison-call mis-strips.
+**Corpus + harness.** 65 authored pairs: tests/ts/strip (25 byte-exact + same-length),
+tests/ts/errors (8 catalog, message + line:col), tests/ts/runtime (32 strip→run→known
+output, incl a line-preservation case) — no vendored amaro (zero license question).
+`scripts/run-ts-strip.lisp` (byte-exact + same-length + error assertions) + a parachute
+suite + the JS harness extended to tests/ts/runtime; wired into `make test` (test-ts).
+**Documented limits (not strip bugs).** Class FIELD declarations strip their annotation
+correctly but the field syntax is unsupported by the engine's ES2017-tier parser (a
+downstream parse error until a class-fields phase); `class extends` method resolution is
+a pre-existing engine gap; nullish `??`/optional-chaining `?.` are post-ES2017. These
+constrain the runtime corpus (avoided there), not the stripper.
+
+### 2026-07-12 — Phase 09 review panel (6 dims × find→verify-by-running-the-stripper)
+24 agents, **18 findings confirmed + fixed**, all reproduced by running strip-types.
+The theme: the hand-authored corpus missed adversarial edge cases the panel found by
+running. Fixes: (1) contextual keywords used as VALUE bindings were wrongly treated as
+declarations — `declare()`/`interface()`/`namespace()`/`abstract = 5`/`static(){}` now
+guarded by a next-token check (only a declaration form triggers the keyword path).
+(2) arrow return types ending in `)` (`(): (() => number) =>`) — `skip-type` gained an
+`arrow-return` mode so a top-level `=>` terminates the return type (the enclosing arrow)
+instead of being swallowed as a function-type arrow. (3) arrow generics with a default
+`<T = D>` — `=` added to the type-args allowed set. (4) generic tagged templates
+`tag<T>\`hi\`` and `as` inside `${…}` — `skip-type` now treats a `:template` as a type
+only at an atom position (else it terminates), so the template argument survives.
+(5) postfix `!` — `!` is now value-ending in prev-allows-regex-p (so `x! as T`/`x! / y`
+work) and `x!!` erases the whole run. (6) superclass type args `extends Base<T>` erased.
+(7) angle-bracket casts `<T>x` now error (amaro parity; guarded by expression-start so
+`a < b > c` is safe). (8) `declare namespace` with ambient value members erases whole
+(ambient) instead of erroring. (9) a param-property modifier outside a constructor is
+erased (lenient) rather than leaked. Net: 78-pair corpus (33 strip + 9 errors + 36
+runtime); build/test(1004 parachute + 42 TS + 49 JS)/purity(143) green; parse 17,512 /
+exec 19,540, 0 crashes, 0 regressions. Accepted corner unchanged: a genuine `a<b>(c)`
+comparison-call and a bare function-type return on an arrow (`(): () => X =>`) — rare,
+documented; recommend parenthesizing.

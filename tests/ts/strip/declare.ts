@@ -1,0 +1,1 @@
+declare const g: number; declare function h(x: number): void;

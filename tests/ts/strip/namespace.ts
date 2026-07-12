@@ -1,0 +1,1 @@
+namespace T { export interface X { a: number; } }

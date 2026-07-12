@@ -1,0 +1,1 @@
+const cfg = { port: 80 } satisfies Record<string, number>; console.log(cfg.port);

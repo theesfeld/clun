@@ -1,0 +1,1 @@
+const f = (x: T): T => x;

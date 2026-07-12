@@ -1,0 +1,1 @@
+let abstract = 10; abstract = abstract * 2; console.log(abstract);

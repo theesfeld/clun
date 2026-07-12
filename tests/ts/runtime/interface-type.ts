@@ -1,0 +1,1 @@
+interface P { x: number; y: number; } const p: P = { x: 1, y: 2 }; console.log(p.x + p.y);

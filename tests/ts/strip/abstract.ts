@@ -1,0 +1,1 @@
+abstract class A { abstract k(): string; public n: number = 1; }

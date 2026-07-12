@@ -1,0 +1,1 @@
+interface Greet { hi(): string; } class E implements Greet { hi(): string { return "hi"; } } console.log(new E().hi());

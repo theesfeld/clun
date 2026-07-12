@@ -1,0 +1,1 @@
+const id = <T,>(x: T): T => x; console.log(id(7) + ":" + id("h"));

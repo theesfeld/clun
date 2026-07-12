@@ -1,0 +1,1 @@
+const pair: [number, string] = [1, "a"]; console.log(pair[0] + pair[1]);

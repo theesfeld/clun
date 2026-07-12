@@ -1,0 +1,1 @@
+const x: number = 2; console.log(`n=${ (x as number) + 1 }`);

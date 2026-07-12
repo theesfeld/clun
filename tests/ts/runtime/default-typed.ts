@@ -1,0 +1,1 @@
+function h(x: number = 3): number { return x; } console.log(h() + "," + h(9));

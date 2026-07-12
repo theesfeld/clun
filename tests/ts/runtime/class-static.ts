@@ -1,0 +1,1 @@
+class M { static area(r: number): number { return 3 * r * r; } } console.log(M.area(2));

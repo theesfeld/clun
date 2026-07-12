@@ -1,0 +1,1 @@
+const m: Map<string, number> = new Map<string, number>(); m.set("a", 1); console.log(m.get("a"));

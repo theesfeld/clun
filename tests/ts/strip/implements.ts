@@ -1,0 +1,1 @@
+class C extends D implements I, J { }

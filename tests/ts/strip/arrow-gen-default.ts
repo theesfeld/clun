@@ -1,0 +1,1 @@
+const g = <T extends U = D>(x) => x;

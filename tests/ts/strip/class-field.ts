@@ -1,0 +1,1 @@
+class C { private x: number; readonly y: string = "a"; }

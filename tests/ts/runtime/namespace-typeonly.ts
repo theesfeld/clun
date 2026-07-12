@@ -1,0 +1,1 @@
+namespace T { export interface X { a: number; } export type Y = string; } const z: number = 1; console.log(z);

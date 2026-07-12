@@ -1,0 +1,1 @@
+interface P { a: number; b(): void; }

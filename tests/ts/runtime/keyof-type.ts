@@ -1,0 +1,1 @@
+type K = keyof { a: 1; b: 2 }; const k: K = "a"; console.log(k);

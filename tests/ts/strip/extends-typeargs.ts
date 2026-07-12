@@ -1,0 +1,1 @@
+class C extends Base<number> implements I {}

@@ -12,15 +12,19 @@ all: build
 build:
 	$(SBCL) $(SBCL_FLAGS) --load scripts/build.lisp
 
-## test — parachute CL suites + the tests/js end-to-end harness (needs the binary).
-test: test-lisp test-js
+## test — parachute CL suites + the tests/js + tests/ts harnesses (need the binary).
+test: test-lisp test-ts test-js
 
 test-lisp:
 	$(SBCL) $(SBCL_FLAGS) --load scripts/test.lisp
 
-## test-js — run the tests/js fixtures against build/clun (Phase 08).
+## test-js — run the tests/js + tests/ts/runtime fixtures against build/clun.
 test-js: build
 	$(SBCL) $(SBCL_FLAGS) --load scripts/run-js-fixtures.lisp
+
+## test-ts — the TS type-strip conformance harness (strip/ byte-exact + errors/).
+test-ts:
+	$(SBCL) $(SBCL_FLAGS) --load scripts/run-ts-strip.lisp
 
 ## purity — fail on any CFFI/foreign-code token under src/ or vendor/ (§1.1).
 purity:

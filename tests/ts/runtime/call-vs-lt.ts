@@ -1,0 +1,1 @@
+function cmp(x: number, y: number): boolean { return x < y; } console.log(cmp(1, 2));

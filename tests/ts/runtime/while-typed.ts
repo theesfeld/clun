@@ -1,0 +1,1 @@
+let n: number = 3; let acc: number = 1; while (n > 0) { acc *= n; n--; } console.log(acc);

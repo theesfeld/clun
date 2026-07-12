@@ -1,0 +1,1 @@
+foo<Bar>(1); new Map<string, number>();

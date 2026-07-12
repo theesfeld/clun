@@ -64,17 +64,18 @@
         (cli:load-dotenv (eng:js-get proc "env") cwd)))
     realm))
 
-(defun ts-extension-p (path)
+(defun tsx-extension-p (path)
   (let ((dot (position #\. path :from-end t)))
-    (and dot (member (subseq path dot) '(".ts" ".mts" ".cts" ".tsx") :test #'string=))))
+    (and dot (string= (subseq path dot) ".tsx"))))
 
 (defun run-file (r file)
-  "Execute FILE (a path). Returns an exit code."
+  "Execute FILE (a path). Returns an exit code. .ts/.mts/.cts are stripped by the
+loader's *ts-strip-hook*; .tsx is rejected."
   (cond
     ((null file)
      (format *error-output* "clun: no file to run~%") 2)
-    ((ts-extension-p file)
-     (format *error-output* "clun: TypeScript support lands in Phase 09 (~a)~%" file) 1)
+    ((tsx-extension-p file)
+     (format *error-output* "clun: .tsx is not supported~%") 1)
     (t
      (let* ((cwd (resolve-cwd r))
             (abs (if (sys:absolute-path-p file) file (sys:path-join cwd file))))

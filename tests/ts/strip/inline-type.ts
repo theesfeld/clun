@@ -1,0 +1,1 @@
+import { type A, B, type C } from "n";

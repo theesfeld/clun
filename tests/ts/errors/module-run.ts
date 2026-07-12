@@ -1,0 +1,1 @@
+module M { let y = 2; }

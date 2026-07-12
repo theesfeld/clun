@@ -1,0 +1,1 @@
+class C { m<T>(a: T): T { return a; } }

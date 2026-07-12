@@ -1,0 +1,1 @@
+const n = ("5" as unknown) as string; console.log(n.length);

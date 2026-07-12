@@ -1,0 +1,1 @@
+class C { constructor(x: number) { this._x = x; } get(): number { return this._x; } } console.log(new C(4).get());

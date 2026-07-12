@@ -1,0 +1,1 @@
+const r: RegExp = /ab\/c/g;
