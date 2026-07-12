@@ -206,11 +206,12 @@ slot."
     (lambda (env) (declare (ignore env)) v)))
 
 (defun compile-regexp (node)
-  ;; RegExp objects are Phase 10; make a placeholder object so parsing/running code
-  ;; that merely constructs (not executes) a literal doesn't crash.
-  (declare (ignore node))
-  (lambda (env) (declare (ignore env))
-    (throw-type-error "RegExp is not supported yet (Phase 10)")))
+  ;; Parse + translate + compile the scanner ONCE at emit time (a SyntaxError in the
+  ;; pattern surfaces here, the correct timing); each evaluation allocates a fresh
+  ;; RegExp object sharing that immutable compiled data (ES fresh-object-per-eval).
+  (let ((rxc (compile-regexp-literal (reg-exp-literal-pattern node)
+                                     (reg-exp-literal-flags node))))
+    (lambda (env) (declare (ignore env)) (regexp-from-compiled rxc))))
 
 (defun compile-identifier (comp node)
   (let ((name (identifier-name node)))

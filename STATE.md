@@ -5,7 +5,43 @@ Update before every commit. Seeded from PLAN.md §5.
 
 ---
 
-## Current phase: **10 — RegExp**  (Phase 09 committed; TS-strip gate MET)
+## Current phase: **11 — Binary data + BigInt**  (Phase 10 committed; RegExp gate MET)
+
+**Phase 10 outcome:** RegExp is a from-scratch JS-regex parser → own AST → CL-PPCRE **parse trees**
+→ `create-scanner` (`src/engine/regex/` ast/parser/translate/regexp-object, ~1.1k LOC). Translating
+to trees (not pattern strings) lets us undo JS-vs-PCRE semantics EXPLICITLY: `.` excludes LF/CR/LS/PS
+(all four, `:everything` under /s); `\s`/`\S` = the ~25-codepoint JS WhiteSpace set; `\w`/`\W` = ASCII
+only (negated forms INSIDE a class emitted as explicit complement ranges); `^`/`$` under /m built over
+the full LineTerminator set (PPCRE multi-line-mode breaks on LF only); `\b`/`\B` = ASCII-word lookarounds;
+Annex-B legacy octal (`\40`/`\101`/`\8`/`\9`, in & out of classes); empty `[]`/`[^]`. Exec uses
+`pp:scan … :start li :real-start-pos 0` so g/y iteration anchors ^/\b absolutely. RegExp object:
+lastIndex, exec/test, flag validation (dgimsuy, no dups, /v → SyntaxError), `.source` EscapeRegExpPattern,
+IdentifierName group names + duplicate rejection, the RegExp() ctor (copy/override/IsRegExp short-circuit).
+String match/matchAll/replace/replaceAll/search/split delegate to the @@ method ONLY when the arg is an
+Object (primitive → string fallback), with `$$`/`$&`/$n/`$<name>` templates + fn replacer (named-groups
+arg); Symbol.{match,matchAll,replace,search,split,species} statics exposed. **Gate MET:**
+built-ins/RegExp/** **76.1%** (696/915) ≥60%; String regex methods **96.9%** (283/292) ≥75%; zero crashes.
+`make build`/`test`(**1054 parachute + 42 TS + 49 JS**)/`purity`(**148 files**) green; conformance parse
+17,512 / exec **20,631** (0 crashes, 0 regressions). Adversarial review panel (5 dims × find→verify-by-
+running-the-binary, 28 agents): **21/23 confirmed + fixed** — all silent-mismatch classes (legacy octal,
+empty class, /m terminators, ASCII \b, non-ASCII \S/\W in class, flag validation, scan-start anchors, fn
+replacer groups arg, .source escaping, group-name validation, \c, missing Symbol statics + hyphenated
+descriptions, RegExp(re) identity), which also unmasked + fixed a latent primitive-@@-getter bug (+102
+RegExp tests, 64.9%→76.1%). Deliberate gaps (tests/conformance/regexp-gaps.txt): \p{} (loud; UCD gen
+scaffolded), /v, inline modifiers, /d indices, the fully-generic @@ protocol (fast-path exec, not
+user-overridable RegExpExec + @@species — 3 former false-passes removed from the pass-list, DECISIONS
+2026-07-12), RegExp.escape, variable-length lookbehind (loud), Annex-B-under-/u, astral /u (BMP-only),
+2 CL-PPCRE-vs-ECMAScript NFA edges.
+
+**Next action:** Begin Phase 11 (Binary data + BigInt, deps 04 ✓): ArrayBuffer (ub8) + DataView + all
+TypedArray kinds (ldb/dpb, make-double-float fast path, detach); TextEncoder/TextDecoder (UTF-8); BigInt
+(literals, ops, ToBigInt, mixing TypeErrors, toString radix, BigInt64Array). Gate: TypedArray/DataView/
+BigInt curated slices ≥65%; overall curated ≥80%. RegExp deferrals to revisit later: the generic @@
+RegExpExec protocol + @@species, RegExp.escape, /d indices, \p{} (needs the UCD generator), /v flag.
+
+---
+
+## Recent phase outcomes (most recent first)
 
 **Phase 09 outcome:** `.ts/.mts/.cts` run by type-stripping. A **recursive-descent strip scanner**
 (`clun.transpiler`, `src/transpiler/`) over the shared engine token stream erases type syntax to
@@ -319,6 +355,34 @@ _(nothing blocked)_
     `(): () => X =>` (rare; recommend parens); enum errors (Bun transpiles); class FIELD syntax + `class
     extends` method resolution + `??`/`?.` are pre-existing ENGINE limits (not strip bugs).
 
+- **Phase 10 — REGEXP GATE MET + committed (2026-07-12).**
+  - `make build` clean; `make test` = **1054 parachute + 42 tests/ts + 49 tests/js** (0 failed);
+    `make purity` clean (**148 files**); `make conformance` parse **17,512**; `make conformance-exec`
+    over 37,611 files: **pass 20,631**, **0 crashes**, exec-passlist regenerated (monotonic; 3 documented
+    false-passes removed), **0 regressions**.
+  - **Gate:** built-ins/RegExp/** **76.1%** (696/915 run) ≥60% ✔; String regex methods
+    (match/matchAll/replace/replaceAll/search/split) **96.9%** (283/292) ≥75% ✔; deliberate gaps
+    enumerated in tests/conformance/regexp-gaps.txt.
+  - `src/engine/regex/` (ast/parser/translate/regexp-object, ~1.1k LOC): own JS-regex recursive-descent
+    parser → AST → CL-PPCRE **parse trees** → create-scanner. JS-vs-PPCRE semantics undone in the tree
+    (`.`/\s/\w/\b/^/$/octal/empty-class); exec via `:start li :real-start-pos 0`; String delegation +
+    Symbol statics; loud SyntaxError for gaps. + `scripts/gen-unicode-tables.lisp` (UCD generator scaffold)
+    + `tests/lisp/engine/regexp-tests.lisp` (50 assertions). Vendored built-ins/RegExp/** (1,879 files).
+  - Adversarial review panel (5 dims × find→**verify-by-running-the-binary**, 28 agents): **21 confirmed /
+    23 candidates**, ALL fixed + re-verified — every finding a SILENT wrong-answer (the design's worst
+    class, which the vendored slice passed while mismatching): legacy octal escapes, empty `[]`/`[^]`, /m
+    at all JS LineTerminators, ASCII \b/\B, non-ASCII \S/\W/\D in a class, RegExp() flag validation (incl.
+    /v), scan-start-relative ^/\b under g/y, fn-replacer named-groups arg, .source EscapeRegExpPattern,
+    group-name IdentifierName + duplicate rejection, \c fallback, the Symbol.{match,…,species} statics +
+    camelCase descriptions, RegExp(re) IsRegExp short-circuit; exposing the statics unmasked + fixed a
+    latent primitive-search-value @@-getter bug. Net: RegExp 64.9%→**76.1%** (+102), String methods
+    91.1%→**96.9%**; 0 regressions/crashes.
+  - DEFERRED 🟡 (regexp-gaps.txt): fully-generic @@ RegExpExec protocol (user-overridable exec) + @@species
+    (B1 — 3 former false-passes removed from the exec pass-list, DECISIONS 2026-07-12), RegExp.escape,
+    variable-length lookbehind (loud), Annex-B-under-/u early errors, astral /u (BMP-only), \p{}
+    property escapes (loud; UCD gen scaffolded), /v flag, inline modifiers, /d match-indices, 2
+    CL-PPCRE-vs-ECMAScript NFA-backtracking edge cases.
+
 ## Phases
 
 Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-early.
@@ -407,12 +471,12 @@ Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-earl
 - [x] 65-pair corpus (authored, no vendored amaro) incl. adversarial (< ambiguity, arrow generics, multiline, regex-after-type, template-with-type, postfix !); loader wiring (*ts-strip-hook*, read-source-for) for .ts/.mts/.cts + resolver .mts/.cts formats
 - **Gate MET:** corpus green (strip byte-exact+same-length, errors w/ line:col, strip→run outputs); build/test(1004 parachute + 33 TS + 45 JS)/purity(143) ✓; parse 17,512 / exec 19,540, 0 crashes, 0 regressions.
 
-### Phase 10 — RegExp  (deps: 04) ~3k LOC
-- [ ] JS regex parser → own AST; AST → CL-PPCRE parse trees (group numbering, named-group map, i/m/s; u via down-translation)
-- [ ] RegExp object (lastIndex, exec/test, indices)
-- [ ] String match/matchAll/replace/replaceAll/split/search with $1/$<name> templates
-- [ ] loud SyntaxError for documented gaps; UCD table generator for later \p{}
-- **Gate:** built-ins/RegExp/** ≥ 60% (gaps enumerated); String regex methods ≥ 75%; zero regressions.
+### Phase 10 — RegExp  (deps: 04) ~3k LOC — **DONE (gate MET: RegExp 76.1%, String methods 96.9%)**
+- [x] JS regex parser → own AST; AST → CL-PPCRE parse trees (group numbering, named-group map, i/m/s; u via down-translation; JS-vs-PPCRE fixes for . \s \w \b ^ $ octal empty-class baked into the tree)
+- [x] RegExp object (lastIndex g/y w/ :real-start-pos absolute anchors, exec/test, flag validation, EscapeRegExpPattern source; /d indices deferred)
+- [x] String match/matchAll/replace/replaceAll/split/search with $1/$<name> templates + fn replacer (incl. named groups arg); @@ delegation only when arg is an Object; Symbol.{match,…,species} statics exposed
+- [x] loud SyntaxError for documented gaps (\p{}, /v, var-length lookbehind, bad flags/names); UCD table generator scaffolded (scripts/gen-unicode-tables.lisp) for later \p{}
+- **Gate MET:** built-ins/RegExp/** 76.1% (696/915) ≥60%; String regex methods 96.9% (283/292) ≥75%; zero crashes/regressions; gaps enumerated in tests/conformance/regexp-gaps.txt.
 
 ### Phase 11 — Binary data + BigInt  (deps: 04) ~3k LOC
 - [ ] ArrayBuffer (ub8), DataView + all TypedArray kinds (ldb/dpb; make-double-float fast path), detach

@@ -9,9 +9,9 @@
   ;; ASDF wants dotted integers; the user-facing string is src/version.lisp's
   ;; *clun-version* = "0.0.1-dev".
   :version "0.0.1"
-  ;; SBCL contribs for the event loop (Phase 05). cl-ppcre lands with the RegExp
-  ;; phase (PLAN.md Phase 10). sb-thread is built in (feature :sb-thread).
-  :depends-on ((:require "sb-posix") (:require "sb-concurrency"))
+  ;; SBCL contribs for the event loop (Phase 05); cl-ppcre is the RegExp backend
+  ;; (Phase 10, vendored + pure). sb-thread is built in (feature :sb-thread).
+  :depends-on ((:require "sb-posix") (:require "sb-concurrency") "cl-ppcre")
   :serial t
   :components ((:module "src"
                 :serial t
@@ -64,6 +64,16 @@
                                            (:file "builtins-object")
                                            (:file "builtins-number")
                                            (:file "builtins-string")
+                                           ;; RegExp (Phase 10): own JS parser → AST →
+                                           ;; CL-PPCRE parse trees; RegExp object + String
+                                           ;; delegation. Loads after String (delegation),
+                                           ;; before Array.
+                                           (:module "regex"
+                                            :serial t
+                                            :components ((:file "ast")
+                                                         (:file "parser")
+                                                         (:file "translate")
+                                                         (:file "regexp-object")))
                                            (:file "builtins-array")
                                            (:file "builtins-symbol")
                                            (:file "builtins-collections")
@@ -141,7 +151,8 @@
                                                          (:file "builtins-tests")
                                                          (:file "async-tests")
                                                          (:file "modules-tests")
-                                                         (:file "inspect-tests")))
+                                                         (:file "inspect-tests")
+                                                         (:file "regexp-tests")))
                                            (:module "runtime"
                                             :serial t
                                             :components ((:file "runtime-tests")))

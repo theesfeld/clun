@@ -54,8 +54,8 @@
 (defpackage :clun.engine
   (:use :cl)
   ;; :lp (not :loop — that shadows the CL macro) reaches the Phase 05 event loop that
-  ;; the async engine (Phase 06) feeds jobs into.
-  (:local-nicknames (:lp :clun.loop))
+  ;; the async engine (Phase 06) feeds jobs into. :pp = cl-ppcre (RegExp backend, P10).
+  (:local-nicknames (:lp :clun.loop) (:pp :cl-ppcre))
   (:documentation "From-scratch ECMAScript engine: lexer, parser, analyzer, emitter, objects, stdlib.")
   ;; Phase 01 — value substrate & coercions.
   (:export

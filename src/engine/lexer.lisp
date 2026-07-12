@@ -391,9 +391,9 @@ token start; returns a :regexp token (value=pattern, raw=flags)."
             while (and c (let ((cc (char-code c))) (or (<= 97 cc 122) (<= 65 cc 90))))
             do (incf (lexer-pos lx)))
       (let ((flags (subseq (lexer-src lx) flags-start (lexer-pos lx))) (seen '()))
-        ;; validate flags: only g/i/m/s/u/y, no duplicates (pattern validation is Phase 10)
+        ;; validate flags: only d/g/i/m/s/u/y, no duplicates (pattern validation Phase 10)
         (loop for ch across flags do
-          (unless (find ch "gimsuy")
+          (unless (find ch "dgimsuy")
             (lex-error lx "invalid regular expression flag '~:c'" ch))
           (when (member ch seen) (lex-error lx "duplicate regular expression flag '~:c'" ch))
           (push ch seen))

@@ -1,0 +1,94 @@
+# Phase 10 RegExp — deliberate conformance gaps
+#
+# Clun's RegExp is a JS-regex parser → own AST → CL-PPCRE parse trees → scanner
+# (DECISIONS.md §3.1). Every gap below is DELIBERATE and either (a) skipped by a
+# test262 feature tag or (b) parses to a LOUD SyntaxError — never a silent mismatch.
+# The built-ins/RegExp/** slice measures 696/915 run = 76.1% (gate ≥60%); the String
+# regex methods (match/matchAll/replace/replaceAll/search/split) measure 283/292 =
+# 96.9% (gate ≥75%). Numbers are @ test262 d1d583db95, both strict + sloppy modes.
+#
+# The Phase-10 adversarial review closed 21 correctness bugs — silent-mismatch classes
+# the design forbids — that are NOT gaps and now behave per spec: legacy octal escapes
+# (\40, \101, \8/\9, in and out of classes), empty classes ([] / [^]), /m at all JS
+# LineTerminators (CR/LS/PS, not just LF), ASCII \b/\B, non-ASCII \S/\W/\D inside a
+# class, RegExp() flag validation (invalid + duplicate → SyntaxError, incl. /v),
+# scan-start-relative ^/\b/\B under g/y, the function-replacer named-groups argument,
+# .source EscapeRegExpPattern, group-name IdentifierName validation + duplicate
+# rejection, \c fallback, the Symbol.{match,replace,search,split,species} statics,
+# well-known-symbol descriptions, RegExp(re) identity short-circuit, and the
+# primitive-search-value @@ guard.
+#
+# ============================================================================
+# A. FEATURE-SKIPPED (scripts/test262.lisp *skip-features* / *exec-skip* — not run)
+# ============================================================================
+#
+#   regexp-unicode-property-escapes  \p{...} \P{...}   (680 tests)
+#       Needs Unicode property tables. Parser throws SyntaxError today; the
+#       offline table generator is scaffolded at scripts/gen-unicode-tables.lisp.
+#   regexp-v-flag                    the /v flag        (210 tests)
+#       Set-notation / string-literal classes. Rejected LOUDLY (SyntaxError).
+#   regexp-modifiers                 (?i:…) (?-s:…)     (144 tests)
+#       Inline flag modifiers. Not parsed.
+#   regexp-duplicate-named-groups    (?<n>…|?<n>…)      (13 tests)
+#       ES2025 names duplicated across DISJOINT alternatives. We reject ALL
+#       duplicate names LOUDLY (the pre-ES2025 rule); this legal case is skipped.
+#   regexp-match-indices             the /d flag        (30 tests)
+#       `d` is accepted and .hasIndices reflects it, but exec() does not build the
+#       .indices array. Skipped so it can't false-pass.
+#
+# ============================================================================
+# B. RUN-AND-FAIL (documented gaps; counted against the 76.1% / 96.9% rates)
+# ============================================================================
+#
+# B1. Fully-generic Symbol.{match,replace,split,search,matchAll} protocol  (~115)
+#     built-ins/RegExp/prototype/Symbol.replace/**   (38)
+#     built-ins/RegExp/prototype/Symbol.split/**     (27)
+#     built-ins/RegExp/prototype/Symbol.match/**     (22)
+#     built-ins/RegExp/prototype/Symbol.search/**    (14)
+#     built-ins/RegExp/prototype/Symbol.matchAll/**  (14)
+#     plus prototype/{exec,flags}/** coercion-order checks (~12), from-regexp-like/**
+#         The @@ methods use the builtin fast-path exec, not the spec's
+#         user-overridable RegExpExec (Get(R,"exec") + IsCallable) with the full
+#         lastIndex/global/unicode/argument ToString+coercion ladder and the
+#         @@species subclass-construction step. Custom `exec`, coercion-error
+#         ordering, and species edge cases therefore diverge. (User-object @@ dispatch
+#         from the String side now works — only the RegExp.prototype internals differ.)
+#
+# B2. RegExp.escape (static)                                               (~19)
+#     built-ins/RegExp/escape/**
+#         ES2025 RegExp.escape is not implemented.
+#
+# B3. Variable-length lookbehind                                          (~14)
+#     built-ins/RegExp/lookBehind/**
+#         CL-PPCRE lookbehind is fixed-length only; variable-length (?<=a+) parses
+#         to a LOUD SyntaxError. Fixed-length lookbehind works.
+#
+# B4. Annex-B legacy syntax rejected under /u                             (~13)
+#     built-ins/RegExp/unicode_restricted_*.js
+#         In /u mode identity escapes, octal escapes, incomplete quantifiers, and
+#         lone brackets are *early errors*; the parser does not yet reject all of
+#         these Annex-B forms when u is set (it accepts them, as in non-/u mode).
+#
+# B5. Full-unicode (/u astral) semantics — BMP-only                        (~14)
+#     built-ins/RegExp/CharacterClassEscapes/**, named-groups/unicode-*.js,
+#     built-ins/RegExp/dotall/with-dotall-unicode.js, …/without-dotall-unicode.js,
+#     built-ins/RegExp/unicode_full_case_folding.js
+#         u-flag parsing is BMP-only: no surrogate-pair combination into code points,
+#         no astral `.`/class matching, no full case-folding. Code-unit semantics.
+#         (\u-escaped group names likewise surface as a loud SyntaxError, not a key.)
+#
+# B6. ECMAScript backtracking-NFA edge semantics                           (~2)
+#     built-ins/RegExp/nullable-quantifier.js
+#         (a?b??)* on "ab": empty optional iterations are discarded per §22.2.2.
+#     built-ins/RegExp/lookahead-quantifier-match-groups.js
+#         0-length matches clear the captures list iff not 0-times-quantified.
+#         CL-PPCRE's engine resolves these differently from ECMAScript's.
+#
+# B7. @@species-driven subclass construction                               (~4)
+#     built-ins/RegExp/prototype/Symbol.species/**
+#         Species lookup in the @@ split/replace flows (ties into B1).
+#
+# The remaining scattered fails (legacy S15.10.* on exact .exec array shape /
+# lastIndex quirks, a few call-as-function edge cases) share the same roots as B1
+# (generic-protocol coercion ordering) and B5 (unicode). Closing A + B1 is the bulk
+# of the remaining built-ins/RegExp headroom for a later phase.

@@ -90,7 +90,11 @@
             "Proxy" "Reflect" "SharedArrayBuffer" "Atomics" "BigInt" "object-spread" "object-rest"
             "iterator-helpers" "tail-call-optimization" "IsHTMLDDA" "cross-realm" "TypedArray"
             "Array.prototype.flat" "Array.prototype.flatMap" "String.prototype.replaceAll"
-            "regexp-named-groups" "regexp-lookbehind" "regexp-unicode-property-escapes")))
+            ;; Phase 10 RUNS named-groups / lookbehind / dotall / sticky / u-flag (BMP).
+            ;; Deliberate gaps kept skipped (tests/conformance/regexp-gaps.txt): \p{}
+            ;; property escapes, the /v flag, inline modifiers, duplicate named groups
+            ;; (all above via *skip-features*), and match-indices (the /d flag).
+            "regexp-unicode-property-escapes" "regexp-match-indices")))
 
 (defun %install-print (realm)
   "Install a capturing `print` global on REALM (async tests' $DONE uses it via

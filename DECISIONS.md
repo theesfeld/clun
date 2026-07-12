@@ -594,3 +594,79 @@ runtime); build/test(1004 parachute + 42 TS + 49 JS)/purity(143) green; parse 17
 exec 19,540, 0 crashes, 0 regressions. Accepted corner unchanged: a genuine `a<b>(c)`
 comparison-call and a bare function-type return on an arrow (`(): () => X =>`) — rare,
 documented; recommend parenthesizing.
+
+### 2026-07-12 — Phase 10: RegExp (own JS-regex parser → AST → CL-PPCRE parse trees)
+RegExp is a from-scratch JS-regex recursive-descent parser (`src/engine/regex/parser.lisp`)
+→ own AST (`ast.lisp`) → CL-PPCRE **parse trees** (the s-expr API, NOT string patterns;
+`translate.lisp`) → `cl-ppcre:create-scanner` (`regexp-object.lisp`). We translate to trees,
+not strings, so JS-vs-PCRE semantics are undone EXPLICITLY rather than hoping a pattern string
+means the same thing in both dialects. The crux is that documented gaps must ERROR LOUDLY
+(JS SyntaxError), NEVER silently mismatch (§3.1). **JS-vs-PPCRE fixes baked into the tree:**
+(1) `.` = `(:inverted-char-class <LF CR LS PS>)` (not just LF); with /s → `:everything`.
+(2) `\s`/`\S` = explicit JS WhiteSpace set (~25 code points, incl \v \f U+00A0 U+FEFF U+2028
+U+2029 …), not PPCRE's 5. (3) `\w`/`\W` = ASCII `[A-Za-z0-9_]` only, not PPCRE's Unicode set —
+INSIDE a class the negated forms (`\D`/`\W`/`\S`) are emitted as explicit complement RANGES via
+`complement-ranges` (PPCRE's `:non-*-char-class` symbols use the wrong sets). (4) `^`/`$` without
+/m = modeless anchors; WITH /m, built ourselves as `(:alternation <modeless> (:positive-look…
+<LineTerminator class>))` over the full LF/CR/LS/PS set — PPCRE's own multi-line-mode only breaks
+on LF, so we do NOT pass `:multi-line-mode`. (5) `\b`/`\B` = lookaround pairs over the ASCII word
+set (PPCRE's native word-boundary is Unicode). (6) legacy octal escapes `\40`/`\101`/`\8`/`\9`
+per Annex B B.1.2/B.1.4 (a NonZeroDigit run is a backref iff ≤ NcapturingParens, else \1..\7 =
+octal, \8/\9 = literal digit; in a class always octal/literal — no backrefs). (7) empty class
+`[]` = `(:negative-lookahead :void)` (never matches), `[^]` = `:everything` (PPCRE rejects a
+literally empty char-class). Only /i maps to a create-scanner mode; :single-line-mode is ON
+unconditionally so `:everything` matches newline. **Exec/lastIndex:** `pp:scan … :start li
+:real-start-pos 0` — scanning begins at lastIndex but ^/\b/lookbehind anchor against the WHOLE
+string (absolute), which g/y iteration and split/replace depend on. **Object:** flags→bits via
+`logior` + `validate-regexp-flags` (only dgimsuy, no dups → SyntaxError, incl. /v); `.source`
+runs EscapeRegExpPattern; group names validated as IdentifierName with duplicate rejection.
+**String integration:** match/matchAll/replace/replaceAll/search/split delegate to the @@ method
+ONLY when the arg is an Object (a primitive search value must not trigger its inherited @@
+getter), else a string fallback; the Symbol.{match,matchAll,replace,search,split,species} statics
+are exposed so user `obj[Symbol.replace]` dispatch is reachable. **Gate MET:** built-ins/RegExp/**
+**76.1%** (696/915 run) ≥60%; String regex methods **96.9%** (283/292) ≥75%; 0 crashes. Honest
+gaps in `tests/conformance/regexp-gaps.txt`: \p{} (loud; UCD generator scaffolded at
+`scripts/gen-unicode-tables.lisp`), /v, inline modifiers, /d indices, the fully-generic @@
+protocol (fast-path exec, not user-overridable RegExpExec + @@species), RegExp.escape,
+variable-length lookbehind (loud), Annex-B-under-/u early errors, astral /u (BMP-only), and two
+CL-PPCRE-vs-ECMAScript NFA-backtracking edge cases. **Alternative rejected:** shelling out to a
+system regex lib (violates purity) or emitting PPCRE pattern STRINGS (can't control the
+semantic divergences precisely, and silent mismatches would result).
+
+### 2026-07-12 — Phase 10 review panel (5 dims × find→verify-by-running-the-binary)
+28 agents (5 finders → per-finding adversarial verifiers that reproduce via `build/clun -e`),
+**21 findings confirmed real / 23 candidates**, ALL 21 fixed + re-verified by running code. The
+theme: nearly every finding was a SILENT wrong-answer — the class the design most forbids — and
+the panel is what caught them (the vendored slice passed, but was silently mismatching). Fixes,
+by root cause: (1) legacy octal `\40`/`\101`/`\8`/`\9` were decimal-then-mod-256 (→ wrong code
+points) — now Annex-B octal/backref/literal, in and out of classes. (2) `[]`/`[^]` were rejected
+as SyntaxError — now valid (never-match / any-char). (3) /m ^/$ only broke on LF — now all four
+JS LineTerminators. (4) `\b`/`\B` used PPCRE's Unicode word set — now ASCII via lookarounds.
+(5) `[\S]`/`[\W]`/`[\D]` inside a class used PPCRE's wrong sets — now explicit complement ranges.
+(6) `new RegExp(p, flags)` never validated flags (invalid silently dropped; duplicate additively
+aliased into a DIFFERENT bit, e.g. "gg"→ignoreCase, and /v silently mismatched) — now a loud
+SyntaxError via logior + validate-regexp-flags. (7) ^/\b/\B were scan-start-relative (corrupted
+`str.replace(/^/gm,'> ')`, `split(/\b/)`, `match(/\b/g)`) — fixed with `:real-start-pos 0`.
+(8) the function replacer dropped the trailing named-`groups` argument. (9) `.source` was raw
+(unparseable `///` toString) — now EscapeRegExpPattern. (10) group names weren't validated and
+duplicates were silently accepted — now IdentifierName + duplicate-name SyntaxErrors. (11) `\c`
+with no control letter dropped the backslash. (12) Symbol.{match,replace,search,split,species}
+were undefined on the Symbol ctor (the entire user-facing @@ protocol unreachable) + hyphenated
+descriptions (`Symbol.match-all`) — now exposed + camelCase. (13) `RegExp(re)` (called, undefined
+flags) didn't short-circuit to the same object. Exposing the Symbol statics UNMASKED a latent
+bug the panel's own fix surfaced: String match/replace/etc. accessed `@@` on PRIMITIVE search
+values (triggering inherited getters) — corrected to the spec's "only when the arg is an Object"
+guard (cstm-*-on-primitive tests). Net effect: RegExp slice 64.9% → **76.1%** (+102 tests),
+String regex methods 91.1% → **96.9%**; build/test(1054 parachute + 42 TS + 49 JS)/purity(148)
+green; 0 crashes; exec **20,631**.
+**Pass-list correction (only-grows policy):** exposing the Symbol statics turned 3 exec tests
+from false-passes into honest failures, so they were removed from `exec-passlist.txt` by hand:
+`prototype/Symbol.replace/result-coerce-groups-err.js` and
+`prototype/Symbol.match/{g-match-empty-set,builtin-success-g-set}-lastindex-err.js`. They passed
+ONLY because `r[Symbol.match]`/`r[Symbol.replace]` were `undefined` → `r[undefined]` = undefined →
+calling it threw the `TypeError` the tests `assert.throws` for. With the statics present they reach
+the real @@ methods, whose builtin fast-path `exec` (not the spec's user-overridable
+`Get(R,"exec")`) never runs the test's custom `exec`, so the abrupt-completion path isn't hit —
+the B1 documented gap. A 4th flagged test, `call_with_regexp_match_falsy.js`, WAS a real regression
+from the RegExp(re) short-circuit and was fixed in code (gate the short-circuit on IsRegExp, which
+consults @@match, not js-regexp-p), not removed.

@@ -155,17 +155,24 @@
       (bootstrap-math)
       (bootstrap-json)
       (bootstrap-global)
+      (bootstrap-regexp)            ; RegExp (Phase 10); needs the global + re-installs String regex methods
       (bootstrap-global-extra)
       (bootstrap-async-globals))    ; Promise + timers/microtask/nextTick globals
     *realm*))
 
+(defparameter *well-known-symbol-names*
+  ;; keyword → the spec [[Description]] tail (camelCase, per the Well-Known Symbols table).
+  '((:iterator . "iterator") (:async-iterator . "asyncIterator")
+    (:to-primitive . "toPrimitive") (:has-instance . "hasInstance")
+    (:to-string-tag . "toStringTag") (:is-concat-spreadable . "isConcatSpreadable")
+    (:species . "species") (:match . "match") (:match-all . "matchAll")
+    (:replace . "replace") (:search . "search") (:split . "split")
+    (:unscopables . "unscopables")))
+
 (defun bootstrap-well-known-symbols ()
-  (dolist (k '(:iterator :async-iterator :to-primitive :has-instance :to-string-tag
-               :is-concat-spreadable :species :match :replace :search :split :unscopables))
+  (loop for (k . name) in *well-known-symbol-names* do
     (setf (gethash k *well-known-symbols*)
-          (%make-js-symbol :description (format nil "Symbol.~a"
-                                                (string-downcase (symbol-name k)))
-                           :well-known k))))
+          (%make-js-symbol :description (format nil "Symbol.~a" name) :well-known k))))
 
 (defun bootstrap-function-prototype ()
   (let ((fp (intrinsic :function-prototype)))
@@ -231,6 +238,7 @@ itself, so this returns X.prototype = DEFAULT-PROTO — subclassing changes noth
 (defun bootstrap-array-extra () (%bootstrap-array-extra))
 (defun bootstrap-number-extra () (%bootstrap-number-extra))
 (defun bootstrap-string-extra () (%bootstrap-string-extra))
+(defun bootstrap-regexp () (%bootstrap-regexp))
 (defun bootstrap-symbol-extra () (%bootstrap-symbol-extra))
 (defun bootstrap-map () (%bootstrap-map))
 (defun bootstrap-set () (%bootstrap-set))
