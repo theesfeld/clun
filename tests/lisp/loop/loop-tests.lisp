@@ -219,3 +219,21 @@
       (lp:run-loop loop)
       (is eq :err (first result))
       (true (typep (second result) 'error)))))
+
+;;; --- reactor robustness: recover from a handler left on a closed fd -----------
+
+(define-test loop/reactor-recovers-from-closed-fd
+  ;; A handler left on an fd that gets closed behind serve-event's back — the narrow
+  ;; race where a socket fd is closed (a re-entrant close during dispatch, a peer reset,
+  ;; or a GC finalizer on an orphaned socket under load) before its handler is
+  ;; unregistered — makes serve-event signal a bad-fd error. reactor-poll must PRUNE the
+  ;; stale handler and continue, never let the loop die (§6). Regression for the net
+  ;; socket-suite flakiness observed under heavy concurrent load.
+  (with-loop (loop)
+    (multiple-value-bind (r w) (sb-posix:pipe)
+      (declare (ignore w))
+      (lp:reactor-add loop r :input (lambda (fd) (declare (ignore fd)) nil))
+      (is = 1 (length (clun.loop::el-fd-handlers loop)))
+      (sb-posix:close r)                              ; the race: fd closed, handler still live
+      (true (progn (clun.loop::reactor-poll loop 20) t))  ; must NOT signal a bad-fd error
+      (is = 0 (length (clun.loop::el-fd-handlers loop))))))  ; stale handler pruned

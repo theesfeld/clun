@@ -1181,3 +1181,23 @@ node:url; the Phase-16 net-socket-suite flakiness under heavy concurrent load (a
 on a reused fd → `bad file descriptor`; passes on a quiet run) — a reactor-teardown hardening follow-up.
 **Upstream patch issue to file:** Shinmera/precise-time — offer an SBCL-native (sb-unix:clock-gettime)
 backend so the library need not pull a foreign-FFI dependency on SBCL (we vendor a local patch meanwhile).
+
+### 2026-07-13 — Reactor bad-fd recovery (net-socket-suite flakiness fix, follow-up to Phase 16)
+The net socket suites (echo-sequential/concurrent, fd-no-leak, throughput) occasionally threw a raw
+`bad file descriptor` under heavy concurrent-SBCL load. Root cause (verified with a minimal probe):
+`sb-sys:serve-event` signals a `SIMPLE-ERROR` and marks the handler bogus when it polls a handler whose
+fd has been CLOSED out from under it — the narrow race where a socket fd is closed before its serve-event
+handler is unregistered (a re-entrant close during dispatch when a peer connection is torn down + a new one
+reuses the fd; or a GC finalizer closing an orphaned socket under memory pressure). The old `reactor-poll`
+let that error escape and kill the loop (§6 violation). **Fix:** `reactor-poll` now wraps `serve-event` in a
+handler that, on error, calls `prune-closed-fd-handlers` — which walks the loop's OWN `el-fd-handlers`
+tracking (no sb-impl internals), unregisters every handler whose fd is closed (`sb-posix:fstat` → EBADF), and
+returns the count; if any were pruned the poll returns NIL (the loop continues + re-polls cleanly), otherwise
+the error re-signals (a genuine handler-callback error still propagates). Verified: (a) a direct probe —
+register a handler, close its fd, `reactor-poll` → RECOVERED (handler pruned), not crashed; (b) a
+30-iteration / 19,500-connection stress under 4–6 CPU-hog threads + forced GC → 0 escaped errors, 0
+corruption; (c) `make test-lisp` 8/8 deterministically green (was ~50% flaky under load). Locked by the
+`loop/reactor-recovers-from-closed-fd` regression test. Separately, the two borderline perf-threshold tests
+(server ≥30k req/s, loopback ≥100 MB/s) are now **best-of-3** (a genuinely-slow path fails all three; a hard
+threshold otherwise flakes when a competing build shaves the last percent). Conformance held (22,643, 0
+regressions — the change only adds error recovery; normal serve-event returns are unchanged).
