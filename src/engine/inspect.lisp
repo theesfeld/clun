@@ -214,3 +214,34 @@ recursion budget (2), BREADTH the per-container item cap (100)."
                 (write-string (cdr e) s) (write-string "," s) (write-char #\Newline s))
               (write-string (%spaces indent) s)
               (write-string "}" s)))))))
+
+;;; --- shared deep structural equality (Phase 12) -----------------------------
+;;; The one deepEquals behind util.isDeepStrictEqual, assert.deepStrictEqual, and
+;;; Clun.deepEquals. Node isDeepStrictEqual-ish: SameValue for primitives (NaN=NaN,
+;;; +0≠-0), then same array-ness + own enumerable string keys, recursively, with a
+;;; cycle guard. (Map/Set/Date/RegExp/boxed-primitive deep semantics: a documented gap.)
+
+(defun js-deep-equal (a b)
+  (%deep-equal a b (make-hash-table :test 'eq)))
+
+(defun %deep-equal (a b seen)
+  (cond
+    ((js-same-value a b) t)
+    ((or (not (js-object-p a)) (not (js-object-p b))) nil)  ; unequal primitives, or prim vs obj
+    ((not (eq (js-array-p a) (js-array-p b))) nil)          ; array-ness must match
+    (t
+     (let ((partner (gethash a seen)))
+       (when partner (return-from %deep-equal (eq partner b))))
+     (setf (gethash a seen) b)
+     (let ((ka (%deep-enum-keys a)) (kb (%deep-enum-keys b)))
+       (and (= (length ka) (length kb))
+            (every (lambda (k) (and (member k kb :test #'string=)
+                                    (%deep-equal (js-getv a k) (js-getv b k) seen)))
+                   ka))))))
+
+(defun %deep-enum-keys (o)
+  "Own ENUMERABLE string keys of O (index + named; symbols ignored — a documented gap)."
+  (loop for k in (jm-own-property-keys o)
+        when (stringp k)
+        when (let ((d (jm-get-own-property o k))) (and d (eq (pd-enumerable d) t)))
+        collect k))

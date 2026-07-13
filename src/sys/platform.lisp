@@ -72,3 +72,53 @@ nanosecond clock (Phase 08)."
 
 (defun bytes-consed ()
   (sb-ext:get-bytes-consed))
+
+;;; --- OS info + CSPRNG (Phase 12: node:os, crypto) --------------------------
+
+(defun os-random-bytes (n)
+  "N cryptographically-strong random bytes as a (simple-array (unsigned-byte 8) (N)),
+read from /dev/urandom via a plain CL binary stream (pure — no foreign code)."
+  (let ((buf (make-array n :element-type '(unsigned-byte 8))))
+    (with-open-file (in #P"/dev/urandom" :element-type '(unsigned-byte 8))
+      (let ((got (read-sequence buf in)))
+        (when (< got n) (error "short read from /dev/urandom"))))
+    buf))
+
+(defun hostname () (machine-instance))          ; CL: the host name
+(defun os-type () (or (software-type) "Linux")) ; "Linux"
+(defun os-release ()
+  (or (%first-line "/proc/sys/kernel/osrelease") (software-version) ""))
+(defun tmpdir () (or (getenv "TMPDIR") (getenv "TMP") (getenv "TEMP") "/tmp"))
+(defun homedir () (or (getenv "HOME") ""))
+
+(defun %first-line (path)
+  (ignore-errors (with-open-file (in path :if-does-not-exist nil)
+                   (and in (read-line in nil nil)))))
+
+(defun %meminfo-kb (key)
+  "Bytes for a /proc/meminfo KEY (e.g. \"MemTotal\"), or 0."
+  (ignore-errors
+   (with-open-file (in "/proc/meminfo" :if-does-not-exist nil)
+     (when in
+       (loop for line = (read-line in nil nil) while line
+             when (and (>= (length line) (length key))
+                       (string= key line :end2 (length key)))
+               do (let* ((colon (position #\: line))
+                         (rest (string-trim " kB" (subseq line (1+ colon)))))
+                    (return (* 1024 (or (parse-integer rest :junk-allowed t) 0)))))))))
+
+(defun total-memory () (or (%meminfo-kb "MemTotal") 0))
+(defun free-memory () (or (%meminfo-kb "MemAvailable") (%meminfo-kb "MemFree") 0))
+
+(defun uptime-seconds ()
+  (let ((line (%first-line "/proc/uptime")))
+    (if line (or (ignore-errors (read-from-string line)) 0) 0)))
+
+(defun cpu-count ()
+  "Number of logical CPUs (count `processor` lines in /proc/cpuinfo); ≥1."
+  (max 1 (or (ignore-errors
+              (with-open-file (in "/proc/cpuinfo" :if-does-not-exist nil)
+                (when in
+                  (loop for line = (read-line in nil nil) while line
+                        count (and (>= (length line) 9) (string= "processor" line :end2 9))))))
+             1)))

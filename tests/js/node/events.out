@@ -1,0 +1,6 @@
+data:1,2|open 1 0
+afterRemove 0
+new:z
+eventNames data,newListener,z
+errorThrow boom
+EE.EventEmitter===EE true

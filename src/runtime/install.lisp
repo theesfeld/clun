@@ -52,6 +52,8 @@ ARGV is the list of user args after the script; CWD the working directory."
       (install-console realm rt)
       (install-process realm rt :argv argv :cwd cwd)
       (install-clun-global realm rt))
+    (install-node-builtins)                ; wire the engine's node-builtin hook (process-global)
+    (install-globals realm)                ; structuredClone, crypto (Phase 12)
     (setf (symbol-value '*runtime*) rt)
     (values realm rt)))
 

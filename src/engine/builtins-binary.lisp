@@ -93,6 +93,19 @@ host FLOATING-POINT-INVALID-OPERATION (JS has no observable quiet/signaling NaN)
   "Cap on a Data Block size (§6.2.9): a larger request throws RangeError rather than
 exhausting the heap (test262 ArrayBuffer/allocation-limit allocates PiB-scale).")
 
+(defun crypto-fill-random (ta)
+  "crypto.getRandomValues(TA): fill TA's bytes with CSPRNG bytes. Non-integer TA (Float*)
+→ TypeError; byteLength > 65536 → RangeError (the WebCrypto quota)."
+  (unless (js-typed-array-p ta) (throw-type-error "argument is not an integer TypedArray"))
+  (when (member (js-typed-array-kind ta) '(:float32 :float64))
+    (throw-type-error "argument is not an integer TypedArray"))
+  (when (ta-detached-p ta) (throw-type-error "TypedArray is detached"))
+  (let ((n (* (ta-length ta) (kind-size (js-typed-array-kind ta)))))
+    (when (> n 65536) (throw-range-error "getRandomValues quota (65536 bytes) exceeded"))
+    (let ((rnd (clun.sys:os-random-bytes n)) (bytes (ta-bytes ta)) (off (js-typed-array-byte-offset ta)))
+      (dotimes (i n) (setf (aref bytes (+ off i)) (aref rnd i)))))
+  ta)
+
 (defun make-array-buffer (length &optional proto)
   ;; Reject before allocating: SBCL's heap-exhaustion on a single too-large make-array is a raw
   ;; abort (NOT a catchable storage-condition), so cap against the real runtime heap (half of it)

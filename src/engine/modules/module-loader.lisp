@@ -28,6 +28,35 @@
         (funcall *ts-strip-hook* src path)
         src)))
 
+;;; --- node builtin modules (Phase 12) ----------------------------------------
+;;; The runtime layer registers builders (name -> exports-object thunk) and installs
+;;; this hook; bare test262 realms leave it NIL, so `require('node:…')` is inert there.
+
+(defvar *builtin-module-builder* nil
+  "A function (name) -> a fresh exports js-object for the current *realm*, or NIL if
+NAME is not a node builtin. Installed by clun.runtime; NIL in a bare realm.")
+
+(defun try-builtin-module (specifier)
+  "If SPECIFIER names a node builtin, return its (per-realm cached) :cjs module-record,
+else NIL. A `node:`-prefixed specifier that is not a known builtin throws (as Node does)."
+  (when *builtin-module-builder*
+    (let* ((prefixed (and (>= (length specifier) 5) (string= specifier "node:" :end1 5)))
+           (name (if prefixed (subseq specifier 5) specifier))
+           (rec (get-builtin-module name)))
+      (cond (rec rec)
+            (prefixed (throw-native-error :error (format nil "Cannot find module 'node:~a'" name)))
+            (t nil)))))
+
+(defun get-builtin-module (name)
+  "The cached :cjs module-record for builtin NAME in *realm*, built on first use, or NIL."
+  (let ((key (concatenate 'string (string (code-char 0)) "node:" name)))  ; NUL ⇒ never a truename
+    (or (realm-module *realm* key)
+        (let ((exports (funcall *builtin-module-builder* name)))
+          (when exports
+            (setf (realm-module *realm* key)
+                  (make-module-record :resolved-path key :format :cjs :status :evaluated
+                                      :cjs-exports exports)))))))
+
 ;;; --- resolver boundary: map clun.resolver errors to JS errors ---------------
 
 (defun resolve-specifier (specifier referrer-dir conditions)
@@ -95,8 +124,11 @@ placeholder is evaluated lazily via load-cjs-module / load-json-value)."
     (compile-esm-module mr)
     (let ((dir (clun.sys:path-dirname path)))
       (dolist (spec (mr-requested mr))
-        (multiple-value-bind (dep-path dep-format) (resolve-import spec dir)
-          (setf (gethash spec (mr-requested-map mr)) (load-any dep-path dep-format)))))
+        (let ((builtin (try-builtin-module spec)))
+          (if builtin
+              (setf (gethash spec (mr-requested-map mr)) builtin)
+              (multiple-value-bind (dep-path dep-format) (resolve-import spec dir)
+                (setf (gethash spec (mr-requested-map mr)) (load-any dep-path dep-format)))))))
     (setf (mr-status mr) :loaded)
     mr))
 
@@ -306,8 +338,11 @@ Used by run-source for `:source-type :module` and the CLI's -e/[eval] modules."
                  (mr-ast mr) (parse-program source :source-type :module))
            (compile-esm-module mr)
            (dolist (spec (mr-requested mr))
-             (multiple-value-bind (dp fmt) (resolve-import spec dir)
-               (setf (gethash spec (mr-requested-map mr)) (load-any dp fmt))))
+             (let ((builtin (try-builtin-module spec)))
+               (if builtin
+                   (setf (gethash spec (mr-requested-map mr)) builtin)
+                   (multiple-value-bind (dp fmt) (resolve-import spec dir)
+                     (setf (gethash spec (mr-requested-map mr)) (load-any dp fmt))))))
            (setf (mr-status mr) :loaded)
            (evaluate-module mr)
            (drive-jobs realm)

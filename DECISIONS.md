@@ -727,3 +727,54 @@ didn't strip a leading BOM → strip it. (14) BigInt size guards were looser tha
 for `-`/`*`/`/`/`%`/`**` (unlike `+`) each operand's ToNumeric must run in full before the next, and
 `js-unary-plus` was calling `to-primitive` twice (double `valueOf`). Net: exec 22,624 → **22,638**,
 0 crashes, 0 regressions; build/test(1110 parachute + 42 TS + 49 JS)/purity(151) green.
+
+### 2026-07-12 — Phase 12: Node-compat wave 1 (node builtins substrate + 6 modules + globals)
+Node builtin modules resolve through an engine hook: `*builtin-module-builder*` (module-loader.lisp,
+NIL in bare test262 realms so `require('node:…')` is inert there) that the runtime sets via
+`install-node-builtins`. `try-builtin-module` intercepts `require`/`import` (CJS + both ESM dep loops)
+BEFORE the resolver: a `node:`-prefixed or bare builtin name returns a per-realm-cached `:cjs`
+module-record whose `cjs-exports` is a fresh exports object built (in the current realm) by a registered
+builder; a `node:`-prefixed unknown throws. Each `src/runtime/node/<mod>.lisp` self-registers via
+`register-node-builtin`. Modules: **path** (posix; win32 present-but-throwing; pure string algorithms),
+**os** (platform/arch/cpus/mem/userInfo over new `clun.sys` /proc + CL primitives), **querystring**
+(legacy; parse returns a NULL-prototype object with own-property lookup — no Object.prototype collision),
+**util** (format/inspect→shared/isDeepStrictEqual/promisify/callbackify/inherits/deprecate/
+stripVTControlCharacters/types), **events** (full sync EventEmitter — snapshot emit, self-removing once
+wrapper by identity, newListener-before-insert, error-throw, statics), **assert** (strict family, loose
+`equal`, throws-with-class-validation, AssertionError name/code + exposed ctor). Globals: **structuredClone**
+(deep clone incl. Date + cycles/shared-refs; DataCloneError on functions), **crypto.randomUUID/
+getRandomValues** (a pure `/dev/urandom` read in `clun.sys:os-random-bytes` + engine `crypto-fill-random`
+for the typed-array fill — full ironclad vendoring deferred to its real home Phase 19, a logged scope call),
+**Clun.which/nanoseconds/fileURLToPath/pathToFileURL/sleep**; `Clun.deepEquals`/`util.isDeepStrictEqual`/
+`assert.deepStrictEqual` all route through the ONE shared `eng:js-deep-equal` (added in inspect.lisp).
+Ironclad-deferral rationale: the only Phase-12 randomness need (UUID/getRandomValues) is satisfied purely by
+`/dev/urandom` via a CL binary stream (exactly what ironclad's os-prng does); vendoring the full ironclad
+closure + KATs belongs to Phase 19 (§5) where the crypto suite lands. **Gate MET:** per-module conformance
+fixtures (tests/js/node/{modules,events,assertions,globals}) green; build/test(**parachute + 42 TS + 53 JS**)/
+purity(**159 files**) green; conformance parse 17,512 / exec **22,638** (0 crashes, 0 regressions — the
+engine is behaviorally untouched; the builtin hook is inert in bare realms). **Accepted divergences (matrix
+🟡):** path.win32 throws; util.format `%d` truncates like the Bun-faithful console (Node prints the full
+Number); pathToFileURL returns a string (URL object is Phase 18); util.promisify.custom + the
+once-fire/removeAll `removeListener` emissions + full `instanceof assert.AssertionError` are documented gaps.
+**Fan-out mechanism:** the 5 non-reference modules were authored by parallel write-only subagents (one file
+each, no build) against a strict `eng:` API contract + the path.lisp reference, then integrated + built once.
+
+### 2026-07-12 — Phase 12 review panel (5 dims × find→verify-by-running-the-binary)
+31 agents, **25/26 candidates confirmed real**, ALL fixed + re-verified by running `build/clun`. The
+write-only fan-out (agents couldn't compile-test) meant the panel caught both API-fit bugs and Node
+divergences. Fixes by area: querystring.parse now returns a NULL-prototype object with own-property lookup
+(was Object.prototype-backed → `constructor`/`toString` keys collided + prototype-pollution risk);
+querystring.stringify maps null/undefined/non-finite → "" (Node stringifyPrimitive). util: %d/%i/%s of a
+BigInt → "42n" (was TypeError / dropped-n); %s of a Symbol → "Symbol(x)" (was a raw crash); %d/%i of a
+non-numeric string → "NaN"; inspect `{depth: Infinity|null}` → unbounded (was a raw
+FLOATING-POINT-INVALID-OPERATION host crash on `(truncate Infinity)`); %j circular → "[Circular]";
+types.isDate via the :date class; deprecate returns a new wrapper. events: the once wrapper removes ITSELF by
+identity (was removing every listener === fn, wiping a coexisting on()); emit('error') with no arg throws a
+real Error; prependListener emits newListener; listenerCount honors the optional listener arg. assert: equal
+is LOOSE (==); throws validates the expected error class via IsRegExp/instanceof (was accept-any);
+AssertionError exposed. globals: structuredClone clones Date and throws DataCloneError. path: extname of a
+leading-dot name → "" ('..'/'.bashrc'); format uses Node's dir===root rule. os.userInfo reads $USER/$SHELL.
+A recurring root cause the panel surfaced: runtime code runs OUTSIDE the engine float-trap mask, so NaN/Inf
+must be tested with `eng:js-nan-p`/`eng:js-infinite-p`, never `=`/`/=` (which trap) — fixed in util,
+querystring, and the pre-existing Clun.sleep/sleepSync. Net: build/test(parachute + 42 TS + 53 JS)/
+purity(159) green; 0 crashes, 0 regressions.

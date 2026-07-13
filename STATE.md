@@ -5,7 +5,38 @@ Update before every commit. Seeded from PLAN.md §5.
 
 ---
 
-## Current phase: **12 — Node-compat wave 1 (sync)**  (Phase 11 committed; binary+BigInt gate MET)
+## Current phase: **13 — Files: fs substrate + node:fs + Buffer**  (Phase 12 committed; node-compat wave 1 gate MET)
+
+**Phase 12 outcome:** the engine-light node stdlib floor. Node builtins resolve via an engine hook
+`*builtin-module-builder*` (NIL in bare test262 realms → inert there) that the runtime installs; a
+`node:`/bare builtin name is intercepted in `require`/`import` before the resolver and returns a per-realm
+cached `:cjs` record with a freshly-built exports object. Modules (`src/runtime/node/`, one self-registering
+file each): **path** (posix; win32 throws), **os** (over new `clun.sys` /proc + CL primitives), **querystring**
+(legacy; null-proto parse), **util** (format/inspect→shared/isDeepStrictEqual/promisify/callbackify/inherits/
+deprecate/stripVTControlCharacters/types), **events** (full sync EventEmitter), **assert** (strict family +
+loose equal + throws-with-class + AssertionError). Globals: **structuredClone** (deep clone incl Date + cycles;
+DataCloneError), **crypto.randomUUID/getRandomValues** (pure `/dev/urandom`; full ironclad → Phase 19),
+**Clun.which/nanoseconds/fileURLToPath/pathToFileURL/sleep**; one shared `eng:js-deep-equal` behind
+util/assert/Clun deepEquals. **Gate MET:** per-module conformance fixtures (tests/js/node/*) green;
+`make build`/`test`(**parachute + 42 TS + 53 JS**)/`purity`(**159 files**) green; conformance parse 17,512 /
+exec **22,638** (0 crashes, 0 regressions — engine behaviorally untouched). Adversarial review panel (5 dims ×
+find→verify-by-running-the-binary, 31 agents): **25/26 confirmed + fixed** — querystring null-proto +
+prototype-collision, util BigInt/Symbol/NaN format + inspect depth:Infinity/null crash + %j circular, events
+once-removal-by-identity + emit('error') no-arg + prependListener newListener, assert loose-equal +
+throws-class-validation + AssertionError, structuredClone Date/DataCloneError, path extname/format, and a
+class of outside-the-float-mask NaN checks (`js-nan-p`, never `=`). The 5 non-reference modules were authored
+by a parallel write-only subagent fan-out and integrated in one build.
+
+**Next action:** Begin Phase 13 (Files: fs substrate + node:fs + Buffer, deps 11 ✓, 12 ✓; loop 05 ✓ for async):
+`src/sys` fs layer (path discipline, errno→.code/.errno/.syscall/.path, worker-pool async); node:buffer
+(Buffer extends Uint8Array; alloc/from/concat/compare/copy/fill/indexOf/subarray/toString+write with utf8/
+ascii/latin1/hex/base64/base64url/utf16le; numeric read/write); node:fs sync core (23 fns) + fs/promises (14) +
+callback shims; Stats/Dirent/constants; Clun.file/Clun.write. Gate: ~60-case fs conformance incl bracket paths,
+symlink chains, ENOENT; Buffer KAT vectors; Clun.file lazy fixtures.
+
+---
+
+## Recent phase outcomes (most recent first)
 
 **Phase 11 outcome:** BigInt + binary data. **BigInt is a plain CL integer** (`js-bigint-p` =
 `integerp` — no engine value is ever a raw integer otherwise, so it's an unambiguous value-domain
@@ -40,10 +71,6 @@ fan-out phase — one subagent per module (node:path/os/querystring/util/events/
 module + conformance tests; + Clun.inspect/deepEquals/which/nanoseconds/fileURLToPath/pathToFileURL,
 structuredClone, crypto.randomUUID/getRandomValues (vendor ironclad with KATs). Gate: per-module
 conformance; kitchen-sink fixture runs identically under node where shared.
-
----
-
-## Recent phase outcomes (most recent first)
 
 **Phase 10 outcome:** RegExp is a from-scratch JS-regex parser → own AST → CL-PPCRE **parse trees**
 → `create-scanner` (`src/engine/regex/` ast/parser/translate/regexp-object, ~1.1k LOC). Translating
@@ -441,6 +468,28 @@ _(nothing blocked)_
     returns, ES2023 change-by-copy TA methods, TextDecoder streaming/fatal/non-UTF-8 labels, encodeInto,
     the 2^27-bit BigInt DoS cap, Number(bigint)=deliberate TypeError.
 
+- **Phase 12 — NODE-COMPAT WAVE 1 GATE MET + committed (2026-07-12).**
+  - `make build` clean; `make test` = **parachute + 42 tests/ts + 53 tests/js** (0 failed); `make purity`
+    clean (**159 files**); `make conformance` parse **17,512**; `make conformance-exec` **22,638** (0 crashes,
+    0 regressions — the builtin-module hook is NIL/inert in bare test262 realms; engine behaviorally untouched).
+  - **Gate:** per-module conformance fixtures tests/js/node/{modules,events,assertions,globals} green (exact
+    stdout); node builtins reachable via require + import (CJS + ESM).
+  - Substrate: engine `*builtin-module-builder*` hook + `try-builtin-module` (require.lisp/module-loader.lisp)
+    + runtime `src/runtime/node/registry.lisp` (install-node-builtins). Modules `src/runtime/node/`
+    (path/os/querystring/util/events/assert, self-registering); `src/runtime/globals.lisp` (structuredClone,
+    crypto); `clun-global.lisp` extras; new `clun.sys` /proc + os-random-bytes primitives; one shared
+    `eng:js-deep-equal` (inspect.lisp). 5 modules authored by a parallel write-only subagent fan-out.
+  - Adversarial review panel (5 dims × find→**verify-by-running-the-binary**, 31 agents): **25/26 confirmed +
+    fixed** — querystring null-proto + prototype-collision; util BigInt/Symbol/NaN format specifiers + inspect
+    depth:Infinity/null host-crash + %j circular + isDate + deprecate-wrapper; events once-removal-by-identity
+    + emit('error') no-arg + prependListener newListener + listenerCount(name,fn); assert loose-equal +
+    throws-class-validation + AssertionError export; structuredClone Date + DataCloneError; path extname
+    leading-dots + format dir===root; os.userInfo $USER; and a class of outside-the-float-mask NaN checks
+    (`eng:js-nan-p`, never `=`/`/=`, which trap) across util/querystring/Clun.sleep.
+  - DEFERRED 🟡 (matrix): path.win32 throws; util.format %d truncates (Bun-faithful console, not Node's full
+    Number); pathToFileURL → string (URL object is Phase 18); util.promisify.custom, once-fire/removeAll
+    `removeListener` emissions, full `instanceof assert.AssertionError`; full ironclad + KATs → Phase 19.
+
 ## Phases
 
 Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-early.
@@ -542,14 +591,15 @@ Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-earl
 - [x] BigInt = plain CL integer, threaded through values/typeof/coercions/all operators; literals (front-end already done); BigInt() ctor + toString(radix) + asIntN/asUintN; mixing/`+bigint`/`Number(bigint)`/JSON → TypeError
 - **Gate MET:** BigInt 96.1% (73/76) / TypedArray 67.8% (835/1231) / DataView 70.5% (346/491) each ≥65%; overall curated 80.4% (22,638/28,163) ≥80%; 0 crashes; 0 regressions; gaps in tests/conformance/bigint-binary-gaps.txt.
 
-### Phase 12 — Node-compat wave 1 (sync)  (deps: 08; 10 for assert.match) ~4k LOC ⚡⚡ (flagship fan-out)
-- [ ] node:path (posix; win32 throwing), node:os, node:querystring (null-proto parse)
-- [ ] node:util (format/inspect→shared/promisify+custom/callbackify/inherits/deprecate/isDeepStrictEqual/types/stripVTControl)
-- [ ] node:events (full sync EventEmitter: snapshot iter, once-wrapper removal, newListener, error-throw, errorMonitor)
-- [ ] node:assert (strict family, throws/match, AssertionError w/ shared inspector)
-- [ ] Clun.inspect/deepEquals/which/nanoseconds/fileURLToPath/pathToFileURL; structuredClone (JSON-grade)
-- [ ] crypto.randomUUID/getRandomValues (ironclad os-prng — vendor ironclad here w/ KATs)
-- **Gate:** per-module conformance (values asserted exactly); kitchen-sink fixture runs identically under node where shared.
+### Phase 12 — Node-compat wave 1 (sync)  (deps: 08; 10 for assert.match) ~4k LOC ⚡⚡ (flagship fan-out) — **DONE (gate MET)**
+- [x] builtin-module substrate: engine `*builtin-module-builder*` hook + `try-builtin-module` (CJS require + both ESM dep loops) + runtime registry/install; node: + bare names, per-realm cache
+- [x] node:path (posix; win32 present-but-throwing), node:os (over clun.sys /proc+CL), node:querystring (null-proto parse)
+- [x] node:util (format/inspect→shared/promisify/callbackify/inherits/deprecate/isDeepStrictEqual/types/stripVTControl)
+- [x] node:events (full sync EventEmitter: snapshot emit, self-removing once by identity, newListener, error-throw)
+- [x] node:assert (strict family + loose equal, throws w/ class-validation + match, AssertionError name/code + ctor)
+- [x] Clun.inspect/deepEquals(shared)/which/nanoseconds/fileURLToPath/pathToFileURL/sleep; structuredClone (deep + Date + cycles)
+- [x] crypto.randomUUID/getRandomValues via pure /dev/urandom (clun.sys:os-random-bytes + engine crypto-fill-random); full ironclad → Phase 19 (logged)
+- **Gate MET:** per-module fixtures (tests/js/node/*) green; build/test(parachute + 42 TS + 53 JS)/purity(159) ✓; parse 17,512 / exec 22,638, 0 crashes, 0 regressions. Fan-out: 5 modules by parallel write-only subagents. Review panel 25/26 confirmed + fixed.
 
 ### Phase 13 — Files: fs substrate + node:fs + Buffer surface  (deps: 11, 12; loop 05 for async) ~4.5k LOC
 - [ ] src/sys fs layer (path discipline, errno→.code/.errno/.syscall/.path, worker-pool async)

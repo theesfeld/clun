@@ -27,7 +27,10 @@
            ;; Phase 08 — platform primitives for the runtime (process/console)
            #:stream-fd #:tty-p #:environ-alist #:getenv #:getpid
            #:current-directory #:change-directory #:machine-arch #:platform-name
-           #:monotonic-nanoseconds #:heap-bytes-used #:bytes-consed))
+           #:monotonic-nanoseconds #:heap-bytes-used #:bytes-consed
+           ;; Phase 12 — OS info + CSPRNG bytes for node:os / crypto
+           #:os-random-bytes #:hostname #:os-release #:os-type #:tmpdir #:homedir
+           #:total-memory #:free-memory #:uptime-seconds #:cpu-count))
 
 ;; Defined before clun.engine so the engine's :lp local-nickname can target it.
 (defpackage :clun.loop
@@ -103,6 +106,12 @@
    #:new-object #:new-array #:throw-type-error #:js-undefined-p #:js-truthy #:js-boolean
    #:to-number #:arg #:intrinsic #:function-name #:js-function-p #:js-native-function-p
    #:js-nullish-p #:array-like->list #:array-length
+   ;; object-API surface for node builtin modules (Phase 12)
+   #:js-getv #:to-object #:to-boolean #:to-integer-or-infinity #:js-strict-eq
+   #:js-same-value #:js-typeof #:make-error-object #:well-known #:length-of-array-like
+   #:js-null-p #:js-number-p #:js-string-p #:js-deep-equal #:*builtin-module-builder*
+   #:js-construct #:obj-own-desc #:pd-value #:pd-enumerable #:crypto-fill-random
+   #:js-loose-eq #:js-instanceof #:throw-js-value #:js-object-class
    ;; TS strip hook (Phase 09): the loader applies this to .ts/.mts/.cts source
    ;; before parse-program; the transpiler installs it (engine stays dep-free).
    #:*ts-strip-hook* #:make-lexer #:next-token #:reread-regexp #:reread-template

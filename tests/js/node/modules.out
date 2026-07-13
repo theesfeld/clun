@@ -1,0 +1,8 @@
+/a/c/ y /x/y .c false /a/c {"root":"/","dir":"/d","base":"f.txt","ext":".txt","name":"f"} /d/f.txt ../d/e
+true LE string true true number
+a=1&b=x&b=y&c=a%20b
+{"a":"1","b":["2","3"],"c":"a b"}
+a%20b%2Fc%3Fd a b/c
+S/3/4/1.5/%
+{"x":[1,2]} a b 1
+true false XY

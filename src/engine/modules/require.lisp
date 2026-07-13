@@ -63,7 +63,9 @@ loader) — evaluation is driven by status, not mere existence."
         (cjs-require (to-string (arg args 0)) dir)))))
 
 (defun cjs-require (specifier referrer-dir)
-  "The CommonJS require(SPECIFIER) from REFERRER-DIR: resolve, dispatch by format."
+  "The CommonJS require(SPECIFIER) from REFERRER-DIR: node builtin, else resolve + dispatch."
+  (let ((builtin (try-builtin-module specifier)))
+    (when builtin (return-from cjs-require (mr-cjs-exports builtin))))
   (multiple-value-bind (path format) (resolve-specifier specifier referrer-dir '("node" "require"))
     (ecase format
       (:cjs (load-cjs-module path))

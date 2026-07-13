@@ -118,7 +118,19 @@
                               :components ((:file "install")
                                            (:file "console")
                                            (:file "process")
-                                           (:file "clun-global")))
+                                           (:file "clun-global")
+                                           (:file "globals")   ; structuredClone, crypto (Phase 12)
+                                           ;; node builtin modules (Phase 12): registry +
+                                           ;; one file per module; each self-registers.
+                                           (:module "node"
+                                            :serial t
+                                            :components ((:file "registry")
+                                                         (:file "path")
+                                                         (:file "os")
+                                                         (:file "querystring")
+                                                         (:file "util")
+                                                         (:file "events")
+                                                         (:file "assert")))))
                              ;; CLI (Phase 08): arg parsing, .env, dispatch.
                              (:module "cli"
                               :serial t

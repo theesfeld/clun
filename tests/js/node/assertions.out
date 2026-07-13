@@ -1,0 +1,5 @@
+ok null AssertionError:ERR_ASSERTION
+eq null AssertionError:ERR_ASSERTION
+deep null AssertionError:ERR_ASSERTION
+throws null AssertionError:ERR_ASSERTION
+match null AssertionError:ERR_ASSERTION
