@@ -111,7 +111,7 @@
    ;; runtime hooks (Phase 08): completion capture for -p, error introspection,
    ;; realm accessors the runtime/CLI need
    #:run-module-file #:run-module-source #:eval-source #:realm-global
-   #:teardown-realm #:run-callback-to-settlement #:drive-jobs
+   #:teardown-realm #:run-callback-to-settlement #:drive-jobs #:current-loop
    #:js-promise-p #:js-promise-pstate #:js-promise-value #:to-string #:js-object-class
    #:make-native-function #:install-method #:install-getter #:data-prop #:hidden-prop
    #:new-object #:new-array #:throw-type-error #:js-undefined-p #:js-truthy #:js-boolean
@@ -146,6 +146,23 @@
    ;; package.json access (reused by the loader for import.meta/type)
    #:read-package-json #:nearest-package-json #:package-type))
 
+;; clun.net (Phase 16/17): sockets + HTTP — base layer (needs only loop + sys), so it
+;; must be defined before clun.runtime, which local-nicknames it as :net.
+(defpackage :clun.net
+  (:use :cl)
+  (:local-nicknames (:lp :clun.loop) (:sys :clun.sys))
+  (:documentation "Sockets, HTTP parser/server/client, fetch, TLS integration.")
+  (:export ;; Phase 16 — TCP handle layer on the reactor
+   #:tcp-listen #:tcp-connect #:tcp-write #:tcp-close #:tcp-shutdown
+   #:tcp #:tcp-p #:tcp-state #:tcp-queued-bytes #:tcp-peer #:tcp-local
+   #:tcp-on-data #:tcp-on-close #:tcp-on-error #:tcp-on-drain
+   #:listener #:listener-p #:listener-port #:listener-close #:listener-address
+   #:socket-error-code #:socket-open-error #:socket-open-error-code #:*default-read-size*
+   ;; Phase 17 — incremental HTTP/1.1 request parser
+   #:make-http-parser #:parser-feed #:http-request #:http-request-p
+   #:hr-method #:hr-target #:hr-version #:hr-headers #:hr-body #:hr-keep-alive
+   #:*max-header-bytes* #:*max-body-bytes*))
+
 ;; --- dependent layer (local-nicknames into the base packages above) ---------
 
 (defpackage :clun.cli
@@ -156,7 +173,7 @@
 
 (defpackage :clun.runtime
   (:use :cl)
-  (:local-nicknames (:eng :clun.engine) (:sys :clun.sys) (:lp :clun.loop))
+  (:local-nicknames (:eng :clun.engine) (:sys :clun.sys) (:lp :clun.loop) (:net :clun.net))
   (:documentation "Globals wiring: console/inspector, process, timers, Clun global, node/ modules.")
   (:export #:install-runtime #:process-exit #:process-exit-code
            #:run-exit-handlers #:*runtime* #:runtime-exit-code #:format-log-args
@@ -174,17 +191,6 @@
   (:documentation "TypeScript type-stripping (shares the engine lexer).")
   (:export #:strip-types #:unsupported-ts-syntax #:uts-message #:uts-line #:uts-col
            #:uts-path #:ts-source-p #:tsx-path-p))
-
-(defpackage :clun.net
-  (:use :cl)
-  (:local-nicknames (:lp :clun.loop) (:sys :clun.sys))
-  (:documentation "Sockets, HTTP parser/server/client, fetch, TLS integration.")
-  (:export ;; Phase 16 — TCP handle layer on the reactor
-   #:tcp-listen #:tcp-connect #:tcp-write #:tcp-close #:tcp-shutdown
-   #:tcp #:tcp-p #:tcp-state #:tcp-queued-bytes #:tcp-peer #:tcp-local
-   #:tcp-on-data #:tcp-on-close #:tcp-on-error #:tcp-on-drain
-   #:listener #:listener-p #:listener-port #:listener-close #:listener-address
-   #:socket-error-code #:socket-open-error #:socket-open-error-code #:*default-read-size*))
 
 (defpackage :clun.test-runner
   (:use :cl)

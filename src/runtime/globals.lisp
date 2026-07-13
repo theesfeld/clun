@@ -8,7 +8,8 @@
     (install-structured-clone g)
     (install-crypto g)
     (install-buffer-global g)
-    (install-abort g)))                     ; AbortController/AbortSignal (Phase 14)
+    (install-abort g)                       ; AbortController/AbortSignal (Phase 14)
+    (install-web-http realm)))              ; Headers/Request/Response (Phase 17)
 
 (defun install-buffer-global (g)
   "Expose the node:buffer Buffer constructor as the `Buffer` global (Node has it always).

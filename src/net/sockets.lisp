@@ -48,6 +48,7 @@
   (queued-bytes 0 :type integer)
   (reading nil)                         ; is the :input handler registered?
   (backpressured nil)                   ; a partial send registered :output → on-drain owed
+  (close-after-drain nil)               ; tcp-shutdown: close once the write queue empties
   (read-buf nil)
   on-connect on-data on-close on-error on-drain)
 
@@ -148,7 +149,9 @@ Registers the :output handler while there is a backlog; drains it + fires on-dra
     (%stop-writable tcp)
     (when (tcp-backpressured tcp)
       (setf (tcp-backpressured tcp) nil)
-      (when (tcp-on-drain tcp) (funcall (tcp-on-drain tcp) tcp)))))
+      (when (tcp-on-drain tcp) (funcall (tcp-on-drain tcp) tcp)))
+    ;; flush-then-close (tcp-shutdown): the queue is now empty → close.
+    (when (tcp-close-after-drain tcp) (%finish-close tcp nil))))
 
 (defun %chunk-view (octets off)
   "A zero-copy view of OCTETS from OFF (socket-send accepts a displaced array — verified).
@@ -187,8 +190,17 @@ Copying here would be O(n) per partial send → O(n²) to drain a large write."
     (when (tcp-on-close tcp) (funcall (tcp-on-close tcp) tcp code))))
 
 (defun tcp-close (tcp)
-  "Flush what is already queued best-effort, then close."
+  "Close now (drops any unflushed queue). For a graceful flush-then-close use tcp-shutdown."
   (unless (eq (tcp-state tcp) :closed) (%finish-close tcp nil))
+  (values))
+
+(defun tcp-shutdown (tcp)
+  "Graceful close: if the write queue is already empty, close now; otherwise close as
+soon as it drains (the response's bytes are guaranteed to go out first)."
+  (when (eq (tcp-state tcp) :open)
+    (if (plusp (tcp-queued-bytes tcp))
+        (setf (tcp-close-after-drain tcp) t)
+        (tcp-close tcp)))
   (values))
 
 ;;; --- wrapping an established socket -----------------------------------------

@@ -72,6 +72,9 @@ serve-event, so make-event-loop (possibly a different thread) must not register 
              (when (el-stop-requested loop) (return))
              (unless (loop-alive-p loop) (return))
              (reactor-poll loop (loop-timeout loop))
+             (drain-microtasks loop)              ; reactor fd handlers enqueue jobs (e.g. an
+                                                  ; async HTTP handler's .then) — drain them here,
+                                                  ; making "after the reactor" a dispatch point (P17)
              (process-completions loop)
              (drain-signals loop)
              (expire-due-timers loop)

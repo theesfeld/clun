@@ -5,7 +5,47 @@ Update before every commit. Seeded from PLAN.md §5.
 
 ---
 
-## Current phase: **17 — HTTP server + Clun.serve**  (Phase 16 committed; sockets gate MET)
+## Current phase: **18 — HTTP client, fetch, URL**  (Phase 17 committed; HTTP-server gate MET)
+
+**Phase 17 outcome:** HTTP/1.1 serving, three layers. `src/net/http-parser.lisp` — a pure-CL incremental
+request parser ("accumulate-then-parse"), bounded by max-header/max-body so every malformed shape is a
+classified `:error <code>` (400/431/413), never a crash or unbounded growth (§6); handles content-length +
+chunked in, pipelining, keep-alive detection. `src/runtime/web-http.lisp` — the **Headers** (case-
+insensitive multimap: get/set/append/has/delete/forEach/entries/keys/values/@@iterator), **Request**
+(method/url/lazy-headers + text/json/arrayBuffer/bytes over a shared prototype — cheap per request), and
+**Response** (new Response/Response.json/status/ok/headers) web classes, on the engine object API, shared
+with Phase-18 fetch; a shared `%body->octets` (string/typed-array/ArrayBuffer/Clun.file). `src/runtime/
+clun-serve.lisp` — **Clun.serve({port,hostname,fetch,error}) → server{port,url,stop()}**: accepts on the
+Phase-16 socket layer, feeds the parser, builds a Request, calls the JS `fetch` handler — a synchronous
+Response writes immediately, a `Promise<Response>` from its `.then` continuation. Keep-alive (HTTP/1.1
+default; pipelined), Content-Length out, 431/413, HEAD (headers only), Date/Connection, graceful `stop()`
+(drains in-flight → resolves), 503 shedding, flush-then-close (`net:tcp-shutdown`). Response header
+names/values are **CRLF-stripped** (no response splitting, §6). **Two engine changes:** `run-loop` now
+drains microtasks right after the reactor (a socket handler's async `.then` must run → "after the reactor"
+is a dispatch point); and `coroutine-resume` **prunes a completed coroutine** from `realm-coroutines`
+(they were retained until realm teardown — an unbounded leak for a long-running server with `async`
+handlers; RSS now plateaus). **Gate MET:** curl interop (GET/JSON/POST-async/404/HEAD/keep-alive),
+malformed-request suite (12 parser tests), **≥30k req/s** (measured ~33k, real parsing + a JS handler),
+graceful shutdown, **1k-request RSS plateau** (149 MB flat over 5k reqs after the leak fix), examples/
+serve.ts smoke — tests/lisp/net/{http-parser,http-server}-tests + a curl smoke; `make build`/`test`
+(**1172 parachute + 42 TS + 74 JS**)/`purity`(**177 files**) green; parse 17,512 / exec **22,643** (0
+crashes, 0 regressions). Adversarial review panel (5 dims × find→**verify-by-running**, 16 agents, 11
+findings / **2 confirmed + fixed**): `new Request({body})` only handled string bodies (typed-array/
+ArrayBuffer/number → empty) → the shared `%body->octets`. Proactively fixed a header-injection (CRLF →
+response splitting) + the coroutine leak (surfaced by the RSS curve). Deliberate: buffered bodies; no
+routes/static/WebSocket/TLS-server; IP-literal hosts (DNS → Phase 18); URL objects → Phase 18.
+
+**Next action:** Begin Phase 18 (HTTP client, fetch, URL, deps 14 ✓, 16 ✓; 11 for bodies ✓): WHATWG URL/
+URLSearchParams minus IDNA (loud error on non-ASCII hosts; IPv4/IPv6 host; relative resolution; percent-
+encode sets) + node:url; a reactor HTTP client (pool keyed (host,port,family,tls), timeout matrix,
+redirects ≤20, chunked decode, gzip via chipz — vendor+pin here); the fetch API (Request/Response/Headers
+reused, text/json/arrayBuffer/bytes buffered, AbortSignal, network errors → TypeError). Gate: fetch vs the
+Phase-17 server (JSON round-trip, redirects, 4xx/5xx, gzip, abort→AbortError, timeouts); URL corpus (WPT
+subset).
+
+---
+
+## Recent phase outcomes (most recent first)
 
 **Phase 16 outcome:** a non-blocking TCP handle layer on the Phase-05 serve-event reactor —
 `clun.net`/`src/net/sockets.lisp`, callback-based (Phase 17+ marshals to JS). Verified sb-bsd-sockets
@@ -38,10 +78,6 @@ hostname,fetch,error})` → Server{stop(graceful),url,port}; keep-alive, chunked
 configurable body limits (431/413), HEAD, date header; `Clun.file` responses via chunked worker-pool reads;
 503 shedding. Gate: curl interop; malformed-request suite; ≥30k req/s loopback with real parsing + a JS
 handler; graceful shutdown completes in-flight under load; 1k-request RSS plateau; examples/serve.ts smoke.
-
----
-
-## Recent phase outcomes (most recent first)
 
 **Phase 15 outcome:** `clun test` — a Bun-compatible runner whose framework is implemented in CL against
 the engine object API (no JS in the implementation, §1.1). `src/test-runner/` (7 files): **registry**
@@ -724,6 +760,32 @@ _(nothing blocked)_
     tested; no UDP; unclassified socket errors report a generic code; the single-threaded-both-ends
     throughput figure is a test artifact (a real server drives one direction per thread).
 
+- **Phase 17 — HTTP-SERVER GATE MET + committed (2026-07-13).**
+  - `make build` clean; `make test` = **1172 parachute + 42 tests/ts + 74 tests/js** (0 failed);
+    `make purity` clean (**177 files**); `make conformance` parse **17,512**; `make conformance-exec`
+    over 40,654 files: **pass 22,643**, **0 crashes**, **0 regressions** (incl. the run-loop
+    drain-after-reactor + coroutine-prune engine changes — async/generator dirs unaffected).
+  - **Gate:** curl interop (GET/JSON/POST-async/404/HEAD/keep-alive, verified against a live
+    `clun examples/serve.ts`); malformed-request suite (12 parser tests: bad line/version/CL, obs-fold,
+    no-colon, 431/413 limits, incremental, pipelined); **≥30k req/s** loopback with real parsing + a JS
+    handler (measured ~33k, tests/lisp/net/http-server-tests); graceful `stop()` drains in-flight;
+    **1k-request RSS plateau** (149 MB flat over 5,000 requests after the coroutine-leak fix);
+    examples/serve.ts smoke logged.
+  - `src/net/http-parser.lisp` (incremental parser) + `src/runtime/web-http.lisp` (Headers/Request/
+    Response, shared `%body->octets`) + `src/runtime/clun-serve.lisp` (Clun.serve). Engine: `run-loop`
+    drains microtasks after the reactor; `coroutine-resume` prunes completed coroutines. `net:tcp-shutdown`
+    (flush-then-close). Header CRLF-stripping (no response splitting).
+  - Adversarial review panel (5 dims × find→**verify-by-running**, 16 agents): **11 findings / 2 confirmed
+    + fixed** — `new Request({body})` only preserved string bodies (typed-array/ArrayBuffer/number → empty)
+    → the shared `%body->octets` used by both the Request ctor and the Response serializer. Proactively
+    fixed (own probes): header-injection/response-splitting via CRLF in a header value (now stripped), and
+    the async-handler coroutine leak (surfaced by the RSS curve — `realm-coroutines` grew unboundedly).
+    Own crash probes: handler throw/undef/number/rejection → 500; a never-resolving handler doesn't wedge
+    other connections; server log backtrace-free.
+  - DEFERRED 🟡: buffered (non-streaming) request/response bodies; no routes/static/WebSocket/TLS-server
+    (TLS → Phase 20); IP-literal hosts (DNS → Phase 18); URL objects → Phase 18; the TS stripper rejects
+    object-method-shorthand type annotations (examples/serve.ts uses arrow-fn properties — a Phase-09 gap).
+
 ## Phases
 
 Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-early.
@@ -861,11 +923,11 @@ Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-earl
 - [x] port-0 real-port; error→JS-code mapping (ECONNREFUSED/EADDRINUSE/…); write-to-closed → catchable socket-error (`:nosignal`, no SIGPIPE); idempotent close w/ full handler removal; ref'd handle liveness. IPv6 structurally present (lightly tested); DNS → Phase 18
 - **Gate MET:** echo 2,000 sequential + 500 concurrent green; /proc/self/fd stable (0 leaks over 400 cycles); throughput ~131–137 MB/s ≥100; build/test(1122+42+74)/purity(172) ✓; exec 22,643, 0 crashes/regressions. Review panel 4/6 confirmed + fixed (zero-byte-write crash; on-drain edge semantics).
 
-### Phase 17 — HTTP server + Clun.serve  (deps: 14, 16) ~3.5k LOC
-- [ ] own incremental HTTP/1.1 parser (adversarial lengths); Request/Response/Headers (shared with fetch)
-- [ ] Clun.serve({port,hostname,fetch,error}) → Server{stop,url,port}; keep-alive, chunked both ways, 431/413, HEAD, date
-- [ ] Clun.file responses via chunked worker-pool reads; 503 shedding
-- **Gate:** curl interop; malformed-request suite; ≥30k req/s w/ real parsing + JS handler; graceful shutdown; 1k-req RSS plateau; serve.ts smoke logged.
+### Phase 17 — HTTP server + Clun.serve  (deps: 14, 16) ~3.5k LOC — **DONE (gate MET)**
+- [x] own incremental HTTP/1.1 parser (accumulate-then-parse; content-length + chunked in; 400/431/413; pipelining); Request/Response/Headers web classes (shared %body->octets, reused by Phase-18 fetch)
+- [x] Clun.serve({port,hostname,fetch,error}) → Server{stop(graceful),url,port}; keep-alive, Content-Length out, 431/413, HEAD, Date/Connection; sync + Promise<Response> handlers; header CRLF-stripping (no response splitting)
+- [x] Clun.file responses (buffered); 503 shedding; net:tcp-shutdown (flush-then-close); engine: run-loop drains microtasks after the reactor + coroutine-resume prunes completed coroutines (leak fix)
+- **Gate MET:** curl interop + malformed suite (12 parser tests) + ≥30k req/s (~33k) + graceful stop + 1k-req RSS plateau (149 MB flat) + serve.ts smoke; build/test(1172+42+74)/purity(177) ✓; exec 22,643, 0 crashes/regressions. Review 2/11 confirmed + fixed (Request body types); + header-injection & coroutine-leak fixed.
 
 ### Phase 18 — HTTP client, fetch, URL  (deps: 14, 16; 11 for bodies) ~3.5k LOC
 - [ ] WHATWG URL/URLSearchParams minus IDNA (loud error non-ASCII; IPv4/IPv6 host; relative resolution; percent-encode sets) + node:url

@@ -1000,3 +1000,57 @@ WITH the flag set. Both fixes re-verified by running the exact repros (zero-byte
 under 4 CPU hogs: 6 × 2,000 sequential echoes = 12,000 connects with 0 data mismatches and 0 connection
 errors (a single earlier echo failure was induced by co-running the suite with a 6 GB conformance process —
 a testing artifact, not a defect). Net: build/test/purity green; conformance 22,643, 0 crashes, 0 regressions.
+
+### 2026-07-13 — Phase 17: HTTP server + Clun.serve
+Three layers. **Parser** (`src/net/http-parser.lisp`, pure CL): an incremental request parser using
+"accumulate-then-parse" (buffer bytes; once CRLFCRLF appears within max-header, parse the request line +
+headers, then the body by Content-Length or chunked de-framing) — chosen over a byte-FSM because it is
+simpler AND provably bounded (max-header + max-body), so adversarial lengths can never grow the buffer
+unboundedly or crash: every malformed shape returns a classified `(:error <code>)` (400/431/413). Keep-alive
+is detected (HTTP/1.1 default unless `Connection: close`); leftover (pipelined) bytes are retained and the
+parser resets for the next request. A subtle bug fixed during bring-up: a **no-header request** (request
+line's CRLF coincides with the terminator start) needs the request-line search to run THROUGH hend.
+**Web classes** (`src/runtime/web-http.lisp`, on the engine object API, reused by Phase-18 fetch): Headers
+(case-insensitive multimap over an ordered alist box readable from CL for serialization), Request (over a
+per-realm CACHED prototype — text/json/arrayBuffer/bytes read `this`'s hidden body, and `headers` is a lazy
+getter — so building a per-request object allocates almost nothing, which the 30k-req/s gate needed),
+Response (new Response / Response.json / status/ok/statusText/headers). A shared `%body->octets`
+(string/typed-array/ArrayBuffer/Clun.file/else→USVString) backs BOTH the Request constructor and the
+Response serializer. **Server** (`src/runtime/clun-serve.lisp`): Clun.serve wires the Phase-16 socket layer
++ the parser + a per-connection dispatch. A synchronous Response is serialized + written immediately; a
+`Promise<Response>` is written from its `.then` continuation. Serialization sets Date + Content-Length +
+Connection (dropping user copies of those), title-cases header names, and **strips CR/LF from header
+names/values** (no response splitting, §6); HEAD writes headers only. Graceful `stop()` closes the listener
++ resolves a Promise once the in-flight connection count reaches 0; 503 shedding above a connection cap;
+`net:tcp-shutdown` (added to the socket layer) flushes the queue then closes. **Two engine changes forced
+by the async server model:** (1) `run-loop` now calls `drain-microtasks` right after `reactor-poll` — the
+reactor dispatches fd handlers directly (not via run-at-dispatch), so a socket handler's async `.then`
+would otherwise not drain until an unrelated timer/task ran; this makes "after the reactor" a proper
+dispatch point (additive, idempotent, ordering intact). (2) `coroutine-resume` now **prunes a completed
+coroutine from `realm-coroutines`** — they were retained until realm teardown (fine for a short script,
+an UNBOUNDED memory leak for a long-running server whose `async` fetch handler creates a coroutine per
+request); with the fix, RSS plateaus (149 MB flat over 5,000 requests vs. ~+12 MB/1,000 before). Both
+changes are conformance-neutral (exec 22,643, 0 regressions). **Gate MET:** curl interop + a 12-test
+malformed suite + ≥30k req/s (~33k, real parsing + a JS handler, both server and client on one loop) +
+graceful stop + 1k-req RSS plateau + examples/serve.ts; build/test(**1172 parachute + 42 TS + 74 JS**)/
+purity(**177 files**) green. **Deliberate:** buffered (non-streaming) bodies; no routes/static/WebSocket/
+TLS-server (TLS → Phase 20); IP-literal hosts (DNS → Phase 18); URL objects → Phase 18. The TS stripper
+rejects object-method-shorthand type annotations, so examples/serve.ts uses arrow-fn properties (Phase-09 gap).
+
+### 2026-07-13 — Phase 17 review panel (find→verify-by-running)
+Ultracode Workflow: 5 dimensions (parser-adversarial / response-correctness+security / server-crash-safety /
+keepalive-lifecycle / web-classes) × find→verify-by-running the built binary (a backgrounded `clun serve.js`
+hit with curl / raw bytes via nc; plain `clun -e` for the web classes), 16 agents, **11 findings, 2
+confirmed + fixed** (0 HIGH — the server withstood the adversarial parser/crash probes). Both confirmed were
+the same root: **`new Request(url, {body})` only preserved a STRING body** — a Uint8Array/ArrayBuffer/number
+body silently became empty (the server's own request path was unaffected; this is the JS constructor fetch
+will use). Fixed by factoring the Response body coercion into the shared `%body->octets` and calling it from
+the Request constructor too (Uint8Array→"Hi", 123→"123", empty→"" verified). The 9 refuted findings were
+correct behavior / documented divergences. **Proactively fixed** (from my own probes, before/around the
+panel): (a) **header injection / response splitting** — a handler setting a header value containing CRLF
+leaked extra header lines; the serializer now strips CR/LF from names + values (verified: "a\r\nInjected: 1"
+folds to one `X-Evil: aInjected: 1` line). (b) the **coroutine leak** above (surfaced by watching RSS climb
+~12 MB/1,000 requests against examples/serve.ts's `async` handler). Own crash matrix: a fetch handler that
+throws / returns undefined / a number / a rejected promise all yield 500 (no crash); a never-resolving
+handler hangs only its own connection (others still served); the server log stays backtrace-free. Net:
+build/test/purity green; conformance 22,643, 0 crashes, 0 regressions.

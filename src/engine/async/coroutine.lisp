@@ -68,6 +68,12 @@ Returns (values kind result) where kind is :yield, :return, or :throw."
      (sb-thread:signal-semaphore (coro-resume-sem co))
      (sb-thread:wait-on-semaphore (coro-yield-sem co))
      (let ((out (coro-out-box co)))
+       ;; A completed coroutine no longer needs teardown tracking — drop it from the
+       ;; realm list (on the driver thread, so this is race-free) so a long-running
+       ;; server's async handlers don't accumulate coroutines unboundedly (memory leak).
+       (when (and (eq (coro-state co) :completed) (coro-realm co))
+         (setf (realm-coroutines (coro-realm co))
+               (delete co (realm-coroutines (coro-realm co)))))
        ;; :control = a non-JS condition the body raised (e.g. process-exit); re-signal
        ;; it here on the driver thread so it unwinds to the top-level handler cleanly.
        (if (eq (car out) :control)

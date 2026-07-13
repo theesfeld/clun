@@ -45,7 +45,8 @@
                              ;; net (Phase 16): TCP handle layer on the reactor.
                              (:module "net"
                               :serial t
-                              :components ((:file "sockets")))
+                              :components ((:file "sockets")
+                                           (:file "http-parser")))
                              (:module "engine"
                               :serial t
                               :components ((:file "values")
@@ -125,6 +126,8 @@
                                            (:file "clun-global")
                                            (:file "abort")     ; AbortController/AbortSignal (Phase 14)
                                            (:file "globals")   ; structuredClone, crypto (Phase 12)
+                                           (:file "web-http")  ; Headers/Request/Response (Phase 17)
+                                           (:file "clun-serve"); Clun.serve HTTP server (Phase 17)
                                            ;; node builtin modules (Phase 12): registry +
                                            ;; one file per module; each self-registers.
                                            (:module "node"
@@ -201,4 +204,6 @@
                                             :components ((:file "loop-tests")))
                                            (:module "net"
                                             :serial t
-                                            :components ((:file "sockets-tests")))))))))
+                                            :components ((:file "sockets-tests")
+                                                         (:file "http-parser-tests")
+                                                         (:file "http-server-tests")))))))))

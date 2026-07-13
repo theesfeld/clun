@@ -44,6 +44,8 @@
       (lambda (this args) (declare (ignore this)) (%clun-file g (eng:to-string (eng:arg args 0)))))
     (eng:install-method clun "write" 2
       (lambda (this args) (declare (ignore this)) (%clun-write g (eng:arg args 0) (eng:arg args 1))))
+    (eng:install-method clun "serve" 1
+      (lambda (this args) (declare (ignore this)) (%clun-serve g (eng:arg args 0))))
     (eng:hidden-prop g "Clun" clun)
     clun))
 
