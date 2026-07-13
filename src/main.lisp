@@ -87,6 +87,13 @@ loader's *ts-strip-hook*; .tsx is rejected."
              (eng:run-module-file abs :realm realm)
              (finish-exit realm)))))))
 
+(defun run-test (r)
+  "`clun test` — resolve cwd (honouring --cwd), then hand the test-subcommand argv
+(file + trailing args, verbatim) to the test runner."
+  (let ((cwd (resolve-cwd r))
+        (argv (remove nil (cons (cli:cli-get r :file) (cli:cli-get r :args)))))
+    (clun.test-runner:run-test-command argv cwd)))
+
 (defun run-eval (r code print)
   "Evaluate CODE (script semantics; drives the loop). If PRINT, print the completion."
   (let* ((cwd (resolve-cwd r))
@@ -126,7 +133,9 @@ loader's *ts-strip-hook*; .tsx is rejected."
               2)
       (:eval (run-eval r (cli:cli-get r :code) nil))
       (:print (run-eval r (cli:cli-get r :code) t))
-      (:run (run-file r (cli:cli-get r :file))))))
+      (:run (if (equal (cli:cli-get r :subcommand) "test")
+                (run-test r)
+                (run-file r (cli:cli-get r :file)))))))
 
 (defun main ()
   "Toplevel for the saved executable. Never lets a Lisp backtrace reach the user

@@ -1,0 +1,15 @@
+(pass) passes
+(fail) fails
+  AssertionError: expect(received).toBe(expected)
+  
+  - Expected  - 1
+  + Received  + 1
+  
+  - 2
+  + 1
+  
+
+ 1 pass
+ 1 fail
+ 2 expect() calls
+Ran 2 tests across 1 file.

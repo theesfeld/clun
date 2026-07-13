@@ -1,0 +1,12 @@
+(pass) runs
+(skip) skipped
+(todo) todo without body
+(todo) todo with body
+(skip) whole block skipped > nope
+
+ 1 pass
+ 0 fail
+ 2 skip
+ 2 todo
+ 1 expect() calls
+Ran 5 tests across 1 file.

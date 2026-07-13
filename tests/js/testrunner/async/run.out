@@ -1,0 +1,10 @@
+(pass) resolves
+(pass) rejects
+(pass) await in body
+(fail) times out
+  this test timed out after 50ms
+
+ 3 pass
+ 1 fail
+ 3 expect() calls
+Ran 4 tests across 1 file.

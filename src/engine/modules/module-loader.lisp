@@ -300,9 +300,11 @@ values (🟡: not a live exotic object) plus, for CJS, a `default`."
 
 ;;; --- drive path -------------------------------------------------------------
 
-(defun run-module-file (entry &key (realm (make-realm)))
+(defun run-module-file (entry &key (realm (make-realm)) (teardown t))
   "Load + evaluate the module graph rooted at ENTRY (a path), drive the job loop to
-idle, surface unhandled rejections. Returns the realm."
+idle, surface unhandled rejections. Returns the realm. With TEARDOWN nil the loop +
+coroutines are left ALIVE (the test runner keeps them to run async test bodies, then
+calls teardown-realm itself)."
   (let ((*realm* realm))
     (unwind-protect
          (let* ((cwd (clun.sys:pathname->native (truename ".")))
@@ -313,9 +315,13 @@ idle, surface unhandled rejections. Returns the realm."
                (evaluate-module mr)
                (drive-jobs realm)
                (report-unhandled-rejections realm))))
-      (teardown-coroutines realm)
-      (destroy-realm-loop realm)))
+      (when teardown (teardown-realm realm))))
   realm)
+
+(defun teardown-realm (realm)
+  "Force-finish live coroutines and destroy the loop (leak control). Idempotent."
+  (teardown-coroutines realm)
+  (destroy-realm-loop realm))
 
 (defun entry->specifier (entry)
   "Coerce an entry PATH into a specifier the resolver treats as a path (not a bare

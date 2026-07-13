@@ -1,0 +1,7 @@
+(pass) alpha one
+(pass) alpha two
+
+ 2 pass
+ 0 fail
+ 2 expect() calls
+Ran 2 tests across 1 file.

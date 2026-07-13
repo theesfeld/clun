@@ -900,3 +900,52 @@ on a side thread). **LOW:** `new AbortSignal()` now throws "Illegal constructor"
 deliberate divergences. Extra hand-probe (non-function callbacks, NaN/negative/junk delays, clearTimeout of
 undefined/number/object, AbortSignal.any empty/non-array/non-signal, addEventListener null, refresh-on-cleared,
 `+timeoutId`) produced 0 raw backtraces. Regression-locked by tests/js/async/*. Net: 0 crashes, 0 regressions.
+
+### 2026-07-13 — Phase 15: test runner (`clun test`)
+The framework (describe/test/expect/hooks/scheduler) is implemented in CL against the engine object API —
+NO JavaScript in the implementation (Purity Contract §1.1). Test *files* are JS; their describe/test calls
+register into a CL-side tree (via native-function globals installed on the file's realm); a CL scheduler
+runs the tree, driving async bodies over the existing Phase-05 loop. `src/test-runner/` = diff (LCS line
+diff), registry (the t-describe/t-test tree + the globals: describe/test/it + .skip/.todo/.only/.skipIf/
+.todoIf/.if/.each, before*/after*, setDefaultTimeout), expect (~22 matchers on `eng:js-deep-equal` +
+`eng:inspect-value`, `.not`, `.resolves`/`.rejects`, expect.assertions/hasAssertions), scheduler (hook
+order + timeouts + only/todo/skip/bail/-t), reporter, discovery, runner. **Engine seams** (the async
+crux): `run-module-file` gained `:teardown nil` so the runner can load a file (which builds the tree via
+the globals) while keeping the loop + coroutines ALIVE to run async test bodies afterward; `teardown-realm`
+tears down per file; `run-callback-to-settlement (thunk realm &key timeout-ms)` funcalls THUNK (a js-call
+of the callback) and, if it returns a pending Promise, attaches then-reactions + arms a ref'd
+`lp:set-timer` timeout, then `lp:run-loop` until settle/timeout (no nested run-loop because `.resolves`/
+`.rejects` return real Promises that run as microtasks under THIS drive). It catches `js-condition` AND
+any raw CL `error` → a clean test failure (§6 net). **Hook order** is Bun-exact: file→outer→inner
+`beforeAll` (lazily, before the first runnable test), per-test `beforeEach` outer→inner / `afterEach`
+inner→outer (afterEach runs even if beforeEach/body threw), `afterAll` inner→outer; a `beforeAll`/
+`afterAll` throw is a reported failure. **Modifiers**: `.skip` (no hooks), `.todo` (not run unless
+`--todo`; a PASS under `--todo` → FAIL), `.only` per-FILE isolation, `.only`+`--ci`/`CI=true` → the file
+errors, `-t <re>` over the " > "-joined path (0 matches → exit 1), `--bail[=N]`. Exit 1 on any fail / zero
+tests / 0-match. `main.lisp` dispatches `subcommand=test`. **Reporter divergence (deliberate):** per-test
+timing `[N.NNms]` is OMITTED (Bun prints it) so `clun test` output is byte-stable — the meta-tests + the
+hook-order fixture assert exact stdout via the existing tests/js `.out`/`.argv`/`.exit` harness (reused
+because it already spawns the binary + checks exit codes; deterministic without timing). **Gate MET:**
+tests/js/testrunner/{hookorder,matchers,failing,skiptodo,only,bail,filter,filterzero,zerotests,async} green;
+build/test(**1110 parachute + 42 TS + 74 JS**)/purity(**170 files**) green; exec **22,643**, 0 crashes, 0
+regressions (the seams are test-runner-only). **Deliberate gaps:** no snapshots/mocks/spies (v1 non-goals);
+`.each` name interpolation a subset; concurrent tests sequential; runaway SYNCHRONOUS tests non-preemptible.
+
+### 2026-07-13 — Phase 15 review panel (find→verify-by-running-the-binary)
+Ultracode Workflow: 5 dimensions × find→adversarially-verify-by-running `build/clun test`, 15 agents,
+**10 findings / 8 confirmed + fixed**, all §6 crash-safety or wrong-behavior. **`.resolves`/`.rejects` on
+a PRIMITIVE** (`expect(42).resolves.toBe(42)`) reached `jm-get` with a non-object receiver → a raw
+no-applicable-method backtrace; fixed by guarding `(and (js-object-p actual) (js-get actual "then"))` in
+`%make-async-matcher` (→ a clean "received is not a Promise" failure) AND, as a systemic net, adding an
+`(error (c) …)` clause to `run-callback-to-settlement` that converts ANY raw CL condition from a
+hook/test/matcher into a JS Error the runner reports as a failure (so no Lisp condition can reach the
+user). **`toBeCloseTo(Infinity, …)`** subtracted `(- Inf Inf)` → FLOATING-POINT-INVALID-OPERATION; now
+non-finite inputs are handled before the subtraction (equal infinities are "close" → pass, per Jest;
+Inf-vs-finite → fail). **afterAll errors silently swallowed** (a throwing afterAll, incl. nested + async,
+reported the run as green / exit 0); `%run-describe` now runs afterAll via a `%run-afterall` that reports +
+counts the failure, symmetric with beforeAll/afterEach (both the normal and the beforeAll-failure paths).
+**`.only` buried in a `describe.skip`** set the global has-only flag at registration, wrongly skipping every
+sibling; has-only is now computed at schedule time by `%tree-active-only` which ignores `.only` under a
+`.skip` subtree. The 2 refuted findings were correct behavior / documented divergences. All four fixes were
+re-verified by running the exact repros on `build/clun`; regression-locked by the tests/js/testrunner
+fixtures. Net: build/test/purity green; conformance 22,643, 0 crashes, 0 regressions.

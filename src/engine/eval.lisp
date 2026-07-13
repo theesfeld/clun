@@ -46,6 +46,55 @@
   (let ((l (realm-loop realm)))
     (when l (ignore-errors (lp:destroy-event-loop l)) (setf (realm-loop realm) nil))))
 
+(defun run-callback-to-settlement (thunk realm &key (timeout-ms 5000))
+  "Run THUNK (which JS-calls a callback) under REALM and, if it returns a pending
+Promise, drive the loop until the promise settles or TIMEOUT-MS elapses. Returns
+(values KIND VALUE), KIND ∈ :fulfilled :rejected :timeout. A synchronous JS throw →
+(:rejected value). The test runner's one async seam — it keeps the loop alive across
+tests (run-module-file :teardown nil) and this drives it per callback."
+  (let ((*realm* realm))
+    (handler-case
+        (let ((result (funcall thunk)))
+          (cond
+            ((and (js-promise-p result) (eq (js-promise-pstate result) :pending))
+             (%drive-promise-to-settlement result timeout-ms))
+            (t
+             ;; sync return / already-settled promise: run queued microtasks (an
+             ;; assertion inside a .then), then report. Don't wait on timers.
+             (let ((l (realm-loop realm))) (when l (lp:drain-microtasks l)))
+             (if (js-promise-p result)
+                 (values (if (eq (js-promise-pstate result) :rejected) :rejected :fulfilled)
+                         (js-promise-value result))
+                 (values :fulfilled result)))))
+      (js-condition (c) (values :rejected (js-condition-value c)))
+      ;; §6 safety net: a raw CL error from a hook/test/matcher (arithmetic-error,
+      ;; no-applicable-method, …) becomes a clean test failure, never a backtrace.
+      (error (c) (values :rejected (%cl-error->js c))))))
+
+(defun %cl-error->js (c)
+  "Wrap a CL condition as a JS Error value so the test runner reports it as a failure."
+  (handler-case
+      (js-construct (js-get (realm-global *realm*) "Error") (list (format nil "~a" c)))
+    (error () (format nil "~a" c))))
+
+(defun %drive-promise-to-settlement (promise timeout-ms)
+  (let* ((loop (current-loop))              ; ensures the loop exists
+         (outcome nil))                     ; (cons kind value), set by a reaction/timeout
+    (let ((on-ok (make-native-function "" 1
+                   (lambda (this a) (declare (ignore this))
+                     (unless outcome (setf outcome (cons :fulfilled (arg a 0))))
+                     (lp:loop-stop loop) +undefined+)))
+          (on-err (make-native-function "" 1
+                    (lambda (this a) (declare (ignore this))
+                      (unless outcome (setf outcome (cons :rejected (arg a 0))))
+                      (lp:loop-stop loop) +undefined+))))
+      (js-call (js-get promise "then") promise (list on-ok on-err))
+      (let ((timer (lp:set-timer loop (max 0 timeout-ms)
+                                 (lambda () (unless outcome (setf outcome (cons :timeout +undefined+)))
+                                   (lp:loop-stop loop)))))
+        (unwind-protect (lp:run-loop loop) (lp:clear-timer timer))))
+    (if outcome (values (car outcome) (cdr outcome)) (values :timeout +undefined+))))
+
 (defun run-source (source &key (realm (make-realm)) strict (source-type :script))
   "Parse SOURCE, run top-level, drive the job loop to idle, then surface any
 unhandled rejection as an uncaught error (§ Phase 06). Teardown force-finishes live

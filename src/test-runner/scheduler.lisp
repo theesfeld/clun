@@ -1,0 +1,207 @@
+;;;; scheduler.lisp — execute a file's test tree in Bun's exact hook order (PLAN.md
+;;;; Phase 15, §3.6). Each hook/test body runs through eng:run-callback-to-settlement
+;;;; (async-aware, timeout-enforced). Depth-first: beforeAll (outer→inner, lazily
+;;;; before the first runnable test), per-test beforeEach outer→inner / afterEach
+;;;; inner→outer, afterAll inner→outer. Streams results to the reporter.
+
+(in-package :clun.test-runner)
+
+(defstruct (run-cfg (:conc-name cfg-))
+  (default-timeout 5000) (todo nil) (ci nil) (name-re nil) (bail nil))
+
+(defstruct (run-stats (:conc-name st-))
+  (pass 0) (fail 0) (skip 0) (todo 0) (matched 0) (bailed nil))
+
+(defun %node-parent (n) (if (td-p n) (td-parent n) (tt-parent n)))
+(defun %node-name (n) (if (td-p n) (td-name n) (tt-name n)))
+
+(defun %describe-path (node)
+  "Names from just-below-root down to and including NODE, ' > '-joined. The file root
+(parent = nil) contributes nothing, so a NODE that IS the root yields \"\"."
+  (let ((names '()) (n node))
+    (loop while (and n (%node-parent n)) do
+          (push (%node-name n) names)
+          (setf n (%node-parent n)))
+    (format nil "~{~a~^ > ~}" names)))
+
+(defun %name-matches (cfg full-name)
+  (let ((re (cfg-name-re cfg)))
+    (or (null re)
+        (eng:js-truthy (eng:js-call (eng:js-get re "test") re (list full-name))))))
+
+(defun %run-hooks (hooks realm timeout)
+  "Run HOOKS (in registration order) to settlement; return NIL on success or the JS
+error value of the first that threw/rejected/timed-out."
+  (dolist (fn (reverse hooks) nil)
+    (multiple-value-bind (kind val)
+        (eng:run-callback-to-settlement (let ((f fn)) (lambda () (eng:js-call f eng:+undefined+ '())))
+                                        realm :timeout-ms timeout)
+      (case kind
+        (:rejected (return val))
+        (:timeout (return (%assertion-error (format nil "hook timed out after ~ams" timeout))))))))
+
+(defun %chain (node)
+  "The describe chain root→NODE's parent (for beforeEach/afterEach accumulation)."
+  (let ((chain '()))
+    (loop for d = (tt-parent node) then (td-parent d) while d do (push d chain))
+    chain))
+
+;;; --- test selection ---------------------------------------------------------
+
+(defun %subtree-has-only (node)
+  "True if NODE (describe) or any descendant is :only."
+  (or (eq (td-mode node) :only)
+      (some (lambda (c) (cond ((tt-p c) (eq (tt-mode c) :only))
+                              ((td-p c) (%subtree-has-only c))))
+            (td-children node))))
+
+(defun %selected-p (test under-only has-only cfg)
+  "Whether TEST should EXECUTE (vs be skipped), ignoring the -t filter."
+  (and (not (eq (tt-mode test) :skip))
+       (or (not has-only) under-only (eq (tt-mode test) :only))
+       (or (not (eq (tt-mode test) :todo)) (cfg-todo cfg))))
+
+;;; --- execution --------------------------------------------------------------
+
+(defun %tree-active-only (node under-skip)
+  "True if NODE's subtree has a .only test/describe that is NOT inside a .skip — so a
+.only buried in a describe.skip does NOT activate only-mode (which would wrongly skip
+every sibling)."
+  (some (lambda (c)
+          (cond ((tt-p c) (and (not under-skip) (eq (tt-mode c) :only)))
+                ((td-p c) (let ((skip (or under-skip (eq (td-mode c) :skip))))
+                            (or (and (not skip) (eq (td-mode c) :only))
+                                (%tree-active-only c skip))))))
+        (td-children node)))
+
+(defun run-file-tree (ctx realm cfg stats report)
+  "Execute CTX's tree under REALM. REPORT is (status full-name detail) -> prints a line.
+Returns STATS (mutated). Honours .only (per-file), .skip/.todo, -t, timeouts, --bail."
+  (let ((has-only (%tree-active-only (ctx-root ctx) nil)))
+    (when (and has-only (cfg-ci cfg))
+      (funcall report :fail "" "test.only is not allowed when CI=true")
+      (incf (st-fail stats))
+      (return-from run-file-tree stats))
+    (%run-describe (ctx-root ctx) realm cfg stats report has-only nil)
+    stats))
+
+(defun %runnable-in-subtree (node has-only under-only cfg)
+  "Does NODE (describe) contain any test that will actually EXECUTE?"
+  (some (lambda (c)
+          (cond ((tt-p c) (%selected-p c under-only has-only cfg))
+                ((td-p c) (%runnable-in-subtree c has-only (or under-only (eq (td-mode c) :only)) cfg))))
+        (td-children node)))
+
+(defun %run-describe (node realm cfg stats report has-only under-only)
+  "Run describe NODE. UNDER-ONLY = an ancestor (or NODE) is :only."
+  (let* ((uo (or under-only (eq (td-mode node) :only)))
+         (skip-all (eq (td-mode node) :skip))
+         (runs (and (not skip-all) (%runnable-in-subtree node has-only uo cfg))))
+    (when skip-all                        ; describe.skip: every descendant test → (skip)
+      (%skip-subtree node cfg stats report)
+      (return-from %run-describe))
+    (when (and runs (td-before-all node))
+      (let ((err (%run-hooks (td-before-all node) realm (cfg-default-timeout cfg))))
+        (when err
+          ;; a beforeAll failure: report it + skip the subtree's tests, still run afterAll
+          (funcall report :fail (format nil "~abeforeAll" (%prefix node)) (%err-detail err))
+          (incf (st-fail stats))
+          (%skip-subtree node cfg stats report)
+          (%run-afterall node realm cfg stats report)
+          (return-from %run-describe))))
+    (dolist (child (td-ordered-children node))
+      (when (st-bailed stats) (return))
+      (cond
+        ((td-p child) (%run-describe child realm cfg stats report has-only uo))
+        ((tt-p child) (%run-test child realm cfg stats report has-only uo))))
+    (when runs (%run-afterall node realm cfg stats report))))
+
+(defun %run-afterall (node realm cfg stats report)
+  "Run NODE's afterAll hooks; a throw/reject/timeout is a reported failure (symmetric
+with beforeAll/afterEach — Bun counts a failing afterAll)."
+  (when (td-after-all node)
+    (let ((err (%run-hooks (td-after-all node) realm (cfg-default-timeout cfg))))
+      (when err
+        (funcall report :fail (format nil "~aafterAll" (%prefix node)) (%err-detail err))
+        (incf (st-fail stats))
+        (%maybe-bail stats cfg)))))
+
+(defun %prefix (node)
+  (let ((p (%describe-path node))) (if (string= p "") "" (concatenate 'string p " > "))))
+
+(defun %skip-subtree (node cfg stats report)
+  (dolist (child (td-ordered-children node))
+    (cond ((tt-p child) (funcall report :skip (%full-name child) nil) (incf (st-skip stats)))
+          ((td-p child) (%skip-subtree child cfg stats report)))))
+
+(defun %full-name (test)
+  (let ((p (%describe-path (tt-parent test))))
+    (if (string= p "") (tt-name test) (concatenate 'string p " > " (tt-name test)))))
+
+(defun %err-detail (v)
+  "A one-line-plus detail string for a thrown/rejected JS value."
+  (if (and (eng:js-object-p v) (not (eng:js-undefined-p (eng:js-get v "message"))))
+      (let ((name (eng:to-string (eng:js-get v "name"))) (msg (eng:to-string (eng:js-get v "message"))))
+        (if (string= msg "") name (format nil "~a: ~a" name msg)))
+      (eng:inspect-value v)))
+
+(defun %run-test (test realm cfg stats report has-only under-only)
+  (let ((full (%full-name test)) (mode (tt-mode test)))
+    ;; -t filter: a non-matching test is simply not counted/run (Bun) — but skip/only
+    ;; still apply first.
+    (cond
+      ((eq mode :skip) (funcall report :skip full nil) (incf (st-skip stats)))
+      ((and has-only (not under-only) (not (eq mode :only)))
+       (funcall report :skip full nil) (incf (st-skip stats)))
+      ((and (eq mode :todo) (not (cfg-todo cfg)))
+       (funcall report :todo full nil) (incf (st-todo stats)))
+      ((null (tt-fn test))                 ; test('name') with no body → todo
+       (funcall report :todo full nil) (incf (st-todo stats)))
+      ((not (%name-matches cfg full)) nil) ; filtered out by -t: no line, not counted
+      (t
+       (incf (st-matched stats))
+       (multiple-value-bind (ok detail) (%execute test realm cfg)
+         (cond
+           ((eq mode :todo)               ; ran under --todo
+            (if ok
+                (progn (funcall report :fail full "this test is marked as todo but passed")
+                       (incf (st-fail stats)) (%maybe-bail stats cfg))
+                (progn (funcall report :todo full nil) (incf (st-todo stats)))))
+           (ok (funcall report :pass full nil) (incf (st-pass stats)))
+           (t (funcall report :fail full detail) (incf (st-fail stats)) (%maybe-bail stats cfg))))))))
+
+(defun %maybe-bail (stats cfg)
+  (when (and (cfg-bail cfg) (>= (st-fail stats) (cfg-bail cfg)))
+    (setf (st-bailed stats) t)))
+
+(defun %execute (test realm cfg)
+  "Run beforeEach chain → the body → afterEach chain. Returns (values ok detail)."
+  (let ((*test-assertions* 0) (*expected-assertions* nil) (*has-assertions* nil)
+        (timeout (or (tt-timeout test) (cfg-default-timeout cfg)))
+        (chain (%chain test)) (ok t) (detail nil))
+    ;; beforeEach outer→inner
+    (block body
+      (dolist (d chain)
+        (let ((err (%run-hooks (td-before-each d) realm timeout)))
+          (when err (setf ok nil detail (%err-detail err)) (return-from body))))
+      ;; the test body
+      (multiple-value-bind (kind val)
+          (eng:run-callback-to-settlement
+           (let ((f (tt-fn test))) (lambda () (eng:js-call f eng:+undefined+ '())))
+           realm :timeout-ms timeout)
+        (case kind
+          (:timeout (setf ok nil detail (format nil "this test timed out after ~ams" timeout)))
+          (:rejected (setf ok nil detail (%err-detail val)))
+          (:fulfilled
+           ;; assertion-count expectations
+           (cond
+             ((and *expected-assertions* (/= *test-assertions* *expected-assertions*))
+              (setf ok nil detail (format nil "expect.assertions(~a) — but ~a assertion(s) ran"
+                                          *expected-assertions* *test-assertions*)))
+             ((and *has-assertions* (zerop *test-assertions*))
+              (setf ok nil detail "expect.hasAssertions() — but no assertions ran")))))))
+    ;; afterEach inner→outer (always runs)
+    (dolist (d (reverse chain))
+      (let ((err (%run-hooks (td-after-each d) realm timeout)))
+        (when (and err ok) (setf ok nil detail (%err-detail err)))))
+    (values ok detail)))

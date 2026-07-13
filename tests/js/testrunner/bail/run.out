@@ -1,0 +1,15 @@
+(fail) one
+  AssertionError: expect(received).toBe(expected)
+  
+  - Expected  - 1
+  + Received  + 1
+  
+  - 2
+  + 1
+  
+
+ 0 pass
+ 1 fail
+ 1 expect() calls
+Bailed out after 1 failure
+Ran 1 test across 1 file.

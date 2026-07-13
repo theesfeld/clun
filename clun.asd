@@ -135,6 +135,17 @@
                                                          (:file "buffer")
                                                          (:file "fs")
                                                          (:file "timers")))))
+                             ;; test runner (Phase 15): clun test — discovery, tree +
+                             ;; JS globals, matchers, diff, scheduler, reporter.
+                             (:module "test-runner"
+                              :serial t
+                              :components ((:file "diff")
+                                           (:file "registry")
+                                           (:file "expect")
+                                           (:file "scheduler")
+                                           (:file "reporter")
+                                           (:file "discovery")
+                                           (:file "runner")))
                              ;; CLI (Phase 08): arg parsing, .env, dispatch.
                              (:module "cli"
                               :serial t

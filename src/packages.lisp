@@ -111,6 +111,7 @@
    ;; runtime hooks (Phase 08): completion capture for -p, error introspection,
    ;; realm accessors the runtime/CLI need
    #:run-module-file #:run-module-source #:eval-source #:realm-global
+   #:teardown-realm #:run-callback-to-settlement #:drive-jobs
    #:js-promise-p #:js-promise-pstate #:js-promise-value #:to-string #:js-object-class
    #:make-native-function #:install-method #:install-getter #:data-prop #:hidden-prop
    #:new-object #:new-array #:throw-type-error #:js-undefined-p #:js-truthy #:js-boolean
@@ -180,7 +181,9 @@
 
 (defpackage :clun.test-runner
   (:use :cl)
-  (:documentation "clun test: discovery, scheduler, matchers, diff, reporter."))
+  (:local-nicknames (:eng :clun.engine) (:sys :clun.sys) (:rt :clun.runtime))
+  (:documentation "clun test: discovery, scheduler, matchers, diff, reporter.")
+  (:export #:run-test-command))
 
 (defpackage :clun.install
   (:use :cl)

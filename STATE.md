@@ -5,7 +5,46 @@ Update before every commit. Seeded from PLAN.md §5.
 
 ---
 
-## Current phase: **15 — Test runner**  (Phase 14 committed; async gate MET)
+## Current phase: **16 — Sockets**  (Phase 15 committed; test-runner gate MET)
+
+**Phase 15 outcome:** `clun test` — a Bun-compatible runner whose framework is implemented in CL against
+the engine object API (no JS in the implementation, §1.1). `src/test-runner/` (7 files): **registry**
+(the describe/test tree + the JS globals describe/test/it + .skip/.todo/.only/.skipIf/.todoIf/.if/.each,
+before*/after* hooks, setDefaultTimeout — describe(fn) runs at load to build the tree, test bodies stash
+for later), **expect** (~22 matchers on the shared `eng:js-deep-equal` + inspector, `.not`,
+`.resolves`/`.rejects` returning REAL Promises so they run as microtasks under the scheduler's drive,
+expect.assertions/hasAssertions), **diff** (LCS line diff → `- Expected`/`+ Received`), **scheduler**
+(Bun-exact hook order + timeouts + only/todo/skip/bail/-t), **reporter** (result lines + summary block,
+timing omitted for determinism), **discovery** (`*.{test,spec}.*`/`*_{test,spec}.*` walk skipping
+node_modules; positional path/substring filters), **runner** (per-file realm → load → schedule →
+aggregate → exit code). Engine seams: `run-module-file :teardown nil` (load + drive but keep the loop
+ALIVE across tests), `teardown-realm`, and `run-callback-to-settlement` (drive the loop until a test's
+promise settles or a ref'd timeout timer fires; catches js-condition AND any raw CL error → a clean test
+failure, §6). `main.lisp` routes `subcommand=test`. Bun-faithful hook order (file→outer→inner beforeAll
+lazily; beforeEach outer→inner; afterEach inner→outer; afterAll inner→outer), .only per-file isolation,
+.todo pass→fail under --todo, -t regex over the full path, --bail, exit 1 on fail/zero-tests/0-match.
+**Gate MET:** meta-test matrix + hook-order byte-exact via the fixture harness
+(tests/js/testrunner/{hookorder,matchers,failing,skiptodo,only,bail,filter,filterzero,zerotests,async})
+green; `make build`/`test`(**1110 parachute + 42 TS + 74 JS**)/`purity`(**170 files**) green; parse 17,512
+/ exec **22,643** (0 crashes, 0 regressions — the runner's engine seams are test-runner-only, inert for
+conformance). Adversarial review panel (5 dims × find→**verify-by-running-the-binary**, 15 agents, 10
+findings / **8 confirmed + fixed**), all §6 crash-safety or wrong-behavior: `.resolves`/`.rejects` on a
+PRIMITIVE crashed via jm-get (→ a clean "received is not a Promise" failure + a systemic CL-error→failure
+net in run-callback-to-settlement), `toBeCloseTo(Infinity)` FP-invalid trap (guarded; equal infinities
+pass), afterAll errors silently swallowed (now reported + counted, symmetric with beforeAll/afterEach),
+`.only` buried in a `describe.skip` wrongly activating only-mode (has-only now computed ignoring skip
+subtrees). Deliberate: per-test timing omitted (deterministic); no snapshots/mocks; `.each` name
+interpolation a subset; runaway SYNCHRONOUS tests non-preemptible (async timeouts enforced).
+
+**Next action:** Begin Phase 16 (Sockets, deps 05 ✓, ◇ independent): non-blocking connect (EINPROGRESS)/
+accept/read/write with EAGAIN→NIL; write queues + backpressure; IPv6; port-0 real-port reporting; error
+mapping to JS codes (ECONNREFUSED…); BROKEN-PIPE handling — on the Phase-05 serve-event reactor (respect
+the thread-registration rule). Gate: echo server 2,000 sequential + 500 concurrent connections;
+/proc/self/fd count stable (zero leaks); ≥100 MB/s single-connection loopback.
+
+---
+
+## Recent phase outcomes (most recent first)
 
 **Phase 14 outcome:** the async product floor. Most substrate pre-existed (loop queues + heap timers +
 handle refcount from 05; Promise/microtask/nextTick + setTimeout/Interval from 06; Clun.sleep from 08/12),
@@ -42,10 +81,6 @@ Bun ordering + failure semantics, only-bubbling, CI-guard); ~22 matchers on the 
 `.resolves`/`.rejects` (Jest-async); timeout machinery; reporter + LCS diffs + summary + exit codes; `--bail`,
 `--todo`; self-hosting migration of tests/js expect-style suites; meta-tests via the built binary. Gate:
 meta-test matrix (pass/fail/skip/todo/only/bail/zero-tests→1); hook-order fixture byte-exact; self-hosted green.
-
----
-
-## Recent phase outcomes (most recent first)
 
 **Phase 13 outcome:** files. Three engine-free layers below the runtime boundary (Phase-07 discipline).
 `src/sys/fs.lisp` gains a code-carrying `clun.sys:fs-error` (code/errno/syscall/path) + a `with-fs
@@ -84,10 +119,6 @@ ref/unref real loop accounting + node:timers + timers/promises; process.nextTick
 events.once + captureRejections; assert.rejects/doesNotReject; Clun.sleep/sleepSync; queueMicrotask;
 AbortController/AbortSignal. Gate: extended ordering corpus (nextTick vs microtask vs timer vs immediate)
 exact-output; unref'd-timer exit test; abort fixtures.
-
----
-
-## Recent phase outcomes (most recent first)
 
 **Phase 12 outcome:** the engine-light node stdlib floor. Node builtins resolve via an engine hook
 `*builtin-module-builder*` (NIL in bare test262 realms → inert there) that the runtime installs; a
@@ -614,6 +645,30 @@ _(nothing blocked)_
     AbortError-named Error (DOMException post-v1); `AbortSignal.any` tolerates a non-iterable (never-aborting
     signal); `EventEmitter` errorMonitor + `events.on` async-iterator not implemented (no fresh-Symbol mint).
 
+- **Phase 15 — TEST-RUNNER GATE MET + committed (2026-07-13).**
+  - `make build` clean; `make test` = **1110 parachute + 42 tests/ts + 74 tests/js** (0 failed);
+    `make purity` clean (**170 files**); `make conformance` parse **17,512**; `make conformance-exec`
+    over 40,654 files: **pass 22,643**, **0 crashes**, **0 regressions** (the runner's engine seams —
+    run-callback-to-settlement + run-module-file :teardown — are test-runner-only, inert for conformance).
+  - **Gate:** the meta-test matrix + hook-order byte-exact run via the tests/js fixture harness (deterministic
+    because the reporter omits timing): tests/js/testrunner/{hookorder (byte-exact Bun hook trace), matchers
+    (all ~22 green), failing (→exit 1), skiptodo (skip/todo counts + describe.skip subtree), only (per-file
+    isolation), bail (--bail stops + exit 1), filter (-t subset), filterzero (-t 0-match → exit 1), zerotests
+    (→ exit 1), async (resolves/rejects + timeout)} — all green.
+  - `src/test-runner/` (diff/registry/expect/scheduler/reporter/discovery/runner) — framework in CL against
+    the engine object API (no JS in the impl). Engine seams added: `eng:run-module-file :teardown nil`,
+    `eng:teardown-realm`, `eng:run-callback-to-settlement` (async test driving over the loop with a ref'd
+    timeout timer; catches js-condition + any raw CL error → clean test failure). `main.lisp` routes `test`.
+  - Adversarial review panel (5 dims × find→**verify-by-running-the-binary**, 15 agents): **10 findings /
+    8 confirmed + fixed** — HIGH §6 crash-safety + wrong-behavior: `.resolves`/`.rejects` on a primitive
+    (jm-get crash → clean "not a Promise" failure + a systemic CL-error→failure net in the settlement
+    driver); `toBeCloseTo(Infinity)` FP-invalid trap (guarded; equal infinities pass); afterAll errors
+    silently swallowed (now reported + counted, symmetric with beforeAll/afterEach); `.only` buried in a
+    `describe.skip` wrongly activating only-mode (has-only recomputed ignoring skip subtrees).
+  - DEFERRED 🟡: per-test `[N.NNms]` timing omitted (deterministic output — the one reporter divergence);
+    no snapshots / mocks / spies (v1 non-goals); `.each` name interpolation a documented subset; concurrent
+    tests run sequentially; runaway SYNCHRONOUS (non-awaiting) tests are not preemptible.
+
 ## Phases
 
 Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-early.
@@ -738,13 +793,13 @@ Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-earl
 - [x] Clun.sleep/sleepSync (pre-existing); queueMicrotask (pre-existing); AbortController/AbortSignal (abort/timeout/any); for-await IteratorClose engine fix
 - **Gate MET:** tests/js/async/{ordering,timers,tpromises,unref,abort,evonce} exact-output green; build/test(1110+42+64)/purity(163) ✓; exec 22,643 (+5 IteratorClose, pass-list regenerated), 0 crashes/regressions. Review panel 2/7 confirmed + fixed (process.exit-in-async §6 backtrace; AbortSignal construct message).
 
-### Phase 15 — Test runner  (deps: 14; 10 for -t) ~4k LOC
-- [ ] discovery (*.test.*/*_test.*/*.spec.*/*_spec.*; positional substring filters)
-- [ ] collection + hook scheduler (exact ordering + failure semantics); modifiers incl. only-bubbling + CI-guard
-- [ ] matchers (~22) on shared deepEquals/inspector; .resolves/.rejects (Jest-async); timeout machinery
-- [ ] reporter + diffs + summary + exit codes; --bail, --todo
-- [ ] self-hosting migration: move tests/js expect-style suites onto clun test; meta-tests via built binary
-- **Gate:** meta-test matrix (pass/fail/skip/todo/only/bail/zero-tests→1); hook-order fixture byte-exact; self-hosted suites green.
+### Phase 15 — Test runner  (deps: 14; 10 for -t) ~4k LOC — **DONE (gate MET)**
+- [x] discovery (*.{test,spec}.*/*_{test,spec}.* walk, skip node_modules/dotdirs; positional path + substring filters)
+- [x] collection + hook scheduler (Bun-exact ordering + failure semantics; .only per-file isolation, --ci guard)
+- [x] matchers (~22) on shared eng:js-deep-equal/inspector; .not; .resolves/.rejects (Jest-async); per-test + setDefaultTimeout + --timeout machinery
+- [x] reporter (result lines + summary, timing omitted for determinism) + LCS diffs + exit codes; --bail, --todo
+- [x] self-hosting: meta-tests + hook-order byte-exact via the fixture harness (tests/js/testrunner/*), run under `make test`
+- **Gate MET:** meta-test matrix (pass/fail/skip/todo/only/bail/-t 0-match/zero-tests→1) + hook-order byte-exact green; build/test(1110+42+74)/purity(170) ✓; exec 22,643, 0 crashes/regressions. Review panel 8/10 confirmed + fixed.
 
 ### Phase 16 — Sockets  (deps: 05) ◇ ~1.8k LOC
 - [ ] non-blocking connect (EINPROGRESS)/accept/read/write w/ EAGAIN→NIL; write queues + backpressure

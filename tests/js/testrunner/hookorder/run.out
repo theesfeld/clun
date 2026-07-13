@@ -1,0 +1,26 @@
+fileBeforeAll
+fileBeforeEach
+fileAfterEach
+(pass) t1
+A.beforeAll
+fileBeforeEach
+A.beforeEach
+A.afterEach
+fileAfterEach
+(pass) A > t2
+B.beforeAll
+fileBeforeEach
+A.beforeEach
+B.beforeEach
+B.afterEach
+A.afterEach
+fileAfterEach
+(pass) A > B > t3
+B.afterAll
+A.afterAll
+fileAfterAll
+
+ 3 pass
+ 0 fail
+ 0 expect() calls
+Ran 3 tests across 1 file.
