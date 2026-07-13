@@ -12,7 +12,9 @@
   ;; SBCL contribs for the event loop (Phase 05); cl-ppcre is the RegExp backend
   ;; (Phase 10, vendored + pure). sb-thread is built in (feature :sb-thread).
   :depends-on ((:require "sb-posix") (:require "sb-concurrency") (:require "sb-bsd-sockets")
-               "cl-ppcre" "chipz")
+               ;; pure-tls (Phase 20) brings HTTPS into the binary: fetch("https://…") over
+               ;; the vendored TLS 1.3 stack (ironclad + the Phase-19 closure come with it).
+               "cl-ppcre" "chipz" "pure-tls")
   :serial t
   :components ((:module "src"
                 :serial t
@@ -48,7 +50,8 @@
                               :serial t
                               :components ((:file "sockets")
                                            (:file "http-parser")
-                                           (:file "http-client")))
+                                           (:file "http-client")
+                                           (:file "tls-client")))
                              (:module "engine"
                               :serial t
                               :components ((:file "values")
@@ -212,4 +215,5 @@
                                             :components ((:file "sockets-tests")
                                                          (:file "http-parser-tests")
                                                          (:file "http-server-tests")
-                                                         (:file "fetch-tests")))))))))
+                                                         (:file "fetch-tests")
+                                                         (:file "https-tests")))))))))

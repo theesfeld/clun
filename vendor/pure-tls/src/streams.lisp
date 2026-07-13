@@ -589,6 +589,16 @@
                   :ech-enabled ech-enabled
                   :hostname-policy (tls-context-hostname-policy context))))
         (setf (tls-stream-handshake stream) hs)
+        ;; clun security patch (Phase 20): +verify-required+ with NO recorded peer certificate
+        ;; MUST fail closed. Upstream only verifies inside the (when … peer-certificate) below,
+        ;; so a handshake that completes without the client recording a server certificate
+        ;; (a self-interop race, an abbreviated/PSK handshake, a malicious peer) would SKIP
+        ;; verification and silently accept — a certificate-authentication bypass. "Required"
+        ;; means required. (See DECISIONS 2026-07-13.)
+        (when (and (= verify +verify-required+)
+                   (null (client-handshake-peer-certificate hs)))
+          (error 'tls-verification-error :hostname hostname :reason :no-peer-certificate
+                 :message "verify-required: peer presented no certificate"))
         ;; Verify certificate chain and hostname if verification enabled
         (when (and (member verify (list +verify-peer+ +verify-required+))
                    (client-handshake-peer-certificate hs))

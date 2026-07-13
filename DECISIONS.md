@@ -1201,3 +1201,41 @@ corruption; (c) `make test-lisp` 8/8 deterministically green (was ~50% flaky und
 (server ≥30k req/s, loopback ≥100 MB/s) are now **best-of-3** (a genuinely-slow path fails all three; a hard
 threshold otherwise flakes when a competing build shaves the last percent). Conformance held (22,643, 0
 regressions — the change only adds error recovery; normal serve-event returns are unchanged).
+
+### 2026-07-13 — Phase 20: HTTPS via worker-pool pure-tls + a fail-closed security patch
+`fetch("https://…")` over the Phase-19 pure-CL TLS stack. **pure-tls added to the `clun` system
+`:depends-on`** (ironclad + the closure come with it) so HTTPS is in the binary. Architecture (§3.2):
+pure-tls's client does a BLOCKING handshake + blocking gray-stream I/O, which does not fit the non-blocking
+serve-event reactor, so HTTPS runs on the **worker pool** — `src/net/tls-client.lisp`'s `https-request`
+(connect a blocking socket, `pure-tls:make-tls-client-stream` with `+verify-required+` + the trust context,
+serialize the request with the plaintext client's `%serialize-request`, read to EOF, parse with the Phase-17
+`http-response` parser, gunzip) runs on a worker via `lp:worker-submit`; the completion resolves the fetch
+promise on the loop thread. `web-fetch` `%do-fetch` now dispatches by scheme (http → the Phase-18 reactor
+client; https → `%https-request-async`), reusing all of redirects / AbortSignal / timeout / Response
+building; a redirect re-dispatches by the new hop's scheme. Abort/timeout close the worker's socket (a
+close-thunk handed back via a box) to unblock the blocking read. The realm loop is created `:workers 0`, so
+`workers.lisp` gained **lazy, mutex-guarded worker spawning** (`ensure-workers`) on the first blocking submit.
+Trust anchors: `$SSL_CERT_FILE` / `$SSL_CERT_DIR` → a probed system CA bundle (`%system-ca-file`); no anchor
+→ verification rejects (never trust-nothing-and-accept).
+**THE SECURITY PATCH (critical).** pure-tls's client verify step is `(when (and (member verify …)
+(peer-certificate hs)) …)` — it SKIPS verification (silently accepting) when no peer certificate is recorded.
+On the pure-tls-client ↔ pure-tls-server path the client records the peer cert only RACILY (a self-interop
+timing bug), so a handshake could complete with `peer-certificate = nil` and be ACCEPTED — a
+certificate-authentication bypass (verified: a leaf not anchored in the trust store was accepted). Patched
+`vendor/pure-tls/src/streams.lisp` (`;; clun security patch (Phase 20)`) so that `+verify-required+` with a
+null peer certificate SIGNALS `tls-verification-error` (`:reason :no-peer-certificate`) — required means
+required, fail closed. Verified after the patch: the bypass rejects; real HTTPS still works (example.com
+accepts under the system store, rejects UNKNOWN-CA under the test CA); pure-tls's own 10 suites still pass.
+**A README security-posture claim that HTTPS "always fails closed" was written BEFORE this patch, while the
+bypass was known — that was wrong and is corrected: the posture is now honest (experimental/unaudited; fail
+closed IS enforced, including the no-peer-cert case; known interop/DNS/worker limitations listed).**
+**Test CA** (`scripts/gen-test-certs.sh`, checked-in PEMs — openssl is a build-time fixture tool, not a
+runtime dep): CA + localhost-leaf + expired/wrong-host/self-signed/bad-chain. Hermetic tests
+(`tests/lisp/net/https-tests.lisp`): a deterministic net-level TRANSPORT round-trip (verify off, since the
+self-interop peer-cert race makes a verify-on in-process round-trip non-deterministic — correctly, it fails
+closed); a deterministic verify-FUNCTION matrix (each bad-cert type → its distinct condition: expired /
+hostname / not-anchored); and a deterministic end-to-end fetch FAIL-CLOSED test (fetch the fixture WITHOUT
+trusting its CA → must reject). Live smoke (logged, opt-in): example.com accepts under system trust + rejects
+under the test CA (end-to-end verification both ways). **Deliberate gaps:** registry.npmjs.org handshake
+(pure-tls `protocol_version` — flagged for Phase 21); blocking DNS on the loop; one worker per in-flight
+request; mid-flight abort of a blocking read is best-effort (socket close). Reactor-native TLS is post-v1.

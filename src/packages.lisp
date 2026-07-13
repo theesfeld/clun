@@ -166,7 +166,9 @@
    #:make-http-response-parser #:response-finish #:http-response #:http-response-p
    #:hres-status #:hres-reason #:hres-version #:hres-headers #:hres-body #:hres-keep-alive
    ;; Phase 18 — reactor HTTP client
-   #:http-request-async #:resolve-hostname #:%header))
+   #:http-request-async #:resolve-hostname #:%header
+   ;; TLS client (Phase 20): blocking HTTPS request for the worker pool + error mapping.
+   #:https-request #:tls-error-message))
 
 ;; --- dependent layer (local-nicknames into the base packages above) ---------
 

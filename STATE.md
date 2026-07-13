@@ -5,7 +5,53 @@ Update before every commit. Seeded from PLAN.md §5.
 
 ---
 
-## Current phase: **20 — HTTPS**  (Phase 19 committed; crypto/TLS foundation gate MET)
+## Current phase: **21 — Semver + registry client + local registry fixture**  (Phase 20 committed; HTTPS gate MET)
+
+**Phase 20 outcome:** HTTPS. `fetch("https://…")` over the Phase-19 pure-CL TLS stack. **pure-tls is now in
+the `clun` binary** (`:depends-on`; ironclad + the closure come with it). Because pure-tls does a BLOCKING
+handshake + gray-stream I/O (unfit for the non-blocking reactor), HTTPS runs on the **worker pool** (§3.2):
+`src/net/tls-client.lisp`'s `https-request` (blocking connect → `make-tls-client-stream` `+verify-required+`
++ trust context → `%serialize-request` → read-to-EOF → the Phase-17 response parser → gunzip) runs on a
+worker; `web-fetch` `%do-fetch` dispatches by scheme (http → the Phase-18 reactor client; https →
+`%https-request-async` via `lp:worker-submit`), reusing redirects / AbortSignal / timeout / Response; abort/
+timeout close the worker's socket to unblock the read (verified: `AbortSignal.timeout` unblocks a stuck
+handshake at ~the deadline). The realm loop is `:workers 0`, so `workers.lisp` gained lazy, mutex-guarded
+worker spawning. Trust: `$SSL_CERT_FILE` / `$SSL_CERT_DIR` → a probed system CA bundle; no anchor → reject.
+**THE SECURITY FIX (critical):** pure-tls's client verify step SKIPS verification when no peer certificate is
+recorded — and on the pure-tls↔pure-tls path the peer cert is recorded only RACILY, so a handshake could
+complete and be ACCEPTED with an unverified certificate (a certificate-authentication BYPASS; reproduced: a
+leaf not anchored in the trust store was accepted). **Patched `vendor/pure-tls/src/streams.lisp` so
+`+verify-required+` with a null peer cert FAILS CLOSED** (`tls-verification-error :no-peer-certificate`);
+peer-cert ⟺ chain (leaf-first, set together) so this closes the only fail-open. Verified: the bypass now
+rejects; real HTTPS still works; pure-tls's own 10 suites still pass. (A README posture line claiming HTTPS
+"always fails closed" had been written while the bypass was known — corrected; the posture is now honest AND
+the claim is now true.) **Gate MET:** hermetic — a deterministic net-level TLS transport round-trip, a
+verify-FUNCTION matrix (expired / wrong-host / self-signed / bad-chain each → its distinct condition), and a
+deterministic end-to-end fetch FAIL-CLOSED test (fetch a fixture WITHOUT trusting its CA → must reject); live
+smoke (logged): example.com accepts under the system store + rejects under the test CA (verification both
+ways against a real server); the badssl.com expired/wrong-host/self-signed/untrusted-root subdomains all
+reject. `make build`/`test`(**1286 parachute + 42 TS + 74 JS**)/`test-tls`(10 suites / 342)/`test-crypto`(24)/
+`purity`(**669 files**) green; exec **22,643** (0 crashes, 0 regressions — the TLS stack is not in a bare
+test262 realm's path). Adversarial review: the ultracode panel hung on a live fetch, so fail-closed + §6
+crash-safety (empty-host / dead-port / plaintext-server → clean JS errors, never a backtrace) + abort/timeout
+were verified BY HAND. Test CA via `scripts/gen-test-certs.sh` (checked-in PEMs; openssl is a build-time
+fixture tool, not a runtime dep). **Deliberate gaps:** registry.npmjs.org handshake fails (pure-tls
+`protocol_version` — flagged for Phase 21); blocking DNS; one worker per in-flight request; the 120 s default
+fetch timeout is long (but protective — Node/Bun have none); reactor-native TLS is post-v1.
+
+**Next action:** Begin Phase 21 (Semver + registry client + local registry fixture; deps 00 for semver ✓, 18
+for the client ✓ — ◇ semver is independent): port node-semver (versions, prerelease precedence, ranges
+`^ ~ - || * x`, includePrerelease) + its fixture corpus at 100%; a registry client (abbreviated-metadata
+Accept, scoped `%2F`, retries, `--registry`, `.npmrc`-lite); a local registry fixture (in-process server +
+hand-built `.tgz` for ~8 packages with a version conflict / scoped / bin / pax-longname, `dist.integrity`
+from real bytes, gzip + ETag/304). Gate: semver corpus 100%; metadata round-trips incl. scoped/gzip/304;
+the fixture server reusable as a make target. NOTE: the pure-tls `registry.npmjs.org` `protocol_version`
+interop failure MUST be resolved before the LIVE npm smoke (Phase 23) — the local fixture keeps Phase 21
+hermetic meanwhile.
+
+---
+
+## Recent phase outcomes (most recent first)
 
 **Phase 19 outcome:** the pure-CL crypto/TLS foundation is in-tree + proven. Vendored (pinned, `.git`-
 stripped, auto-registered via the vendor/*/ scan) **ironclad** (all primitives — SBCL VOPs, zero foreign) +
@@ -65,10 +111,6 @@ hermetic HTTPS round-trip vs an in-process pure-tls server with the test CA; neg
 distinct errors; one live smoke (`fetch("https://registry.npmjs.org/left-pad")` → parseable JSON) logged.
 (The Phase-16 net-socket flakiness that surfaced during Phase 19 is FIXED — reactor-poll bad-fd recovery,
 above — so the socket gate is deterministic.)
-
----
-
-## Recent phase outcomes (most recent first)
 
 **Phase 18 outcome:** fetch + URL + a reactor HTTP client. Three layers. **`src/runtime/web-url.lisp`** — a
 WHATWG URL + URLSearchParams parser in CL: special schemes (http/https/ws/wss/ftp/file) with `//`authority +
@@ -864,6 +906,32 @@ _(nothing blocked)_
     tested; no UDP; unclassified socket errors report a generic code; the single-threaded-both-ends
     throughput figure is a test artifact (a real server drives one direction per thread).
 
+- **Phase 20 — HTTPS GATE MET + committed (2026-07-13).**
+  - **Gate:** hermetic HTTPS round-trip vs an in-process pure-tls server (net-level TLS transport,
+    deterministic); a verify-function matrix — expired / wrong-host / self-signed / bad-chain each fail
+    closed with a distinct error; a deterministic end-to-end fetch FAIL-CLOSED test; live smoke (logged):
+    `fetch("https://example.com/")` accepts under the system store, rejects under the test CA — verification
+    both ways against a real server (registry.npmjs.org substituted: pure-tls `protocol_version` interop
+    gap). `make build`/`test`(**1286 parachute + 42 TS + 74 JS**)/`test-tls`(10 suites / 342)/`test-crypto`
+    (24)/`purity`(**669 files**) green; `make conformance-exec` **22,643, 0 crashes, 0 regressions**.
+  - `pure-tls` added to the `clun` binary. HTTPS runs BLOCKING on the worker pool: `src/net/tls-client.lisp`
+    `https-request` (connect → pure-tls handshake + verify → serialize → read-EOF → response parse → gunzip);
+    `web-fetch` `%do-fetch` dispatches by scheme; abort/timeout close the worker socket. `workers.lisp` lazy
+    worker spawn (realm loop is :workers 0). Trust: `$SSL_CERT_FILE`/`$SSL_CERT_DIR` → system bundle.
+  - **SECURITY FIX (critical):** pure-tls's client verify SKIPS when no peer certificate is recorded (raced
+    to nil on the pure-tls↔pure-tls path) → a cert-auth BYPASS (a leaf not anchored in the trust store was
+    accepted). Patched `vendor/pure-tls/src/streams.lisp`: `+verify-required+` + null peer cert now FAILS
+    CLOSED. Verified the bypass rejects; real HTTPS unaffected; pure-tls's 10 suites still pass. A README
+    posture line claiming "always fails closed" (written while the bypass was known) was corrected — it is
+    now honest AND true.
+  - Adversarial review: the ultracode panel hung on a live fetch, so fail-closed (badssl.com expired/wrong-
+    host/self-signed/untrusted-root all reject; example.com+test-ca rejects) + §6 crash-safety (empty-host /
+    dead-port / plaintext-server → clean JS errors, no backtrace) + abort/timeout (AbortSignal.timeout
+    unblocks a stuck handshake) were verified BY HAND.
+  - Test CA: `scripts/gen-test-certs.sh` → checked-in PEMs (openssl is a build-time fixture tool, not a
+    runtime dep). DEFERRED: registry.npmjs.org handshake (pure-tls protocol_version — Phase 21 blocker for
+    the live npm smoke); blocking DNS; one worker per in-flight request; reactor-native TLS post-v1.
+
 - **Phase 19 — CRYPTO FOUNDATION GATE MET + committed (2026-07-13).**
   - **Gate:** all KATs pass (`make test-crypto` — 24 assertions, 6 groups, exit 0); pure-tls suites pass
     (`make test-tls` — 10 suites / 342 checks, exit 0); `make purity` clean over **667 files** (was 199).
@@ -1102,11 +1170,11 @@ Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-earl
 - [x] strip windows/macos verify files (+ dead non-SBCL foreign backends); run pure-tls crypto/record/handshake/cert(+trust-store/boringssl/x509/ml-dsa/cancel/security-regression) suites — `make test-tls`, 10 suites/342 checks; extend make purity (667 files); upstream patch-issue note in DECISIONS. node:url deprioritized. Ironclad os-prng routing for getRandomValues deferred (kept /dev/urandom)
 - **Gate MET:** KATs pass (`make test-crypto`); pure-tls suites pass (`make test-tls`, 10/342); `make purity` clean over 667 files; build/test(1271+42+74) green; exec 22,643, 0 crashes/regressions. Review 3/7 confirmed (all LOW). (Follow-up: the Phase-16 net-socket bad-fd flakiness that surfaced here is now FIXED — reactor-poll prunes closed-fd handlers.)
 
-### Phase 20 — HTTPS  (deps: 18, 19) ~1.5k LOC
-- [ ] TLS streams via worker pool (blocking gray-stream handshake/IO off JS thread)
-- [ ] trust store (system PEM, SSL_CERT_FILE/DIR overrides); hostname verification; pool keys gain TLS config
-- [ ] test CA + in-process pure-tls server fixtures; negative matrix; posture labeling (§3.4) in README + errors
-- **Gate:** hermetic HTTPS round-trip vs in-process server w/ test CA; negative tests fail closed w/ distinct errors; one live smoke logged.
+### Phase 20 — HTTPS  (deps: 18, 19) ~1.5k LOC — **DONE (gate MET)**
+- [x] TLS streams via the worker pool (blocking pure-tls handshake/IO off the JS thread) — src/net/tls-client.lisp `https-request`; web-fetch `%do-fetch` dispatches by scheme; abort/timeout close the worker socket; lazy worker spawn
+- [x] trust store (system PEM bundle probe, `$SSL_CERT_FILE`/`$SSL_CERT_DIR` overrides); hostname verification (pure-tls verify-hostname). **Security patch: `+verify-required+` + null peer cert now fails closed** (closed a cert-auth bypass). Pool keys gain TLS config → deferred with the pool
+- [x] test CA (`scripts/gen-test-certs.sh`) + in-process pure-tls server fixture; verify-function negative matrix + a deterministic fetch fail-closed test; posture labeling (§3.4) in README. `node:url`/pool deferred
+- **Gate MET:** hermetic transport round-trip + verify matrix + fetch-fails-closed; live smoke logged (example.com both ways; badssl.com negatives all reject). build/test(1286+42+74)/test-tls(10/342)/test-crypto(24)/purity(669) green; exec 22,643, 0 crashes/regressions. Fail-closed + §6 crash-safety + abort/timeout verified by hand (review panel hung on a live fetch). Gap: registry.npmjs.org pure-tls protocol_version.
 
 ### Phase 21 — Semver + registry client + local registry fixture  (deps: 00 semver; 18 client) ◇(semver) ~2.5k LOC ⚡(fixtures)
 - [ ] semver port (versions, prerelease precedence, ranges ^ ~ - || * x, includePrerelease) + node-semver fixture corpus at 100%

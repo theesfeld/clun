@@ -75,19 +75,40 @@ they describe a body that no longer exists (Content-Type/Length/Encoding/Languag
                        :test #'string=))
              headers))
 
+(defun %https-request-async (loop &key host port method path headers body host-header
+                                       timeout on-response on-error)
+  "HTTPS transport: net:https-request runs BLOCKING on the worker pool; its completion runs
+on the loop thread → ON-RESPONSE (an http-response) / ON-ERROR (a code string). Returns a
+cancel thunk that closes the worker's socket to unblock its read (abort/timeout). CA trust =
+$SSL_CERT_FILE / the system bundle (net's %system-ca-file). Certs always fail closed."
+  (let ((box (list nil))                 ; (car box) ← a socket-close thunk, set by the worker
+        (done nil))
+    (flet ((settle (thunk) (unless done (setf done t) (funcall thunk)))
+           (abort-socket () (when (car box) (funcall (car box)))))
+      (lp:worker-submit loop
+        (lambda () (net:https-request :host host :port port :method method :path path
+                                      :headers headers :body body :host-header host-header
+                                      :socket-box box))
+        (lambda (result)               ; loop thread
+          (settle (lambda ()
+                    (if (eq (car result) :ok)
+                        (funcall on-response (second result))
+                        (funcall on-error (net:tls-error-message (second result))))))))
+      (when (and timeout (plusp timeout))
+        (lp:set-timer loop timeout
+          (lambda () (unless done (abort-socket) (settle (lambda () (funcall on-error "timeout")))))))
+      (lambda () (unless done (abort-socket) (settle (lambda () (funcall on-error "abort"))))))))
+
 (defun %do-fetch (g info resolve reject hops)
   (let* ((url-str (getf info :url))
          (record (handler-case (%parse-url url-str)
                    (error () (return-from %do-fetch
                                (eng:js-call reject eng:+undefined+
                                             (list (%fetch-error g "TypeError" (format nil "Failed to parse URL: ~a" url-str)))))))))
-    (unless (member (ur-scheme record) '("http") :test #'string=)
+    (unless (member (ur-scheme record) '("http" "https") :test #'string=)
       (return-from %do-fetch
         (eng:js-call reject eng:+undefined+
-                     (list (%fetch-error g "TypeError"
-                                         (if (string= (ur-scheme record) "https")
-                                             "fetch: https is not supported yet (Phase 20)"
-                                             (format nil "fetch: unsupported scheme ~a" (ur-scheme record))))))))
+                     (list (%fetch-error g "TypeError" (format nil "fetch: unsupported scheme ~a" (ur-scheme record)))))))
     ;; a GET/HEAD request cannot carry a body (Fetch spec) — reject rather than send it.
     (when (and (member (getf info :method) '("GET" "HEAD") :test #'string=) (getf info :body))
       (return-from %do-fetch
@@ -95,59 +116,65 @@ they describe a body that no longer exists (Content-Type/Length/Encoding/Languag
                      (list (%fetch-error g "TypeError" "fetch: request with GET/HEAD method cannot have a body")))))
     (let* ((signal (getf info :signal))
            (loop (eng:current-loop))
-           (host (handler-case (net:resolve-hostname (ur-host record))
-                   (error () (return-from %do-fetch
-                               (eng:js-call reject eng:+undefined+
-                                            (list (%fetch-error g "TypeError" "fetch: could not resolve host")))))))
-           (port (or (ur-port record) 80))
-           ;; the Host: header is the ORIGIN authority (hostname + non-default port), NOT the
-           ;; dotted-quad we dial after DNS.
-           (host-header (if (ur-port record) (format nil "~a:~d" (ur-host record) (ur-port record)) (ur-host record)))
+           (https (string= (ur-scheme record) "https"))
+           (raw-host (ur-host record))
+           (port (or (ur-port record) (if https 443 80)))
+           ;; the Host: header is the ORIGIN authority (hostname + non-default port).
+           (host-header (if (ur-port record) (format nil "~a:~d" raw-host (ur-port record)) raw-host))
            (path (concatenate 'string (if (plusp (length (ur-path record))) (ur-path record) "/")
-                              (if (ur-query record) (concatenate 'string "?" (ur-query record)) ""))))
+                              (if (ur-query record) (concatenate 'string "?" (ur-query record)) "")))
+           ;; http dials a pre-resolved dotted-quad (blocking DNS on the loop, v1); https
+           ;; resolves on the worker inside net:https-request (no loop-thread DNS).
+           (dial-host (if https raw-host
+                          (handler-case (net:resolve-hostname raw-host)
+                            (error () (return-from %do-fetch
+                                        (eng:js-call reject eng:+undefined+
+                                          (list (%fetch-error g "TypeError" "fetch: could not resolve host")))))))))
       ;; already-aborted?
       (when (and signal (eng:js-truthy (eng:js-get signal "aborted")))
         (return-from %do-fetch
           (eng:js-call reject eng:+undefined+ (list (%abort-reason g signal)))))
-      (let ((cancel
-              (net:http-request-async loop :host host :port port :host-header host-header
-                :method (getf info :method) :path path :headers (getf info :headers) :body (getf info :body)
-                :timeout *fetch-connect-timeout-ms*
-                :on-response
-                (lambda (resp)
-                  (let ((loc (net:%header (net:hres-headers resp) "location"))
-                        (st (net:hres-status resp)))
-                    (cond
-                      ((and (%redirect-p st) loc (string= (getf info :redirect) "follow"))
-                       (if (>= hops 20)
-                           (eng:js-call reject eng:+undefined+
-                                        (list (%fetch-error g "TypeError" "fetch: too many redirects")))
-                           ;; resolve Location against the current URL and re-fetch
-                           (let ((next (handler-case (%serialize-url (%parse-url loc record)) (error () nil))))
-                             (if next
-                                 (let ((info2 (copy-list info)))
-                                   (setf (getf info2 :url) next)
-                                   (when (%redirect-to-get-p st (getf info :method))
-                                     (setf (getf info2 :method) "GET" (getf info2 :body) nil
-                                           (getf info2 :headers) (%strip-body-headers (getf info :headers))))
-                                   (%do-fetch g info2 resolve reject (1+ hops)))
-                                 (eng:js-call resolve eng:+undefined+ (list (%build-fetch-response g resp url-str)))))))
-                      ((and (%redirect-p st) (string= (getf info :redirect) "error"))
-                       (eng:js-call reject eng:+undefined+ (list (%fetch-error g "TypeError" "fetch: unexpected redirect"))))
-                      (t (eng:js-call resolve eng:+undefined+ (list (%build-fetch-response g resp url-str)))))))
-                :on-error
-                (lambda (code)
-                  (if (string= code "abort")
-                      (eng:js-call reject eng:+undefined+ (list (%abort-reason g signal)))
-                      (eng:js-call reject eng:+undefined+
-                                   (list (%fetch-error g "TypeError" (format nil "fetch failed: ~a" code)))))))))
-        ;; wire the AbortSignal → cancel the in-flight request
-        (when signal
-          (let ((add (eng:js-get signal "addEventListener")))
-            (when (eng:callable-p add)
-              (eng:js-call add signal
-                           (list "abort" (eng:make-native-function "" 0
-                                           (lambda (th a) (declare (ignore th a)) (funcall cancel) eng:+undefined+)))))))))))
+      (labels ((on-resp (resp)
+                 (let ((loc (net:%header (net:hres-headers resp) "location"))
+                       (st (net:hres-status resp)))
+                   (cond
+                     ((and (%redirect-p st) loc (string= (getf info :redirect) "follow"))
+                      (if (>= hops 20)
+                          (eng:js-call reject eng:+undefined+
+                                       (list (%fetch-error g "TypeError" "fetch: too many redirects")))
+                          ;; resolve Location against the current URL and re-fetch (scheme re-dispatched)
+                          (let ((next (handler-case (%serialize-url (%parse-url loc record)) (error () nil))))
+                            (if next
+                                (let ((info2 (copy-list info)))
+                                  (setf (getf info2 :url) next)
+                                  (when (%redirect-to-get-p st (getf info :method))
+                                    (setf (getf info2 :method) "GET" (getf info2 :body) nil
+                                          (getf info2 :headers) (%strip-body-headers (getf info :headers))))
+                                  (%do-fetch g info2 resolve reject (1+ hops)))
+                                (eng:js-call resolve eng:+undefined+ (list (%build-fetch-response g resp url-str)))))))
+                     ((and (%redirect-p st) (string= (getf info :redirect) "error"))
+                      (eng:js-call reject eng:+undefined+ (list (%fetch-error g "TypeError" "fetch: unexpected redirect"))))
+                     (t (eng:js-call resolve eng:+undefined+ (list (%build-fetch-response g resp url-str)))))))
+               (on-err (code)
+                 (if (string= code "abort")
+                     (eng:js-call reject eng:+undefined+ (list (%abort-reason g signal)))
+                     (eng:js-call reject eng:+undefined+
+                                  (list (%fetch-error g "TypeError" (format nil "fetch failed: ~a" code)))))))
+        (let ((cancel
+                (if https
+                    (%https-request-async loop :host raw-host :port port :host-header host-header
+                      :method (getf info :method) :path path :headers (getf info :headers) :body (getf info :body)
+                      :timeout *fetch-connect-timeout-ms* :on-response #'on-resp :on-error #'on-err)
+                    (net:http-request-async loop :host dial-host :port port :host-header host-header
+                      :method (getf info :method) :path path :headers (getf info :headers) :body (getf info :body)
+                      :timeout *fetch-connect-timeout-ms* :on-response #'on-resp :on-error #'on-err))))
+          ;; wire the AbortSignal → cancel the in-flight request
+          (when signal
+            (let ((add (eng:js-get signal "addEventListener")))
+              (when (eng:callable-p add)
+                (eng:js-call add signal
+                             (list "abort" (eng:make-native-function "" 0
+                                             (lambda (th a) (declare (ignore th a)) (funcall cancel) eng:+undefined+))))))))))))
 
 (defun %abort-reason (g signal)
   (let ((r (and signal (eng:js-get signal "reason"))))
