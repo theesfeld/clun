@@ -1,0 +1,10 @@
+bracket brackets ok true
+deep deep
+symlink deep true true
+enoent ENOENT
+eisdir EISDIR
+stat 11 true false true
+readdir true
+append brackets ok!
+rename false true
+rm false

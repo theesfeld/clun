@@ -1,0 +1,7 @@
+oob-read RangeError
+oob-write RangeError
+overlap 1,2,1,2,3
+concat-pad 1,2,3,0,0
+concat-trunc 1,2
+write-enc 2 Hi
+write-off-enc 0,72,105,0

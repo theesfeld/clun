@@ -778,3 +778,66 @@ A recurring root cause the panel surfaced: runtime code runs OUTSIDE the engine 
 must be tested with `eng:js-nan-p`/`eng:js-infinite-p`, never `=`/`/=` (which trap) — fixed in util,
 querystring, and the pre-existing Clun.sleep/sleepSync. Net: build/test(parachute + 42 TS + 53 JS)/
 purity(159) green; 0 crashes, 0 regressions.
+
+### 2026-07-13 — Phase 13: files (fs substrate + node:fs + Buffer)
+Three engine-free layers keep the Phase-07 discipline (nothing engine-aware below `src/runtime/`).
+**(1) `src/sys/fs.lisp`** grows a code-carrying condition `clun.sys:fs-error` (code/errno/syscall/path)
+and a `with-fs (syscall path)` macro that maps BOTH failure shapes SBCL produces — `sb-posix:syscall-error`
+(errno straight off the condition → POSIX name via a host-built `*errno-names*` table) and CL `file-error`
+(what `with-open-file`/`truename` signal, which carries no errno → `%raise-fs-file` PROBES the path with
+`path-exists-p`/`directory-p` to synthesize ENOENT/EISDIR/EACCES, then fills errno from the code via
+`%errno-of-name`). The condition + macro are placed ABOVE the first `with-fs` use (`read-file-string`)
+because a macro must be defined before it is expanded; the `%raise-*` functions the macro names are
+ordinary forward references. `read-file-string`/`read-file-octets` guard a directory target up front →
+EISDIR (opening a directory stream otherwise signals a non-`file-error`). Added mutating ops (mkdir/rmdir/
+rm-rf/rename/symlink/readlink/chmod/truncate/mkdtemp/access) + whole-file octet/string I/O + stat→fstat
+(second-granular ns = seconds*1e9). `make-directory` now returns the TOPMOST newly-created directory (or
+NIL) so `mkdirSync({recursive})` can return Node's first-created path.
+**(2) `node:buffer` — Buffer is a Uint8Array subclass**: an instance is a Phase-11 `js-typed-array` of
+`kind :uint8` whose `[[Prototype]]` chain is `Buffer.prototype` → `Uint8Array.prototype`, so integer
+indexing, `.length`, `.buffer`, and every TypedArray method are INHERITED — Buffer only adds Node's extra
+surface. It rides on five new `eng:` helpers (`make-u8-array`/`u8-from-octets`/`ta-octets`/`ta-subview`/
+`u8-over-arraybuffer`) so the engine owns the byte-vector/backing-store details. slice/subarray SHARE
+memory (ta-subview); copy is memmove (backward copy on same-backing forward overlap); concat allocates
+`totalLength` and leaves the tail zero-filled (or truncates); numeric read/write funnel through
+`%read-uint`/`%write-uint`, so a single `%num-bounds` guard (off<0 ∨ off+n>backing-len → RangeError)
+protects EVERY int/float/BigInt/variable-width accessor (floats via `sb-kernel` bit primitives,
+trap-masked). Encodings are hand-rolled (utf8 reuses the WTF-8 codec; own base64/base64url alphabets).
+**(3) `node:fs`** is a thin skin: 23 sync fns are `%op-*` (a fn of the JS args) wrapped ONCE by `%with-fs`;
+the SAME `%op-*` feed `%callbackify` (cb(err)/cb(null,res)) and `%promisify` (14 `fs/promises`), so the
+three call styles never diverge. The runtime maps `fs-error` → a JS `Error` with `.code`/`.errno`/
+`.syscall`/`.path`, where `.errno` is the NEGATIVE POSIX errno (`-(abs errno)` — Node/libuv convention on
+Linux) and the message is `"CODE: description, syscall 'path'"` with `description` from the shared
+`clun.sys:fs-code-message` (one table behind the condition `:report` AND the JS Error, so they can't drift).
+**(4) `Clun.file`/`Clun.write`** return real Promises (fs-error → rejected via `%fs-error->js`) over the
+same sys octet primitives. **Async posture:** all fs is Promise-over-synchronous for now — a real
+worker-pool offload (§5) is deferred until it demonstrably pays for itself; the API shape is already
+async-correct so the swap is internal. **Gate MET:** build/test(**1110 parachute + 42 TS + 58 JS**)/
+purity(**161 files**) green; exec **22,638**, 0 crashes, 0 regressions (the builtin-module hook is NIL/inert
+in bare test262 realms — the engine is behaviorally untouched). **Deliberate divergences
+(tests/conformance/fs-buffer-gaps.txt):** Buffer integer-write value MASKING (not ERR_OUT_OF_RANGE);
+negative/NaN numeric OFFSET clamps to 0 (over-END still throws); OOB numeric bound is checked against the
+backing store, not a slice's view length; no file-descriptor API / streams / watchers / Dir handles /
+recursive cp / chown / utimes / link; stat times second-granular.
+
+### 2026-07-13 — Phase 13 review panel (find→verify-by-running-the-binary)
+The panel's dominant class was again crash-safety: a raw Lisp backtrace reaching a JS user violates §6.
+Confirmed + fixed, each re-verified by running `build/clun`: **Buffer.from(ArrayBuffer)** built a fresh
+copy AND could crash → now a shared view via `eng:u8-over-arraybuffer`; **OOB numeric read/write** aborted
+the process with a raw `SUBSCRIPT-OUT-OF-BOUNDS` → now a catchable `RangeError [ERR_OUT_OF_RANGE]` for
+EVERY accessor (the fix is one `%num-bounds` in the two shared primitives `%read-uint`/`%write-uint` that
+all int/float/BigInt/variable-width readers route through; `%write-f64` also guards its full 8 bytes up
+front so a boundary offset can't partial-write across its two halves). An adversarial probe (negative/NaN/
+Inf offsets, an 8-byte read on a 4-byte buffer, a byteLength that overruns) produced 0 raw backtraces after
+the fix. **Buffer.copy** used a forward loop → memmove (backward copy on same-backing forward overlap) so a
+self-overlapping copy no longer corrupts. **Clun.file.text()** crashed on a missing file because
+`read-file-string` was not wrapped → it now signals `fs-error` at the sys layer (mapped to a rejected
+Promise). **Clun.write(ArrayBuffer)** now writes the buffer bytes. Correctness (silent-mismatch) fixes:
+**Buffer.concat(list, total)** zero-pads the tail when `total` exceeds the sum (was clamping to the sum);
+**buf.write(str, encoding)** — the 2-arg form whose second arg is the encoding — was misparsed as an
+offset; **mkdirSync({recursive})** returns the topmost created dir (or undefined if it existed / was
+non-recursive); **accessSync** honours its mode argument; the fs Error message gained Node's
+`"description, "` clause and `.errno` became the negative libuv value. Deliberate divergences left as
+documented gaps (never crashes / silent-garbage): integer-write value masking, negative/NaN-offset
+clamping, backing-vs-view OOB bound (see fs-buffer-gaps.txt). Regression-locked by the new
+tests/js/node/{bufedge,fsedge} fixtures. Net: build/test/purity green; 0 crashes, 0 regressions.

@@ -1,0 +1,7 @@
+msg true
+code-errno ENOENT -2
+mkdir-ret true
+mkdir-exists undefined
+mkdir-nonrec undefined
+access-fok ok
+access-enoent ENOENT

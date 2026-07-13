@@ -6,7 +6,14 @@
 (defun install-globals (realm)
   (let ((eng:*realm* realm) (g (eng:realm-global realm)))
     (install-structured-clone g)
-    (install-crypto g)))
+    (install-crypto g)
+    (install-buffer-global g)))
+
+(defun install-buffer-global (g)
+  "Expose the node:buffer Buffer constructor as the `Buffer` global (Node has it always).
+🟡 minor divergence: this instance is not eq to require('buffer').Buffer (both identical)."
+  (let ((buf (eng:js-get (build-node-buffer) "Buffer")))
+    (when (eng:js-object-p buf) (eng:data-prop g "Buffer" buf))))
 
 ;;; --- structuredClone (JSON-grade deep clone) -------------------------------
 

@@ -5,7 +5,49 @@ Update before every commit. Seeded from PLAN.md §5.
 
 ---
 
-## Current phase: **13 — Files: fs substrate + node:fs + Buffer**  (Phase 12 committed; node-compat wave 1 gate MET)
+## Current phase: **14 — Async product wave**  (Phase 13 committed; files gate MET)
+
+**Phase 13 outcome:** files. Three engine-free layers below the runtime boundary (Phase-07 discipline).
+`src/sys/fs.lisp` gains a code-carrying `clun.sys:fs-error` (code/errno/syscall/path) + a `with-fs
+(syscall path)` macro mapping BOTH `sb-posix:syscall-error` (errno straight off) and CL `file-error`
+(probes the path → ENOENT/EISDIR/EACCES, fills errno from the code) → the condition; the macro + condition
+sit ABOVE the first use so the macro compiles. Added: mutating ops (mkdir/rmdir/rm-rf/rename/symlink/
+readlink/chmod/truncate/mkdtemp/access), octet + string whole-file I/O (directory-guarded → EISDIR),
+stat→fstat (second-granular ns). **`node:buffer` = a Uint8Array subclass** (`src/runtime/node/buffer.lisp`):
+a Phase-11 `:uint8` typed-array whose proto chain is Buffer.prototype→Uint8Array.prototype (indexing/
+.length/TA-methods inherit) over new engine helpers (`u8-from-octets`/`ta-octets`/`ta-subview`/
+`u8-over-arraybuffer`); alloc/from(str|array|ArrayBuffer|Buffer)/concat(zero-pad|truncate)/compare/
+copy(memmove backward-overlap)/fill/indexOf/slice+subarray(SHARED memory)/toString+write(utf8/hex/base64/
+base64url/latin1/ascii/ucs2, incl. the 2-arg `write(str,enc)` form); numeric read/write funnel through
+`%read-uint`/`%write-uint` so ONE `%num-bounds` guard → catchable RangeError on OOB for every int/float/
+BigInt/variable-width accessor (floats via sb-kernel float bits, trap-masked). `node:fs`
+(`src/runtime/node/fs.lisp`): 23 sync fns as `%op-*` wrapped by `%with-fs`, the SAME ops feeding
+`%callbackify` + `%promisify` (14 `fs/promises`) for free; Stats/Dirent/constants; mkdirSync({recursive})
+returns the topmost created dir; `.errno` NEGATIVE (libuv/Linux); message `CODE: description, syscall
+'path'` via a shared `clun.sys:fs-code-message`. `Clun.file`/`Clun.write` (lazy text/json/arrayBuffer/
+bytes/exists; string|TypedArray|ArrayBuffer sinks) return real Promises (fs-error → rejected). **Gate MET:**
+tests/js/node fixtures (buffer KAT + bufedge OOB/overlap/pad/encoding + fsops bracket-paths/symlink-chains/
+ENOENT/EISDIR + fsedge errno/message/mkdir-return/access + clunfile lazy) green; `make build`/`test`
+(**1110 parachute + 42 TS + 58 JS**)/`purity`(**161 files**) green; parse 17,512 / exec **22,638** (0 crashes,
+0 regressions — the builtin-module hook is NIL/inert in bare test262 realms). Adversarial review panel
+(find→**verify-by-running-the-binary**): crash-safety dominated (raw Lisp backtraces reaching JS) —
+Buffer.from(ArrayBuffer) view+OOB crash, OOB numeric read/write across ALL accessors (verified by an
+adversarial probe: neg/NaN/Inf offsets, 8-byte read on a 4-byte buf, byteLength overrun), copy
+backward-overlap corruption, Clun.file.text() missing-file crash (read-file-string now signals fs-error),
+Clun.write(ArrayBuffer); + correctness (concat zero-pad, write 2-arg encoding, mkdir-recursive return,
+accessSync mode, error message shape + negative errno). Deliberate divergences
+(tests/conformance/fs-buffer-gaps.txt): integer-write value masking, negative/NaN-offset clamping,
+view-vs-backing OOB bound; no fds/streams/watchers/Dir/chown/utimes; second-granular stat times.
+
+**Next action:** Begin Phase 14 (Async product wave, deps 06 ✓, 12 ✓, 13 ✓): timers globals + Timer
+ref/unref real loop accounting + node:timers + timers/promises; process.nextTick dedicated queue wiring;
+events.once + captureRejections; assert.rejects/doesNotReject; Clun.sleep/sleepSync; queueMicrotask;
+AbortController/AbortSignal. Gate: extended ordering corpus (nextTick vs microtask vs timer vs immediate)
+exact-output; unref'd-timer exit test; abort fixtures.
+
+---
+
+## Recent phase outcomes (most recent first)
 
 **Phase 12 outcome:** the engine-light node stdlib floor. Node builtins resolve via an engine hook
 `*builtin-module-builder*` (NIL in bare test262 realms → inert there) that the runtime installs; a
@@ -26,17 +68,6 @@ once-removal-by-identity + emit('error') no-arg + prependListener newListener, a
 throws-class-validation + AssertionError, structuredClone Date/DataCloneError, path extname/format, and a
 class of outside-the-float-mask NaN checks (`js-nan-p`, never `=`). The 5 non-reference modules were authored
 by a parallel write-only subagent fan-out and integrated in one build.
-
-**Next action:** Begin Phase 13 (Files: fs substrate + node:fs + Buffer, deps 11 ✓, 12 ✓; loop 05 ✓ for async):
-`src/sys` fs layer (path discipline, errno→.code/.errno/.syscall/.path, worker-pool async); node:buffer
-(Buffer extends Uint8Array; alloc/from/concat/compare/copy/fill/indexOf/subarray/toString+write with utf8/
-ascii/latin1/hex/base64/base64url/utf16le; numeric read/write); node:fs sync core (23 fns) + fs/promises (14) +
-callback shims; Stats/Dirent/constants; Clun.file/Clun.write. Gate: ~60-case fs conformance incl bracket paths,
-symlink chains, ENOENT; Buffer KAT vectors; Clun.file lazy fixtures.
-
----
-
-## Recent phase outcomes (most recent first)
 
 **Phase 11 outcome:** BigInt + binary data. **BigInt is a plain CL integer** (`js-bigint-p` =
 `integerp` — no engine value is ever a raw integer otherwise, so it's an unambiguous value-domain
@@ -490,6 +521,33 @@ _(nothing blocked)_
     Number); pathToFileURL → string (URL object is Phase 18); util.promisify.custom, once-fire/removeAll
     `removeListener` emissions, full `instanceof assert.AssertionError`; full ironclad + KATs → Phase 19.
 
+- **Phase 13 — FILES GATE MET + committed (2026-07-13).**
+  - `make build` clean; `make test` = **1110 parachute + 42 tests/ts + 58 tests/js** (0 failed);
+    `make purity` clean (**161 files**); `make conformance` parse **17,512**; `make conformance-exec`
+    over 40,654 files: **pass 22,638**, **0 crashes**, **0 regressions** (node builtins inert in bare realms).
+  - **Gate:** tests/js/node fixtures green — buffer (KAT: alloc/from/encodings/concat/compare/indexOf/
+    numeric round-trips/slice-shares-memory/fill/toJSON), bufedge (OOB→RangeError, copy memmove overlap,
+    concat zero-pad + truncate, write 2-arg + 3-arg encoding), fsops (bracket paths, deep recursive mkdir,
+    symlink chain, ENOENT/EISDIR codes, stat, readdir, append, rename, rm -rf), fsedge (message shape +
+    negative errno, mkdir-recursive topmost-return + already-exists/non-recursive undefined, accessSync
+    mode), clunfile (lazy text/bytes/exists + size getter + write).
+  - Three engine-free layers (Phase-07 discipline): `src/sys/fs.lisp` (+`fs-error` condition, errno table,
+    `with-fs` mapping syscall-error + file-error, mutating ops, octet/string I/O, stat→fstat) →
+    `src/runtime/node/buffer.lisp` (Buffer = Uint8Array subclass over Phase-11 typed-arrays; encodings;
+    numeric read/write with one `%num-bounds` guard) → `src/runtime/node/fs.lisp` (`%op-*` × `%with-fs`/
+    `%callbackify`/`%promisify`; Stats/Dirent/constants) + `Clun.file`/`Clun.write` (real Promises).
+  - Adversarial review panel (find→**verify-by-running-the-binary**): crash-safety dominated (raw Lisp
+    backtraces violating §6) — Buffer.from(ArrayBuffer) view + OOB crash; OOB numeric read/write across ALL
+    accessors (int/float/BigInt/variable-width) → catchable RangeError (adversarial probe: neg/NaN/Inf
+    offsets, over-read past backing, byteLength overrun — 0 raw backtraces); copy backward-overlap
+    corruption (memmove); Clun.file.text() missing-file crash (read-file-string → fs-error); Clun.write(
+    ArrayBuffer). Correctness: concat zero-pad, write(str,enc) 2-arg form, mkdirSync-recursive topmost
+    return, accessSync mode arg, "CODE: description, syscall 'path'" message + negative libuv errno.
+  - DEFERRED 🟡 (tests/conformance/fs-buffer-gaps.txt): Buffer integer-write value masking (not
+    ERR_OUT_OF_RANGE), negative/NaN-offset clamps to 0, OOB numeric bound is backing-vs-view; no file
+    descriptors / streams / watchers / Dir handles / recursive cp / chown / utimes / link; stat times
+    second-granular; async is Promise-over-sync (real worker-pool offload deferred).
+
 ## Phases
 
 Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-early.
@@ -601,12 +659,12 @@ Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-earl
 - [x] crypto.randomUUID/getRandomValues via pure /dev/urandom (clun.sys:os-random-bytes + engine crypto-fill-random); full ironclad → Phase 19 (logged)
 - **Gate MET:** per-module fixtures (tests/js/node/*) green; build/test(parachute + 42 TS + 53 JS)/purity(159) ✓; parse 17,512 / exec 22,638, 0 crashes, 0 regressions. Fan-out: 5 modules by parallel write-only subagents. Review panel 25/26 confirmed + fixed.
 
-### Phase 13 — Files: fs substrate + node:fs + Buffer surface  (deps: 11, 12; loop 05 for async) ~4.5k LOC
-- [ ] src/sys fs layer (path discipline, errno→.code/.errno/.syscall/.path, worker-pool async)
-- [ ] node:buffer (Buffer extends Uint8Array; alloc/from/concat/compare/copy/fill/indexOf/subarray/toString+write; numeric read/write)
-- [ ] node:fs sync core (23 fns), fs/promises (14), callback shims; Stats/Dirent/constants
-- [ ] Clun.file/Clun.write (lazy file, createPath default); mkdtemp/tmp helpers
-- **Gate:** ~60-case fs conformance incl. bracket paths, symlink chains, ENOENT; Buffer KAT vectors; Clun.file lazy fixtures.
+### Phase 13 — Files: fs substrate + node:fs + Buffer surface  (deps: 11, 12; loop 05 for async) ~4.5k LOC — **DONE (gate MET)**
+- [x] src/sys fs layer (path discipline, errno→.code/.errno/.syscall/.path; `with-fs` maps syscall-error + file-error; async = Promise-over-sync, worker-pool deferred)
+- [x] node:buffer (Buffer extends Uint8Array; alloc/from/concat/compare/copy(memmove)/fill/indexOf/subarray(shared)/toString+write; numeric read/write with one OOB→RangeError guard)
+- [x] node:fs sync core (23 fns), fs/promises (14), callback shims; Stats/Dirent/constants
+- [x] Clun.file/Clun.write (lazy file text/json/arrayBuffer/bytes/exists; string|TypedArray|ArrayBuffer sinks); mkdtemp/tmp helpers
+- **Gate MET:** tests/js/node fixtures (buffer/bufedge/fsops/fsedge/clunfile) green — bracket paths, symlink chains, ENOENT/EISDIR, Buffer KAT + OOB/overlap/pad/encoding, Clun.file lazy; build/test(1110+42+58)/purity(161) ✓; exec 22,638, 0 crashes/regressions; deliberate gaps in tests/conformance/fs-buffer-gaps.txt.
 
 ### Phase 14 — Async product wave  (deps: 06, 12, 13) ~1.5k LOC
 - [ ] timers globals + Timer ref/unref real loop accounting + node:timers + timers/promises

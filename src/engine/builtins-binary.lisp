@@ -624,6 +624,43 @@ exhausting the heap (test262 ArrayBuffer/allocation-limit allocates PiB-scale)."
     (%make-js-typed-array :proto (intrinsic :uint8-prototype) :class :typed-array
                           :abuffer buf :kind :uint8 :byte-offset 0 :array-length len)))
 
+;;; --- Buffer support (Phase 13): a Uint8Array over a fresh buffer with a chosen proto,
+;;; and direct octet access — so node:buffer builds Buffers as Uint8Array subclass instances.
+
+(defun make-u8-array (length &optional proto)
+  "A fresh zero-filled Uint8Array-kind typed array of LENGTH, with [[Prototype]] PROTO
+(default Uint8Array.prototype). node:buffer passes Buffer.prototype."
+  (%make-js-typed-array :proto (or proto (intrinsic :uint8-prototype)) :class :typed-array
+                        :abuffer (make-array-buffer length) :kind :uint8
+                        :byte-offset 0 :array-length length))
+
+(defun u8-from-octets (octets &optional proto)
+  "A Uint8Array (proto PROTO) holding a COPY of OCTETS (a byte vector or list)."
+  (let* ((v (coerce octets '(simple-array (unsigned-byte 8) (*))))
+         (ta (make-u8-array (length v) proto)))
+    (replace (ta-bytes ta) v)
+    ta))
+
+(defun ta-octets (ta)
+  "For a (Uint8Array) typed array: (values BACKING-BYTE-VECTOR BYTE-OFFSET LENGTH). node:buffer
+reads/writes the backing vector directly for its byte and numeric accessors."
+  (values (ta-bytes ta) (js-typed-array-byte-offset ta) (ta-length ta)))
+
+(defun u8-over-arraybuffer (ab &optional (byte-offset 0) length proto)
+  "A Uint8Array over the EXISTING ArrayBuffer AB (SHARES its memory) — Buffer.from(ArrayBuffer)."
+  (let ((blen (length (or (js-array-buffer-bytes ab) #()))))
+    (%make-js-typed-array :proto (or proto (intrinsic :uint8-prototype)) :class :typed-array
+                          :abuffer ab :kind :uint8 :byte-offset byte-offset
+                          :array-length (or length (max 0 (- blen byte-offset))))))
+
+(defun ta-subview (ta start end &optional proto)
+  "A Uint8Array over the SAME backing buffer as TA spanning [START,END) — SHARES memory
+(Buffer.slice/subarray). PROTO defaults to Uint8Array.prototype; node:buffer passes Buffer.prototype."
+  (%make-js-typed-array :proto (or proto (intrinsic :uint8-prototype)) :class :typed-array
+                        :abuffer (js-typed-array-abuffer ta) :kind :uint8
+                        :byte-offset (+ (js-typed-array-byte-offset ta) (max 0 start))
+                        :array-length (max 0 (- end start))))
+
 (defun %source-bytes (v)
   "Extract the underlying (unsigned-byte 8) bytes from a TypedArray/DataView/ArrayBuffer."
   (cond

@@ -40,8 +40,80 @@
       (lambda (this args) (declare (ignore this)) (%file-url-to-path (eng:to-string (eng:arg args 0)))))
     (eng:install-method clun "pathToFileURL" 1
       (lambda (this args) (declare (ignore this)) (%path-to-file-url (eng:to-string (eng:arg args 0)))))
+    (eng:install-method clun "file" 1
+      (lambda (this args) (declare (ignore this)) (%clun-file g (eng:to-string (eng:arg args 0)))))
+    (eng:install-method clun "write" 2
+      (lambda (this args) (declare (ignore this)) (%clun-write g (eng:arg args 0) (eng:arg args 1))))
     (eng:hidden-prop g "Clun" clun)
     clun))
+
+;;; --- Clun.file / Clun.write (lazy file I/O; Bun-shaped, buffered) ------------
+
+(defun %resolved-promise (g value)
+  (eng:js-construct (eng:js-get g "Promise")
+    (list (eng:make-native-function "" 2
+            (lambda (this a) (declare (ignore this)) (eng:js-call (eng:arg a 0) eng:+undefined+ (list value)) eng:+undefined+)))))
+(defun %rejected-promise (g err)
+  (eng:js-construct (eng:js-get g "Promise")
+    (list (eng:make-native-function "" 2
+            (lambda (this a) (declare (ignore this)) (eng:js-call (eng:arg a 1) eng:+undefined+ (list err)) eng:+undefined+)))))
+
+(defmacro %async ((g) &body body)
+  "Run BODY; a fs-error -> a rejected Promise (JS Error w/ .code), else a Promise of the value."
+  (let ((gg (gensym)) (e (gensym)))
+    `(let ((,gg ,g))
+       (handler-case (%resolved-promise ,gg (progn ,@body))
+         (clun.sys:fs-error (,e) (%rejected-promise ,gg (%fs-error->js ,gg ,e)))))))
+
+(defun %fs-error->js (g e)
+  (let* ((code (clun.sys:fs-error-code e))
+         (err (eng:js-construct (eng:js-get g "Error")
+                                (list (format nil "~a: ~a, ~a '~a'" code (clun.sys:fs-code-message code)
+                                              (clun.sys:fs-error-syscall e) (clun.sys:fs-error-path e))))))
+    (eng:js-set err "code" code nil)
+    (eng:js-set err "errno" (coerce (- (abs (clun.sys:fs-error-errno e))) 'double-float) nil)
+    (eng:js-set err "syscall" (clun.sys:fs-error-syscall e) nil)
+    (eng:js-set err "path" (clun.sys:fs-error-path e) nil)
+    err))
+
+(defun %clun-file (g path)
+  "A lazy BunFile: text()/json()/arrayBuffer()/bytes()/exists() (Promises), name, size getter."
+  (let ((o (eng:new-object)))
+    (eng:data-prop o "name" path)
+    (eng:install-getter o "size"
+      (lambda (this args) (declare (ignore this args))
+        (coerce (let ((st (ignore-errors (clun.sys:stat* path)))) (if st (clun.sys:fstat-size st) 0)) 'double-float)))
+    (eng:install-method o "exists" 0
+      (lambda (this args) (declare (ignore this args)) (%resolved-promise g (eng:js-boolean (clun.sys:file-p path)))))
+    (eng:install-method o "text" 0
+      (lambda (this args) (declare (ignore this args))
+        (%async (g) (clun.sys:read-file-string path))))
+    (eng:install-method o "bytes" 0
+      (lambda (this args) (declare (ignore this args))
+        (%async (g) (%buffer-uint8 (clun.sys:read-file-octets path)))))
+    (eng:install-method o "arrayBuffer" 0
+      (lambda (this args) (declare (ignore this args))
+        (%async (g) (eng:js-get (%buffer-uint8 (clun.sys:read-file-octets path)) "buffer"))))
+    (eng:install-method o "json" 0
+      (lambda (this args) (declare (ignore this args))
+        (%async (g) (let ((json (eng:js-get g "JSON")))
+                      (eng:js-call (eng:js-get json "parse") json (list (clun.sys:read-file-string path)))))))
+    o))
+
+(defun %buffer-uint8 (octets)
+  "A Uint8Array over a COPY of OCTETS (Clun.file returns Uint8Array, not Buffer)."
+  (eng:u8-from-octets octets))
+
+(defun %clun-write (g dest data)
+  "Write DATA (string / Buffer / Uint8Array / ArrayBuffer) to DEST (a path or a Clun.file)."
+  (%async (g)
+    (let* ((path (if (eng:js-object-p dest) (eng:to-string (eng:js-get dest "name")) (eng:to-string dest)))
+           (octets (cond ((eng:js-typed-array-p data)
+                          (multiple-value-bind (v o l) (eng:ta-octets data) (subseq v o (+ o l))))
+                         ((eng:js-array-buffer-p data)
+                          (copy-seq (eng:js-array-buffer-bytes data)))
+                         (t (eng:code-units->utf8 (eng:to-string data))))))
+      (coerce (clun.sys:write-file-octets path octets) 'double-float))))
 
 (defun %clun-sleep (g ms)
   "A Promise that resolves (undefined) after MS via the global setTimeout."

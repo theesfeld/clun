@@ -130,7 +130,9 @@
                                                          (:file "querystring")
                                                          (:file "util")
                                                          (:file "events")
-                                                         (:file "assert")))))
+                                                         (:file "assert")
+                                                         (:file "buffer")
+                                                         (:file "fs")))))
                              ;; CLI (Phase 08): arg parsing, .env, dispatch.
                              (:module "cli"
                               :serial t

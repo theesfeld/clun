@@ -40,16 +40,84 @@ signals FILE-ERROR there — we swallow it rather than crash the loader)."
     (file-error () nil)
     (sb-posix:syscall-error () nil)))
 
+;;; --- fs error mapping (Phase 13): sb-posix errno -> a code-carrying condition -----
+;;; Defined before the first with-fs use (read-file-string) so the macro is available
+;;; at compile time; the %raise-* functions it names are forward references (fine).
+
+(define-condition fs-error (error)
+  ((code :initarg :code :reader fs-error-code)         ; "ENOENT" etc.
+   (errno :initarg :errno :reader fs-error-errno)      ; integer
+   (syscall :initarg :syscall :reader fs-error-syscall)
+   (path :initarg :path :reader fs-error-path))
+  (:report (lambda (c s) (format s "~a: ~a, ~a '~a'"
+                                 (fs-error-code c) (fs-code-message (fs-error-code c))
+                                 (fs-error-syscall c) (fs-error-path c)))))
+
+(defparameter *errno-names*
+  ;; errno integer -> POSIX name, built from the sb-posix constants present on this host.
+  (let ((tbl (make-hash-table)))
+    (dolist (name '("EPERM" "ENOENT" "ESRCH" "EINTR" "EIO" "EBADF" "EAGAIN" "ENOMEM"
+                    "EACCES" "EFAULT" "EBUSY" "EEXIST" "EXDEV" "ENODEV" "ENOTDIR"
+                    "EISDIR" "EINVAL" "ENFILE" "EMFILE" "ENOTTY" "EFBIG" "ENOSPC"
+                    "ESPIPE" "EROFS" "EMLINK" "EPIPE" "ENAMETOOLONG" "ENOTEMPTY"
+                    "ELOOP" "EOVERFLOW"))
+      (let ((sym (find-symbol name :sb-posix)))
+        (when (and sym (boundp sym)) (setf (gethash (symbol-value sym) tbl) name))))
+    tbl))
+
+(defun %errno-name (n) (or (gethash n *errno-names*) (format nil "E~a" n)))
+(defun %errno-of-name (code)
+  "The POSIX errno integer for a code name (\"ENOENT\" -> 2), or 0 if unknown on this host."
+  (let ((sym (find-symbol code :sb-posix)))
+    (if (and sym (boundp sym)) (symbol-value sym) 0)))
+(defun fs-code-message (code)
+  "The human description Node embeds in an fs error message, keyed by CODE — so both
+the condition :report and the runtime's JS Error share one table."
+  (or (cdr (assoc code '(("ENOENT" . "no such file or directory") ("EEXIST" . "file already exists")
+                         ("EACCES" . "permission denied") ("ENOTDIR" . "not a directory")
+                         ("EISDIR" . "illegal operation on a directory") ("ENOTEMPTY" . "directory not empty")
+                         ("EPERM" . "operation not permitted") ("ELOOP" . "too many symbolic links encountered")
+                         ("EINVAL" . "invalid argument"))
+                 :test #'string=))
+      "I/O error"))
+(defun %errno-message (n) (fs-code-message (%errno-name n)))
+
+(defun %raise-fs (syscall path sb-err)
+  (let ((errno (ignore-errors (sb-posix:syscall-errno sb-err))))
+    (error 'fs-error :code (%errno-name (or errno 0)) :errno (or errno 0)
+                     :syscall syscall :path path)))
+
+(defun %raise-fs-file (syscall path)
+  "Map a CL file-error (open on a missing/dir/unreadable path) to an errno code by probing.
+Fill errno from the code so callers can report Node's negative libuv errno (-errno)."
+  (let ((code (cond ((not (path-exists-p path)) "ENOENT")
+                    ((directory-p path) "EISDIR")
+                    (t "EACCES"))))
+    (error 'fs-error :errno (%errno-of-name code) :syscall syscall :path path :code code)))
+
+(defmacro with-fs ((syscall path) &body body)
+  "Run BODY; map sb-posix:syscall-error (errno) or a CL file-error to an fs-error."
+  (let ((sc (gensym)) (p (gensym)) (e (gensym)))
+    `(let ((,sc ,syscall) (,p ,path))
+       (handler-case (progn ,@body)
+         (sb-posix:syscall-error (,e) (%raise-fs ,sc ,p ,e))
+         (file-error (,e) (declare (ignore ,e)) (%raise-fs-file ,sc ,p))))))
+
 (defun read-file-string (path &key (external-format :utf-8))
-  "Read PATH fully into a string. Signals FILE-ERROR if it can't be opened."
-  (with-open-file (in (native->pathname path)
-                      :direction :input
-                      :external-format external-format
-                      :element-type 'character)
-    (let ((buf (make-string (file-length in))))
-      ;; file-length is byte count; UTF-8 may shrink it — use the fill pointer.
-      (let ((n (read-sequence buf in)))
-        (subseq buf 0 n)))))
+  "Read PATH fully into a string. Signals fs-error (ENOENT/EISDIR/EACCES) if it
+can't be opened, so callers above the engine boundary get a catchable JS error
+rather than a raw Lisp backtrace (§6)."
+  (when (directory-p path)
+    (error 'fs-error :code "EISDIR" :errno (%errno-of-name "EISDIR") :syscall "read" :path path))
+  (with-fs ("open" path)
+    (with-open-file (in (native->pathname path)
+                        :direction :input
+                        :external-format external-format
+                        :element-type 'character)
+      (let ((buf (make-string (file-length in))))
+        ;; file-length is byte count; UTF-8 may shrink it — use the fill pointer.
+        (let ((n (read-sequence buf in)))
+          (subseq buf 0 n))))))
 
 (defun read-directory (path)
   "The entry names in directory PATH (files + subdirs, no `.`/`..`), as strings;
@@ -73,3 +141,96 @@ dirent whose low-level accessors are unsafe here and barred by the purity gate).
         (nconc
          (mapcar (lambda (f) (leaf (pathname->native f))) (uiop:directory-files dir))
          (mapcar (lambda (d) (leaf (pathname->native d))) (uiop:subdirectories dir)))))))
+
+;;; --- stat ------------------------------------------------------------------
+
+(defstruct (fstat (:conc-name fstat-))
+  dev ino mode nlink uid gid rdev size
+  atime-ns mtime-ns ctime-ns)          ; nanosecond-scaled ints (seconds*1e9; §3.2 sec granularity)
+
+(defun %stat->fstat (s)
+  (flet ((acc (name) (let ((sym (find-symbol name :sb-posix)))
+                       (if (and sym (fboundp sym)) (funcall sym s) 0)))
+         (sec-ns (v) (* (truncate v) 1000000000)))
+    (make-fstat :dev (acc "STAT-DEV") :ino (acc "STAT-INO") :mode (acc "STAT-MODE")
+                :nlink (acc "STAT-NLINK") :uid (acc "STAT-UID") :gid (acc "STAT-GID")
+                :rdev (acc "STAT-RDEV") :size (acc "STAT-SIZE")
+                :atime-ns (sec-ns (acc "STAT-ATIME")) :mtime-ns (sec-ns (acc "STAT-MTIME"))
+                :ctime-ns (sec-ns (acc "STAT-CTIME")))))
+
+(defun stat* (path &key lstat)
+  "stat (or lstat) PATH -> an fstat; signals fs-error on failure."
+  (with-fs ((if lstat "lstat" "stat") path)
+    (%stat->fstat (funcall (if lstat #'sb-posix:lstat #'sb-posix:stat) (native->pathname path)))))
+
+(defun fstat-file-p (st) (= (logand (fstat-mode st) +s-ifmt+) +s-ifreg+))
+(defun fstat-dir-p (st) (= (logand (fstat-mode st) +s-ifmt+) +s-ifdir+))
+(defconstant +s-iflnk+ #o120000)
+(defun fstat-symlink-p (st) (= (logand (fstat-mode st) +s-ifmt+) +s-iflnk+))
+
+;;; --- mutating ops ----------------------------------------------------------
+
+(defun make-directory (path &key recursive (mode #o777))
+  "Create PATH. With :recursive, create missing ancestors too and return the TOPMOST
+newly-created directory (Node's mkdirSync recursive return), or NIL if nothing was
+created. Non-recursive returns NIL (Node returns undefined there)."
+  (if recursive
+      (let ((parent (path-dirname path)))
+        (cond
+          ((path-exists-p path) nil)
+          (t (let ((ancestor
+                     (when (and (plusp (length parent)) (not (string= parent path))
+                                (not (path-exists-p parent)))
+                       (make-directory parent :recursive t :mode mode))))
+               (with-fs ("mkdir" path) (sb-posix:mkdir (native->pathname path) mode))
+               (or ancestor path)))))
+      (progn (with-fs ("mkdir" path) (sb-posix:mkdir (native->pathname path) mode)) nil)))
+
+(defun remove-directory (path) (with-fs ("rmdir" path) (sb-posix:rmdir (native->pathname path))))
+(defun remove-file (path) (with-fs ("unlink" path) (sb-posix:unlink (native->pathname path))))
+(defun rename-path (old new)
+  (with-fs ("rename" old) (sb-posix:rename (native->pathname old) (native->pathname new))))
+(defun make-symlink (target linkpath)
+  (with-fs ("symlink" linkpath) (sb-posix:symlink (native->pathname target) (native->pathname linkpath))))
+(defun read-symlink (path) (with-fs ("readlink" path) (sb-posix:readlink (native->pathname path))))
+(defun change-mode (path mode) (with-fs ("chmod" path) (sb-posix:chmod (native->pathname path) mode)))
+(defun truncate-file (path len) (with-fs ("truncate" path) (sb-posix:truncate (native->pathname path) len)))
+(defun make-temp-dir (prefix)
+  "mkdtemp: PREFIX + 'XXXXXX' -> a created unique dir path (POSIX string)."
+  (with-fs ("mkdtemp" prefix)
+    (pathname->native (sb-posix:mkdtemp (concatenate 'string prefix "XXXXXX")))))
+
+(defun check-access (path &optional (mode 0))
+  (with-fs ("access" path) (sb-posix:access (native->pathname path) mode)) t)
+
+(defun remove-recursive (path)
+  "rm -rf PATH (best-effort, follows the tree via lstat so symlinks aren't descended)."
+  (let ((st (ignore-errors (stat* path :lstat t))))
+    (cond ((null st) nil)
+          ((fstat-dir-p st)
+           (dolist (e (read-directory path)) (remove-recursive (path-join path e)))
+           (remove-directory path))
+          (t (remove-file path)))))
+
+;;; --- octet I/O (Buffer/fs bodies) ------------------------------------------
+
+(defun read-file-octets (path)
+  "Read PATH fully into a fresh (unsigned-byte 8) vector; signals fs-error on failure.
+Reading a directory is EISDIR (opening a dir stream signals a non-file-error otherwise)."
+  (when (directory-p path)
+    (error 'fs-error :code "EISDIR" :errno (%errno-of-name "EISDIR") :syscall "read" :path path))
+  (with-fs ("open" path)
+    (with-open-file (in (native->pathname path) :element-type '(unsigned-byte 8))
+      (let ((buf (make-array (file-length in) :element-type '(unsigned-byte 8))))
+        (subseq buf 0 (read-sequence buf in))))))
+
+(defun write-file-octets (path octets &key append (mode #o666))
+  "Write OCTETS (a byte vector) to PATH (truncate or :append)."
+  (declare (ignore mode))
+  (with-fs ("open" path)
+    (with-open-file (out (native->pathname path) :direction :output :element-type '(unsigned-byte 8)
+                         :if-exists (if append :append :supersede) :if-does-not-exist :create)
+      (write-sequence octets out)))
+  (length octets))
+
+(defun copy-file* (src dst) (write-file-octets dst (read-file-octets src)))

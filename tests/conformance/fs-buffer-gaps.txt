@@ -1,0 +1,83 @@
+# Phase 13 (fs substrate + node:fs + Buffer) — deliberate gaps & divergences
+#
+# node:fs and node:buffer are Node APIs, not ECMAScript — test262 does NOT cover them,
+# so there is no conformance percentage here. Coverage is proven by the tests/js/node
+# fixtures (buffer, bufedge, fsops, fsedge, clunfile). Every divergence below is
+# DELIBERATE and, where it is an error path, raises a LOUD catchable JS error — never a
+# raw Lisp backtrace (§6). Buffer is a Uint8Array subclass (a :typed-array whose proto
+# chain includes Buffer.prototype over Uint8Array.prototype); the fs sys layer signals a
+# code-carrying clun.sys:fs-error that the runtime maps to a JS Error with
+# .code/.errno/.syscall/.path. See docs/design/phase-13.md and DECISIONS 2026-07-13.
+#
+# ============================================================================
+# A. Buffer — deliberate divergences
+# ============================================================================
+#
+# A1. Integer write value-range is MASKED, not validated.
+#     writeUInt8(256) / writeInt8(200) / etc. store (value & (2^bits - 1)) rather than
+#     throwing RangeError [ERR_OUT_OF_RANGE]. The stored byte is always well-defined; no
+#     crash, no uninitialized read. (OFFSET out of range DOES throw RangeError — see A2.)
+#
+# A2. Negative / NaN numeric OFFSET clamps to 0 instead of throwing.
+#     b.readUInt8(-1) / b.readUInt8(NaN) read byte 0; Node throws ERR_OUT_OF_RANGE. An
+#     offset that runs past the END of the backing store DOES throw a catchable RangeError
+#     (the crash-safety guarantee). Only the low end is permissive.
+#
+# A3. OOB numeric access is checked against the BACKING store, not the view length.
+#     For a full Buffer these coincide. For a slice/subarray (a view into a larger parent)
+#     a numeric read/write whose offset exceeds the VIEW but not the parent reads/writes
+#     the parent's sibling bytes rather than throwing at the view boundary. Never crashes;
+#     never escapes the parent's allocation.
+#
+# A4. readUIntLE/readIntLE/writeUIntLE/... byteLength is not range-validated to 1..6.
+#     A byteLength that would run past the backing store throws RangeError (A2); other
+#     values (0, >6) are honoured arithmetically rather than throwing ERR_OUT_OF_RANGE.
+#
+# A5. allocUnsafe / allocUnsafeSlow are zero-filled (aliased to alloc). No uninitialized
+#     memory is ever exposed — safer than Node, observably different only for the (illegal)
+#     assumption of garbage contents. No Buffer pool / poolSize.
+#
+# A6. Encodings: utf8/utf-8, hex, base64, base64url, latin1/binary, ascii, ucs2/utf16le.
+#     No transcoding helpers (buffer.transcode), no legacy 'buffer'-module SlowBuffer,
+#     no Blob/File (Phase 18 web surface).
+#
+# ============================================================================
+# B. node:fs — unimplemented surface (absent; a missing method is `undefined`)
+# ============================================================================
+#
+# B1. File descriptors: openSync/closeSync/readSync/writeSync/fstatSync/ftruncateSync/
+#     fchmodSync/fsyncSync/fdatasyncSync and the fd-based read(fd,...)/write(fd,...) family.
+#     All I/O is whole-file (readFile/writeFile/appendFile) over CL streams; there is no
+#     integer fd handle surface.
+#
+# B2. Streams: createReadStream / createWriteStream (Phase 17 stream layer).
+#
+# B3. Watchers: watch / watchFile / unwatchFile (no inotify; would need a poll loop).
+#
+# B4. Dir handles: opendir / opendirSync / fs.Dir; recursive cp / cpSync of directories
+#     (single-file copyFile[Sync] IS implemented). readdirSync recursive:true not honoured.
+#
+# B5. Ownership / times / links beyond the core: chown/lchown/utimes/lutimes/link/
+#     realpath.native/statfs; the bigint:true stat option (times are second-granular —
+#     fstat nanosecond fields are seconds*1e9, see B7).
+#
+# B6. Constants: only the common subset is exposed (F_OK/R_OK/W_OK/X_OK, O_RDONLY..
+#     O_APPEND, S_IFMT/S_IFREG/S_IFDIR/S_IFLNK). Mode-string flags ('r','w','a',...) on
+#     readFile/writeFile options are accepted but the `flag`/`mode`/`signal` options are
+#     largely ignored (append is honoured via appendFile).
+#
+# B7. Stats time resolution is whole-second (sb-posix:stat exposes st_*time in seconds;
+#     *timeNs = seconds*1e9). Sub-second mtime precision is lost. birthtime === ctime.
+#
+# ============================================================================
+# C. errno / error-shape fidelity
+# ============================================================================
+#
+# C1. .errno is the NEGATIVE POSIX errno (-2 for ENOENT on Linux), matching Node's libuv
+#     convention on this host. It is NOT a portable libuv-abstract code; on a platform
+#     whose POSIX errno numbers differ from libuv's, the number would differ.
+#
+# C2. Error messages follow Node's "CODE: description, syscall 'path'" shape for the
+#     mapped codes (ENOENT/EEXIST/EACCES/ENOTDIR/EISDIR/ENOTEMPTY/EPERM/ELOOP/EINVAL);
+#     other errnos fall back to a generic "I/O error" description. No dest-path second
+#     operand on rename/copy/symlink error messages.

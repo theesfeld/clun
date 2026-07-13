@@ -30,7 +30,16 @@
            #:monotonic-nanoseconds #:heap-bytes-used #:bytes-consed
            ;; Phase 12 — OS info + CSPRNG bytes for node:os / crypto
            #:os-random-bytes #:hostname #:os-release #:os-type #:tmpdir #:homedir
-           #:total-memory #:free-memory #:uptime-seconds #:cpu-count))
+           #:total-memory #:free-memory #:uptime-seconds #:cpu-count
+           ;; Phase 13 — filesystem primitives + errno-carrying condition for node:fs
+           #:fs-error #:fs-error-code #:fs-error-errno #:fs-error-syscall #:fs-error-path
+           #:fs-code-message
+           #:stat* #:fstat #:fstat-dev #:fstat-ino #:fstat-mode #:fstat-nlink #:fstat-uid
+           #:fstat-gid #:fstat-rdev #:fstat-size #:fstat-atime-ns #:fstat-mtime-ns #:fstat-ctime-ns
+           #:fstat-file-p #:fstat-dir-p #:fstat-symlink-p
+           #:make-directory #:remove-directory #:remove-file #:rename-path #:make-symlink
+           #:read-symlink #:change-mode #:truncate-file #:make-temp-dir #:check-access
+           #:remove-recursive #:read-file-octets #:write-file-octets #:copy-file*))
 
 ;; Defined before clun.engine so the engine's :lp local-nickname can target it.
 (defpackage :clun.loop
@@ -72,7 +81,7 @@
    #:throw-native-error #:throw-type-error #:throw-range-error
    #:throw-syntax-error #:throw-reference-error
    ;; strings (WTF-8 boundary)
-   #:code-units->utf8 #:utf8->code-units #:high-surrogate-p #:low-surrogate-p
+   #:code-units->utf8 #:utf8->code-units #:ta-subview #:high-surrogate-p #:low-surrogate-p
    ;; numbers
    #:with-js-floats #:+js-infinity+ #:+js-neg-infinity+ #:*js-nan*
    #:js-nan-p #:js-infinite-p #:js-finite-p #:js-neg-zero-p #:js-zero-p
@@ -112,6 +121,8 @@
    #:js-null-p #:js-number-p #:js-string-p #:js-deep-equal #:*builtin-module-builder*
    #:js-construct #:obj-own-desc #:pd-value #:pd-enumerable #:crypto-fill-random
    #:js-loose-eq #:js-instanceof #:throw-js-value #:js-object-class
+   #:js-typed-array-p #:make-u8-array #:u8-from-octets #:ta-octets #:u8-over-arraybuffer #:js-array-buffer-bytes #:js-array-buffer-p
+   #:code-units->utf8 #:utf8->code-units #:ta-subview
    ;; TS strip hook (Phase 09): the loader applies this to .ts/.mts/.cts source
    ;; before parse-program; the transpiler installs it (engine stays dep-free).
    #:*ts-strip-hook* #:make-lexer #:next-token #:reread-regexp #:reread-template
