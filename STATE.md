@@ -49,16 +49,22 @@ now best-of-3 (a genuinely-slow path fails all three; transient contention is fi
 deterministically green (8/8 runs, incl. under CPU-hog load); a 30-iteration / 19,500-connection stress under
 hog load + forced GC showed 0 escaped errors.
 
-**Next action:** Begin Phase 20 (HTTPS, deps 18 ✓ + 19 ✓): TLS streams via the worker pool (blocking gray-
-stream handshake/IO off the JS thread; reactor-native TLS is post-v1) — feed pure-tls our own sockets or its
-gray streams; trust store (system PEM bundle, `SSL_CERT_FILE`/`SSL_CERT_DIR` overrides); hostname
-verification; the fetch/client connection-pool keys gain TLS config (monotonic — never downgrade); test CA +
-in-process pure-tls SERVER fixtures; the negative matrix (expired / wrong-host / self-signed / bad-chain each
-fail closed with a distinct error); posture labeling (§3.4) in README + errors. Gate: hermetic HTTPS
-round-trip vs an in-process server with a test CA; negatives fail closed; one live smoke (fetch
-`https://registry.npmjs.org/left-pad` → parseable JSON) logged. (The Phase-16 net-socket flakiness that
-surfaced during Phase 19 is already FIXED — see the reactor-poll bad-fd recovery above — so the socket gate
-is now deterministic.)
+**Next action:** Phase 20 (HTTPS, deps 18 ✓ + 19 ✓) — IN PROGRESS. **Done so far:** the design
+(docs/design/phase-20.md — worker-pool blocking-TLS architecture, pure-tls client/server API mapped);
+the hermetic **test PKI** (scripts/gen-test-certs.sh → tests/fixtures/certs/: test-ca + localhost-leaf +
+expired/wrong-host/self-signed/bad-chain negatives, all verified); and a **proven end-to-end TLS 1.3
+round-trip in-tree** — a pure-tls server (our leaf) ↔ client (`+verify-required+`, trust = test-ca,
+hostname `localhost`) exchanged data with full chain + hostname verification (blocking, over a loopback
+sb-bsd-sockets stream). **Remaining:** `src/net/tls-client.lisp` (blocking TLS HTTP request on the worker
+pool, reusing net's request serializer + http-response parser); trust-store resolution
+(`SSL_CERT_FILE`/`SSL_CERT_DIR` → system PEM bundle probe → injected test CA); wire `web-fetch` `%do-fetch`
+to dispatch `https` → the worker-pool TLS path (redirects/abort/timeout/gzip reused); the negative matrix
+as checked-in tests (expired/wrong-host/self-signed/bad-chain each → a distinct catchable error, fail
+closed); posture labeling (§3.4) in README + errors; the AbortSignal→close-worker-socket wiring. Gate:
+hermetic HTTPS round-trip vs an in-process pure-tls server with the test CA; negatives fail closed with
+distinct errors; one live smoke (`fetch("https://registry.npmjs.org/left-pad")` → parseable JSON) logged.
+(The Phase-16 net-socket flakiness that surfaced during Phase 19 is FIXED — reactor-poll bad-fd recovery,
+above — so the socket gate is deterministic.)
 
 ---
 
