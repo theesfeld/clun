@@ -60,7 +60,8 @@ is requested. Re-entrant-safe only in the single JS-thread sense (§3.2).
 The self-pipe handler is registered HERE, on the running thread: SBCL dispatches
 serve-event fd handlers only for registrations made by the thread that calls
 serve-event, so make-event-loop (possibly a different thread) must not register it."
-  (setf (el-running loop) t (el-stop-requested loop) nil)
+  (setf (el-running loop) t (el-stop-requested loop) nil
+        (el-thread loop) sb-thread:*current-thread*)
   (let* ((sp (el-self-pipe loop))
          (wake-handler (sb-sys:add-fd-handler
                         (clun.sys:self-pipe-read-fd sp) :input
@@ -80,7 +81,7 @@ serve-event, so make-event-loop (possibly a different thread) must not register 
              (expire-due-timers loop)
              (process-tasks loop)))
       (sb-sys:remove-fd-handler wake-handler)
-      (setf (el-running loop) nil)))
+      (setf (el-running loop) nil (el-thread loop) nil)))
   (values))
 
 (defun loop-stop (loop)

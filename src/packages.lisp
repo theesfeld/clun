@@ -49,6 +49,7 @@
    ;; loop lifecycle
    #:event-loop #:event-loop-p #:make-event-loop #:destroy-event-loop
    #:run-loop #:loop-post #:loop-stop #:el-ref-count #:now-ms
+   #:loop-on-thread-p #:run-on-loop #:*on-foreign-thread*
    ;; queues (stub in P05; JS jobs wire in P06)
    #:enqueue-task #:enqueue-microtask #:enqueue-next-tick #:drain-microtasks
    ;; handles / refcount
@@ -113,7 +114,7 @@
    #:run-module-file #:run-module-source #:eval-source #:realm-global
    #:teardown-realm #:run-callback-to-settlement #:drive-jobs #:current-loop
    #:js-promise-p #:js-promise-pstate #:js-promise-value #:to-string #:js-object-class
-   #:make-native-function #:install-method #:install-getter #:data-prop #:hidden-prop
+   #:make-native-function #:install-method #:install-getter #:install-accessor #:data-prop #:hidden-prop
    #:new-object #:new-array #:throw-type-error #:js-undefined-p #:js-truthy #:js-boolean
    #:to-number #:arg #:intrinsic #:function-name #:js-function-p #:js-native-function-p
    #:js-nullish-p #:array-like->list #:array-length
@@ -161,7 +162,11 @@
    ;; Phase 17 — incremental HTTP/1.1 request parser
    #:make-http-parser #:parser-feed #:http-request #:http-request-p
    #:hr-method #:hr-target #:hr-version #:hr-headers #:hr-body #:hr-keep-alive
-   #:*max-header-bytes* #:*max-body-bytes*))
+   #:*max-header-bytes* #:*max-body-bytes*
+   #:make-http-response-parser #:response-finish #:http-response #:http-response-p
+   #:hres-status #:hres-reason #:hres-version #:hres-headers #:hres-body #:hres-keep-alive
+   ;; Phase 18 — reactor HTTP client
+   #:http-request-async #:resolve-hostname #:%header))
 
 ;; --- dependent layer (local-nicknames into the base packages above) ---------
 

@@ -1054,3 +1054,67 @@ folds to one `X-Evil: aInjected: 1` line). (b) the **coroutine leak** above (sur
 throws / returns undefined / a number / a rejected promise all yield 500 (no crash); a never-resolving
 handler hangs only its own connection (others still served); the server log stays backtrace-free. Net:
 build/test/purity green; conformance 22,643, 0 crashes, 0 regressions.
+
+### 2026-07-13 — Phase 18: vendored chipz (gzip/inflate decompression)
+Vendored **chipz** (Nathan Froyd; MIT/BSD-style) at commit `75dfbc660a5a28161c57f115adf74c8a926bfc4d`
+into vendor/chipz/ (.git stripped) for fetch's `Content-Encoding: gzip` decode, per PLAN §3.2 / Phase 18.
+Pure CL, ZERO dependencies, zero CFFI/foreign (purity-scan clean) — RFC-1951 inflate + RFC-1952 gzip +
+zlib + bzip2 decoders. Added to the `clun` system `:depends-on` (auto-registered via scripts/registry.lisp's
+vendor/*/ scan). Decompression only (compression = salza2, not vendored — not needed: fetch decodes, and
+the gzip gate test serves a gzip FIXTURE built offline with the `gzip` CLI). Verified: chipz:decompress
+with :gzip round-trips a real gzip stream.
+
+### 2026-07-13 — Phase 18: fetch / URL / reactor HTTP client (design)
+Three layers, mirroring Phase 17's request side. **URL** (`src/runtime/web-url.lisp`): a WHATWG-subset parser
+in CL producing a `url-record` (scheme/userinfo/host/port/path/query/fragment). Special schemes get `//`
+authority + default-port elision + `\`→`/` normalization + `/`-anchored paths; relative resolution merges
+against a base (dot-segments incl. `%2e`; query-only/fragment-only keep the base path). Hosts are validated
+IN-PROCESS (IPv4 dotted, `[IPv6]` verbatim + lower-cased) — a **non-ASCII host is a loud "IDNA not supported"
+TypeError** (no punycode table in v1, §3.2). Percent-encoding uses the WHATWG path/query/fragment/userinfo
+encode sets. The URL object exposes the standard getters + re-serializing setters for href/hostname/port/
+pathname/search/hash (protocol/username/password/host stay getter-only — documented); `URLSearchParams` is a
+form-urlencoded multimap **linked** back to `url.search` via a commit callback. **HTTP client**
+(`src/net/http-client.lisp`, pure CL, engine-free): a reactor client over Phase-16 `tcp-connect` — serialize
+the request, feed the reply to a **response parser added to http-parser.lisp** (status line + content-length/
+chunked/read-until-close framing, all bounded by *max-body-bytes*; `response-finish` emits the until-close
+body at EOF), gunzip via chipz, a ref'd-timer timeout, and a cancel thunk; callback-based (`on-response`/
+`on-error`), so redirects + AbortSignal live in the fetch layer (which has the engine). **fetch**
+(`src/runtime/web-fetch.lisp`): normalize input+init → drive the client → build a readable Response; follow
+301/302/303/307/308 (≤20 → TypeError; 301/302-POST + 303 → GET dropping body + content-* headers; 307/308
+preserve); AbortSignal wired to the client's cancel; network/DNS errors → TypeError; https is a loud TypeError
+(Phase 20). **Notable decision — reactor-thread affinity:** an `async` function body runs on a coroutine
+THREAD, and SBCL's serve-event dispatches an fd handler only for a registration made by the thread running it,
+so a socket registered during `await fetch(...)` never fired (the connection hung). Rather than move all
+socket setup to timers, the loop now tracks its run thread (`el-thread`) and `lp:run-on-loop` runs reactor
+mutations synchronously on that thread OR marshals them via `loop-post`; a coroutine thread binds
+`lp:*on-foreign-thread*` so pre-run setup on the DRIVER thread stays synchronous (the Phase-16 socket tests
+register listeners before run-loop on the main thread — unchanged) while a coroutine's pre-run setup defers.
+This is the single behavioral change to the loop/engine; conformance held at exec 22,643 (0 regressions).
+Deliberate v1 scope (tests/conformance/url-fetch-gaps.txt): no connection pool (Connection: close per
+request), blocking DNS on the loop thread, buffered (non-streaming) bodies, no cross-origin redirect header
+stripping, IDNA + IPv6-compression + the `file:` `C|` quirk unimplemented.
+
+### 2026-07-13 — Phase 18 review panel (find→verify-by-running)
+Ultracode Workflow: 6 dimensions (url-whatwg / url-crash / fetch-behavior / fetch-crash / reactor-thread /
+http-parser-purity) × find→verify-by-running the built binary (same-process `Clun.serve` + `fetch`; `clun -e`
+for URL), 21 agents, **15 findings, 15 confirmed** (0 refuted — the verifiers reproduced every one). **14
+fixed + 1 documented.** Two were **§6 crashes** (raw Lisp backtraces reaching JS, the cardinal sin): (1) a
+fetch to a port >65535 fed a bignum to `socket-connect` → `SIMPLE-TYPE-ERROR` → the URL parser now rejects a
+port > 2^16-1 as a parse-failure TypeError (constructor) and the setter ignores it; (2) `Response.text()/
+json()` over invalid UTF-8 threw `Illegal :UTF-8 character` → a lenient decoder (`:replacement`
+U+FFFD, `%body-text-decode`, renamed off the querystring `%utf8-decode` to dodge the same-package clobber
+rule). Three HIGH correctness: special-scheme backslashes were left verbatim in the path AND could hide the
+authority (`https:\\h\p` mis-parsed the host — SSRF-relevant) → `%normalize-backslashes`; `http://:pw@h`
+serialized WITHOUT the password (silent credential loss + `new URL(u.href)` round-trip mismatch) → userinfo is
+emitted when EITHER credential is set; a redirect chain past the 20-hop cap RESOLVED with the raw 3xx instead
+of rejecting → an explicit "too many redirects" TypeError. Medium: 301/302 on a POST didn't switch to GET (now
+matches 303's body-drop + content-* strip); the `Host:` header carried the resolved dotted-quad and dropped a
+non-default port (fetch now passes the origin authority as `host-header`); the until-close response body
+bypassed *max-body-bytes* (now bounded → 413); the port setter blanked on trailing non-digits (now parses
+leading digits). Low: IPv6 hex lower-casing, `%2e`/`%2E` dot-segment removal, GET/HEAD-with-body → TypeError.
+All regression-locked (tests/lisp/runtime/url-tests `url/review-regressions` + tests/lisp/net/fetch-tests).
+The one documented (not fixed): the `file:` Windows drive-letter `C|`→`C:` quirk (niche). The reactor-thread
+dimension specifically STRESS-verified the fix — 25 concurrent `Promise.all` fetches to a local server all
+resolved correctly, and the socket-test regression (deferred registration leaving a stale fd handler) was
+caught + fixed by the `*on-foreign-thread*` driver/coroutine distinction. Net: build/test(1271+42+74)/purity
+(199) green; exec 22,643, 0 crashes, 0 regressions.

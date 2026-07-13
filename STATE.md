@@ -5,7 +5,60 @@ Update before every commit. Seeded from PLAN.md §5.
 
 ---
 
-## Current phase: **18 — HTTP client, fetch, URL**  (Phase 17 committed; HTTP-server gate MET)
+## Current phase: **19 — Crypto foundation (ironclad KATs + pure-tls vendoring)**  (Phase 18 committed; HTTP-client/fetch/URL gate MET)
+
+**Phase 18 outcome:** fetch + URL + a reactor HTTP client. Three layers. **`src/runtime/web-url.lisp`** — a
+WHATWG URL + URLSearchParams parser in CL: special schemes (http/https/ws/wss/ftp/file) with `//`authority +
+default-port elision, userinfo, IPv4 + `[IPv6]` hosts (validated in-process, hex lower-cased), relative
+resolution (dot-segments incl. `%2e`; query-only/fragment-only keep the base path; `\`→`/` for special
+schemes), percent-encoding per the WHATWG encode sets, non-ASCII host → a loud "IDNA not supported"
+TypeError; a URL object (href/protocol/host/hostname/port/pathname/search/searchParams/hash/origin + re-
+serializing setters for href/hostname/port/pathname/search/hash) with a **linked** URLSearchParams (get/
+getAll/set/append/has/delete/sort/forEach/entries/keys/values/@@iterator/size/toString, `+`↔space, form-
+urlencoded) that reflects back into `url.search`. **`src/net/http-client.lisp`** (pure CL) — a reactor
+HTTP/1.1 client over `tcp-connect`: serialize the request (origin-form Host, CRLF-stripped headers, Accept-
+Encoding: gzip, Content-Length, Connection: close), parse the reply via a **response parser added to
+http-parser.lisp** (status line + content-length / chunked / read-until-close framing, `response-finish` on
+EOF, ALL bounded by *max-body-bytes* → §6), gunzip (chipz) a `Content-Encoding: gzip|deflate` body, a ref'd-
+timer timeout, a cancel thunk. **`src/runtime/web-fetch.lisp`** — `fetch(input, init)` → `Promise<Response>`:
+normalize a string/URL/Request + init; http-only (https → loud TypeError, Phase 20); follow 301/302/303/307/
+308 redirects (≤20 → TypeError; 301/302-POST + 303 → GET dropping body + content-* headers; 307/308 preserve);
+AbortSignal (already/mid-flight → AbortError, timeout → TimeoutError); network/DNS errors → TypeError; a
+readable Response (text/json/arrayBuffer/bytes, lenient U+FFFD UTF-8). Vendored **chipz** @ 75dfbc6 (pure-CL
+gunzip; DECISIONS 2026-07-13). **Riskiest engine change — reactor-thread affinity:** serve-event dispatches
+an fd handler only for a registration made by the thread running it; an `async` body runs on a COROUTINE
+thread, so a naive `await fetch(...)` registered the client socket off the loop thread → the connection hung.
+Fix `lp:run-on-loop` — reactor mutations (tcp-connect/write/close/shutdown/listen, listener-close) run
+synchronously on the loop thread and marshal via `loop-post` otherwise; the loop tracks `el-thread`, and a
+coroutine thread binds `lp:*on-foreign-thread*` so pre-run setup on the driver thread stays synchronous
+(socket tests unaffected) while a coroutine's setup defers. **Gate MET:** fetch vs the Phase-17 server on ONE
+loop — JSON round-trip, text, 4xx/5xx, redirect chains, gzip auto-decode, abort→AbortError, timeout; a WPT-
+subset URL corpus; 25 concurrent `Promise.all` fetches all correct — tests/lisp/runtime/url-tests +
+tests/lisp/net/fetch-tests; `make build`/`test`(**1271 parachute + 42 TS + 74 JS**)/`purity`(**199 files**)
+green; parse 17,512 / exec **22,643** (0 crashes, 0 regressions — the client/URL are engine-inert; the
+coroutine `*on-foreign-thread*` binding + loop `el-thread` are behavior-neutral). Adversarial review panel
+(6 dims × find→**verify-by-running-the-binary**, 21 agents, **15 findings / 15 confirmed**, 14 fixed + 1
+documented): **2 §6 crashes** — fetch to a port >65535 crashed raw (SB-BSD-SOCKETS) → the URL parser now
+rejects port >2^16-1 as a TypeError; a non-UTF-8 body crashed `text()/json()` raw → a lenient U+FFFD decoder.
+**3 HIGH correctness** — special-scheme `\` not normalized to `/`; empty-user+password dropped on
+serialization (silent password loss); the redirect cap resolved with the 3xx instead of rejecting. Plus
+MEDIUM (301/302-POST→GET, Host header used the resolved IP + dropped the port, until-close body bypassed
+*max-body-bytes*, port setter leading-digits) and LOW (IPv6 lower-case, `%2e` dot-segments, GET/HEAD-with-body
+→ TypeError). **Deliberate gaps** (tests/conformance/url-fetch-gaps.txt): IDNA/punycode, the `file:` `C|`→`C:`
+quirk, getter-only protocol/username/password/host, IPv6 canonical compression, no connection pool, blocking
+DNS, cross-origin redirect header stripping, streaming bodies; `node:url` deprioritized (fileURLToPath/
+pathToFileURL already exist).
+
+**Next action:** Begin Phase 19 (Crypto foundation, deps 00; ironclad landed in Phase 12 — ◇ independent of
+the HTTP track): KAT suites (SHA-2/HMAC FIPS, HKDF RFC 5869, AES-GCM NIST, x25519 RFC 7748, ChaCha20-Poly1305
+RFC 8439); vendor + pin pure-tls with the Linux dep closure (Appendix B); the cl-cancel purity patch (precise-
+time → sb-unix:clock-gettime); strip windows/macos verify files; run pure-tls crypto/record/handshake/cert
+suites in CI; extend make purity over the closure. Gate: all KATs pass; pure-tls suites pass; make purity
+green over the full closure. (Phase 20 HTTPS then unblocks: deps 18 ✓ + 19.)
+
+---
+
+## Recent phase outcomes (most recent first)
 
 **Phase 17 outcome:** HTTP/1.1 serving, three layers. `src/net/http-parser.lisp` — a pure-CL incremental
 request parser ("accumulate-then-parse"), bounded by max-header/max-body so every malformed shape is a
@@ -35,17 +88,9 @@ ArrayBuffer/number → empty) → the shared `%body->octets`. Proactively fixed 
 response splitting) + the coroutine leak (surfaced by the RSS curve). Deliberate: buffered bodies; no
 routes/static/WebSocket/TLS-server; IP-literal hosts (DNS → Phase 18); URL objects → Phase 18.
 
-**Next action:** Begin Phase 18 (HTTP client, fetch, URL, deps 14 ✓, 16 ✓; 11 for bodies ✓): WHATWG URL/
-URLSearchParams minus IDNA (loud error on non-ASCII hosts; IPv4/IPv6 host; relative resolution; percent-
-encode sets) + node:url; a reactor HTTP client (pool keyed (host,port,family,tls), timeout matrix,
-redirects ≤20, chunked decode, gzip via chipz — vendor+pin here); the fetch API (Request/Response/Headers
-reused, text/json/arrayBuffer/bytes buffered, AbortSignal, network errors → TypeError). Gate: fetch vs the
-Phase-17 server (JSON round-trip, redirects, 4xx/5xx, gzip, abort→AbortError, timeouts); URL corpus (WPT
-subset).
-
----
-
-## Recent phase outcomes (most recent first)
+**Next action (done in Phase 18):** HTTP client, fetch, URL — WHATWG URL/URLSearchParams minus IDNA; a
+reactor HTTP client (redirects ≤20, chunked decode, gzip via chipz); the fetch API (Request/Response/Headers
+reused, AbortSignal, network errors → TypeError). Gate: fetch vs the Phase-17 server + a URL corpus.
 
 **Phase 16 outcome:** a non-blocking TCP handle layer on the Phase-05 serve-event reactor —
 `clun.net`/`src/net/sockets.lisp`, callback-based (Phase 17+ marshals to JS). Verified sb-bsd-sockets
@@ -760,6 +805,36 @@ _(nothing blocked)_
     tested; no UDP; unclassified socket errors report a generic code; the single-threaded-both-ends
     throughput figure is a test artifact (a real server drives one direction per thread).
 
+- **Phase 18 — HTTP-CLIENT / FETCH / URL GATE MET + committed (2026-07-13).**
+  - `make build` clean; `make test` = **1271 parachute + 42 tests/ts + 74 tests/js** (0 failed);
+    `make purity` clean (**199 files**); `make conformance` parse **17,512**; `make conformance-exec`
+    over 40,654 files: **pass 22,643**, **0 crashes**, **0 regressions** (URL + client are engine-inert;
+    the coroutine `lp:*on-foreign-thread*` binding + loop `el-thread` slot are behavior-neutral).
+  - **Gate:** fetch vs the Phase-17 `Clun.serve` server, BOTH on one reactor loop (tests/lisp/net/fetch-tests):
+    JSON round-trip, text, 4xx/5xx, redirect chains (302→302→200), gzip auto-decode (chipz), already-aborted +
+    mid-flight abort → AbortError, `AbortSignal.timeout` → TimeoutError, connection-refused → TypeError, 25
+    concurrent `Promise.all` fetches all correct; a WPT-subset URL corpus (tests/lisp/runtime/url-tests):
+    components, default-port elision, IPv4/`[IPv6]`, file:, dot-segments, percent-encoding, relative resolution,
+    setters, canParse/toJSON, URLSearchParams incl. a linked USP — all green.
+  - `src/runtime/web-url.lisp` (URL + URLSearchParams), `src/net/http-client.lisp` (reactor HTTP/1.1 client +
+    a response parser added to http-parser.lisp), `src/runtime/web-fetch.lisp` (fetch). Vendored **chipz** @
+    `75dfbc6` for gunzip. **Engine/loop change (the risky one):** `lp:run-on-loop` marshals reactor mutations to
+    the loop thread (serve-event's fd-handler thread rule) — needed because an `async` body runs on a coroutine
+    thread; `el-thread` + `lp:*on-foreign-thread*` distinguish driver-setup (synchronous) from coroutine-setup
+    (deferred), so the Phase-16 socket tests are unaffected.
+  - Adversarial review panel (6 dims × find→**verify-by-running-the-binary**, 21 agents): **15 findings / 15
+    confirmed**, 14 fixed + 1 documented. **2 §6 crashes** — fetch to a port >65535 crashed raw
+    (SB-BSD-SOCKETS) → URL parser rejects port >2^16-1 (TypeError); a non-UTF-8 body crashed `text()/json()`
+    raw → a lenient U+FFFD decoder. **3 HIGH** — special-scheme `\`→`/` normalization; empty-user+password
+    userinfo dropped on serialize (silent password loss); redirect cap resolved the 3xx instead of rejecting.
+    MEDIUM (301/302-POST→GET, Host header used resolved IP + dropped port, until-close body bypassed
+    *max-body-bytes*, port setter leading-digits) + LOW (IPv6 lower-case, `%2e` dot-segments, GET/HEAD-body →
+    TypeError) all fixed; regression-locked in url-tests/fetch-tests. Documented gap: `file:` `C|`→`C:`.
+  - DEFERRED 🟡 (tests/conformance/url-fetch-gaps.txt): IDNA/punycode; getter-only protocol/username/password/
+    host setters; IPv6 canonical compression; no connection pool (Connection: close per request); blocking DNS
+    on the loop thread; cross-origin redirect Authorization/Cookie stripping; streaming bodies; `node:url` (the
+    fileURLToPath/pathToFileURL pieces already exist in clun-global.lisp). https → Phase 20.
+
 - **Phase 17 — HTTP-SERVER GATE MET + committed (2026-07-13).**
   - `make build` clean; `make test` = **1172 parachute + 42 tests/ts + 74 tests/js** (0 failed);
     `make purity` clean (**177 files**); `make conformance` parse **17,512**; `make conformance-exec`
@@ -929,11 +1004,11 @@ Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-earl
 - [x] Clun.file responses (buffered); 503 shedding; net:tcp-shutdown (flush-then-close); engine: run-loop drains microtasks after the reactor + coroutine-resume prunes completed coroutines (leak fix)
 - **Gate MET:** curl interop + malformed suite (12 parser tests) + ≥30k req/s (~33k) + graceful stop + 1k-req RSS plateau (149 MB flat) + serve.ts smoke; build/test(1172+42+74)/purity(177) ✓; exec 22,643, 0 crashes/regressions. Review 2/11 confirmed + fixed (Request body types); + header-injection & coroutine-leak fixed.
 
-### Phase 18 — HTTP client, fetch, URL  (deps: 14, 16; 11 for bodies) ~3.5k LOC
-- [ ] WHATWG URL/URLSearchParams minus IDNA (loud error non-ASCII; IPv4/IPv6 host; relative resolution; percent-encode sets) + node:url
-- [ ] reactor HTTP client (pool, timeout matrix, redirects, chunked decode, gzip via chipz — vendor+pin here)
-- [ ] fetch API (Request/Response/Headers, text/json/arrayBuffer/bytes buffered, AbortSignal, network errors → TypeError)
-- **Gate:** fetch vs Phase-17 server (JSON round-trip, redirects, 4xx/5xx, gzip, abort→AbortError, timeouts); URL corpus (WPT subset).
+### Phase 18 — HTTP client, fetch, URL  (deps: 14, 16; 11 for bodies) ~3.5k LOC — **DONE (gate MET)**
+- [x] WHATWG URL/URLSearchParams minus IDNA (loud error non-ASCII; IPv4/`[IPv6]` host; relative resolution incl. `%2e` + `\`→`/`; percent-encode sets; linked USP; re-serializing setters). node:url deprioritized (fileURLToPath/pathToFileURL already exist)
+- [x] reactor HTTP/1.1 client (response parser + de-chunk + read-until-close, timeout, redirects ≤20, gzip via **vendored chipz** @ 75dfbc6). No pool yet (Connection: close); blocking DNS
+- [x] fetch API (Request/Response/Headers reused, text/json/arrayBuffer/bytes buffered + lenient UTF-8, AbortSignal already/mid-flight/timeout, network/DNS errors → TypeError). Engine: `lp:run-on-loop` reactor-thread marshalling (`el-thread` + `lp:*on-foreign-thread*`)
+- **Gate MET:** fetch vs Phase-17 server on ONE loop (JSON/text/4xx-5xx/redirect chain/gzip/abort→AbortError/timeout + 25 concurrent) + a WPT-subset URL corpus; build/test(1271+42+74)/purity(199) ✓; exec 22,643, 0 crashes/regressions. Review panel 15/15 confirmed (2 §6 crashes, 3 HIGH) — 14 fixed + 1 documented.
 
 ### Phase 19 — Crypto foundation: ironclad KATs + pure-tls vendoring  (deps: 00; ironclad landed in 12) ◇ ~1k LOC glue
 - [ ] KAT suites (SHA-2/HMAC FIPS, HKDF RFC 5869, AES-GCM NIST, x25519 RFC 7748, ChaCha20-Poly1305 RFC 8439)

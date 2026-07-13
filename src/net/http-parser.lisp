@@ -13,13 +13,34 @@
 (defstruct (http-request (:conc-name hr-))
   method target version headers body keep-alive)
 
+(defstruct (http-response (:conc-name hres-))
+  status reason version headers body keep-alive)
+
 (defstruct (http-parser (:conc-name hp-))
   (buf (make-array 4096 :element-type '(unsigned-byte 8) :adjustable t :fill-pointer 0))
   (phase :headers)                      ; :headers | :body
   (max-header *max-header-bytes*) (max-body *max-body-bytes*)
+  (response nil)                        ; T = parse responses (status line, until-close body)
   ;; set once the head is parsed:
-  method target version headers keep-alive
-  (body-start 0) (content-length nil) (chunked nil))
+  method target version status reason headers keep-alive
+  (body-start 0) (content-length nil) (chunked nil) (until-close nil))
+
+(defun make-http-response-parser (&key (max-header *max-header-bytes*) (max-body *max-body-bytes*))
+  (make-http-parser :response t :max-header max-header :max-body max-body))
+
+(defun %parse-status-line (line)
+  "HTTP/1.x SP code SP reason → (values version code reason) or NIL."
+  (let ((sp1 (position #\Space line)))
+    (when sp1
+      (let* ((ver (subseq line 0 sp1))
+             (rest (subseq line (1+ sp1)))
+             (sp2 (position #\Space rest))
+             (code-str (if sp2 (subseq rest 0 sp2) rest))
+             (reason (if sp2 (subseq rest (1+ sp2)) "")))
+        (when (and (member ver '("HTTP/1.1" "HTTP/1.0") :test #'string=)
+                   (= (length code-str) 3) (every #'digit-char-p code-str))
+          (values (if (string= ver "HTTP/1.1") :http/1.1 :http/1.0)
+                  (parse-integer code-str) reason))))))
 
 (defun %hp-append (p octets)
   (let* ((buf (hp-buf p)) (old (fill-pointer buf)) (n (length octets)))
@@ -107,45 +128,82 @@ duplicates comma-joined. Obs-fold (leading space/tab) and a colon-less line → 
        ;; start of the CRLFCRLF terminator) still yields rl-end = hend.
        (let ((rl-end (%find-crlf buf 0 (+ hend 2))))
          (unless rl-end (return-from %step-headers (values :error '(400 . "Bad Request"))))
-         (multiple-value-bind (method target version)
-             (%parse-request-line (%octets->string buf 0 rl-end))
-           (unless method (return-from %step-headers (values :error '(400 . "Bad Request"))))
-           (multiple-value-bind (headers ok) (%parse-headers buf (+ rl-end 2) hend)
-             (unless ok (return-from %step-headers (values :error '(400 . "Bad Request"))))
-             (let ((te (let ((v (%header headers "transfer-encoding"))) (and v (string-downcase v))))
-                   (cl (%header headers "content-length")))
-               (setf (hp-method p) method (hp-target p) target (hp-version p) version
-                     (hp-headers p) headers (hp-keep-alive p) (%keep-alive-p version headers)
-                     (hp-body-start p) (+ hend 4) (hp-phase p) :body)
-               (cond
-                 ((and te (search "chunked" te)) (setf (hp-chunked p) t))
-                 (cl (let ((n (%safe-parse-int (%trim cl))))
-                       (cond ((null n) (return-from %step-headers (values :error '(400 . "Bad Request"))))
-                             ((> n (hp-max-body p)) (return-from %step-headers (values :error '(413 . "Payload Too Large"))))
-                             (t (setf (hp-content-length p) n)))))
-                 (t (setf (hp-content-length p) 0)))
-               (%step-body p)))))))))
+         (let ((line (%octets->string buf 0 rl-end)))
+           (if (hp-response p) (%head-response p line buf rl-end hend) (%head-request p line buf rl-end hend))))))))
+
+(defun %head-request (p line buf rl-end hend)
+  (multiple-value-bind (method target version) (%parse-request-line line)
+    (unless method (return-from %head-request (values :error '(400 . "Bad Request"))))
+    (multiple-value-bind (headers ok) (%parse-headers buf (+ rl-end 2) hend)
+      (unless ok (return-from %head-request (values :error '(400 . "Bad Request"))))
+      (setf (hp-method p) method (hp-target p) target (hp-version p) version
+            (hp-headers p) headers (hp-keep-alive p) (%keep-alive-p version headers))
+      (%frame-body p headers version (+ hend 4) nil))))
+
+(defun %head-response (p line buf rl-end hend)
+  (multiple-value-bind (version code reason) (%parse-status-line line)
+    (unless version (return-from %head-response (values :error '(400 . "Bad Response"))))
+    (multiple-value-bind (headers ok) (%parse-headers buf (+ rl-end 2) hend)
+      (unless ok (return-from %head-response (values :error '(400 . "Bad Response"))))
+      (setf (hp-status p) code (hp-reason p) reason (hp-version p) version
+            (hp-headers p) headers (hp-keep-alive p) (%keep-alive-p version headers))
+      ;; a 204/304 or HEAD-style response has no body; else content-length / chunked /
+      ;; (responses only) read-until-close.
+      (%frame-body p headers version (+ hend 4)
+                   (or (member code '(204 304)) (< code 200))))))
+
+(defun %frame-body (p headers version body-start no-body)
+  (declare (ignore version))
+  (let ((te (let ((v (%header headers "transfer-encoding"))) (and v (string-downcase v))))
+        (cl (%header headers "content-length")))
+    (setf (hp-body-start p) body-start (hp-phase p) :body)
+    (cond
+      (no-body (setf (hp-content-length p) 0))
+      ((and te (search "chunked" te)) (setf (hp-chunked p) t))
+      (cl (let ((n (%safe-parse-int (%trim cl))))
+            (cond ((null n) (return-from %frame-body (values :error '(400 . "Bad Request"))))
+                  ((> n (hp-max-body p)) (return-from %frame-body (values :error '(413 . "Payload Too Large"))))
+                  (t (setf (hp-content-length p) n)))))
+      ((hp-response p) (setf (hp-until-close p) t))    ; no framing → read until the peer closes
+      (t (setf (hp-content-length p) 0)))
+    (%step-body p)))
 
 (defun %emit (p body leftover-start)
-  "Build the request, reset the parser keeping any leftover (pipelined) bytes."
-  (let ((req (make-http-request :method (hp-method p) :target (hp-target p) :version (hp-version p)
-                                :headers (hp-headers p) :body body :keep-alive (hp-keep-alive p)))
+  "Build the request/response, reset the parser keeping any leftover (pipelined) bytes."
+  (let ((result
+          (if (hp-response p)
+              (make-http-response :status (hp-status p) :reason (hp-reason p) :version (hp-version p)
+                                  :headers (hp-headers p) :body body :keep-alive (hp-keep-alive p))
+              (make-http-request :method (hp-method p) :target (hp-target p) :version (hp-version p)
+                                 :headers (hp-headers p) :body body :keep-alive (hp-keep-alive p))))
         (buf (hp-buf p)))
     (let ((leftover (subseq buf leftover-start (fill-pointer buf))))
       (setf (hp-phase p) :headers (hp-method p) nil (hp-target p) nil (hp-version p) nil
-            (hp-headers p) nil (hp-content-length p) nil (hp-chunked p) nil (hp-body-start p) 0)
+            (hp-status p) nil (hp-reason p) nil
+            (hp-headers p) nil (hp-content-length p) nil (hp-chunked p) nil (hp-until-close p) nil
+            (hp-body-start p) 0)
       (setf (fill-pointer buf) 0)
       (%hp-append p leftover))
-    (values :request req)))
+    (values (if (http-response-p result) :response :request) result)))
 
 (defun %step-body (p)
   (let ((buf (hp-buf p)) (start (hp-body-start p)))
     (cond
       ((hp-chunked p) (%step-chunked p))
+      ((hp-until-close p)                               ; body ends at EOF → response-finish
+       (if (> (- (fill-pointer buf) start) (hp-max-body p))
+           (values :error '(413 . "Payload Too Large"))   ; bound the unframed body too (DoS guard)
+           (values :need-more nil)))
       (t (let ((n (hp-content-length p)))
            (if (>= (- (fill-pointer buf) start) n)
                (%emit p (subseq buf start (+ start n)) (+ start n))
                (values :need-more nil)))))))
+
+(defun response-finish (p)
+  "The client calls this on EOF: for an until-close body, emit the response with whatever
+body accumulated. Returns (:response resp) or NIL if no response was in progress."
+  (when (and (hp-response p) (eq (hp-phase p) :body) (hp-until-close p))
+    (%emit p (subseq (hp-buf p) (hp-body-start p) (fill-pointer (hp-buf p))) (fill-pointer (hp-buf p)))))
 
 (defun %step-chunked (p)
   "De-chunk from body-start. Returns :need-more until the terminating 0-chunk arrives,

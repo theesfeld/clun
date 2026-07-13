@@ -100,6 +100,14 @@ and the server (CL) can read/mutate it."
 
 ;;; --- Request ----------------------------------------------------------------
 
+(defun %body-text-decode (octets)
+  "Decode OCTETS as UTF-8, substituting U+FFFD for any invalid byte. text()/json() are
+lenient in Node/Bun — a raw Lisp `Illegal :UTF-8 character` decode error must NEVER reach
+JS (§6). A body read of arbitrary bytes (e.g. a gzip-labelled-but-plain response, or a
+binary payload) therefore yields replacement chars, never a process-killing backtrace."
+  (handler-case (sb-ext:octets-to-string octets :external-format '(:utf-8 :replacement #\Replacement_Character))
+    (error () (map 'string (lambda (b) (code-char (logand b #xff))) octets))))
+
 (defun %req-body (this) (or (obj-hidden this "%body%") (make-array 0 :element-type '(unsigned-byte 8))))
 
 (defun %request-prototype (g)
@@ -110,7 +118,7 @@ body, and `headers` is a lazy getter — so building a per-request object is che
       (let ((p (eng:new-object)))
         (eng:install-method p "text" 0
           (lambda (this args) (declare (ignore args))
-            (%resolved-promise g (sb-ext:octets-to-string (%req-body this) :external-format :utf-8))))
+            (%resolved-promise g (%body-text-decode (%req-body this)))))
         (eng:install-method p "bytes" 0
           (lambda (this args) (declare (ignore args)) (%resolved-promise g (eng:u8-from-octets (%req-body this)))))
         (eng:install-method p "arrayBuffer" 0
@@ -120,7 +128,7 @@ body, and `headers` is a lazy getter — so building a per-request object is che
           (lambda (this args) (declare (ignore args))
             (let ((json (eng:js-get g "JSON")))
               (%resolved-promise g (eng:js-call (eng:js-get json "parse") json
-                                                (list (sb-ext:octets-to-string (%req-body this) :external-format :utf-8)))))))
+                                                (list (%body-text-decode (%req-body this))))))))
         (eng:install-getter p "headers"
           (lambda (this args) (declare (ignore args))
             (or (obj-hidden this "%headers-obj%")
@@ -160,6 +168,22 @@ body, and `headers` is a lazy getter — so building a per-request object is che
     (eng:data-prop o "ok" (eng:js-boolean (and (>= status 200) (< status 300))))
     (eng:data-prop o "headers" (%new-headers (%coerce-headers-init hinit)))
     (eng:hidden-prop o "%body%" body)
+    ;; body-reading accessors (fetch reads a Response; harmless for the server's own).
+    (let ((g (eng:realm-global eng:*realm*)))
+      (flet ((oct (this) (%body->octets (obj-hidden this "%body%"))))
+        (eng:install-method o "text" 0
+          (lambda (this args) (declare (ignore args))
+            (%resolved-promise g (%body-text-decode (oct this)))))
+        (eng:install-method o "bytes" 0
+          (lambda (this args) (declare (ignore args)) (%resolved-promise g (eng:u8-from-octets (oct this)))))
+        (eng:install-method o "arrayBuffer" 0
+          (lambda (this args) (declare (ignore args))
+            (%resolved-promise g (eng:js-get (eng:u8-from-octets (oct this)) "buffer"))))
+        (eng:install-method o "json" 0
+          (lambda (this args) (declare (ignore args))
+            (let ((json (eng:js-get g "JSON")))
+              (%resolved-promise g (eng:js-call (eng:js-get json "parse") json
+                                                (list (%body-text-decode (oct this))))))))))
     o))
 
 (defun %body->octets (body)

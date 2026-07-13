@@ -110,7 +110,16 @@
 (defun tcp-write (tcp octets)
   "Queue OCTETS (a byte vector) for sending; flush as much as the socket accepts now.
 Returns the number of bytes still queued (backpressure signal). A zero-length write is
-a no-op (socket-send rejects an empty/non-(unsigned-byte 8) vector — CASE-FAILURE)."
+a no-op (socket-send rejects an empty/non-(unsigned-byte 8) vector — CASE-FAILURE).
+
+Off the loop thread (an async handler writing after an await) the queue mutation + flush
+are marshalled onto the loop thread; the return is then only an advisory snapshot."
+  (if (lp:loop-on-thread-p (tcp-loop tcp))
+      (%do-write tcp octets)
+      (progn (lp:loop-post (tcp-loop tcp) (lambda () (%do-write tcp octets)))
+             (tcp-queued-bytes tcp))))
+
+(defun %do-write (tcp octets)
   (when (and (eq (tcp-state tcp) :open) (plusp (length octets)))
     (let ((chunk (cons octets 0)))
       (if (tcp-write-tail tcp)
@@ -190,17 +199,22 @@ Copying here would be O(n) per partial send → O(n²) to drain a large write."
     (when (tcp-on-close tcp) (funcall (tcp-on-close tcp) tcp code))))
 
 (defun tcp-close (tcp)
-  "Close now (drops any unflushed queue). For a graceful flush-then-close use tcp-shutdown."
-  (unless (eq (tcp-state tcp) :closed) (%finish-close tcp nil))
+  "Close now (drops any unflushed queue). For a graceful flush-then-close use tcp-shutdown.
+Marshalled onto the loop thread (reactor-remove + fd close must not run off it — an abort
+callback firing on a coroutine thread would otherwise leave a stale handler on a reused fd)."
+  (lp:run-on-loop (tcp-loop tcp)
+    (lambda () (unless (eq (tcp-state tcp) :closed) (%finish-close tcp nil))))
   (values))
 
 (defun tcp-shutdown (tcp)
   "Graceful close: if the write queue is already empty, close now; otherwise close as
 soon as it drains (the response's bytes are guaranteed to go out first)."
-  (when (eq (tcp-state tcp) :open)
-    (if (plusp (tcp-queued-bytes tcp))
-        (setf (tcp-close-after-drain tcp) t)
-        (tcp-close tcp)))
+  (lp:run-on-loop (tcp-loop tcp)
+    (lambda ()
+      (when (eq (tcp-state tcp) :open)
+        (if (plusp (tcp-queued-bytes tcp))
+            (setf (tcp-close-after-drain tcp) t)
+            (unless (eq (tcp-state tcp) :closed) (%finish-close tcp nil))))))
   (values))
 
 ;;; --- wrapping an established socket -----------------------------------------
@@ -245,8 +259,13 @@ inside; reading starts after it returns."
                    (l (make-listener :socket socket :fd fd :loop loop :handle h
                                      :address addr :port real-port :on-connection on-connection)))
               (lp:handle-activate h)
-              (setf (listener-read-handler l)
-                    (lp:reactor-add loop fd :input (lambda (fd) (declare (ignore fd)) (%on-acceptable l))))
+              ;; the accept handler must be registered on the loop thread (Clun.serve may
+              ;; be called from an async function body — a coroutine thread).
+              (lp:run-on-loop loop
+                (lambda ()
+                  (setf (listener-read-handler l)
+                        (lp:reactor-add loop fd :input
+                                        (lambda (fd) (declare (ignore fd)) (%on-acceptable l))))))
               l)))
       (sb-bsd-sockets:socket-error (e)
         (%safe-close-socket socket)
@@ -266,34 +285,42 @@ inside; reading starts after it returns."
           (when (eq (tcp-state tcp) :open) (%start-reading tcp)))))))
 
 (defun listener-close (listener)
-  (unless (listener-closed listener)
-    (setf (listener-closed listener) t)
-    (when (listener-read-handler listener)
-      (lp:reactor-remove (listener-loop listener) (listener-read-handler listener)))
-    (%safe-close-socket (listener-socket listener))
-    (when (listener-handle listener) (lp:handle-deactivate (listener-handle listener))))
+  (lp:run-on-loop (listener-loop listener)
+    (lambda ()
+      (unless (listener-closed listener)
+        (setf (listener-closed listener) t)
+        (when (listener-read-handler listener)
+          (lp:reactor-remove (listener-loop listener) (listener-read-handler listener)))
+        (%safe-close-socket (listener-socket listener))
+        (when (listener-handle listener) (lp:handle-deactivate (listener-handle listener))))))
   (values))
 
 ;;; --- connect ----------------------------------------------------------------
 
 (defun tcp-connect (loop host port &key ipv6 on-connect on-data on-close on-error)
   "Non-blocking connect to HOST:PORT. ON-CONNECT (lambda (tcp)) fires once the connection
-is established; a failure fires ON-ERROR with a code (ECONNREFUSED…) then closes."
+is established; a failure fires ON-ERROR with a code (ECONNREFUSED…) then closes.
+
+The tcp handle is created + returned synchronously, but the connect syscall and its
+reactor registration are marshalled onto the loop thread (tcp-connect is routinely
+called from an async function body, i.e. a coroutine thread — see LP:RUN-ON-LOOP)."
   (let* ((socket (%new-socket ipv6))
          (tcp (%wrap loop socket :on-data on-data :on-close on-close :on-error on-error
                                  :state :connecting)))
     (setf (tcp-on-connect tcp) on-connect)
-    (handler-case
-        (progn
-          (sb-bsd-sockets:socket-connect socket (%inet-address host ipv6) port)
-          ;; connected synchronously (rare on loopback) — promote immediately
-          (%complete-connect tcp))
-      (sb-bsd-sockets:operation-in-progress ()
-        ;; EINPROGRESS — writable readiness signals connect completion
-        (setf (tcp-write-handler tcp)
-              (lp:reactor-add loop (tcp-fd tcp) :output
-                              (lambda (fd) (declare (ignore fd)) (%on-connect-writable tcp)))))
-      (sb-bsd-sockets:socket-error (e) (%fail tcp e)))
+    (lp:run-on-loop loop
+      (lambda ()
+        (handler-case
+            (progn
+              (sb-bsd-sockets:socket-connect socket (%inet-address host ipv6) port)
+              ;; connected synchronously (rare on loopback) — promote immediately
+              (%complete-connect tcp))
+          (sb-bsd-sockets:operation-in-progress ()
+            ;; EINPROGRESS — writable readiness signals connect completion
+            (setf (tcp-write-handler tcp)
+                  (lp:reactor-add loop (tcp-fd tcp) :output
+                                  (lambda (fd) (declare (ignore fd)) (%on-connect-writable tcp)))))
+          (sb-bsd-sockets:socket-error (e) (%fail tcp e)))))
     tcp))
 
 (defun %on-connect-writable (tcp)

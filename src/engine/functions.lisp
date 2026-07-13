@@ -45,6 +45,13 @@
   (obj-set-desc obj name (accessor-pd (make-native-function (format nil "get ~a" name) 0 fn)
                                       +undefined+ :enumerable nil :configurable t)))
 
+(defun install-accessor (obj name getter setter)
+  "A get+set accessor property NAME on OBJ. GETTER/SETTER are CL fns of (this args)."
+  (obj-set-desc obj name (accessor-pd (make-native-function (format nil "get ~a" name) 0 getter)
+                                      (if setter (make-native-function (format nil "set ~a" name) 1 setter)
+                                          +undefined+)
+                                      :enumerable nil :configurable t)))
+
 ;;; --- instantiating a user function (called by the emitter) -----------------
 
 (defun instantiate-function (compiled-body env &key (fname "") (param-count 0) strict

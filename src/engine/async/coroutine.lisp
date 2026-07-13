@@ -33,7 +33,8 @@ realm so teardown can force-finish it (leak control for the conformance run)."
 (defun %coroutine-thread-body (co)
   "Runs on the coroutine's own thread. Rebinds *realm* and re-enters the float-trap
 mask (both required — the thread runs outside the driver's dynamic extent)."
-  (let ((*realm* (coro-realm co)))
+  (let ((*realm* (coro-realm co))
+        (lp:*on-foreign-thread* t))          ; reactor ops here must marshal to the loop thread
     (with-js-floats
       (sb-thread:wait-on-semaphore (coro-resume-sem co))     ; wait for the first resume
       (let ((result

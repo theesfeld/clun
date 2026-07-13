@@ -11,7 +11,8 @@
   :version "0.0.1"
   ;; SBCL contribs for the event loop (Phase 05); cl-ppcre is the RegExp backend
   ;; (Phase 10, vendored + pure). sb-thread is built in (feature :sb-thread).
-  :depends-on ((:require "sb-posix") (:require "sb-concurrency") (:require "sb-bsd-sockets") "cl-ppcre")
+  :depends-on ((:require "sb-posix") (:require "sb-concurrency") (:require "sb-bsd-sockets")
+               "cl-ppcre" "chipz")
   :serial t
   :components ((:module "src"
                 :serial t
@@ -46,7 +47,8 @@
                              (:module "net"
                               :serial t
                               :components ((:file "sockets")
-                                           (:file "http-parser")))
+                                           (:file "http-parser")
+                                           (:file "http-client")))
                              (:module "engine"
                               :serial t
                               :components ((:file "values")
@@ -128,6 +130,8 @@
                                            (:file "globals")   ; structuredClone, crypto (Phase 12)
                                            (:file "web-http")  ; Headers/Request/Response (Phase 17)
                                            (:file "clun-serve"); Clun.serve HTTP server (Phase 17)
+                                           (:file "web-url")   ; URL/URLSearchParams (Phase 18)
+                                           (:file "web-fetch") ; fetch (Phase 18)
                                            ;; node builtin modules (Phase 12): registry +
                                            ;; one file per module; each self-registers.
                                            (:module "node"
@@ -195,7 +199,8 @@
                                                          (:file "binary-tests")))
                                            (:module "runtime"
                                             :serial t
-                                            :components ((:file "runtime-tests")))
+                                            :components ((:file "runtime-tests")
+                                                         (:file "url-tests")))
                                            (:module "transpiler"
                                             :serial t
                                             :components ((:file "ts-strip-tests")))
@@ -206,4 +211,5 @@
                                             :serial t
                                             :components ((:file "sockets-tests")
                                                          (:file "http-parser-tests")
-                                                         (:file "http-server-tests")))))))))
+                                                         (:file "http-server-tests")
+                                                         (:file "fetch-tests")))))))))

@@ -9,7 +9,9 @@
     (install-crypto g)
     (install-buffer-global g)
     (install-abort g)                       ; AbortController/AbortSignal (Phase 14)
-    (install-web-http realm)))              ; Headers/Request/Response (Phase 17)
+    (install-web-http realm)                ; Headers/Request/Response (Phase 17)
+    (install-web-url realm)                 ; URL/URLSearchParams (Phase 18)
+    (install-fetch realm)))                 ; fetch (Phase 18)
 
 (defun install-buffer-global (g)
   "Expose the node:buffer Buffer constructor as the `Buffer` global (Node has it always).

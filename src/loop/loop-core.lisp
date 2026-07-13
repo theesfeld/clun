@@ -50,6 +50,7 @@
   (fd-handlers '())                     ; (fd . sb-sys-handler) alist (reactor.lisp)
   signal-state                          ; signals.lisp
   workers                               ; worker-pool (workers.lisp)
+  (thread nil)                          ; the thread running run-loop (reactor-thread affinity)
   (running nil)
   (stop-requested nil))
 
@@ -120,3 +121,26 @@ Unref'd timers/handles do NOT keep it alive (they only fire if it is running)."
   "Enqueue THUNK to run on the loop thread and wake the loop. Safe from any thread."
   (sb-concurrency:send-message (el-mailbox loop) thunk)
   (clun.sys:self-pipe-wake (el-self-pipe loop)))
+
+(defvar *on-foreign-thread* nil
+  "Bound to T on a coroutine's own thread (an async function body). serve-event dispatches
+an fd handler ONLY for a registration made by the thread that runs it, so a coroutine
+thread must never touch the reactor directly — even before run-loop has started, since the
+loop will run on a DIFFERENT (driver) thread. The main/driver thread leaves this NIL, so
+its pre-run setup (the classic `register listeners then run-loop` pattern) stays synchronous.")
+
+(defun loop-on-thread-p (loop)
+  "T iff the caller may touch LOOP's reactor synchronously. When the loop is running, that
+means being its run-loop thread. When it is NOT yet running, the caller is doing setup that
+will be dispatched once run-loop starts — safe UNLESS we are on a coroutine thread (the loop
+will run elsewhere), in which case the op must be marshalled via LOOP-POST."
+  (let ((th (el-thread loop)))
+    (if th
+        (eq th sb-thread:*current-thread*)
+        (not *on-foreign-thread*))))
+
+(defun run-on-loop (loop thunk)
+  "Run THUNK on LOOP's thread: directly if already there, else marshal via LOOP-POST.
+Deferred thunks run at the next PROCESS-COMPLETIONS; the queued post keeps the loop
+alive in the meantime (IMMEDIATE-WORK-P sees the mailbox)."
+  (if (loop-on-thread-p loop) (funcall thunk) (loop-post loop thunk)))

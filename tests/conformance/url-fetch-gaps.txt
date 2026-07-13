@@ -1,0 +1,34 @@
+Phase 18 — URL / fetch / HTTP-client deliberate gaps (revisit later)
+====================================================================
+
+These are known, documented divergences from the WHATWG URL Standard / the Fetch
+Standard. None is a crash (§6): every one is either a clean JS error or a correct-
+but-narrower behavior. Enumerated here so a later phase can close them knowingly.
+
+URL (src/runtime/web-url.lisp)
+------------------------------
+- IDNA / punycode: a non-ASCII host raises a loud "IDNA not supported" TypeError
+  rather than being encoded to xn--. (§3.2 — needs a Unicode/IDNA table.)
+- The `file:` Windows drive-letter quirk is not applied: `file:///C|/p` keeps the
+  bar (`/C|/p`) instead of normalizing `C|` → `C:`. Niche; POSIX file paths are fine.
+- Getter-only components: protocol / username / password / host have NO setter (the
+  common setters — href/hostname/port/pathname/search/hash — are all present). Setting
+  `u.protocol`/`u.username`/`u.password`/`u.host` is a silent no-op, not a re-serialize.
+- IPv6 is stored + lower-cased but NOT canonically compressed (`[2001:db8:0:0:0:0:0:1]`
+  is not rewritten to `[2001:db8::1]`). IPv4 dotted quads are not re-normalized either
+  (e.g. `0x7f.1` forms). Literal, validated hosts only.
+- Some WPT setter/edge cases (opaque-path setters, tab/newline mid-component removal
+  beyond the leading/trailing strip, C0-control-in-host validation) are approximate.
+
+fetch / HTTP client (src/runtime/web-fetch.lisp, src/net/http-client.lisp)
+--------------------------------------------------------------------------
+- No connection pool: every request dials a fresh socket and sends `Connection: close`
+  (keep-alive reuse is a later optimization; correctness is unaffected).
+- https is a loud TypeError (TLS is Phase 20).
+- DNS (`sb-bsd-sockets:get-host-by-name`) resolves synchronously on the loop thread —
+  a slow lookup blocks the loop for its duration. localhost + IP literals are instant.
+- `redirect: "manual"` returns the raw 3xx response (no opaque-redirect filtering).
+- Redirects do not yet strip the Authorization/Cookie headers on a cross-origin hop
+  (same-origin redirect chains, the common case, are correct).
+- Streaming bodies are not supported: request + response bodies are fully buffered
+  (bounded by *max-body-bytes*); no ReadableStream / Response.body.
