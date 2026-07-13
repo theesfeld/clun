@@ -5,7 +5,43 @@ Update before every commit. Seeded from PLAN.md §5.
 
 ---
 
-## Current phase: **16 — Sockets**  (Phase 15 committed; test-runner gate MET)
+## Current phase: **17 — HTTP server + Clun.serve**  (Phase 16 committed; sockets gate MET)
+
+**Phase 16 outcome:** a non-blocking TCP handle layer on the Phase-05 serve-event reactor —
+`clun.net`/`src/net/sockets.lisp`, callback-based (Phase 17+ marshals to JS). Verified sb-bsd-sockets
+facts drive it: non-blocking connect signals operation-in-progress; accept/recv return NIL on EAGAIN;
+send returns a PARTIAL count when the kernel buffer fills; accepted sockets need explicit non-blocking;
+a failed async connect surfaces via peername-signals-then-recv; `:nosignal` turns write-to-closed into a
+catchable socket-error (no SIGPIPE); socket-send accepts a zero-copy displaced view. A `tcp` handle holds
+a ref'd loop handle (keeps the loop alive while open), a reusable 256 KB read buffer, and a FIFO write
+queue of `(octets . offset)` chunks; `%flush` sends the head with `:nosignal`, advancing the offset via a
+DISPLACED VIEW on a partial send (copying the remainder would be O(n²) to drain a big write), registers
+`:output` + marks backpressured, and fires `on-drain` ONCE on the backpressure→empty edge. `tcp-connect`
+(EINPROGRESS→:output→peername-promote/ECONNREFUSED), `tcp-listen` (SO_REUSEADDR, port-0 real-port,
+`%on-acceptable` drains the accept queue), `tcp-close` (idempotent: remove both reactor handlers,
+socket-close, deactivate handle, on-close once — EOF→code NIL, error→code string). `socket-error-code`
+maps sb-bsd-sockets subclasses → JS errno strings (ECONNREFUSED/EADDRINUSE/…). 4 MB SO_{SND,RCV}BUF cut
+reactor round-trips. **Gate MET:** tests/lisp/net/sockets-tests.lisp — port-0 real-port, echo roundtrip,
+**2,000 sequential + 500 concurrent** echoes, **fd-count stable** (zero leaks over 400 cycles),
+connect-refused→ECONNREFUSED, **throughput ~131–137 MB/s** (64 MB loopback ≥100) — all green;
+`make build`/`test`(**1122 parachute + 42 TS + 74 JS**)/`purity`(**172 files**) green; parse 17,512 / exec
+**22,643** (0 crashes, 0 regressions — the socket layer is engine-inert). Adversarial review panel (5 dims
+× find→**verify-by-running-CL**, 11 agents, 6 findings / **4 confirmed + fixed**): a zero-byte `tcp-write`
+CASE-FAILURE crash (skip empty + broaden the send catch → §6) and `on-drain` firing spuriously/repeatedly
+(now edge-triggered on a genuine backpressure→empty transition, per Node's `drain`). Verified no data
+corruption / 0 connection errors across 12,000 connects under 4-CPU-hog contention. Deliberate: hostnames
+must be IP literals (DNS→18); IPv6 lightly tested; no UDP; unclassified socket errors → a generic code.
+
+**Next action:** Begin Phase 17 (HTTP server + `Clun.serve`, deps 14 ✓, 16 ✓): own incremental HTTP/1.1
+parser (adversarial lengths, §6); Request/Response/Headers classes (shared with fetch); `Clun.serve({port,
+hostname,fetch,error})` → Server{stop(graceful),url,port}; keep-alive, chunked both ways, 16 KB header /
+configurable body limits (431/413), HEAD, date header; `Clun.file` responses via chunked worker-pool reads;
+503 shedding. Gate: curl interop; malformed-request suite; ≥30k req/s loopback with real parsing + a JS
+handler; graceful shutdown completes in-flight under load; 1k-request RSS plateau; examples/serve.ts smoke.
+
+---
+
+## Recent phase outcomes (most recent first)
 
 **Phase 15 outcome:** `clun test` — a Bun-compatible runner whose framework is implemented in CL against
 the engine object API (no JS in the implementation, §1.1). `src/test-runner/` (7 files): **registry**
@@ -41,10 +77,6 @@ accept/read/write with EAGAIN→NIL; write queues + backpressure; IPv6; port-0 r
 mapping to JS codes (ECONNREFUSED…); BROKEN-PIPE handling — on the Phase-05 serve-event reactor (respect
 the thread-registration rule). Gate: echo server 2,000 sequential + 500 concurrent connections;
 /proc/self/fd count stable (zero leaks); ≥100 MB/s single-connection loopback.
-
----
-
-## Recent phase outcomes (most recent first)
 
 **Phase 14 outcome:** the async product floor. Most substrate pre-existed (loop queues + heap timers +
 handle refcount from 05; Promise/microtask/nextTick + setTimeout/Interval from 06; Clun.sleep from 08/12),
@@ -669,6 +701,29 @@ _(nothing blocked)_
     no snapshots / mocks / spies (v1 non-goals); `.each` name interpolation a documented subset; concurrent
     tests run sequentially; runaway SYNCHRONOUS (non-awaiting) tests are not preemptible.
 
+- **Phase 16 — SOCKETS GATE MET + committed (2026-07-13).**
+  - `make build` clean; `make test` = **1122 parachute + 42 tests/ts + 74 tests/js** (0 failed);
+    `make purity` clean (**172 files**); `make conformance` parse **17,512**; `make conformance-exec`
+    over 40,654 files: **pass 22,643**, **0 crashes**, **0 regressions** (the socket layer is engine-inert;
+    `sb-bsd-sockets` added to :depends-on).
+  - **Gate:** tests/lisp/net/sockets-tests.lisp (both echo server + clients on ONE reactor loop) —
+    port-0 real-port, echo roundtrip, **2,000 sequential**, **500 concurrent** (backlog 1024), **fd-no-leak**
+    (fd count returns to baseline over 400 open/close cycles), **connect-refused → ECONNREFUSED**, and
+    **throughput 64 MB loopback ≥100 MB/s** (measured ~131–137) — all green.
+  - `clun.net` / `src/net/sockets.lisp`: a callback `tcp` handle on the reactor (`lp:reactor-add`),
+    non-blocking connect/accept/read/write, a `(octets . offset)` write queue with zero-copy displaced-view
+    partial sends + edge-triggered on-drain, ref'd loop handle for liveness, idempotent close with full
+    handler removal, `socket-error-code` mapping. 256 KB read buffer + 4 MB SO_{SND,RCV}BUF.
+  - Adversarial review panel (5 dims × find→**verify-by-running-CL**, 11 agents): **6 findings / 4 confirmed
+    + fixed** — a zero-byte `tcp-write` `CASE-FAILURE` crash (skip empty + broaden the send handler → §6),
+    and `on-drain` firing spuriously/repeatedly (now fires once on a genuine backpressure→empty edge, per
+    Node `drain`). Stress-verified: 0 corruption / 0 connection errors across 12,000 connects under 4-CPU-hog
+    contention. (A single earlier echo failure was induced by running the suite alongside a 6 GB conformance
+    process — a testing artifact, not a defect; isolated runs are stable.)
+  - DEFERRED 🟡: hostnames must be IP literals (DNS → Phase 18); IPv6 structurally present but lightly
+    tested; no UDP; unclassified socket errors report a generic code; the single-threaded-both-ends
+    throughput figure is a test artifact (a real server drives one direction per thread).
+
 ## Phases
 
 Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-early.
@@ -801,10 +856,10 @@ Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-earl
 - [x] self-hosting: meta-tests + hook-order byte-exact via the fixture harness (tests/js/testrunner/*), run under `make test`
 - **Gate MET:** meta-test matrix (pass/fail/skip/todo/only/bail/-t 0-match/zero-tests→1) + hook-order byte-exact green; build/test(1110+42+74)/purity(170) ✓; exec 22,643, 0 crashes/regressions. Review panel 8/10 confirmed + fixed.
 
-### Phase 16 — Sockets  (deps: 05) ◇ ~1.8k LOC
-- [ ] non-blocking connect (EINPROGRESS)/accept/read/write w/ EAGAIN→NIL; write queues + backpressure
-- [ ] IPv6; port-0 real-port; error mapping (ECONNREFUSED…); BROKEN-PIPE handling
-- **Gate:** echo server 2,000 sequential + 500 concurrent; /proc/self/fd stable (zero leaks); ≥100 MB/s loopback.
+### Phase 16 — Sockets  (deps: 05) ◇ ~1.8k LOC — **DONE (gate MET)**
+- [x] non-blocking connect (EINPROGRESS)/accept/read/write w/ EAGAIN→NIL; `(octets . offset)` write queue + backpressure (zero-copy displaced-view partial sends; edge-triggered on-drain)
+- [x] port-0 real-port; error→JS-code mapping (ECONNREFUSED/EADDRINUSE/…); write-to-closed → catchable socket-error (`:nosignal`, no SIGPIPE); idempotent close w/ full handler removal; ref'd handle liveness. IPv6 structurally present (lightly tested); DNS → Phase 18
+- **Gate MET:** echo 2,000 sequential + 500 concurrent green; /proc/self/fd stable (0 leaks over 400 cycles); throughput ~131–137 MB/s ≥100; build/test(1122+42+74)/purity(172) ✓; exec 22,643, 0 crashes/regressions. Review panel 4/6 confirmed + fixed (zero-byte-write crash; on-drain edge semantics).
 
 ### Phase 17 — HTTP server + Clun.serve  (deps: 14, 16) ~3.5k LOC
 - [ ] own incremental HTTP/1.1 parser (adversarial lengths); Request/Response/Headers (shared with fetch)

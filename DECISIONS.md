@@ -949,3 +949,54 @@ sibling; has-only is now computed at schedule time by `%tree-active-only` which 
 `.skip` subtree. The 2 refuted findings were correct behavior / documented divergences. All four fixes were
 re-verified by running the exact repros on `build/clun`; regression-locked by the tests/js/testrunner
 fixtures. Net: build/test/purity green; conformance 22,643, 0 crashes, 0 regressions.
+
+### 2026-07-13 — Phase 16: sockets (non-blocking TCP on the reactor)
+A CL-only TCP handle layer (`clun.net`, `src/net/sockets.lisp`) on the Phase-05 serve-event reactor —
+callback-based (Phase 17+ marshals the callbacks to JS). `sb-bsd-sockets` added to the system
+`:depends-on`. Design driven by behaviors PROBED on this host (SBCL 2.6.4): non-blocking connect signals
+`operation-in-progress` (EINPROGRESS); `socket-accept`/`socket-receive` return **NIL** on EAGAIN and
+`(values buf 0)` on orderly EOF; non-blocking `socket-send` returns a **partial byte count** when the
+kernel buffer fills (it does NOT signal EWOULDBLOCK); **accepted sockets are NOT non-blocking by default**
+(we set it); a failed async connect is detected by `socket-peername` signalling, then a `socket-receive`
+surfaces the specific errno (`connection-refused-error`); `:nosignal t` turns write-to-closed-peer into a
+catchable `socket-error` (no SIGPIPE); `socket-send` accepts a **displaced array** (zero-copy view); a
+port-0 bind's real port comes from `socket-name`. A `tcp` handle carries a ref'd loop handle (keeps the
+loop alive while open — `loop-alive-p` already ignores unref'd handles), a reusable 256 KB read buffer,
+and a FIFO write queue of `(octets . offset)` chunks. `%flush` sends the head with `:nosignal`, advances
+the offset via a **displaced view** on a partial send (a `subseq` of the remainder would be O(n²) to drain
+a large write — this was measured: it capped loopback throughput), registers the `:output` handler + sets
+`backpressured`, and on drain fires `on-drain` **once on the backpressure→empty edge** (Node `drain`
+semantics — NOT every time an empty queue is observed). Reads drain `socket-receive` in a loop until EAGAIN
+(NIL) or EOF (0→close), delivering each chunk as a fresh `subseq`. Close is idempotent (`%finish-close`):
+remove BOTH reactor handlers (no stale handler can fire on a recycled fd — the §6 use-after-close class),
+`socket-close :abort t`, deactivate the handle, `on-close (tcp code)` once (EOF → code NIL; error → code
+string). `tcp-connect` (EINPROGRESS → `:output` → peername-promote or ECONNREFUSED), `tcp-listen`
+(SO_REUSEADDR + non-blocking, `%on-acceptable` drains the accept queue, double-bind → `socket-open-error`
+EADDRINUSE). `socket-error-code` maps the sb-bsd-sockets condition subclasses → JS errno strings. 4 MB
+SO_{SND,RCV}BUF (best-effort, kernel-clamped) cut reactor round-trips, lifting loopback throughput from
+~110 to ~135 MB/s. **Reactor thread rule** respected: all `reactor-add`/`-remove` happen on the loop
+thread (serve-event dispatches an fd handler only for a registration made by the running thread). **Gate
+MET:** tests/lisp/net/sockets-tests.lisp runs BOTH the echo server and the clients on ONE loop (the reactor
+multiplexes every fd) — 2,000 sequential + 500 concurrent + fd-no-leak + connect-refused + throughput
+(~131–137 MB/s ≥100); build/test(**1122 parachute + 42 TS + 74 JS**)/purity(**172 files**) green; exec
+**22,643**, 0 crashes, 0 regressions (engine-inert). **Deliberate:** IP-literal hosts only (DNS → Phase
+18); IPv6 lightly tested; no UDP; unclassified socket errors → a generic code; the single-threaded-both-
+ends throughput is a test artifact (a real server drives one direction per thread).
+
+### 2026-07-13 — Phase 16 review panel (find→verify-by-running-CL)
+Ultracode Workflow: 5 dimensions × find→adversarially-verify-by-running-CL against `clun.net` (each probe
+a temp .lisp loading `:clun` + a watchdog timer), 11 agents, **6 findings / 4 confirmed + fixed** (0 HIGH,
+all MED — the crash-safety dimension found NO backtraces on the adversarial ops themselves). **Zero-byte
+`tcp-write`** (`(tcp-write tcp #())`) reached `socket-send` with an empty non-`(unsigned-byte 8)` vector →
+an unhandled `SB-KERNEL:CASE-FAILURE` on the loop thread; fixed by making a zero-length write a no-op in
+`tcp-write` AND broadening `%flush`'s handler-case to convert any non-socket condition from a send into a
+clean connection failure (`%fail`) rather than a §6 backtrace. **`on-drain` semantics**: it fired on EVERY
+`%flush` that emptied the queue — including `%complete-connect`'s post-connect flush of an empty queue and
+every small synchronous write — so a stream that never backpressured still got `on-drain`, and a single
+large write got it repeatedly. Fixed to Node's edge semantics: a `backpressured` flag is set only when a
+partial send registers `:output`, and `on-drain` fires once (then clears the flag) when the queue drains
+WITH the flag set. Both fixes re-verified by running the exact repros (zero-byte survives; small sync write
+→ 0 drains; 16 MB write to a never-reading peer → exactly 1 drain). Additionally stress-verified the layer
+under 4 CPU hogs: 6 × 2,000 sequential echoes = 12,000 connects with 0 data mismatches and 0 connection
+errors (a single earlier echo failure was induced by co-running the suite with a 6 GB conformance process —
+a testing artifact, not a defect). Net: build/test/purity green; conformance 22,643, 0 crashes, 0 regressions.

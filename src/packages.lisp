@@ -177,7 +177,14 @@
 
 (defpackage :clun.net
   (:use :cl)
-  (:documentation "Sockets, HTTP parser/server/client, fetch, TLS integration."))
+  (:local-nicknames (:lp :clun.loop) (:sys :clun.sys))
+  (:documentation "Sockets, HTTP parser/server/client, fetch, TLS integration.")
+  (:export ;; Phase 16 — TCP handle layer on the reactor
+   #:tcp-listen #:tcp-connect #:tcp-write #:tcp-close #:tcp-shutdown
+   #:tcp #:tcp-p #:tcp-state #:tcp-queued-bytes #:tcp-peer #:tcp-local
+   #:tcp-on-data #:tcp-on-close #:tcp-on-error #:tcp-on-drain
+   #:listener #:listener-p #:listener-port #:listener-close #:listener-address
+   #:socket-error-code #:socket-open-error #:socket-open-error-code #:*default-read-size*))
 
 (defpackage :clun.test-runner
   (:use :cl)

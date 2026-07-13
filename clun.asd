@@ -11,7 +11,7 @@
   :version "0.0.1"
   ;; SBCL contribs for the event loop (Phase 05); cl-ppcre is the RegExp backend
   ;; (Phase 10, vendored + pure). sb-thread is built in (feature :sb-thread).
-  :depends-on ((:require "sb-posix") (:require "sb-concurrency") "cl-ppcre")
+  :depends-on ((:require "sb-posix") (:require "sb-concurrency") (:require "sb-bsd-sockets") "cl-ppcre")
   :serial t
   :components ((:module "src"
                 :serial t
@@ -42,6 +42,10 @@
                                            (:file "signals")
                                            (:file "workers")
                                            (:file "event-loop")))
+                             ;; net (Phase 16): TCP handle layer on the reactor.
+                             (:module "net"
+                              :serial t
+                              :components ((:file "sockets")))
                              (:module "engine"
                               :serial t
                               :components ((:file "values")
@@ -194,4 +198,7 @@
                                             :components ((:file "ts-strip-tests")))
                                            (:module "loop"
                                             :serial t
-                                            :components ((:file "loop-tests")))))))))
+                                            :components ((:file "loop-tests")))
+                                           (:module "net"
+                                            :serial t
+                                            :components ((:file "sockets-tests")))))))))
