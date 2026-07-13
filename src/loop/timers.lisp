@@ -79,6 +79,13 @@ timer keeps the loop alive; an unref'd one only fires if the loop is running."
     (setf (timer-cancelled timer) t)
     (handle-deactivate (timer-handle timer))))
 
+;;; ref/unref: a ref'd timer keeps the loop alive; an unref'd one only fires if the
+;;; loop is otherwise running (Node's Timeout.ref/unref/hasRef). Delegated to the
+;;; handle so the refcount bookkeeping stays in one place.
+(defun timer-ref (timer) (handle-ref (timer-handle timer)) timer)
+(defun timer-unref (timer) (handle-unref (timer-handle timer)) timer)
+(defun timer-refd-p (timer) (handle-refd (timer-handle timer)))
+
 (defun next-timer-delay (loop)
   "Ms until the earliest live timer, or NIL if none."
   (let ((h (el-timers loop)))

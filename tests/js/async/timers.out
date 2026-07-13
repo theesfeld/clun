@@ -1,0 +1,8 @@
+hasRef true
+unrefHasRef false
+refHasRef true
+timers-eq true true
+args x y
+interval 1
+interval 2
+interval 3

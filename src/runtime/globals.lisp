@@ -7,7 +7,8 @@
   (let ((eng:*realm* realm) (g (eng:realm-global realm)))
     (install-structured-clone g)
     (install-crypto g)
-    (install-buffer-global g)))
+    (install-buffer-global g)
+    (install-abort g)))                     ; AbortController/AbortSignal (Phase 14)
 
 (defun install-buffer-global (g)
   "Expose the node:buffer Buffer constructor as the `Buffer` global (Node has it always).

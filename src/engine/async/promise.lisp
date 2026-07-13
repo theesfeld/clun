@@ -349,16 +349,69 @@ C, else resolve a fresh C-capability with it."
 ;;; corpus (microtask vs timer vs nextTick) and Promise-using code lands here.
 
 ;; setTimeout returns an opaque Timer JS object (a real js-value, not the raw CL
-;; timer struct — which would crash string coercion), holding the timer in %timer%.
-(defun %make-timer-id (timer)
-  (let ((o (new-object))) (hidden-prop o "%timer%" (%box-timer timer)) o))
+;; timer struct — which would crash string coercion), holding the timer in a
+;; mutable box under %timer% so refresh() can re-arm it in place.
 (sb-ext:defglobal *timer-box-key* '#:timer)
+(sb-ext:defglobal *timer-id-counter* 0)
 (defun %box-timer (timer) (cons *timer-box-key* timer))
 (defun %timer-from-id (id)
   (when (js-object-p id)
     (let ((d (obj-own-desc id "%timer%")))
       (when (and d (consp (pd-value d)) (eq (car (pd-value d)) *timer-box-key*))
         (cdr (pd-value d))))))
+(defun %timer-toprimitive (o idnum)
+  "Install Symbol.toPrimitive → a small integer id (Node's Timeout coerces to a number)."
+  (obj-set-desc o (well-known :to-primitive)
+    (data-pd (make-native-function "[Symbol.toPrimitive]" 1
+               (lambda (this args) (declare (ignore this args)) idnum))
+             :writable nil :enumerable nil :configurable t)))
+
+(defun %make-timer-id (timer &key delay callback interval)
+  "Wrap a CL timer in an opaque JS Timeout with ref/unref/hasRef/refresh/close +
+Symbol.toPrimitive. DELAY/CALLBACK/INTERVAL are captured so refresh() re-arms it."
+  (let ((box (%box-timer timer))
+        (o (new-object))
+        (idnum (coerce (incf *timer-id-counter*) 'double-float)))
+    (hidden-prop o "%timer%" box)
+    (install-method o "ref" 0
+      (lambda (this args) (declare (ignore args))
+        (let ((tm (cdr box))) (when tm (lp:timer-ref tm))) this))
+    (install-method o "unref" 0
+      (lambda (this args) (declare (ignore args))
+        (let ((tm (cdr box))) (when tm (lp:timer-unref tm))) this))
+    (install-method o "hasRef" 0
+      (lambda (this args) (declare (ignore this args))
+        (js-boolean (let ((tm (cdr box))) (and tm (lp:timer-refd-p tm) t)))))
+    (install-method o "close" 0
+      (lambda (this args) (declare (ignore args))
+        (let ((tm (cdr box))) (when tm (lp:clear-timer tm))) this))
+    (when (and delay callback)
+      (install-method o "refresh" 0
+        (lambda (this args) (declare (ignore args))
+          ;; re-arm from now with the original delay; clear the old CL timer, rebox.
+          (let ((tm (cdr box))) (when tm (lp:clear-timer tm)))
+          (setf (cdr box) (lp:set-timer (current-loop) delay callback :repeat interval))
+          this)))
+    (%timer-toprimitive o idnum)
+    o))
+
+(defun %make-immediate-id (cancel refd-box)
+  "Opaque Immediate: %immediate% boxes the canceller; ref/unref toggle REFD-BOX (a
+1-cons flag) — accepted but liveness-inert (documented: immediates run next iteration)."
+  (let ((o (new-object)) (idnum (coerce (incf *timer-id-counter*) 'double-float)))
+    (hidden-prop o "%immediate%" (cons :immediate cancel))
+    (install-method o "ref" 0 (lambda (tt aa) (declare (ignore aa)) (setf (car refd-box) t) tt))
+    (install-method o "unref" 0 (lambda (tt aa) (declare (ignore aa)) (setf (car refd-box) nil) tt))
+    (install-method o "hasRef" 0 (lambda (tt aa) (declare (ignore tt aa)) (js-boolean (car refd-box))))
+    (%timer-toprimitive o idnum)
+    o))
+
+(defun %immediate-canceller (id)
+  (when (js-object-p id)
+    (let ((d (obj-own-desc id "%immediate%")))
+      (when (and d (consp (pd-value d)) (eq (car (pd-value d)) :immediate))
+        (cdr (pd-value d))))))
+
 (defun %clamp-delay (v)
   "WHATWG timers: delay < 0 → 0; > 2^31-1 (incl. Infinity/NaN via %int) → 1."
   (let ((d (%int v))) (cond ((< d 0) 0) ((> d 2147483647) 1) (t d))))
@@ -377,13 +430,26 @@ C, else resolve a fresh C-capability with it."
       (lambda (this args) (declare (ignore this))
         (let ((fn (arg args 0)) (delay (%clamp-delay (arg args 1))) (extra (cddr args)))
           (unless (callable-p fn) (throw-type-error "setTimeout expects a function"))
-          (%make-timer-id (lp:set-timer (current-loop) delay (lambda () (js-call fn +undefined+ extra)))))))
+          (let ((cb (lambda () (js-call fn +undefined+ extra))))
+            (%make-timer-id (lp:set-timer (current-loop) delay cb) :delay delay :callback cb)))))
     (install-method g "setInterval" 2
       (lambda (this args) (declare (ignore this))
         (let ((fn (arg args 0)) (delay (%clamp-delay (arg args 1))) (extra (cddr args)))
           (unless (callable-p fn) (throw-type-error "setInterval expects a function"))
-          (%make-timer-id (lp:set-timer (current-loop) delay (lambda () (js-call fn +undefined+ extra))
-                                        :repeat (max 1 delay))))))
+          (let ((cb (lambda () (js-call fn +undefined+ extra))) (rp (max 1 delay)))
+            (%make-timer-id (lp:set-timer (current-loop) delay cb :repeat rp)
+                            :delay delay :callback cb :interval rp)))))
+    (install-method g "setImmediate" 1
+      (lambda (this args) (declare (ignore this))
+        (let ((fn (arg args 0)) (extra (cdr args)))
+          (unless (callable-p fn) (throw-type-error "setImmediate expects a function"))
+          (let ((cancelled nil) (refd-box (list t)))
+            (lp:enqueue-task (current-loop)
+                             (lambda () (unless cancelled (js-call fn +undefined+ extra))))
+            (%make-immediate-id (lambda () (setf cancelled t)) refd-box)))))
+    (install-method g "clearImmediate" 1
+      (lambda (this args) (declare (ignore this))
+        (let ((c (%immediate-canceller (arg args 0)))) (when c (funcall c))) +undefined+))
     (dolist (name '("clearTimeout" "clearInterval"))
       (install-method g name 1
         (lambda (this args) (declare (ignore this))

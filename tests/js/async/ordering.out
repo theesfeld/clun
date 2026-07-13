@@ -1,0 +1,7 @@
+1: sync start
+2: sync end
+3: nextTick
+4: promise
+5: microtask
+6: timeout
+7: immediate

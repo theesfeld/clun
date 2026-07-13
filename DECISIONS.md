@@ -841,3 +841,62 @@ non-recursive); **accessSync** honours its mode argument; the fs Error message g
 documented gaps (never crashes / silent-garbage): integer-write value masking, negative/NaN-offset
 clamping, backing-vs-view OOB bound (see fs-buffer-gaps.txt). Regression-locked by the new
 tests/js/node/{bufedge,fsedge} fixtures. Net: build/test/purity green; 0 crashes, 0 regressions.
+
+### 2026-07-13 — Phase 14: async product wave (timers/abort/events-once/assert-async)
+Mostly wiring over the existing substrate (Phase-05 loop queues + heap timers + handle refcount;
+Phase-06 Promise/microtask/nextTick + setTimeout/Interval) plus two new primitives. **Timers**:
+setTimeout/setInterval/**setImmediate** now return an enriched Timeout/Immediate JS object (never the raw
+CL struct — that would crash string coercion) carrying `ref()`/`unref()`/`hasRef()`/`refresh()`/`close()`
++ `[Symbol.toPrimitive]` (a small integer). ref/unref delegate to the loop handle via new
+`lp:timer-ref/unref/refd-p` (keeping the refcount bookkeeping in one place), so `unref()` genuinely removes
+a timer from the liveness set. `refresh()` re-arms in place by clearing the old CL timer and reboxing a
+fresh one (the id holds a mutable box). setImmediate uses the loop's `tasks` (check) queue with a
+cancellation box (`clearImmediate` flips it); process-tasks snapshots its count so an immediate scheduling
+another defers to the next iteration (Node check-phase). **Ordering** (the gate): sync → nextTick (all) →
+microtasks (Promise-then then queueMicrotask, FIFO) → timers → immediates; nextTick drains fully between
+microtasks. Clyn makes the top-level `setTimeout(0)` vs `setImmediate` order deterministic (timer first);
+**Node leaves it unspecified** — recorded as a deliberate divergence, asserted in the corpus.
+**AbortController/AbortSignal** (`src/runtime/abort.lisp`, installed by install-globals): we have no
+EventTarget/DOMException in v1, so AbortSignal is a minimal self-contained EventTarget for the single
+`abort` event (aborted/reason/onabort/addEventListener/removeEventListener/dispatchEvent/throwIfAborted +
+statics abort(reason)/timeout(ms)/any(iter)). Default abort reason = an `Error` with name `AbortError`;
+`AbortSignal.timeout` uses `TimeoutError` and unref's its timer so a pending timeout signal never keeps the
+process alive. **node:timers** re-exports the realm globals (+ legacy active/unenroll/enroll no-ops);
+**node:timers/promises** builds Promise (setTimeout/setImmediate) + async-iterator (setInterval) wrappers
+honouring `{signal, ref}` (already-aborted → immediate reject; mid-flight abort → reject + clear the timer).
+**events.once** now rejects on an `error` emit (unless the awaited event IS `error`), honours `{signal}`,
+and detaches all listeners on settle; **captureRejections** (constructor option / static default) routes a
+listener's rejecting thenable to an `error` emit (never applied to the `error` event itself → no loop).
+**assert.rejects/doesNotReject** return Promises (a callable input is invoked; a synchronous throw becomes a
+rejected Promise; a string in the error slot is the message overload; failure rejects with an AssertionError
+`ERR_ASSERTION`). **Engine change:** `compile-for-await` now performs IteratorClose (calls the iterator's
+`return()`) on abrupt completion (break/return/throw) — previously omitted, which leaked lazy async sources
+(the timers/promises setInterval iterator's timer stayed ref'd and hung the loop on `break`). Sync for-of
+still materializes eagerly (no live iterator to close) — unchanged. The IteratorClose fix is spec-required
+behavior that made **+5** for-await-of tests pass (net; incl. iterator-close-throw-get-method-abrupt, whose
+close must SUPPRESS get(return)/return() errors when unwinding a throw so the original propagates — the whole
+close is wrapped in ignore-errors); the exec pass-list was regenerated (monotonic, 22,638→22,643).
+**Gate MET:** build/test(**1110 parachute + 42 TS + 64 JS**)/purity(**163 files**) green; exec **22,643**,
+0 crashes, 0 regressions (the coroutine + for-await changes leave the async/generator dirs green).
+**Deliberate divergences:** deterministic
+timer-before-immediate at top level; setImmediate ref/unref liveness-inert; AbortSignal partial EventTarget
+(abort only) + AbortError Error (no DOMException); `AbortSignal.any` tolerates a non-iterable (returns a
+never-aborting signal rather than throwing); EventEmitter errorMonitor + `events.on` async-iterator deferred.
+
+### 2026-07-13 — Phase 14 review panel (find→verify-by-running-the-binary)
+Run as an ultracode Workflow: 6 dimensions × find→adversarially-verify-by-running `build/clun`, 13 agents,
+**7 findings, 2 confirmed** (each verified and each refutation re-checked against Node semantics on the
+binary). **HIGH (§6):** `process.exit(n)` called inside an `async` function raised a raw
+`CLUN.RUNTIME:PROCESS-EXIT` Lisp backtrace (exit 1) instead of exiting with `n` — the async body runs on a
+coroutine side-thread whose `handler-case` only caught `js-condition`, so the runtime's process-exit
+condition escaped and died on that thread. Fix (engine, layer-clean — it does NOT name the runtime
+condition): the coroutine thread body now also catches any non-JS `serious-condition`, marshals it back to
+the driver as an `(:control . condition)` out-box, and `coroutine-resume` re-`error`s it on the driver (JS)
+thread, where the top-level `main.lisp` handler catches process-exit and exits with the right code (verified
+before and after an `await`; run-exit-handlers stays single-fire via its guard). This also hardens the
+coroutine against stray Lisp errors generally (they now surface on the main thread instead of dying silently
+on a side thread). **LOW:** `new AbortSignal()` now throws "Illegal constructor" on the construct path (a
+`:construct` handler was added). The 5 refuted findings were confirmed to be correct behavior or documented
+deliberate divergences. Extra hand-probe (non-function callbacks, NaN/negative/junk delays, clearTimeout of
+undefined/number/object, AbortSignal.any empty/non-array/non-signal, addEventListener null, refresh-on-cleared,
+`+timeoutId`) produced 0 raw backtraces. Regression-locked by tests/js/async/*. Net: 0 crashes, 0 regressions.

@@ -29,11 +29,27 @@
       (and (eng:js-object-p listener)
            (eng:js-strict-eq (eng:js-get listener "listener") fn))))
 
-(defun %ev-emit (this name js-args)
-  "Snapshot listeners for NAME, invoke each with THIS + JS-ARGS; return count."
+(defun %ev-emit (this name js-args &optional capture)
+  "Snapshot listeners for NAME, invoke each with THIS + JS-ARGS; return count. With
+CAPTURE, a listener that returns a rejecting thenable routes the rejection to an
+`error` emit (captureRejections; subset of Symbol.for('nodejs.rejection'))."
   (let ((snapshot (%ev-list this name)))
-    (dolist (fn snapshot) (eng:js-call fn this js-args))
+    (dolist (fn snapshot)
+      (let ((r (eng:js-call fn this js-args)))
+        (when (and capture (eng:js-object-p r))
+          (let ((then (eng:js-get r "then")))
+            (when (eng:callable-p then)
+              (eng:js-call then r
+                (list eng:+undefined+
+                      (eng:make-native-function "" 1
+                        (lambda (tt aa) (declare (ignore tt))
+                          (eng:js-call (eng:js-get this "emit") this (list "error" (a aa 0)))
+                          (undef))))))))))
     (length snapshot)))
+
+(defun %ev-capture-opt (opts)
+  "True when OPTS is an object with a truthy captureRejections."
+  (and (eng:js-object-p opts) (eng:js-truthy (eng:js-get opts "captureRejections"))))
 
 (defun %ev-max-listeners (this)
   (let ((n (eng:js-get this "_maxListeners")))
@@ -44,17 +60,21 @@
   (declare (ignore name-key))
   (eng:js-get (eng:realm-global eng:*realm*) "Promise"))
 
-(defun %ev-init (obj) (eng:hidden-prop obj "_events" (eng:new-object)) obj)
+(defun %ev-init (obj &optional capture)
+  (eng:hidden-prop obj "_events" (eng:new-object))
+  (when capture (eng:hidden-prop obj "_captureRejections" eng:+true+))
+  obj)
 
 (defun build-node-events ()
   ;; make-native-function gives no .prototype, so build it explicitly and wire construct.
   (let* ((proto (eng:new-object))
          (ctor (eng:make-native-function "EventEmitter" 0
-                 (lambda (this args) (declare (ignore args))
-                   (when (eng:js-object-p this) (%ev-init this)) (undef))
-                 :construct (lambda (args nt) (declare (ignore args))
+                 (lambda (this args)
+                   (when (eng:js-object-p this) (%ev-init this (%ev-capture-opt (a args 0)))) (undef))
+                 :construct (lambda (args nt)
                               (let ((p (and (eng:js-object-p nt) (eng:js-get nt "prototype"))))
-                                (%ev-init (eng:js-make-object (if (eng:js-object-p p) p proto))))))))
+                                (%ev-init (eng:js-make-object (if (eng:js-object-p p) p proto))
+                                          (%ev-capture-opt (a args 0))))))))
     (eng:data-prop ctor "prototype" proto)
     (eng:data-prop proto "constructor" ctor)
     (progn
@@ -100,11 +120,14 @@
         (m "emit" 0
            (lambda (this args)
              (let* ((name (->str (a args 0))) (rest (cdr args))
-                    (count (%ev-count this name)))
+                    (count (%ev-count this name))
+                    ;; captureRejections never applies to the 'error' event itself (no loop)
+                    (capture (and (not (string= name "error"))
+                                  (eng:js-truthy (eng:js-get this "_captureRejections")))))
                (when (and (string= name "error") (zerop count))
                  (let ((e (a args 1)))       ; no-arg error emit throws a real Error, not undefined
                    (eng:throw-js-value (if (undef-p e) (%ev-make-error "Unhandled error.") e))))
-               (%ev-emit this name rest)
+               (%ev-emit this name rest capture)
                (eng:js-boolean (plusp count)))))
         (m "listeners" 1
            (lambda (this args)
@@ -142,9 +165,10 @@
       ;; statics
       (eng:data-prop ctor "EventEmitter" ctor)
       (eng:data-prop ctor "defaultMaxListeners" 10d0)
-      (eng:install-method ctor "once" 2
+      (eng:data-prop ctor "captureRejections" eng:+false+)
+      (eng:install-method ctor "once" 3
         (lambda (this args) (declare (ignore this))
-          (%static-once (a args 0) (->str (a args 1)))))
+          (%static-once (a args 0) (->str (a args 1)) (a args 2))))
       (eng:install-method ctor "listenerCount" 2
         (lambda (this args) (declare (ignore this))
           (coerce (%ev-count (a args 0) (->str (a args 1))) 'double-float))))
@@ -165,21 +189,55 @@
     (when removed (%ev-set-list this name (nreverse kept)))
     (values kept removed)))
 
-(defun %static-once (emitter name)
-  "events.once: resolve a Promise with a JS array of the next emit's args."
-  (let ((promise-ctor (%ev-once name)))
+(defun %static-once (emitter name opts)
+  "events.once(emitter, name[, opts]): a Promise resolving to the next emit's args (a
+JS array). Unless NAME is 'error', an 'error' emit rejects it. opts.signal (an
+AbortSignal) rejects with the abort reason (immediately if already aborted). All
+listeners are detached on settle."
+  (let* ((g (eng:realm-global eng:*realm*))
+         (promise-ctor (eng:js-get g "Promise"))
+         (signal (and (eng:js-object-p opts)
+                      (let ((s (eng:js-get opts "signal"))) (and (eng:js-object-p s) s))))
+         (want-error (not (string= name "error"))))
     (eng:js-construct
      promise-ctor
      (list (eng:make-native-function "" 2
              (lambda (this args) (declare (ignore this))
-               (let* ((resolve (a args 0))
-                      (on (eng:js-get emitter "on"))
-                      (once-fn (eng:make-native-function "" 0
-                                 (lambda (wthis wargs) (declare (ignore wthis))
-                                   (eng:js-call resolve (undef)
-                                                (list (eng:new-array wargs)))
-                                   (undef)))))
-                 (eng:js-call on emitter (list name once-fn))
+               (let ((resolve (a args 0)) (reject (a args 1))
+                     (on (eng:js-get emitter "on"))
+                     (off (eng:js-get emitter "removeListener"))
+                     (event-fn nil) (error-fn nil) (abort-fn nil))
+                 (labels ((cleanup ()
+                            (eng:js-call off emitter (list name event-fn))
+                            (when (and want-error error-fn) (eng:js-call off emitter (list "error" error-fn)))
+                            (when (and signal abort-fn)
+                              (let ((rm (eng:js-get signal "removeEventListener")))
+                                (when (eng:callable-p rm) (eng:js-call rm signal (list "abort" abort-fn)))))))
+                   (if (and signal (eng:js-truthy (eng:js-get signal "aborted")))
+                       (eng:js-call reject (undef) (list (eng:js-get signal "reason")))
+                       (progn
+                         (setf event-fn (eng:make-native-function "" 0
+                                          (lambda (wt wa) (declare (ignore wt))
+                                            (cleanup)
+                                            (eng:js-call resolve (undef) (list (eng:new-array wa)))
+                                            (undef))))
+                         (eng:js-call on emitter (list name event-fn))
+                         (when want-error
+                           (setf error-fn (eng:make-native-function "" 1
+                                            (lambda (wt wa) (declare (ignore wt))
+                                              (cleanup)
+                                              (eng:js-call reject (undef) (list (a wa 0)))
+                                              (undef))))
+                           (eng:js-call on emitter (list "error" error-fn)))
+                         (when signal
+                           (let ((add (eng:js-get signal "addEventListener")))
+                             (when (eng:callable-p add)
+                               (setf abort-fn (eng:make-native-function "" 0
+                                                (lambda (wt wa) (declare (ignore wt wa))
+                                                  (cleanup)
+                                                  (eng:js-call reject (undef) (list (eng:js-get signal "reason")))
+                                                  (undef))))
+                               (eng:js-call add signal (list "abort" abort-fn))))))))
                  (undef))))))))
 
 (register-node-builtin "events" #'build-node-events)

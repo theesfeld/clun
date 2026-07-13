@@ -41,7 +41,12 @@ mask (both required — the thread runs outside the driver's dynamic extent)."
                (destructuring-bind (mode . v) (coro-in-box co)
                  (ecase mode
                    (:next (handler-case (cons :return (funcall (coro-body co)))
-                            (js-condition (c) (cons :throw (js-condition-value c)))))
+                            (js-condition (c) (cons :throw (js-condition-value c)))
+                            ;; A non-JS serious-condition (e.g. the runtime's process-exit,
+                            ;; or a stray Lisp error) must NOT die on this side thread with a
+                            ;; raw backtrace (§6). Marshal it back so coroutine-resume re-raises
+                            ;; it on the driver (JS) thread, where the top-level handler runs.
+                            (serious-condition (c) (cons :control c))))
                    ;; .throw()/.return() on a not-yet-started coroutine complete it directly
                    (:throw (cons :throw v))
                    (:return (cons :return v)))))))
@@ -63,7 +68,11 @@ Returns (values kind result) where kind is :yield, :return, or :throw."
      (sb-thread:signal-semaphore (coro-resume-sem co))
      (sb-thread:wait-on-semaphore (coro-yield-sem co))
      (let ((out (coro-out-box co)))
-       (values (car out) (cdr out))))
+       ;; :control = a non-JS condition the body raised (e.g. process-exit); re-signal
+       ;; it here on the driver thread so it unwinds to the top-level handler cleanly.
+       (if (eq (car out) :control)
+           (error (cdr out))
+           (values (car out) (cdr out)))))
     (:completed (values :return +undefined+))
     (:running (throw-type-error "generator is already running"))))
 

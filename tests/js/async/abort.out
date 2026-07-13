@@ -1,0 +1,8 @@
+before false
+after true AbortError a,b
+idempotent a,b
+throwIf AbortError
+onabort
+static-abort boom
+any true from-p2
+tp-abort AbortError

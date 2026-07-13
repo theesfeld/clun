@@ -5,7 +5,47 @@ Update before every commit. Seeded from PLAN.md §5.
 
 ---
 
-## Current phase: **14 — Async product wave**  (Phase 13 committed; files gate MET)
+## Current phase: **15 — Test runner**  (Phase 14 committed; async gate MET)
+
+**Phase 14 outcome:** the async product floor. Most substrate pre-existed (loop queues + heap timers +
+handle refcount from 05; Promise/microtask/nextTick + setTimeout/Interval from 06; Clun.sleep from 08/12),
+so this was wiring + two new primitives. **Timers**: setTimeout/setInterval/**setImmediate** now return an
+enriched Timeout/Immediate object with `ref()`/`unref()`/`hasRef()`/`refresh()`/`close()` +
+`[Symbol.toPrimitive]` (a number); ref/unref delegate to the loop handle (`lp:timer-ref/unref/refd-p`), so
+an unref'd timer genuinely stops keeping the loop alive. setImmediate maps to the `tasks` (check) queue
+with a cancellation box (`clearImmediate`); its ref/unref is liveness-inert (documented). **node:timers**
+re-exports the realm globals + legacy no-ops; **node:timers/promises** `setTimeout`/`setImmediate` return
+Promises and `setInterval` returns an async iterator, all honouring `{signal, ref}`. **AbortController/
+AbortSignal** (new `src/runtime/abort.lisp`, installed by install-globals): a minimal EventTarget for the
+`abort` event — aborted/reason/onabort/addEventListener/removeEventListener/throwIfAborted + statics
+abort/timeout(unref'd)/any; default reason = Error name "AbortError" (no DOMException in v1). **events.once**
+now rejects on `error`, honours `{signal}`, and detaches listeners on settle; **captureRejections** routes a
+rejecting listener's promise to an `error` emit. **assert.rejects/doesNotReject** return Promises (matchers,
+string-message overload, sync-throw → rejected). Engine fix: **for-await now runs IteratorClose (return())
+on break/return/throw** (was leaking lazy sources — the interval iterator hung the loop). **Gate MET:**
+ordering corpus (nextTick→microtask→timer→immediate) exact-output, unref'd-timer process-exit test, abort +
+timers/promises + events.once fixtures — tests/js/async/{ordering,timers,tpromises,unref,abort,evonce} green;
+`make build`/`test`(**1110 parachute + 42 TS + 64 JS**)/`purity`(**163 files**) green; parse 17,512 / exec
+**22,643** (+5: the for-await IteratorClose fix; pass-list regenerated monotonic; 0 crashes, 0 regressions).
+Adversarial review panel (find→**verify-by-running-the-binary**, 13
+agents, 7 findings / 2 confirmed): fixed a §6 HIGH — `process.exit()` inside an async coroutine leaked a raw
+`PROCESS-EXIT` Lisp backtrace (the coroutine thread now marshals any non-JS serious-condition back to the
+driver, which re-raises it on the JS thread → clean exit with the code); + a LOW (`new AbortSignal()` now
+throws "Illegal constructor" on the construct path). Deliberate divergences: top-level setTimeout(0)
+before setImmediate (Node unspecified; Clun deterministic); setImmediate unref liveness-inert; AbortSignal is
+a partial EventTarget (abort only) with an AbortError Error (no DOMException); AbortSignal.any tolerates a
+non-iterable (returns a never-aborting signal); errorMonitor still deferred (no fresh-Symbol mint).
+
+**Next action:** Begin Phase 15 (Test runner `clun test`, deps 14 ✓; 10 for `-t` ✓): discovery
+(*.test.*/*_test.*/*.spec.*/*_spec.*, positional substring filters); collection + hook scheduler (exact
+Bun ordering + failure semantics, only-bubbling, CI-guard); ~22 matchers on the shared deepEquals/inspector;
+`.resolves`/`.rejects` (Jest-async); timeout machinery; reporter + LCS diffs + summary + exit codes; `--bail`,
+`--todo`; self-hosting migration of tests/js expect-style suites; meta-tests via the built binary. Gate:
+meta-test matrix (pass/fail/skip/todo/only/bail/zero-tests→1); hook-order fixture byte-exact; self-hosted green.
+
+---
+
+## Recent phase outcomes (most recent first)
 
 **Phase 13 outcome:** files. Three engine-free layers below the runtime boundary (Phase-07 discipline).
 `src/sys/fs.lisp` gains a code-carrying `clun.sys:fs-error` (code/errno/syscall/path) + a `with-fs
@@ -548,6 +588,32 @@ _(nothing blocked)_
     descriptors / streams / watchers / Dir handles / recursive cp / chown / utimes / link; stat times
     second-granular; async is Promise-over-sync (real worker-pool offload deferred).
 
+- **Phase 14 — ASYNC GATE MET + committed (2026-07-13).**
+  - `make build` clean; `make test` = **1110 parachute + 42 tests/ts + 64 tests/js** (0 failed);
+    `make purity` clean (**163 files**); `make conformance` parse **17,512**; `make conformance-exec`
+    over 40,654 files: **pass 22,643** (+5 vs Phase 13; the for-await IteratorClose fix — pass-list
+    regenerated monotonic), **0 crashes**, **0 regressions** (the coroutine serious-condition-marshalling
+    change leaves the Promise/async/generator dirs unaffected).
+  - **Gate:** tests/js/async fixtures green — `ordering` (sync→nextTick→microtask(Promise then queueMicrotask)
+    →timer→immediate, deterministic), `timers` (arg forwarding, interval+clear, ref/unref/hasRef, clearImmediate,
+    node:timers identity), `tpromises` (timers/promises setTimeout/setImmediate + setInterval async iterator via
+    for-await+break), `unref` (unref'd timer → process exits promptly), `abort` (controller/signal/timeout/any +
+    timers/promises signal reject), `evonce` (events.once resolve/reject-on-error/{signal} + captureRejections).
+  - New: enriched Timeout/Immediate objects (`ref/unref/hasRef/refresh/close/@@toPrimitive`; `lp:timer-ref/unref/
+    refd-p`), setImmediate/clearImmediate, `src/runtime/abort.lisp` (AbortController/AbortSignal),
+    `src/runtime/node/timers.lisp` (node:timers + node:timers/promises), events.once reject-on-error+{signal}+
+    captureRejections, assert.rejects/doesNotReject. Engine: for-await IteratorClose on abrupt completion.
+  - Adversarial review panel (6 dims × find→**verify-by-running-the-binary**, 13 agents): **7 findings / 2
+    confirmed + fixed** — HIGH (§6): `process.exit()` inside an async coroutine leaked a raw `PROCESS-EXIT`
+    backtrace → the coroutine thread now marshals any non-JS serious-condition back to the driver, which
+    re-raises it on the JS thread (clean exit with the code; works before and after an `await`); LOW:
+    `new AbortSignal()` now throws "Illegal constructor" on the construct path. The 5 refuted findings were
+    verified against Node semantics on the binary (documented deliberate divergences / correct behavior).
+  - DEFERRED 🟡: top-level `setTimeout(0)` deterministically before `setImmediate` (Node unspecified);
+    setImmediate ref/unref liveness-inert; AbortSignal is a partial EventTarget (abort event only) with an
+    AbortError-named Error (DOMException post-v1); `AbortSignal.any` tolerates a non-iterable (never-aborting
+    signal); `EventEmitter` errorMonitor + `events.on` async-iterator not implemented (no fresh-Symbol mint).
+
 ## Phases
 
 Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-early.
@@ -666,11 +732,11 @@ Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-earl
 - [x] Clun.file/Clun.write (lazy file text/json/arrayBuffer/bytes/exists; string|TypedArray|ArrayBuffer sinks); mkdtemp/tmp helpers
 - **Gate MET:** tests/js/node fixtures (buffer/bufedge/fsops/fsedge/clunfile) green — bracket paths, symlink chains, ENOENT/EISDIR, Buffer KAT + OOB/overlap/pad/encoding, Clun.file lazy; build/test(1110+42+58)/purity(161) ✓; exec 22,638, 0 crashes/regressions; deliberate gaps in tests/conformance/fs-buffer-gaps.txt.
 
-### Phase 14 — Async product wave  (deps: 06, 12, 13) ~1.5k LOC
-- [ ] timers globals + Timer ref/unref real loop accounting + node:timers + timers/promises
-- [ ] process.nextTick dedicated queue wiring; events.once + captureRejections; assert.rejects/doesNotReject
-- [ ] Clun.sleep/sleepSync; queueMicrotask; AbortController/AbortSignal
-- **Gate:** extended ordering corpus (nextTick vs microtask vs timer vs immediate) exact-output; unref'd-timer exit test; abort fixtures.
+### Phase 14 — Async product wave  (deps: 06, 12, 13) ~1.5k LOC — **DONE (gate MET)**
+- [x] timers globals + Timer ref/unref/hasRef/refresh/close/@@toPrimitive real loop accounting + setImmediate/clearImmediate + node:timers + node:timers/promises ({signal,ref}; setInterval async iterator)
+- [x] process.nextTick queue (pre-existing, verified ordering); events.once reject-on-error + {signal} + cleanup; captureRejections; assert.rejects/doesNotReject
+- [x] Clun.sleep/sleepSync (pre-existing); queueMicrotask (pre-existing); AbortController/AbortSignal (abort/timeout/any); for-await IteratorClose engine fix
+- **Gate MET:** tests/js/async/{ordering,timers,tpromises,unref,abort,evonce} exact-output green; build/test(1110+42+64)/purity(163) ✓; exec 22,643 (+5 IteratorClose, pass-list regenerated), 0 crashes/regressions. Review panel 2/7 confirmed + fixed (process.exit-in-async §6 backtrace; AbortSignal construct message).
 
 ### Phase 15 — Test runner  (deps: 14; 10 for -t) ~4k LOC
 - [ ] discovery (*.test.*/*_test.*/*.spec.*/*_spec.*; positional substring filters)

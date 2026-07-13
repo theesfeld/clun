@@ -119,6 +119,7 @@
                                            (:file "console")
                                            (:file "process")
                                            (:file "clun-global")
+                                           (:file "abort")     ; AbortController/AbortSignal (Phase 14)
                                            (:file "globals")   ; structuredClone, crypto (Phase 12)
                                            ;; node builtin modules (Phase 12): registry +
                                            ;; one file per module; each self-registers.
@@ -132,7 +133,8 @@
                                                          (:file "events")
                                                          (:file "assert")
                                                          (:file "buffer")
-                                                         (:file "fs")))))
+                                                         (:file "fs")
+                                                         (:file "timers")))))
                              ;; CLI (Phase 08): arg parsing, .env, dispatch.
                              (:module "cli"
                               :serial t

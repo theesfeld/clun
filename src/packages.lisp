@@ -56,6 +56,7 @@
    #:handle-activate #:handle-deactivate
    ;; timers
    #:set-timer #:clear-timer #:timer #:timer-p #:next-timer-delay
+   #:timer-ref #:timer-unref #:timer-refd-p
    ;; reactor (sockets land in P16)
    #:reactor-add #:reactor-remove
    ;; signals

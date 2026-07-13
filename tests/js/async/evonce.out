@@ -1,0 +1,4 @@
+got hello 42
+err oops
+abort AbortError
+capture rejected

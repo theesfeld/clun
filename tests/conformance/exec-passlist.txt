@@ -1,5 +1,5 @@
 # test262 execution-phase pass-list (PLAN.md §3.1). Sorted; only grows.
-# Regenerate: CLUN_GEN=1 CLUN_EXEC=1 make conformance. 22638 entries.
+# Regenerate: CLUN_GEN=1 CLUN_EXEC=1 make conformance. 22643 entries.
 arguments-object/10.5-7-b-2-s.js
 arguments-object/10.5-7-b-3-s.js
 arguments-object/10.5-7-b-4-s.js
@@ -2842,17 +2842,21 @@ built-ins/ArrayBuffer/return-abrupt-from-length.js
 built-ins/ArrayBuffer/toindex-length.js
 built-ins/ArrayBuffer/undefined-newtarget-throws.js
 built-ins/ArrayBuffer/zero-length.js
+built-ins/AsyncFromSyncIteratorPrototype/next/for-await-iterator-next-rejected-promise-close.js
+built-ins/AsyncFromSyncIteratorPrototype/next/for-await-next-rejected-promise-close.js
 built-ins/AsyncFromSyncIteratorPrototype/next/iterator-result-poisoned-done.js
 built-ins/AsyncFromSyncIteratorPrototype/next/iterator-result-poisoned-value.js
 built-ins/AsyncFromSyncIteratorPrototype/next/iterator-result-prototype.js
 built-ins/AsyncFromSyncIteratorPrototype/next/iterator-result-rejected.js
 built-ins/AsyncFromSyncIteratorPrototype/next/return-promise.js
+built-ins/AsyncFromSyncIteratorPrototype/return/absent-value-not-passed.js
 built-ins/AsyncFromSyncIteratorPrototype/return/iterator-result-poisoned-done.js
 built-ins/AsyncFromSyncIteratorPrototype/return/iterator-result-poisoned-value.js
 built-ins/AsyncFromSyncIteratorPrototype/return/iterator-result.js
 built-ins/AsyncFromSyncIteratorPrototype/return/poisoned-get-return.js
 built-ins/AsyncFromSyncIteratorPrototype/return/poisoned-return.js
 built-ins/AsyncFromSyncIteratorPrototype/return/result-object-error.js
+built-ins/AsyncFromSyncIteratorPrototype/return/return-null.js
 built-ins/AsyncFromSyncIteratorPrototype/return/return-undefined.js
 built-ins/AsyncFromSyncIteratorPrototype/throw/iterator-result-poisoned-done.js
 built-ins/AsyncFromSyncIteratorPrototype/throw/iterator-result-poisoned-value.js
@@ -20872,6 +20876,7 @@ statements/for-await-of/async-gen-dstr-var-obj-ptrn-prop-obj-value-null.js
 statements/for-await-of/async-gen-dstr-var-obj-ptrn-prop-obj-value-undef.js
 statements/for-await-of/async-gen-dstr-var-obj-ptrn-prop-obj.js
 statements/for-await-of/head-lhs-async.js
+statements/for-await-of/iterator-close-non-throw-get-method-is-null.js
 statements/for-await-of/iterator-close-throw-get-method-abrupt.js
 statements/for-await-of/iterator-close-throw-get-method-non-callable.js
 statements/for-await-of/let-block-with-newline.js

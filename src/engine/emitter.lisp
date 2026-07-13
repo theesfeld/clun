@@ -1070,17 +1070,33 @@ Runs inside the enclosing async function/generator's coroutine (%coro%)."
           (lambda (env)
             (let ((co (funcall coro-ref env)))
               (multiple-value-bind (iter from-sync) (get-iterator (funcall right-fn env) t)
-                (catch bt
-                  (loop
-                    (let ((result (await-value co (iterator-step iter))))
-                      (unless (js-object-p result) (throw-type-error "iterator result is not an object"))
-                      (when (js-truthy (js-get result "done")) (return))
-                      ;; async-from-sync: Await the value too (§27.1.4.1); a native
-                      ;; async iterator yields already-settled values (no re-Await).
-                      (let ((val (if from-sync (await-value co (js-get result "value")) (js-get result "value")))
-                            (frame (if lexical (new-frame count env) env)))
-                        (funcall binder frame val)
-                        (catch ct (funcall body-fn frame)))))))
+                ;; IteratorClose on abrupt completion: break/return/throw must call the
+                ;; iterator's return() so lazy sources (e.g. timers/promises setInterval)
+                ;; release their resources. DONE-NORMALLY is set only on exhaustion.
+                (let ((done-normally nil))
+                  (unwind-protect
+                       (catch bt
+                         (loop
+                           (let ((result (await-value co (iterator-step iter))))
+                             (unless (js-object-p result) (throw-type-error "iterator result is not an object"))
+                             (when (js-truthy (js-get result "done")) (return))
+                             ;; async-from-sync: Await the value too (§27.1.4.1); a native
+                             ;; async iterator yields already-settled values (no re-Await).
+                             (let ((val (if from-sync (await-value co (js-get result "value")) (js-get result "value")))
+                                   (frame (if lexical (new-frame count env) env)))
+                               (funcall binder frame val)
+                               (catch ct (funcall body-fn frame)))))
+                         (setf done-normally t))
+                    (unless done-normally
+                      ;; IteratorClose: suppress errors from BOTH get(return) and return()
+                      ;; itself — when unwinding a throw the ORIGINAL must propagate (test262
+                      ;; iterator-close-throw-get-method-abrupt), and on break/return freeing
+                      ;; the source best-effort beats leaking it. (get(return) is inside the
+                      ;; ignore-errors, not just the call — a throwing return getter must not
+                      ;; escape the cleanup and mask the in-flight completion.)
+                      (ignore-errors
+                       (let ((m (js-get iter "return")))
+                         (when (callable-p m) (js-call m iter '()))))))))
               :normal)))))))
 
 (defun compile-for-each (comp node left right body kind)

@@ -25,6 +25,41 @@
   (handler-case (progn (eng:js-call fn (undef) '()) :no-throw)
     (eng:js-condition (c) (list (eng:js-condition-value c)))))
 
+(defun %assert-invoke (input)
+  "Return a Promise for INPUT: call it when callable (a synchronous throw → a rejected
+Promise, per Node), then wrap through Promise.resolve; a non-function INPUT is wrapped
+directly (a thenable is adopted)."
+  (let* ((g (eng:realm-global eng:*realm*)) (pc (eng:js-get g "Promise")))
+    (if (eng:callable-p input)
+        (handler-case
+            (eng:js-call (eng:js-get pc "resolve") pc (list (eng:js-call input (undef) '())))
+          (eng:js-condition (c)
+            (eng:js-call (eng:js-get pc "reject") pc (list (eng:js-condition-value c)))))
+        (eng:js-call (eng:js-get pc "resolve") pc (list input)))))
+
+(defun %assert-rejects (input expected message expect-reject)
+  "Core of assert.rejects (EXPECT-REJECT t) / doesNotReject (nil): return a Promise that
+fulfills on the asserted outcome and rejects with an AssertionError otherwise."
+  ;; a string in the error slot is really the message (Node overload)
+  (when (and (eng:js-string-p expected) (undef-p message))
+    (setf message expected expected (undef)))
+  (let* ((p (%assert-invoke input)) (then (eng:js-get p "then")))
+    (eng:js-call then p
+      (list
+       (eng:make-native-function "" 1                 ; onFulfilled
+         (lambda (tt aa) (declare (ignore tt aa))
+           (when expect-reject
+             (%assert-fail (if (undef-p message) "Missing expected rejection" message)))
+           (undef)))
+       (eng:make-native-function "" 1                 ; onRejected
+         (lambda (tt aa) (declare (ignore tt))
+           (let ((err (a aa 0)))
+             (if expect-reject
+                 (unless (%assert-expected-ok err expected)
+                   (%assert-fail (if (undef-p message) "Rejection did not match the expectation" message)))
+                 (%assert-fail (if (undef-p message) "Got unwanted rejection" message))))
+           (undef)))))))
+
 (defun %assert-expected-ok (thrown expected)
   "Best-effort validation of a thrown value against EXPECTED (a matcher)."
   (cond
@@ -86,6 +121,10 @@
                                 (%assert-fail (let ((mg (a args 2)))
                                                 (if (undef-p mg) "Got unwanted exception" mg)))))
                             (undef)))
+      (m "rejects" 3 (lambda (this args) (declare (ignore this))
+                       (%assert-rejects (a args 0) (a args 1) (a args 2) t)))
+      (m "doesNotReject" 3 (lambda (this args) (declare (ignore this))
+                             (%assert-rejects (a args 0) (a args 1) (a args 2) nil)))
       (m "match" 3 (lambda (this args) (declare (ignore this))
                      (let* ((str (->str (a args 0))) (re (a args 1))
                             (test (eng:js-get re "test")))
