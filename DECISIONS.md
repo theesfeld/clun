@@ -1118,3 +1118,66 @@ dimension specifically STRESS-verified the fix — 25 concurrent `Promise.all` f
 resolved correctly, and the socket-test regression (deferred registration leaving a stale fd handler) was
 caught + fixed by the `*on-foreign-thread*` driver/coroutine distinction. Net: build/test(1271+42+74)/purity
 (199) green; exec 22,643, 0 crashes, 0 regressions.
+
+### 2026-07-13 — Phase 19: vendored the crypto/TLS stack (ironclad + pure-tls + closure)
+Vendored the pure-CL crypto/TLS foundation (§3.4), pinned + `.git`-stripped under vendor/, auto-registered
+by scripts/registry.lisp's vendor/*/ scan. 20 systems added this phase (documentation-utils was already
+present from parachute; reused by precise-time). Pinned SHAs:
+- ironclad `f6519450` (all primitives; SBCL VOPs, zero foreign code) · alexandria `f283e25e` ·
+  bordeaux-threads `92da6b9d` · global-vars `c749f32c` · trivial-features `18a5cfaf` ·
+  trivial-garbage `3474f641` (bordeaux-threads dep, missed on first pass — its `.asd` requires it) ·
+  babel `4eaf3f22` (usocket dep) · trivial-gray-streams `fd5fed1c` · flexi-streams `4951d575` ·
+  cl-base64 `80496b74` · split-sequence `89a10b4d` · idna `bf789e60` · usocket `d492f746` ·
+  atomics `bf0e2619` · precise-time `e0bf77d7` · cl-cancel `bec34fb3` · pure-tls `ebfb60f0` ·
+  fiveam `e43d6c8e` + asdf-flv `3f1de416` + trivial-backtrace `43ef7d94` (to run pure-tls's own suites).
+**Purity (§1.1) — the scanner does a full DIRECTORY scan of vendor/ (not just the load plan), so every
+foreign-token file, including non-Linux code paths, had to go.** Four patches + strips, each marked with a
+`;; clun purity patch (Phase 19):` in-file comment:
+1. **precise-time** — its `.asd` pulled a foreign-lib dep and its posix/darwin/windows/nx files made a C
+   `clock_gettime` foreign call. Rewrote posix.lisp to use `sb-unix:clock-gettime` (CLOCK_REALTIME/
+   CLOCK_MONOTONIC — verified: returns integer secs+nsecs; pure contrib, §1.1), dropped the foreign dep +
+   deleted the darwin/windows/nx files. Nanosecond precision preserved. **Upstream issue to file:**
+   Shinmera/precise-time should offer an SBCL-native backend so it need not pull a foreign-FFI lib on SBCL.
+2. **trivial-features/tf-sbcl.lisp** — replaced an endianness probe through the foreign-pointer API with a
+   reader conditional on SBCL's own `:little-endian`/`:big-endian` feature (verified present). Stripped its
+   test system + tests/.
+3. **usocket/backend/sbcl.lisp** — the only Linux foreign use was `wait-for-input-internal`'s alien fd-set +
+   `unix-fast-select`; replaced with `sb-sys:wait-until-fd-usable` (SBCL's pure serve-event readiness
+   primitive). usocket is used ONLY by pure-tls's x509/crl.lisp (single-socket CRL fetch), so a per-socket
+   wait suffices (multi-socket timeout precision is a documented divergence). Deleted the dead `#+win32` WSA
+   block + the ecl/cmucl backends + a udp test (all foreign, none loaded on SBCL). get-host-name already had
+   a pure `sb-unix:unix-gethostname` non-win32 branch.
+4. **pure-tls** — stripped the two `:feature`-guarded win/mac native-cert-validation foreign deps from its
+   `.asd` + deleted src/x509/{windows,macos}-verify.lisp (Windows/macOS are non-goals; the literal token
+   tripped the scan). `verify.lisp` does not reference them on Linux.
+The main `clun` binary is UNCHANGED (crypto stays test-only this phase; `crypto.getRandomValues`/`randomUUID`
+keep their existing pure `/dev/urandom` path — routing them through ironclad's os-prng is a deferred, non-
+gate-blocking follow-up). ironclad is a `clun/tests` dep (for the KATs); pure-tls loads standalone. Phase 20
+(HTTPS) will pull pure-tls into the binary. `make purity` clean over 640 files (was 199).
+
+### 2026-07-13 — Phase 19 review panel + gate (find→verify-by-running/reading)
+Ultracode Workflow: 4 dimensions (KAT-authenticity / patch-correctness / purity-completeness / suite-
+integrity) × find→verify by running ironclad/pure-tls probes + `make test-tls` + reading, 11 agents, **7
+findings, 3 confirmed (all LOW).** Actions: (1) **strengthened the gate 8→10 suites** — trust-store-tests +
+boringssl-tests are self-contained + passing (trust-store's only "drakma" is a COMMENT; boringssl reads
+pre-generated fixtures under test/certs/boringssl/, not the bssl binary), so they were added to
+run-pure-tls-suites.lisp (now 342 checks). (2) **deleted the cleanly-removable dead non-SBCL foreign
+backends** — usocket/backend/{clasp,lispworks}.lisp + ironclad/src/opt/ecl/ (all :if-feature-guarded whole
+files, never compiled on SBCL) — shrinking vendor foreign source (purity 670→667 files). (3) **Documented the
+irreducible baseline:** reader-conditional non-SBCL FFI (ffi:c-inline / ffi:clines / fli: / ff:def-foreign-
+call) remains woven into ironclad's core (src/common.lisp, src/prng/prng.lisp) and usocket's ecl/mkcl block;
+it is provably never read or compiled on SBCL (features :ecl/:clasp/:lispworks/:mkcl/:allegro all absent; none
+in the clun load plan), and the §1.1 scanner's token list (cffi/foreign-funcall/sb-alien/… — per the
+contract's stated set) reports clean over the tree. Extending the scanner to also flag other-impl FFI
+primitives is a legitimate hygiene follow-up (would require in-file surgery on ironclad's core; deferred as
+out-of-scope + risky for zero target-platform impact). Refuted (4): usocket wait-for-input timeout semantics
+(documented/benign), the .asd feature-guarded refs to deleted backends (benign), and two "confirmations" that
+the gate aggregation + the 3 excised live-network resumption tests are correct.
+**Gate MET:** `make test-crypto` (24 KAT assertions, exit 0) + `make test-tls` (10 suites / 342 checks, exit
+0) + `make purity` (667 files, 0 violations) + `make build`/`make test` (1271 parachute + 42 TS + 74 JS,
+green) + `make conformance-exec` (22,643, 0 crashes, 0 regressions — crypto stack not in the binary's load
+plan). **Deferred:** ironclad-os-prng routing for crypto.getRandomValues (kept the pure /dev/urandom path);
+node:url; the Phase-16 net-socket-suite flakiness under heavy concurrent load (a stale serve-event fd handler
+on a reused fd → `bad file descriptor`; passes on a quiet run) — a reactor-teardown hardening follow-up.
+**Upstream patch issue to file:** Shinmera/precise-time — offer an SBCL-native (sb-unix:clock-gettime)
+backend so the library need not pull a foreign-FFI dependency on SBCL (we vendor a local patch meanwhile).

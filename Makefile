@@ -4,7 +4,7 @@
 SBCL       ?= sbcl
 SBCL_FLAGS := --non-interactive --no-userinit --no-sysinit
 
-.PHONY: all build test test-lisp test-js purity clean
+.PHONY: all build test test-lisp test-js test-tls test-crypto purity clean
 
 all: build
 
@@ -25,6 +25,18 @@ test-js: build
 ## test-ts — the TS type-strip conformance harness (strip/ byte-exact + errors/).
 test-ts:
 	$(SBCL) $(SBCL_FLAGS) --load scripts/run-ts-strip.lisp
+
+## test-tls — run pure-tls's own self-contained fiveam suites (Phase-19 gate).
+## Separate gate step; NOT part of the default `test' target.  Excludes the
+## interop suites (network/openssl/boringssl/resumption/cancel-integration/
+## trust-store) that need drakma / external binaries / live network.
+test-tls:
+	$(SBCL) --dynamic-space-size 4096 $(SBCL_FLAGS) --load scripts/run-pure-tls-suites.lisp
+
+## test-crypto — RFC/FIPS known-answer tests over ironclad (Phase-19 gate).  Own image
+## (ironclad is not a clun/tests dep), so the socket suites' reactor stays fd-pressure-free.
+test-crypto:
+	$(SBCL) --dynamic-space-size 3072 $(SBCL_FLAGS) --load scripts/run-crypto-kats.lisp
 
 ## purity — fail on any CFFI/foreign-code token under src/ or vendor/ (§1.1).
 purity:

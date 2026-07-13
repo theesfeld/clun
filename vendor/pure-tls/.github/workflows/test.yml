@@ -1,0 +1,187 @@
+name: Tests
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            name: Linux
+          - os: macos-latest
+            name: macOS
+          - os: windows-latest
+            name: Windows
+
+    runs-on: ${{ matrix.os }}
+    name: ${{ matrix.name }} (SBCL)
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install SBCL and ocicl (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+          eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+          echo "eval \"\$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)\"" >> ~/.bashrc
+          brew install sbcl ocicl
+
+      - name: Install SBCL and ocicl (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install sbcl ocicl
+
+      - name: Install SBCL and ocicl (Windows)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          choco install -y sbcl
+          # Pin to v2.14.1 due to regression in later versions
+          Invoke-WebRequest -Uri "https://github.com/ocicl/ocicl/releases/download/v2.14.1/ocicl-2.14.1-windows-amd64.zip" -OutFile "$env:TEMP\ocicl.zip"
+          Expand-Archive -Path "$env:TEMP\ocicl.zip" -DestinationPath "$env:TEMP\ocicl"
+          Copy-Item "$env:TEMP\ocicl\ocicl.exe" -Destination "C:\Windows\System32\"
+
+      - name: Setup ocicl and fetch dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+          ocicl setup > ~/.sbclrc
+          ocicl install ironclad trivial-gray-streams flexi-streams alexandria cl-base64 trivial-features idna bordeaux-threads usocket cl-cancel cffi fiveam iparse cl-ppcre drakma
+
+      - name: Setup ocicl and fetch dependencies (macOS/Windows)
+        if: runner.os != 'Linux'
+        run: |
+          ocicl setup > ~/.sbclrc
+          ocicl install ironclad trivial-gray-streams flexi-streams alexandria cl-base64 trivial-features idna bordeaux-threads usocket cl-cancel cffi fiveam iparse cl-ppcre drakma
+
+      - name: Setup ASDF
+        run: |
+          mkdir -p ~/.config/common-lisp/source-registry.conf.d/
+          echo '(:tree "'"$PWD"'")' > ~/.config/common-lisp/source-registry.conf.d/pure-tls.conf
+
+      - name: Build system (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+          sbcl --non-interactive \
+            --eval '(asdf:load-system :pure-tls/test)'
+
+      - name: Build system (macOS/Windows)
+        if: runner.os != 'Linux'
+        run: |
+          sbcl --non-interactive \
+            --eval '(asdf:load-system :pure-tls/test)'
+
+      - name: Run offline tests (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+          sbcl --non-interactive \
+            --eval '(asdf:load-system :pure-tls/test)' \
+            --eval '(unless (pure-tls/test:run-tests) (uiop:quit 1))'
+
+      - name: Run offline tests (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          sbcl --non-interactive \
+            --eval '(asdf:load-system :pure-tls/test)' \
+            --eval '(unless (pure-tls/test:run-tests) (uiop:quit 1))'
+
+      - name: Run offline tests (Windows)
+        if: runner.os == 'Windows'
+        timeout-minutes: 10
+        run: |
+          sbcl --non-interactive \
+            --eval '(asdf:load-system :pure-tls/test)' \
+            --eval '(unless (pure-tls/test:run-tests) (uiop:quit 1))'
+
+      - name: Run network tests (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+          sbcl --non-interactive \
+            --eval '(asdf:load-system :pure-tls/test)' \
+            --eval '(format t "~%Platform: ~A~%" (lisp-implementation-type))' \
+            --eval '(format t "Windows cert store: ~A~%" pure-tls:*use-windows-certificate-store*)' \
+            --eval '(unless (pure-tls/test:run-network-tests) (uiop:quit 1))'
+
+      - name: Run network tests (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          sbcl --non-interactive \
+            --eval '(asdf:load-system :pure-tls/test)' \
+            --eval '(format t "~%Platform: ~A~%" (lisp-implementation-type))' \
+            --eval '(format t "Windows cert store: ~A~%" pure-tls:*use-windows-certificate-store*)' \
+            --eval '(unless (pure-tls/test:run-network-tests) (uiop:quit 1))'
+
+      # Windows network tests disabled - CRL fetching causes timeouts
+
+  # BoringSSL regression tests (Linux only)
+  boringssl:
+    runs-on: ubuntu-latest
+    name: BoringSSL Regression Tests
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install SBCL and ocicl
+        run: |
+          /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+          eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+          echo "eval \"\$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)\"" >> ~/.bashrc
+          brew install sbcl ocicl
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Clone BoringSSL (pinned)
+        run: |
+          # Pinned to a fixed BoringSSL commit so the test suite is reproducible
+          # and test/boringssl-baseline.txt stays in sync. BoringSSL is unversioned
+          # and adds tests continuously; tracking HEAD makes the baseline drift and
+          # reports new upstream tests as spurious "regressions". To refresh: bump
+          # this ref, re-run the suite, and regenerate the baseline with
+          # `BORINGSSL_DIR=~/boringssl ./test/track-regressions.sh --save-baseline`.
+          BORINGSSL_REF=606d3a344dae49672ea567f6719e1fc092a4ae6a  # 2026-06-18
+          mkdir -p ~/boringssl
+          cd ~/boringssl
+          git init -q
+          git remote add origin https://boringssl.googlesource.com/boringssl
+          git fetch --depth 1 origin "$BORINGSSL_REF"
+          git checkout -q FETCH_HEAD
+
+      - name: Setup ocicl and fetch dependencies
+        run: |
+          eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+          ocicl setup > ~/.sbclrc
+          ocicl install ironclad trivial-gray-streams flexi-streams alexandria cl-base64 trivial-features idna bordeaux-threads usocket cl-cancel cffi fiveam iparse cl-ppcre drakma
+
+      - name: Setup ASDF
+        run: |
+          mkdir -p ~/.config/common-lisp/source-registry.conf.d/
+          echo '(:tree "'"$PWD"'")' > ~/.config/common-lisp/source-registry.conf.d/pure-tls.conf
+
+      - name: Build BoringSSL test shim
+        run: |
+          eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+          make boringssl-shim
+
+      - name: Check for regressions
+        run: |
+          eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+          BORINGSSL_DIR=~/boringssl ./test/track-regressions.sh --compare

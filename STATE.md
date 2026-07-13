@@ -5,7 +5,59 @@ Update before every commit. Seeded from PLAN.md §5.
 
 ---
 
-## Current phase: **19 — Crypto foundation (ironclad KATs + pure-tls vendoring)**  (Phase 18 committed; HTTP-client/fetch/URL gate MET)
+## Current phase: **20 — HTTPS**  (Phase 19 committed; crypto/TLS foundation gate MET)
+
+**Phase 19 outcome:** the pure-CL crypto/TLS foundation is in-tree + proven. Vendored (pinned, `.git`-
+stripped, auto-registered via the vendor/*/ scan) **ironclad** (all primitives — SBCL VOPs, zero foreign) +
+**pure-tls** (TLS 1.3 + X.509 + trust store) + a ~18-lib dep closure (alexandria, bordeaux-threads +
+trivial-garbage, global-vars, trivial-features, babel, flexi-streams + trivial-gray-streams, cl-base64,
+split-sequence, idna, usocket, atomics, precise-time, cl-cancel; + fiveam/asdf-flv/trivial-backtrace to run
+pure-tls's own suites). SHAs in DECISIONS 2026-07-13. **The purity scanner does a full DIRECTORY scan of
+vendor/, so every foreign-code file had to go — 4 patches + strips** (each `;; clun purity patch (Phase 19):`):
+precise-time's C `clock_gettime` → `sb-unix:clock-gettime` (drop the foreign dep + darwin/windows/nx files);
+trivial-features's byte-order probe → SBCL's `:little-endian` feature; usocket's `wait-for-input` alien
+select → `sb-sys:wait-until-fd-usable` (+ deleted the dead `#+win32` WSA block + the ecl/clasp/lispworks/
+cmucl backends); pure-tls's win/mac native-cert `:feature` foreign deps + files stripped. `crypto.
+getRandomValues`/`randomUUID` keep their existing pure `/dev/urandom` path (ironclad os-prng routing is a
+deferred follow-up); the main `clun` binary is UNCHANGED (crypto is test-only until Phase 20 pulls pure-tls in
+for HTTPS). **KATs** (`tests/lisp/crypto/kat-tests.lisp`, own image via `make test-crypto` — kept out of
+clun/tests so ironclad's fds don't pressure the socket suites' reactor image): 6 groups asserting ironclad
+against PUBLISHED vectors — SHA-2 (FIPS 180-4), HMAC-SHA256 (RFC 4231), HKDF-SHA256 (RFC 5869), AES-256-GCM
+(NIST), X25519 (RFC 7748), ChaCha20-Poly1305 (RFC 8439, composed from ChaCha20 + Poly1305 since this
+ironclad's AEAD set is eax/etm/gcm) incl. tamper-rejection — **24 assertions green**. **pure-tls's own suites**
+(`make test-tls`): crypto / record / handshake / certificate / trust-store / boringssl / x509test / ml-dsa /
+cancel / security-regression — **10 suites, 342 checks, all green** (RFC-8448 traces + BoringSSL/OpenSSL cert
+fixtures); the genuinely-interop suites (network / openssl-binary / resumption / cancel-integration) are
+excluded — they need drakma (Appendix-B study-only) / external binaries / a live network. **Gate MET:** all
+KATs pass; pure-tls suites pass; `make purity` clean over **667 files** (was 199); `make build`/`test`
+(**1271 parachute + 42 TS + 74 JS**) green; exec **22,643** (0 crashes, 0 regressions — the crypto stack is
+not in the `clun` binary's load plan, fully inert). Adversarial review panel (4 dims × find→verify-by-
+running/reading, 11 agents, 7 findings / **3 confirmed, all LOW**): (1) added `trust-store-tests` +
+`boringssl-tests` to the gate — self-contained + passing (their drakma/"boringssl" refs are a COMMENT /
+fixture paths), strengthening it 8→10 suites; (2) deleted the cleanly-removable dead non-SBCL foreign
+backends (usocket clasp/lispworks, ironclad ecl-opt); (3) documented the irreducible baseline — reader-
+conditional non-SBCL FFI (ffi:c-inline / fli: / ff:def-foreign-call) in ironclad's core (common/prng) +
+usocket's ecl/mkcl block is provably never read/compiled on SBCL (features absent; not in the load plan) and
+the §1.1 token list (per spec) reports clean; extending the scanner to other-impl FFI tokens is a noted
+hygiene follow-up. **KNOWN ISSUE (pre-existing, Phase-16, NOT touched by Phase 19):** the net socket suites
+(echo-sequential/concurrent, fd-no-leak, throughput) occasionally flake under heavy concurrent-SBCL load — a
+stale serve-event `%START-READING`/`%WANT-WRITABLE` handler on a reused fd (`bad file descriptor`) + the
+borderline `≥30k req/s` threshold; both pass on a quiet run (`make test` green at 1271). Needs a focused
+Phase-16 reactor-teardown follow-up.
+
+**Next action:** Begin Phase 20 (HTTPS, deps 18 ✓ + 19 ✓): TLS streams via the worker pool (blocking gray-
+stream handshake/IO off the JS thread; reactor-native TLS is post-v1) — feed pure-tls our own sockets or its
+gray streams; trust store (system PEM bundle, `SSL_CERT_FILE`/`SSL_CERT_DIR` overrides); hostname
+verification; the fetch/client connection-pool keys gain TLS config (monotonic — never downgrade); test CA +
+in-process pure-tls SERVER fixtures; the negative matrix (expired / wrong-host / self-signed / bad-chain each
+fail closed with a distinct error); posture labeling (§3.4) in README + errors. Gate: hermetic HTTPS
+round-trip vs an in-process server with a test CA; negatives fail closed; one live smoke (fetch
+`https://registry.npmjs.org/left-pad` → parseable JSON) logged. (Worth doing the Phase-16 net-test flakiness
+follow-up first — a small reactor-teardown hardening — so the socket gate is deterministic.)
+
+---
+
+## Recent phase outcomes (most recent first)
 
 **Phase 18 outcome:** fetch + URL + a reactor HTTP client. Three layers. **`src/runtime/web-url.lisp`** — a
 WHATWG URL + URLSearchParams parser in CL: special schemes (http/https/ws/wss/ftp/file) with `//`authority +
@@ -55,10 +107,6 @@ RFC 8439); vendor + pin pure-tls with the Linux dep closure (Appendix B); the cl
 time → sb-unix:clock-gettime); strip windows/macos verify files; run pure-tls crypto/record/handshake/cert
 suites in CI; extend make purity over the closure. Gate: all KATs pass; pure-tls suites pass; make purity
 green over the full closure. (Phase 20 HTTPS then unblocks: deps 18 ✓ + 19.)
-
----
-
-## Recent phase outcomes (most recent first)
 
 **Phase 17 outcome:** HTTP/1.1 serving, three layers. `src/net/http-parser.lisp` — a pure-CL incremental
 request parser ("accumulate-then-parse"), bounded by max-header/max-body so every malformed shape is a
@@ -805,6 +853,33 @@ _(nothing blocked)_
     tested; no UDP; unclassified socket errors report a generic code; the single-threaded-both-ends
     throughput figure is a test artifact (a real server drives one direction per thread).
 
+- **Phase 19 — CRYPTO FOUNDATION GATE MET + committed (2026-07-13).**
+  - **Gate:** all KATs pass (`make test-crypto` — 24 assertions, 6 groups, exit 0); pure-tls suites pass
+    (`make test-tls` — 10 suites / 342 checks, exit 0); `make purity` clean over **667 files** (was 199).
+    Plus: `make build` clean (binary unchanged — crypto is test-only this phase); `make test` = **1271
+    parachute + 42 tests/ts + 74 tests/js** (0 failed); `make conformance-exec` over 40,654 files: **pass
+    22,643, 0 crashes, 0 regressions** (the crypto/TLS stack is not in the `clun` load plan — fully inert).
+  - Vendored ironclad + pure-tls + an ~18-lib dep closure (pinned SHAs in DECISIONS 2026-07-13), auto-
+    registered via the vendor/*/ scan. 4 purity patches (precise-time → sb-unix:clock-gettime; trivial-
+    features endianness → SBCL feature; usocket wait-for-input → sb-sys:wait-until-fd-usable; pure-tls win/mac
+    native-cert deps/files stripped) + deleted dead non-SBCL foreign backends. Each patch marked in-file
+    `;; clun purity patch (Phase 19):`. KATs: `tests/lisp/crypto/kat-tests.lisp` (own `make test-crypto`
+    image); pure-tls suites: `scripts/run-pure-tls-suites.lisp` (`make test-tls`).
+  - KAT groups (published vectors, cited): SHA-2 FIPS 180-4, HMAC-SHA256 RFC 4231, HKDF-SHA256 RFC 5869,
+    AES-256-GCM NIST, X25519 RFC 7748, ChaCha20-Poly1305 RFC 8439 (composed from ChaCha20+Poly1305; this
+    ironclad's AEAD set is eax/etm/gcm) + tamper-rejection. pure-tls suites run: crypto / record / handshake /
+    certificate / trust-store / boringssl / x509test / ml-dsa / cancel / security-regression. Excluded (need
+    drakma / external openssl|bssl / live network): network / openssl / resumption-interop / cancel-integration.
+  - Adversarial review panel (4 dims × find→verify-by-running/reading, 11 agents): **7 findings / 3 confirmed
+    (all LOW)** — (1) added trust-store + boringssl suites to the gate (self-contained + passing; 8→10 suites);
+    (2) deleted cleanly-removable dead non-SBCL foreign backends (usocket clasp/lispworks, ironclad ecl-opt);
+    (3) documented the irreducible reader-conditional non-SBCL FFI baseline (ironclad common/prng, usocket
+    ecl/mkcl block) — provably never read/compiled on SBCL; the §1.1 token list reports clean; a scanner
+    other-impl-FFI enhancement is a hygiene follow-up.
+  - KNOWN ISSUE (pre-existing Phase-16, NOT a Phase-19 regression): the net socket suites flake under heavy
+    concurrent-SBCL load (stale serve-event fd handler → `bad file descriptor`; borderline ≥30k req/s
+    threshold) — both pass on a quiet run. Needs a Phase-16 reactor-teardown follow-up.
+
 - **Phase 18 — HTTP-CLIENT / FETCH / URL GATE MET + committed (2026-07-13).**
   - `make build` clean; `make test` = **1271 parachute + 42 tests/ts + 74 tests/js** (0 failed);
     `make purity` clean (**199 files**); `make conformance` parse **17,512**; `make conformance-exec`
@@ -1010,11 +1085,11 @@ Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-earl
 - [x] fetch API (Request/Response/Headers reused, text/json/arrayBuffer/bytes buffered + lenient UTF-8, AbortSignal already/mid-flight/timeout, network/DNS errors → TypeError). Engine: `lp:run-on-loop` reactor-thread marshalling (`el-thread` + `lp:*on-foreign-thread*`)
 - **Gate MET:** fetch vs Phase-17 server on ONE loop (JSON/text/4xx-5xx/redirect chain/gzip/abort→AbortError/timeout + 25 concurrent) + a WPT-subset URL corpus; build/test(1271+42+74)/purity(199) ✓; exec 22,643, 0 crashes/regressions. Review panel 15/15 confirmed (2 §6 crashes, 3 HIGH) — 14 fixed + 1 documented.
 
-### Phase 19 — Crypto foundation: ironclad KATs + pure-tls vendoring  (deps: 00; ironclad landed in 12) ◇ ~1k LOC glue
-- [ ] KAT suites (SHA-2/HMAC FIPS, HKDF RFC 5869, AES-GCM NIST, x25519 RFC 7748, ChaCha20-Poly1305 RFC 8439)
-- [ ] vendor pure-tls + Linux dep closure (Appendix B) pinned; cl-cancel purity patch (precise-time → sb-unix:clock-gettime)
-- [ ] strip windows/macos verify files; run pure-tls crypto/record/handshake/cert suites in CI; extend make purity; file upstream patch issue
-- **Gate:** all KATs pass; pure-tls suites pass; make purity green over full closure.
+### Phase 19 — Crypto foundation: ironclad KATs + pure-tls vendoring  (deps: 00; ironclad landed in 12) ◇ ~1k LOC glue — **DONE (gate MET)**
+- [x] KAT suites (SHA-2/HMAC FIPS, HKDF RFC 5869, AES-GCM NIST, x25519 RFC 7748, ChaCha20-Poly1305 RFC 8439) — `make test-crypto`, 24 assertions over ironclad, published vectors
+- [x] vendor **ironclad + pure-tls + ~18-lib closure** (Appendix B) pinned (SHAs in DECISIONS); cl-cancel/**precise-time** purity patch (precise-time → sb-unix:clock-gettime)
+- [x] strip windows/macos verify files (+ dead non-SBCL foreign backends); run pure-tls crypto/record/handshake/cert(+trust-store/boringssl/x509/ml-dsa/cancel/security-regression) suites — `make test-tls`, 10 suites/342 checks; extend make purity (667 files); upstream patch-issue note in DECISIONS. node:url deprioritized. Ironclad os-prng routing for getRandomValues deferred (kept /dev/urandom)
+- **Gate MET:** KATs pass (`make test-crypto`); pure-tls suites pass (`make test-tls`, 10/342); `make purity` clean over 667 files; build/test(1271+42+74) green; exec 22,643, 0 crashes/regressions. Review 3/7 confirmed (all LOW). KNOWN: pre-existing Phase-16 net-socket flakiness under load.
 
 ### Phase 20 — HTTPS  (deps: 18, 19) ~1.5k LOC
 - [ ] TLS streams via worker pool (blocking gray-stream handshake/IO off JS thread)
