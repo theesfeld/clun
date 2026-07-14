@@ -29,7 +29,7 @@ jobs:
             expected_machine: arm64
     runs-on: ${{ matrix.runner }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Check runner architecture
         shell: bash
@@ -142,7 +142,7 @@ jobs:
           test "$("$RUNNER_TEMP/installer-root/bin/clun" --version)" = \
             "clun ${GITHUB_REF_NAME#v}"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: clun-${{ matrix.target }}
           path: ${{ runner.temp }}/dist/clun-${{ matrix.target }}.tar.gz
@@ -155,7 +155,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: dist
           merge-multiple: true

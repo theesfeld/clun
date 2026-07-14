@@ -9,7 +9,7 @@ jobs:
   build-test-purity:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Pin SBCL to the version the plan targets (PLAN.md host toolchain).
       - name: Install SBCL 2.6.4
