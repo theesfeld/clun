@@ -278,9 +278,9 @@ slot."
                      (lambda (env v) (let ((o (funcall obj-fn env)))
                                        (js-set (to-object o) (to-property-key (funcall prop-fn env)) v (comp-strict comp))))))
            (let ((key (identifier-name (member-expression-property node)))
-                 (cache (%make-ic)))
-             (values (lambda (env) (%ic-read (funcall obj-fn env) key cache))
-                     (lambda (env v) (js-set (to-object (funcall obj-fn env)) key v (comp-strict comp))))))))
+                 (rcache (%make-ic)) (wcache (%make-ic)) (strict (comp-strict comp)))
+             (values (lambda (env) (%ic-read (funcall obj-fn env) key rcache))
+                     (lambda (env v) (%ic-write (funcall obj-fn env) key v wcache strict)))))))
     (t (values (lambda (env) (declare (ignore env)) (throw-reference-error "invalid reference"))
                (lambda (env v) (declare (ignore env v)) (throw-syntax-error "invalid assignment target"))))))
 

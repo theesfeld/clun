@@ -415,7 +415,16 @@ cap is reached (caller then drops the object to dict-mode)."
 (defun has-property (o key) (jm-has-property o key))
 (defun has-own-property (o key) (and (jm-get-own-property o key) t))
 (defun create-data-property (o key value)
-  (jm-define-own-property o key (data-pd value)))
+  ;; Fast path (Phase 25 m7): a brand-NEW property on an extensible ORDINARY object (class :object ⟹
+  ;; the ordinary [[DefineOwnProperty]], not the js-array / js-typed-array exotic) is just a store of a
+  ;; default data descriptor — skip validate-and-apply, which for a new key merely re-defaults the
+  ;; already-complete descriptor into a SECOND one. Only genuinely-new keys qualify (an existing key
+  ;; may be non-configurable / an accessor, so it must take the full spec path).
+  (if (and (eq (js-object-class o) :object)
+           (js-object-extensible o)
+           (not (obj-own-desc o key)))
+      (progn (obj-set-desc o key (data-pd value)) t)
+      (jm-define-own-property o key (data-pd value))))
 (defun create-data-property-or-throw (o key value)
   (unless (create-data-property o key value)
     (throw-type-error (format nil "cannot create property ~a" key))))
@@ -492,6 +501,35 @@ Always returns the correct [[Get]] value."
                    (jm-get obj key obj)))                   ; not own-data on the direct proto: slow
              (jm-get obj key obj))))                        ; null proto
       (t (jm-get obj key obj)))))                           ; dict-mode receiver: slow
+
+;;; --- inline cache: monomorphic own-data-property write, UPDATE-only (Phase 25 m7) ---
+;;; For `obj.key = value` (a static assignment target — always o == receiver). A hit stores VALUE into
+;;; the cached slot's descriptor IN PLACE, skipping ordinary-set's key scan + generic dispatch. The IC
+;;; caches ONLY on an UPDATE to an existing own writable data property (the write left the shape
+;;; UNCHANGED); it NEVER caches a CREATE (the write transitioned the shape) and does no extra work on
+;;; that miss — this is what avoids the create-heavy regression that killed the first (m4) write IC.
+;;; Sound: EQ shape ⟹ KEY is the own property at SLOT; the hit RE-CHECKS data + writable=t on the live
+;;; descriptor (the shape encodes layout, not attributes); a plain assignment target is o == receiver.
+(defun %ic-write (obj key value ic strict)
+  (if (js-object-p obj)
+      (let* ((pt (js-object-props obj))
+             (sh (and pt (ptable-shape pt))))
+        (if (and sh (eq sh (ic-shape ic)))
+            (let ((d (svref (ptable-descs pt) (ic-slot ic))))
+              (if (and (data-descriptor-p d) (eq (pd-writable d) t))
+                  (progn (setf (pd-value d) value) t)
+                  (js-set obj key value strict)))               ; became non-writable/accessor: slow
+            (let ((ok (js-set obj key value strict)))
+              ;; refill ONLY for an update: the shape is unchanged ⟹ KEY already existed (a create
+              ;; transitions the shape, and gets NO refill scan — no create penalty).
+              (when (and sh (eq (ptable-shape pt) sh))
+                (let ((pos (ptable-pos pt key)))
+                  (when pos
+                    (let ((d (svref (ptable-descs pt) pos)))
+                      (when (and (data-descriptor-p d) (eq (pd-writable d) t))
+                        (setf (ic-shape ic) sh (ic-slot ic) pos (ic-holder ic) nil))))))
+              ok)))
+      (js-set (to-object obj) key value strict)))
 
 ;;; --- callables --------------------------------------------------------------
 ;;; Two callable object kinds: user js-function (compiled from JS) and js-native-
