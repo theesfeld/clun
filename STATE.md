@@ -39,17 +39,29 @@ cmd → `TypeError`. Installed onto the `Clun` global. Tests (`spawn-tests.lisp`
 stdin/env/stdio-modes/**5 MB-no-deadlock**/cwd/not-found+type-error. `make test-lisp` **2602**/0/0, purity
 clean **686 files**, exec 22,643.
 
-**Next action:** Phase 24 **milestone 2** — `Clun.spawn` (ASYNC): `run-program :wait nil`, non-blocking
-stdout/stderr/stdin pipes on the reactor (mirror the Phase-16 tcp reader: `reactor-add fd :input` →
-non-blocking `sb-unix:unix-read` → buffer/close on EOF; EAGAIN-safe non-blocking stdin writes), an `.exited`
-promise + `exitCode`/`signalCode`/`kill`/`onExit`; the `:status-hook` marshals the child-exit to the loop
-via `lp:loop-post` (mailbox + self-pipe — §6 iron rule: enqueue ONLY, no JS/alloc in the interrupt handler);
-handle refcount released on exit (no zombies — run-program auto-reaps). Gate slices: a 10 MB dual-pipe child
-drained concurrently without deadlock; 1,000 spawns → zero zombies. Then **milestone 3** — `clun run
-<script>` per §3.6 (`sh -c`, ancestor `.bin` PATH walk, `pre`/`post` [failing `pre` aborts], `npm_*` env,
-`--if-present`, arg passthrough after the script name) + the file-vs-script dispatcher merge; a scripts
-fixture (pre-fail aborts, env asserted, exit propagation); and `examples/e2e.sh` (install → run build via a
-`.bin` tool → clun test) green + hermetic — the v1 workflow demo, which closes the Phase-24 gate.
+**Milestone 2 DONE (committed):** the ASYNC `Clun.spawn` (`spawn.lisp`) — `run-program :wait nil` with
+non-blocking stdout/stderr/stdin pipes on the reactor (`sb-unix:unix-read`/`unix-write`, EAGAIN-safe; stdin a
+`{write,end}` writer with an :output-drain queue), stdout/stderr as `Promise<Uint8Array>` resolved at pipe
+EOF, an `.exited` promise + `exitCode`/`signalCode`/`kill(sig)`/`onExit`. The `:status-hook` (interrupt
+context) `lp:loop-post`s a PRE-ALLOCATED thunk ONLY (§6); `%sp-finalize` (loop thread) settles + a loop
+handle stays active until child-exited AND all read pipes drained. Verified: exit-code, signal, stdout pipe,
+**10 MB dual-pipe (no deadlock, 0.5 s)**, kill, onExit, **1,000 spawns no leak** (sequential — a 1,000-fork
+burst hits the 1024 fd ulimit, a system limit not a clun bug). Adversarial panel (6 agents, 5 findings, 4
+confirmed): fixed a **§6 recycled-fd use-after-close** (raw `sb-posix:close` left run-program's `:auto-close`
+finalizer armed → a later GC closed a recycled fd; now close via the STREAM, which closes once + cancels the
+finalizer), a `:stopped`-status premature-`.exited` (finalize now commits only on `:exited`/`:signaled`), a
+mid-setup-failure orphaned-handle/fd-leak (setup wrapped in a cleanup handler-case), and a stdin leak when the
+child exits before `end()` (finalize closes stdin). `make test-lisp` **2609**/0/0, purity clean **686 files**,
+exec 22,643.
+
+**Next action:** Phase 24 **milestone 3** (closes the phase gate) — `clun run <script>` per §3.6: `/bin/sh
+-c`, PATH = the script's pkg dir + `node_modules/.bin` for every ancestor of cwd + the original PATH,
+`pre`/`post` scripts (a failing `pre` aborts), `npm_lifecycle_event`/`npm_package_*`/`npm_config_user_agent`/
+`npm_execpath` env, `--if-present`, arg passthrough after the script name; the file-vs-script dispatcher merge
+(`clun run <name>` → a package.json script if present, else a file). A scripts fixture (pre-fail aborts, env
+asserted, exit propagation). Then `examples/e2e.sh` (install → run a `build` script that invokes a `.bin`
+tool → `clun test`) green + hermetic — the v1 workflow demo (uses Clun.spawn/spawnSync + the Phase-23
+installer), which closes the Phase-24 gate.
 
 ---
 

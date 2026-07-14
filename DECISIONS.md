@@ -1467,3 +1467,39 @@ files**; `make conformance-exec` **22,643** (0 crashes, 0 regressions — spawn 
 realms, which do not install the runtime). The async `Clun.spawn` (reactor pipes, `.exited`, kill; the 10 MB
 dual-pipe + 1,000-spawn-zero-zombie gate slices) is milestone 2; `clun run <script>` + `examples/e2e.sh` is
 milestone 3.
+
+### 2026-07-14 — Phase 24 milestone 2: async Clun.spawn (reactor pipes + status-hook)
+`Clun.spawn(cmd, opts)` (`src/runtime/spawn.lisp`) over `sb-ext:run-program :wait nil`. stdout/stderr/stdin
+pipes go NON-BLOCKING onto the main reactor: a `subproc` struct + `%sp-add-reader` registers `reactor-add fd
+:input`, drains via `sb-unix:unix-read` (EAGAIN=11 → wait; 0 → EOF), buffering into an adjustable vector; the
+stdin writer is a `{write,end}` object with a chunk queue flushed by `sb-unix:unix-write` + a `reactor-add fd
+:output` backpressure drain. `.exited` is a Promise resolving to the exit code (or null on a signal);
+stdout/stderr are `Promise<Uint8Array>` resolved at pipe EOF (a documented divergence from Bun's
+ReadableStream — a read-all consumer, enough for the dual-pipe gate); `exitCode`/`signalCode` are data props
+(null until exit), plus `kill(sig)` (`sb-ext:process-kill`) + `onExit`. **The `:status-hook` fires in
+INTERRUPT context on child exit and `lp:loop-post`s a PRE-ALLOCATED finalize thunk ONLY** (§6 iron rule — no
+JS, no per-interrupt consing); `%sp-finalize` runs on the loop thread. A loop handle stays active until the
+child exited AND every read pipe drained (`%sp-settle-check`), so the loop neither exits early (losing
+output) nor hangs; pipe setup runs inside `lp:run-on-loop` (spawn may be called from a coroutine thread) and
+handles a status-hook that fired before setup. SIGPIPE is a non-issue (SBCL ignores it — a write to a dead
+child's stdin returns EPIPE, handled as a clean close; verified). **Gate slices verified:** a 10 MB dual-pipe
+through `cat` round-trips with NO deadlock (concurrent non-blocking drain); 1,000 spawns all reap with no
+zombie/fd leak (tested sequentially — a 1,000-concurrent-fork burst opens ~3,000 fds at once, exceeding the
+default 1024 ulimit, a system limit not a clun behaviour).
+
+### 2026-07-14 — Phase 24 spawn review panel (find→verify-by-running)
+Focused panel (6 agents, 5 findings, 4 confirmed, 1 refuted) — all fixed + re-tested. **(high) §6 recycled-fd
+use-after-close:** run-program's `:stream` pipe fd-streams carry an `:auto-close` GC finalizer; the reader's
+raw `sb-posix:close fd` left it ARMED on a number the OS can recycle → a later GC would `unix-close` an
+unrelated live fd (a socket/file/another child's pipe) — the exact recycled-fd class the repo already guards
+(self-pipe, TCP). Fixed by owning the fd through the STREAM: cleanup now `(close stream)`, which closes the fd
+exactly once and cancels the finalizer (reproduced the stale-finalizer close of a recycled `/dev/null`,
+confirmed the fix). **(medium) `:stopped` premature exit:** the status-hook fires on EVERY status change
+including `:stopped` (SIGSTOP/job control); `%sp-finalize` had no guard → a paused child resolved `.exited`
+permanently with a bogus code. Now it commits only on `:exited`/`:signaled`. **(medium) mid-setup orphan:** a
+failure after a successful fork left the loop handle active (hang) + fds leaked; the reactor-setup is now a
+cleanup handler-case (close streams, kill+close proc, deactivate handle, settle). **(low) stdin leak:** a
+child exiting before JS called `stdin.end()` leaked the stdin fd; `%sp-finalize` now closes stdin. Refuted:
+the interrupt-context allocation concern (the finalize thunk is pre-allocated at spawn; the hook only
+loop-posts). `make test-lisp` **2609**/0/0; purity clean **686 files**; exec **22,643** (0 crashes, 0
+regressions — spawn is inert for bare test262 realms).

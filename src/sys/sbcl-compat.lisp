@@ -16,6 +16,10 @@
   (let ((flags (sb-posix:fcntl fd sb-posix:f-getfl)))
     (sb-posix:fcntl fd sb-posix:f-setfl (logior flags sb-posix:o-nonblock))))
 
+(defun set-nonblocking (fd)
+  "Put FD into O_NONBLOCK mode (for reactor-driven child pipes — Phase 24)."
+  (%set-nonblocking fd) fd)
+
 (defun make-self-pipe ()
   "A non-blocking pipe: read end wrapped as a byte fd-stream (drained only by the
 loop thread), write end kept raw for allocation-free wakes from any context."

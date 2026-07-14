@@ -23,7 +23,7 @@
            #:read-directory
            ;; Phase 07 — JSON reader (hand-rolled, engine-free; §3.5)
            #:parse-json #:write-json #:json-error #:json-null #:json-false #:json-true
-           #:jget #:jobject-p
+           #:jget #:jobject-p #:set-nonblocking
            ;; Phase 08 — platform primitives for the runtime (process/console)
            #:stream-fd #:tty-p #:environ-alist #:getenv #:getpid
            #:current-directory #:change-directory #:machine-arch #:platform-name
