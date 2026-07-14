@@ -400,3 +400,8 @@ performance work; it reads as its own phase. Propose splitting it out as Phase 2
 folding it into the conformance phase) so the performance gate can close on its own
 schedule."* Record this under "Blocked/Open" in STATE.md and proceed with the performance
 milestones rather than stalling on the conformance number.
+
+**RESOLUTION (2026-07-14, operator-approved):** split accepted. G3 is now **Phase 25b —
+Conformance push to ≥ 90%** (PLAN §5, deps: 25), starting with a failure-bucket analysis of
+the ~5,520 `fail(gap)` tests. Phase 25's gate is G1 + G2 only; the m6 row above is Phase 25b.
+DoD §1.4 point 2's "≥ 90% at Phase 25's close" now reads "Phase 25b's close".

@@ -616,6 +616,22 @@ install time; methodology recorded; no marketing).
 **Gate:** conformance pass-list unchanged or grown; ≥ 5× on the benchmark suite vs Phase-24
 baseline; overall curated test262 ≥ 90%.
 
+> **SCOPE AMENDMENT (2026-07-14, operator-approved):** the `curated test262 ≥ 90%` clause is SPLIT
+> OUT of Phase 25 into a new **Phase 25b** (below). Phase 25's gate is therefore **only**: pass-list
+> unchanged or grown + ≥ 5× on the benchmark suite. Rationale: ≥ 90% is a ~2,700-test *correctness*
+> lift (curated is ~80.4% at Phase-25 start) with no engineering relationship to the shapes/inline-
+> cache *performance* work — coupling them would block a finished perf win on unrelated conformance
+> fixes. DoD §1.4 point 2's "≥ 90% at Phase 25's close" now reads "at Phase 25b's close". Recorded in
+> DECISIONS.md.
+
+### Phase 25b — Conformance push to ≥ 90%  *(deps: 25)*
+Objective: lift overall curated test262 from ~80.4% to ≥ 90% (DoD §1.4 point 2), correctness only.
+Tasks: bucket the ~5,520 `fail(gap)` tests by feature/subsystem (a small analysis pass over the
+runner output) to estimate cost and order the work; then targeted correctness fixes bucket by bucket
+(no performance work); grow the checked-in pass-list monotonically. Faster iteration because the
+Phase-25 engine is quicker. **Gate:** overall curated test262 ≥ 90%; zero pass-list regressions
+(monotonic); `make purity` clean. (May itself be milestoned; the bucket analysis is milestone 1.)
+
 ### Phase 26 — Hardening, docs, release  *(deps: everything)*
 Objective: shippable v0.1.0.
 Tasks: error-message audit (every user-reachable failure: named resource, violated constraint

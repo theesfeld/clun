@@ -1625,3 +1625,15 @@ receiver)` — a distinct/exotic receiver (the only way a typed array reaches he
 scheme's fresh-thread assumption was verified + documented in the `*fp-masked*` docstring; `ptable-pos` and
 the inline declaims were proven equivalent with no defects. The profiler (`scripts/profile.lisp`) is checked
 in for reuse in the shapes/IC milestones.
+
+### 2026-07-14 — Phase 25 G3 split RESOLVED: operator approved a new Phase 25b (conformance)
+The scope question raised earlier (G3 = curated test262 ≥ 90% bundled into the performance phase) was put
+to the operator with four options (split into 25b / fold into 26 / keep bundled / relax the v1 bar). **Chosen:
+split into Phase 25b.** Phase 25's gate is now just G1 (pass-list unchanged/grown) + G2 (≥5× on the benchmark
+suite); the ≥90% curated-test262 lift (~2,700 tests, from ~80.4%) becomes **Phase 25b — Conformance push to
+≥90%** (deps: 25), starting with a failure-bucket analysis of the ~5,520 `fail(gap)` tests. PLAN §5 gained
+the Phase-25b section + a SCOPE-AMENDMENT note (the plan is append-mostly; the amendment is dated + operator-
+approved, not a silent rewrite); DoD §1.4 point 2's "≥90% at Phase 25's close" now reads "Phase 25b's close".
+Rationale: the two efforts have no engineering relationship (shapes/ICs don't move the pass-rate; conformance
+fixes don't move the bench ratio), so decoupling lets the perf gate close on its own schedule and lets the
+conformance work be estimated + ordered from real failure data on the faster engine.

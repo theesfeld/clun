@@ -7,9 +7,10 @@ Update before every commit. Seeded from PLAN.md §5.
 
 ## Current phase: **25 — Performance pass**  (IN PROGRESS — m1 measure + m2 fast paths done; Phase 24 committed)
 
-**Phase 25 IN PROGRESS** (Performance pass; deps: all engine phases ✓; ~3k LOC, milestoned). The gate has
-three parts: **(G1)** conformance pass-list unchanged/grown; **(G2)** ≥5× on the benchmark suite vs the
-Phase-24 baseline; **(G3)** overall curated test262 ≥ 90%.
+**Phase 25 IN PROGRESS** (Performance pass; deps: all engine phases ✓; ~3k LOC, milestoned). The gate (after
+the 2026-07-14 operator-approved split) is **(G1)** conformance pass-list unchanged/grown + **(G2)** ≥5× on
+the benchmark suite vs the Phase-24 baseline. The former **(G3)** curated test262 ≥ 90% is now its own
+**Phase 25b** (deps: 25) — see PLAN §5 + the resolved note below.
 
 **Milestone 1 DONE — "measure first":** the benchmark suite + the frozen Phase-24 baseline + the design doc
 (no engine change). `bench/{richards,deltablue,splay}.js` — the Octane trio ported to clun (self-contained,
@@ -53,13 +54,12 @@ dense arrays behind the `js-array` `jm-define-own-property` override (objects.li
 pass-list unchanged) BEFORE measuring speed** — this is the riskiest kernel surgery in the project. Eliminates
 the ~33% key scan + ~15% hairy-vector `aref` the m2 re-profile exposed.
 
-**Blocked/Open — G3 scope concern (flagged per PLAN §2.4):** the Phase-25 gate bundles a CORRECTNESS target
-(G3: curated test262 ≥ 90%) into a PERFORMANCE phase. Current curated is ~80.4%, so G3 is a ~2,700-test lift
-with NO engineering relationship to shapes/inline-caches (they don't move the pass-rate; conformance fixes
-don't move the bench ratio). Both the design doc and this executing agent recommend splitting G3 into a
-separate track (Phase 25b, or folding it into a conformance phase) so the performance gate (G1+G2) can close
-on its own schedule. Surfaced to the human; proceeding with the performance milestones meanwhile (not
-stalling).
+**G3 scope concern — RESOLVED (2026-07-14, operator-approved split):** the ≥90% curated-test262 target is
+split out of Phase 25 into a new **Phase 25b — Conformance push to ≥90%** (PLAN §5). Phase 25's gate is now
+just G1+G2 (perf); Phase 25b (deps: 25) owns the ~2,700-test correctness lift, to start with a failure-bucket
+analysis of the ~5,520 `fail(gap)` tests. DoD §1.4 point 2's "≥90% at Phase 25's close" now reads "at Phase
+25b's close". So Phase 25 closes when shapes/ICs/etc. reach ≥5×; the conformance work proceeds separately
+after (on the faster engine).
 
 ---
 
