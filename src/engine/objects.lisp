@@ -31,13 +31,27 @@
 ;;; the canonical decimal strings of integers in [0, 2^32-2].
 
 (defun array-index-key-p (key)
-  "If KEY is a canonical array index string, return its integer value, else NIL."
-  (and (stringp key) (plusp (length key))
-       (let ((n (with-js-floats (js-string->number key))))
-         (and (js-finite-p n)
-              (let ((i (floor n)))
-                (and (= (coerce i 'double-float) n) (<= 0 i #xFFFFFFFE)
-                     (string= key (princ-to-string i)) i))))))
+  "If KEY is a canonical array-index string (the plain decimal form of an integer in [0, 2^32-2], no
+leading zeros — \"0\", \"1\", … \"4294967294\"), return that integer, else NIL. Hot on every enumeration
++ array write (Phase 25 profile: 26% of splay); a direct digit scan + integer parse fails fast on a
+non-numeric key (the common case) and avoids the old float parse + `princ-to-string` round-trip."
+  (when (stringp key)
+    (let ((len (length key)))
+      (declare (type fixnum len))
+      (when (<= 1 len 10)                                  ; 2^32-2 = 4294967294 has 10 digits
+        (let ((c0 (char key 0)))
+          (cond
+            ((char= c0 #\0) (and (= len 1) 0))             ; only "0" (no leading zeros)
+            ((char<= #\1 c0 #\9)
+             (let ((n 0))
+               (declare (type (integer 0 99999999999) n))
+               (dotimes (i len)
+                 (let ((c (char key i)))
+                   (if (char<= #\0 c #\9)
+                       (setf n (+ (* n 10) (- (char-code c) 48)))
+                       (return-from array-index-key-p nil))))
+               (and (<= n #xFFFFFFFE) n)))
+            (t nil)))))))
 
 ;;; --- shapes / hidden classes (Phase 25) ------------------------------------
 ;;; A pshape is a node in a transition tree keyed by the property-ADD sequence: two ptables that
@@ -163,11 +177,11 @@ cap is reached (caller then drops the object to dict-mode)."
   (let ((indices '()) (strings '()) (symbols '()))
     (dolist (k (obj-own-keys o))
       (cond ((js-symbol-p k) (push k symbols))
-            ((array-index-key-p k) (push k indices))
-            (t (push k strings))))
-    (append (sort (nreverse indices) #'< :key #'array-index-key-p)
-            (nreverse strings)
-            (nreverse symbols))))
+            (t (let ((idx (array-index-key-p k)))       ; parse index once; sort by the parsed value
+                 (if idx (push (cons idx k) indices) (push k strings))))))
+    (append (mapcar #'cdr (sort indices #'< :key #'car))   ; indices ascending
+            (nreverse strings)                              ; then strings in insertion order
+            (nreverse symbols))))                           ; then symbols in insertion order
 
 ;;; --- object creation --------------------------------------------------------
 

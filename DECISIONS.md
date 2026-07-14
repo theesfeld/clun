@@ -1675,3 +1675,29 @@ Verified bounded: 400k unique keys → 179 MB, 2,000,000 unique keys → 180 MB 
 (they use < 20 shapes). Conformance G1 (after the cap fix): **22,643 / 0 crashes / 0 regressions**. Still
 short of ≥5× on deltablue/splay (write/alloc-bound) → m4 = a write IC + `descs` simple-vector (kills the
 residual ~15% hairy-`aref` on IC hits); m5 = direct calls + `+=` string builder.
+
+### 2026-07-14 — Phase 25 milestone 4: array-index-key-p fast path (the planned write IC was reverted)
+The planned m4 (a per-site WRITE inline cache) was implemented, measured, and **reverted**: it helped
+richards (1705→1465 ms) but REGRESSED deltablue (1969→2193) and splay (885→946). Root cause found by
+measuring: those benchmarks' writes mostly CREATE properties (constructor field init), where the pre-write
+shape never matches the cached post-write shape — so every write missed the IC AND paid an extra refill
+`ptable-pos` scan the old set-fn didn't. The sound fix (a shape-TRANSITION IC that caches old-shape→new-shape
+and replays the add) is subtle: a proto-setter added after caching would make blind own-creation wrong, so it
+needs proto-chain revalidation or a generation counter — deferred, not worth the risk now. Lesson: profile
+the ACTUAL bottleneck per benchmark before optimizing; the write IC attacked updates, but creation dominates.
+**What shipped instead (profile-guided):** re-profiling the laggards showed splay's #1 cost was
+`array-index-key-p` at **26%** (deltablue's was function-call overhead — `setup-frame` ~44% total — deferred
+to m5's direct calls). `array-index-key-p` classified a canonical array-index string by a full float parse
+(`js-string->number`) + `princ-to-string` round-trip on EVERY key it saw (it runs per key in
+`ordinary-own-property-keys` — twice, incl. the sort key-fn — and in the array `[[DefineOwnProperty]]`).
+Rewritten to fail fast: length 1..10, first char `0` ⟹ only "0" valid (no leading zeros), else digits-only
+direct integer accumulation, range ≤ `#xFFFFFFFE`; a non-numeric key (`"left"`, `"right"`) returns nil after
+one char. `ordinary-own-property-keys` now parses each index once (collects `(idx . key)`, sorts by `car`)
+instead of re-parsing in the sort. **Semantically EXACT** — verified against the ECMAScript array-index
+definition (`ToString(ToUint32(P))===P && !==2^32-1`) via observable array-length + enumeration behavior: 11
+edge-case probes (`"0"`,`"00"`,`"01"`,`""`,`"4294967294"`=max,`"4294967295"`=2^32-1 not an index,
+`"4294967296"`,`"9999999999"`,`"+1"`,`" 1"`,`"1.0"`,`"1e2"`,`"0x1"`, Arabic-Indic digit U+0663) + a 2-agent
+adversarial panel (built the binary, ran probes) with ZERO findings. **Measured clean (best of 7, cumulative
+vs the Phase-24 baseline):** richards 2.35×, deltablue 1.64×, splay 2.69×. `make test-lisp` 2666/0/0;
+`make purity` 687 clean; **G1 conformance 22,643 / 0 crashes / 0 regressions.** m5 = known-arity direct calls
+(deltablue's 44% call overhead), then a `+=` string builder.

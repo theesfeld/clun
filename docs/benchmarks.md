@@ -64,6 +64,7 @@ Same host / compiler / measurement as above. "×" is `baseline_ms / current_ms` 
 | Phase-24 baseline | 3600.4 ms (1.00×) | 2942.0 ms (1.00×) | 1520.3 ms (1.00×) | 17 ms |
 | m2 — profile-guided fast paths | 2262.0 ms (1.59×) | 2182.0 ms (1.35×) | 901.2 ms (1.69×) | 17 ms |
 | m3 — shapes + read inline caches | 1705.0 ms (2.11×) | 1968.7 ms (1.49×) | 884.7 ms (1.72×) | 18 ms |
+| m4 — array-index-key-p fast path | 1533.6 ms (2.35×) | 1790.4 ms (1.64×) | 565.0 ms (2.69×) | 17 ms |
 
 **m2 (profile-guided fast paths)** — a `sb-sprof` profile of the baseline (`scripts/profile.lisp`)
 showed property access + dispatch + the property-write validate path + per-op FP-trap masking
@@ -83,9 +84,19 @@ descriptor, so value/attribute changes and freeze stay correct; only a layout ch
 → miss. Richards (own-field + method-dispatch heavy) gained most (1.59×→2.11×). A 3-agent adversarial
 soundness panel (86 live JS probes) found zero divergences; zero test262 pass-list regressions.
 
-**Still short of the ≥5× gate** — deltablue (1.49×) and splay (1.72×) are now write- and
-allocation-bound: the read IC hit still does an adjustable-vector `aref` (~15%), and writes/allocation
-aren't cached yet. Next: a WRITE inline cache + moving `descs` to a simple-vector (m4), then
-known-arity direct calls + a `+=` string builder (m5).
+**m4 (array-index-key-p fast path)** — profiling the laggards contradicted the planned m4: a write
+inline cache *regressed* deltablue/splay (their writes mostly *create* properties, where the pre-write
+shape never matches the cached post-write shape → every write missed and paid an extra refill scan), so
+it was reverted. The real splay bottleneck was `array-index-key-p` (**26%** of splay) — the "is this key
+a canonical array index?" test ran a full float-parse + `princ-to-string` round-trip on *every*
+enumerated key. Rewritten to fail fast (a cheap digit scan + direct integer parse; a non-numeric key
+like `"left"` returns nil after one char), plus the double index-parse in `ordinary-own-property-keys`
+removed. Splay 1.72×→2.69×; no regression elsewhere. Semantically exact (verified against the canonical
+array-index definition via observable array-length/enumeration behavior; a 2-agent panel found zero
+divergences); zero pass-list regressions.
+
+**Still short of the ≥5× gate** — deltablue (1.64×) remains the laggard: its profile is dominated by
+function-call overhead (`setup-frame` ~44% total — frame setup + `arguments`-object allocation). Next:
+known-arity direct calls (m5, the biggest remaining lever), then a `+=` string builder.
 
 _This file gains a new row per milestone, so every ratio is traceable to the frozen baseline above._
