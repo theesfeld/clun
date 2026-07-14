@@ -11,6 +11,7 @@
   (names (make-hash-table :test 'equal))
   (count 0)
   (imports nil)                  ; name -> t for ESM import slots (deref via thunk, Phase 07)
+  (uses-arguments nil)           ; T once `arguments` resolves to this function scope (Phase 25 m5)
   kind)                          ; :function :block
 
 (defstruct (comp (:conc-name comp-) (:constructor make-comp ()))
@@ -42,10 +43,16 @@ scope) makes this NIL automatically — the shadowing scope has no import mark."
       (setf (gethash name (cs-names scope)) (prog1 (cs-count scope) (incf (cs-count scope))))))
 
 (defun comp-resolve (comp name)
-  "Resolve NAME to (values :local depth index) or (values :global name nil)."
+  "Resolve NAME to (values :local depth index) or (values :global name nil). As a side effect, records
+when `arguments` resolves to a FUNCTION scope's slot — precise because compilation is a full traversal
+and every identifier reference (read or write) routes through here; this lets the callee skip building
+the `arguments` object when nothing references it (Phase 25 m5)."
   (loop for depth from 0 for s in (comp-scopes comp)
         for idx = (gethash name (cs-names s))
-        when idx do (return-from comp-resolve (values :local depth idx)))
+        when idx do
+          (when (and (eq (cs-kind s) :function) (string= name "arguments"))
+            (setf (cs-uses-arguments s) t))
+          (return-from comp-resolve (values :local depth idx)))
   (values :global name nil))
 
 ;;; --- global object access ---------------------------------------------------
@@ -700,6 +707,8 @@ the live coroutine that yield/await suspend."
                                                                                :generator (function-node-generator fd)
                                                                                :async (function-node-async fd)))))
                    (body-fn (compile-seq sub stmts))
+                   ;; read AFTER the body is compiled: set iff `arguments` was referenced (m5)
+                   (needs-args (and (not arrow) (cs-uses-arguments scope)))
                    (count (cs-count scope))
                    (this-mode (cond (arrow :lexical) (strict :strict) (t :global))))
               (declare (ignore method))
@@ -708,8 +717,11 @@ the live coroutine that yield/await suspend."
                            (let ((frame (new-frame count defenv)))
                              (unless arrow
                                (setf (svref (env-slots frame) this-idx) (coerce-this this this-mode)
-                                     (svref (env-slots frame) nt-idx) new-target
-                                     (svref (env-slots frame) args-idx) (make-arguments-object args)))
+                                     (svref (env-slots frame) nt-idx) new-target)
+                               ;; build the `arguments` object ONLY if the body references it (m5):
+                               ;; skipping it for the common case avoids an object allocation per call.
+                               (when needs-args
+                                 (setf (svref (env-slots frame) args-idx) (make-arguments-object args))))
                              (dolist (li lexical-idxs) (setf (svref (env-slots frame) li) +tdz+))
                              (bind-parameters param-binders args frame simple-params)
                              (dolist (fc func-compiled)

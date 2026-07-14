@@ -5,7 +5,7 @@ Update before every commit. Seeded from PLAN.md §5.
 
 ---
 
-## Current phase: **25 — Performance pass**  (IN PROGRESS — m1 measure / m2 fast paths / m3 shapes+read-ICs / m4 index-key done; Phase 24 committed)
+## Current phase: **25 — Performance pass**  (IN PROGRESS — m1–m5 done: measure / fast paths / shapes+read-ICs / index-key / args-skip; ~3× geomean, gate is ≥5×; Phase 24 committed)
 
 **Phase 25 IN PROGRESS** (Performance pass; deps: all engine phases ✓; ~3k LOC, milestoned). The gate (after
 the 2026-07-14 operator-approved split) is **(G1)** conformance pass-list unchanged/grown + **(G2)** ≥5× on
@@ -81,13 +81,31 @@ edge-case probes + a 2-agent panel, ZERO divergences). **Measured clean (best of
 richards 1533.6 ms (**2.35×**), deltablue 1790.4 (**1.64×**), splay 565.0 (**2.69×**). `make test-lisp`
 **2666**/0/0; `make purity` 687 clean; **G1 conformance 22,643 / 0 crashes / 0 regressions.**
 
-**Next action:** Phase 25 **milestone 5 — known-arity direct calls** (`docs/design/phase-25.md` §4.1, the
-biggest remaining lever): deltablue's profile is dominated by function-call overhead (`setup-frame` ~44%
-total — param binding + `arguments`-object allocation + arity generality). Add a fast call path for the
-common case (call-site arg count == callee `param-count`, callee doesn't reify `arguments`/rest/defaults):
-bind params positionally, skip the `arguments` object. Then a `+=` string builder, and evaluate the ≥5× G2
-gate across the trio. **Verify G1 before measuring** each step. (A shaped-`descs` simple-vector to kill the
-residual hairy-`aref` on IC hits is a smaller follow-up if the call/string wins don't reach 5×.)
+**Milestone 5 DONE — skip the unused `arguments` object:** deltablue's ~44%-total `setup-frame` cost was
+mostly an UNCONDITIONAL `arguments`-object allocation on every non-arrow call. Now a non-arrow function
+builds `arguments` only when its body (or a nested arrow at any depth, or a default-param expr) textually
+references the identifier — detected precisely by `comp-resolve` flagging the FUNCTION scope
+(`cs-uses-arguments`) whenever `arguments` resolves to it (compilation is a full traversal, so every read
+[`compile-identifier`] and write [`compile-reference`] is seen); `compile-function-common` reads the flag
+AFTER the body is compiled and `setup-frame` gates `make-arguments-object`. Sound: the object is
+unobservable in clun by any other channel — `f.arguments`, `arguments.callee`, the arguments iterator,
+mapped/aliased args, `with`, and caller-visible direct `eval` are all UNIMPLEMENTED (pre-existing gaps,
+confirmed by the panel). **Adversarial soundness panel + coverage probes: ZERO divergences** (reads/writes/
+typeof/member/computed/for-in/delete/template/default-param/nested-arrows-1-3-deep/generators/async all
+build correctly; `[...arguments]` throws "not iterable" — a PRE-EXISTING gap, unchanged). **Measured clean
+(best of 7, cumulative vs baseline):** richards 1064.2 ms (**3.38×**), deltablue 1110.9 (**2.65×**), splay
+487.4 (**3.12×**) — the biggest single lift so far (deltablue 1.64→2.65×). `make test-lisp` **2666**/0/0;
+`make purity` 687 clean; **G1 conformance 22,643 / 0 crashes / 0 regressions.**
+
+**Next action:** Phase 25 **milestone 6 — close on the ≥5× G2 gate** (now at ~3× geomean; richards 3.38× /
+deltablue 2.65× / splay 3.12×). Remaining profile levers: (a) property CREATION — `make-prop-desc`/`data-pd`/
+`%make-ptable`/`validate-and-apply` ~15–20% on deltablue/splay (a fast create-data-property path that skips
+the validate machinery for a brand-new default data property on an extensible ordinary object); (b) the rest
+of the call frame — positional param binding (the current `bind-parameters` walks the args LIST with `nth`,
+O(n²)) + cheaper frame alloc; (c) a shaped-`descs` simple-vector to kill the read-IC-hit hairy-`aref`. Take
+them one at a time, **profile-guided, verify G1 before measuring each**, and re-evaluate the trio against the
+≥5× targets (richards ≤720, deltablue ≤588, splay ≤304 ms). A `+=` string builder is orthogonal (helps
+string-concat loops, not this trio) — lower priority.
 
 **G3 scope concern — RESOLVED (2026-07-14, operator-approved split):** the ≥90% curated-test262 target is
 split out of Phase 25 into a new **Phase 25b — Conformance push to ≥90%** (PLAN §5). Phase 25's gate is now

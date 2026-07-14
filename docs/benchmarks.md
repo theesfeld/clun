@@ -65,6 +65,7 @@ Same host / compiler / measurement as above. "×" is `baseline_ms / current_ms` 
 | m2 — profile-guided fast paths | 2262.0 ms (1.59×) | 2182.0 ms (1.35×) | 901.2 ms (1.69×) | 17 ms |
 | m3 — shapes + read inline caches | 1705.0 ms (2.11×) | 1968.7 ms (1.49×) | 884.7 ms (1.72×) | 18 ms |
 | m4 — array-index-key-p fast path | 1533.6 ms (2.35×) | 1790.4 ms (1.64×) | 565.0 ms (2.69×) | 17 ms |
+| m5 — skip unused `arguments` object | 1064.2 ms (3.38×) | 1110.9 ms (2.65×) | 487.4 ms (3.12×) | 17 ms |
 
 **m2 (profile-guided fast paths)** — a `sb-sprof` profile of the baseline (`scripts/profile.lisp`)
 showed property access + dispatch + the property-write validate path + per-op FP-trap masking
@@ -95,8 +96,20 @@ removed. Splay 1.72×→2.69×; no regression elsewhere. Semantically exact (ver
 array-index definition via observable array-length/enumeration behavior; a 2-agent panel found zero
 divergences); zero pass-list regressions.
 
-**Still short of the ≥5× gate** — deltablue (1.64×) remains the laggard: its profile is dominated by
-function-call overhead (`setup-frame` ~44% total — frame setup + `arguments`-object allocation). Next:
-known-arity direct calls (m5, the biggest remaining lever), then a `+=` string builder.
+**m5 (skip the unused `arguments` object)** — deltablue's profile was dominated by `setup-frame` (~44%
+total), and the bulk of that was an unconditional `arguments`-object allocation on *every* non-arrow
+call. Now a non-arrow function builds `arguments` only when its body (or a nested arrow, at any depth,
+or a default-param expression) textually references the identifier — detected precisely by flagging the
+function scope whenever `arguments` resolves to it during compilation (a full traversal, so nothing is
+missed). Sound: the object is unobservable in clun by any other channel (`f.arguments`,
+`arguments.callee`, the arguments iterator, mapped/aliased args, `with`, and caller-visible direct
+`eval` are all unimplemented — pre-existing, verified by a soundness panel + probes). Biggest single
+lift so far: deltablue 1.64×→2.65×, richards 2.35×→3.38×, splay 2.69×→3.12×; zero pass-list regressions.
+
+**Still short of the ≥5× gate** — now at ~3× geomean. Remaining levers from the profiles: property
+*creation* (`make-prop-desc`/`data-pd`/`%make-ptable`/`validate-and-apply` ~15–20% on deltablue/splay),
+the rest of the call frame (positional param binding vs the current `nth` walk; frame allocation), and a
+shaped-`descs` simple-vector (kills the read-IC-hit hairy-`aref`). A `+=` string builder is orthogonal
+(helps string-concat loops, not this trio).
 
 _This file gains a new row per milestone, so every ratio is traceable to the frozen baseline above._

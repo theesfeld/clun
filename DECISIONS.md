@@ -1701,3 +1701,27 @@ adversarial panel (built the binary, ran probes) with ZERO findings. **Measured 
 vs the Phase-24 baseline):** richards 2.35×, deltablue 1.64×, splay 2.69×. `make test-lisp` 2666/0/0;
 `make purity` 687 clean; **G1 conformance 22,643 / 0 crashes / 0 regressions.** m5 = known-arity direct calls
 (deltablue's 44% call overhead), then a `+=` string builder.
+
+### 2026-07-14 — Phase 25 milestone 5: skip the unused `arguments` object
+deltablue's `setup-frame` was ~44% of its total, and the bulk was an UNCONDITIONAL `make-arguments-object`
+on every non-arrow call. Now a non-arrow function builds `arguments` only when it can be observed — i.e. the
+body (or a nested ARROW at any depth, or a default-parameter expression) textually references the identifier
+`arguments`. Detection is precise + cheap: `cscope` gains `uses-arguments`; `comp-resolve` sets it whenever
+the name `arguments` resolves to a FUNCTION-kind scope's slot. Because compilation is a FULL AST traversal
+and every identifier reference — read (`compile-identifier`) and write (`compile-reference`) — routes through
+`comp-resolve`, no reference form can be missed (verified: typeof / member / computed / for-in / delete /
+template / spread / default-param / nested-arrows-1-3-deep all mark correctly). `compile-function-common`
+reads the flag AFTER the body/params/nested-fns are compiled (`needs-args`), and `setup-frame` does
+`(when needs-args (setf … (make-arguments-object args)))`. **Soundness rests on the object being
+unobservable by any OTHER channel** — and in clun it is: `f.arguments` / `Function.prototype.arguments`
+return undefined, `arguments.callee` is absent (no strict poison-pill), the arguments iterator is absent
+(`[...arguments]` throws — a pre-existing gap), sloppy MAPPED/aliased arguments is not implemented (the
+object is a plain unmapped `:arguments`), `with` throws unsupported, and direct `eval` is fully isolated
+(`eval("x")` can't see a caller local, let alone `arguments`). A nested NON-arrow declares its own
+`arguments` (so it doesn't force the outer to build); a nested arrow inherits and marks the enclosing
+non-arrow. A `var`/`let arguments` shadow is handled by the `(eq (cs-kind s) :function)` guard. **Adversarial
+soundness panel (binary-verified, all channels) + coverage probes: ZERO findings.** **Measured (best of 7,
+cumulative vs the Phase-24 baseline):** richards 3.38×, deltablue 2.65×, splay 3.12× — the biggest single
+lift of the phase (deltablue 1.64→2.65×). `make test-lisp` 2666/0/0; `make purity` 687 clean; **G1
+conformance 22,643 / 0 crashes / 0 regressions.** Phase 25 is ~3× geomean; the ≥5× G2 gate remains — m6
+targets property creation, positional param binding, and a shaped-`descs` simple-vector.
