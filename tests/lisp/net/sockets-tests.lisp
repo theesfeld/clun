@@ -1,7 +1,7 @@
 ;;;; sockets-tests.lisp — Phase 16 gate: the non-blocking TCP layer on the reactor.
 ;;;; A single-threaded event loop drives BOTH an echo server and the clients (the
 ;;;; reactor multiplexes every fd). Gate: 2,000 sequential + 500 concurrent echoes;
-;;;; /proc/self/fd stable (zero leaks); >= 100 MB/s single-connection loopback; plus
+;;;; process fd directory stable (zero leaks); >= 100 MB/s single-connection loopback; plus
 ;;;; connect-refused code mapping + port-0 real-port reporting.
 
 (in-package :clun-test)
@@ -13,7 +13,9 @@
 (defun s->o (s) (sb-ext:string-to-octets s :external-format :utf-8))
 (defun ob () (make-array 0 :element-type '(unsigned-byte 8)))
 (defun ocat (a b) (concatenate '(vector (unsigned-byte 8)) a b))
-(defun fd-count () (length (sys:read-directory "/proc/self/fd")))
+(defun fd-count ()
+  (length (sys:read-directory
+           (if (sys:directory-p "/proc/self/fd") "/proc/self/fd" "/dev/fd"))))
 
 (defun start-echo-server (loop &key (backlog 1024))
   "A listener that echoes every received chunk straight back to the sender."
@@ -87,11 +89,14 @@ mismatches conn-errors)."
 (define-test net/fd-no-leak
   (with-net-loop (loop)
     (let ((server (start-echo-server loop)))
-      (unwind-protect
-           (let ((base (fd-count)))
-             (run-echoes loop (net:listener-port server) 400)   ; 400 open+close cycles
-             ;; every client + accepted socket is closed; only base fds remain
-             (is <= (abs (- (fd-count) base)) 1))
+	       (unwind-protect
+	            (let ((base (fd-count)))
+	             (true (plusp base))
+	             (run-echoes loop (net:listener-port server) 400)   ; 400 open+close cycles
+	             ;; every client + accepted socket is closed; only base fds remain
+	             (let ((after (fd-count)))
+	               (true (plusp after))
+	               (is <= (abs (- after base)) 1)))
         (net:listener-close server)))))
 
 (define-test net/connect-refused

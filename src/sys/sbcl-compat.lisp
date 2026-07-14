@@ -58,4 +58,5 @@ NIL — so no condition is consed here."
 
 (defun poll-backend-p ()
   "True iff this SBCL's serve-event uses poll() — no FD_SETSIZE cap, fd>1023 ok."
-  (and (fboundp 'sb-unix:unix-poll) t))
+  (let ((unix-poll (find-symbol "UNIX-POLL" :sb-unix)))
+    (and unix-poll (fboundp unix-poll) t)))

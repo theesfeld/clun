@@ -1,0 +1,216 @@
+#!/bin/sh
+
+set -eu
+
+repo=${CLUN_GITHUB_REPO:-theesfeld/clun}
+requested_version=${CLUN_VERSION:-latest}
+install_root=${CLUN_INSTALL:-"$HOME/.clun"}
+no_modify_path=${CLUN_NO_MODIFY_PATH:-0}
+
+say() {
+  printf '%s\n' "$*"
+}
+
+fail() {
+  printf 'clun: error: %s\n' "$*" >&2
+  exit 1
+}
+
+command_exists() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+download() {
+  download_url=$1
+  download_output=$2
+
+  if command_exists curl; then
+    curl --fail --location --silent --show-error --retry 3 \
+      --output "$download_output" "$download_url"
+  elif command_exists wget; then
+    wget --quiet --tries=3 --output-document="$download_output" "$download_url"
+  else
+    fail "curl or wget is required to download Clun"
+  fi
+}
+
+sha256_file() {
+  checksum_path=$1
+  if command_exists sha256sum; then
+    sha256sum "$checksum_path" | awk '{print $1}'
+  elif command_exists shasum; then
+    shasum -a 256 "$checksum_path" | awk '{print $1}'
+  elif command_exists openssl; then
+    openssl dgst -sha256 "$checksum_path" | awk '{print $NF}'
+  else
+    fail "sha256sum, shasum, or openssl is required to verify Clun"
+  fi
+}
+
+shell_quote() {
+  printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"
+}
+
+os_name=$(uname -s 2>/dev/null || true)
+case "$os_name" in
+  Linux) os=linux ;;
+  Darwin) os=darwin ;;
+  *) fail "unsupported operating system '$os_name'; Clun releases target Linux and macOS" ;;
+esac
+
+machine=$(uname -m 2>/dev/null || true)
+if [ "$os" = darwin ] && [ "$machine" = x86_64 ] && command_exists sysctl; then
+  if [ "$(sysctl -in sysctl.proc_translated 2>/dev/null || printf '0')" = 1 ]; then
+    machine=arm64
+  fi
+fi
+
+case "$machine" in
+  x86_64|amd64) arch=x64 ;;
+  arm64|aarch64) arch=arm64 ;;
+  *) fail "unsupported CPU architecture '$machine'; Clun releases target x86_64 and arm64" ;;
+esac
+
+target="$os-$arch"
+asset="clun-$target.tar.gz"
+
+if [ -n "${CLUN_DOWNLOAD_BASE:-}" ]; then
+  download_base=${CLUN_DOWNLOAD_BASE%/}
+elif [ "$requested_version" = latest ]; then
+  download_base="https://github.com/$repo/releases/latest/download"
+else
+  case "$requested_version" in
+    *[!A-Za-z0-9._-]*) fail "CLUN_VERSION contains unsupported characters" ;;
+  esac
+  download_base="https://github.com/$repo/releases/download/$requested_version"
+fi
+
+tmp_root=${TMPDIR:-/tmp}
+tmp_dir=$(mktemp -d "$tmp_root/clun-install.XXXXXX") || fail "could not create a temporary directory"
+cleanup() {
+  rm -rf "$tmp_dir"
+  if [ -n "${stage_dir:-}" ] && [ -d "$stage_dir" ]; then
+    rm -rf "$stage_dir"
+  fi
+}
+trap cleanup EXIT HUP INT TERM
+
+archive="$tmp_dir/$asset"
+checksums="$tmp_dir/checksums.txt"
+
+say "Downloading Clun for $target..."
+download "$download_base/$asset" "$archive"
+download "$download_base/checksums.txt" "$checksums"
+
+expected=$(awk -v name="$asset" '$2 == name || $2 == "*" name { print $1; exit }' "$checksums")
+[ -n "$expected" ] || fail "checksums.txt does not contain $asset"
+actual=$(sha256_file "$archive")
+[ "$actual" = "$expected" ] || fail "checksum mismatch for $asset"
+
+command_exists tar || fail "tar is required to unpack Clun"
+mkdir -p "$tmp_dir/unpacked"
+if ! tar -tzf "$archive" | awk -v prefix="clun-$target/" '
+  index($0, prefix) != 1 { bad = 1 }
+  /(^|\/)\.\.($|\/)/ { bad = 1 }
+  END { exit bad }
+'; then
+  fail "release archive contains an unsafe path"
+fi
+tar -xzf "$archive" -C "$tmp_dir/unpacked"
+
+package_dir="$tmp_dir/unpacked/clun-$target"
+[ -f "$package_dir/VERSION" ] || fail "release archive is missing VERSION"
+[ -x "$package_dir/bin/clun" ] || fail "release archive is missing an executable bin/clun"
+
+release_version=$(sed -n '1p' "$package_dir/VERSION" | tr -d '\r\n')
+case "$release_version" in
+  ''|*[!A-Za-z0-9._-]*) fail "release archive contains an invalid version" ;;
+esac
+
+validate_release() {
+  candidate_dir=$1
+  [ -f "$candidate_dir/VERSION" ] || return 1
+  [ -x "$candidate_dir/bin/clun" ] || return 1
+  candidate_version=$(sed -n '1p' "$candidate_dir/VERSION" | tr -d '\r\n')
+  [ "$candidate_version" = "$release_version" ] || return 1
+  candidate_reported=$("$candidate_dir/bin/clun" --version 2>/dev/null) || return 1
+  [ "$candidate_reported" = "clun $release_version" ]
+}
+
+validate_release "$package_dir" || fail "the $target release could not run on this system"
+
+release_parent="$install_root/releases/$release_version"
+release_dir="$release_parent/$target"
+bin_dir="$install_root/bin"
+mkdir -p "$release_parent" "$bin_dir"
+
+if [ -d "$release_dir" ] && ! validate_release "$release_dir"; then
+  rm -rf "$release_dir"
+fi
+
+if [ ! -d "$release_dir" ]; then
+  stage_dir=$(mktemp -d "$release_parent/.clun-stage.XXXXXX") || fail "could not stage the release"
+  cp -R "$package_dir/." "$stage_dir/"
+  validate_release "$stage_dir" || fail "the staged release failed validation"
+  mv "$stage_dir" "$release_dir" || fail "could not activate the release"
+  stage_dir=
+fi
+
+validate_release "$release_dir" || fail "the installed release failed validation"
+
+link_tmp="$bin_dir/.clun-link.$$"
+rm -f "$link_tmp"
+ln -s "../releases/$release_version/$target/bin/clun" "$link_tmp"
+mv -f "$link_tmp" "$bin_dir/clun"
+
+profile_changed=0
+profile_path=
+if [ "$no_modify_path" != 1 ]; then
+  shell_name=$(basename "${SHELL:-sh}")
+  case "$shell_name" in
+    zsh) profile_path="$HOME/.zshrc" ;;
+    bash)
+      if [ "$os" = darwin ]; then
+        profile_path="$HOME/.bash_profile"
+      else
+        profile_path="$HOME/.bashrc"
+      fi
+      ;;
+    fish) profile_path="$HOME/.config/fish/config.fish" ;;
+    *) profile_path="$HOME/.profile" ;;
+  esac
+
+  if ! printf '%s' ":${PATH:-}:" | grep -F ":$bin_dir:" >/dev/null 2>&1; then
+    mkdir -p "$(dirname "$profile_path")"
+    touch "$profile_path"
+    if ! grep -F '# clun' "$profile_path" >/dev/null 2>&1; then
+      quoted_root=$(shell_quote "$install_root")
+      if [ "$shell_name" = fish ]; then
+        {
+          printf '\n# clun\n'
+          printf 'set -gx CLUN_INSTALL %s\n' "$quoted_root"
+          # Keep these variables literal for the user's future fish sessions.
+          # shellcheck disable=SC2016
+          printf 'set -gx PATH "$CLUN_INSTALL/bin" $PATH\n'
+        } >>"$profile_path"
+      else
+        {
+          printf '\n# clun\n'
+          printf 'export CLUN_INSTALL=%s\n' "$quoted_root"
+          # Keep these variables literal for the user's future POSIX shell sessions.
+          # shellcheck disable=SC2016
+          printf 'export PATH="$CLUN_INSTALL/bin:$PATH"\n'
+        } >>"$profile_path"
+      fi
+      profile_changed=1
+    fi
+  fi
+fi
+
+say "Installed Clun $release_version to $release_dir"
+if [ "$profile_changed" = 1 ]; then
+  say "Updated $profile_path; restart your shell or load that file to use clun."
+elif ! printf '%s' ":${PATH:-}:" | grep -F ":$bin_dir:" >/dev/null 2>&1; then
+  say "Add $bin_dir to PATH to use clun."
+fi
+say "Run: clun --version"

@@ -121,7 +121,7 @@
    #:*use-windows-certificate-store*
    #+windows #:verify-certificate-chain-windows
    #:*use-macos-keychain*
-   #+(or darwin macos) #:verify-certificate-chain-macos
+   #+(and (or darwin macos) pure-tls-native-macos) #:verify-certificate-chain-macos
 
    ;; ECH (Encrypted Client Hello)
    #:tls-ech-accepted-p

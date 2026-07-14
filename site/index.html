@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f4f1e9">
+    <meta name="description" content="Clun is a pre-alpha JavaScript and TypeScript runtime and toolkit written in pure Common Lisp.">
+    <meta property="og:title" content="Clun - JavaScript tooling in pure Common Lisp">
+    <meta property="og:description" content="A scoped JavaScript runtime, package manager, test runner, and HTTP toolkit built in pure Common Lisp.">
+    <meta property="og:image" content="https://clun.sh/assets/clun.jpg">
+    <meta property="og:url" content="https://clun.sh/">
+    <meta property="og:type" content="website">
+    <title>Clun - JavaScript tooling in pure Common Lisp</title>
+    <link rel="icon" href="assets/clun.jpg">
+    <link rel="stylesheet" href="styles.css">
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <div class="announcement">
+      <a href="https://github.com/theesfeld/clun/blob/master/STATE.md">
+        <span>Pre-alpha</span>
+        Phase 25 performance work is in progress
+        <span aria-hidden="true">-&gt;</span>
+      </a>
+    </div>
+
+    <header class="site-header">
+      <div class="nav-shell">
+        <a class="brand" href="#top" aria-label="Clun home">
+          <img src="assets/clun.jpg" alt="" width="44" height="44">
+          <span>Clun</span>
+        </a>
+        <button class="menu-button" type="button" aria-expanded="false" aria-controls="site-nav">
+          <span class="menu-lines" aria-hidden="true"><i></i><i></i><i></i></span>
+          <span class="sr-only">Open navigation</span>
+        </button>
+        <nav id="site-nav" class="site-nav" aria-label="Primary navigation">
+          <a href="#toolkit">Toolkit</a>
+          <a href="#benchmarks">Benchmarks</a>
+          <a href="#compatibility">Compatibility</a>
+          <a href="#internals">Internals</a>
+          <a class="source-link" href="https://github.com/theesfeld/clun">GitHub <span aria-hidden="true">-&gt;</span></a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main">
+      <section id="top" class="hero section-band">
+        <div class="hero-lines" aria-hidden="true"></div>
+        <div class="shell hero-inner">
+          <div class="hero-mark-wrap">
+            <img class="hero-mark" src="assets/clun.jpg" alt="Clun mascot wearing a Lisp helmet" width="250" height="250">
+          </div>
+          <p class="eyebrow"><span class="status-dot" aria-hidden="true"></span> v0.0.1-dev / pre-alpha</p>
+          <h1>Clun is JavaScript tooling,<br>rewritten in pure Common Lisp.</h1>
+          <p class="hero-copy">
+            A from-scratch JavaScript engine with TypeScript stripping, a package manager,
+            test runner, HTTP server, and runtime APIs. Purity and a clearly scoped surface
+            come before breadth or benchmark wins.
+          </p>
+
+          <div class="installer" aria-labelledby="install-title">
+            <div class="installer-head">
+              <div>
+                <span class="installer-kicker">Linux + macOS 13+ / x64 + arm64</span>
+                <h2 id="install-title">Install Clun</h2>
+              </div>
+              <a href="install">View shell script</a>
+            </div>
+            <div class="command-row">
+              <span class="prompt" aria-hidden="true">$</span>
+              <code data-install-command>curl -fsSL https://clun.sh/install | sh</code>
+              <button class="copy-button" type="button" data-copy-target="[data-install-command]" aria-label="Copy install command">
+                <span data-copy-label>Copy</span>
+              </button>
+            </div>
+            <p class="installer-note" role="status" aria-live="polite" data-copy-status>
+              The installer verifies the release checksum and writes to <code>~/.clun/bin</code>.
+            </p>
+          </div>
+
+          <dl class="hero-facts">
+            <div><dt>Implementation</dt><dd>Pure Common Lisp</dd></div>
+            <div><dt>Curated test262 pass list</dt><dd>22,643 tests</dd></div>
+            <div><dt>License</dt><dd>GPL-3.0-or-later</dd></div>
+            <div><dt>Cross-runtime speed</dt><dd>Not measured</dd></div>
+          </dl>
+        </div>
+      </section>
+
+      <section class="proof-band section-band" aria-labelledby="workflow-title">
+        <div class="shell proof-layout">
+          <div class="section-intro proof-copy">
+            <p class="eyebrow eyebrow-light">One binary, a focused workflow</p>
+            <h2 id="workflow-title">Run, install, test, and serve without a JavaScript implementation underneath.</h2>
+            <p>
+              Clun's runtime and tooling are implemented in Common Lisp. JavaScript and
+              TypeScript appear as user programs and test fixtures, not as implementation code.
+            </p>
+            <a class="text-link light-link" href="https://github.com/theesfeld/clun/blob/master/PLAN.md">Read the scope contract <span aria-hidden="true">-&gt;</span></a>
+          </div>
+
+          <div class="terminal" aria-label="Example Clun workflow">
+            <div class="terminal-bar">
+              <span>clun / quickstart</span>
+              <span class="terminal-state">pre-alpha</span>
+            </div>
+            <div class="terminal-body">
+              <p><span>$</span> clun app.ts</p>
+              <p class="terminal-output">hello from Common Lisp</p>
+              <p><span>$</span> clun test</p>
+              <p class="terminal-good">(pass) adds two values</p>
+              <p class="terminal-output">1 pass &nbsp; 0 fail &nbsp; 1 expect() call</p>
+              <p><span>$</span> clun run start</p>
+              <p class="terminal-output">clun serving on http://127.0.0.1:3000</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="benchmarks" class="bench-section section-band">
+        <div class="shell">
+          <div class="section-heading split-heading">
+            <div>
+              <p class="eyebrow">Measured, with the weak results included</p>
+              <h2>Faster than Clun used to be.</h2>
+            </div>
+            <p>
+              These are Clun-versus-Clun measurements on fixed workloads, not comparisons
+              with Bun or Node.js. Lower is better; each result is the best of five runs.
+            </p>
+          </div>
+
+          <div class="benchmark-panel">
+            <div class="benchmark-head">
+              <div>
+                <span class="panel-label">Phase 25 / milestone 2</span>
+                <h3>Classic JavaScript workloads</h3>
+              </div>
+              <div class="benchmark-key" aria-label="Chart legend">
+                <span><i class="key-baseline"></i> Phase 24 baseline</span>
+                <span><i class="key-current"></i> Milestone 2 result</span>
+              </div>
+            </div>
+
+            <div class="benchmark-chart" role="img" aria-label="Clun milestone 2 benchmarks. Richards improved from 3600.4 to 2262.0 milliseconds, 1.59 times faster. DeltaBlue improved from 2942.0 to 2182.0 milliseconds, 1.35 times faster. Splay improved from 1520.3 to 901.2 milliseconds, 1.69 times faster.">
+              <div class="bench-row">
+                <div class="bench-meta"><strong>Richards</strong><span>scheduler simulation</span></div>
+                <div class="bars">
+                  <div class="bar baseline" style="--bar: 100%"><span>3600.4 ms</span></div>
+                  <div class="bar current coral" style="--bar: 62.8%"><span>2262.0 ms</span></div>
+                </div>
+                <div class="gain">1.59x</div>
+              </div>
+              <div class="bench-row">
+                <div class="bench-meta"><strong>DeltaBlue</strong><span>constraint solver</span></div>
+                <div class="bars">
+                  <div class="bar baseline" style="--bar: 100%"><span>2942.0 ms</span></div>
+                  <div class="bar current yellow" style="--bar: 74.2%"><span>2182.0 ms</span></div>
+                </div>
+                <div class="gain">1.35x</div>
+              </div>
+              <div class="bench-row">
+                <div class="bench-meta"><strong>Splay</strong><span>allocation + trees</span></div>
+                <div class="bars">
+                  <div class="bar baseline" style="--bar: 100%"><span>1520.3 ms</span></div>
+                  <div class="bar current green" style="--bar: 59.3%"><span>901.2 ms</span></div>
+                </div>
+                <div class="gain">1.69x</div>
+              </div>
+            </div>
+
+            <div class="benchmark-foot">
+              <p><strong>5x goal not met at milestone 2.</strong> Gains ranged from 1.35x to 1.69x against Clun's own baseline.</p>
+              <a class="text-link" href="https://github.com/theesfeld/clun/blob/master/docs/benchmarks.md">Methodology and raw numbers <span aria-hidden="true">-&gt;</span></a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="toolkit" class="tools-section section-band">
+        <div class="shell">
+          <div class="section-heading">
+            <p class="eyebrow">Four tools, one experimental toolkit</p>
+            <h2>The daily loop is already here.</h2>
+            <p>Each surface is real, tested, and intentionally narrower than Bun's equivalent.</p>
+          </div>
+
+          <div class="tool-grid">
+            <article class="tool-card tool-runtime">
+              <div class="tool-topline"><span>01</span><code>$ clun app.ts</code></div>
+              <h3>JavaScript runtime</h3>
+              <p>Execute JavaScript, CommonJS, ESM, JSON, and erasable TypeScript with a from-scratch engine.</p>
+              <ul>
+                <li>Strict and sloppy language modes</li>
+                <li>ESM and CommonJS resolution</li>
+                <li>Timers, promises, files, fetch, and URL</li>
+                <li>No JSX, Proxy, Intl, or native addons</li>
+              </ul>
+              <div class="tool-status"><span>Scope</span> ES2017-tier, partial</div>
+            </article>
+
+            <article class="tool-card tool-install">
+              <div class="tool-topline"><span>02</span><code>$ clun install</code></div>
+              <h3>Package manager</h3>
+              <p>Resolve semver graphs into a deterministic hoisted tree with a content cache and lockfile.</p>
+              <ul>
+                <li>SRI SHA-512 verification before extraction</li>
+                <li>Offline reinstall from <code>clun.lock</code></li>
+                <li>Hardened tarball extraction</li>
+                <li>Lifecycle scripts are never executed</li>
+              </ul>
+              <div class="tool-status warning"><span>Known gap</span> Public npm TLS interop</div>
+            </article>
+
+            <article class="tool-card tool-test">
+              <div class="tool-topline"><span>03</span><code>$ clun test</code></div>
+              <h3>Test runner</h3>
+              <p>Discover JavaScript and TypeScript tests and run them with familiar Jest-style globals.</p>
+              <ul>
+                <li>Hooks, skip, only, todo, and filters</li>
+                <li>Async tests and timeouts</li>
+                <li>About 22 built-in matchers</li>
+                <li>No snapshots, coverage, mocks, or concurrency</li>
+              </ul>
+              <div class="tool-status"><span>Output</span> Deterministic by design</div>
+            </article>
+
+            <article class="tool-card tool-server">
+              <div class="tool-topline"><span>04</span><code>$ clun server.ts</code></div>
+              <h3>HTTP toolkit</h3>
+              <p>Serve fetch-style handlers and make HTTP or experimental HTTPS requests from the runtime.</p>
+              <ul>
+                <li><code>Clun.serve</code> HTTP/1.1 server</li>
+                <li>Request, Response, and Headers</li>
+                <li>AbortController and timeout support</li>
+                <li>Buffered bodies; no WebSocket or HTTP/2</li>
+              </ul>
+              <div class="tool-status warning"><span>Security</span> TLS is unaudited</div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="code-section section-band" aria-labelledby="code-title">
+        <div class="shell code-layout">
+          <div class="code-copy">
+            <p class="eyebrow eyebrow-light">A small, coherent surface</p>
+            <h2 id="code-title">The APIs you need for the parts Clun implements.</h2>
+            <p>
+              The surface follows familiar web and JavaScript conventions while keeping
+              unsupported behavior loud. Select a task to see code the current runtime accepts.
+            </p>
+            <div class="code-tabs" role="tablist" aria-label="Code examples">
+              <button type="button" role="tab" aria-selected="true" aria-controls="code-runtime" id="tab-runtime" data-code-tab="runtime">Run TypeScript</button>
+              <button type="button" role="tab" aria-selected="false" aria-controls="code-server" id="tab-server" data-code-tab="server" tabindex="-1">Serve HTTP</button>
+              <button type="button" role="tab" aria-selected="false" aria-controls="code-test" id="tab-test" data-code-tab="test" tabindex="-1">Write a test</button>
+              <button type="button" role="tab" aria-selected="false" aria-controls="code-file" id="tab-file" data-code-tab="file" tabindex="-1">Write a file</button>
+            </div>
+          </div>
+
+          <div class="code-window">
+            <div class="code-window-bar">
+              <span data-code-filename>hello.ts</span>
+              <button type="button" class="code-copy-button" data-copy-code aria-label="Copy code example">Copy</button>
+            </div>
+            <pre id="code-runtime" role="tabpanel" aria-labelledby="tab-runtime" data-code-panel="runtime"><code><span class="tok-key">const</span> project<span class="tok-type">: string</span> = <span class="tok-str">"Clun"</span>;
+<span class="tok-key">const</span> runtime = <span class="tok-str">"Common Lisp"</span>;
+
+console.log(<span class="tok-str">`${project} runs on ${runtime}`</span>);</code></pre>
+            <pre id="code-server" role="tabpanel" aria-labelledby="tab-server" data-code-panel="server" hidden><code><span class="tok-key">const</span> server = Clun.serve({
+  port: <span class="tok-num">3000</span>,
+  fetch: <span class="tok-key">async</span> (request<span class="tok-type">: Request</span>) =&gt; {
+    <span class="tok-key">return</span> Response.json({ ok: <span class="tok-key">true</span> });
+  },
+});
+
+console.log(server.url);</code></pre>
+            <pre id="code-test" role="tabpanel" aria-labelledby="tab-test" data-code-panel="test" hidden><code>test(<span class="tok-str">"math stays honest"</span>, () =&gt; {
+  expect(<span class="tok-num">2</span> + <span class="tok-num">2</span>).toBe(<span class="tok-num">4</span>);
+});</code></pre>
+            <pre id="code-file" role="tabpanel" aria-labelledby="tab-file" data-code-panel="file" hidden><code><span class="tok-key">const</span> file = Clun.file(<span class="tok-str">"message.txt"</span>);
+
+Clun.write(file, <span class="tok-str">"hello from Clun\n"</span>)
+  .then(() =&gt; file.text())
+  .then((text) =&gt; console.log(text));</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <section id="compatibility" class="compat-section section-band">
+        <div class="shell">
+          <div class="section-heading split-heading">
+            <div>
+              <p class="eyebrow">Compatibility without the hand-waving</p>
+              <h2>Clun is narrower. The table says where.</h2>
+            </div>
+            <p>
+              This is a capability snapshot, not a speed chart. Official Bun and Node.js sources
+              are linked below; Clun cells reflect the repository's tested scope.
+            </p>
+          </div>
+
+          <div class="table-wrap" tabindex="0" role="region" aria-label="Runtime capability comparison table">
+            <table class="compat-table">
+              <thead>
+                <tr><th scope="col">Capability</th><th scope="col" class="clun-col">Clun 0.0.1-dev</th><th scope="col">Bun 1.3</th><th scope="col">Node.js 26</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th scope="row"><strong>JavaScript runtime</strong><span>Language execution</span></th>
+                  <td class="clun-col"><b class="state partial">Partial</b> ES2017-tier scoped engine</td>
+                  <td><b class="state yes">Yes</b> broad JS + Web APIs</td>
+                  <td><b class="state yes">Yes</b> broad JS + Node APIs</td>
+                </tr>
+                <tr>
+                  <th scope="row"><strong>TypeScript</strong><span>Execute without a separate build</span></th>
+                  <td class="clun-col"><b class="state partial">Partial</b> erasable syntax; no TSX</td>
+                  <td><b class="state yes">Yes</b> TypeScript and JSX transpilation</td>
+                  <td><b class="state partial">Partial</b> erasable syntax stripping</td>
+                </tr>
+                <tr>
+                  <th scope="row"><strong>Package manager</strong><span>Resolve and install npm packages</span></th>
+                  <td class="clun-col"><b class="state blocked">Blocked</b> local fixture passes; public npm TLS fails</td>
+                  <td><b class="state yes">Built in</b> <code>bun install</code></td>
+                  <td><b class="state separate">Separate</b> npm is distributed alongside Node</td>
+                </tr>
+                <tr>
+                  <th scope="row"><strong>Test runner</strong><span>First-party test command</span></th>
+                  <td class="clun-col"><b class="state partial">Partial</b> Jest-style core, no coverage</td>
+                  <td><b class="state yes">Built in</b> Jest-compatible runner</td>
+                  <td><b class="state yes">Built in</b> stable <code>node:test</code></td>
+                </tr>
+                <tr>
+                  <th scope="row"><strong>HTTP server</strong><span>First-party server API</span></th>
+                  <td class="clun-col"><b class="state partial">Partial</b> HTTP/1.1, buffered bodies</td>
+                  <td><b class="state yes">Built in</b> <code>Bun.serve</code></td>
+                  <td><b class="state yes">Built in</b> <code>node:http</code></td>
+                </tr>
+                <tr>
+                  <th scope="row"><strong>Bundler</strong><span>Production asset bundling</span></th>
+                  <td class="clun-col"><b class="state no">No</b> explicit non-goal</td>
+                  <td><b class="state yes">Built in</b> browser and server targets</td>
+                  <td><b class="state no">No</b> use ecosystem tooling</td>
+                </tr>
+                <tr>
+                  <th scope="row"><strong>Native addons</strong><span>N-API / C or C++ modules</span></th>
+                  <td class="clun-col"><b class="state no">No</b> conflicts with the purity contract</td>
+                  <td><b class="state partial">Partial</b> Node-API compatibility</td>
+                  <td><b class="state yes">Yes</b> stable Node-API</td>
+                </tr>
+                <tr>
+                  <th scope="row"><strong>Cross-runtime benchmark</strong><span>Clun versus Bun or Node.js</span></th>
+                  <td class="clun-col"><b class="state separate">Not measured</b> no claim made</td>
+                  <td><b class="state separate">N/A</b> no shared Clun run</td>
+                  <td><b class="state separate">N/A</b> no shared Clun run</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="source-note">
+            Sources:
+            <a href="https://github.com/theesfeld/clun/blob/master/PLAN.md">Clun scope</a>,
+            <a href="https://bun.sh/docs">Bun documentation</a>, and
+            <a href="https://nodejs.org/api/">Node.js documentation</a>.
+          </p>
+        </div>
+      </section>
+
+      <section id="internals" class="internals-section section-band">
+        <div class="shell internals-layout">
+          <div class="section-intro">
+            <p class="eyebrow">The implementation is the point</p>
+            <h2>Common Lisp all the way down.</h2>
+            <p>
+              Clun permits ANSI Common Lisp, SBCL contribs, and vendored libraries written in
+              Common Lisp. It rejects CFFI and foreign-library entry points in the runtime implementation.
+            </p>
+          </div>
+          <ol class="contract-list">
+            <li><span>01</span><div><strong>From-scratch engine</strong><p>Lexer, parser, object model, modules, async execution, and runtime APIs live in the repository.</p></div></li>
+            <li><span>02</span><div><strong>Vendored and pinned</strong><p>A fresh source build fetches no Lisp dependencies and uses no Quicklisp installation.</p></div></li>
+            <li><span>03</span><div><strong>Purity is checked</strong><p><code>make purity</code> scans source and vendored code at every phase gate.</p></div></li>
+            <li><span>04</span><div><strong>Security limits stay visible</strong><p>The pure-Lisp TLS stack is experimental, unaudited, and documented as such.</p></div></li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="closing section-band">
+        <div class="shell closing-inner">
+          <img src="assets/clun.jpg" alt="" width="132" height="132">
+          <p class="eyebrow">Try the current release</p>
+          <h2>Install Clun with one shell command.</h2>
+          <div class="command-row closing-command">
+            <span class="prompt" aria-hidden="true">$</span>
+            <code data-install-command-bottom>curl -fsSL https://clun.sh/install | sh</code>
+            <button class="copy-button" type="button" data-copy-target="[data-install-command-bottom]" aria-label="Copy install command">
+              <span data-copy-label>Copy</span>
+            </button>
+          </div>
+          <p class="closing-caveat">Pre-alpha software. Review the compatibility table and TLS posture before relying on it.</p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="shell footer-grid">
+        <div class="footer-brand">
+          <a class="brand" href="#top"><img src="assets/clun.jpg" alt="" width="40" height="40"><span>Clun</span></a>
+          <p>Bun, rewritten in pure Common Lisp. Scoped, pre-alpha, and GPL-3.0-or-later.</p>
+        </div>
+        <div><h2>Project</h2><a href="https://github.com/theesfeld/clun">Source</a><a href="https://github.com/theesfeld/clun/blob/master/README.md">README</a><a href="https://github.com/theesfeld/clun/blob/master/STATE.md">Current status</a></div>
+        <div><h2>Evidence</h2><a href="https://github.com/theesfeld/clun/blob/master/docs/benchmarks.md">Benchmarks</a><a href="https://github.com/theesfeld/clun/actions">CI</a><a href="https://github.com/theesfeld/clun/blob/master/LICENSE">License</a></div>
+        <div><h2>Install</h2><a href="install">Shell installer</a><a href="https://github.com/theesfeld/clun/releases">Releases</a><a href="https://github.com/theesfeld/clun#building-from-source">Build from source</a></div>
+      </div>
+      <div class="shell footer-bottom"><span>(c) 2026 TJ Theesfeld</span><span>clun.sh</span></div>
+    </footer>
+    <span class="sr-only" role="status" aria-live="polite" data-copy-feedback></span>
+  </body>
+</html>

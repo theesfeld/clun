@@ -731,10 +731,9 @@ policies. Set to NIL to use pure Lisp verification instead.")
   "Always NIL on non-Windows platforms.")
 
 #+(or darwin macos)
-(defvar *use-macos-keychain* t
-  "When T on macOS, use Security.framework for certificate chain verification.
-This uses the system Keychain trusted roots and respects enterprise PKI
-policies. Set to NIL to use pure Lisp verification instead.")
+(defvar *use-macos-keychain* nil
+  "NIL in Clun's pure build: use the PEM trust store and pure Lisp verification.
+The upstream Security.framework backend uses foreign calls and is not vendored.")
 
 #-(or darwin macos)
 (defvar *use-macos-keychain* nil
@@ -762,7 +761,7 @@ TRUST-ANCHOR-MODE controls how trusted-roots interact with system store:
        :trusted-roots trusted-roots-der
        :trust-anchor-mode trust-anchor-mode)
       (return-from verify-certificate-chain-native t))
-    #+(or darwin macos)
+    #+(and (or darwin macos) pure-tls-native-macos)
     (when *use-macos-keychain*
       (verify-certificate-chain-macos
        (mapcar #'x509-certificate-raw-der chain)

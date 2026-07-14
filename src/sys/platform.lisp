@@ -53,7 +53,11 @@ first `=`), preserving order."
           ((search "ARM" m) "arm")
           (t (string-downcase m)))))
 
-(defun platform-name () "linux")
+(defun platform-name ()
+  "Node-style platform string for this host."
+  #+linux "linux"
+  #+darwin "darwin"
+  #-(or linux darwin) (string-downcase (or (software-type) "unknown")))
 
 ;;; --- high-resolution time --------------------------------------------------
 
@@ -85,9 +89,14 @@ read from /dev/urandom via a plain CL binary stream (pure — no foreign code)."
     buf))
 
 (defun hostname () (machine-instance))          ; CL: the host name
-(defun os-type () (or (software-type) "Linux")) ; "Linux"
+(defun os-type ()
+  (or (software-type)
+      #+darwin "Darwin"
+      #-darwin "Linux"))
 (defun os-release ()
-  (or (%first-line "/proc/sys/kernel/osrelease") (software-version) ""))
+  (or #+linux (%first-line "/proc/sys/kernel/osrelease")
+      (software-version)
+      ""))
 (defun tmpdir () (or (getenv "TMPDIR") (getenv "TMP") (getenv "TEMP") "/tmp"))
 (defun homedir () (or (getenv "HOME") ""))
 
@@ -107,18 +116,29 @@ read from /dev/urandom via a plain CL binary stream (pure — no foreign code)."
                          (rest (string-trim " kB" (subseq line (1+ colon)))))
                     (return (* 1024 (or (parse-integer rest :junk-allowed t) 0)))))))))
 
-(defun total-memory () (or (%meminfo-kb "MemTotal") 0))
-(defun free-memory () (or (%meminfo-kb "MemAvailable") (%meminfo-kb "MemFree") 0))
+(defun total-memory ()
+  "Total physical memory where the pure substrate can read it; 0 when unavailable."
+  #+linux (or (%meminfo-kb "MemTotal") 0)
+  #-linux 0)
+
+(defun free-memory ()
+  "Available physical memory where the pure substrate can read it; 0 when unavailable."
+  #+linux (or (%meminfo-kb "MemAvailable") (%meminfo-kb "MemFree") 0)
+  #-linux 0)
 
 (defun uptime-seconds ()
+  #+linux
   (let ((line (%first-line "/proc/uptime")))
-    (if line (or (ignore-errors (read-from-string line)) 0) 0)))
+    (if line (or (ignore-errors (read-from-string line)) 0) 0))
+  #-linux 0)
 
 (defun cpu-count ()
   "Number of logical CPUs (count `processor` lines in /proc/cpuinfo); ≥1."
+  #+linux
   (max 1 (or (ignore-errors
               (with-open-file (in "/proc/cpuinfo" :if-does-not-exist nil)
                 (when in
                   (loop for line = (read-line in nil nil) while line
                         count (and (>= (length line) 9) (string= "processor" line :end2 9))))))
-             1)))
+             1))
+  #-linux 1)

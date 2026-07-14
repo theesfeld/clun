@@ -5,7 +5,7 @@
 (defsystem "clun"
   :description "Bun, rewritten in pure Common Lisp — a scoped JS/TS runtime and toolkit."
   :author "TJ Theesfeld"
-  :license "MIT"
+  :license "GPL-3.0-or-later"
   ;; ASDF wants dotted integers; the user-facing string is src/version.lisp's
   ;; *clun-version* = "0.0.1-dev".
   :version "0.0.1"
@@ -184,7 +184,7 @@
 
 (defsystem "clun/tests"
   :description "Parachute-driven CL test suites mirroring src/ (PLAN.md §3.7 tests/lisp)."
-  :license "MIT"
+  :license "GPL-3.0-or-later"
   ;; ironclad (sha512/crc32) + cl-base64 back the Phase-21 registry fixture: the fixture
   ;; server computes each tarball's dist.integrity from bytes + gzips metadata (stored blocks).
   :depends-on ("clun" "parachute" "ironclad" "cl-base64")

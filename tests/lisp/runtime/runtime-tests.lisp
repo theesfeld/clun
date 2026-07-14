@@ -54,7 +54,8 @@
 ;;; --- process ---------------------------------------------------------------
 
 (define-test runtime/process-fields
-  (is equal (format nil "linux x64~%") (run-rt "console.log(process.platform, process.arch)"))
+  (is equal (format nil "~a ~a~%" (sys:platform-name) (sys:machine-arch))
+      (run-rt "console.log(process.platform, process.arch)"))
   (is equal (format nil "true~%") (run-rt "console.log(typeof process.pid === 'number')"))
   (is equal (format nil "22.11.0~%") (run-rt "console.log(process.versions.node)"))
   (is equal (format nil "true~%") (run-rt "console.log(process.version === 'v'+process.versions.node)"))

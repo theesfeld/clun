@@ -321,9 +321,9 @@
       (pure-tls::verify-certificate-chain-windows der-list "dell.com"))))
 
 ;;;; macOS Native Verification Tests (offline)
-;;;; These test the Security.framework path with bundled bad certificates
+;;;; Clun's pure build leaves these disabled because it omits Security.framework calls.
 
-#+(or darwin macos)
+#+(and (or darwin macos) pure-tls-native-macos)
 (test macos-native-rejects-expired
   "Test that macOS Security.framework rejects expired certificates"
   (let* ((cert-path (test-cert-path "wildcard-expired.pem"))
@@ -332,7 +332,7 @@
     (signals pure-tls:tls-certificate-error
       (pure-tls::verify-certificate-chain-macos der-list "expired.badssl.com"))))
 
-#+(or darwin macos)
+#+(and (or darwin macos) pure-tls-native-macos)
 (test macos-native-rejects-self-signed
   "Test that macOS Security.framework rejects self-signed certificates"
   (let* ((cert-path (test-cert-path "self-signed-valid.pem"))
@@ -341,7 +341,7 @@
     (signals pure-tls:tls-certificate-error
       (pure-tls::verify-certificate-chain-macos der-list "test.example.com"))))
 
-#+(or darwin macos)
+#+(and (or darwin macos) pure-tls-native-macos)
 (test macos-native-rejects-superfish
   "Test that macOS Security.framework rejects Superfish malware CA"
   (let* ((cert-path (test-cert-path "ca-superfish.crt"))
@@ -350,7 +350,7 @@
     (signals pure-tls:tls-certificate-error
       (pure-tls::verify-certificate-chain-macos der-list "superfish.com"))))
 
-#+(or darwin macos)
+#+(and (or darwin macos) pure-tls-native-macos)
 (test macos-native-rejects-edellroot
   "Test that macOS Security.framework rejects eDellRoot malware CA"
   (let* ((cert-path (test-cert-path "ca-edellroot.crt"))

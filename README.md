@@ -5,8 +5,36 @@ JavaScript/TypeScript runtime and toolkit — including a from-scratch ECMAScrip
 implemented in **pure Common Lisp** with zero CFFI and zero foreign libraries. Correctness of the
 scoped surface and purity of the implementation are the point; breadth and raw speed are not.
 
-> **Status: pre-alpha, under active construction.** This is Phase 00 scaffolding. The runtime does
-> not execute JavaScript yet. See `PLAN.md` for the full build plan and `STATE.md` for live progress.
+> **Status: pre-alpha, under active construction.** Phase 25 performance work is in progress.
+> Clun executes its scoped JS/TS surface, but it is not a drop-in Node.js or Bun replacement.
+> See `PLAN.md` for the compatibility matrix and `STATE.md` for live progress.
+
+## Install
+
+Tagged releases are installed by the same POSIX shell command on Linux and macOS:
+
+```sh
+curl -fsSL https://clun.sh/install | sh
+```
+
+The installer detects x86-64 or arm64, verifies the release SHA-256 checksum, and installs under
+`~/.clun`. The release workflow builds and tests native archives on Linux and macOS 13+ for both
+architectures. Windows is not supported.
+
+Clun is still pre-alpha. In particular, `clun install` is verified against the hermetic registry
+fixture, but the default public npm registry currently hits a TLS `protocol_version`
+interoperability gap.
+
+## What works
+
+- JavaScript, JSON, ESM, CommonJS, and erasable TypeScript execution (`.tsx` is not supported).
+- Timers, promises, files, buffered HTTP serving, `fetch`, URL APIs, and process spawning.
+- `clun test` with hooks, modifiers, filters, async tests, timeouts, and about 22 matchers.
+- `clun install`, `add`, `remove`, and package scripts with a deterministic lockfile and cache.
+
+The checked-in curated test262 pass list contains 22,643 tests. Clun has no measured
+cross-runtime benchmark against Bun or Node.js; `docs/benchmarks.md` reports only reproducible
+Clun-versus-Clun measurements.
 
 ## The purity contract
 
@@ -60,4 +88,5 @@ tooling), `docs/design/` (per-phase design notes).
 
 ## License
 
-MIT (`LICENSE`). Vendored libraries retain their own licenses; see `DECISIONS.md` for pins.
+GPL-3.0-or-later (`LICENSE` and `COPYING`). Vendored libraries retain their own licenses; see
+`DECISIONS.md` for pins.

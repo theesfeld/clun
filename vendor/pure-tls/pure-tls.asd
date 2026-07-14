@@ -22,7 +22,7 @@
                "cl-cancel")
   ;; clun purity patch (Phase 19): the win/mac native-cert-validation foreign-lib deps
   ;; (two :feature-guarded entries) + the macos-verify/windows-verify source files are
-  ;; stripped — Windows/macOS are non-goals and the literal token trips the §1.1 scan.
+  ;; stripped. macOS uses pure Lisp verification with a PEM trust store; Windows is unsupported.
   :serial t
   :components ((:file "src/package")
                (:file "src/constants")
@@ -55,8 +55,9 @@
                 :components ((:file "asn1")
                              (:file "certificate")
                              (:file "crl")
-                             ;; clun purity patch (Phase 19): win/mac native-cert-validation
-                             ;; source files removed (foreign-lib; non-goal platforms, §1.1).
+                             ;; Clun purity patch (Phase 19): native certificate backends are
+                             ;; omitted because they use foreign-library calls. Linux and macOS
+                             ;; use the pure-Lisp verifier with PEM trust stores instead.
                              (:file "verify")))
                (:file "src/context")
                (:file "src/streams")))

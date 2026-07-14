@@ -9,10 +9,13 @@
 
 (defparameter *system-ca-candidates*
   '("/etc/ssl/certs/ca-certificates.crt"    ; debian/ubuntu/arch
+    "/etc/ssl/certs/ca-bundle.crt"          ; nixos
     "/etc/pki/tls/certs/ca-bundle.crt"       ; rhel/fedora
-    "/etc/ssl/cert.pem"                      ; alpine/openbsd
-    "/etc/ssl/ca-bundle.pem")                ; suse
-  "Well-known Linux system CA-bundle paths, probed in order (§3.4).")
+    "/etc/ssl/cert.pem"                      ; alpine/openbsd/macos
+    "/etc/ssl/ca-bundle.pem"                 ; suse
+    "/opt/homebrew/etc/ca-certificates/cert.pem" ; homebrew arm64 macos
+    "/usr/local/etc/ca-certificates/cert.pem")   ; homebrew x64 macos
+  "Well-known Linux and macOS CA-bundle paths, probed in order (§3.4).")
 
 (defun %system-ca-file ()
   "The CA bundle to trust: $SSL_CERT_FILE if set (OpenSSL/Node convention), else the first

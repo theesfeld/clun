@@ -75,8 +75,9 @@ HTTP/2/3, shell language (`Bun.$`), workers, macros, `--compile`, watch/hot relo
 coverage, mocks (v1), `clun x`/bunx, REPL, JSX/`.tsx`, sourcemaps (by design — whitespace-
 preserving TS strip makes them unnecessary), Proxy/Reflect, Intl, Temporal, Atomics/SAB,
 `node:stream`/`net`/`http`/`crypto`/`child_process`/`worker_threads`/`vm`/`zlib`, workspaces,
-git/file dependencies, lifecycle scripts (never executed — stricter than Bun), Windows, macOS
-(untested best-effort). If a v1 task appears to require one of these, it doesn't — rescope and
+git/file dependencies, lifecycle scripts (never executed — stricter than Bun), and Windows.
+Linux and macOS 13+ release builds target x86-64 and arm64; platform-specific APIs may remain partial.
+If a v1 task appears to require one of these non-goals, it doesn't — rescope and
 record why in `DECISIONS.md`. Post-v1 backlog lives in Appendix E.
 
 ### 1.4 Definition of Done for v1
@@ -306,7 +307,7 @@ executed** (logged at install end) — stricter than Bun, documented loudly. JSO
 
 ```
 clun/
-├── PLAN.md  STATE.md  DECISIONS.md  README.md  LICENSE (MIT)
+├── PLAN.md  STATE.md  DECISIONS.md  README.md  LICENSE (GPL-3.0-or-later)
 ├── clun.asd  Makefile                          # build | test | purity | bench | clean
 ├── scripts/            build.lisp (save-lisp-and-die), purity-scan.lisp, gen-unicode-tables.lisp
 ├── vendor/             cl-ppcre/ ironclad/ pure-tls/ (+patched cl-cancel + dep closure)
@@ -639,7 +640,7 @@ with rejected value, `note:` remedy; no Lisp backtraces without `--backtrace`); 
 (50k-eval loop, long-run serve, biggest fixture tree ×20 — RSS plateaus); Ctrl-C mid-serve/
 mid-install exits cleanly, partial installs don't corrupt; TZif local-time task (or explicitly
 defer with matrix note); README (what/why, install-from-source, quickstart, architecture, compat
-matrix from Appendix A, TLS posture, contributing); CI release job (linux-x64 binary tarball);
+matrix from Appendix A, TLS posture, contributing); CI release jobs (Linux/macOS, x64/arm64);
 final adversarial review sweep over the whole tree (§2.3 reviewer profile; ultracode panel if
 available); triage → fix safety/error-path findings, log style findings.
 **Gate:** §1.4 Definition of Done, every item checked with evidence links in STATE.md; tag `v0.1.0`.
@@ -842,6 +843,6 @@ nodejs.org/api/typescript.html + nodejs/amaro; npm/registry docs; node-semver.
 7. Reactor-native TLS (off the worker pool); AAAA/DNS resolver (verify `dns-client` purity).
 8. `clun x` (bunx) on the install cache; isolated (pnpm-style) installs; workspaces.
 9. TZif local time (if deferred), Intl skeleton, punycode/IDNA for URL.
-10. macOS support pass (re-run every substrate gate); `--compile`-style single-file bundles
+10. Deeper macOS substrate parity (native memory/uptime/CPU metrics); `--compile`-style single-file bundles
     (save-lisp-and-die tricks).
 11. `bun:sqlite` equivalent — requires a pure-CL SQLite file-format reader or a rethink; research first.
