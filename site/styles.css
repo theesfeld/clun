@@ -265,7 +265,7 @@ a {
 }
 
 .hero-lines::after {
-  top: 286px;
+  top: 206px;
   right: 0;
   left: 0;
   height: 2px;
@@ -277,17 +277,17 @@ a {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 68px 0 0;
+  padding: 30px 0 0;
   text-align: center;
 }
 
 .hero-mark-wrap {
   position: relative;
-  width: 228px;
-  height: 228px;
+  width: 172px;
+  height: 172px;
   display: grid;
   place-items: center;
-  margin-bottom: 28px;
+  margin-bottom: 16px;
 }
 
 .hero-mark-wrap::before,
@@ -300,22 +300,22 @@ a {
 }
 
 .hero-mark-wrap::before {
-  width: 222px;
-  height: 192px;
-  transform: translate(-13px, 8px);
+  width: 166px;
+  height: 144px;
+  transform: translate(-10px, 7px);
   background: var(--coral);
 }
 
 .hero-mark-wrap::after {
-  width: 214px;
-  height: 202px;
-  transform: translate(15px, -8px);
+  width: 160px;
+  height: 152px;
+  transform: translate(11px, -7px);
   background: var(--yellow);
 }
 
 .hero-mark {
-  width: 196px;
-  height: 196px;
+  width: 148px;
+  height: 148px;
   object-fit: cover;
   border: 3px solid var(--ink);
   border-radius: 50%;
@@ -349,7 +349,7 @@ a {
 .hero h1 {
   max-width: 1030px;
   margin: 0;
-  font-size: 68px;
+  font-size: 60px;
   font-weight: 900;
   line-height: 1.01;
   letter-spacing: 0;
@@ -357,15 +357,15 @@ a {
 
 .hero-copy {
   max-width: 760px;
-  margin: 28px auto 36px;
+  margin: 14px auto 20px;
   color: #4d4b47;
-  font-size: 19px;
-  line-height: 1.65;
+  font-size: 18px;
+  line-height: 1.55;
 }
 
 .installer {
   width: min(100%, 820px);
-  margin-bottom: 54px;
+  margin-bottom: 24px;
   border: 2px solid var(--ink);
   border-radius: 6px;
   background: var(--paper-bright);
@@ -374,7 +374,7 @@ a {
 }
 
 .installer-head {
-  min-height: 78px;
+  min-height: 70px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -410,7 +410,7 @@ a {
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
-  min-height: 68px;
+  min-height: 62px;
   padding: 10px 10px 10px 18px;
   background: var(--code);
   color: #f5f3ec;
@@ -481,7 +481,7 @@ a {
 
 .hero-facts div {
   min-width: 0;
-  padding: 22px 20px 24px;
+  padding: 14px 16px 16px;
   border-right: 1px solid var(--ink);
   text-align: left;
 }
@@ -776,6 +776,10 @@ a {
   text-align: right;
 }
 
+.gain.met {
+  color: #277c39;
+}
+
 .benchmark-foot {
   min-height: 78px;
   display: flex;
@@ -1026,7 +1030,7 @@ a {
 
 .compat-table {
   width: 100%;
-  min-width: 920px;
+  min-width: 1120px;
   border-collapse: collapse;
   table-layout: fixed;
   font-size: 13px;
@@ -1034,7 +1038,7 @@ a {
 
 .compat-table th,
 .compat-table td {
-  width: 24%;
+  width: 18.5%;
   padding: 20px;
   border-right: 1px solid var(--ink);
   border-bottom: 1px solid var(--ink);
@@ -1043,14 +1047,14 @@ a {
 }
 
 .compat-table tr > *:first-child {
-  width: 28%;
+  width: 26%;
 }
 
 .compat-table tr > *:last-child {
   border-right: 0;
 }
 
-.compat-table tbody tr:last-child > * {
+.compat-table tbody:last-child tr:last-child > * {
   border-bottom: 0;
 }
 
@@ -1063,9 +1067,35 @@ a {
   text-transform: uppercase;
 }
 
+.compat-table thead th a,
+.compat-table thead th > span {
+  display: block;
+}
+
+.compat-table thead th a {
+  font-size: 14px;
+  text-decoration: none;
+}
+
+.compat-table thead th a:hover {
+  text-decoration: underline;
+}
+
+.compat-table thead th > span {
+  margin-top: 4px;
+  color: #c5c2b9;
+  font-size: 10px;
+  line-height: 1.35;
+  text-transform: none;
+}
+
 .compat-table thead .clun-col {
   background: var(--coral);
   color: var(--ink);
+}
+
+.compat-table thead .clun-col > span {
+  color: #4d2823;
 }
 
 .compat-table tbody th {
@@ -1074,6 +1104,18 @@ a {
 
 .compat-table tbody .clun-col {
   background: #fff0eb;
+}
+
+.compat-table .compare-group th {
+  width: auto;
+  padding: 12px 20px;
+  background: #d7d3c9;
+}
+
+.compat-table .compare-group th strong {
+  font-family: var(--mono);
+  font-size: 12px;
+  text-transform: uppercase;
 }
 
 .compat-table th strong,
@@ -1417,34 +1459,34 @@ a {
   }
 
   .hero-inner {
-    padding-top: 48px;
+    padding-top: 28px;
   }
 
   .hero-mark-wrap {
-    width: 188px;
-    height: 188px;
-    margin-bottom: 26px;
+    width: 148px;
+    height: 148px;
+    margin-bottom: 16px;
   }
 
   .hero-mark-wrap::before {
-    width: 180px;
-    height: 158px;
-    transform: translate(-9px, 6px);
+    width: 142px;
+    height: 124px;
+    transform: translate(-8px, 5px);
   }
 
   .hero-mark-wrap::after {
-    width: 174px;
-    height: 164px;
-    transform: translate(10px, -7px);
+    width: 138px;
+    height: 130px;
+    transform: translate(8px, -6px);
   }
 
   .hero-mark {
-    width: 160px;
-    height: 160px;
+    width: 126px;
+    height: 126px;
   }
 
   .hero-lines::after {
-    top: 235px;
+    top: 177px;
   }
 
   .hero h1 {
@@ -1457,12 +1499,12 @@ a {
   }
 
   .hero-copy {
-    margin: 22px auto 30px;
+    margin: 16px auto 22px;
     font-size: 16px;
   }
 
   .installer {
-    margin-bottom: 40px;
+    margin-bottom: 28px;
     box-shadow: 5px 5px 0 var(--ink);
   }
 
@@ -1613,7 +1655,7 @@ a {
     padding: 16px;
   }
 
-  .compat-table tbody th {
+  .compat-table tbody tr:not(.compare-group) > th {
     position: sticky;
     z-index: 2;
     left: 0;
@@ -1651,12 +1693,58 @@ a {
     display: none;
   }
 
+  .hero-inner {
+    padding-top: 16px;
+  }
+
+  .hero-mark-wrap {
+    width: 116px;
+    height: 116px;
+    margin-bottom: 12px;
+  }
+
+  .hero-mark-wrap::before {
+    width: 112px;
+    height: 98px;
+    transform: translate(-6px, 4px);
+  }
+
+  .hero-mark-wrap::after {
+    width: 108px;
+    height: 102px;
+    transform: translate(6px, -4px);
+  }
+
+  .hero-mark {
+    width: 98px;
+    height: 98px;
+  }
+
+  .hero-lines::after {
+    top: 139px;
+  }
+
+  .hero .eyebrow {
+    margin-bottom: 10px;
+  }
+
   .hero h1 {
-    font-size: 36px;
+    font-size: 34px;
+  }
+
+  .hero-copy {
+    margin: 12px auto 16px;
+    font-size: 15px;
+    line-height: 1.45;
+  }
+
+  .installer {
+    margin-bottom: 18px;
   }
 
   .installer-head {
-    min-height: 88px;
+    min-height: 66px;
+    padding: 10px 12px;
   }
 
   .installer-kicker {
@@ -1664,21 +1752,24 @@ a {
   }
 
   .installer-note {
+    padding: 8px 12px;
     font-size: 10px;
+    line-height: 1.35;
   }
 
   .hero-facts {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(4, minmax(145px, 1fr));
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
   }
 
-  .hero-facts div,
-  .hero-facts div:nth-child(2) {
-    border-right: 0;
-    border-bottom: 1px solid var(--ink);
-  }
-
-  .hero-facts div:last-child {
+  .hero-facts div {
+    padding: 11px 12px 13px;
     border-bottom: 0;
+  }
+
+  .hero-facts div:nth-child(2) {
+    border-right: 1px solid var(--ink);
   }
 
   .section-intro h2,
