@@ -29,28 +29,33 @@ traversed parent); fixed 2 §6 reader gaps (a malformed pax LEN raised a raw BOU
 defense-in-depth symlink-leaf recheck.
 
 **Phase 23 IN PROGRESS** (Install: resolver, linker, lockfile, CLI; deps 20 ✓ + 21 ✓ + 22 ✓; ~4k LOC,
-milestoned). **Milestone 1a DONE (committed):** a hand-rolled JSON **writer** (`clun.sys:write-json`,
-`:indent`/`:sort-keys`, integers without `.0` — for the lockfile + package.json); the **resolver**
-(`src/install/resolver.lisp`, `clun.installer`) — breadth-first, highest-satisfying, cycle-safe resolution
-over the async registry client (`resolve-install` → nodes + a per-edge resolved-version table), and
-`plan-layout` which places the graph DETERMINISTICALLY (root-deps order, then each node's metadata dep order,
-independent of async fetch-completion order): hoists the first-seen version to the root `node_modules`, nests
-a conflicting version under its requiring parent (the fixture's `shared@1`/`shared@2` diamond splits
-correctly). Tests: resolves-graph, hoists-and-nests, placement-is-deterministic, unsatisfiable→install-error,
-missing→package-not-found; + write-json round-trip. `make test-lisp` **2537**/0/0, purity clean **679 files**,
-exec 22,643.
+milestoned). **Milestone 1a DONE (committed):** the JSON **writer** (`clun.sys:write-json`) + the **resolver**
+(`resolve-install` + deterministic `plan-layout` hoist). **Milestone 1b DONE (committed):** the **install
+engine** end-to-end. **Linker** (`src/install/linker.lisp`): per placement, `cache-fetch` by integrity else
+async download `dist.tarball` (http via the Phase-18 client, https via the Phase-20 worker path) →
+`cache-store` → `extract-package` with integrity (verify-then-commit); then `bin` symlinks + chmod into the
+NEAREST `node_modules/.bin` (scope-correct); lifecycle scripts NEVER run. **Lockfile**
+(`src/install/lockfile.lisp`): `clun.lock` versioned JSON, deterministic (`write-json :sort-keys t`);
+`read-lock`/`write-lock`/`lock->plan` (offline reinstall)/`lock-satisfies-p` (freshness incl. dist-tag
+pinning; `--frozen-lockfile` drift). **install / install-async** (`src/install/installer.lisp`): read
+package.json deps → (lock fresh or --frozen → reinstall from lock offline via cache; else resolve fresh →
+link → write-lock). Hermetic e2e (`install-tests.lisp`): fresh diamond install → hoisted layout on disk +
+integrity; delete node_modules → reinstall OFFLINE from the lock → BYTE-IDENTICAL lock; `--frozen-lockfile`
+drift errors; dist-tag pinned offline; malformed package.json/lock → catchable install-error; scoped bin in
+node_modules/.bin. `make test-lisp` **2566**/0/0, purity clean **683 files**, exec 22,643. Adversarial panel
+(12 agents, 10 findings, 7 confirmed): fixed the dist-tag lock-freshness bug (offline reinstall of a `latest`
+dep now reuses the lock), §6 raw-error escapes on malformed package.json/clun.lock/lock-shape (now catchable
+install-error; install-async's synchronous prelude is wrapped so nothing escapes on-err on a shared loop),
+and the scoped-package `.bin` placement.
 
-**Next action:** Phase 23 **milestone 1b** — the **linker** (`src/install/linker.lisp`: per placement,
-`cache-fetch` by integrity else async GET `dist.tarball` (http + the Phase-20 https worker path) →
-`cache-store` → `extract-package` with integrity; then `bin` symlinks + chmod into the nearest
-`node_modules/.bin`; **lifecycle scripts collected + logged, NEVER run**); the **lockfile**
-(`src/install/lockfile.lisp`: `clun.lock` versioned JSON, deterministic via `write-json :sort-keys t`;
-read/write/fresh/`--frozen-lockfile` drift); a top-level `install` (read package.json deps → resolve →
-plan-layout → link → write-lock); and a hermetic CL-level **e2e** (install the diamond against the fixture →
-assert the hoisted layout on disk + integrity; delete node_modules + reinstall from the lock OFFLINE via the
-cache → byte-identical lock; frozen-drift errors). Then **milestone 2** — CLI (`clun install`/`add`/`remove`
-dispatch, package.json editing `-d/-D`/`-E`, `--dry-run`/`--production`/`--no-save`, `clun run <app>` e2e, an
-opt-in logged live `clun add ms` smoke) — which closes the Phase-23 gate + gets the full adversarial review.
+**Next action:** Phase 23 **milestone 2** (closes the phase gate) — the CLI: extend `parse-cli-args`/`dispatch`
+for `clun install` / `add <pkg>` / `remove <pkg>` (package.json editing with `-d/-D` = devDependencies,
+`-E/--exact`, then reinstall), flags `--frozen-lockfile` / `--production` / `--dry-run` / `--no-save`,
+lifecycle-scripts-skipped logging; wire `inst:install`; a `clun run <app>` e2e (install a fixture graph →
+run an app that `require`s the result → exact stdout — the runtime module resolver already reads
+node_modules); and an opt-in logged live `clun add <pkg>` smoke (gated behind an env flag; the live npm HTTPS
+path is still blocked by the pure-tls `protocol_version` interop gap, so the smoke targets a pure-tls-friendly
+registry or is skipped-with-log). Then the full Phase-23 gate + a final review + RECORD + `phase-23` (gate MET).
 
 ---
 

@@ -170,7 +170,10 @@
                                            (:file "registry")
                                            (:file "integrity")
                                            (:file "tarball")
-                                           (:file "resolver")))
+                                           (:file "resolver")
+                                           (:file "linker")
+                                           (:file "lockfile")
+                                           (:file "installer")))
                              ;; CLI (Phase 08): arg parsing, .env, dispatch.
                              (:module "cli"
                               :serial t
@@ -236,4 +239,5 @@
                                                          (:file "registry-fixture")
                                                          (:file "registry-tests")
                                                          (:file "tarball-tests")
-                                                         (:file "resolver-tests")))))))))
+                                                         (:file "resolver-tests")
+                                                         (:file "install-tests")))))))))

@@ -270,7 +270,7 @@ hardened verify-then-commit extractor + content-addressed cache.")
 (defpackage :clun.installer
   (:use :cl)
   (:local-nicknames (:sys :clun.sys) (:sv :clun.install) (:reg :clun.registry)
-                    (:tb :clun.tarball) (:integ :clun.integrity) (:lp :clun.loop))
+                    (:tb :clun.tarball) (:integ :clun.integrity) (:lp :clun.loop) (:net :clun.net))
   (:documentation "clun install: dependency resolution (breadth-first, highest-satisfying,
 cycle-safe) + hoisted-layout placement over the Phase-21 registry client, feeding the Phase-22
 extractor + cache and the clun.lock lockfile.")
@@ -281,4 +281,11 @@ extractor + cache and the clun.lock lockfile.")
    #:inst-node #:inst-node-p #:in-name #:in-version #:in-deps #:in-tarball #:in-integrity #:in-bin
    #:resolve-install #:pick-version
    ;; placement
-   #:plan-layout))
+   #:plan-layout
+   ;; linker
+   #:link-plan
+   ;; lockfile
+   #:write-lock #:read-lock #:lock->plan #:lock-value #:lock-satisfies-p #:name-from-physical
+   ;; top-level install
+   #:read-package-json #:root-deps #:install #:install-async
+   #:install-result #:install-result-p #:ir-source #:ir-plan #:ir-node-count #:ir-lifecycle-skipped))

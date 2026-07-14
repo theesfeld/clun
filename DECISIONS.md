@@ -1371,3 +1371,45 @@ test asserts two independent resolutions yield an identical plan. Regular `depen
 `make test-lisp` **2537**/0/0; `make purity` clean over **679 files**; `make conformance-exec` **22,643**
 (0 crashes, 0 regressions — the install layer + the new `write-json` are engine-inert; `parse-json` is
 unchanged). The full Phase-23 adversarial review + the phase gate come at the milestone that lands the e2e.
+
+### 2026-07-14 — Phase 23 milestone 1b: the install engine (linker + lockfile + install) + e2e
+**Linker** (`src/install/linker.lisp`): `link-plan` materialises a resolved plan — per placement,
+`tb:cache-fetch` by integrity, else `%download-tarball` (http over the Phase-18 client / https over the
+Phase-20 `net:https-request` worker path) → `tb:cache-store` (verifies) → `tb:extract-package` with the
+package's integrity (verify-then-commit; the parent dir is created first since extraction renames a staging
+dir in). Downloads run concurrently on the loop; a pending counter settles `on-ok`/`on-err`. After
+extraction, `%link-bins` symlinks each package's `bin` (a string or a name→path map) into the NEAREST
+`node_modules/.bin` (scope-correct — a scoped package's bin lands in `node_modules/.bin`, not
+`node_modules/@scope/.bin`) + chmods the target. **Lifecycle scripts are NEVER executed** (a logged hook,
+stricter than Bun). **Lockfile** (`src/install/lockfile.lisp`): `clun.lock` = versioned JSON (`packages`
+keyed by install path → version/resolved/integrity/dependencies/bin), deterministic via `write-json
+:sort-keys t` — enough to reinstall OFFLINE from the content-addressed cache. `lock-satisfies-p` is the
+freshness/drift test; a **dist-tag range** (`latest`, not a valid semver range) is treated as pinned once
+locked (satisfied by any concrete locked version), mirroring `pick-version` — so a `latest` dep reinstalls
+from the lock offline instead of always re-resolving. **install / install-async** (`src/install/
+installer.lisp`): read package.json deps (+ devDeps unless `production`) → if the lock is fresh or
+`--frozen-lockfile`, reinstall from the lock (offline-capable via the cache); else resolve fresh → link →
+write-lock. `--frozen-lockfile` signals `lock-drift-error` on drift. `install-async` takes the caller's loop
+(a hermetic test shares the fixture registry's loop — a second concurrent event loop is avoided); blocking
+`install` wraps it in a private loop. **Gate (milestone):** `make test-lisp` **2566**/0/0 — the hermetic e2e
+(`install-tests.lisp`): a fresh diamond install produces the hoisted layout on disk (`shared@1` at root,
+`shared@2` nested under `conflict-b`, `left-pad@1.3.0` from `^1.1.0`) with the lock written; deleting
+`node_modules` + reinstalling OFFLINE from the lock (no fixture) reproduces the layout with a BYTE-IDENTICAL
+lock; `--frozen-lockfile` on a bumped dep errors; a dist-tag dep pins offline; malformed package.json/lock →
+catchable `install-error`; a scoped bin lands in `node_modules/.bin`. `make purity` clean over **683 files**;
+`make conformance-exec` **22,643** (0 crashes, 0 regressions — engine-inert).
+
+### 2026-07-14 — Phase 23 milestone 1b review panel (find→verify-by-running)
+Adversarial panel (2 dimensions → find → verify by probing the real install engine, 12 agents, 10 findings,
+7 confirmed, 3 refuted). Fixed: **(high)** `lock-satisfies-p` used `version-satisfies` which treats a
+dist-tag range as invalid → a `latest` dep always failed freshness, breaking offline reinstall + always
+erroring under `--frozen` (now a non-semver range is pinned-once-locked). **(high/medium)** `read-package-json`
++ `read-lock` parsed unguarded → a malformed file raised a raw `json-error` that escaped `install-async`'s
+on-err contract onto the caller's shared loop (§6); both now wrap parse → `install-error`, and
+`install-async`'s whole synchronous prelude is wrapped so nothing raw escapes on-err. **(high/low)** a
+structurally-wrong `packages` (a JSON string/array) crashed `lock-satisfies-p`/`lock->plan` with a raw
+`TYPE-ERROR`; both now shape-validate (`%packages-object` → malformed is "not fresh"/`install-error`, and bad
+entries are skipped). **(medium)** a scoped package's bin was placed under `node_modules/@scope/.bin` instead
+of `node_modules/.bin` (derived from the nearest `node_modules`, not one `path-dirname` peel). Regression
+tests added for every fix. Refuted (3): the cycle/dedup path, download-error settling, and the async
+no-double-settle were probed and found correct.
