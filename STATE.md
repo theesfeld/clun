@@ -5,7 +5,7 @@ Update before every commit. Seeded from PLAN.md §5.
 
 ---
 
-## Current phase: **25 — Performance pass**  (IN PROGRESS — m1–m5 done: measure / fast paths / shapes+read-ICs / index-key / args-skip; ~3× geomean, gate is ≥5×; Phase 24 committed)
+## Current phase: **25 — Performance pass**  (IN PROGRESS — m1–m6 done: measure / fast paths / shapes+read-ICs / index-key / args-skip / ptable-svec; ~3.5× geomean, gate is ≥5×; Phase 24 committed)
 
 **Phase 25 IN PROGRESS** (Performance pass; deps: all engine phases ✓; ~3k LOC, milestoned). The gate (after
 the 2026-07-14 operator-approved split) is **(G1)** conformance pass-list unchanged/grown + **(G2)** ≥5× on
@@ -97,15 +97,23 @@ build correctly; `[...arguments]` throws "not iterable" — a PRE-EXISTING gap, 
 487.4 (**3.12×**) — the biggest single lift so far (deltablue 1.64→2.65×). `make test-lisp` **2666**/0/0;
 `make purity` 687 clean; **G1 conformance 22,643 / 0 crashes / 0 regressions.**
 
-**Next action:** Phase 25 **milestone 6 — close on the ≥5× G2 gate** (now at ~3× geomean; richards 3.38× /
-deltablue 2.65× / splay 3.12×). Remaining profile levers: (a) property CREATION — `make-prop-desc`/`data-pd`/
-`%make-ptable`/`validate-and-apply` ~15–20% on deltablue/splay (a fast create-data-property path that skips
-the validate machinery for a brand-new default data property on an extensible ordinary object); (b) the rest
-of the call frame — positional param binding (the current `bind-parameters` walks the args LIST with `nth`,
-O(n²)) + cheaper frame alloc; (c) a shaped-`descs` simple-vector to kill the read-IC-hit hairy-`aref`. Take
-them one at a time, **profile-guided, verify G1 before measuring each**, and re-evaluate the trio against the
-≥5× targets (richards ≤720, deltablue ≤588, splay ≤304 ms). A `+=` string builder is orthogonal (helps
-string-concat loops, not this trio) — lower priority.
+**Milestone 6 DONE — ptable simple-vectors:** the property table stored keys+descs in two
+ADJUSTABLE/fill-pointer vectors, whose bounds-checked hairy `aref` was ~15% of the post-m5 profile (both the
+read-IC-hit descriptor read and the linear-scan key reads). Converted to two parallel SIMPLE-VECTORs + a
+manual `count` (grown by doubling); every access is now `svref`. Behavior-neutral — a 6-invariant adversarial
+review (growth / count discipline / remove off-by-one / index / IC-slot bound / enumeration order) found 0
+HIGH/MEDIUM, and growth/delete/hash-index(>16)/re-add/enumeration probes all pass. **Measured clean (best of
+7, cumulative vs baseline):** richards 888.3 ms (**4.05×** — crossed 4×), deltablue 997.8 (**2.95×**), splay
+424.5 (**3.58×**). `make test-lisp` **2666**/0/0; **G1 conformance re-verifying** (expect 22,643, 0 regressions).
+
+**Next action:** Phase 25 **milestone 7 — close the ≥5× gate** (now ~3.5× geomean; targets richards ≤720,
+deltablue ≤588, splay ≤304 ms). Highest-value remaining lever = property CREATION (`make-prop-desc`/
+`validate-and-apply` ~15–20% on deltablue/splay): a fast `create-data-property` path that, for a brand-new
+default data property on an EXTENSIBLE ORDINARY object (class `:object`, not array/typed-array — check the
+class slot to stay clear of exotic `[[DefineOwnProperty]]`), goes straight to `obj-set-desc` and skips the
+validate-and-apply machinery + a redundant descriptor build. Then positional param binding (the current
+`bind-parameters` walks the args LIST with `nth`, O(n²)). One at a time, **profile-guided, verify G1 before
+measuring each.** A `+=` string builder is orthogonal (string-concat loops, not this trio) — lower priority.
 
 **G3 scope concern — RESOLVED (2026-07-14, operator-approved split):** the ≥90% curated-test262 target is
 split out of Phase 25 into a new **Phase 25b — Conformance push to ≥90%** (PLAN §5). Phase 25's gate is now

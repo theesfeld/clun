@@ -1725,3 +1725,22 @@ cumulative vs the Phase-24 baseline):** richards 3.38×, deltablue 2.65×, splay
 lift of the phase (deltablue 1.64→2.65×). `make test-lisp` 2666/0/0; `make purity` 687 clean; **G1
 conformance 22,643 / 0 crashes / 0 regressions.** Phase 25 is ~3× geomean; the ≥5× G2 gate remains — m6
 targets property creation, positional param binding, and a shaped-`descs` simple-vector.
+
+### 2026-07-14 — Phase 25 milestone 6: ptable keys/descs → simple-vectors
+Post-m5, the top profile cost was the property table's bounds-checked "hairy" `aref` (~15%): `ptable` kept
+its keys + descriptors in two ADJUSTABLE/fill-pointer vectors, and adjustable-array element access on SBCL
+goes through the array header (not a fast `svref`) — paid on both the read-IC-hit descriptor read and every
+linear-scan key comparison. Converted to two parallel SIMPLE-VECTORs + a manual `count` field (the live
+prefix length), grown by DOUBLING (`replace` into a 2×-sized vector when `count == capacity`). Every element
+access — `ptable-pos`, `ptable-lookup`, `ptable-put`, `ptable-build-index`, `ptable-remove`, `ptable-key-list`,
+and the `%ic-read`/`%ic-refill` descriptor reads — is now `svref` on a slot declared `:type simple-vector`.
+All count-bounded (readers use `count`, never the capacity `(length …)`). Behavior-neutral: enumeration order
+(insertion order over the live prefix), the >16-key equal-hash index, delete+shift, and re-add are all
+preserved. **Adversarial review (6 invariants: growth / count discipline / remove off-by-one / index / IC-slot
+bound safety / enumeration order): 0 HIGH/MEDIUM** — the IC-slot-out-of-bounds worry resolves because a
+cached slot is trusted only under shape-EQ, a pshape uniquely determines the own-key count, and a grow
+preserves both count and shape (a delete nulls the shape). Growth/delete/hash-index/re-add/order probes all
+pass. **Measured (best of 7, cumulative vs the Phase-24 baseline):** richards 4.05× (crossed 4×), deltablue
+2.95×, splay 3.58×. `make test-lisp` 2666/0/0; **G1 conformance 22,643 / 0 crashes / 0 regressions.** Phase 25
+~3.5× geomean; the ≥5× G2 gate remains — m7 targets property creation (fast create-data-property path) then
+positional param binding.

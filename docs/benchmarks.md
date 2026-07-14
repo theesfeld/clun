@@ -66,6 +66,7 @@ Same host / compiler / measurement as above. "×" is `baseline_ms / current_ms` 
 | m3 — shapes + read inline caches | 1705.0 ms (2.11×) | 1968.7 ms (1.49×) | 884.7 ms (1.72×) | 18 ms |
 | m4 — array-index-key-p fast path | 1533.6 ms (2.35×) | 1790.4 ms (1.64×) | 565.0 ms (2.69×) | 17 ms |
 | m5 — skip unused `arguments` object | 1064.2 ms (3.38×) | 1110.9 ms (2.65×) | 487.4 ms (3.12×) | 17 ms |
+| m6 — ptable simple-vectors | 888.3 ms (4.05×) | 997.8 ms (2.95×) | 424.5 ms (3.58×) | 16 ms |
 
 **m2 (profile-guided fast paths)** — a `sb-sprof` profile of the baseline (`scripts/profile.lisp`)
 showed property access + dispatch + the property-write validate path + per-op FP-trap masking
@@ -106,10 +107,17 @@ missed). Sound: the object is unobservable in clun by any other channel (`f.argu
 `eval` are all unimplemented — pre-existing, verified by a soundness panel + probes). Biggest single
 lift so far: deltablue 1.64×→2.65×, richards 2.35×→3.38×, splay 2.69×→3.12×; zero pass-list regressions.
 
-**Still short of the ≥5× gate** — now at ~3× geomean. Remaining levers from the profiles: property
-*creation* (`make-prop-desc`/`data-pd`/`%make-ptable`/`validate-and-apply` ~15–20% on deltablue/splay),
-the rest of the call frame (positional param binding vs the current `nth` walk; frame allocation), and a
-shaped-`descs` simple-vector (kills the read-IC-hit hairy-`aref`). A `+=` string builder is orthogonal
-(helps string-concat loops, not this trio).
+**m6 (ptable simple-vectors)** — the property table stored keys+descriptors in two ADJUSTABLE/
+fill-pointer vectors, whose bounds-checked "hairy" `aref` was ~15% of the post-m5 profile (both the
+read-IC-hit descriptor read and the linear-scan key reads). Converted to two parallel SIMPLE-VECTORs +
+a manual `count` (grown by doubling); every access is now `svref`. Behavior-neutral (a 6-invariant
+adversarial review + growth/delete/hash-index/enumeration probes, zero divergences). richards crossed
+4×; no regression.
+
+**Still short of the ≥5× gate** (richards ≤720, deltablue ≤588, splay ≤304 ms) — now ~3.5× geomean,
+richards 4.05× / deltablue 2.95× / splay 3.58×. Remaining profile levers: property *creation*
+(`make-prop-desc`/`validate-and-apply` ~15–20% on deltablue/splay — a fast create-data-property path)
+and the rest of the call frame (positional param binding vs the current `nth` walk; frame allocation).
+A `+=` string builder is orthogonal (helps string-concat loops, not this trio).
 
 _This file gains a new row per milestone, so every ratio is traceable to the frozen baseline above._

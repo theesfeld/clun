@@ -97,64 +97,77 @@ cap is reached (caller then drops the object to dict-mode)."
 (defconstant +ptable-index-threshold+ 16)
 
 (defstruct (ptable (:constructor %make-ptable) (:copier nil))
-  (keys (make-array 4 :adjustable t :fill-pointer 0))
-  (descs (make-array 4 :adjustable t :fill-pointer 0))
+  ;; keys+descs are parallel SIMPLE-VECTORs (fast svref on the read-IC hit path + the scan), grown by
+  ;; doubling; COUNT is the live prefix length. Phase 25 m6 replaced adjustable/fill-pointer vectors,
+  ;; whose "hairy" bounds-checked aref was ~15% of the post-m5 profile.
+  (keys (make-array 4 :initial-element nil) :type simple-vector)
+  (descs (make-array 4 :initial-element nil) :type simple-vector)
+  (count 0 :type fixnum)       ; number of live entries in keys/descs (a prefix)
   (index nil)                  ; equal hash-table key -> position, or nil
   (shape *root-pshape*))       ; pshape (append-only key layout) or nil (dropped out; ICs miss)
 
 (defun ptable-pos (pt key)
   ;; Small objects linear-scan (no equal hash yet). A hand-written scan with a direct STRING= (string
-  ;; keys) / EQ (symbol keys) avoids POSITION + the generic EQUAL dispatch, which dominated the
-  ;; Phase-25 read profile (%find-position + equal-not-inline). Semantically identical: a property key
-  ;; is a string or a js-symbol; equal on two strings is string=, on two structs is eq, and a string
-  ;; never equals a symbol.
+  ;; keys) / EQ (symbol keys) over a SIMPLE-VECTOR avoids POSITION, the generic EQUAL dispatch, and the
+  ;; adjustable-array hairy aref. Semantically identical: a property key is a string or a js-symbol;
+  ;; equal on two strings is string=, on two structs is eq, and a string never equals a symbol.
   (let ((idx (ptable-index pt)))
     (if idx
         (gethash key idx)
-        (let ((keys (ptable-keys pt)))
+        (let ((keys (ptable-keys pt)) (n (ptable-count pt)))
+          (declare (type simple-vector keys) (type fixnum n))
           (if (stringp key)
-              (dotimes (i (fill-pointer keys) nil)
-                (let ((k (aref keys i)))
+              (dotimes (i n nil)
+                (let ((k (svref keys i)))
                   (when (and (stringp k) (string= (the string key) (the string k))) (return i))))
-              (dotimes (i (fill-pointer keys) nil)
-                (when (eq key (aref keys i)) (return i))))))))
+              (dotimes (i n nil)
+                (when (eq key (svref keys i)) (return i))))))))
 
 (defun ptable-lookup (pt key)
   (let ((pos (ptable-pos pt key)))
-    (and pos (aref (ptable-descs pt) pos))))
+    (and pos (svref (ptable-descs pt) pos))))
 
 (defun ptable-put (pt key desc)
   (let ((pos (ptable-pos pt key)))
     (cond
-      (pos (setf (aref (ptable-descs pt) pos) desc))
-      (t (vector-push-extend key (ptable-keys pt))
-         (vector-push-extend desc (ptable-descs pt))
-         (let ((sh (ptable-shape pt)))                ; a new own key transitions the shape
-           (when sh (setf (ptable-shape pt) (pshape-transition sh key))))
-         (let ((idx (ptable-index pt)))
-           (cond (idx (setf (gethash key idx) (1- (fill-pointer (ptable-keys pt)))))
-                 ((>= (fill-pointer (ptable-keys pt)) +ptable-index-threshold+)
-                  (ptable-build-index pt))))))))
+      (pos (setf (svref (ptable-descs pt) pos) desc))
+      (t (let ((n (ptable-count pt)) (cap (length (ptable-keys pt))))
+           (when (= n cap)                                    ; grow both vectors by doubling
+             (let ((nk (make-array (* 2 cap) :initial-element nil))
+                   (nd (make-array (* 2 cap) :initial-element nil)))
+               (replace nk (ptable-keys pt))
+               (replace nd (ptable-descs pt))
+               (setf (ptable-keys pt) nk (ptable-descs pt) nd)))
+           (setf (svref (ptable-keys pt) n) key
+                 (svref (ptable-descs pt) n) desc
+                 (ptable-count pt) (1+ n))
+           (let ((sh (ptable-shape pt)))                      ; a new own key transitions the shape
+             (when sh (setf (ptable-shape pt) (pshape-transition sh key))))
+           (let ((idx (ptable-index pt)))
+             (cond (idx (setf (gethash key idx) n))
+                   ((>= (1+ n) +ptable-index-threshold+) (ptable-build-index pt)))))))))
 
 (defun ptable-build-index (pt)
-  (let ((idx (make-hash-table :test 'equal)))
-    (dotimes (i (fill-pointer (ptable-keys pt)))
-      (setf (gethash (aref (ptable-keys pt) i) idx) i))
+  (let ((idx (make-hash-table :test 'equal)) (keys (ptable-keys pt)) (n (ptable-count pt)))
+    (dotimes (i n) (setf (gethash (svref keys i) idx) i))
     (setf (ptable-index pt) idx)))
 
 (defun ptable-remove (pt key)
   "Remove KEY, shifting later entries down (preserves order)."
   (let ((pos (ptable-pos pt key)))
     (when pos
-      (let ((k (ptable-keys pt)) (d (ptable-descs pt)))
-        (loop for i from pos below (1- (fill-pointer k))
-              do (setf (aref k i) (aref k (1+ i)) (aref d i) (aref d (1+ i))))
-        (decf (fill-pointer k)) (decf (fill-pointer d))
-        (setf (ptable-shape pt) nil)                               ; layout left the tree: ICs miss
+      (let ((k (ptable-keys pt)) (d (ptable-descs pt)) (n (ptable-count pt)))
+        (loop for i from pos below (1- n)
+              do (setf (svref k i) (svref k (1+ i)) (svref d i) (svref d (1+ i))))
+        (setf (svref k (1- n)) nil (svref d (1- n)) nil            ; clear the vacated slot (don't retain)
+              (ptable-count pt) (1- n)
+              (ptable-shape pt) nil)                               ; layout left the tree: ICs miss
         (when (ptable-index pt) (ptable-build-index pt))))))       ; reindex
 
 (defun ptable-key-list (pt)
-  (coerce (subseq (ptable-keys pt) 0 (fill-pointer (ptable-keys pt))) 'list))
+  (let ((keys (ptable-keys pt)) (acc '()))
+    (dotimes (i (ptable-count pt)) (push (svref keys i) acc))
+    (nreverse acc)))
 
 ;;; object-level property access over the (possibly nil) props slot
 (defun obj-own-desc (o key)
@@ -443,11 +456,11 @@ cap is reached (caller then drops the object to dict-mode)."
                   ;; proto entry: revalidate the direct-proto link + holder layout
                   (let ((hp (js-object-props holder)))
                     (if (and (eq (js-object-proto obj) holder) hp (eq (ptable-shape hp) (ic-hshape ic)))
-                        (let ((d (aref (ptable-descs hp) (ic-slot ic))))
+                        (let ((d (svref (ptable-descs hp) (ic-slot ic))))
                           (if (data-descriptor-p d) (pd-value d) (jm-get obj key obj)))
                         (%ic-refill obj key ic pt sh)))
                   ;; own entry
-                  (let ((d (aref (ptable-descs pt) (ic-slot ic))))
+                  (let ((d (svref (ptable-descs pt) (ic-slot ic))))
                     (if (data-descriptor-p d) (pd-value d) (jm-get obj key obj)))))
             (%ic-refill obj key ic pt sh)))
       (js-getv obj key)))
@@ -458,7 +471,7 @@ Always returns the correct [[Get]] value."
   (let ((own-pos (and sh (ptable-pos pt key))))
     (cond
       (own-pos
-       (let ((d (aref (ptable-descs pt) own-pos)))
+       (let ((d (svref (ptable-descs pt) own-pos)))
          (cond ((data-descriptor-p d)
                 (setf (ic-shape ic) sh (ic-slot ic) own-pos (ic-holder ic) nil)
                 (pd-value d))
@@ -470,7 +483,7 @@ Always returns the correct [[Get]] value."
                     (psh (and pp (ptable-shape pp)))
                     (ppos (and psh (ptable-pos pp key))))
                (if ppos
-                   (let ((d (aref (ptable-descs pp) ppos)))
+                   (let ((d (svref (ptable-descs pp) ppos)))
                      (cond ((data-descriptor-p d)
                             (setf (ic-shape ic) sh (ic-slot ic) ppos
                                   (ic-holder ic) proto (ic-hshape ic) psh)
