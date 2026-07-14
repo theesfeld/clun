@@ -207,4 +207,41 @@
 
 (defpackage :clun.install
   (:use :cl)
-  (:documentation "clun install: semver, registry, tarball, integrity, linker, lockfile, cache."))
+  (:documentation "clun install: semver, registry, tarball, integrity, linker, lockfile, cache.")
+  ;; Phase 21 — node-semver, ported to pure CL (no engine dependency). Versions are
+  ;; structs; ranges are an OR of AND-ed comparator sets. Public surface below.
+  (:export
+   ;; version parsing + accessors
+   #:parse-version #:version-valid-p #:semver #:semver-p
+   #:semver-major #:semver-minor #:semver-patch #:semver-prerelease
+   #:semver-build #:semver-version #:invalid-version #:invalid-range
+   ;; comparison + equality + increment/truncate
+   #:version-compare #:version-equal #:version-inc #:version-truncate
+   ;; ranges: parse, render, satisfaction, outside, intersection
+   #:parse-range #:range-valid-p #:range-to-string #:version-satisfies
+   #:range-gtr #:range-ltr #:ranges-intersect #:comparators-intersect))
+
+(defpackage :clun.registry
+  (:use :cl)
+  (:local-nicknames (:net :clun.net) (:sys :clun.sys) (:lp :clun.loop) (:sv :clun.install))
+  (:documentation "clun install: the npm registry client — abbreviated metadata fetch over
+the Phase-18 HTTP client, engine-free JSON parse, .npmrc-lite + --registry resolution.")
+  (:export
+   ;; conditions
+   #:registry-error #:registry-error-message #:package-not-found #:package-not-found-name
+   #:registry-status-error #:registry-status-error-status #:registry-status-error-name
+   ;; configuration
+   #:*default-registry* #:*abbreviated-accept*
+   ;; metadata structs + accessors
+   #:pkg-metadata #:pkg-metadata-p #:md-name #:md-dist-tags #:md-versions #:md-modified #:md-etag
+   #:version-meta #:version-meta-p #:vm-version #:vm-dependencies #:vm-optional-dependencies
+   #:vm-peer-dependencies #:vm-bin #:vm-engines #:vm-os #:vm-cpu #:vm-has-install-script
+   #:vm-deprecated #:vm-dist-tarball #:vm-dist-shasum #:vm-dist-integrity
+   #:metadata-version #:metadata-latest #:metadata-version-strings
+   ;; URL + name encoding
+   #:parse-registry-base #:encode-package-name #:metadata-path
+   ;; .npmrc + registry resolution
+   #:npmrc #:npmrc-p #:parse-npmrc #:npmrc-default-registry #:npmrc-scope-registries
+   #:npmrc-auth-tokens #:package-scope #:resolve-registry #:auth-token-for
+   ;; parse + fetch
+   #:parse-metadata #:fetch-metadata-async))

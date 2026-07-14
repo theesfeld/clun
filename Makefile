@@ -4,7 +4,7 @@
 SBCL       ?= sbcl
 SBCL_FLAGS := --non-interactive --no-userinit --no-sysinit
 
-.PHONY: all build test test-lisp test-js test-tls test-crypto purity clean
+.PHONY: all build test test-lisp test-js test-tls test-crypto registry-fixture purity clean
 
 all: build
 
@@ -37,6 +37,12 @@ test-tls:
 ## (ironclad is not a clun/tests dep), so the socket suites' reactor stays fd-pressure-free.
 test-crypto:
 	$(SBCL) --dynamic-space-size 3072 $(SBCL_FLAGS) --load scripts/run-crypto-kats.lisp
+
+## registry-fixture — start the Phase-21 in-process npm registry fixture on an ephemeral
+## port, print its inventory, verify every tarball against its dist.integrity + one real
+## over-the-wire round-trip.  The reusable entry point install tests (Phases 22–23) drive.
+registry-fixture:
+	$(SBCL) $(SBCL_FLAGS) --load scripts/registry-fixture.lisp
 
 ## purity — fail on any CFFI/foreign-code token under src/ or vendor/ (§1.1).
 purity:

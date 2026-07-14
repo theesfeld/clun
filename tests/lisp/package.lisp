@@ -5,5 +5,5 @@
   (:use :cl)
   (:local-nicknames (:eng :clun.engine) (:lp :clun.loop) (:sys :clun.sys)
                     (:rslv :clun.resolver) (:rt :clun.runtime) (:cli :clun.cli)
-                    (:net :clun.net))
+                    (:net :clun.net) (:sv :clun.install) (:reg :clun.registry))
   (:import-from :parachute #:define-test #:is #:isnt #:true #:false #:of-type #:fail))

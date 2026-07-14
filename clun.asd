@@ -160,6 +160,12 @@
                                            (:file "reporter")
                                            (:file "discovery")
                                            (:file "runner")))
+                             ;; install (Phase 21): the package manager's pure-CL
+                             ;; substrate; semver is the version library (no engine).
+                             (:module "install"
+                              :serial t
+                              :components ((:file "semver")
+                                           (:file "registry")))
                              ;; CLI (Phase 08): arg parsing, .env, dispatch.
                              (:module "cli"
                               :serial t
@@ -170,7 +176,9 @@
 (defsystem "clun/tests"
   :description "Parachute-driven CL test suites mirroring src/ (PLAN.md §3.7 tests/lisp)."
   :license "MIT"
-  :depends-on ("clun" "parachute")
+  ;; ironclad (sha512/crc32) + cl-base64 back the Phase-21 registry fixture: the fixture
+  ;; server computes each tarball's dist.integrity from bytes + gzips metadata (stored blocks).
+  :depends-on ("clun" "parachute" "ironclad" "cl-base64")
   :serial t
   :components ((:module "tests"
                 :components ((:module "lisp"
@@ -216,4 +224,9 @@
                                                          (:file "http-parser-tests")
                                                          (:file "http-server-tests")
                                                          (:file "fetch-tests")
-                                                         (:file "https-tests")))))))))
+                                                         (:file "https-tests")))
+                                           (:module "install"
+                                            :serial t
+                                            :components ((:file "semver-tests")
+                                                         (:file "registry-fixture")
+                                                         (:file "registry-tests")))))))))

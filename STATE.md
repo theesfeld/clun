@@ -5,7 +5,46 @@ Update before every commit. Seeded from PLAN.md §5.
 
 ---
 
-## Current phase: **21 — Semver + registry client + local registry fixture**  (Phase 20 committed; HTTPS gate MET)
+## Current phase: **22 — Tarball + integrity**  (Phase 21 committed; gate MET)
+
+**Phase 21 outcome:** semver + the registry front half, hermetic. **Semver** (`src/install/semver.lisp`,
+`clun.install`): node-semver ported to pure CL (bignum components, prerelease precedence §11, `^ ~ - x * ||`
+ranges, includePrerelease) — 100% on node-semver's OWN fixtures (converted to JSON *by Clun's own engine* — a
+`.cjs` that `require`s each fixture + `JSON.stringify`s — then replayed vector-by-vector); 2 enumerated
+deviations (3 JS-object `{}` inputs; `validRange` `'*'` vs `Range.toString` `''`) verified faithful by the
+panel. **Registry client** (`src/install/registry.lisp`, `clun.registry`): abbreviated metadata
+(`Accept: …vnd.npm.install-v1+json`) → a `pkg-metadata` struct via the engine-free clun.sys JSON reader;
+scoped `%2F`; `.npmrc`-lite (`registry=`/`@scope:registry=`/`_authToken`) + `--registry`; transient retries
+(408/429/5xx/conn) with a tracked+cleared backoff timer; transport dispatches http → the Phase-18 reactor
+client, https → the Phase-20 pure-tls worker path (`net:https-request`, fail-closed). **Local fixture**
+(`tests/lisp/install/registry-fixture.lisp`): a manifest-driven (`tests/fixtures/registry/packages.json`)
+in-process server (`net:tcp-listen` + the Phase-17 parser) serving 7 packages / 10 hand-built tarballs
+(plain/scoped/bin/diamond-conflict/**pax-longname**); `dist.integrity` = sha512 from the real bytes
+(ironclad + cl-base64); ETag → 304; gzip via a **stored-block gzip encoder** (no deflate encoder is vendored —
+chipz decompresses only — so it emits valid RFC-1952 STORED blocks + an ironclad CRC32; chipz round-trips it);
+reusable via `make registry-fixture`. **Gate MET:** `make test-lisp` **2462**/0/0; `make purity` clean over
+**674 files**; exec **22,643** (0 crashes, 0 regressions — the install layer is engine-inert). Adversarial
+panel (22 agents, 18 findings): fixed a **§6** fixture crash (a malformed `%`-escape threw a raw parse-error
+that unwound `run-loop` — `%url-decode` now tolerant + on-data wrapped → 400; regression test added),
+`parse-registry-base` userinfo-strip + bracketed-IPv6, `auth-token-for` path-scoping, 408 retry + backoff
+timer clear; a blocking `fetch-metadata` was dropped (untestable in-process). HTTPS proven **FAIL-CLOSED**
+only (an untrusted in-process pure-tls server is rejected); a green in-process round-trip is not asserted
+(pure-tls self-interop peer-cert race) and live npmjs stays gated on the `protocol_version` interop fix.
+**Prose-honesty:** an apologetic/unverified source comment the user flagged was removed — no unverified
+claims in source/docs.
+
+**Next action:** Begin Phase 22 (Tarball + integrity; deps 13 ✓ + 21 fixtures ✓): streaming chipz-inflate →
+a hand-rolled ustar/pax reader (pax `path`/`linkpath`/`size` overrides, gnu `L` longname, `package/` prefix
+strip, mode-bit capture); SRI sha512 **verify-then-commit** (temp dir + atomic rename); a content-addressed
+cache. **Gate:** a real-package corpus (lodash-scale fixture, a bin package, the Phase-21 **pax-longname**
+tarball) extracts correctly, PLUS the **mandated traversal suite** — absolute names, `..` plain/embedded/
+via-pax-path, longname `..`, symlink-escape then write-through, hardlink escape, pax linkpath escape, NUL/
+empty/`.` names, device/FIFO rejected, setuid stripped, size-field overflow + base-256, duplicate last-wins,
+header-before-pax ordering — every case rejected/handled per spec.
+
+---
+
+## Recent phase outcomes (most recent first)
 
 **Phase 20 outcome:** HTTPS. `fetch("https://…")` over the Phase-19 pure-CL TLS stack. **pure-tls is now in
 the `clun` binary** (`:depends-on`; ironclad + the closure come with it). Because pure-tls does a BLOCKING
@@ -48,10 +87,6 @@ from real bytes, gzip + ETag/304). Gate: semver corpus 100%; metadata round-trip
 the fixture server reusable as a make target. NOTE: the pure-tls `registry.npmjs.org` `protocol_version`
 interop failure MUST be resolved before the LIVE npm smoke (Phase 23) — the local fixture keeps Phase 21
 hermetic meanwhile.
-
----
-
-## Recent phase outcomes (most recent first)
 
 **Phase 19 outcome:** the pure-CL crypto/TLS foundation is in-tree + proven. Vendored (pinned, `.git`-
 stripped, auto-registered via the vendor/*/ scan) **ironclad** (all primitives — SBCL VOPs, zero foreign) +

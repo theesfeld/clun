@@ -1239,3 +1239,63 @@ trusting its CA → must reject). Live smoke (logged, opt-in): example.com accep
 under the test CA (end-to-end verification both ways). **Deliberate gaps:** registry.npmjs.org handshake
 (pure-tls `protocol_version` — flagged for Phase 21); blocking DNS on the loop; one worker per in-flight
 request; mid-flight abort of a blocking read is best-effort (socket close). Reactor-native TLS is post-v1.
+
+### 2026-07-13 — Phase 21: semver + registry client + local registry fixture
+**Semver** (`src/install/semver.lisp`, package `clun.install`): a faithful port of node-semver (pinned
+`vendor-data/semver-fixtures/node-semver/CLUN-PIN.txt`, SHA 6e05b76, ISC) — hand-rolled cursor parser (no
+regex engine) mirroring node's shared tokens; CL **bignum** version components (a component > 2^53−1 is
+rejected "too big", a string > 256 chars "too long"); prerelease precedence per semver.org §11; build
+metadata ignored in compare/equality; ranges desugar `^ ~ - x-range * ||` and `satisfies` honours
+`includePrerelease`. **Conformance corpus:** node-semver's own fixtures were converted to JSON *using Clun's
+own engine* (a `.cjs` that `require`s each fixture + `JSON.stringify`s, with node-semver's `internal/
+constants.js` vendored alongside → `tests/fixtures/semver/*.json`), then replayed vector-by-vector
+(`tests/lisp/install/semver-tests.lisp`). **2 enumerated deviations, both verified faithful by the review
+panel:** (a) 3 `invalid-versions` rows whose INPUT is a JS object `{}` are skipped (a CL string API has no
+such value); (b) `range-parse` any-range rows are asserted against `range-valid-p` (mirrors node's
+`validRange` = `range || '*'`) while `range-to-string` returns `""` (mirrors `Range.prototype.range`) — node's
+own fixture comment documents this exact `'*'`-vs-`''` split.
+**Registry client** (`src/install/registry.lisp`, package `clun.registry`): fetches ABBREVIATED metadata
+(`Accept: application/vnd.npm.install-v1+json`) → a `pkg-metadata` struct (dist-tags + a version→version-meta
+table with deps/bin/dist), parsed via the engine-free `clun.sys` JSON reader. Scoped names encode `@scope/n`
+→ `@scope%2Fn`; `.npmrc`-lite (`registry=`, `@scope:registry=`, `//host/[path]:_authToken=`) + `--registry`
+override resolve the base (precedence override > scope > default > builtin). Transport **dispatches by
+scheme**: http over the Phase-18 reactor client; https over the Phase-20 pure-tls worker path
+(`%https-request-async` → `lp:worker-submit` → `net:https-request`, verification fail-closed) — the same path
+`fetch` uses. Retries transient (408/429/5xx/connection-error) with a tracked, cleared linear-backoff timer;
+404 → a clean `package-not-found`; abort not retried.
+**Local registry fixture** (`tests/lisp/install/registry-fixture.lisp`, test-only): a manifest-driven
+(`tests/fixtures/registry/packages.json`) in-process server on `net:tcp-listen` + the Phase-17 request
+parser, serving 7 packages / 10 hand-built tarballs (plain multi-version, scoped, bin, a diamond conflict,
+and a **pax-longname** tarball for Phase 22). `dist.integrity` = `sha512-<base64>` computed from the REAL
+tarball bytes at startup (ironclad + cl-base64); `dist.tarball` templated to the server's own base URL.
+ETag → 304 on `If-None-Match`; gzip on `Accept-Encoding: gzip` via a **stored-block gzip encoder**
+(`gzip-stored`) — no DEFLATE encoder is vendored (chipz only decompresses), so gzip emits valid RFC-1952
+STORED blocks (zero compression) with an ironclad CRC32 (big-endian → little-endian) + ISIZE trailer; chipz
+round-trips it. Reusable via `make registry-fixture` (starts on an ephemeral port, verifies every tarball's
+integrity + one over-the-wire round-trip, exits 0/1). Tarballs are built by `scripts/gen-registry-fixture.sh`
+(tar + gzip are build-time fixture tools, checked-in — like the test CA, not runtime deps).
+**Gate MET:** `make test-lisp` **2462**/0/0 (semver 2400 + registry round-trips: plain/scoped/gzip/304/404,
+integrity for all 10 tarballs incl. over-the-wire, a §6 malformed-request regression, and a deterministic
+https FAIL-CLOSED test); `make purity` clean over **674 files**; `make conformance-exec` **22,643** (0
+crashes, 0 regressions — the install layer is engine-inert). **HTTPS note:** the https path is proven only in
+the FAIL-CLOSED direction (an untrusted in-process pure-tls server is rejected); a *successful* in-process
+https round-trip is deliberately NOT asserted because the pure-tls self-interop peer-cert race makes a
+verify-ON round-trip non-deterministic (Phase-20 finding), and the live `registry.npmjs.org` green path stays
+gated on the pure-tls `protocol_version` interop fix (Phase-23 live smoke).
+
+### 2026-07-13 — Phase 21 review panel (find→verify-by-running) + a prose-honesty correction
+Adversarial panel (4 dimensions → find → adversarially verify by reading/probing, 22 agents, 18 findings).
+Confirmed + fixed: **§6** — a malformed percent-escape (`/%GG`) in the fixture's request target threw a raw
+`parse-integer` error out of the on-data handler and unwound `run-loop` (reproduced end-to-end); `%url-decode`
+now leaves a bad escape literal (never signals) and the on-data dispatch is wrapped so a parser `:error`
+becomes a 400 and no condition escapes the loop (regression test added). `parse-registry-base` now strips
+userinfo (`user:pass@host` no longer dials "user") and parses bracketed IPv6 (`[::1]:port` no longer mangled
+to host "[" — an IPv6 registry then fails cleanly at the net layer's IPv4-only resolver, a documented v1
+limitation). `auth-token-for` tightened: a token keyed `//host/path/` is no longer leaked to `//host/` root
+(host+port+path-prefix must all match). `%transient-status-p` adds 408; the retry backoff timer is tracked +
+cleared on settle/abort (no orphaned ref'd timer holding the loop alive). Both semver deviations were verified
+genuinely faithful/N-A. **A blocking `fetch-metadata` was dropped** (untestable in-process against the fixture
+and not needed until the Phase-23 CLI). **Prose-honesty correction:** the user flagged an apologetic source
+comment that also asserted an unverified "two serve-event loops collide on SBCL's global descriptor table"
+claim (taken from a review agent, not independently confirmed) — removed. Rule reinforced: no unverified
+claims or excuse-commentary in source/docs; only what has been personally verified.
