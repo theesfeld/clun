@@ -21,6 +21,16 @@
 
 (defun sibling (out-path type) (make-pathname :type type :defaults out-path))
 
+(defun fixture-environment ()
+  "A deterministic child environment. GitHub injects CI=true, which would change
+the semantics of fixtures that intentionally exercise test.only. CI-specific
+behavior remains available to a fixture through Clun's explicit --ci flag."
+  (cons "CI=0"
+        (remove-if (lambda (entry)
+                     (and (>= (length entry) 3)
+                          (string= "CI=" entry :end2 3)))
+                   (sb-ext:posix-environ))))
+
 (defun case-argv (out-path)
   "The argv for a case: its .argv file (one token/line) or (<case>.<ext>)."
   (let ((argv-file (sibling out-path "argv")))
@@ -44,7 +54,7 @@
          (want-err (and (probe-file err-file) (slurp err-file)))
          (out (make-string-output-stream)) (err (make-string-output-stream)))
     (let* ((proc (sb-ext:run-program *clun-bin* argv :output out :error err :wait t
-                                     :directory dir :environment (sb-ext:posix-environ)))
+                                     :directory dir :environment (fixture-environment)))
            (code (sb-ext:process-exit-code proc))
            (got-out (get-output-stream-string out))
            (got-err (get-output-stream-string err))
