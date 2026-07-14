@@ -5,7 +5,7 @@ Update before every commit. Seeded from PLAN.md §5.
 
 ---
 
-## Current phase: **25 — Performance pass**  (IN PROGRESS — "measure first" milestone done; Phase 24 committed)
+## Current phase: **25 — Performance pass**  (IN PROGRESS — m1 measure + m2 fast paths done; Phase 24 committed)
 
 **Phase 25 IN PROGRESS** (Performance pass; deps: all engine phases ✓; ~3k LOC, milestoned). The gate has
 three parts: **(G1)** conformance pass-list unchanged/grown; **(G2)** ≥5× on the benchmark suite vs the
@@ -28,13 +28,30 @@ this milestone, so `make purity` (**687 files**) and `make test-lisp` (**2627**/
 conformance is provably **22,643** (the ASDF load plan is untouched — bench fixtures + docs + a `make bench`
 target only).
 
-**Next action:** Phase 25 **milestone 2 — shapes / hidden classes** (`docs/design/phase-25.md` §2): a
-transition tree keyed by property-add mapping key→slot index, with a dict fallback (delete / >16 props /
-symbol+index keys / non-default attributes), slotted BELOW the `jm-*` protocol at the `obj-own-desc`
-(objects.lisp:91) read seam + the `obj-set-desc` (objects.lisp:94) write seam; then dense arrays behind the
-`js-array` `jm-define-own-property` override (objects.lisp:406). **Verify G1 (full pass-list unchanged)
-BEFORE measuring speed**, then record the per-benchmark ratio vs the baseline (expect the biggest single lift
-on richards).
+**Milestone 2 DONE — profile-guided fast paths:** a `sb-sprof` profile of the baseline
+(`scripts/profile.lisp`) redirected the plan — several cheap, low-risk hot spots were worth taking BEFORE
+the risky shapes rewrite. Four behavior-preserving changes (no kernel-architecture rewrite): (1)
+`with-js-floats` masks the FP traps once per JS call chain instead of per arithmetic op (a per-thread
+`*fp-masked*` guard + coarse masks at `jm-call`/`jm-construct`) — killed `arch_set_fp_modes` (~4%); (2) a
+property-write fast path mutating an existing own writable DATA descriptor in place (guarded `(eq o receiver)`
++ non-array, so `Reflect.set` to an exotic receiver / arrays keep the full path) — killed the
+validate-and-apply write cost (~24%); (3) a tight `ptable-pos` linear scan (direct `string=`/`eq`, no generic
+`position`/`equal`); (4) inlined descriptor predicates (`pd-set-p` etc.). **Measured (best of 5):** richards
+3600.4→2262.0 ms (**1.59×**), deltablue 2942.0→2182.0 (**1.35×**), splay 1520.3→901.2 (**1.69×**), geomean
+≈**1.53×**. `make test-lisp` **2627**/0/0; conformance G1 pending re-verify (expect **22,643**, 0 regressions).
+Adversarial review panel (3 agents) found **1 HIGH — FIXED**: the write fast-path's original
+`(not (js-array-p receiver))` guard dropped a `Reflect.set(plainObj, idx, v, typedArray)` write (a typed
+array synthesizes a throwaway descriptor); the `(eq o receiver)` guard closes it (verified: `ta[0]` now
+written). Re-profile confirms the property-key scan (`STRING=*`+`ptable-pos` ~33%) + adjustable-vector `aref`
+(~15%) now top the profile — exactly the shapes/IC targets.
+
+**Next action:** Phase 25 **milestone 3 — shapes / hidden classes** (`docs/design/phase-25.md` §2, renumbered
+after the profile redirect): a transition tree keyed by property-add mapping key→slot index, with a dict
+fallback (delete / >16 props / symbol+index keys / non-default attributes), slotted BELOW the `jm-*` protocol
+at the `obj-own-desc` (objects.lisp:91) read seam + the `obj-set-desc` (objects.lisp:94) write seam; then
+dense arrays behind the `js-array` `jm-define-own-property` override (objects.lisp:406). **Verify G1 (full
+pass-list unchanged) BEFORE measuring speed** — this is the riskiest kernel surgery in the project. Eliminates
+the ~33% key scan + ~15% hairy-vector `aref` the m2 re-profile exposed.
 
 **Blocked/Open — G3 scope concern (flagged per PLAN §2.4):** the Phase-25 gate bundles a CORRECTNESS target
 (G3: curated test262 ≥ 90%) into a PERFORMANCE phase. Current curated is ~80.4%, so G3 is a ~2,700-test lift

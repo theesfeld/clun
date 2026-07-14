@@ -13,6 +13,9 @@
   (value :unset) (get :unset) (set :unset)
   (writable :unset) (enumerable :unset) (configurable :unset))
 
+;; Inlined: these run on nearly every property read/write (Phase 25 profile: pd-set-p ~2.9% +
+;; data-descriptor-p ~2.3% self, un-inlined). Bodies are trivial, so inlining is a free win.
+(declaim (inline pd-set-p data-descriptor-p accessor-descriptor-p generic-descriptor-p))
 (defun pd-set-p (x) (not (eq x :unset)))
 (defun data-descriptor-p (d) (or (pd-set-p (pd-value d)) (pd-set-p (pd-writable d))))
 (defun accessor-descriptor-p (d) (or (pd-set-p (pd-get d)) (pd-set-p (pd-set d))))
@@ -48,10 +51,21 @@
   (index nil))                 ; equal hash-table key -> position, or nil
 
 (defun ptable-pos (pt key)
+  ;; Small objects linear-scan (no equal hash yet). A hand-written scan with a direct STRING= (string
+  ;; keys) / EQ (symbol keys) avoids POSITION + the generic EQUAL dispatch, which dominated the
+  ;; Phase-25 read profile (%find-position + equal-not-inline). Semantically identical: a property key
+  ;; is a string or a js-symbol; equal on two strings is string=, on two structs is eq, and a string
+  ;; never equals a symbol.
   (let ((idx (ptable-index pt)))
     (if idx
         (gethash key idx)
-        (position key (ptable-keys pt) :test #'equal))))
+        (let ((keys (ptable-keys pt)))
+          (if (stringp key)
+              (dotimes (i (fill-pointer keys) nil)
+                (let ((k (aref keys i)))
+                  (when (and (stringp k) (string= (the string key) (the string k))) (return i))))
+              (dotimes (i (fill-pointer keys) nil)
+                (when (eq key (aref keys i)) (return i))))))))
 
 (defun ptable-lookup (pt key)
   (let ((pos (ptable-pos pt key)))
@@ -183,7 +197,6 @@
       (t (ordinary-set-with-own-desc o key value receiver own)))))
 
 (defun ordinary-set-with-own-desc (o key value receiver own)
-  (declare (ignore o))
   (cond
     ((data-descriptor-p own)
      (cond ((eq (pd-writable own) nil) nil)         ; non-writable data -> fail
@@ -193,6 +206,18 @@
                   (existing
                    (cond ((accessor-descriptor-p existing) nil)
                          ((eq (pd-writable existing) nil) nil)
+                         ;; Fast path (Phase 25): a plain assignment (o EQ receiver) to an existing own
+                         ;; writable DATA property — mutate the live stored descriptor's value in
+                         ;; place, skipping validate-and-apply + a fresh descriptor (the bulk of the
+                         ;; write profile). Guards: (eq o receiver) confines this to a direct set, so a
+                         ;; Reflect.set(plain, i, v, exoticReceiver) with a distinct receiver (e.g. a
+                         ;; typed array, whose [[GetOwnProperty]] SYNTHESIZES a throwaway descriptor)
+                         ;; always takes the full path; js-array is excluded because its
+                         ;; [[DefineOwnProperty]] maintains the length/index invariants. A typed array
+                         ;; can never BE receiver here when o EQ receiver (it overrides [[Set]], so
+                         ;; ordinary-set-with-own-desc is never entered with o = a typed array).
+                         ((and (eq o receiver) (not (js-array-p receiver)))
+                          (setf (pd-value existing) value) t)
                          (t (jm-define-own-property receiver key (make-prop-desc :value value)))))
                   (t (create-data-property receiver key value)))))))
     (t (let ((setter (pd-set own)))                 ; accessor

@@ -6,11 +6,13 @@
 
 (in-package :clun.engine)
 
+;; WITH-JS-FLOATS at the call entry masks the JS float traps once per call chain; every arithmetic op
+;; inside nests cheaply (§ Phase 25). The outermost CL->JS entry masks; nested calls see *fp-masked*.
 (defmethod jm-call ((f js-native-function) this args)
-  (funcall (js-native-function-fn f) this args))
+  (with-js-floats (funcall (js-native-function-fn f) this args)))
 
 (defmethod jm-call ((f js-function) this args)
-  (funcall (js-function-compiled-body f) f this args +undefined+))
+  (with-js-floats (funcall (js-function-compiled-body f) f this args +undefined+)))
 
 (defmethod jm-construct ((f js-native-function) args new-target)
   (let ((c (js-native-function-construct-fn f)))
@@ -20,7 +22,7 @@
   (let* ((proto (let ((p (js-get new-target "prototype")))
                   (if (js-object-p p) p (intrinsic :object-prototype))))
          (obj (js-make-object proto)))
-    (let ((result (funcall (js-function-compiled-body f) f obj args new-target)))
+    (let ((result (with-js-floats (funcall (js-function-compiled-body f) f obj args new-target))))
       (if (js-object-p result) result obj))))
 
 ;;; --- constructing native functions -----------------------------------------

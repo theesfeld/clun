@@ -1586,3 +1586,42 @@ measured-necessary) and treat G3 as an explicitly separate track — recommend t
 Phase 25b or folding it into a dedicated conformance phase. Recorded under STATE "Blocked/Open"; not stalling
 — proceeding with the performance milestones. This is surfaced to the human as the §2.4 scope question; the
 final call on the split is theirs.
+
+### 2026-07-14 — Phase 25 milestone 2: profile-guided fast paths (profile REDIRECTED the plan)
+"Measure first" applied to the plan itself: a `sb-sprof` CPU profile of the baseline
+(`scripts/profile.lisp`, sb-sprof — an SBCL contrib, pure) showed the hot path was NOT only "the scan the
+shape rewrite targets" but a set of cheaper wins worth taking BEFORE the risky shapes/IC surgery: property
+lookup (`ptable-pos`→`position`+`equal`+`string=`) ~37%, the property-WRITE validate path
+(`validate-and-apply-property-descriptor`→`apply-descriptor-fields`→`make-prop-desc`) ~24%, per-arithmetic-op
+FP-trap masking (`arch_set_fp_modes`, from operators.lisp wrapping every float op in `with-js-floats`) ~4%,
+and un-inlined descriptor predicates (`pd-set-p` 2.9%, `data-descriptor-p` 2.3%). So shapes/ICs shifted to
+m3/m4 and this milestone took four BEHAVIOR-PRESERVING, no-kernel-rewrite changes:
+1. **FP-mask coarsening** (numbers.lisp/functions.lisp): a per-thread `*fp-masked*` special makes
+   `with-js-floats` cheap when a mask is already active; coarse masks at `jm-call`/`jm-construct` cover a
+   whole JS call chain so the per-op uses nest for free. No `with-js-floats` site was REMOVED (each still
+   masks if none is active), so float semantics can't break — verified sound (fresh SBCL threads get global
+   specials + default-enabled FPU traps, so the flag and the FPU word stay consistent per-thread).
+2. **Write fast-path** (ordinary-set-with-own-desc): a plain `obj.x = v` to an existing own writable DATA
+   property mutates the live stored descriptor in place, skipping validate-and-apply + a fresh descriptor.
+3. **Tight `ptable-pos` scan**: direct `string=` (string keys) / `eq` (symbol keys), no generic
+   `position`/`equal` dispatch. Provably identical (a key is a string or a js-symbol).
+4. **Inlined** `pd-set-p`/`data-descriptor-p`/`accessor-descriptor-p`/`generic-descriptor-p`.
+**Measured (best of 5, same host/compiler as the baseline):** richards 3600.4→2262.0 ms (1.59×), deltablue
+2942.0→2182.0 (1.35×), splay 1520.3→901.2 (1.69×); geomean ≈1.53×. `make test-lisp` 2627/0/0; `make purity`
+687 files clean; conformance G1 re-verified **22,643** (0 crashes, 0 regressions). Still short of ≥5× — the
+re-profile shows the property-key scan (`STRING=*`+`ptable-pos` ~33%) + adjustable-vector `aref` (~15%) now
+dominate, i.e. the shapes/IC targets (m3/m4).
+
+### 2026-07-14 — Phase 25 m2 review: 1 HIGH found + fixed (typed-array write via Reflect.set)
+A 3-agent adversarial panel (FP-mask soundness / write fast-path / scan+inline equivalence,
+find→reason-and-verify) returned **1 HIGH, fixed**, plus LOW/informational only. **HIGH:** the write
+fast-path's first cut guarded on `(not (js-array-p receiver))` alone — insufficient. `js-typed-array` also
+has an exotic `[[DefineOwnProperty]]` AND a `jm-get-own-property` that SYNTHESIZES a throwaway descriptor for
+integer indices; via `Reflect.set(plainObj, i, v, typedArray)` (o ≠ receiver) the fast path mutated the
+throwaway descriptor and returned t WITHOUT writing the TA buffer. **Fix:** additionally require `(eq o
+receiver)` — a distinct/exotic receiver (the only way a typed array reaches here, since it overrides
+`[[Set]]` and is never `o`) now always takes the full `jm-define-own-property` path. Reproduced pre-fix
+(ta[0] stayed 0) and confirmed post-fix (ta[0] = 42; plain[0] unchanged). LOW/informational: the FP-mask
+scheme's fresh-thread assumption was verified + documented in the `*fp-masked*` docstring; `ptable-pos` and
+the inline declaims were proven equivalent with no defects. The profiler (`scripts/profile.lisp`) is checked
+in for reuse in the shapes/IC milestones.

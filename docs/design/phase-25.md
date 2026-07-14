@@ -333,14 +333,21 @@ number.
 Each milestone is verified by a **specific slice**: a benchmark ratio, a pass-list delta,
 or both. G1 (no pass-list regression) is re-checked at *every* milestone, not just once.
 
+Note: after m1, a `sb-sprof` profile of the baseline redirected the order — several cheap,
+low-risk hot spots (per-op FP-trap masking, the write validate path, un-inlined descriptor
+predicates, generic `position`/`equal` in the key scan) were worth taking *before* the risky
+shapes rewrite. That became **m2 (profile-guided fast paths)**; shapes/ICs shifted to m3/m4. The
+profile is the authority here ("measure first"), not the original static ordering.
+
 | # | Deliverable | Verification |
 |---|---|---|
-| **m1 — Measure first (this turn)** | Benchmark harness: `bench/{richards,splay,deltablue}.js` + `bench/run.sh` + `make bench`; frozen Phase-24 baseline times (steady-state + startup) written to `docs/benchmarks.md`. | `make bench` runs green and produces a committed baseline table. No engine change → pass-list unchanged by definition. |
-| **m2 — Shapes / hidden classes** | Transition-tree shapes for plain-object data properties + dict fallback (§2), behind `obj-own-desc`/`obj-set-desc`; then dense arrays behind the `js-array` override. | **G1**: full pass-list unchanged. **G2 slice**: bench ratio vs. baseline recorded per benchmark; expect the largest single lift on richards. |
-| **m3 — Inline caches** | Mono + poly(N=4) read/write/proto-chain caches at the emitter seams (§3), with megamorphic fallback. | **G1** unchanged. **G2 slice**: incremental ratio over m2; proto-chain caching expected to move deltablue most. |
-| **m4 — Direct calls + string builder** | Known-arity direct-call fast path (§4.1); `+=` string builder (§4.2). | **G1** unchanged. **G2 slice**: incremental ratio; string builder validated on a dedicated `s += t` micro-workload (O(n²)→O(n) is visible directly). **Gate G2 (≥5×) evaluated here** across the trio. |
-| **m5 — Conformance push (separate effort)** | Targeted correctness work to lift curated test262 from ~80.4% toward ≥90% — driven by failure-bucket analysis of the ~5,520 fail-gap tests, **not** by performance. | **G3**: curated pass-rate ≥ 90%. **G1** monotonic (pass-list only grows). Tracked by pass-count delta per feature bucket. |
-| **(m6 — COMPILE tiering, conditional)** | Only if G2 is unmet after m4 (§5): background-thread `COMPILE` tier-up. | **G2**: bench ratio reaches ≥5×. **G1** unchanged. |
+| **m1 — Measure first** ✓ | Benchmark harness: `bench/{richards,deltablue,splay}.js` + `bench/run.sh` + `make bench`; frozen Phase-24 baseline (steady-state + startup) in `docs/benchmarks.md`. | `make bench` green + committed baseline. No engine change → pass-list unchanged. |
+| **m2 — Profile-guided fast paths** ✓ | Behavior-preserving, no kernel rewrite: `with-js-floats` masks once per call chain (`*fp-masked*` guard + coarse masks at `jm-call`/`jm-construct`); write fast-path mutating an existing own writable data descriptor in place (guarded `(eq o receiver)` + non-array); tight `ptable-pos` scan (direct `string=`/`eq`); inlined descriptor predicates. | **G1**: pass-list unchanged (conformance 22,643). **G2 slice**: richards 1.59×, deltablue 1.35×, splay 1.69× (geomean ≈1.53×). |
+| **m3 — Shapes / hidden classes** | Transition-tree shapes for plain-object data properties + dict fallback (§2), behind `obj-own-desc`/`obj-set-desc`; then dense arrays behind the `js-array` override. | **G1** unchanged. **G2 slice**: ratio vs. baseline; eliminates the property-key scan (~33%) + adjustable-vector `aref` (~15%) that now top the re-profile. |
+| **m4 — Inline caches** | Mono + poly(N=4) read/write/proto-chain caches at the emitter seams (§3), with megamorphic fallback. | **G1** unchanged. **G2 slice**: incremental ratio; proto-chain caching expected to move deltablue most. |
+| **m5 — Direct calls + string builder** | Known-arity direct-call fast path (§4.1); `+=` string builder (§4.2). | **G1** unchanged. **G2 slice**: incremental; string builder on a dedicated `s += t` micro-workload. **Gate G2 (≥5×) evaluated here** across the trio. |
+| **m6 — Conformance push (separate effort)** | Targeted correctness work to lift curated test262 from ~80.4% toward ≥90% — failure-bucket analysis of the ~5,520 fail-gap tests, **not** performance. See the G3 scope concern (§8.2). | **G3**: curated pass-rate ≥ 90%. **G1** monotonic. |
+| **(m7 — COMPILE tiering, conditional)** | Only if G2 is unmet after m5 (§5): background-thread `COMPILE` tier-up. | **G2**: bench ratio reaches ≥5×. **G1** unchanged. |
 
 ---
 

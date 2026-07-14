@@ -7,10 +7,26 @@
 
 ;;; --- Float trap discipline (Appendix C fact 4) -----------------------------
 
+(defvar *fp-masked* nil
+  "True within a dynamic extent that has ALREADY masked the JS float traps. Nested WITH-JS-FLOATS
+bodies then skip re-masking — re-setting the FPU control word per arithmetic op thrashed measurably
+(Phase 25 profile: ~4% self in arch_set_fp_modes). A coarse mask at each engine call entry (jm-call,
+functions.lisp) covers a whole JS call, so the per-op uses nest cheaply. Every WITH-JS-FLOATS still
+guarantees masking (it establishes the mask if none is active), so removing the coarse masks can only
+slow things down, never break float semantics. Load-bearing thread assumption (verified on SBCL
+2.6.5): a fresh sb-thread:make-thread child sees the GLOBAL value of this special (nil — parent
+let-bindings are not inherited) AND starts with default FPU traps ENABLED, so the flag and the FPU
+control word begin consistent on every thread and are established/unwound together by this macro. A
+thread pool that reused a worker mid-masked-extent would need to re-check that.")
+
 (defmacro with-js-floats (&body body)
-  "Mask the float traps JS semantics require (Inf/NaN/-0 instead of signals)."
-  `(sb-int:with-float-traps-masked (:overflow :invalid :divide-by-zero)
-     ,@body))
+  "Mask the float traps JS semantics require (Inf/NaN/-0 instead of signals). Cheap when a mask is
+already active in this dynamic extent (see *FP-MASKED*)."
+  `(if *fp-masked*
+       (progn ,@body)
+       (let ((*fp-masked* t))
+         (sb-int:with-float-traps-masked (:overflow :invalid :divide-by-zero)
+           ,@body))))
 
 (defconstant +js-infinity+      sb-ext:double-float-positive-infinity)
 (defconstant +js-neg-infinity+  sb-ext:double-float-negative-infinity)

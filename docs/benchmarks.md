@@ -55,5 +55,26 @@ after the shapes / inline-cache / direct-call / string-builder milestones (see
 `docs/design/phase-25.md` §7). Startup is reported but is not part of the ×5 ratio (it trades off
 against any load-time compilation — §5 of the design doc).
 
-_This file is updated (a new dated row per milestone) as optimizations land, so the ratio is always
-traceable to the frozen baseline above._
+## Progress (per milestone, vs. the frozen baseline)
+
+Same host / compiler / measurement as above. "×" is `baseline_ms / current_ms` (higher is faster).
+
+| Milestone | richards | deltablue | splay | startup |
+|---|---|---|---|---|
+| Phase-24 baseline | 3600.4 ms (1.00×) | 2942.0 ms (1.00×) | 1520.3 ms (1.00×) | 17 ms |
+| m2 — profile-guided fast paths | 2262.0 ms (1.59×) | 2182.0 ms (1.35×) | 901.2 ms (1.69×) | 17 ms |
+
+**m2 (profile-guided fast paths)** — a `sb-sprof` profile of the baseline (`scripts/profile.lisp`)
+showed property access + dispatch + the property-write validate path + per-op FP-trap masking
+dominating. Four behavior-preserving changes, no kernel-architecture rewrite: (1) `with-js-floats`
+masks the FP traps once per JS call chain instead of per arithmetic op (a `*fp-masked*` guard +
+coarse masks at `jm-call`/`jm-construct`); (2) a write fast-path that mutates an existing own writable
+data descriptor in place (guarded `(eq o receiver)` + non-array, so exotic receivers keep the full
+path); (3) a tight `ptable-pos` linear scan (direct `string=`/`eq`, no generic `position`/`equal`);
+(4) inlined descriptor predicates. Geomean ≈ 1.53×; zero test262 pass-list regressions.
+
+**Still short of the ≥5× gate** — the re-profile shows the property-key linear scan (`STRING=*` +
+`ptable-pos`, ~33%) and adjustable-vector `aref` overhead (~15%) now dominate. Those are eliminated
+by shapes + inline caches (m3/m4), the next milestones.
+
+_This file gains a new row per milestone, so every ratio is traceable to the frozen baseline above._
