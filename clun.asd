@@ -14,7 +14,9 @@
   :depends-on ((:require "sb-posix") (:require "sb-concurrency") (:require "sb-bsd-sockets")
                ;; pure-tls (Phase 20) brings HTTPS into the binary: fetch("https://…") over
                ;; the vendored TLS 1.3 stack (ironclad + the Phase-19 closure come with it).
-               "cl-ppcre" "chipz" "pure-tls")
+               ;; flexi-streams (in pure-tls's closure) gives an in-memory octet input stream for
+               ;; the Phase-22 bounded gzip inflate (chipz decompressing stream).
+               "cl-ppcre" "chipz" "pure-tls" "flexi-streams")
   :serial t
   :components ((:module "src"
                 :serial t
@@ -165,7 +167,9 @@
                              (:module "install"
                               :serial t
                               :components ((:file "semver")
-                                           (:file "registry")))
+                                           (:file "registry")
+                                           (:file "integrity")
+                                           (:file "tarball")))
                              ;; CLI (Phase 08): arg parsing, .env, dispatch.
                              (:module "cli"
                               :serial t
@@ -229,4 +233,5 @@
                                             :serial t
                                             :components ((:file "semver-tests")
                                                          (:file "registry-fixture")
-                                                         (:file "registry-tests")))))))))
+                                                         (:file "registry-tests")
+                                                         (:file "tarball-tests")))))))))

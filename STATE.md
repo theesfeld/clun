@@ -5,7 +5,41 @@ Update before every commit. Seeded from PLAN.md §5.
 
 ---
 
-## Current phase: **22 — Tarball + integrity**  (Phase 21 committed; gate MET)
+## Current phase: **23 — Install: resolver, linker, lockfile, CLI**  (Phase 22 committed; gate MET)
+
+**Phase 22 outcome:** safe tarball extraction. **Integrity** (`src/install/integrity.lisp`,
+`clun.integrity`): SRI (`sha512-<base64>`) over the `.tgz` bytes — `parse-sri` (strongest of 512/384/256/1),
+`verify-integrity` or `integrity-error`. **Reader** (`src/install/tarball.lisp`, `clun.tarball`): bounded
+chipz inflate (512 MB cap; a decode error or the cap → `tarball-error`, never a raw condition); a ustar/pax/
+gnu header reader (octal + GNU base-256 sizes, checksum, pax `path`/`linkpath`/`size` + gnu `L`/`K` + ustar
+`prefix` overrides; every size bounds-checked before slicing). **Hardened extractor** `extract-package`:
+verify-then-commit — the SRI is checked before any write; entries land in a mkdtemp staging sibling and are
+atomically renamed in on success (removed on failure). Invariant: `%safe-descend` re-lstats every parent
+component per entry and refuses a symlink component (never write THROUGH a symlink), refuses `..`/absolute/
+NUL/empty names (covering the pax/longname/prefix routes); symlink + hardlink escaping targets refused;
+device/FIFO refused; mode masked to `#o777` (setuid stripped, exec bit kept); duplicate last-wins;
+`%write-regular` re-lstats + refuses a surviving symlink leaf. **Cache**: content-addressed `~/.clun/cache`;
+store verifies + temp-renames; fetch re-verifies (a poisoned entry ignored). **Gate MET:** `make test-lisp`
+**2506**/0/0 (a lodash-scale + bin + pax-longname corpus; the full mandated traversal suite; integrity +
+cache); `make purity` clean over **677 files**; exec **22,643** (0 crashes, 0 regressions — the install layer
+is engine-inert). Adversarial security panel (10 agents): the traversal dimension crafted **28 malicious
+archives** and found **NO escape** (the invariant holds — a symlink can only ever be a LEAF, never a
+traversed parent); fixed 2 §6 reader gaps (a malformed pax LEN raised a raw BOUNDING-INDICES error →
+`%parse-pax` now slices only a well-formed record; `inflate-gzip` wraps chipz errors) + adopted a
+defense-in-depth symlink-leaf recheck.
+
+**Next action:** Begin Phase 23 (Install: resolver, linker, lockfile, CLI; deps 20 ✓ + 21 ✓ + 22 ✓):
+breadth-first resolution (highest-satisfying, cycle-safe), a hoisted `node_modules` + nested conflict dirs,
+`os`/`cpu` optional-dep filtering; `bin` symlinks + chmod into `node_modules/.bin`; `clun.lock` (versioned
+JSON, deterministic order) honoured when fresh + a `--frozen-lockfile` drift error; `add`/`remove` edit
+package.json (`-d/-D`, `-E/--exact`) + reinstall; `--dry-run`/`--production`/`--no-save`; lifecycle scripts
+skipped + logged; a hoist-conflict honest error. **Gate:** a fixture-graph e2e (install → `clun run` an app
+importing the results → exact output); delete node_modules → reinstall from the lock OFFLINE (fixture server
+down) → byte-identical lock; frozen-mode drift errors; an opt-in logged live `clun add ms` smoke.
+
+---
+
+## Recent phase outcomes (most recent first)
 
 **Phase 21 outcome:** semver + the registry front half, hermetic. **Semver** (`src/install/semver.lisp`,
 `clun.install`): node-semver ported to pure CL (bignum components, prerelease precedence §11, `^ ~ - x * ||`
@@ -41,10 +75,6 @@ tarball) extracts correctly, PLUS the **mandated traversal suite** — absolute 
 via-pax-path, longname `..`, symlink-escape then write-through, hardlink escape, pax linkpath escape, NUL/
 empty/`.` names, device/FIFO rejected, setuid stripped, size-field overflow + base-256, duplicate last-wins,
 header-before-pax ordering — every case rejected/handled per spec.
-
----
-
-## Recent phase outcomes (most recent first)
 
 **Phase 20 outcome:** HTTPS. `fetch("https://…")` over the Phase-19 pure-CL TLS stack. **pure-tls is now in
 the `clun` binary** (`:depends-on`; ironclad + the closure come with it). Because pure-tls does a BLOCKING

@@ -1299,3 +1299,51 @@ and not needed until the Phase-23 CLI). **Prose-honesty correction:** the user f
 comment that also asserted an unverified "two serve-event loops collide on SBCL's global descriptor table"
 claim (taken from a review agent, not independently confirmed) — removed. Rule reinforced: no unverified
 claims or excuse-commentary in source/docs; only what has been personally verified.
+
+### 2026-07-13 — Phase 22: tarball reader + hardened extractor + integrity + cache
+**Integrity** (`src/install/integrity.lisp`, `clun.integrity`): SRI over the gzipped `.tgz` bytes (npm
+`dist.integrity`). `parse-sri` picks the strongest of sha512/384/256/1; `verify-integrity` computes the
+digest (ironclad) and `equalp`-compares (a public digest, not a secret — no constant-time need) or signals
+`integrity-error`.
+**Reader** (`src/install/tarball.lisp`, `clun.tarball`): `inflate-gzip` drives a chipz decompressing stream
+(flexi-streams in-memory input) with a hard 512 MB output cap (zip-bomb guard) — a chipz decode error or the
+cap → `tarball-error`, never a raw condition. `read-tar-entries` parses ustar 512-byte headers (octal AND GNU
+base-256 numeric fields, checksum verified unsigned-or-signed), applies pax `x` (`path`/`linkpath`/`size`) +
+GNU `L`/`K` overrides to the following entry, and honours the ustar `prefix`. Every size is bounds-checked
+against the buffer + `*max-entry-size*` before slicing (§6).
+**Hardened extractor** `extract-package`: verify-then-commit — the SRI is checked BEFORE any byte is
+extracted; entries land in a mkdtemp staging sibling of `dest` and are atomically renamed in only on success
+(a failure removes staging, commits nothing). The containment invariant: `%safe-descend` re-lstats every
+parent path component per entry and refuses a symlink component (never write THROUGH a symlink), creates
+missing parents as real dirs, and refuses a `..` segment; names are rejected up front if absolute / empty /
+NUL-bearing (covering `..`/absolute arriving via pax path, GNU longname, or prefix+name after
+strip-components); `%extract-symlink` refuses an absolute or lexically-escaping linkname; `%extract-hardlink`
+materialises a COPY only if the target resolves within staging; device/FIFO refused; mode masked to `#o777`
+(setuid/setgid/sticky stripped, so a bin script keeps its exec bit but nothing privileged survives);
+duplicate entries last-win; `%prepare-leaf` removes an existing symlink/dir leaf before writing, and
+`%write-regular` additionally re-lstats + refuses to write through a surviving symlink (defense in depth).
+**Cache** (`clun.tarball`): content-addressed at `~/.clun/cache/<algo>/<hexdigest>.tgz` (`$CLUN_CACHE`
+override); `cache-store` verifies then writes temp+rename; `cache-fetch` returns bytes only if they still
+verify (a poisoned entry is ignored). Tarballs `tar` cannot craft (malicious shapes) are built by a CL
+tar-writer test helper (`%tw-*`), gzipped with the Phase-21 `gzip-stored` encoder.
+**Gate MET:** `make test-lisp` **2506**/0/0 (real-package corpus: a lodash-scale ~200-file archive, a bin
+exec-bit, the Phase-21 pax-longname tarball; the full mandated traversal suite — absolute, `..`
+plain/embedded/pax/longname, symlink absolute/escape/write-through, hardlink escape, pax-linkpath escape,
+NUL/device/FIFO, base-256 size overflow, duplicate last-wins, pax ordering, writes-nothing-outside; +
+integrity gate + cache round-trip/poison); `make purity` clean over **677 files**; `make conformance-exec`
+**22,643** (0 crashes, 0 regressions — the install layer is engine-inert).
+
+### 2026-07-13 — Phase 22 review panel (find→verify-by-crafting-an-exploit)
+Adversarial security panel (3 dimensions → find → verify by RUNNING the exploit, 10 agents, 7 findings). The
+traversal dimension crafted **28 malicious archives** and ran `extract-package` against each checking for a
+file written outside `dest` — **no escape found**; the invariant (a symlink can only ever be a LEAF, never a
+traversed parent, because `%safe-descend` re-lstats every parent per entry; escaping symlink/hardlink targets
+refused at creation) held under every vector, and a control probe confirmed `write-file-octets` DOES follow a
+symlink leaf, proving `%prepare-leaf` is load-bearing. Two confirmed §6 robustness gaps fixed (reader
+functions must never emit a raw Lisp error on a hostile archive): (1) **medium** — a malformed pax LEN with a
+non-digit before the space left `kv-start >= rec-end`, so `position :start>:end` raised a raw
+BOUNDING-INDICES error; `%parse-pax` now only slices a well-formed record. (2) **low** — `inflate-gzip` let
+raw chipz decode errors escape; it now converts `chipz:decompression-error` → `tarball-error`. Plus the
+reviewer's defense-in-depth note adopted: `%write-regular` re-lstats after `%prepare-leaf` and refuses to
+write through a surviving symlink (caps the partial-removal edge on unusual filesystems). Regression tests
+added for both §6 fixes.

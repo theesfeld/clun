@@ -245,3 +245,24 @@ the Phase-18 HTTP client, engine-free JSON parse, .npmrc-lite + --registry resol
    #:npmrc-auth-tokens #:package-scope #:resolve-registry #:auth-token-for
    ;; parse + fetch
    #:parse-metadata #:fetch-metadata-async))
+
+(defpackage :clun.integrity
+  (:use :cl)
+  (:documentation "clun install: Subresource-Integrity (SRI) over package tarball bytes — parse
+`algo-base64`, compute + verify sha512/256/1 digests (ironclad + cl-base64).")
+  (:export
+   #:integrity-error #:integrity-error-message
+   #:sri #:sri-p #:sri-algorithm #:sri-digest
+   #:parse-sri #:digest-bytes #:sri-string #:verify-integrity))
+
+(defpackage :clun.tarball
+  (:use :cl)
+  (:local-nicknames (:sys :clun.sys) (:integ :clun.integrity))
+  (:documentation "clun install: bounded gzip inflate, a read-only ustar/pax tar reader, and a
+hardened verify-then-commit extractor + content-addressed cache.")
+  (:export
+   #:tarball-error #:tarball-error-message
+   #:tar-entry #:tar-entry-p #:te-name #:te-mode #:te-size #:te-typeflag #:te-linkname #:te-data
+   #:inflate-gzip #:read-tar-entries #:extract-package
+   #:cache-root #:cache-path #:cache-store #:cache-fetch
+   #:*max-inflated-bytes* #:*max-entry-size*))
