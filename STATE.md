@@ -5,7 +5,7 @@ Update before every commit. Seeded from PLAN.md §5.
 
 ---
 
-## Current phase: **25 — Performance pass**  (IN PROGRESS — m1–m6 done: measure / fast paths / shapes+read-ICs / index-key / args-skip / ptable-svec; ~3.5× geomean, gate is ≥5×; Phase 24 committed)
+## Current phase: **25 — Performance pass**  (IN PROGRESS — m1–m7 done; richards 5.18× MEETS ≥5×, deltablue 3.05× + splay 4.10× still short; Phase 24 committed)
 
 **Phase 25 IN PROGRESS** (Performance pass; deps: all engine phases ✓; ~3k LOC, milestoned). The gate (after
 the 2026-07-14 operator-approved split) is **(G1)** conformance pass-list unchanged/grown + **(G2)** ≥5× on
@@ -104,16 +104,34 @@ manual `count` (grown by doubling); every access is now `svref`. Behavior-neutra
 review (growth / count discipline / remove off-by-one / index / IC-slot bound / enumeration order) found 0
 HIGH/MEDIUM, and growth/delete/hash-index(>16)/re-add/enumeration probes all pass. **Measured clean (best of
 7, cumulative vs baseline):** richards 888.3 ms (**4.05×** — crossed 4×), deltablue 997.8 (**2.95×**), splay
-424.5 (**3.58×**). `make test-lisp` **2666**/0/0; **G1 conformance re-verifying** (expect 22,643, 0 regressions).
+424.5 (**3.58×**). `make test-lisp` **2666**/0/0; **G1 conformance 22,643 / 0 crashes / 0 regressions** (committed).
 
-**Next action:** Phase 25 **milestone 7 — close the ≥5× gate** (now ~3.5× geomean; targets richards ≤720,
-deltablue ≤588, splay ≤304 ms). Highest-value remaining lever = property CREATION (`make-prop-desc`/
-`validate-and-apply` ~15–20% on deltablue/splay): a fast `create-data-property` path that, for a brand-new
-default data property on an EXTENSIBLE ORDINARY object (class `:object`, not array/typed-array — check the
-class slot to stay clear of exotic `[[DefineOwnProperty]]`), goes straight to `obj-set-desc` and skips the
-validate-and-apply machinery + a redundant descriptor build. Then positional param binding (the current
-`bind-parameters` walks the args LIST with `nth`, O(n²)). One at a time, **profile-guided, verify G1 before
-measuring each.** A `+=` string builder is orthogonal (string-concat loops, not this trio) — lower priority.
+**Milestone 7 DONE — create fast-path + update-only write IC:** (1) `create-data-property` fast path: a
+brand-new default data property on an extensible ordinary `:object` (class check excludes the only exotic
+`[[DefineOwnProperty]]` types, `:array`/`:typed-array`) stores the descriptor directly, skipping
+`validate-and-apply` (which re-defaults it into a second descriptor) — helps allocation-heavy splay. (2) A
+REVIVED write inline cache at `obj.x = v` sites (`%ic-write`): the m4 version regressed create-heavy code
+(every write missed + paid an extra refill scan); this one **refills ONLY on an update** (the write left the
+shape UNCHANGED ⟹ key already existed) — a create transitions the shape and gets no refill, so create sites
+pay nothing extra. A hit stores into the cached slot in place after re-checking the live descriptor is
+data+writable=t (so a defineProperty→accessor/non-writable, freeze, etc. correctly fall back); always
+o==receiver at this set-fn. **Adversarial soundness panel (2 agents, ~50+ binary probes incl. a cross-object
+same-shape accessor test): 0 HIGH/MEDIUM.** (One LOW surfaced, PRE-EXISTING + out-of-scope: `{__proto__:p}`
+object literals create an own `__proto__` prop instead of setting the prototype — Annex B.3.1, identical at
+HEAD; logged for Phase 25b.) **Measured clean (best of 7, cumulative vs baseline):** richards 695.3 ms
+(**5.18× — GATE MET for richards**), deltablue 964.3 (**3.05×**), splay 370.6 (**4.10×**). `make test-lisp`
+**2666**/0/0; **G1 conformance 22,643 / 0 crashes / 0 regressions.**
+
+**Next action:** Phase 25 **milestone 8 — close the gate for deltablue + splay** (richards ✓ at 5.18×;
+deltablue 3.05× needs ≤588 ms, splay 4.10× needs ≤304 ms). deltablue is bottlenecked on property-lookup
+SCANS at IC-*miss* sites (method dispatch / polymorphic access via `js-getv`+`ordinary-set`) + call
+machinery; splay on allocation/GC. Candidate levers (profile-guided, one at a time, **verify G1 before
+measuring**): (a) positional param binding — `bind-parameters` walks the args LIST with `nth` (O(n²)); (b) a
+fast integer `ToString` — deltablue builds variable names `"v"+i`, and the exact-rational number→string shows
+up as `gcd`/`intexp`/`%make-simple-array` in the profile; (c) widen the read IC toward polymorphic/megamorphic
+sites or cache method-call lookups; (d) LAST resort per §5 — the background-thread `COMPILE` tier (m9). If
+deltablue proves infeasible to push to 5× with behavior-preserving changes, that is a candidate §2.4 scope
+note (the design doc §8.1 flagged ≥5× as "plausible, not guaranteed" for a tree-walking interpreter).
 
 **G3 scope concern — RESOLVED (2026-07-14, operator-approved split):** the ≥90% curated-test262 target is
 split out of Phase 25 into a new **Phase 25b — Conformance push to ≥90%** (PLAN §5). Phase 25's gate is now

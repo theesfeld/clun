@@ -67,6 +67,7 @@ Same host / compiler / measurement as above. "×" is `baseline_ms / current_ms` 
 | m4 — array-index-key-p fast path | 1533.6 ms (2.35×) | 1790.4 ms (1.64×) | 565.0 ms (2.69×) | 17 ms |
 | m5 — skip unused `arguments` object | 1064.2 ms (3.38×) | 1110.9 ms (2.65×) | 487.4 ms (3.12×) | 17 ms |
 | m6 — ptable simple-vectors | 888.3 ms (4.05×) | 997.8 ms (2.95×) | 424.5 ms (3.58×) | 16 ms |
+| m7 — create fast-path + write IC | 695.3 ms (**5.18×**) | 964.3 ms (3.05×) | 370.6 ms (4.10×) | 15 ms |
 
 **m2 (profile-guided fast paths)** — a `sb-sprof` profile of the baseline (`scripts/profile.lisp`)
 showed property access + dispatch + the property-write validate path + per-op FP-trap masking
@@ -114,10 +115,21 @@ a manual `count` (grown by doubling); every access is now `svref`. Behavior-neut
 adversarial review + growth/delete/hash-index/enumeration probes, zero divergences). richards crossed
 4×; no regression.
 
-**Still short of the ≥5× gate** (richards ≤720, deltablue ≤588, splay ≤304 ms) — now ~3.5× geomean,
-richards 4.05× / deltablue 2.95× / splay 3.58×. Remaining profile levers: property *creation*
-(`make-prop-desc`/`validate-and-apply` ~15–20% on deltablue/splay — a fast create-data-property path)
-and the rest of the call frame (positional param binding vs the current `nth` walk; frame allocation).
-A `+=` string builder is orthogonal (helps string-concat loops, not this trio).
+**m7 (create fast-path + update-only write IC)** — two changes. (1) A fast `create-data-property`
+path: a brand-new default data property on an extensible ordinary `:object` stores the descriptor
+directly, skipping `validate-and-apply` (which re-defaults it into a second descriptor); helps
+allocation-heavy splay (3.58×→4.10×). (2) A revived write inline cache at `obj.x = v` sites — the m4
+version regressed create-heavy code because every write missed and paid an extra refill scan; this one
+refills **only on an update** (the write left the shape unchanged), so a create pays nothing extra. It
+stores into the cached slot in place after re-checking the live descriptor is data+writable, and only
+caches an own writable-data update. Sound (a 2-agent panel + a cross-object same-shape accessor test
+confirmed it always revalidates the per-object descriptor; 0 findings). **richards crossed 5× (5.18×).**
+
+**Gate: richards MET (5.18× ≥ 5×); deltablue 3.05× and splay 4.10× still short** (targets ≤588, ≤304 ms).
+deltablue is bottlenecked on property-lookup scanning on IC-*miss* sites (method dispatch / polymorphic
+access) + call machinery; splay on allocation/GC. Remaining levers: positional param binding (the
+`bind-parameters` `nth`-walk is O(n²)), a faster integer `ToString` (deltablue builds variable names
+`"v"+i` → the exact-rational number→string shows up as `gcd`/`intexp` in the profile), and — for the
+last stretch if the cheap wins fall short — the documented background-thread `COMPILE` tier (§5).
 
 _This file gains a new row per milestone, so every ratio is traceable to the frozen baseline above._
