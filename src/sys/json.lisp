@@ -233,3 +233,71 @@ Signals JSON-ERROR on malformed input."
       (unless (jp-eof-p p)
         (jp-err p "trailing content after JSON value"))
       v)))
+
+;;; --- writer (Phase 21/23: lockfile + package.json + registry write needs) ---
+;;; Round-trips the reader representation back out. Objects are alists of
+;;; (string . value); the empty object is :empty-object; arrays are vectors;
+;;; the sentinels json-true/false/null print as their JSON literals.
+
+(defun %json-write-string (s out)
+  (write-char #\" out)
+  (loop for c across s do
+    (case c
+      (#\" (write-string "\\\"" out))
+      (#\\ (write-string "\\\\" out))
+      (#\Newline (write-string "\\n" out))
+      (#\Return (write-string "\\r" out))
+      (#\Tab (write-string "\\t" out))
+      (#\Backspace (write-string "\\b" out))
+      (#\Page (write-string "\\f" out))
+      (t (if (< (char-code c) #x20)
+             (format out "\\u~4,'0x" (char-code c))
+             (write-char c out)))))
+  (write-char #\" out))
+
+(defun %json-write-number (x out)
+  "Emit X as a JSON number: an integer (or integer-valued double) prints with no decimal point."
+  (cond ((integerp x) (format out "~d" x))
+        ((and (typep x 'double-float) (= x (fround x)) (< (abs x) 1d15))
+         (format out "~d" (round x)))
+        ((rationalp x) (format out "~a" x))
+        (t (write-string (substitute #\e #\d (princ-to-string x)) out))))
+
+(defun %json-write (v out indent sort-keys depth)
+  (flet ((nl (d) (when (plusp indent)
+                   (write-char #\Newline out)
+                   (dotimes (i (* indent d)) (write-char #\Space out)))))
+    (cond
+      ((eq v json-null) (write-string "null" out))
+      ((eq v json-true) (write-string "true" out))
+      ((eq v json-false) (write-string "false" out))
+      ((eq v :empty-object) (write-string "{}" out))
+      ((stringp v) (%json-write-string v out))
+      ((numberp v) (%json-write-number v out))
+      ((null v) (write-string "null" out))
+      ((and (consp v) (consp (car v)) (stringp (caar v)))         ; object (alist)
+       (let ((pairs (if sort-keys (stable-sort (copy-list v) #'string< :key #'car) v)))
+         (write-char #\{ out)
+         (loop for (k . val) in pairs for first = t then nil do
+           (unless first (write-char #\, out))
+           (nl (1+ depth))
+           (%json-write-string (string k) out)
+           (write-string ": " out)
+           (%json-write val out indent sort-keys (1+ depth)))
+         (nl depth) (write-char #\} out)))
+      ((vectorp v)                                                ; array
+       (if (zerop (length v))
+           (write-string "[]" out)
+           (progn (write-char #\[ out)
+                  (loop for x across v for first = t then nil do
+                    (unless first (write-char #\, out))
+                    (nl (1+ depth))
+                    (%json-write x out indent sort-keys (1+ depth)))
+                  (nl depth) (write-char #\] out))))
+      (t (error 'json-error :message (format nil "cannot serialize ~s to JSON" v))))))
+
+(defun write-json (value &key (indent 2) sort-keys)
+  "Serialize VALUE (the parse-json representation) to a JSON string. INDENT>0 pretty-prints; SORT-KEYS
+emits object keys in sorted order (deterministic — for the lockfile). Trailing newline is the caller's."
+  (with-output-to-string (out)
+    (%json-write value out indent sort-keys 0)))

@@ -169,7 +169,8 @@
                               :components ((:file "semver")
                                            (:file "registry")
                                            (:file "integrity")
-                                           (:file "tarball")))
+                                           (:file "tarball")
+                                           (:file "resolver")))
                              ;; CLI (Phase 08): arg parsing, .env, dispatch.
                              (:module "cli"
                               :serial t
@@ -234,4 +235,5 @@
                                             :components ((:file "semver-tests")
                                                          (:file "registry-fixture")
                                                          (:file "registry-tests")
-                                                         (:file "tarball-tests")))))))))
+                                                         (:file "tarball-tests")
+                                                         (:file "resolver-tests")))))))))

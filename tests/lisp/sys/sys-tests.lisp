@@ -129,3 +129,28 @@ resolver corpus."
     (is equal "world" (sys:read-file-string f))
     (is equal (sys:realpath f) (sys:realpath f))     ; stable
     (true (member "hello.txt" (sys:read-directory dir) :test #'string=))))
+
+;;; --- JSON writer (Phase 23: lockfile / package.json serialisation) ----------
+
+(define-test sys/write-json-roundtrip
+  ;; parse → write → parse is a fixpoint for the reader representation
+  (let* ((src "{\"name\":\"p\",\"version\":\"1.0.0\",\"deps\":{\"a\":\"^1.0.0\",\"b\":\"2.0.0\"},\"list\":[1,2,3],\"nested\":{\"x\":true,\"y\":null,\"z\":false},\"empty\":{}}")
+         (v1 (sys:parse-json src))
+         (out (sys:write-json v1))
+         (v2 (sys:parse-json out)))
+    ;; structural round-trip via a second serialisation with sorted keys (canonical)
+    (is equal (sys:write-json v1 :sort-keys t) (sys:write-json v2 :sort-keys t))
+    (is equal "p" (sys:jget v2 "name"))
+    (is equal "^1.0.0" (sys:jget (sys:jget v2 "deps") "a"))
+    (is eq sys:json-true (sys:jget (sys:jget v2 "nested") "x"))
+    (is eq sys:json-null (sys:jget (sys:jget v2 "nested") "y"))))
+
+(define-test sys/write-json-deterministic-and-integers
+  ;; sort-keys gives a deterministic order regardless of input key order; integers have no ".0"
+  (let ((a (sys:parse-json "{\"b\":1,\"a\":2}"))
+        (b (sys:parse-json "{\"a\":2,\"b\":1}")))
+    (is equal (sys:write-json a :sort-keys t) (sys:write-json b :sort-keys t) "sorted order is canonical"))
+  (is equal "1" (sys:write-json 1 :indent 0))
+  (is equal "42" (sys:write-json (sys:jget (sys:parse-json "{\"n\":42}") "n") :indent 0))
+  (is equal "[]" (sys:write-json (sys:jget (sys:parse-json "{\"a\":[]}") "a") :indent 0))
+  (is equal "{}" (sys:write-json :empty-object :indent 0)))

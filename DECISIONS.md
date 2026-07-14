@@ -1347,3 +1347,27 @@ raw chipz decode errors escape; it now converts `chipz:decompression-error` → 
 reviewer's defense-in-depth note adopted: `%write-regular` re-lstats after `%prepare-leaf` and refuses to
 write through a surviving symlink (caps the partial-removal edge on unusual filesystems). Regression tests
 added for both §6 fixes.
+
+### 2026-07-14 — Phase 23 milestone 1a: JSON writer + resolver + hoist placement
+Phase 23 (Install) is ~4k LOC, so it is milestoned; this is the first committed-green slice.
+**JSON writer** (`src/sys/json.lisp`, `write-json`): round-trips the reader representation (alist objects,
+vectors, doubles, strings, sentinels) back out with `:indent` + `:sort-keys`; an integer (or integer-valued
+double) prints with no decimal point. `:sort-keys` gives the lockfile its deterministic key order. No new
+dependency (PLAN §3.5: one hand-rolled JSON file does both directions).
+**Resolver** (`src/install/resolver.lisp`, package `clun.installer`): `resolve-install` does breadth-first,
+highest-satisfying, cycle-safe resolution over the Phase-21 async registry client — each package's metadata
+is fetched ONCE (cached per name), a pending-counter work loop settles when every in-flight fetch has
+returned, `pick-version` chooses a matching dist-tag or the highest semver version satisfying an edge's
+range, and an already-resolved `name@version` is reused (cycle-safe). It returns `nodes` (hash
+`name@version` → inst-node) + `edge-version` (hash `<parent>|<dep>` → resolved version). **Key decision:
+placement must be deterministic despite async fetch-completion order** — so `plan-layout` does NOT use the
+fetch-order edge list; it walks the tree in a FIXED order (root-deps order, then each node's metadata
+dependency order) via `edge-version`, hoisting the first-seen version of a name to the root `node_modules`
+and nesting a conflicting different version under its requiring parent. The fixture's `conflict-a → shared@1`
+/ `conflict-b → shared@2` diamond is the discriminator: `shared@1` hoists (conflict-a is first in root-deps
+order), `shared@2` nests at `node_modules/conflict-b/node_modules/shared`. A `placement-is-deterministic`
+test asserts two independent resolutions yield an identical plan. Regular `dependencies` only for now;
+`optionalDependencies` + `os`/`cpu` filtering land with the linker (milestone 1b). **Gate (milestone):**
+`make test-lisp` **2537**/0/0; `make purity` clean over **679 files**; `make conformance-exec` **22,643**
+(0 crashes, 0 regressions — the install layer + the new `write-json` are engine-inert; `parse-json` is
+unchanged). The full Phase-23 adversarial review + the phase gate come at the milestone that lands the e2e.

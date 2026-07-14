@@ -22,7 +22,7 @@
            #:path-exists-p #:file-p #:directory-p #:realpath #:read-file-string
            #:read-directory
            ;; Phase 07 — JSON reader (hand-rolled, engine-free; §3.5)
-           #:parse-json #:json-error #:json-null #:json-false #:json-true
+           #:parse-json #:write-json #:json-error #:json-null #:json-false #:json-true
            #:jget #:jobject-p
            ;; Phase 08 — platform primitives for the runtime (process/console)
            #:stream-fd #:tty-p #:environ-alist #:getenv #:getpid
@@ -266,3 +266,19 @@ hardened verify-then-commit extractor + content-addressed cache.")
    #:inflate-gzip #:read-tar-entries #:extract-package
    #:cache-root #:cache-path #:cache-store #:cache-fetch
    #:*max-inflated-bytes* #:*max-entry-size*))
+
+(defpackage :clun.installer
+  (:use :cl)
+  (:local-nicknames (:sys :clun.sys) (:sv :clun.install) (:reg :clun.registry)
+                    (:tb :clun.tarball) (:integ :clun.integrity) (:lp :clun.loop))
+  (:documentation "clun install: dependency resolution (breadth-first, highest-satisfying,
+cycle-safe) + hoisted-layout placement over the Phase-21 registry client, feeding the Phase-22
+extractor + cache and the clun.lock lockfile.")
+  (:export
+   ;; conditions
+   #:install-error #:install-error-message #:lock-drift-error
+   ;; resolution
+   #:inst-node #:inst-node-p #:in-name #:in-version #:in-deps #:in-tarball #:in-integrity #:in-bin
+   #:resolve-install #:pick-version
+   ;; placement
+   #:plan-layout))
