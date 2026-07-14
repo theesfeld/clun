@@ -5,7 +5,48 @@ Update before every commit. Seeded from PLAN.md §5.
 
 ---
 
-## Current phase: **25 — Performance pass**  (Phase 24 committed; gate MET)
+## Current phase: **25 — Performance pass**  (IN PROGRESS — "measure first" milestone done; Phase 24 committed)
+
+**Phase 25 IN PROGRESS** (Performance pass; deps: all engine phases ✓; ~3k LOC, milestoned). The gate has
+three parts: **(G1)** conformance pass-list unchanged/grown; **(G2)** ≥5× on the benchmark suite vs the
+Phase-24 baseline; **(G3)** overall curated test262 ≥ 90%.
+
+**Milestone 1 DONE — "measure first":** the benchmark suite + the frozen Phase-24 baseline + the design doc
+(no engine change). `bench/{richards,deltablue,splay}.js` — the Octane trio ported to clun (self-contained,
+deterministic, `Clun.nanoseconds()` timing since `Date.now()` is only 1-second-granular here; each
+self-verifies its result and THROWS on mismatch) + `bench/run.sh` + `make bench`. DeltaBlue was hand-written
+(its workflow author agent was content-filtered); richards/splay came from the author fan-out. **Frozen
+Phase-24 baseline** (commit `b9a8a862`, SBCL 2.6.5, Intel Ultra 9 275HX, best of 5, in `docs/benchmarks.md`):
+startup 17 ms; richards 3600.4 ms / 80 iters; deltablue 2942.0 ms / 40 iters; splay 1520.3 ms / 40 iters — so
+the ≥5× gate is richards ≤720, deltablue ≤588, splay ≤304 ms. Measurement is SELF-RELATIVE (clun-vs-clun on a
+fixed workload — node/bun are NOT on this host, so no cross-runtime numbers are claimed). Design
+(`docs/design/phase-25.md`, synthesized from a parallel map of the object model + emitter): shapes
+(transition tree keyed by property-add + dict fallback) behind the `obj-own-desc`/`obj-set-desc` seam
+(objects.lisp:91/94); inline caches keyed by shape at the `js-getv`/`js-set` emitter seams; direct call paths
+for known arity; a `+=` string-builder; COMPILE-tiering only if measured-necessary. No engine code changed
+this milestone, so `make purity` (**687 files**) and `make test-lisp` (**2627**/0/0) are unchanged and exec
+conformance is provably **22,643** (the ASDF load plan is untouched — bench fixtures + docs + a `make bench`
+target only).
+
+**Next action:** Phase 25 **milestone 2 — shapes / hidden classes** (`docs/design/phase-25.md` §2): a
+transition tree keyed by property-add mapping key→slot index, with a dict fallback (delete / >16 props /
+symbol+index keys / non-default attributes), slotted BELOW the `jm-*` protocol at the `obj-own-desc`
+(objects.lisp:91) read seam + the `obj-set-desc` (objects.lisp:94) write seam; then dense arrays behind the
+`js-array` `jm-define-own-property` override (objects.lisp:406). **Verify G1 (full pass-list unchanged)
+BEFORE measuring speed**, then record the per-benchmark ratio vs the baseline (expect the biggest single lift
+on richards).
+
+**Blocked/Open — G3 scope concern (flagged per PLAN §2.4):** the Phase-25 gate bundles a CORRECTNESS target
+(G3: curated test262 ≥ 90%) into a PERFORMANCE phase. Current curated is ~80.4%, so G3 is a ~2,700-test lift
+with NO engineering relationship to shapes/inline-caches (they don't move the pass-rate; conformance fixes
+don't move the bench ratio). Both the design doc and this executing agent recommend splitting G3 into a
+separate track (Phase 25b, or folding it into a conformance phase) so the performance gate (G1+G2) can close
+on its own schedule. Surfaced to the human; proceeding with the performance milestones meanwhile (not
+stalling).
+
+---
+
+## Recent phase outcomes (most recent first)
 
 **Phase 24 outcome:** Spawn + package scripts — the daily-driver workflow, milestoned; gate MET.
 **Milestone 1 DONE (committed):** `Clun.spawnSync` (`src/runtime/spawn.lisp`, `clun.runtime`) — the
@@ -55,17 +96,6 @@ file-fallback argv drop when a flag precedes the name, a §6 missing-`/bin/sh` c
 correction — the e2e now actually covers the dispatch its comment documents). **Deliberate divergences:**
 always `/bin/sh` (never a login shell); `spawnSync` piped stdio goes through temp files; lifecycle scripts
 still never run during install (Phase 23), only via `clun run`.
-
-**Next action:** Begin Phase 25 (Performance pass; deps: all engine phases; ~3k LOC) — shapes (cl-js
-scls/hcls-style tree + dict fallback) behind the storage protocol; inline caches at property sites in emitted
-closures; direct call paths for known arities; a string-builder for `+=` loops; optional background-thread
-`COMPILE` tiering (measure first); a benchmark suite (Richards/DeltaBlue/splay ports) + `docs/benchmarks.md`
-(honest methodology, no marketing). **Gate:** the conformance pass-list unchanged or grown; ≥ 5× on the
-benchmark suite vs the Phase-24 baseline; overall curated test262 ≥ 90%.
-
----
-
-## Recent phase outcomes (most recent first)
 
 **Phase 23 outcome:** `clun install` / `add` / `remove` — the package manager, hermetic, milestoned.
 **Resolver** (`src/install/resolver.lisp`, `clun.installer`): breadth-first, highest-satisfying, cycle-safe

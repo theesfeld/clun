@@ -1547,3 +1547,42 @@ soften the comment, the coverage was ADDED to `e2e.sh` (which also exercises the
 now true. `%sh-quote`, the walk-up termination, exit/signal mapping, nil-flow safety, and the `--cwd`
 threading were verified correct with no findings. Re-verified: `make test-lisp` **2627**/0/0, `examples/e2e.sh`
 green end to end.
+
+### 2026-07-14 — Phase 25 milestone 1: "measure first" — benchmark suite + frozen baseline + design doc
+Phase 25 (Performance pass) opens by building the measurement it will be gated on, per the PLAN task note
+"measure first". `bench/{richards,deltablue,splay}.js` are the classic V8/Octane trio ported to run on clun:
+self-contained, ES2017-only, DETERMINISTIC (fixed `const ITERATIONS`; splay uses a seeded LCG), each printing
+one line `BENCH <name> <ms> <iters>` and self-verifying its result (richards queue/hold counts; deltablue
+chain/projection asserts; splay tree invariants) with a THROW on mismatch so a mis-measuring workload fails
+loudly. **Timing uses `Clun.nanoseconds()` (monotonic ns), NOT `Date.now()` — verified `Date.now()` is only
+1-second-granular in clun** (returns `…000`; a 2M-iteration loop measured a delta of exactly 1000 ms), which
+would quantize benchmark times uselessly. (`Date.now()` second-granularity is a pre-existing Date gap, noted
+for a later conformance pass — it did not exist to be fixed here.) `bench/run.sh` + a `make bench` target run
+each benchmark best-of-`REPS` (default 5) and measure startup (`clun -e ''`) separately.
+**Measurement model — self-relative, clun-vs-clun on a fixed workload:** node and bun are NOT installed on
+this host (verified), so NO cross-runtime numbers are claimed or fabricated; the ≥5× gate is defined against
+the frozen Phase-24 clun baseline, which is exactly what makes the ratio checkable. **Frozen baseline**
+(commit `b9a8a862`, SBCL 2.6.5-85913ede1, Intel Core Ultra 9 275HX / 24 cores, best of 5, in
+`docs/benchmarks.md`): startup 17 ms; richards 3600.4 ms / 80; deltablue 2942.0 ms / 40; splay 1520.3 ms / 40
+→ ≥5× targets richards ≤720, deltablue ≤588, splay ≤304 ms. `docs/design/phase-25.md` was synthesized from a
+parallel workflow that mapped the object model + emitter: shapes = an add-keyed transition tree (key→slot)
+with a dict fallback, attached BELOW the `jm-*` protocol at `obj-own-desc`/`obj-set-desc` (objects.lisp:91/94)
++ dense arrays at the `js-array` override (objects.lisp:406); inline caches keyed by shape at the
+`js-getv`/`js-set` emitter seams; known-arity direct calls; a `+=` string-builder; COMPILE-tiering only if
+measured-necessary. DeltaBlue was hand-written after its workflow author agent hit a content filter; the
+map/synthesis and richards/splay authoring came from the workflow. No engine code changed, so `make purity`
+(**687 files**) and `make test-lisp` (**2627**/0/0) are unchanged and exec conformance is provably **22,643**
+(bench fixtures + docs + a Makefile target are not in the ASDF load plan).
+
+### 2026-07-14 — Phase 25 G3 scope concern: split the ≥90% test262 gate from the performance work (PLAN §2.4)
+The Phase-25 gate as written has three parts: (G1) pass-list unchanged/grown, (G2) ≥5× on the benchmark
+suite, (G3) curated test262 ≥ 90%. G1+G2 are the performance body of the phase; **G3 is a correctness lift of
+~2,700 tests** (curated is ~80.4% today: 22,643 pass / 5,520 fail-gap / 12,491 skipped-by-feature of 40,654)
+with **no engineering relationship** to shapes/inline-caches — those optimizations do not move the pass-rate,
+and conformance fixes do not move the benchmark ratio. Coupling them risks a finished performance win blocked
+on unrelated conformance work (or rushed conformance to unblock performance). **Decision:** execute G1+G2 as
+Phase 25 (m2 shapes → m3 inline caches → m4 direct calls + string builder, m6 COMPILE-tiering only if
+measured-necessary) and treat G3 as an explicitly separate track — recommend to the human splitting it out as
+Phase 25b or folding it into a dedicated conformance phase. Recorded under STATE "Blocked/Open"; not stalling
+— proceeding with the performance milestones. This is surfaced to the human as the §2.4 scope question; the
+final call on the split is theirs.

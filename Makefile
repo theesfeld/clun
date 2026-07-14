@@ -4,7 +4,7 @@
 SBCL       ?= sbcl
 SBCL_FLAGS := --non-interactive --no-userinit --no-sysinit
 
-.PHONY: all build test test-lisp test-js test-tls test-crypto registry-fixture purity clean
+.PHONY: all build test test-lisp test-js test-tls test-crypto registry-fixture purity bench clean
 
 all: build
 
@@ -57,6 +57,12 @@ conformance:
 ## fresh realm, both modes; gates on 0 crashes + no exec-passlist regressions.
 conformance-exec:
 	CLUN_EXEC=1 $(SBCL) --dynamic-space-size 6144 $(SBCL_FLAGS) --load scripts/test262.lisp
+
+## bench — Phase 25 benchmark suite (richards/deltablue/splay + startup) against build/clun.
+## Self-relative (clun-vs-clun on a fixed workload); the >=5x gate is the ratio vs the Phase-24
+## baseline in docs/benchmarks.md. Override reps with REPS=N.
+bench: build
+	sh bench/run.sh
 
 ## clean — remove the built binary and any in-tree fasls.
 clean:
