@@ -27,14 +27,29 @@ on a malformed package.json / clun.lock / lock-shape, dist-tag lock pinning, sco
 arg parsing). **Deliberate gap:** the live `clun add <pkg>` smoke against real npm stays blocked by the
 pure-tls `registry.npmjs.org` `protocol_version` interop gap — the hermetic fixture e2e is the gate.
 
-**Next action:** Begin Phase 24 (Spawn + package scripts; deps 14 ✓ + 23 ✓): `Clun.spawn` (a
-`sb-ext:run-program` wrapper — cmd/cwd/env, stdin/stdout/stderr pipe|inherit|ignore, pipes non-blocking into
-the reactor, an `.exited` promise, exitCode/signalCode/kill/onExit) + `spawnSync`; `clun run <script>` per
-§3.6 (`sh -c`, ancestor `.bin` PATH walk, pre/post, `npm_*` env, `--if-present`, arg passthrough after the
-script name); the file-vs-script dispatcher merge. **Gate:** a spawn matrix (echo/cat/exit/signal); a 10 MB
-dual-pipe child drained concurrently without deadlock; 1,000 spawns → zero zombies; a scripts fixture
-(pre-fail aborts, env asserted, exit propagation); `examples/e2e.sh` (install → run build via a `.bin` tool →
-clun test) green + hermetic — the v1 workflow demo.
+**Phase 24 IN PROGRESS** (Spawn + package scripts; deps 14 ✓ + 23 ✓; ~2k LOC, milestoned).
+**Milestone 1 DONE (committed):** `Clun.spawnSync` (`src/runtime/spawn.lisp`, `clun.runtime`) — the
+blocking subprocess primitive over `sb-ext:run-program :wait t`: `cmd` = `[program, ...args]`
+(PATH-resolved via `:search t`), `opts.cwd`/`opts.env` (via `Object.keys`, replaces the env)/`opts.stdin`
+(string/typed-array/ArrayBuffer), `stdout`/`stderr` = `pipe`(→ Uint8Array)|`inherit`|`ignore`. Piped
+stdout/stderr go to TEMP FILES (a full pipe would deadlock a synchronous read of any size — the file
+absorbs it), read back after exit; exit mapping `:exited`→`exitCode`/`:signaled`→`signalCode` (name);
+`{pid,exitCode,signalCode,success,stdout,stderr}`; a missing program → a catchable JS `Error`, a non-array
+cmd → `TypeError`. Installed onto the `Clun` global. Tests (`spawn-tests.lisp`): echo/exit-code/signal/
+stdin/env/stdio-modes/**5 MB-no-deadlock**/cwd/not-found+type-error. `make test-lisp` **2602**/0/0, purity
+clean **686 files**, exec 22,643.
+
+**Next action:** Phase 24 **milestone 2** — `Clun.spawn` (ASYNC): `run-program :wait nil`, non-blocking
+stdout/stderr/stdin pipes on the reactor (mirror the Phase-16 tcp reader: `reactor-add fd :input` →
+non-blocking `sb-unix:unix-read` → buffer/close on EOF; EAGAIN-safe non-blocking stdin writes), an `.exited`
+promise + `exitCode`/`signalCode`/`kill`/`onExit`; the `:status-hook` marshals the child-exit to the loop
+via `lp:loop-post` (mailbox + self-pipe — §6 iron rule: enqueue ONLY, no JS/alloc in the interrupt handler);
+handle refcount released on exit (no zombies — run-program auto-reaps). Gate slices: a 10 MB dual-pipe child
+drained concurrently without deadlock; 1,000 spawns → zero zombies. Then **milestone 3** — `clun run
+<script>` per §3.6 (`sh -c`, ancestor `.bin` PATH walk, `pre`/`post` [failing `pre` aborts], `npm_*` env,
+`--if-present`, arg passthrough after the script name) + the file-vs-script dispatcher merge; a scripts
+fixture (pre-fail aborts, env asserted, exit propagation); and `examples/e2e.sh` (install → run build via a
+`.bin` tool → clun test) green + hermetic — the v1 workflow demo, which closes the Phase-24 gate.
 
 ---
 

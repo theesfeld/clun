@@ -1444,3 +1444,26 @@ falsely — fixed at the source by `read-package-json` validating the top level 
 (one fix, all three paths consistent); `--registry` with no following value swallowed the next flag — now
 errors cleanly; and a dead `%value-flag-p` in `args.lisp` was removed. Regression tests added (non-object
 package.json → catchable install-error on add + install).
+
+### 2026-07-14 — Phase 24 milestone 1: Clun.spawnSync (blocking subprocess primitive)
+`Clun.spawnSync(cmd, opts)` (`src/runtime/spawn.lisp`, `clun.runtime`) over `sb-ext:run-program :wait t`
+(the sanctioned subprocess API, PLAN §1.1 — auto-reaps zombies). `cmd` is `[program, ...args]` resolved
+through PATH (`:search t` — so tests use bare `echo`/`sh`, not `/bin/echo`, which NixOS lacks). `opts`:
+`cwd` → `:directory`; `env` (a JS object, keys via `Object.keys`) → `:environment` (REPLACES the env, npm/
+Bun-style; absent → inherit by omitting the keyword); `stdin` (string / typed-array / ArrayBuffer) → written
+to a temp file used as `:input`; `stdout`/`stderr` = `pipe` (default) / `inherit` / `ignore`. **Key
+decision: piped stdout/stderr are redirected to TEMP FILES, not OS pipes** — a synchronous read of a full
+pipe would deadlock at any size past the ~64 KB pipe buffer, so the file absorbs arbitrary output (verified:
+5 MB round-trips); read back as a `Uint8Array` after exit, temp dir removed in an unwind-protect. Exit
+mapping: `process-status` `:exited` → `exitCode` = code, `signalCode` = null; `:signaled` → `exitCode` =
+null, `signalCode` = the signal NAME (a small number→name map). Result: `{pid, exitCode, signalCode, success,
+stdout, stderr}`. A missing program / bad cwd → a catchable JS `Error` (constructed via the global `Error`,
+mirroring node/fs), a non-array cmd → `TypeError` — never a raw Lisp backtrace (§6). JS array elements are
+read with `eng:js-getv` + a string index (`"0"`), not `eng:js-get` with an integer (which does not index).
+Installed onto the `Clun` global (spawn.lisp loads before clun-global.lisp so `install-spawn` is defined at
+compile time). **Gate (milestone):** `make test-lisp` **2602**/0/0 (`spawn-tests.lisp`: echo/exit-code/
+signal/stdin/env/stdio-modes/5 MB-no-deadlock/cwd/not-found+type-error); `make purity` clean over **686
+files**; `make conformance-exec` **22,643** (0 crashes, 0 regressions — spawn is inert for bare test262
+realms, which do not install the runtime). The async `Clun.spawn` (reactor pipes, `.exited`, kill; the 10 MB
+dual-pipe + 1,000-spawn-zero-zombie gate slices) is milestone 2; `clun run <script>` + `examples/e2e.sh` is
+milestone 3.

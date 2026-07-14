@@ -130,6 +130,7 @@
                               :components ((:file "install")
                                            (:file "console")
                                            (:file "process")
+                                           (:file "spawn")     ; Clun.spawnSync (Phase 24) — before clun-global
                                            (:file "clun-global")
                                            (:file "abort")     ; AbortController/AbortSignal (Phase 14)
                                            (:file "globals")   ; structuredClone, crypto (Phase 12)
@@ -219,7 +220,8 @@
                                            (:module "runtime"
                                             :serial t
                                             :components ((:file "runtime-tests")
-                                                         (:file "url-tests")))
+                                                         (:file "url-tests")
+                                                         (:file "spawn-tests")))
                                            (:module "transpiler"
                                             :serial t
                                             :components ((:file "ts-strip-tests")))

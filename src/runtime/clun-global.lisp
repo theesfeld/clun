@@ -46,6 +46,7 @@
       (lambda (this args) (declare (ignore this)) (%clun-write g (eng:arg args 0) (eng:arg args 1))))
     (eng:install-method clun "serve" 1
       (lambda (this args) (declare (ignore this)) (%clun-serve g (eng:arg args 0))))
+    (install-spawn clun g)                                 ; Clun.spawnSync (Phase 24)
     (eng:hidden-prop g "Clun" clun)
     clun))
 
