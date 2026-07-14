@@ -5,29 +5,9 @@ Update before every commit. Seeded from PLAN.md §5.
 
 ---
 
-## Current phase: **24 — Spawn + package scripts**  (Phase 23 committed; gate MET)
+## Current phase: **25 — Performance pass**  (Phase 24 committed; gate MET)
 
-**Phase 23 outcome:** `clun install` / `add` / `remove` — the package manager, hermetic, milestoned.
-**Resolver** (`src/install/resolver.lisp`, `clun.installer`): breadth-first, highest-satisfying, cycle-safe
-resolution over the async registry client; `plan-layout` places the graph DETERMINISTICALLY (independent of
-async fetch order) — hoist first-seen, nest conflicts (the `shared@1`/`shared@2` diamond). **Linker**
-(`linker.lisp`): cache-fetch by integrity else download (http / the Phase-20 https worker) → cache-store →
-the hardened Phase-22 `extract-package`; scope-correct `bin` symlinks into `node_modules/.bin`; lifecycle
-scripts NEVER run. **Lockfile** (`lockfile.lisp`): `clun.lock` deterministic JSON (`write-json :sort-keys`),
-offline-reinstallable, dist-tag pinning, `--frozen-lockfile` drift. **install / install-async**
-(`installer.lisp`) + a JSON **writer** (`clun.sys:write-json`) + package.json editing (add/remove). **CLI**
-(`main.lisp`): `install` / `add <pkg>` / `remove <pkg>` dispatch + flags (`-d/-D`, `-E`, `--frozen-lockfile`,
-`--production`, `--dry-run`, `--registry`). **Gate MET:** the binary e2e (`examples/e2e-install.sh`) —
-`clun install` against the local fixture → `clun run` an app that `require`s the installed packages → exact
-stdout; then delete node_modules + `clun install` OFFLINE from the lock via the cache → same output +
-BYTE-IDENTICAL lock. `make test-lisp` **2581**/0/0; `make purity` clean over **684 files**; exec **22,643**
-(0 crashes, 0 regressions — the install layer is engine-inert). Three adversarial panels across the phase
-(resolver / install-engine / CLI) confirmed + fixed ~14 findings (placement determinism, §6 raw-error escapes
-on a malformed package.json / clun.lock / lock-shape, dist-tag lock pinning, scoped `.bin`, `--registry`
-arg parsing). **Deliberate gap:** the live `clun add <pkg>` smoke against real npm stays blocked by the
-pure-tls `registry.npmjs.org` `protocol_version` interop gap — the hermetic fixture e2e is the gate.
-
-**Phase 24 IN PROGRESS** (Spawn + package scripts; deps 14 ✓ + 23 ✓; ~2k LOC, milestoned).
+**Phase 24 outcome:** Spawn + package scripts — the daily-driver workflow, milestoned; gate MET.
 **Milestone 1 DONE (committed):** `Clun.spawnSync` (`src/runtime/spawn.lisp`, `clun.runtime`) — the
 blocking subprocess primitive over `sb-ext:run-program :wait t`: `cmd` = `[program, ...args]`
 (PATH-resolved via `:search t`), `opts.cwd`/`opts.env` (via `Object.keys`, replaces the env)/`opts.stdin`
@@ -54,18 +34,58 @@ mid-setup-failure orphaned-handle/fd-leak (setup wrapped in a cleanup handler-ca
 child exits before `end()` (finalize closes stdin). `make test-lisp` **2609**/0/0, purity clean **686 files**,
 exec 22,643.
 
-**Next action:** Phase 24 **milestone 3** (closes the phase gate) — `clun run <script>` per §3.6: `/bin/sh
--c`, PATH = the script's pkg dir + `node_modules/.bin` for every ancestor of cwd + the original PATH,
-`pre`/`post` scripts (a failing `pre` aborts), `npm_lifecycle_event`/`npm_package_*`/`npm_config_user_agent`/
-`npm_execpath` env, `--if-present`, arg passthrough after the script name; the file-vs-script dispatcher merge
-(`clun run <name>` → a package.json script if present, else a file). A scripts fixture (pre-fail aborts, env
-asserted, exit propagation). Then `examples/e2e.sh` (install → run a `build` script that invokes a `.bin`
-tool → `clun test`) green + hermetic — the v1 workflow demo (uses Clun.spawn/spawnSync + the Phase-23
-installer), which closes the Phase-24 gate.
+**Milestone 3 DONE — `clun run <script>`** (`src/main.lisp`) per §3.6: `/bin/sh -c` (always — a documented
+divergence), PATH = the script pkg dir's `node_modules/.bin` for cwd + every ancestor (nearest first) + the
+real PATH, `pre<name>` (a failing pre aborts) → `<name>` → `post<name>`, env (`npm_lifecycle_event`/
+`npm_package_name`/`_version`/`npm_config_user_agent`/`npm_execpath`/`npm_package_json`), `--if-present`
+(missing script → 0), shell-quoted arg passthrough, exit code propagates (signal → 128+sig); the dispatcher
+runs a package.json script if present, ELSE falls back to running the name as a FILE (script-first,
+file-fallback). A latent bug was FIXED en route: `clun test` had silently ignored `--cwd` (discovery
+re-derived cwd from `(truename ".")`) — now honours the caller-resolved cwd (test files also see the right
+`process.cwd()`). **PHASE-24 GATE MET:** the spawn matrix (echo/exit/signal/stdin/env/stdio-modes), a
+**5 MB (sync) + 10 MB dual-pipe (async, no deadlock, 0.5 s)** drain, **1,000 spawns no leak** (sequential — a
+1,000-fork burst hits the 1024 fd ulimit, a system limit), the scripts fixture (`scripts-tests.lisp`:
+pre-fail aborts, npm_* env asserted, exit propagation, the `.bin` PATH walk), AND `examples/e2e.sh` — the v1
+workflow demo, hermetic: `clun install` a graph from the local fixture → `clun run build` (prebuild → a
+`.bin` tool invoked by bare name → a dist artifact) → `clun test` (verifies the artifact) → `--if-present` +
+file-fallback dispatch. `make test-lisp` **2627**/0/0; `make purity` clean over **687 files**; exec
+**22,643** (0 crashes, 0 regressions — the spawn/scripts layers are engine-inert). Adversarial reviews across
+the phase (spawn: 6 agents / 4 confirmed §6 fd/finalize/leak fixes; scripts: found + fixed a MEDIUM
+file-fallback argv drop when a flag precedes the name, a §6 missing-`/bin/sh` clean-exit, and a doc-claim
+correction — the e2e now actually covers the dispatch its comment documents). **Deliberate divergences:**
+always `/bin/sh` (never a login shell); `spawnSync` piped stdio goes through temp files; lifecycle scripts
+still never run during install (Phase 23), only via `clun run`.
+
+**Next action:** Begin Phase 25 (Performance pass; deps: all engine phases; ~3k LOC) — shapes (cl-js
+scls/hcls-style tree + dict fallback) behind the storage protocol; inline caches at property sites in emitted
+closures; direct call paths for known arities; a string-builder for `+=` loops; optional background-thread
+`COMPILE` tiering (measure first); a benchmark suite (Richards/DeltaBlue/splay ports) + `docs/benchmarks.md`
+(honest methodology, no marketing). **Gate:** the conformance pass-list unchanged or grown; ≥ 5× on the
+benchmark suite vs the Phase-24 baseline; overall curated test262 ≥ 90%.
 
 ---
 
 ## Recent phase outcomes (most recent first)
+
+**Phase 23 outcome:** `clun install` / `add` / `remove` — the package manager, hermetic, milestoned.
+**Resolver** (`src/install/resolver.lisp`, `clun.installer`): breadth-first, highest-satisfying, cycle-safe
+resolution over the async registry client; `plan-layout` places the graph DETERMINISTICALLY (independent of
+async fetch order) — hoist first-seen, nest conflicts (the `shared@1`/`shared@2` diamond). **Linker**
+(`linker.lisp`): cache-fetch by integrity else download (http / the Phase-20 https worker) → cache-store →
+the hardened Phase-22 `extract-package`; scope-correct `bin` symlinks into `node_modules/.bin`; lifecycle
+scripts NEVER run. **Lockfile** (`lockfile.lisp`): `clun.lock` deterministic JSON (`write-json :sort-keys`),
+offline-reinstallable, dist-tag pinning, `--frozen-lockfile` drift. **install / install-async**
+(`installer.lisp`) + a JSON **writer** (`clun.sys:write-json`) + package.json editing (add/remove). **CLI**
+(`main.lisp`): `install` / `add <pkg>` / `remove <pkg>` dispatch + flags (`-d/-D`, `-E`, `--frozen-lockfile`,
+`--production`, `--dry-run`, `--registry`). **Gate MET:** the binary e2e (`examples/e2e-install.sh`) —
+`clun install` against the local fixture → `clun run` an app that `require`s the installed packages → exact
+stdout; then delete node_modules + `clun install` OFFLINE from the lock via the cache → same output +
+BYTE-IDENTICAL lock. `make test-lisp` **2581**/0/0; `make purity` clean over **684 files**; exec **22,643**
+(0 crashes, 0 regressions — the install layer is engine-inert). Three adversarial panels across the phase
+(resolver / install-engine / CLI) confirmed + fixed ~14 findings (placement determinism, §6 raw-error escapes
+on a malformed package.json / clun.lock / lock-shape, dist-tag lock pinning, scoped `.bin`, `--registry`
+arg parsing). **Deliberate gap:** the live `clun add <pkg>` smoke against real npm stays blocked by the
+pure-tls `registry.npmjs.org` `protocol_version` interop gap — the hermetic fixture e2e is the gate.
 
 **Phase 22 outcome:** safe tarball extraction. **Integrity** (`src/install/integrity.lisp`,
 `clun.integrity`): SRI (`sha512-<base64>`) over the `.tgz` bytes — `parse-sri` (strongest of 512/384/256/1),

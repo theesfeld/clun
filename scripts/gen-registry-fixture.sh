@@ -21,7 +21,22 @@ build "left-pad" "1.0.0"
 build "left-pad" "1.1.0"
 build "left-pad" "1.3.0"
 build "@scope/widget" "1.0.0" '{"left-pad":"^1.1.0"}'
-build "hasbin" "2.0.0" '{}' ',"bin":{"hasbin":"index.js"}'
+
+# build_bin: a package whose `bin` is a RUNNABLE tool (an executable shell script with a shebang),
+# not a JS module. The installer's linker symlinks it into node_modules/.bin + chmods it +x, so a
+# `clun run <script>` can invoke it by bare name via the .bin PATH. Used by examples/e2e.sh — the
+# v1 workflow demo (install → run a build script that invokes this tool → test). Its dist.integrity
+# is still computed from bytes at fixture startup, so nothing else needs updating.
+build_bin() { # name version
+  name="$1"; ver="$2"
+  d=$(mktemp -d); mkdir -p "$d/package"
+  printf '{"name":"%s","version":"%s","dependencies":{},"bin":{"%s":"index.js"}}\n' "$name" "$ver" "$name" > "$d/package/package.json"
+  printf '#!/bin/sh\nmkdir -p dist\necho "// built by %s@%s" > dist/bundle.js\necho "%s: wrote dist/bundle.js"\n' "$name" "$ver" "$name" > "$d/package/index.js"
+  fn=$(printf '%s-%s.tgz' "$(echo "$name" | sed 's|/|-|g;s|@||')" "$ver")
+  ( cd "$d" && tar --sort=name --mtime='2020-01-01 00:00:00' -cf - package 2>/dev/null || (cd "$d" && tar -cf - package) ) | gzip -n > "$fn"
+  rm -rf "$d"; echo "  $fn (executable bin)"
+}
+build_bin "hasbin" "2.0.0"
 build "conflict-a" "1.0.0" '{"shared":"1.0.0"}'
 build "conflict-b" "1.0.0" '{"shared":"2.0.0"}'
 build "shared" "1.0.0"

@@ -1503,3 +1503,47 @@ child exiting before JS called `stdin.end()` leaked the stdin fd; `%sp-finalize`
 the interrupt-context allocation concern (the finalize thunk is pre-allocated at spawn; the hook only
 loop-posts). `make test-lisp` **2609**/0/0; purity clean **686 files**; exec **22,643** (0 crashes, 0
 regressions — spawn is inert for bare test262 realms).
+
+### 2026-07-14 — Phase 24 milestone 3: `clun run <script>` (package.json scripts) — PHASE-24 GATE MET
+`run-script` + helpers in `src/main.lisp`, per §3.6. A script runs via **`/bin/sh -c <command>`** — ALWAYS
+`/bin/sh`, a deliberate divergence from npm's `$SHELL`/`cmd.exe` (Clun targets a POSIX shell; recorded as a
+gap, not a bug). PATH for the child = `node_modules/.bin` for the resolved cwd + every ancestor (nearest
+first, `%script-path` walks to the `path-dirname` fixpoint) prepended to the real PATH, so a dep's bin is
+invocable by bare name. Env (`%script-env` over `clun.sys:environ-alist`): `npm_lifecycle_event` (the stage
+name — differs for `pre`/`main`/`post`), `npm_package_name`/`npm_package_version` (from the nearest
+package.json), `npm_config_user_agent` = `clun/<version>`, `npm_execpath` = argv[0], `npm_package_json`.
+`pre<name>` runs first and **a failing pre aborts** (main + post do not run); then `<name>` (+ shell-quoted
+passthrough args — `%sh-quote` wraps in `'…'` and escapes `'`→`'\''`, injection-safe, round-tripped through a
+real `/bin/sh`); then `post<name>`. The exit code propagates (a signal → 128+signal, matching the verified
+`spawn.lisp` mapping); a missing/unexecutable `/bin/sh` is a clean `clun: cannot exec /bin/sh` + exit 127
+(§6, not a raw backtrace). **Dispatch merge:** `clun run <name>` runs a package.json script if one matches,
+ELSE falls back to running `<name>` as a FILE (script-first, file-fallback); `--if-present` makes a missing
+script exit 0. Rejected npm's file-first default — Clun is script-first because `run` is primarily a task
+runner here and a script name and a file name rarely collide. **Latent bug fixed en route:** `run-test-command`
+(`src/test-runner/runner.lisp`) had `(declare (ignore cwd))` and re-derived the discovery root from
+`(truename ".")`, so `clun test --cwd DIR` silently scanned the process dir instead of DIR; it now uses the
+caller-resolved cwd (also threaded into `%run-one-file` so a test's `process.cwd()` is correct). **GATE MET:**
+`examples/e2e.sh` — the v1 workflow demo, hermetic against the local registry fixture: `clun install` →
+`clun run build` (prebuild → the fixture's `hasbin` `.bin` tool, now a real executable shell tool, invoked by
+bare name → writes `dist/bundle.js`) → `clun test` (a test that reads the artifact) → `--if-present` +
+file-fallback dispatch. Plus the scripts fixture (`tests/lisp/runtime/scripts-tests.lisp`): pre-fail aborts,
+npm_* env asserted, exit propagation, the `.bin` PATH walk. The `hasbin` fixture tarball was regenerated
+(`gen-registry-fixture.sh` `build_bin`) to carry an executable `#!/bin/sh` bin instead of a JS module —
+safe because every test computes its `dist.integrity` from the bytes at fixture startup. `make test-lisp`
+**2627**/0/0; `make purity` clean **687 files**; exec **22,643** (0 crashes, 0 regressions — spawn/scripts
+are engine-inert).
+
+### 2026-07-14 — Phase 24 scripts review (find→verify-by-running)
+Focused adversarial review of the milestone-3 code (read-only; a conformance run held the CPU). No HIGH.
+**(medium) file-fallback dropped the passthrough argv:** the fallback called `(run-file r name)`, which
+re-derived `process.argv` from the CLI's trailing args — correct when the script name is the first token, but
+when a leading flag precedes the name (`clun run -X app.js a b`) the CLI leaves the name itself in the
+trailing args, so it was injected as an extra argv entry. Fixed: `run-file` gained a `:rest` keyword (default
+= the CLI args) and the fallback passes the computed `passthrough`. **(low) missing-`/bin/sh` clean exit:**
+wrapped `%run-sh`'s `run-program` in a handler-case → `clun: cannot exec /bin/sh` + 127 (matching the spawn
+path). **Prose-honesty (the standing rule):** the scripts-test file's comment asserted `examples/e2e.sh`
+smoked the `--if-present` + file-fallback dispatch — it did NOT (it ran only a present script). Rather than
+soften the comment, the coverage was ADDED to `e2e.sh` (which also exercises the medium fix), so the claim is
+now true. `%sh-quote`, the walk-up termination, exit/signal mapping, nil-flow safety, and the `--cwd`
+threading were verified correct with no findings. Re-verified: `make test-lisp` **2627**/0/0, `examples/e2e.sh`
+green end to end.

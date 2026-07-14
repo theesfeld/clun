@@ -39,14 +39,14 @@
        (ignore-errors
         (eng:js-construct (eng:js-get (eng:realm-global realm) "RegExp") (list pattern)))))
 
-(defun %run-one-file (path opts stats report)
+(defun %run-one-file (path opts stats report cwd)
   "Load + run one test file in a fresh realm. Returns the file's expect() count. A load
 error (syntax / top-level throw) is reported as a fail. Always tears the realm down."
   (let ((realm (eng:make-realm)) (ctx nil))
     (unwind-protect
          (progn
            (rt:install-runtime realm :argv (list :script path :rest nil)
-                                     :cwd (sys:pathname->native (truename ".")) :silent nil)
+                                     :cwd cwd :silent nil)
            (let ((root (make-t-describe :name nil :parent nil)))
              (setf ctx (make-test-context :root root :current root :default-timeout (to-timeout opts)))
              (install-test-globals realm ctx))
@@ -72,9 +72,9 @@ error (syntax / top-level throw) is reported as a fail. Always tears the realm d
 (defun run-test-command (argv cwd)
   "`clun test` — discover + run test files under CWD; print the summary; return the
 process exit code (1 on any failure, on zero tests, or on a 0-match -t filter)."
-  (declare (ignore cwd))
+  ;; CWD is the caller-resolved working directory (honouring --cwd); discovery roots there.
   (let* ((opts (%parse-test-args argv))
-         (cwd* (sys:pathname->native (truename ".")))
+         (cwd* (or cwd (sys:pathname->native (truename "."))))
          (files (discover-files (to-positionals opts) cwd*))
          (stats (make-run-stats))
          (report (make-reporter *standard-output*))
@@ -84,7 +84,7 @@ process exit code (1 on any failure, on zero tests, or on a 0-match -t filter)."
       (return-from run-test-command 1))
     (dolist (f files)
       (when (st-bailed stats) (return))
-      (incf expect-total (%run-one-file f opts stats report)))
+      (incf expect-total (%run-one-file f opts stats report cwd*)))
     (print-summary *standard-output* stats (length files) expect-total)
     (let ((total (+ (st-pass stats) (st-fail stats) (st-skip stats) (st-todo stats))))
       (if (or (plusp (st-fail stats))

@@ -221,7 +221,8 @@
                                             :serial t
                                             :components ((:file "runtime-tests")
                                                          (:file "url-tests")
-                                                         (:file "spawn-tests")))
+                                                         (:file "spawn-tests")
+                                                         (:file "scripts-tests")))
                                            (:module "transpiler"
                                             :serial t
                                             :components ((:file "ts-strip-tests")))

@@ -71,9 +71,10 @@
   (let ((dot (position #\. path :from-end t)))
     (and dot (string= (subseq path dot) ".tsx"))))
 
-(defun run-file (r file)
-  "Execute FILE (a path). Returns an exit code. .ts/.mts/.cts are stripped by the
-loader's *ts-strip-hook*; .tsx is rejected."
+(defun run-file (r file &key (rest (cli:cli-get r :args)))
+  "Execute FILE (a path). Returns an exit code. REST is process.argv after the script (defaults to
+the CLI's trailing args). .ts/.mts/.cts are stripped by the loader's *ts-strip-hook*; .tsx is
+rejected."
   (cond
     ((null file)
      (format *error-output* "clun: no file to run~%") 2)
@@ -84,7 +85,7 @@ loader's *ts-strip-hook*; .tsx is rejected."
             (abs (if (sys:absolute-path-p file) file (sys:path-join cwd file))))
        (if (not (sys:file-p abs))
            (progn (format *error-output* "clun: cannot find module '~a'~%" file) 1)
-           (let ((realm (make-runtime-realm r cwd :script abs :rest (cli:cli-get r :args))))
+           (let ((realm (make-runtime-realm r cwd :script abs :rest rest)))
              (let ((clun-g (eng:js-get (eng:realm-global realm) "Clun")))
                (when (eng:js-object-p clun-g) (eng:data-prop clun-g "main" abs)))
              (eng:run-module-file abs :realm realm)
@@ -164,6 +165,104 @@ install. Flags: -d/-D/--dev, -E/--exact, --frozen-lockfile, --production, --dry-
       (clun.tarball:tarball-error (e)
         (format *error-output* "clun: tarball error: ~a~%" (clun.tarball:tarball-error-message e)) 1))))
 
+;;; --- clun run <script> (package.json scripts, §3.6) ------------------------
+
+(defun %nearest-package-json (dir)
+  "Walk up from DIR to the nearest package.json → (values parsed-json pkg-dir pkg-json-path) or NILs."
+  (loop for d = dir then (sys:path-dirname d)
+        for pj = (sys:path-join d "package.json")
+        when (sys:file-p pj)
+          return (values (ignore-errors (sys:parse-json (sys:read-file-string pj))) d pj)
+        when (string= d (sys:path-dirname d)) return (values nil nil nil)))
+
+(defun %script-path (cwd)
+  "PATH with node_modules/.bin for CWD + every ancestor (nearest first) prepended to the real PATH."
+  (let ((bins '()))
+    (loop for d = cwd then (sys:path-dirname d)
+          do (push (sys:path-join d "node_modules" ".bin") bins)
+          until (string= d (sys:path-dirname d)))
+    (format nil "~{~a:~}~a" (nreverse bins) (or (sys:getenv "PATH") ""))))
+
+(defun %script-env (pkg pkg-json cwd event)
+  "The env for a script: the current environment + npm_* vars + the .bin-augmented PATH, as K=V."
+  (let ((env (sys:environ-alist)))
+    (flet ((setv (k v) (let ((c (assoc k env :test #'string=)))
+                         (if c (setf (cdr c) v) (setf env (cons (cons k v) env))))))
+      (setv "PATH" (%script-path cwd))
+      (setv "npm_lifecycle_event" event)
+      (setv "npm_config_user_agent" (format nil "clun/~a" *clun-version*))
+      (setv "npm_execpath" (or (first sb-ext:*posix-argv*) "clun"))
+      (when pkg-json (setv "npm_package_json" pkg-json))
+      (when (and pkg (sys:jobject-p pkg))
+        (let ((n (sys:jget pkg "name")) (v (sys:jget pkg "version")))
+          (when (stringp n) (setv "npm_package_name" n))
+          (when (stringp v) (setv "npm_package_version" v)))))
+    (loop for (k . v) in env collect (format nil "~a=~a" k v))))
+
+(defun %sh-quote (s)
+  "Single-quote S for /bin/sh (each ' becomes '\\'')."
+  (with-output-to-string (o)
+    (write-char #\' o)
+    (loop for c across s do (if (char= c #\') (write-string "'\\''" o) (write-char c o)))
+    (write-char #\' o)))
+
+(defun %run-sh (command cwd env)
+  "Run `/bin/sh -c COMMAND` inheriting stdio, in CWD with ENV. Returns the exit code (128+sig on a
+signal). A missing/unexecutable /bin/sh is reported as a clean message + exit 127."
+  (let ((proc (handler-case
+                  (sb-ext:run-program "/bin/sh" (list "-c" command)
+                                      :wait t :input t :output t :error t :directory cwd :environment env)
+                (error (e)
+                  (format *error-output* "clun: cannot exec /bin/sh: ~a~%" e)
+                  (return-from %run-sh 127)))))
+    (let ((status (sb-ext:process-status proc))
+          (code (sb-ext:process-exit-code proc)))
+      (if (eq status :signaled) (+ 128 (or code 0)) (or code 1)))))
+
+(defun %run-package-script (pkg pkg-json cwd name pre-cmd cmd post-cmd passthrough)
+  "Run pre<name> (a failing pre aborts) → <name> (+ passthrough args) → post<name>. Exit code
+propagates; the first nonzero stage's code is returned."
+  (when (stringp pre-cmd)
+    (let ((code (%run-sh pre-cmd cwd (%script-env pkg pkg-json cwd (concatenate 'string "pre" name)))))
+      (unless (zerop code) (return-from %run-package-script code))))
+  (let* ((full (if passthrough (format nil "~a~{ ~a~}" cmd (mapcar #'%sh-quote passthrough)) cmd))
+         (code (%run-sh full cwd (%script-env pkg pkg-json cwd name))))
+    (unless (zerop code) (return-from %run-package-script code))
+    (when (stringp post-cmd)
+      (let ((pcode (%run-sh post-cmd cwd (%script-env pkg pkg-json cwd (concatenate 'string "post" name)))))
+        (unless (zerop pcode) (return-from %run-package-script pcode))))
+    0))
+
+(defun run-script (r)
+  "`clun run <name> [args]`: run a package.json script (`/bin/sh -c`, ancestor .bin PATH, pre/post,
+npm_* env, arg passthrough); if <name> is not a script, fall through to running it as a FILE
+(script-first, file-fallback). `--if-present` on a missing script exits 0."
+  (let* ((cwd (resolve-cwd r))
+         (toks (remove nil (cons (cli:cli-get r :file) (cli:cli-get r :args))))
+         (if-present nil) (name nil) (passthrough '()))
+    (loop with rest = toks while rest for tok = (pop rest) do
+      (cond ((string= tok "--if-present") (setf if-present t))
+            ((%flag-p tok) nil)                    ; ignore other leading flags before the name
+            (t (setf name tok passthrough rest) (return))))
+    (when (null name)
+      (format *error-output* "clun run: no script or file specified~%")
+      (return-from run-script 2))
+    (multiple-value-bind (pkg pkg-dir pkg-json) (%nearest-package-json cwd)
+      (declare (ignore pkg-dir))
+      (let* ((scripts (and pkg (sys:jobject-p pkg) (sys:jget pkg "scripts")))
+             (cmd (and scripts (sys:jobject-p scripts) (sys:jget scripts name))))
+        (cond
+          ((stringp cmd)
+           (%run-package-script pkg pkg-json cwd name
+                                (and (sys:jobject-p scripts) (sys:jget scripts (concatenate 'string "pre" name)))
+                                cmd
+                                (and (sys:jobject-p scripts) (sys:jget scripts (concatenate 'string "post" name)))
+                                passthrough))
+          (if-present 0)                            ; --if-present + no such script → nothing, success
+          ;; not a script → run it as a file, with the post-name tokens as its argv (a leading flag
+          ;; before the name would otherwise leave the name itself in the CLI's trailing args)
+          (t (run-file r name :rest passthrough)))))))
+
 (defun run-eval (r code print)
   "Evaluate CODE (script semantics; drives the loop). If PRINT, print the completion."
   (let* ((cwd (resolve-cwd r))
@@ -207,6 +306,7 @@ install. Flags: -d/-D/--dev, -E/--exact, --frozen-lockfile, --production, --dry-
               (cond
                 ((equal sub "test") (run-test r))
                 ((member sub '("install" "add" "remove") :test #'equal) (run-install-command r))
+                ((equal sub "run") (run-script r))
                 (t (run-file r (cli:cli-get r :file)))))))))
 
 (defun main ()
