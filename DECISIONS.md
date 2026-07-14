@@ -1744,3 +1744,31 @@ pass. **Measured (best of 7, cumulative vs the Phase-24 baseline):** richards 4.
 2.95×, splay 3.58×. `make test-lisp` 2666/0/0; **G1 conformance 22,643 / 0 crashes / 0 regressions.** Phase 25
 ~3.5× geomean; the ≥5× G2 gate remains — m7 targets property creation (fast create-data-property path) then
 positional param binding.
+
+### 2026-07-14 — Phase 25 milestone 7: create-data-property fast path + a revived (update-only) write IC
+Two changes, both at the property-write hot path. **(1) create-data-property fast path.** For a brand-NEW
+property on an EXTENSIBLE ORDINARY object, `create-data-property` now stores a default data descriptor
+directly via `obj-set-desc`, skipping `jm-define-own-property → validate-and-apply` (which, for a new key,
+merely re-defaults the already-complete `(data-pd value)` into a SECOND descriptor). Gated on
+`(eq (js-object-class o) :object)` — the ONLY structs with an exotic `[[DefineOwnProperty]]` are `js-array`
+(`:array`) and `js-typed-array` (`:typed-array`), both excluded, so array length maintenance + typed-array
+element coercion are preserved; `js-iterator` is the only other `:object` and uses ordinary define. An
+existing key or a non-extensible object falls through to the full spec path. Helps allocation-heavy splay
+(3.58×→4.10×). **(2) Write inline cache, revived + fixed.** The m4 write IC was reverted because it
+regressed create-heavy code: every write missed and paid an EXTRA refill `ptable-pos` scan. The m7 version
+refills **only on an update** — after the `js-set`, cache `(shape→slot)` iff the shape is UNCHANGED (⟹ the
+key already existed; a CREATE transitions the shape and is never cached, so create sites do zero extra work).
+A hit stores `value` into the cached slot IN PLACE, but only after RE-READING the live descriptor and
+confirming it is still data + `writable=t` (the shape encodes layout, not attributes) — so a
+`Object.defineProperty`→accessor/non-writable, `Object.freeze`, etc. correctly fall back to `js-set`. Always
+`o == receiver` at this set-fn (a direct `obj.x = v`), so no `Reflect.set`/exotic-receiver path. **Soundness
+verified** by a 2-agent adversarial panel (~50+ binary probes) — 0 HIGH/MEDIUM; the decisive test warmed the
+site on object A (`{x:1}` data) then ran it on a same-shape object B whose `x` was redefined to an accessor:
+the hit re-read B's own descriptor, invoked B's setter, and left A untouched, proving the IC caches only
+shape→slot and always revalidates the per-object descriptor. One LOW, PRE-EXISTING + out of scope (identical
+at HEAD): `{__proto__: p}` object literals create an own `__proto__` data property instead of setting
+`[[Prototype]]` (Annex B.3.1) — logged for the Phase 25b conformance push. **Measured (best of 7, cumulative
+vs the Phase-24 baseline):** richards 695.3 ms (**5.18× — MEETS the ≥5× gate**), deltablue 964.3 (3.05×),
+splay 370.6 (4.10×). `make test-lisp` 2666/0/0; `make purity` 687 clean; **G1 conformance 22,643 / 0 crashes /
+0 regressions.** Gate status: richards ✓; deltablue + splay still short → m8 (param binding, integer
+ToString, wider ICs; COMPILE tiering as a last resort).
