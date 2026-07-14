@@ -132,24 +132,16 @@ exec "$release_dir/lib/$loader" \
 WRAPPER
   chmod 755 "$package_dir/bin/clun"
 else
-  cp "$binary" "$package_dir/bin/clun"
-  chmod 755 "$package_dir/bin/clun"
-
-  mkdir -p "$package_dir/lib"
   while IFS= read -r dependency; do
-    [[ -f "$dependency" ]] || continue
     case "$dependency" in
       /usr/lib/*|/System/*) continue ;;
     esac
-    dependency_name=$(basename "$dependency")
-    cp -L "$dependency" "$package_dir/lib/$dependency_name"
-    install_name_tool -change "$dependency" \
-      "@executable_path/../lib/$dependency_name" "$package_dir/bin/clun"
+    echo "package: macOS binary has a non-system dependency: $dependency" >&2
+    exit 1
   done < <(otool -L "$binary" | tail -n +2 | awk '{print $1}')
 
-  if command -v codesign >/dev/null 2>&1; then
-    codesign --force --sign - "$package_dir/bin/clun"
-  fi
+  cp "$binary" "$package_dir/bin/clun"
+  chmod 755 "$package_dir/bin/clun"
 fi
 
 "$package_dir/bin/clun" --version
