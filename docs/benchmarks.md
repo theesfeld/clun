@@ -68,6 +68,7 @@ Same host / compiler / measurement as above. "×" is `baseline_ms / current_ms` 
 | m5 — skip unused `arguments` object | 1064.2 ms (3.38×) | 1110.9 ms (2.65×) | 487.4 ms (3.12×) | 17 ms |
 | m6 — ptable simple-vectors | 888.3 ms (4.05×) | 997.8 ms (2.95×) | 424.5 ms (3.58×) | 16 ms |
 | m7 — create fast-path + write IC | 695.3 ms (**5.18×**) | 964.3 ms (3.05×) | 370.6 ms (4.10×) | 15 ms |
+| m8 — array create + integer ToString | 580.0 ms (**6.21×**) | 848.1 ms (3.47×) | 342.9 ms (4.43×) | 14 ms |
 
 **m2 (profile-guided fast paths)** — a `sb-sprof` profile of the baseline (`scripts/profile.lisp`)
 showed property access + dispatch + the property-write validate path + per-op FP-trap masking
@@ -125,11 +126,23 @@ stores into the cached slot in place after re-checking the live descriptor is da
 caches an own writable-data update. Sound (a 2-agent panel + a cross-object same-shape accessor test
 confirmed it always revalidates the per-object descriptor; 0 findings). **richards crossed 5× (5.18×).**
 
-**Gate: richards MET (5.18× ≥ 5×); deltablue 3.05× and splay 4.10× still short** (targets ≤588, ≤304 ms).
-deltablue is bottlenecked on property-lookup scanning on IC-*miss* sites (method dispatch / polymorphic
-access) + call machinery; splay on allocation/GC. Remaining levers: positional param binding (the
-`bind-parameters` `nth`-walk is O(n²)), a faster integer `ToString` (deltablue builds variable names
-`"v"+i` → the exact-rational number→string shows up as `gcd`/`intexp` in the profile), and — for the
-last stretch if the cheap wins fall short — the documented background-thread `COMPILE` tier (§5).
+**m8 (array create fast-path + integer ToString)** — two profile-guided wins. (1) An array-index create
+fast-path: a new index (≥ length ⟹ not already own) with a complete data descriptor on an extensible
+array stores directly + bumps length, skipping `validate-and-apply` — splay's array-literal `[0..9]`
+construction was ~33% (`jm-define-own-property (js-array)`). (2) An integer `number->js-string` fast
+path: a whole-number double in `[1, 2^53]` prints as its plain decimal (`floor` is exact there), skipping
+the exact-rational Ryū machinery — deltablue's `"v"+i` names and splay's `String(key)` showed up as
+`gcd`/`intexp`. Both verified sound (2-agent panel; the number path checked against the full Ryū path over
+4.3M values, 0 mismatches); zero pass-list regressions. deltablue 3.05×→3.47×, splay 4.10×→4.43×.
+
+**Gate: richards MET (6.21× ≥ 5×); deltablue 3.47× and splay 4.43× still short** (targets ≤588, ≤304 ms).
+splay is ~13% away; deltablue ~44%. After m5–m8, the residual deltablue cost is property-lookup scanning
+at IC-*miss* sites (method dispatch / polymorphic access via `js-getv`+`ordinary-set`, which the read/write
+ICs don't cover) plus call-frame machinery, and splay is allocation/GC-bound. Remaining behavior-preserving
+levers: positional param binding (the `bind-parameters` `nth`-walk is O(n²)); a create/transition write IC
+to kill the constructor-write scan+proto-walk (subtle — proto-shadow invalidation); wider/polymorphic ICs.
+If deltablue can't reach 5× with behavior-preserving changes, the documented background-thread `COMPILE`
+tier (§5) is the last resort — or a §2.4 scope note (§8.1 flagged ≥5× as "plausible, not guaranteed" for a
+tree-walking interpreter).
 
 _This file gains a new row per milestone, so every ratio is traceable to the frozen baseline above._

@@ -5,7 +5,7 @@ Update before every commit. Seeded from PLAN.md §5.
 
 ---
 
-## Current phase: **25 — Performance pass**  (IN PROGRESS — m1–m7 done; richards 5.18× MEETS ≥5×, deltablue 3.05× + splay 4.10× still short; Phase 24 committed)
+## Current phase: **25 — Performance pass**  (IN PROGRESS — m1–m8 done; richards 6.21× MEETS ≥5×, splay 4.43× + deltablue 3.47× still short; Phase 24 committed)
 
 **Phase 25 IN PROGRESS** (Performance pass; deps: all engine phases ✓; ~3k LOC, milestoned). The gate (after
 the 2026-07-14 operator-approved split) is **(G1)** conformance pass-list unchanged/grown + **(G2)** ≥5× on
@@ -122,16 +122,31 @@ HEAD; logged for Phase 25b.) **Measured clean (best of 7, cumulative vs baseline
 (**5.18× — GATE MET for richards**), deltablue 964.3 (**3.05×**), splay 370.6 (**4.10×**). `make test-lisp`
 **2666**/0/0; **G1 conformance 22,643 / 0 crashes / 0 regressions.**
 
-**Next action:** Phase 25 **milestone 8 — close the gate for deltablue + splay** (richards ✓ at 5.18×;
-deltablue 3.05× needs ≤588 ms, splay 4.10× needs ≤304 ms). deltablue is bottlenecked on property-lookup
-SCANS at IC-*miss* sites (method dispatch / polymorphic access via `js-getv`+`ordinary-set`) + call
-machinery; splay on allocation/GC. Candidate levers (profile-guided, one at a time, **verify G1 before
-measuring**): (a) positional param binding — `bind-parameters` walks the args LIST with `nth` (O(n²)); (b) a
-fast integer `ToString` — deltablue builds variable names `"v"+i`, and the exact-rational number→string shows
-up as `gcd`/`intexp`/`%make-simple-array` in the profile; (c) widen the read IC toward polymorphic/megamorphic
-sites or cache method-call lookups; (d) LAST resort per §5 — the background-thread `COMPILE` tier (m9). If
-deltablue proves infeasible to push to 5× with behavior-preserving changes, that is a candidate §2.4 scope
-note (the design doc §8.1 flagged ≥5× as "plausible, not guaranteed" for a tree-walking interpreter).
+**Milestone 8 DONE — array create fast-path + integer ToString:** (1) an array-index create fast-path in
+the `js-array` `[[DefineOwnProperty]]`: a NEW index (≥ length ⟹ not already own, by the "every own index <
+length" invariant) with a COMPLETE data descriptor on an extensible array stores directly + bumps length,
+skipping `validate-and-apply` — splay's `[0..9]` array-literal build was ~33% (`jm-define-own-property
+(js-array)`). (2) an integer `number->js-string` fast path: a whole-number double in `[1, 2^53]` prints as
+its plain decimal (`floor` is exact there — above 2^53 doubles skip integers so the full Ryū path runs),
+skipping the exact-rational shortest-round-trip — deltablue's `"v"+i` names + splay's `String(key)` showed up
+as `gcd`/`intexp`. **Adversarial panel (2 agents): 0 HIGH/MEDIUM** — the number path was checked against the
+full Ryū path over **4.3M values (0 mismatches)**; the array path verified against the length invariant +
+sparse/defineProperty/non-extensible on the binary. **Measured clean (best of 9, cumulative vs baseline):**
+richards 580.0 ms (**6.21×**), deltablue 848.1 (**3.47×**), splay 342.9 (**4.43×**). `make test-lisp`
+**2666**/0/0; `make purity` 687 clean; **G1 conformance 22,643 / 0 crashes / 0 regressions.**
+
+**Next action:** Phase 25 **milestone 9 — close the gate for deltablue + splay** (richards ✓ 6.21×; splay
+4.43× needs ≤304 ms ≈ 13% away; deltablue 3.47× needs ≤588 ms ≈ 44% away). Residual bottleneck (post-m8):
+property-lookup SCANS at IC-*miss* sites — method dispatch / polymorphic access via `js-getv`, and the
+CONSTRUCTOR-WRITE path (`this.x = v` for a new field: `ordinary-set` scans + walks the proto chain, and the
+write IC deliberately doesn't cache creates) — plus call-frame machinery; splay is allocation/GC-bound.
+Candidate levers (profile-guided, one at a time, **verify G1 before measuring**): (a) positional param
+binding — `bind-parameters` walks the args LIST with `nth` (O(n²)); (b) a create/transition write IC to kill
+the constructor-write scan + proto-walk (subtle: needs proto-shadow invalidation — a generation counter or
+holder-shape checks); (c) widen/polymorphic read ICs. **If deltablue proves infeasible to push to 5× with
+behavior-preserving changes, raise a §2.4 scope note** (design doc §8.1 flagged ≥5× as "plausible, not
+guaranteed" for a tree-walking interpreter) — options: accept the achieved multiple + document, adjust the
+gate, or invoke the §5 background-thread `COMPILE` tier (large, post-v1-ish).
 
 **G3 scope concern — RESOLVED (2026-07-14, operator-approved split):** the ≥90% curated-test262 target is
 split out of Phase 25 into a new **Phase 25b — Conformance push to ≥90%** (PLAN §5). Phase 25's gate is now

@@ -170,6 +170,17 @@ decimal point relative to the digits (value = 0.<digits> · 10^n in %format term
     ((js-zero-p x) "0")                              ; +0 and -0 both -> "0"
     ((minusp x) (concatenate 'string "-" (number->js-string (- x))))
     ((eql x +js-infinity+) "Infinity")
+    ;; Fast path (Phase 25 m8): a whole-number double in the exactly-representable integer range
+    ;; [1, 2^53] prints as its plain decimal — ToString of such an integer IS floor(x), so skip the
+    ;; exact-rational shortest-round-trip (Ryū) machinery (gcd/bignum). ABOVE 2^53 doubles skip
+    ;; integers, so the shortest round-trip can differ from floor(x); use the full path there. The
+    ;; cheap double comparison `(<= x 2^53)` gates the FLOOR so a huge double never builds a bignum
+    ;; here. (`String(n)` / `"v"+i` name-building show up as gcd/intexp in the splay + deltablue profiles.)
+    ((<= x 9007199254740992d0)
+     (let ((i (floor x)))
+       (if (= x i)
+           (format nil "~d" i)
+           (multiple-value-bind (digits k n) (%shortest-digits x) (%format-decimal digits k n)))))
     (t (multiple-value-bind (digits k n) (%shortest-digits x)
          (%format-decimal digits k n)))))
 

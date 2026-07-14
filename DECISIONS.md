@@ -1772,3 +1772,29 @@ vs the Phase-24 baseline):** richards 695.3 ms (**5.18× — MEETS the ≥5× ga
 splay 370.6 (4.10×). `make test-lisp` 2666/0/0; `make purity` 687 clean; **G1 conformance 22,643 / 0 crashes /
 0 regressions.** Gate status: richards ✓; deltablue + splay still short → m8 (param binding, integer
 ToString, wider ICs; COMPILE tiering as a last resort).
+
+### 2026-07-14 — Phase 25 milestone 8: array-index create fast-path + integer number->js-string
+Two profile-guided fast paths. **(1) Array-index create.** `jm-define-own-property (js-array)` gained a
+fast path: when the index is >= current length (⟹ NOT already own, by the "every own index < length"
+invariant, which holds because `array-set-length` clamps length to i+1 and stops at a non-configurable
+element rather than dropping length at/under a surviving own index) AND the array is extensible AND `desc`
+is a COMPLETE data descriptor (value+writable+enumerable+configurable all set — what create-data-property /
+an array literal / a full Object.defineProperty produce), it stores the descriptor directly via
+`obj-set-desc` and bumps length, skipping `ordinary-define-own-property`/`validate-and-apply` (for a new
+index there is no current descriptor to reconcile, and a complete data desc needs no defaulting). This is
+splay's dominant cost — the `[0..9]` payload array literal built per insert is ten new-index writes
+(`jm-define-own-property (js-array)` was ~33% of splay). **(2) Integer ToString.** `number->js-string`, for a
+positive finite whole-number double in `[1, 2^53]`, now prints `(format nil "~d" (floor x))` directly,
+skipping the exact-rational shortest-round-trip (Ryū) machinery (`gcd`/bignum). Correct because every integer
+in `[1, 2^53]` is exactly representable (spacing 1 up to and including 2^53) so `floor(x)` IS x's exact value
+and its plain decimal is the shortest round-trip; ABOVE 2^53 doubles skip integers (the shortest decimal can
+differ from `floor(x)`), so the `<= 2^53d0` gate — a cheap double compare placed BEFORE the `floor` so a huge
+double never builds a needless bignum — routes those to the full path. `"v"+i` (deltablue) and `String(key)`
+(splay) both hit it. **Verified sound** by a 2-agent adversarial panel (0 HIGH/MEDIUM): the array path
+against the length invariant + sparse / non-config-shrink / defineProperty(writable:false) / non-extensible
+on the binary; the number path by a standalone harness comparing the fast path vs the full Ryū path over
+**4.3M values (0 mismatches)** incl. the 2^53 boundary + values just above it. **Measured (best of 9,
+cumulative vs the Phase-24 baseline):** richards 6.21×, deltablue 3.47×, splay 4.43×. `make test-lisp`
+2666/0/0; `make purity` 687 clean; **G1 conformance 22,643 / 0 crashes / 0 regressions.** Gate: richards MET
+(6.21×); splay ~13% short, deltablue ~44% short → m9 (param binding, a create/transition write IC, wider
+ICs; a §2.4 scope note if deltablue stays infeasible for a tree-walker).

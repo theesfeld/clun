@@ -611,6 +611,20 @@ Always returns the correct [[Get]] value."
             (old-len (floor (pd-value len-desc))))
        (cond
          ((and (>= index old-len) (eq (pd-writable len-desc) nil)) nil)
+         ;; Fast path (Phase 25 m8): a NEW index (>= old-len, so — by the "every own index < length"
+         ;; invariant — not already own) with a COMPLETE data descriptor (what create-data-property /
+         ;; an array literal produces) on an extensible array. Store it directly + bump length, skipping
+         ;; validate-and-apply: there is no current descriptor to reconcile and a complete data desc
+         ;; needs no defaulting. Array-literal construction is splay's hot path (~33%: ten new-index
+         ;; writes per [0..9]).
+         ((and (>= index old-len)
+               (js-object-extensible a)
+               (data-descriptor-p desc)
+               (pd-set-p (pd-value desc)) (pd-set-p (pd-writable desc))
+               (pd-set-p (pd-enumerable desc)) (pd-set-p (pd-configurable desc)))
+          (obj-set-desc a key desc)
+          (setf (pd-value len-desc) (coerce (1+ index) 'double-float))
+          t)
          (t (let ((ok (ordinary-define-own-property a key desc)))
               (cond ((not ok) nil)
                     (t (when (>= index old-len)
