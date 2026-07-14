@@ -165,9 +165,10 @@
     (replace buf src :start1 old :end2 n)))
 
 (defun %sp-settle-check (sp)
-  "Deactivate the loop handle once the child has exited AND every read pipe has hit EOF."
+  "Close the process and deactivate its loop handle after exit and pipe EOF."
   (when (and (sp-child-exited sp) (zerop (sp-open-reads sp)) (not (sp-settled sp)))
     (setf (sp-settled sp) t)
+    (ignore-errors (sb-ext:process-close (sp-proc sp)))
     (when (sp-handle sp) (lp:handle-deactivate (sp-handle sp)))))
 
 (defun %sp-resolve-output (sp which)

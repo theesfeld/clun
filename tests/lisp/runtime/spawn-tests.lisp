@@ -47,7 +47,7 @@ down after (releases the loop + its fds, so a long test run does not accrete fd 
       (%spawn-str "new TextDecoder().decode(Clun.spawnSync(['sh','-c','echo $FOO'],{env:{FOO:'bar'}}).stdout).trim()"))
   ;; env REPLACES (not merges): an unset var is empty
   (is string= ""
-      (%spawn-str "new TextDecoder().decode(Clun.spawnSync(['sh','-c','echo -n \"[$HOME]\"'],{env:{FOO:'x'}}).stdout).replace(/[\\[\\]]/g,'').trim()")))
+      (%spawn-str "new TextDecoder().decode(Clun.spawnSync(['sh','-c','printf \"[%s]\" \"$HOME\"'],{env:{FOO:'x'}}).stdout).replace(/[\\[\\]]/g,'').trim()")))
 
 (define-test spawn/stdio-modes
   ;; ignore → stdout is null; inherit → stdout is null (goes to the terminal)
