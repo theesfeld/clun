@@ -5,7 +5,7 @@ Update before every commit. Seeded from PLAN.md §5.
 
 ---
 
-## Current phase: **25 — Performance pass**  (IN PROGRESS — m1 measure + m2 fast paths done; Phase 24 committed)
+## Current phase: **25 — Performance pass**  (IN PROGRESS — m1 measure / m2 fast paths / m3 shapes+read-ICs done; Phase 24 committed)
 
 **Phase 25 IN PROGRESS** (Performance pass; deps: all engine phases ✓; ~3k LOC, milestoned). The gate (after
 the 2026-07-14 operator-approved split) is **(G1)** conformance pass-list unchanged/grown + **(G2)** ≥5× on
@@ -46,13 +46,35 @@ array synthesizes a throwaway descriptor); the `(eq o receiver)` guard closes it
 written). Re-profile confirms the property-key scan (`STRING=*`+`ptable-pos` ~33%) + adjustable-vector `aref`
 (~15%) now top the profile — exactly the shapes/IC targets.
 
-**Next action:** Phase 25 **milestone 3 — shapes / hidden classes** (`docs/design/phase-25.md` §2, renumbered
-after the profile redirect): a transition tree keyed by property-add mapping key→slot index, with a dict
-fallback (delete / >16 props / symbol+index keys / non-default attributes), slotted BELOW the `jm-*` protocol
-at the `obj-own-desc` (objects.lisp:91) read seam + the `obj-set-desc` (objects.lisp:94) write seam; then
-dense arrays behind the `js-array` `jm-define-own-property` override (objects.lisp:406). **Verify G1 (full
-pass-list unchanged) BEFORE measuring speed** — this is the riskiest kernel surgery in the project. Eliminates
-the ~33% key scan + ~15% hairy-vector `aref` the m2 re-profile exposed.
+**Milestone 3 DONE — shapes + read inline caches:** a `pshape` transition tree (interned per
+property-ADD order; `objects.lisp`) on the ptable gives objects with the same key layout a shared shape
+identity; the ptable gained a `shape` slot (defaults to a shared `*root-pshape*`; NIL = dropped out after a
+delete; arrays demoted to NIL). A per-site monomorphic READ inline cache (`%ic-read`, struct
+`ic{shape,slot,holder,hshape}`) keys on that shape: an OWN-data hit reads `descs[slot]` directly (no key
+scan, no `[[Get]]` generic dispatch); a **depth-1 PROTO hit** (for method dispatch `obj.m()`) additionally
+revalidates the direct-proto link + holder shape. Both re-read the LIVE descriptor + require
+`data-descriptor-p`, so value/attribute/data↔accessor/freeze changes stay correct — only a LAYOUT change
+flips/clears the shape → miss → full `jm-get`. Wired at the emitter's static member read + assignment-target
+read + method-call read sites. **Measured (best of 5, cumulative vs baseline):** richards 3600.4→1705.0 ms
+(**2.11×**), deltablue 2942.0→1968.7 (**1.49×**), splay 1520.3→884.7 (**1.72×**). `make test-lisp` **2666**/0/0 (added shape-cap + IC hit-path/invalidation regression tests).
+**Adversarial IC-soundness panel (3 agents, each built the engine + ran live JS probes — 18+22+46 scenarios):
+ZERO findings** — shape maintenance (no cross-hit; every layout mutation funnels through the seams),
+own-data IC, and the three-part proto-IC guard all verified sound (setPrototypeOf, shadowing, holder
+add/delete, data↔accessor churn, freeze, depth≥2 never cached, `this` preserved). Fixed a stale `props`-slot
+comment in values.lisp the panel flagged. **Memory leak found by the G1 GATE (not the panel):** the first
+conformance run OOM'd — the pshape tree is process-global + monotonic, so dynamic-key objects mint unbounded
+pshapes across the 40k-programs-in-one-image runner (also a real `Clun.serve` leak). Fixed with a hard global
+cap (`*pshape-cap*`=200k → object drops to dict-mode when reached; verified 2M unique keys stays flat at
+180 MB; benchmarks unchanged). **G1 conformance (after the cap fix): 22,643 / 0 crashes / 0 regressions;**
+`make purity` clean (687 files).
+
+**Next action:** Phase 25 **milestone 4 — write IC + `descs` simple-vector** (`docs/design/phase-25.md` §3.3):
+deltablue/splay are now write/alloc-bound. Add a per-site WRITE inline cache (cache shape→slot for an
+existing own writable data property; store into `descs[slot]` without the `ordinary-set` scan) at the
+assignment-target set sites; and move a shaped ptable's `descs` from an adjustable vector to a
+SIMPLE-VECTOR (grown on transition) to kill the ~15% hairy-`aref` that the read-IC hit still pays. Then m5 =
+known-arity direct calls + a `+=` string builder, and evaluate the ≥5× G2 gate across the trio. **Verify G1
+before measuring** each step.
 
 **G3 scope concern — RESOLVED (2026-07-14, operator-approved split):** the ≥90% curated-test262 target is
 split out of Phase 25 into a new **Phase 25b — Conformance push to ≥90%** (PLAN §5). Phase 25's gate is now
@@ -1199,7 +1221,7 @@ _(nothing blocked)_
 Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-early.
 
 ### Phase 00 — Scaffold, toolchain, purity gate  (deps: none) — **DONE**
-- [x] .gitignore / LICENSE (MIT) / README stub
+- [x] .gitignore / LICENSE (GPL-3.0-or-later) / README stub
 - [x] clun.asd + package skeletons per §3.7 (src/packages.lisp)
 - [x] Makefile (build / test / purity / clean)
 - [x] scripts/purity-scan.lisp (directory scan of src/ + vendor/; §1.1)

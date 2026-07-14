@@ -270,8 +270,9 @@ slot."
              (values (lambda (env) (js-getv (funcall obj-fn env) (to-property-key (funcall prop-fn env))))
                      (lambda (env v) (let ((o (funcall obj-fn env)))
                                        (js-set (to-object o) (to-property-key (funcall prop-fn env)) v (comp-strict comp))))))
-           (let ((key (identifier-name (member-expression-property node))))
-             (values (lambda (env) (js-getv (funcall obj-fn env) key))
+           (let ((key (identifier-name (member-expression-property node)))
+                 (cache (%make-ic)))
+             (values (lambda (env) (%ic-read (funcall obj-fn env) key cache))
                      (lambda (env v) (js-set (to-object (funcall obj-fn env)) key v (comp-strict comp))))))))
     (t (values (lambda (env) (declare (ignore env)) (throw-reference-error "invalid reference"))
                (lambda (env v) (declare (ignore env v)) (throw-syntax-error "invalid assignment target"))))))
@@ -283,8 +284,9 @@ slot."
     (if (member-expression-computed node)
         (let ((prop-fn (compile-node comp (member-expression-property node))))
           (lambda (env) (js-getv (funcall obj-fn env) (to-property-key (funcall prop-fn env)))))
-        (let ((key (identifier-name (member-expression-property node))))
-          (lambda (env) (js-getv (funcall obj-fn env) key))))))
+        (let ((key (identifier-name (member-expression-property node)))
+              (cache (%make-ic)))                ; per-site monomorphic read inline cache
+          (lambda (env) (%ic-read (funcall obj-fn env) key cache))))))
 
 (defun compile-arguments-list (comp args)
   (let ((simple (notany #'spread-element-p args)))
@@ -313,8 +315,9 @@ slot."
                (lambda (env) (let* ((o (funcall obj-fn env))
                                     (f (js-getv o (to-property-key (funcall prop-fn env)))))
                                (js-call f o (funcall args-fn env)))))
-             (let ((key (identifier-name (member-expression-property callee))))
-               (lambda (env) (let* ((o (funcall obj-fn env)) (f (js-getv o key)))
+             (let ((key (identifier-name (member-expression-property callee)))
+                   (cache (%make-ic)))         ; method reads are usually a depth-1 proto IC hit
+               (lambda (env) (let* ((o (funcall obj-fn env)) (f (%ic-read o key cache)))
                                (js-call f o (funcall args-fn env))))))))
       ;; direct eval is not supported (Phase 03) — treat `eval(...)` as an ordinary call
       (t (let ((fn (compile-node comp callee)))

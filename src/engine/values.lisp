@@ -21,7 +21,8 @@
 ;;; [[Extensible]], and a [[Class]]/brand tag. Exotic objects (Array, Function,
 ;;; arguments, ...) :include this in objects.lisp and override internal methods.
 (defstruct (js-object (:predicate js-object-p) (:copier nil))
-  (props nil)                  ; nil | insertion-ordered (key desc …) simple-vector | equal hash-table
+  (props nil)                  ; nil | a `ptable` struct (order-preserving keys+descs, lazy equal
+                               ;   hash index, + a Phase-25 shape token); see objects.lisp
   (proto +null+)               ; [[Prototype]]: a js-object or +null+
   (extensible t)
   (class :object))             ; [[Class]] / brand keyword

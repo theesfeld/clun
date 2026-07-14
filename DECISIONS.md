@@ -1637,3 +1637,41 @@ approved, not a silent rewrite); DoD §1.4 point 2's "≥90% at Phase 25's close
 Rationale: the two efforts have no engineering relationship (shapes/ICs don't move the pass-rate; conformance
 fixes don't move the bench ratio), so decoupling lets the perf gate close on its own schedule and lets the
 conformance work be estimated + ordered from real failure data on the faster engine.
+
+### 2026-07-14 — Phase 25 milestone 3: shapes (hidden classes) + own/proto read inline caches
+The m2 re-profile showed the property-key scan (`STRING=*`+`ptable-pos` ~33%) + adjustable-vector `aref`
+(~15%) + the `[[Get]]` generic dispatch (~30%) dominating — all eliminated by shape-keyed inline caches.
+**Shapes:** a `pshape` is a node in a transition tree interned per (parent, added-key) via an `equal` hash;
+two ptables that added the same keys in the same order share one pshape, so a given pshape ⟹ a fixed
+key→slot layout. The ptable gained a `shape` slot (default shared `*root-pshape*`; a NEW key transitions it;
+a `ptable-remove`/delete sets it NIL — permanently out of the tree; `js-make-array` sets it NIL so arrays
+stay dict-mode and don't churn index shapes). Keys+descriptors still live in the ptable, so descriptor
+identity/mutation, enumeration order, and attribute handling are UNCHANGED — the shape is a pure add-on
+identity. **Read IC:** a per-site struct `ic{shape,slot,holder,hshape}` (`%ic-read`/`%ic-refill`). An OWN hit
+(holder=NIL, receiver-shape EQ) reads `descs[slot]` directly — no scan, no generic dispatch. A depth-1 PROTO
+hit (holder=P, for method dispatch `obj.m()`) additionally requires the receiver's direct `[[Prototype]]` EQ
+P and P's shape EQ the cached hshape. Both RE-READ the live descriptor and require `data-descriptor-p`, so a
+value change (incl. the m2 in-place write), a data↔accessor redefine, or a freeze is always reflected; only a
+LAYOUT change (add/delete) flips/clears the shape → miss → full `jm-get`. Depth≥2 and deeper shadowing are
+never cacheable (only the direct proto is cached). Wired at the emitter's static member-read, assignment-
+target read, and method-call read sites (per-site `%make-ic`). **Soundness argument** — EQ receiver-shape ⟹
+identical own-key layout ⟹ (own) KEY at SLOT / (proto) receiver still has NO own KEY; depth-1 ⟹ no
+intermediate can shadow; the direct-proto EQ check catches `setPrototypeOf` (which does not change the ptable
+shape); the hshape check catches holder add/delete. **Measured (best of 5, cumulative vs the Phase-24
+baseline):** richards 2.11×, deltablue 1.49×, splay 1.72×. `make test-lisp` 2666/0/0 (+ shape-cap and
+IC hit-path/invalidation regression tests); `make purity` 687
+clean. **Adversarial IC-soundness panel** (3 agents, each built the engine + ran live JS probes: 18
+shape-maintenance + 22 own-IC + 46 proto-IC scenarios) returned ZERO findings; it also flagged a stale
+`props`-slot comment in values.lisp (predating this change), which was corrected.
+**MEMORY-LEAK found + fixed by the G1 gate (not the panel):** the first conformance run CRASHED (heap
+exhausted at 6 GB). Cause: the pshape transition tree is process-GLOBAL and monotonic (rooted at
+`*root-pshape*`, never freed), so dynamic-key / dictionary objects (`o["k"+i]=v`) mint a pshape per distinct
+layout — unbounded across the 40,654 programs the runner executes in ONE image (also a real leak for a
+long-running `Clun.serve` process). The soundness panel missed it because each agent tested SINGLE programs;
+the conformance gate, running 40k programs in one image, exposed it. Confirmed with a probe (400k unique-key
+objects: 223 MB vs 113 MB for one shared key). **Fix:** a hard global cap (`*pshape-cap*` = 200,000) — once
+reached, `pshape-transition` returns NIL and the object runs dict-mode (shape NIL): correct, just uncached.
+Verified bounded: 400k unique keys → 179 MB, 2,000,000 unique keys → 180 MB (flat); benchmarks unchanged
+(they use < 20 shapes). Conformance G1 (after the cap fix): **22,643 / 0 crashes / 0 regressions**. Still
+short of ≥5× on deltablue/splay (write/alloc-bound) → m4 = a write IC + `descs` simple-vector (kills the
+residual ~15% hairy-`aref` on IC hits); m5 = direct calls + `+=` string builder.

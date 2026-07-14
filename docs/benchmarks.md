@@ -63,6 +63,7 @@ Same host / compiler / measurement as above. "×" is `baseline_ms / current_ms` 
 |---|---|---|---|---|
 | Phase-24 baseline | 3600.4 ms (1.00×) | 2942.0 ms (1.00×) | 1520.3 ms (1.00×) | 17 ms |
 | m2 — profile-guided fast paths | 2262.0 ms (1.59×) | 2182.0 ms (1.35×) | 901.2 ms (1.69×) | 17 ms |
+| m3 — shapes + read inline caches | 1705.0 ms (2.11×) | 1968.7 ms (1.49×) | 884.7 ms (1.72×) | 18 ms |
 
 **m2 (profile-guided fast paths)** — a `sb-sprof` profile of the baseline (`scripts/profile.lisp`)
 showed property access + dispatch + the property-write validate path + per-op FP-trap masking
@@ -73,8 +74,18 @@ data descriptor in place (guarded `(eq o receiver)` + non-array, so exotic recei
 path); (3) a tight `ptable-pos` linear scan (direct `string=`/`eq`, no generic `position`/`equal`);
 (4) inlined descriptor predicates. Geomean ≈ 1.53×; zero test262 pass-list regressions.
 
-**Still short of the ≥5× gate** — the re-profile shows the property-key linear scan (`STRING=*` +
-`ptable-pos`, ~33%) and adjustable-vector `aref` overhead (~15%) now dominate. Those are eliminated
-by shapes + inline caches (m3/m4), the next milestones.
+**m3 (shapes + read inline caches)** — a `pshape` transition tree (interned per property-add order)
+on the ptable gives objects with the same key layout a shared shape identity. A per-site monomorphic
+read inline cache keys on that shape: an OWN-data hit reads `descs[slot]` directly (no key scan, no
+`[[Get]]` generic dispatch); a depth-1 PROTO hit (for method dispatch `obj.m()`) additionally
+revalidates the direct-proto link + holder shape. Both re-read the live descriptor + require a data
+descriptor, so value/attribute changes and freeze stay correct; only a layout change flips the shape
+→ miss. Richards (own-field + method-dispatch heavy) gained most (1.59×→2.11×). A 3-agent adversarial
+soundness panel (86 live JS probes) found zero divergences; zero test262 pass-list regressions.
+
+**Still short of the ≥5× gate** — deltablue (1.49×) and splay (1.72×) are now write- and
+allocation-bound: the read IC hit still does an adjustable-vector `aref` (~15%), and writes/allocation
+aren't cached yet. Next: a WRITE inline cache + moving `descs` to a simple-vector (m4), then
+known-arity direct calls + a `+=` string builder (m5).
 
 _This file gains a new row per milestone, so every ratio is traceable to the frozen baseline above._

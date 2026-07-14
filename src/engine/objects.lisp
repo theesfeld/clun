@@ -39,6 +39,43 @@
                 (and (= (coerce i 'double-float) n) (<= 0 i #xFFFFFFFE)
                      (string= key (princ-to-string i)) i))))))
 
+;;; --- shapes / hidden classes (Phase 25) ------------------------------------
+;;; A pshape is a node in a transition tree keyed by the property-ADD sequence: two ptables that
+;;; added the same string keys in the same order share ONE pshape, and each key sits at the same
+;;; slot in both. That shared identity is what an inline cache keys on (%ic-read): a cache validated
+;;; for "shape S ⟹ key K is the own data property at slot N" stays valid for every object of shape
+;;; S, because S uniquely determines the key layout. The pshape holds ONLY the add-transition edges;
+;;; the keys + descriptors still live in the ptable, so descriptor identity/mutation, enumeration
+;;; order, and attribute handling are all unchanged. A ptable whose layout leaves the append-only
+;;; regime (a delete) drops to shape = NIL and simply stops hitting caches — never wrong, just slow.
+
+(defstruct (pshape (:constructor %make-pshape) (:copier nil))
+  (transitions nil))            ; nil | equal hash-table: added-key -> child pshape
+
+(defparameter *root-pshape* (%make-pshape)
+  "The shape of an empty (freshly created) shaped object.")
+
+(defparameter *pshape-cap* 200000
+  "Hard bound on the global shape transition tree. The tree is process-global and monotonic (never
+freed), so a long-lived process — a `Clun.serve` server, or the 40k-file conformance runner sharing
+ONE image — must not be allowed to grow it without limit (dynamic-key / dictionary objects mint a
+pshape per distinct key layout; unbounded, that exhausts the heap). Once the cap is reached,
+`pshape-transition` returns NIL and the object simply runs dict-mode (shape = NIL): correct, just
+uncached. Real programs use orders of magnitude fewer shapes (the benchmarks < 20), so this never
+costs IC benefit in practice; it is purely a memory backstop.")
+(defvar *pshape-count* 0 "Total pshapes minted (monotonic); bounded by *pshape-cap*.")
+
+(defun pshape-transition (sh key)
+  "The (interned, hence shared) child shape reached by ADDING KEY at shape SH, or NIL if the global
+cap is reached (caller then drops the object to dict-mode)."
+  (let ((tr (pshape-transitions sh)))
+    (cond
+      ((and tr (gethash key tr)))                          ; existing edge (shared)
+      ((>= *pshape-count* *pshape-cap*) nil)               ; capped: drop to dict-mode
+      (t (unless tr (setf tr (make-hash-table :test 'equal) (pshape-transitions sh) tr))
+         (incf *pshape-count*)
+         (setf (gethash key tr) (%make-pshape))))))
+
 ;;; --- property table: order-preserving, lazy hash index (§3.1) --------------
 ;;; Kept out of a hash-table-per-object for small objects (Appendix C.12); an equal
 ;;; hash index is built lazily once an object accumulates many keys.
@@ -48,7 +85,8 @@
 (defstruct (ptable (:constructor %make-ptable) (:copier nil))
   (keys (make-array 4 :adjustable t :fill-pointer 0))
   (descs (make-array 4 :adjustable t :fill-pointer 0))
-  (index nil))                 ; equal hash-table key -> position, or nil
+  (index nil)                  ; equal hash-table key -> position, or nil
+  (shape *root-pshape*))       ; pshape (append-only key layout) or nil (dropped out; ICs miss)
 
 (defun ptable-pos (pt key)
   ;; Small objects linear-scan (no equal hash yet). A hand-written scan with a direct STRING= (string
@@ -77,6 +115,8 @@
       (pos (setf (aref (ptable-descs pt) pos) desc))
       (t (vector-push-extend key (ptable-keys pt))
          (vector-push-extend desc (ptable-descs pt))
+         (let ((sh (ptable-shape pt)))                ; a new own key transitions the shape
+           (when sh (setf (ptable-shape pt) (pshape-transition sh key))))
          (let ((idx (ptable-index pt)))
            (cond (idx (setf (gethash key idx) (1- (fill-pointer (ptable-keys pt)))))
                  ((>= (fill-pointer (ptable-keys pt)) +ptable-index-threshold+)
@@ -96,6 +136,7 @@
         (loop for i from pos below (1- (fill-pointer k))
               do (setf (aref k i) (aref k (1+ i)) (aref d i) (aref d (1+ i))))
         (decf (fill-pointer k)) (decf (fill-pointer d))
+        (setf (ptable-shape pt) nil)                               ; layout left the tree: ICs miss
         (when (ptable-index pt) (ptable-build-index pt))))))       ; reindex
 
 (defun ptable-key-list (pt)
@@ -360,6 +401,71 @@
           ((not (callable-p f)) (throw-type-error "value is not callable"))
           (t f))))
 
+;;; --- inline cache: monomorphic data-property read, own + depth-1 proto (Phase 25) ---
+;;; IC is a per-site cache cell. A hit reads the descriptor at a cached slot directly, skipping the
+;;; key scan AND the [[Get]] generic dispatch. Two cached forms, both keyed on the receiver's ptable
+;;; shape (EQ):
+;;;   • OWN   (holder = NIL): KEY is the receiver's own data property at SLOT.
+;;;   • PROTO (holder = P, depth 1): the receiver has no own KEY; its DIRECT [[Prototype]] P holds
+;;;     KEY as an own data property at SLOT. Extra hit guards: receiver's direct proto is still EQ P,
+;;;     and P's shape is still EQ the cached HSHAPE.
+;;; Soundness. EQ receiver-shape ⟹ identical own-key layout ⟹ (own) KEY at SLOT, or (proto) the
+;;; receiver still has NO own KEY. Depth 1 ⟹ no intermediate prototype can shadow. The direct-proto
+;;; EQ check catches setPrototypeOf on the receiver (which does NOT change the ptable shape); the
+;;; HSHAPE check catches an add/delete on P. Value changes, data↔accessor redefines, and freeze are
+;;; all caught by RE-READING the live descriptor every hit and guarding on DATA-DESCRIPTOR-P. Any
+;;; other case (own/proto accessor, deeper chain, absent, dict-mode receiver, primitive) falls back
+;;; to the full [[Get]] and is not cached.
+(defstruct (ic (:constructor %make-ic) (:copier nil))
+  (shape nil) (slot 0 :type fixnum) (holder nil) (hshape nil))
+
+(defun %ic-read (obj key ic)
+  (if (js-object-p obj)
+      (let* ((pt (js-object-props obj))
+             (sh (and pt (ptable-shape pt))))
+        (if (and sh (eq sh (ic-shape ic)))
+            (let ((holder (ic-holder ic)))
+              (if holder
+                  ;; proto entry: revalidate the direct-proto link + holder layout
+                  (let ((hp (js-object-props holder)))
+                    (if (and (eq (js-object-proto obj) holder) hp (eq (ptable-shape hp) (ic-hshape ic)))
+                        (let ((d (aref (ptable-descs hp) (ic-slot ic))))
+                          (if (data-descriptor-p d) (pd-value d) (jm-get obj key obj)))
+                        (%ic-refill obj key ic pt sh)))
+                  ;; own entry
+                  (let ((d (aref (ptable-descs pt) (ic-slot ic))))
+                    (if (data-descriptor-p d) (pd-value d) (jm-get obj key obj)))))
+            (%ic-refill obj key ic pt sh)))
+      (js-getv obj key)))
+
+(defun %ic-refill (obj key ic pt sh)
+  "IC miss: resolve KEY and, for an own or depth-1-proto own-data hit on a shaped receiver, refill IC.
+Always returns the correct [[Get]] value."
+  (let ((own-pos (and sh (ptable-pos pt key))))
+    (cond
+      (own-pos
+       (let ((d (aref (ptable-descs pt) own-pos)))
+         (cond ((data-descriptor-p d)
+                (setf (ic-shape ic) sh (ic-slot ic) own-pos (ic-holder ic) nil)
+                (pd-value d))
+               (t (jm-get obj key obj)))))                 ; own accessor: slow, do not cache
+      (sh                                                   ; shaped receiver, no own KEY: try depth-1 proto
+       (let ((proto (js-object-proto obj)))
+         (if (js-object-p proto)
+             (let* ((pp (js-object-props proto))
+                    (psh (and pp (ptable-shape pp)))
+                    (ppos (and psh (ptable-pos pp key))))
+               (if ppos
+                   (let ((d (aref (ptable-descs pp) ppos)))
+                     (cond ((data-descriptor-p d)
+                            (setf (ic-shape ic) sh (ic-slot ic) ppos
+                                  (ic-holder ic) proto (ic-hshape ic) psh)
+                            (pd-value d))
+                           (t (jm-get obj key obj))))       ; proto accessor: slow, do not cache
+                   (jm-get obj key obj)))                   ; not own-data on the direct proto: slow
+             (jm-get obj key obj))))                        ; null proto
+      (t (jm-get obj key obj)))))                           ; dict-mode receiver: slow
+
 ;;; --- callables --------------------------------------------------------------
 ;;; Two callable object kinds: user js-function (compiled from JS) and js-native-
 ;;; function (a wrapped CL lambda for built-ins). Both :include js-object.
@@ -423,6 +529,9 @@
   (let ((a (%make-js-array :proto proto)))
     (obj-set-desc a "length" (data-pd (coerce length 'double-float)
                                       :writable t :enumerable nil :configurable nil))
+    ;; Arrays are dict-mode: their integer-index keys would churn the shape tree (one node per
+    ;; length) for no benefit — element access is computed (`a[i]`), which bypasses the read IC.
+    (let ((pt (js-object-props a))) (when pt (setf (ptable-shape pt) nil)))
     a))
 
 (defun array-length (a)
