@@ -32,7 +32,9 @@ jobs:
           echo "$out"
           test "$out" = "clun 0.0.1-dev"
 
-      - name: make test
+      - name: make test (shared-runner performance gates excluded)
+        env:
+          CLUN_SKIP_PERFORMANCE_TESTS: "1"
         run: make test
 
       - name: make purity

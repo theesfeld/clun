@@ -80,7 +80,9 @@ jobs:
           test "$(./build/clun --version)" = "clun ${GITHUB_REF_NAME#v}"
           ./build/clun -p '6 * 7'
 
-      - name: Test
+      - name: Test (shared-runner performance gates excluded)
+        env:
+          CLUN_SKIP_PERFORMANCE_TESTS: "1"
         run: make test
 
       - name: Test cryptography

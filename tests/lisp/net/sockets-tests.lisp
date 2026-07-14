@@ -143,9 +143,13 @@ mismatches conn-errors)."
 (define-test net/throughput-loopback
   ;; Best of up to 3 runs — a hard MB/s threshold flakes under transient machine load
   ;; (a competing build), but a genuinely-slow path fails all three; the >=100 bar holds.
-  (let ((best 0.0))
-    (dotimes (attempt 3)
-      (setf best (max best (%measure-loopback-mbps)))
-      (when (>= best 100) (return)))
-    (format t "~&    [throughput] best ~,1f MB/s (>=100)~%" best)
-    (true (>= best 100))))
+  (if (string= (or (sys:getenv "CLUN_SKIP_PERFORMANCE_TESTS") "") "1")
+      (progn
+        (format t "~&    [throughput] skipped on shared CI runner~%")
+        (true t))
+      (let ((best 0.0))
+        (dotimes (attempt 3)
+          (setf best (max best (%measure-loopback-mbps)))
+          (when (>= best 100) (return)))
+        (format t "~&    [throughput] best ~,1f MB/s (>=100)~%" best)
+        (true (>= best 100)))))

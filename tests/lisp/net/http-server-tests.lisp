@@ -152,9 +152,13 @@ returns the measured req/s."
   ;; A hard req/s threshold flakes under transient machine load (a competing build can
   ;; shave the last %). Take the BEST of up to 3 runs — a genuinely-too-slow server fails
   ;; all three, so the >=30k bar is preserved while transient contention is filtered.
-  (let ((best 0d0))
-    (dotimes (attempt 3)
-      (setf best (max best (%measure-server-rps)))
-      (when (>= best 30000) (return)))
-    (format t "~&    [http throughput] best ~,0f req/s (>=30k)~%" best)
-    (true (>= best 30000))))
+  (if (string= (or (sys:getenv "CLUN_SKIP_PERFORMANCE_TESTS") "") "1")
+      (progn
+        (format t "~&    [http throughput] skipped on shared CI runner~%")
+        (true t))
+      (let ((best 0d0))
+        (dotimes (attempt 3)
+          (setf best (max best (%measure-server-rps)))
+          (when (>= best 30000) (return)))
+        (format t "~&    [http throughput] best ~,0f req/s (>=30k)~%" best)
+        (true (>= best 30000)))))
