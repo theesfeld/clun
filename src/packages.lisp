@@ -288,4 +288,6 @@ extractor + cache and the clun.lock lockfile.")
    #:write-lock #:read-lock #:lock->plan #:lock-value #:lock-satisfies-p #:name-from-physical
    ;; top-level install
    #:read-package-json #:root-deps #:install #:install-async
+   ;; package.json editing (add / remove) + latest resolution
+   #:add-dependencies #:remove-dependencies #:resolve-latest #:resolve-latest-async
    #:install-result #:install-result-p #:ir-source #:ir-plan #:ir-node-count #:ir-lifecycle-skipped))

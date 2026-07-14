@@ -7,9 +7,6 @@
 (defun cli-action (r) (getf r :action))
 (defun cli-get (r key &optional default) (getf r key default))
 
-(defun %value-flag-p (tok)
-  (member tok '("-e" "--eval" "-p" "--print" "--cwd") :test #'string=))
-
 (defun parse-cli-args (argv)
   "Parse ARGV (executable name already dropped) into a plist:
   :action  — :run :eval :print :version :revision :help :error

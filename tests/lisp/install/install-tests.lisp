@@ -158,7 +158,19 @@ return (values install-result error)."
            (is eq :install-error
                (handler-case (progn (inst:lock->plan (clun.sys:parse-json "{\"packages\":\"junk\"}")) :ok)
                  (inst:install-error () :install-error) (error () :raw))
-               "malformed lock packages shape → install-error"))
+               "malformed lock packages shape → install-error")
+           ;; (d) a valid-JSON but NON-OBJECT package.json (array) → catchable install-error on both add
+           ;; and install (never a raw TYPE-ERROR out of the editor, never a silent false success). §6.
+           (ignore-errors (clun.sys:remove-recursive (clun.sys:path-join proj "clun.lock")))
+           (clun.sys:write-file-octets (clun.sys:path-join proj "package.json") (bytes "[1,2,3]"))
+           (is eq :install-error
+               (handler-case (progn (inst:add-dependencies proj '("left-pad@^1.0.0")) :ok)
+                 (inst:install-error () :install-error) (error () :raw))
+               "non-object package.json (add) → install-error")
+           (is eq :install-error
+               (handler-case (progn (inst:install proj) :ok)
+                 (inst:install-error () :install-error) (error () :raw))
+               "non-object package.json (install) → install-error"))
       (ignore-errors (clun.sys:remove-recursive proj)))))
 
 (define-test install/scoped-bin-in-root-bindir

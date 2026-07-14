@@ -240,4 +240,5 @@
                                                          (:file "registry-tests")
                                                          (:file "tarball-tests")
                                                          (:file "resolver-tests")
-                                                         (:file "install-tests")))))))))
+                                                         (:file "install-tests")
+                                                         (:file "cli-tests")))))))))

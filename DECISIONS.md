@@ -1413,3 +1413,34 @@ entries are skipped). **(medium)** a scoped package's bin was placed under `node
 of `node_modules/.bin` (derived from the nearest `node_modules`, not one `path-dirname` peel). Regression
 tests added for every fix. Refuted (3): the cycle/dedup path, download-error settling, and the async
 no-double-settle were probed and found correct.
+
+### 2026-07-14 — Phase 23 milestone 2: the install CLI (closes the phase gate)
+**CLI** (`src/main.lisp`): `dispatch` routes the `install` / `add` / `remove` subcommands (already tokenised
+by `parse-cli-args`) to `run-install-command`, which walks the post-subcommand tokens — `--registry` consumes
+its value (a bare URL is NOT a package name; a missing value is a clean error), `-d/-D/--dev`, `-E/--exact`,
+`--frozen-lockfile`, `--production`, `--dry-run`, `--no-save` set booleans, everything else is a package name
+— then edits package.json (add/remove) and calls `clun.installer:install`, mapping install/registry/integrity/
+tarball errors to a clean message + exit 1. **package.json editing** (`installer.lisp`): `add-dependencies`
+(parse `pkg` / `pkg@range` / `@scope/pkg[@range]`; a bare name resolves the registry `latest` → `^version` or
+exact; merge into dependencies/devDependencies, order-preserving) + `remove-dependencies` (prune from every
+dep field), rewritten with `write-json` (2-space, key order preserved); `read-package-json` now REJECTS a
+non-object top level as an `install-error` (a scalar/array is valid JSON but not a package.json — it would
+otherwise crash `add` with a raw TYPE-ERROR or silently no-op `remove`/`install`). **Binary e2e**
+(`examples/e2e-install.sh` + `scripts/fixture-server.lisp`, a persistent fixture): the real `build/clun`
+binary runs `clun install --registry <fixture>` → `clun run app.cjs` (an app that `require`s the installed
+packages) → exact stdout; then node_modules is deleted, the fixture killed, and `clun install` reinstalls
+OFFLINE from the lock via the cache → same output + a BYTE-IDENTICAL lock. **Gate MET:** the binary e2e
+passes; `make test-lisp` **2581**/0/0 (CL-level `cli/install-then-run-app` proves install → node_modules →
+require → run; editing + latest-resolution + malformed-input tests); `make purity` clean over **684 files**;
+`make conformance-exec` **22,643** (0 crashes, 0 regressions). **Live-smoke gap:** `clun install`/`add`
+against real `registry.npmjs.org` is blocked by the pure-tls `protocol_version` interop gap (Phase-20 known
+issue); the hermetic local-fixture e2e is the gate, and the live smoke waits on that TLS interop fix.
+
+### 2026-07-14 — Phase 23 CLI review panel (find→verify-by-running-the-binary)
+Focused panel (1 dimension → verify by running the binary + the editing functions, 5 agents, 4 findings, 4
+confirmed): a **non-object top-level package.json** (a JSON string/array/number — valid JSON, not a
+package.json) crashed `add` with a raw Lisp TYPE-ERROR (§6) and made `remove`/`install` silently succeed
+falsely — fixed at the source by `read-package-json` validating the top level is an object → `install-error`
+(one fix, all three paths consistent); `--registry` with no following value swallowed the next flag — now
+errors cleanly; and a dead `%value-flag-p` in `args.lisp` was removed. Regression tests added (non-object
+package.json → catchable install-error on add + install).
