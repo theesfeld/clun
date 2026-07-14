@@ -371,39 +371,41 @@ WHICH promise + release one read."
     (setf (sp-proc sp) proc
           (sp-handle sp) (lp:make-handle loop :kind :subprocess))
     (lp:handle-activate (sp-handle sp))
-    ;; register the pipes on the loop thread (spawn may be called from a coroutine thread). Wrapped:
-    ;; a mid-setup failure after a successful fork must NOT orphan the active handle (the loop would
-    ;; hang) or leak the pipe fds — tear the child down + settle instead.
-    (lp:run-on-loop loop
-      (lambda ()
-        (handler-case
-            (progn
-              (when (eq out-mode :pipe)
-                (let ((s (sb-ext:process-output proc)))
-                  (setf (sp-stdout-stream sp) s)
-                  (let ((fd (clun.sys:stream-fd s))) (clun.sys:set-nonblocking fd) (%sp-add-reader sp fd :stdout))))
-              (when (eq err-mode :pipe)
-                (let ((s (sb-ext:process-error proc)))
-                  (setf (sp-stderr-stream sp) s)
-                  (let ((fd (clun.sys:stream-fd s))) (clun.sys:set-nonblocking fd) (%sp-add-reader sp fd :stderr))))
-              (when (eq in-mode :pipe)
-                (let ((s (sb-ext:process-input proc)))
-                  (setf (sp-stdin-stream sp) s (sp-stdin-fd sp) (clun.sys:stream-fd s))
-                  (clun.sys:set-nonblocking (sp-stdin-fd sp))))
-              ;; a status-hook may already have fired before we got here (fast child) — finalize now
-              (unless (or (sp-child-exited sp) (member (sb-ext:process-status proc) '(:running :stopped)))
-                (%sp-finalize sp))
-              (%sp-settle-check sp))
-          (error ()
-            (ignore-errors (%sp-stdin-close sp))
-            (dolist (s (list (sp-stdout-stream sp) (sp-stderr-stream sp)))
-              (when s (ignore-errors (close s))))
-            (setf (sp-stdout-stream sp) nil (sp-stderr-stream sp) nil (sp-open-reads sp) 0 (sp-child-exited sp) t)
-            (ignore-errors (sb-ext:process-kill proc 9 :pid))
-            (ignore-errors (sb-ext:process-close proc))
-            (when (sp-exited-resolve sp)
-              (ignore-errors (eng:js-call (sp-exited-resolve sp) eng:+undefined+ (list eng:+null+))))
-            (unless (sp-settled sp)
-              (setf (sp-settled sp) t)
-              (when (sp-handle sp) (lp:handle-deactivate (sp-handle sp))))))))
-    (%make-subprocess-object sp g out-mode err-mode in-mode)))
+    ;; Create .exited before setup can observe a fast child exit and finalize it.
+    (let ((object (%make-subprocess-object sp g out-mode err-mode in-mode)))
+      ;; register the pipes on the loop thread (spawn may be called from a coroutine thread). Wrapped:
+      ;; a mid-setup failure after a successful fork must NOT orphan the active handle (the loop would
+      ;; hang) or leak the pipe fds — tear the child down + settle instead.
+      (lp:run-on-loop loop
+        (lambda ()
+          (handler-case
+              (progn
+                (when (eq out-mode :pipe)
+                  (let ((s (sb-ext:process-output proc)))
+                    (setf (sp-stdout-stream sp) s)
+                    (let ((fd (clun.sys:stream-fd s))) (clun.sys:set-nonblocking fd) (%sp-add-reader sp fd :stdout))))
+                (when (eq err-mode :pipe)
+                  (let ((s (sb-ext:process-error proc)))
+                    (setf (sp-stderr-stream sp) s)
+                    (let ((fd (clun.sys:stream-fd s))) (clun.sys:set-nonblocking fd) (%sp-add-reader sp fd :stderr))))
+                (when (eq in-mode :pipe)
+                  (let ((s (sb-ext:process-input proc)))
+                    (setf (sp-stdin-stream sp) s (sp-stdin-fd sp) (clun.sys:stream-fd s))
+                    (clun.sys:set-nonblocking (sp-stdin-fd sp))))
+                ;; a status-hook may already have fired before we got here (fast child) — finalize now
+                (unless (or (sp-child-exited sp) (member (sb-ext:process-status proc) '(:running :stopped)))
+                  (%sp-finalize sp))
+                (%sp-settle-check sp))
+            (error ()
+              (ignore-errors (%sp-stdin-close sp))
+              (dolist (s (list (sp-stdout-stream sp) (sp-stderr-stream sp)))
+                (when s (ignore-errors (close s))))
+              (setf (sp-stdout-stream sp) nil (sp-stderr-stream sp) nil (sp-open-reads sp) 0 (sp-child-exited sp) t)
+              (ignore-errors (sb-ext:process-kill proc 9 :pid))
+              (ignore-errors (sb-ext:process-close proc))
+              (when (sp-exited-resolve sp)
+                (ignore-errors (eng:js-call (sp-exited-resolve sp) eng:+undefined+ (list eng:+null+))))
+              (unless (sp-settled sp)
+                (setf (sp-settled sp) t)
+                (when (sp-handle sp) (lp:handle-deactivate (sp-handle sp))))))))
+      object)))
