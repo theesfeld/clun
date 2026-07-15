@@ -526,13 +526,17 @@ exhausting the heap (test262 ArrayBuffer/allocation-limit allocates PiB-scale)."
 (defun %typed-array-reduce (ta args right)
   (let ((fn (arg args 0)) (len (ta-length ta)))
     (unless (callable-p fn) (throw-type-error "callback is not a function"))
-    (let* ((indices (if right (loop for i from (1- len) downto 0 collect i)
-                        (loop for i below len collect i)))
-           (has-init (>= (length args) 2)) (acc (arg args 1)))
-      (unless has-init
-        (when (zerop len) (throw-type-error "reduce of empty array with no initial value"))
-        (setf acc (ta-get ta (first indices)) indices (rest indices)))
-      (dolist (i indices) (setf acc (js-call fn +undefined+ (list acc (ta-get ta i) (coerce i 'double-float) ta))))
+    (let ((acc (arg args 1)) (have (>= (length args) 2)))
+      (flet ((visit (i)
+               (if have
+                   (setf acc (js-call fn +undefined+
+                                      (list acc (ta-get ta i) (coerce i 'double-float) ta)))
+                   (setf acc (ta-get ta i) have t))))
+        (if right
+            (loop for i = (1- len) then (1- i)
+                  while (>= i 0) do (visit i))
+            (loop for i below len do (visit i))))
+      (unless have (throw-type-error "reduce of empty array with no initial value"))
       acc)))
 
 (defun %ta-default-less (a b)

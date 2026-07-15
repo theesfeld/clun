@@ -71,10 +71,20 @@
   (is string= "1,2,3" (ev "[3,1,2].sort().join(',')"))
   (is string= "2,4" (ev "[1,2,3,4].filter(x=>x%2==0).join(',')"))
   (is eql 6d0 (ev "[1,2,3].reduce((a,b)=>a+b,0)"))
+  (is eql 7d0 (ev "var a=[];a.length=5;a[3]=7;a.reduce((a,b)=>a+b)"))
+  (is string= "321" (ev "[1,2,3].reduceRight((a,b)=>a+String(b),'')"))
+  (true (ev-throws "[].reduce((a,b)=>a+b)"))
   (is string= "2,3" (ev "[1,2,3,4,5].splice(1,2).join(',')"))
   (is string= "1,2,3" (ev "[[1],[2,[3]]].flat(2).join(',')"))
   (is eql 3d0 (ev "Array.from('abc').length"))
   (is eq eng:+true+ (ev "Array.isArray([])")))
+
+(define-test builtins/array-reduce-near-integer-limit
+  ;; Both directions must start immediately without materializing every possible index.
+  (is eq eng:+true+
+      (ev "(function(){var marker={};var o={0:1,length:Number.MAX_SAFE_INTEGER};try{Array.prototype.reduce.call(o,function(){throw marker;},0);}catch(e){return e===marker;}return false;})()"))
+  (is eq eng:+true+
+      (ev "(function(){var o={length:Number.MAX_SAFE_INTEGER};var m=Number.MAX_SAFE_INTEGER;o[m-1]=1;o[m-3]=3;var seen=[];try{Array.prototype.reduceRight.call(o,function(a,v,i){a.push([v,i]);if(v===3)throw a;return a;},seen);}catch(a){return a.length===2&&a[0][0]===1&&a[0][1]===m-1&&a[1][0]===3&&a[1][1]===m-3;}})()")))
 
 (define-test builtins/collections
   (is eql 1d0 (ev "var m=new Map();m.set('x',1);m.get('x')"))

@@ -177,13 +177,17 @@
 (defun %array-reduce (this args right)
   (let* ((o (to-object this)) (len (%alen o)) (f (arg args 0)))
     (unless (callable-p f) (throw-type-error "reduce callback is not a function"))
-    (let ((indices (if right (loop for i from (1- len) downto 0 collect i) (loop for i below len collect i)))
-          (acc +undefined+) (have (>= (length args) 2)))
+    (let ((acc +undefined+) (have (>= (length args) 2)))
       (when have (setf acc (arg args 1)))
-      (dolist (i indices)
-        (when (%ahas o i)
-          (if have
-              (setf acc (js-call f +undefined+ (list acc (%aget o i) (coerce i 'double-float) o)))
-              (setf acc (%aget o i) have t))))
+      (flet ((visit (i)
+               (when (%ahas o i)
+                 (if have
+                     (setf acc (js-call f +undefined+
+                                        (list acc (%aget o i) (coerce i 'double-float) o)))
+                     (setf acc (%aget o i) have t)))))
+        (if right
+            (loop for i = (1- len) then (1- i)
+                  while (>= i 0) do (visit i))
+            (loop for i below len do (visit i))))
       (unless have (throw-type-error "Reduce of empty array with no initial value"))
       acc)))
