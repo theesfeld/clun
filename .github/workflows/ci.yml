@@ -38,7 +38,7 @@ jobs:
             while IFS= read -r path; do
               case "$path" in
                 docs/conformance/test262-execution.md|scripts/public-claims-check.sh) runtime=true; break ;;
-                site/*|AGENTS.md|PHASE_PROMPT.md|README.md|PLAN.md|docs/*|scripts/roadmap.sh|scripts/test-installer.sh|.github/workflows/docs.yml|.github/workflows/pages.yml) ;;
+                site/*|AGENTS.md|PHASE_PROMPT.md|README.md|PLAN.md|STATE.md|DECISIONS.md|docs/*|scripts/roadmap.sh|scripts/test-installer.sh|.github/workflows/ci.yml|.github/workflows/docs.yml|.github/workflows/pages.yml) ;;
                 *) runtime=true; break ;;
               esac
             done < "$RUNNER_TEMP/changed-files"
