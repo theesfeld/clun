@@ -1845,3 +1845,48 @@ observably identical to the closure-tree body). DESIGN FIRST (docs/design), then
 milestone plan + scope will be surfaced to the operator before large implementation, since it may span
 several milestones. Non-covered function shapes (generators/async/`with`/eval/complex bindings) stay on the
 closure tree (fall back), so the tier is purely additive + correctness-preserving.
+
+### 2026-07-14 — Phase 25 COMPILE-tier m1: source backend + eager mode + differential harness (DONE)
+
+Built the first milestone of the operator-approved COMPILE tier. `src/engine/compile-source.lisp` is a
+SECOND emitter backend: `cs-node` walks the analyzed AST of a COVERABLE function body and emits ONE CL
+source FORM (not a tree of per-node closures), reusing every existing runtime primitive — `frame-ref`/
+`frame-set`, `%ic-read`/`%ic-write`, `js-getv`/`js-set`, `js-call`, the `js-*` operators, `js-truthy`, and
+the catch/throw return protocol. `cs-compile-body` wraps that form in a two-level lambda `(funcall (compile
+nil '(lambda (%consts) (lambda (env) <body>))) consts-vector)` and `cl:compile`s it; the per-site IC cells
+(FRESH per the design §3.4 m1 rule — no shared-mutation race), the return-tag gensym, and JS literal values
+live in `%consts`, reached at run time by `(svref %consts k)`. This solves the "can't dump a live struct as
+a compile literal" problem without `make-load-form`.
+
+Integration is a ONE-LINE swap at the single `body-fn` binding in `compile-function-common` (emitter.lisp):
+under `*compile-tier-mode* :eager`, a coverable NON-coroutine function's `run-body` invokes the `cl:compile`d
+body; otherwise (and always under the default `:off`) the closure tree via `compile-seq`. `cs-compile-body`
+returns NIL on any source-gen/compile failure → automatic fallback, so the tier is PURELY ADDITIVE. Under the
+default `:off` the new form reduces to exactly `(compile-seq sub stmts)` — the change is **inert by
+construction** in production.
+
+Coverable subset (conservative; `cs-compilable-p` fails closed): identifier/literal, `this`, local
+`frame-ref`/`frame-set` + global/import-const assignment, static/computed member read+write, plain +
+static/computed method calls (no spread), all arithmetic/relational/equality/bit operators, logical
+`&&`/`||`/`??`, conditional `?:`, `if`/`else`, `return`, `typeof`, unary `!`/`-`/`+`/`~`/`void`. Excludes
+(→ fall back) local `var`/`let`/`const`, loops, `try`, nested functions, generators/async, spread, `arguments`
+— all widened in m2.
+
+WHY a differential harness first: correctness here is OBSERVABLE IDENTITY to the closure backend, and the two
+backends are independent transcriptions. `scripts/ct-diff.lisp` + the permanent parachute test
+`compile-source/differential-off-vs-eager` run each program under `:off` and `:eager` and assert byte-identical
+results AND that the source backend compiled ≥1 function (never vacuous). It immediately caught two real
+transcription bugs: (1) the relational/equality primitives (`js-lt`, `js-strict-eq`, …) return **CL** booleans,
+so the generated form MUST keep `compile-binary`'s `(js-boolean …)` wrapper — without it, raw `T`/`NIL` leaked
+into arithmetic and `if` tests (deltablue-shaped case diverged, `classify` always returned 'pos'); (2) `!=`/
+`!==` have no standalone negated primitive — they are `(js-boolean (not (js-loose-eq …)))`. Both fixed by
+transcribing `compile-binary` exactly. Post-fix: 0 divergences across reads/writes, computed member, method
+calls, constructors, every operator, conditional/logical/if, typeof, unary, and identical-throw parity.
+
+Verification: differential byte-identical (above); `make test-lisp` **2670/0** with the tier present (default
+`:off`, +4 assertions); exec-conformance under `:off` re-confirmed (running — inert-by-construction, so
+guaranteed 22,643, but run for the record after an engine change). The FULL test262 G1 under `:eager` is
+scoped to m2: m1's tiny subset makes almost no test262 function coverable (they use local `var`/loops/`try`),
+so a G1-under-`:eager` run now would exercise the compiled path on a negligible fraction — it becomes
+meaningful only once m2 widens the subset. Next: m2 widens to cover deltablue's hot functions, eager-compiles,
+and MEASURES the ceiling — the decision gate (< 5× → off-ramp to m10 option A; ≥ 5× → build m3/m4).

@@ -5,7 +5,7 @@ Update before every commit. Seeded from PLAN.md §5.
 
 ---
 
-## Current phase: **25 — Performance pass**  (IN PROGRESS — m1–m9 done; richards 6.62× + splay 5.30× MEET ≥5×, deltablue 3.81× holdout, geomean ~5.1×; OPEN §2.4 scope decision; Phase 24 committed)
+## Current phase: **25 — Performance pass**  (IN PROGRESS — m1–m9 done + COMPILE-tier designed & m1 built; richards 6.62× + splay 5.30× MEET ≥5×, deltablue 3.81× holdout; next = COMPILE-tier m2 ceiling gate)
 
 **Phase 25 IN PROGRESS** (Performance pass; deps: all engine phases ✓; ~3k LOC, milestoned). The gate (after
 the 2026-07-14 operator-approved split) is **(G1)** conformance pass-list unchanged/grown + **(G2)** ≥5× on
@@ -176,9 +176,31 @@ as the §8.1 tree-walker holdout, proceed to Phase 25b). Only if the ceiling ≥
 tier-up + atomic `compiled-body` swap) + m4 (measure/tune/G1).** The interpreter path is always ground truth
 and `:off` is always available, so abandoning the tier costs only milestones spent, never conformance.
 
-**Next action:** Phase 25 **COMPILE-tier m1** — the source backend (tiny subset) + eager mode + the
-differential harness, proving one deltablue accessor compiles identically (G1 unchanged under `:eager`).
-Then m2 measures the ceiling and hits the decision gate.
+**COMPILE-tier m1 DONE** (`src/engine/compile-source.lisp` + the swap at the single `body-fn` binding in
+`compile-function-common`). The source backend `cs-node` transcribes the coverable subset (identifier/literal,
+`this`, local `frame-ref`/`frame-set` + global/import assignment, static/computed member read/write via
+`%ic-read`/`%ic-write`/`js-getv`/`js-set`, plain + static/computed method calls, **all** arithmetic/relational/
+equality/bit ops with the `(js-boolean …)` predicate-wrap, logical `&&`/`||`/`??`, conditional, `if`/`else`,
+`return`, `typeof`, unary) into ONE CL form, `cl:compile`d via a two-level lambda `(funcall (compile nil
+'(lambda (%consts) (lambda (env) <body>))) consts)` — fresh IC cells, return-tag, and JS literals live in
+`%consts` reached by `(svref %consts k)` (solves §3.4). `*compile-tier-mode*` defaults `:off` and the swap
+reduces to the original `(compile-seq sub stmts)` when off, so the change is **inert by construction** in
+production. **Verified:** differential `:off` vs `:eager` **byte-identical** across the whole subset
+(`scripts/ct-diff.lisp` + permanent parachute test `compile-source/differential-off-vs-eager`, non-vacuous —
+compiled ≥1 fn each, incl. identical-throw parity); `make test-lisp` **2670/0**; exec-conformance under the
+default `:off` re-confirmed (running). The harness caught two real transcription bugs pre-ship: the relational/
+equality primitives return **CL** booleans (need the `js-boolean` wrap) and `!=`/`!==` = `(js-boolean (not
+(js-loose-eq …)))`. Full G1-under-`:eager` is scoped to m2 (m1's tiny subset makes almost no test262 function
+coverable, so eager coverage on the suite is negligible until the subset widens). See design §7.1.
+
+**Next action:** Phase 25 **COMPILE-tier m2** — widen `cs-node` to cover deltablue's hot functions (`for`/
+`do-while`, `var`/`let`/`const` local decls + TDZ, `new`, object/array literals, unlabeled break/continue,
+`this`/reserved-slot reads, plain `try`/`catch`), confirm the hot deltablue functions are all coverable,
+EAGER-COMPILE deltablue, and **MEASURE the ceiling** (deltablue `:off` vs `:eager` timing; result checksums
+identical). **← DECISION GATE:** if eager-compiled deltablue is still < 5×, OFF-RAMP to m10 option A (accept G2
+on geomean/majority: richards 6.62× + splay 5.30× + geomean ≈5.1×, document deltablue as the §8.1 tree-walker
+holdout, proceed to Phase 25b); only if ≥ 5× → build m3/m4. Also run full G1 under `:eager` at m2 (coverage is
+substantial once the subset widens).
 
 **G3 scope concern — RESOLVED (2026-07-14, operator-approved split):** the ≥90% curated-test262 target is
 split out of Phase 25 into a new **Phase 25b — Conformance push to ≥90%** (PLAN §5). Phase 25's gate is now

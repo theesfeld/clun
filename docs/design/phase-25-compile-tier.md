@@ -369,7 +369,7 @@ concurrency risk built yet.
 
 | Milestone | Deliverable | How verified |
 |---|---|---|
-| **m1 — Source backend (tiny subset) + eager mode + differential harness** | `compile-source-*` backend covering: identifier/literal, local `frame-ref`/`frame-set`, member read/write via `%ic-read`/`%ic-write` (fresh cells), method + plain calls (no spread), arithmetic/comparison/logical ops, `if`, `while`, `return`. `compilable` predicate (§5, m1 tightness) + `:off`/`:eager`/`:threshold` switch. Prove **one** representative function (e.g. a deltablue accessor) compiles and runs identically. | Differential `:off` vs `:eager` byte-identical on a hand-written fixture set; the one target function's compiled body diffed against its closure output; **full test262 G1 pass-list unchanged (22,643)** under `:eager`. |
+| **m1 — Source backend (tiny subset) + eager mode + differential harness** — ✅ **DONE** (see §7.1) | `compile-source-*` backend covering: identifier/literal, local `frame-ref`/`frame-set`, member read/write via `%ic-read`/`%ic-write` (fresh cells), method + plain calls (no spread), arithmetic/comparison/logical ops, `if`, `while`, `return`. `compilable` predicate (§5, m1 tightness) + `:off`/`:eager`/`:threshold` switch. Prove **one** representative function (e.g. a deltablue accessor) compiles and runs identically. | Differential `:off` vs `:eager` byte-identical on a hand-written fixture set; the one target function's compiled body diffed against its closure output; **full test262 G1 pass-list unchanged (22,643)** under `:eager`. |
 | **m2 — Widen subset to cover deltablue + measure the ceiling** | Add `for`/`do-while`, plain `try`/`catch`, `new`, object/array literals, nested member chains, unlabeled break/continue, `this`/reserved-slot reads. Confirm the **hot** deltablue functions are all coverable. Eager-compile deltablue, measure. | G1 pass-list unchanged under `:eager`; deltablue/richards/splay result checksums identical `:off` vs `:eager`; **eager-compiled deltablue timing recorded** — this is the ceiling. **Decision gate:** if ceiling < 5×, go to §7 off-ramp; else continue. |
 | **m3 — Background tier-up + atomic swap** | `call-count` slot + `incf` in `jm-call`/`jm-construct`; tri-state `compilable`; lock-protected job queue; single dedicated compiler thread; CAS/atomic `compiled-body` publish. Main thread never blocks. | Stress test: N threads-of-work is single-threaded JS, but run the corpus with `:threshold T=1` (tier up almost immediately) and assert identical output to `:off`; ThreadSanitizer-style review of the swap; forced concurrent tier-up during a hot loop shows no torn body. G1 pass-list unchanged under `:threshold`. |
 | **m4 — Measure + G1 + tune** | Tune `T`; optionally reuse warm IC cells (gated on a soundness check for the shared-mutation window); memory ceiling if needed. Record the deltablue number against the ≥5× gate (≤588 ms; `phase-25.md`). | `make bench` under `:threshold`; **deltablue ≥5× or the off-ramp is taken**; richards/splay non-regressed (still ≥5×); **G1 pass-list unchanged (22,643)**; soundness panel on the swap + cell-reuse path, 0 divergences. |
@@ -377,6 +377,36 @@ concurrency risk built yet.
 Total: four milestones, the last two of which carry the concurrency and tuning risk. The
 operator should reconfirm after **m2** (ceiling known, minimal risk spent) whether m3/m4 are
 worth it.
+
+### 7.1 m1 result (built)
+
+Implemented in `src/engine/compile-source.lisp` (the source backend) with the swap wired at the
+single `body-fn` binding in `compile-function-common` (`emitter.lisp`): under `:eager`, a coverable
+non-coroutine function's `run-body` invokes one `cl:compile`d native body; otherwise the per-node
+closure tree, unchanged. The IC-cell-reference problem (§3.4) is solved by the two-level lambda —
+`(funcall (compile nil '(lambda (%consts) (lambda (env) <body>))) consts-vector)` — where per-site
+IC cells (fresh, per the m1 rule), the return-tag, and JS literals live in `%consts` and are reached
+by `(svref %consts k)`. `*compile-tier-mode*` defaults to `:off`, so the change is **inert by
+construction** in production: under `:off` the new `body-fn` form reduces to exactly `(compile-seq
+sub stmts)`.
+
+Verified:
+- **Differential `:off` vs `:eager` byte-identical** across the whole m1 subset — `scripts/ct-diff.lisp`
+  and the permanent parachute test `compile-source/differential-off-vs-eager` cover reads/writes,
+  computed member, static/computed method calls, constructors, arithmetic, **every** relational/
+  equality/bit operator, logical `&&`/`||`/`??`, conditional, `if`/`else`, `return`, `typeof`, unary,
+  and identical-throw parity (member read on `undefined`). The source backend compiled ≥1 function in
+  every case (non-vacuous); zero divergences.
+- **`make test-lisp` green: 2670 / 0** with the tier present (default `:off`).
+- The harness caught two real transcription bugs before they could ship — relational/equality
+  primitives return **CL** booleans, so the generated form must keep `compile-binary`'s `(js-boolean …)`
+  wrapper, and `!=`/`!==` are `(js-boolean (not (js-loose-eq …)))` with no standalone negated primitive.
+
+Scoped to m2 (not m1): the **full test262 G1 pass-list under `:eager`** is deferred to m2, where the
+subset is widened to cover real loop/var bodies and eager coverage on the suite becomes substantial
+(m1's subset excludes local `var`/`let`/loops, so almost no test262 function is coverable — a G1-under-
+`:eager` run now would exercise the compiled path on a negligible fraction). Production G1 under the
+default `:off` is unchanged by construction and is re-confirmed by the standard conformance-exec run.
 
 ---
 

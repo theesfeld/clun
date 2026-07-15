@@ -706,7 +706,14 @@ the live coroutine that yield/await suspend."
                                                                                (identifier-name (function-node-id fd))
                                                                                :generator (function-node-generator fd)
                                                                                :async (function-node-async fd)))))
-                   (body-fn (compile-seq sub stmts))
+                   ;; Phase-25 COMPILE tier: under :eager, if this (non-coroutine) function's body is
+                   ;; in the source-backend's coverable subset, run-body invokes ONE cl:compiled native
+                   ;; body instead of the per-node closure tree. cs-compile-body returns NIL on any
+                   ;; failure, so we fall back to compile-seq — the tier is purely additive.
+                   (body-fn (or (and (eq *compile-tier-mode* :eager) (not coro-p)
+                                     (cs-compilable-p params stmts)
+                                     (cs-compile-body sub stmts return-tag))
+                                (compile-seq sub stmts)))
                    ;; read AFTER the body is compiled: set iff `arguments` was referenced (m5)
                    (needs-args (and (not arrow) (cs-uses-arguments scope)))
                    (count (cs-count scope))

@@ -106,6 +106,7 @@
                                                          (:file "async-function")))
                                            (:file "inspect")
                                            (:file "emitter")
+                                           (:file "compile-source")
                                            (:file "eval")
                                            ;; module system (Phase 07): records +
                                            ;; ESM compile + CJS require + loader.
@@ -211,6 +212,7 @@
                                                          (:file "parser-tests")
                                                          (:file "objects-tests")
                                                          (:file "eval-tests")
+                                                         (:file "compile-source-tests")
                                                          (:file "builtins-tests")
                                                          (:file "async-tests")
                                                          (:file "modules-tests")
