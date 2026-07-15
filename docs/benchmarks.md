@@ -69,6 +69,7 @@ Same host / compiler / measurement as above. "×" is `baseline_ms / current_ms` 
 | m6 — ptable simple-vectors | 888.3 ms (4.05×) | 997.8 ms (2.95×) | 424.5 ms (3.58×) | 16 ms |
 | m7 — create fast-path + write IC | 695.3 ms (**5.18×**) | 964.3 ms (3.05×) | 370.6 ms (4.10×) | 15 ms |
 | m8 — array create + integer ToString | 580.0 ms (**6.21×**) | 848.1 ms (3.47×) | 342.9 ms (4.43×) | 14 ms |
+| m9 — small-integer string cache | 543.5 ms (**6.62×**) | 771.8 ms (3.81×) | 286.9 ms (**5.30×**) | 14 ms |
 
 **m2 (profile-guided fast paths)** — a `sb-sprof` profile of the baseline (`scripts/profile.lisp`)
 showed property access + dispatch + the property-write validate path + per-op FP-trap masking
@@ -135,14 +136,22 @@ the exact-rational Ryū machinery — deltablue's `"v"+i` names and splay's `Str
 `gcd`/`intexp`. Both verified sound (2-agent panel; the number path checked against the full Ryū path over
 4.3M values, 0 mismatches); zero pass-list regressions. deltablue 3.05×→3.47×, splay 4.10×→4.43×.
 
-**Gate: richards MET (6.21× ≥ 5×); deltablue 3.47× and splay 4.43× still short** (targets ≤588, ≤304 ms).
-splay is ~13% away; deltablue ~44%. After m5–m8, the residual deltablue cost is property-lookup scanning
-at IC-*miss* sites (method dispatch / polymorphic access via `js-getv`+`ordinary-set`, which the read/write
-ICs don't cover) plus call-frame machinery, and splay is allocation/GC-bound. Remaining behavior-preserving
-levers: positional param binding (the `bind-parameters` `nth`-walk is O(n²)); a create/transition write IC
-to kill the constructor-write scan+proto-walk (subtle — proto-shadow invalidation); wider/polymorphic ICs.
-If deltablue can't reach 5× with behavior-preserving changes, the documented background-thread `COMPILE`
-tier (§5) is the last resort — or a §2.4 scope note (§8.1 flagged ≥5× as "plausible, not guaranteed" for a
-tree-walking interpreter).
+**m9 (small-integer string cache)** — array index keys + integer `ToString` are pervasive (array
+literals, `arr[i]`, `String(i)`, `"v"+i`) and were re-formatting a decimal string each time
+(`stringify-object` ~8% of splay). A shared cache of `"0".."1023"` (JS strings are immutable, so a
+shared instance is safe as both a value and a property key) is handed out by `int->string`, used at
+`number->js-string` + every array-index call site. Behavior-neutral (byte-identical to `princ-to-string`;
+a reviewer confirmed sharing is unobservable — all comparisons are `string=`/`equal`, never `eq`). **splay
+crossed 5× (5.30×)**; deltablue 3.47×→3.81×.
+
+**Gate status — 2 of 3 benchmarks MET; geomean ≥ 5×.** richards 6.62×, splay 5.30×, deltablue 3.81×
+(geomean ≈ **5.1×**). The per-benchmark gate (each ≥ 5×) is met by richards + splay; **deltablue (≤588 ms
+target, at 772 ms) is the holdout** — its residual cost is property-lookup scanning at IC-*miss* sites,
+dominated by **deep-prototype method dispatch** (its constraint class hierarchy puts methods at depth ≥ 2,
+which the depth-1 proto IC can't cache) plus call-frame machinery and constructor-write creation. Closing
+the ~31% deltablue gap needs either risky deep-IC work (a general prototype-chain IC / a transition write
+IC) or the machine-code-tier `COMPILE` path (§5) — exactly the case §8.1 flagged as "plausible, not
+guaranteed" for a tree-walking interpreter. This is an open PLAN §2.4 scope decision (per-benchmark ≥5×
+vs geomean/majority ≥5×).
 
 _This file gains a new row per milestone, so every ratio is traceable to the frozen baseline above._

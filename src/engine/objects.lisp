@@ -651,7 +651,7 @@ Always returns the correct [[Get]] value."
             (t
              ;; delete indices [new-len, old-len) in descending order
              (loop for i from (1- old-len) downto new-len
-                   for k = (princ-to-string i)
+                   for k = (int->string i)
                    when (obj-own-desc a k)
                    do (unless (jm-delete a k)
                         (setf (pd-value new-desc) (coerce (1+ i) 'double-float))
@@ -662,5 +662,5 @@ Always returns the correct [[Get]] value."
 (defun array-of (proto elements)
   "Build a dense array from a CL list of js-values."
   (let ((a (js-make-array proto (length elements))) (i 0))
-    (dolist (e elements) (create-data-property a (princ-to-string i) e) (incf i))
+    (dolist (e elements) (create-data-property a (int->string i) e) (incf i))  ; cached index keys (m9)
     a))

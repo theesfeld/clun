@@ -471,8 +471,8 @@ slot."
           (case kind
             (:hole (incf i))
             (:spread (dolist (v (iterable->list (funcall fn env)))
-                       (create-data-property a (princ-to-string i) v) (incf i)))
-            (:one (create-data-property a (princ-to-string i) (funcall fn env)) (incf i))))
+                       (create-data-property a (int->string i) v) (incf i)))
+            (:one (create-data-property a (int->string i) (funcall fn env)) (incf i))))
         (js-set a "length" (coerce i 'double-float) t)
         a))))
 
@@ -539,7 +539,7 @@ slot."
 ;;; --- iteration helpers ------------------------------------------------------
 
 (defun iterable->list (obj)
-  (cond ((js-array-p obj) (loop for i below (array-length obj) collect (js-getv obj (princ-to-string i))))
+  (cond ((js-array-p obj) (loop for i below (array-length obj) collect (js-getv obj (int->string i))))
         ((stringp obj) (map 'list #'string obj))
         (t (iterable->list-protocol obj))))
 
@@ -778,7 +778,7 @@ the live coroutine that yield/await suspend."
 
 (defun make-arguments-object (args)
   (let ((o (js-make-object (intrinsic :object-prototype) :arguments)))
-    (loop for a in args for i from 0 do (create-data-property o (princ-to-string i) a))
+    (loop for a in args for i from 0 do (create-data-property o (int->string i) a))
     (obj-set-desc o "length" (data-pd (coerce (length args) 'double-float)
                                       :writable t :enumerable nil :configurable t))
     o))

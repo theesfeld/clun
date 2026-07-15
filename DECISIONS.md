@@ -1798,3 +1798,34 @@ cumulative vs the Phase-24 baseline):** richards 6.21×, deltablue 3.47×, splay
 2666/0/0; `make purity` 687 clean; **G1 conformance 22,643 / 0 crashes / 0 regressions.** Gate: richards MET
 (6.21×); splay ~13% short, deltablue ~44% short → m9 (param binding, a create/transition write IC, wider
 ICs; a §2.4 scope note if deltablue stays infeasible for a tree-walker).
+
+### 2026-07-14 — Phase 25 milestone 9: small-integer string cache (splay crossed 5×)
+Array index keys and integer `ToString` are pervasive — array literals, `arr[i]`, `String(i)`, `"v"+i` —
+and each re-formatted a decimal string (`stringify-object` was ~8% of splay). Added a shared cache of the
+decimal strings `"0".."1023"` (`*small-int-strings*` + `int->string`, numbers.lisp). Sharing a single string
+instance is safe: JS strings are immutable in this engine (no in-place string mutation anywhere), and every
+string comparison — property lookup (`ptable-pos` `string=`), pshape/index interning (`equal` hash),
+`===`/`==` (`operators.lisp`) — is value-based, never `eq`, so a shared "5" as a property key or a value is
+indistinguishable from a fresh one. Wired at `number->js-string` (the integer fast path) and every array-
+index call site (`compile-array` incl. spread, `array-of`, the array→list read, `array-set-length`'s delete
+loop, the arguments/apply index loop). **Adversarial review: 0 HIGH/MEDIUM** — byte-identical to
+`princ-to-string`/`(format "~d")` for all non-negative i; the shared-instance safety + cache-init + 1024
+bound all verified. **Measured (best of 9, cumulative vs the Phase-24 baseline):** richards 6.62×, deltablue
+3.81×, splay **5.30×** (crossed the gate). `make test-lisp` 2666/0/0; `make purity` 687 clean; **G1
+conformance 22,643 / 0 crashes / 0 regressions.**
+
+### 2026-07-14 — Phase 25 G2 (≥5× bench) SCOPE DECISION raised to operator
+After m2–m9 (baseline → richards 6.62×, splay 5.30×, deltablue 3.81×; geomean ≈ 5.1×), **2 of the 3
+benchmarks meet the per-benchmark ≥5× gate; deltablue is the holdout** at 3.81× (≤588 ms target, 772 ms
+actual). Its residual cost is property-lookup scanning at inline-cache-MISS sites — dominated by
+deep-prototype method dispatch (deltablue's constraint class hierarchy dispatches methods at proto depth ≥2,
+which the sound depth-1 proto IC deliberately does not cache) plus call-frame machinery and constructor-write
+creation. The cheap behavior-preserving levers are exhausted; closing the ~31% gap needs either
+regression-prone deep-IC work (a general prototype-chain IC and/or a transition write IC — the same class of
+change that regressed once in m4) or the machine-code-tier background-thread `COMPILE` path (§5, large,
+arguably post-v1). This is exactly the outcome design-doc §8.1 predicted ("≥5× plausible but not guaranteed
+for a tree-walking closure interpreter; deltablue hardest"). Per PLAN §2.4 this is a genuine scope decision
+(the gate is "each benchmark ≥5×"; geomean and 2/3 already clear it) — raised to the operator with options:
+(A) accept + declare G2 met on a geomean/majority basis, document deltablue, proceed to Phase 25b; (B) keep
+grinding behavior-preserving micro-opts (diminishing, still likely short); (C) build the §5 COMPILE tier.
+Awaiting the decision before spending further deltablue milestones.

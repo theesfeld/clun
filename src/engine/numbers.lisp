@@ -163,6 +163,21 @@ decimal point relative to the digits (value = 0.<digits> · 10^n in %format term
            (exp (1- n)))
        (format nil "~ae~a~d" mantissa (if (>= exp 0) "+" "-") (abs exp))))))
 
+;;; A shared cache of decimal strings for small non-negative integers (Phase 25 m9). Array index keys
+;;; and integer ToString are pervasive (array literals, `arr[i]`, `String(i)`, `"v"+i`); JS strings are
+;;; immutable so a shared instance is safe to hand out and to store as a property key.
+(defparameter +small-int-string-cache-size+ 1024)
+(defparameter *small-int-strings*
+  (let ((v (make-array +small-int-string-cache-size+)))
+    (dotimes (i +small-int-string-cache-size+ v) (setf (svref v i) (format nil "~d" i)))))
+
+(declaim (inline int->string))
+(defun int->string (i)
+  "The decimal string of non-negative integer I, from the shared small-int cache when in range."
+  (if (and (>= i 0) (< i +small-int-string-cache-size+))
+      (svref *small-int-strings* i)
+      (format nil "~d" i)))
+
 (defun number->js-string (x)
   "ToString applied to a JS number X (double-float)."
   (cond
@@ -179,7 +194,7 @@ decimal point relative to the digits (value = 0.<digits> · 10^n in %format term
     ((<= x 9007199254740992d0)
      (let ((i (floor x)))
        (if (= x i)
-           (format nil "~d" i)
+           (int->string i)
            (multiple-value-bind (digits k n) (%shortest-digits x) (%format-decimal digits k n)))))
     (t (multiple-value-bind (digits k n) (%shortest-digits x)
          (%format-decimal digits k n)))))

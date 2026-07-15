@@ -5,7 +5,7 @@ Update before every commit. Seeded from PLAN.md §5.
 
 ---
 
-## Current phase: **25 — Performance pass**  (IN PROGRESS — m1–m8 done; richards 6.21× MEETS ≥5×, splay 4.43× + deltablue 3.47× still short; Phase 24 committed)
+## Current phase: **25 — Performance pass**  (IN PROGRESS — m1–m9 done; richards 6.62× + splay 5.30× MEET ≥5×, deltablue 3.81× holdout, geomean ~5.1×; OPEN §2.4 scope decision; Phase 24 committed)
 
 **Phase 25 IN PROGRESS** (Performance pass; deps: all engine phases ✓; ~3k LOC, milestoned). The gate (after
 the 2026-07-14 operator-approved split) is **(G1)** conformance pass-list unchanged/grown + **(G2)** ≥5× on
@@ -135,18 +135,32 @@ sparse/defineProperty/non-extensible on the binary. **Measured clean (best of 9,
 richards 580.0 ms (**6.21×**), deltablue 848.1 (**3.47×**), splay 342.9 (**4.43×**). `make test-lisp`
 **2666**/0/0; `make purity` 687 clean; **G1 conformance 22,643 / 0 crashes / 0 regressions.**
 
-**Next action:** Phase 25 **milestone 9 — close the gate for deltablue + splay** (richards ✓ 6.21×; splay
-4.43× needs ≤304 ms ≈ 13% away; deltablue 3.47× needs ≤588 ms ≈ 44% away). Residual bottleneck (post-m8):
-property-lookup SCANS at IC-*miss* sites — method dispatch / polymorphic access via `js-getv`, and the
-CONSTRUCTOR-WRITE path (`this.x = v` for a new field: `ordinary-set` scans + walks the proto chain, and the
-write IC deliberately doesn't cache creates) — plus call-frame machinery; splay is allocation/GC-bound.
-Candidate levers (profile-guided, one at a time, **verify G1 before measuring**): (a) positional param
-binding — `bind-parameters` walks the args LIST with `nth` (O(n²)); (b) a create/transition write IC to kill
-the constructor-write scan + proto-walk (subtle: needs proto-shadow invalidation — a generation counter or
-holder-shape checks); (c) widen/polymorphic read ICs. **If deltablue proves infeasible to push to 5× with
-behavior-preserving changes, raise a §2.4 scope note** (design doc §8.1 flagged ≥5× as "plausible, not
-guaranteed" for a tree-walking interpreter) — options: accept the achieved multiple + document, adjust the
-gate, or invoke the §5 background-thread `COMPILE` tier (large, post-v1-ish).
+**Milestone 9 DONE — small-integer string cache:** array index keys + integer `ToString` are pervasive
+(array literals, `arr[i]`, `String(i)`, `"v"+i`) and re-formatted a decimal string each time
+(`stringify-object` ~8% of splay). A shared `"0".."1023"` cache (`int->string`, numbers.lisp) — safe to
+share because JS strings are immutable and every comparison is `string=`/`equal`, never `eq` — is used at
+`number->js-string` + every array-index call site (compile-array, array-of, array reads, array-set-length,
+arguments). **Adversarial review: 0 HIGH/MEDIUM** (byte-identical to `princ-to-string`; sharing
+unobservable). **Measured clean (best of 9, cumulative vs baseline):** richards 543.5 ms (**6.62×**),
+deltablue 771.8 (**3.81×**), splay 286.9 (**5.30× — GATE MET for splay**). `make test-lisp` **2666**/0/0;
+`make purity` 687 clean; **G1 conformance 22,643 / 0 crashes / 0 regressions.**
+
+**Gate status: 2 of 3 benchmarks MEET ≥5× (richards 6.62×, splay 5.30×); deltablue 3.81× is the holdout
+(≤588 ms target, at 772 ms). Geomean ≈ 5.1×.** deltablue's ~31% gap is property-lookup scanning at
+IC-*miss* sites — dominated by **deep-prototype method dispatch** (its constraint class hierarchy puts
+methods at depth ≥2, which the depth-1 proto IC can't cache) + call-frame machinery + constructor-write
+creation. Cheap behavior-preserving levers (m2–m9) are exhausted; closing deltablue to 5× needs either
+RISKY deep-IC work (a general prototype-chain IC / a transition write IC — the regression-prone kind) or
+the machine-code-tier §5 `COMPILE` path — exactly what design-doc §8.1 flagged as "plausible, not
+guaranteed" for a tree-walking interpreter.
+
+**Next action — OPEN §2.4 SCOPE DECISION (raised to operator):** the G2 gate as written is per-benchmark
+≥5×; richards + splay meet it, deltablue does not (and geomean does, 5.1×). Options put to the operator:
+(A) accept the achieved result — close Phase 25 with G2 met on a geomean/majority basis, deltablue
+documented as the tree-walker's hard case (§8.1) — and proceed to Phase 25b (the conformance push); (B) keep
+grinding behavior-preserving micro-opts (param binding, deep-proto/transition ICs) — likely reaches ~4–4.7×
+on deltablue, still short, at rising risk; (C) build the §5 background-thread `COMPILE` tier (large, higher
+risk, arguably post-v1). Await the operator's choice before spending further milestones on deltablue.
 
 **G3 scope concern — RESOLVED (2026-07-14, operator-approved split):** the ≥90% curated-test262 target is
 split out of Phase 25 into a new **Phase 25b — Conformance push to ≥90%** (PLAN §5). Phase 25's gate is now
