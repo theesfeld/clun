@@ -412,6 +412,11 @@ cap is reached (caller then drops the object to dict-mode)."
   (let ((ok (jm-set o key value o)))
     (when (and (not ok) throw) (throw-type-error (format nil "cannot set property ~a" key)))
     ok))
+(defun js-delete (o key throw)
+  (let ((ok (jm-delete o key)))
+    (when (and (not ok) throw)
+      (throw-type-error (format nil "cannot delete property ~a" key)))
+    ok))
 (defun has-property (o key) (jm-has-property o key))
 (defun has-own-property (o key) (and (jm-get-own-property o key) t))
 (defun create-data-property (o key value)
@@ -431,6 +436,40 @@ cap is reached (caller then drops the object to dict-mode)."
 (defun define-property-or-throw (o key desc)
   (unless (jm-define-own-property o key desc)
     (throw-type-error (format nil "cannot define property ~a" key))))
+
+(defun set-integrity-level (o level)
+  "Set O's integrity LEVEL through its internal methods. LEVEL is :SEALED or :FROZEN."
+  (unless (jm-prevent-extensions o)
+    (return-from set-integrity-level nil))
+  (let ((keys (jm-own-property-keys o)))
+    (ecase level
+      (:sealed
+       (dolist (key keys)
+         (define-property-or-throw o key (make-prop-desc :configurable nil))))
+      (:frozen
+       (dolist (key keys)
+         (let ((current (jm-get-own-property o key)))
+           (when current
+             (define-property-or-throw
+              o key
+              (if (accessor-descriptor-p current)
+                  (make-prop-desc :configurable nil)
+                  (make-prop-desc :writable nil :configurable nil)))))))))
+  t)
+
+(defun test-integrity-level (o level)
+  "Return true when O has the requested :SEALED or :FROZEN integrity level."
+  (when (jm-is-extensible o)
+    (return-from test-integrity-level nil))
+  (every (lambda (key)
+           (let ((current (jm-get-own-property o key)))
+             (or (null current)
+                 (and (not (eq (pd-configurable current) t))
+                      (or (eq level :sealed)
+                          (accessor-descriptor-p current)
+                          (not (eq (pd-writable current) t)))))))
+         (jm-own-property-keys o)))
+
 (defun get-method (v key)
   (let ((f (js-getv v key)))
     (cond ((js-nullish-p f) +undefined+)

@@ -1,11 +1,14 @@
 # STATE
 
-Living checklist and the only session-to-session memory besides PLAN.md/DECISIONS.md.
-Update before every commit. Seeded from PLAN.md §5.
+Local resume checklist, subordinate to the canonical live GitHub issue for the active phase.
+Update before every commit and keep it consistent with PLAN.md, DECISIONS.md, README, and the site.
 
 ---
 
-## Current phase: **25b — Conformance push to >= 90%**  (IN PROGRESS — m1 inventory DONE; next = m2 bounded Object wave)
+## Current phase: **25b — Conformance push to >= 90%**  (IN PROGRESS — m1 and m2 DONE; next = m3 IteratorRecord + binding/destructuring)
+
+**Canonical issue:** https://github.com/theesfeld/clun/issues/57
+**Next Phase 25b milestone:** `m3`
 
 **Phase 25 COMPLETE** (Performance pass; deps: all engine phases ✓; milestoned). Final default-tier
 best-of-nine results vs the frozen Phase-24 baseline are richards **6.68×**, deltablue **3.85×**, and splay
@@ -26,8 +29,8 @@ every frozen pass, then deterministically generates `tests/conformance/exec-gaps
 `docs/conformance/test262-execution.md`. Ledger SHA-256 is
 `859dcc677d8347d5efc92c0d666cbe21588185c2e9e91337b7d34d4a531827cc`; artifact provenance uses FNV-1a-64
 `18A8793E750F5FD4`; two generations are byte-identical. Orthogonal ownership keeps all failures in the fixed
-denominator: **4,599 Phase-25b-owned + 887 Phase-37-owned = 5,486**. The cost model freezes disjoint m1 origin
-buckets so a future pass is credited once; its low/nominal/high totals are 1,192/2,800/3,774, explicitly an
+denominator: **4,597 Phase-25b-owned + 889 Phase-37-owned = 5,486**. The cost model freezes disjoint m1 origin
+buckets so a future pass is credited once; its low/nominal/high totals are 1,192/2,800/3,772, explicitly an
 uncertainty model rather than a guarantee. Pinned Bun/JSC inspection supports the order: m2 first, then one
 canonical iterator-record semantic shape before binding/class/generator/async/species work; JSC's runtime
 record and language bytecompiler helpers are separate implementation layers.
@@ -47,6 +50,37 @@ execution conformance numbers above; the post-review `make conformance-buckets-v
 40,654 classifications and matched the checked-in inventory; public claims + installer fixture + roadmap checks,
 shell checks, workflow `actionlint`, and diff check green. Three independent final reviewers' findings are
 resolved; the publication follow-up found no remaining blocker.
+
+**Phase 25b milestone 2 DONE — bounded Object integrity and Annex-B accessor wave.** The engine now
+implements `Object.seal`, `Object.isSealed`, `Object.prototype.__defineGetter__`, `__defineSetter__`,
+`__lookupGetter__`, and `__lookupSetter__` through the existing object internal-method protocol. Shared
+fixes make failed member deletion throw in strict mode and return false in sloppy mode, preserve computed
+base/key evaluation and `ToObject`/`ToPropertyKey` order, and reject setter-only integer-indexed TypedArray
+accessor descriptors. Non-member `delete` operand evaluation remains a visible m13 residual; Proxy/Reflect
+and other Object APIs were not absorbed.
+
+The exact six-directory slice is **181 files: 162/162 m2-owned pass / 4 Phase-37 fail / 15 static skip / 0
+crash**. The Phase-37 controls are `seal-finalizationregistry.js`, `seal-weakref.js`, `seal-proxy.js`, and
+`throws-when-false.js`; none was converted to a skip. The complete off/eager classification comparison is
+byte-identical across all 40,654 files with zero eager fallback: **22,862 pass / 5,301 fail / 12,491 skip /
+0 crash**. Eligible remains 28,163; exact rate = **81.177431%** (public **81.17%**), target = 25,347, and
+remaining lift = **2,485**. The monotonic pass list is now **22,862** (`+219` from phase entry, `+185` live
+passes from m1). Remaining ownership is **4,416 Phase-25b / 885 Phase-37**.
+
+This backward-compatible six-API addition plus fixes is SemVer **minor**: source/release version
+`0.1.0-dev.1`, tag `v0.1.0-dev.1`, ASDF core `0.1.0`. The canonical issue carries the rationale and is the
+publication record; README and the landing page expose the same counts, limitations, version, and m3 handoff.
+
+**M2 gates:** `make build` reports `clun 0.1.0-dev.1`; `make test` passes **2,750 Lisp assertions**
+and **74 JS/TS fixtures** with zero failures; `make purity` scans **689 files / 0 violations**;
+the **10** pure-TLS suites and **24** crypto KAT assertions pass. Parse conformance holds all
+**17,512** frozen entries with zero crashes. The full 40,654-file off/eager execution ledgers are
+byte-identical at **22,862 / 5,301 / 12,491 / 0**, zero fallback; the generated pass list and
+checked-in gap/report artifacts match that final ledger. Public claims, installer, release-live,
+roadmap, and **47/47 SemVer-transition fixtures** pass; shell syntax, ShellCheck, workflow
+`actionlint`, diff check, and independent engine/claims/SemVer/automation reviews are green.
+Desktop and mobile Playwright audits found no overflow, broken resources, or console errors and
+verified the mobile navigation focus loop.
 
 **Milestone 1 DONE — "measure first":** the benchmark suite + the frozen Phase-24 baseline + the design doc
 (no engine change). `bench/{richards,deltablue,splay}.js` — the Octane trio ported to clun (self-contained,
@@ -243,12 +277,10 @@ richards **539.3/444.6 ms**, deltablue **764.5/694.6 ms**, splay **283.9/249.7 m
 out of the saved image (~125 MiB final vs 512–632 MiB before). Independent adversarial review findings are
 resolved: eager conformance now requires fallback=0 and the compare harness pins trace=0.
 
-**Next action:** Phase 25b milestone 2 only — implement `Object.seal`, `Object.isSealed`, and
-`Object.prototype.__defineGetter__` / `__defineSetter__` / `__lookupGetter__` / `__lookupSetter__` against
-their exact six-directory, 166-runnable-control slice. Gate lift against the 164 m2-owned rows;
-`seal-finalizationregistry.js` and `seal-weakref.js` remain expected Phase-37 gaps. Exclude `Object.hasOwn`,
-other Object integrity APIs, Proxy/Reflect, `__proto__`, and m3 iterator/binding work. Split m2a/m2b if a
-cross-subsystem dependency appears.
+**Next action:** publish and verify the completed m2 commit/release, then execute Phase 25b milestone 3 only:
+land the completion-aware IteratorRecord semantic shape, migrate iterable consumers, and implement the
+binding/destructuring slice specified in `docs/design/phase-25b.md`. Do not begin m4 or change the fixed
+denominator/skip set. M3 has not started.
 
 **G3 scope concern — RESOLVED (2026-07-14, operator-approved split):** the >=90% curated-test262 target is
 split out of Phase 25 into a new **Phase 25b — Conformance push to >=90%** (PLAN §5). Phase 25 is now closed

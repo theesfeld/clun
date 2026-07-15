@@ -672,7 +672,7 @@ baseline; overall curated test262 ≥ 90%.
 
 ### Phase 25b — Conformance push to ≥ 90%  *(deps: 25)*
 Objective: lift overall curated test262 from ~80.4% to ≥ 90% (DoD §1.4 point 2), correctness only.
-Tasks: bucket the ~5,520 `fail(gap)` tests by feature/subsystem (a small analysis pass over the
+Tasks: bucket the 5,486 phase-entry `fail(gap)` tests by feature/subsystem (a small analysis pass over the
 runner output) to estimate cost and order the work; then targeted correctness fixes bucket by bucket
 (no performance work); grow the checked-in pass-list monotonically. Faster iteration because the
 Phase-25 engine is quicker. **Gate:** overall curated test262 ≥ 90%; zero pass-list regressions

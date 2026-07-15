@@ -11,7 +11,10 @@ CONFORMANCE_REPORT         ?= docs/conformance/test262-execution.md
 CONFORMANCE_VERIFY_DIR     ?= tmp-test/conformance-buckets-verify
 
 .PHONY: all build test test-lisp test-js test-tls test-crypto registry-fixture purity bench \
-		bench-check compile-tier-ceiling test-installer public-claims-check roadmap-check roadmap-sync \
+		bench-check compile-tier-ceiling test-installer test-release-live-check \
+		public-claims-check version-transition-check test-version-transition-check \
+		roadmap-check roadmap-sync \
+		roadmap-verify-live \
 		conformance-exec-compare conformance-buckets conformance-buckets-check \
 		conformance-buckets-verify clean
 
@@ -139,12 +142,27 @@ compile-tier-ceiling: build
 public-claims-check:
 	sh scripts/public-claims-check.sh
 
+## version-transition-check -- enforce actual-impact SemVer across the pushed range.
+version-transition-check:
+	sh scripts/version-transition-check.sh
+
+test-version-transition-check:
+	sh scripts/test-version-transition-check.sh
+
 test-installer:
 	sh scripts/test-installer.sh
+
+## test-release-live-check -- exercise the fail-closed Pages release-assets gate.
+test-release-live-check:
+	sh scripts/test-release-live-check.sh
 
 ## roadmap-check/sync -- validate the post-v0.1 ledger or reconcile its GitHub issues.
 roadmap-check:
 	sh scripts/roadmap.sh check
+
+## roadmap-verify-live -- read GitHub and fail on duplicate, missing, or stale canonical issues.
+roadmap-verify-live:
+	sh scripts/roadmap.sh verify-live
 
 roadmap-sync:
 	sh scripts/roadmap.sh sync

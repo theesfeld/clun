@@ -7,8 +7,8 @@
   :author "TJ Theesfeld"
   :license "GPL-3.0-or-later"
   ;; ASDF wants dotted integers; the user-facing string is src/version.lisp's
-  ;; *clun-version* = "0.0.1-dev".
-  :version "0.0.1"
+  ;; *clun-version* = "0.1.0-dev.1".
+  :version "0.1.0"
   ;; SBCL contribs for the event loop (Phase 05); cl-ppcre is the RegExp backend
   ;; (Phase 10, vendored + pure). sb-thread is built in (feature :sb-thread).
   :depends-on ((:require "sb-posix") (:require "sb-concurrency") (:require "sb-bsd-sockets")

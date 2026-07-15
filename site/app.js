@@ -18,6 +18,8 @@
   };
 
   if (menuButton && navigation) {
+    const menuLinks = [...navigation.querySelectorAll("a[href]")];
+
     menuButton.addEventListener("click", () => {
       const opening = menuButton.getAttribute("aria-expanded") !== "true";
       if (opening) syncMobileMenuTop();
@@ -46,9 +48,28 @@
     }, { passive: true });
 
     document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && menuButton.getAttribute("aria-expanded") === "true") {
+      if (menuButton.getAttribute("aria-expanded") !== "true") return;
+
+      if (event.key === "Escape") {
         closeMenu();
         menuButton.focus();
+        return;
+      }
+
+      if (event.key === "Tab" && menuLinks.length > 0) {
+        const first = menuButton;
+        const last = menuLinks[menuLinks.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        } else if (!first.contains(document.activeElement) &&
+                   !navigation.contains(document.activeElement)) {
+          event.preventDefault();
+          (event.shiftKey ? last : first).focus();
+        }
       }
     });
   }

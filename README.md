@@ -8,10 +8,11 @@ surface, one gated capability at a time. Performance targets are workload-specif
 Clun does not claim blanket speed parity with Bun.
 
 > **Status: pre-alpha, under active construction.** Phase 25 performance work is complete.
-> Phase 25b is underway: milestone 1 measured and ordered the curated-test262 correctness work;
-> milestone 2 starts with 164 owned object-integrity and Annex-B meta-operation gaps.
+> Phase 25b milestone 2 completed its bounded Object integrity and Annex-B accessor wave;
+> [Phase 25b milestone 3](https://github.com/theesfeld/clun/issues/57) is the next correctness wave.
 > Clun executes its scoped JS/TS surface, but it is not a drop-in Node.js or Bun replacement.
-> See `PLAN.md` for the compatibility matrix and `STATE.md` for live progress.
+> The issue is the canonical live record, `PLAN.md` is the technical contract, and `STATE.md` is
+> the local resume checklist.
 
 ## Install
 
@@ -33,13 +34,20 @@ interoperability gap.
 
 - JavaScript, JSON, ESM, CommonJS, and erasable TypeScript execution (`.tsx` is not supported in
   v0.1; JSX/TSX is planned for Phase 40).
+- Object integrity and legacy accessor operations including `Object.seal`, `Object.isSealed`,
+  `__defineGetter__`, `__defineSetter__`, `__lookupGetter__`, and `__lookupSetter__`. Proxy remains
+  unsupported.
 - Timers, promises, files, buffered HTTP serving, `fetch`, URL APIs, and process spawning.
 - `clun test` with hooks, modifiers, filters, async tests, timeouts, and about 22 matchers.
 - `clun install`, `add`, `remove`, and package scripts with a deterministic lockfile and cache.
 
-The checked-in curated test262 pass list contains 22,643 tests. Phase 25b milestone 1's fresh
-execution ledger currently measures 22,677 passes and 5,486 gaps across 28,163 eligible tests
-(80.52%), with zero crashes; reaching 90% requires 2,670 additional live passes. Phase 25's final
+The checked-in curated test262 pass list contains 22,862 tests. Phase 25b milestone 2's fresh
+execution ledger measures 22,862 passes and 5,301 gaps across 28,163 eligible tests
+(81.17%), with 12,491 skips and zero crashes; reaching 90% requires 2,485 additional live passes.
+Its exact six-API slice contains 181 tests: 162/162 milestone-owned controls pass, 15 are static skips, and four
+Phase-37 controls remain visible failures because they require Proxy, WeakRef, or FinalizationRegistry:
+`seal-finalizationregistry.js`, `seal-weakref.js`, `seal-proxy.js`, and `throws-when-false.js`.
+Phase 25's final
 default-tier measurements are 6.68x Richards, 3.85x DeltaBlue, and 5.36x Splay against the frozen
 Phase-24 Clun baseline, a 5.16x suite geomean. Clun has no measured cross-runtime benchmark against
 Bun or Node.js; `docs/benchmarks.md` reports only reproducible Clun-versus-Clun measurements.
@@ -104,8 +112,12 @@ current Clun capabilities: [73 inventory freeze](https://github.com/theesfeld/cl
 `scripts/roadmap.sh check` validates the phase ledger and public phase references.
 `scripts/public-claims-check.sh` also compares capability names, status values, and complete phase-link
 sets between this README and the landing page; descriptive prose still requires review. Use
-`scripts/roadmap.sh sync` for a manual reconciliation. Changes merged to `master` are synchronized
-automatically by `.github/workflows/roadmap.yml`.
+`scripts/roadmap.sh sync` for a deliberate live-issue reconciliation before pushing. Publication
+workflows are read-only and fail closed if the canonical issues, README, or site have drifted.
+
+Release versions follow the actual SemVer impact recorded in the canonical issue, not the number of
+pushes. The current source version is `0.1.0-dev.1`; [the versioning contract](docs/versioning.md)
+defines prerelease sequencing, synchronized surfaces, immutable tags, assets, and installer evidence.
 
 ## The purity contract
 
@@ -145,7 +157,7 @@ vendored under `vendor/` and located via `scripts/registry.lisp`.
 make build     # compile everything, save build/clun (save-lisp-and-die)
 make test      # run the parachute CL suites
 make purity    # fail on any CFFI/foreign-code token
-./build/clun --version   # => clun 0.0.1-dev
+./build/clun --version   # => clun 0.1.0-dev.1
 ```
 
 A fresh clone builds with `make build` alone: ASDF compiles the vendored closure and `src/` into

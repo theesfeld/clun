@@ -8,13 +8,55 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
+
 jobs:
   claims:
     name: Verify published claims
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      issues: read
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Verify immutable annotated tag on master
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git cat-file -t "refs/tags/$GITHUB_REF_NAME")" = tag
+          tagged_commit="$(git rev-list -n 1 "$GITHUB_REF_NAME")"
+          git fetch --no-tags origin master
+          git merge-base --is-ancestor "$tagged_commit" origin/master
+          release_json="$RUNNER_TEMP/existing-release.json"
+          release_error="$RUNNER_TEMP/existing-release.error"
+          if gh api \
+            "repos/$GITHUB_REPOSITORY/releases/tags/$GITHUB_REF_NAME" \
+            >"$release_json" 2>"$release_error"; then
+            test "$(jq -r .tag_name "$release_json")" = "$GITHUB_REF_NAME"
+            if test "$(jq -r .draft "$release_json")" = true &&
+               test "$(jq -r '.immutable // false' "$release_json")" = false; then
+              echo "unpublished draft $GITHUB_REF_NAME will be replaced after successful builds"
+            else
+              echo "release $GITHUB_REF_NAME is already published; immutable releases cannot be reused" >&2
+              exit 1
+            fi
+          elif ! grep -Eq 'HTTP[[:space:]]+404|\(HTTP 404\)' "$release_error"; then
+            cat "$release_error" >&2
+            echo "could not determine whether release $GITHUB_REF_NAME already exists" >&2
+            exit 1
+          fi
       - run: sh scripts/public-claims-check.sh
+      - name: Verify canonical live roadmap issues
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ROADMAP_REPO: ${{ github.repository }}
+        run: make roadmap-verify-live
 
   build:
     name: Build ${{ matrix.target }}
@@ -164,9 +206,17 @@ jobs:
     name: Publish GitHub release
     needs: build
     runs-on: ubuntu-24.04
+    # Cross-tag builds may overlap, but publication and latest selection are serialized.
+    concurrency:
+      group: release-publication
+      cancel-in-progress: false
     permissions:
       contents: write
+      issues: read
     steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - uses: actions/download-artifact@v8
         with:
           path: dist
@@ -176,31 +226,125 @@ jobs:
         working-directory: dist
         run: sha256sum clun-*.tar.gz > checksums.txt
 
+      - name: Reverify canonical issues immediately before publishing
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ROADMAP_REPO: ${{ github.repository }}
+        run: make roadmap-verify-live
+
       - name: Create release
         env:
           GH_TOKEN: ${{ github.token }}
+        shell: bash
         run: |
-          release_flags=(--prerelease=false --latest)
-          case "$GITHUB_REF_NAME" in
-            v*-*) release_flags=(--prerelease --latest=false) ;;
-          esac
-          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release edit "$GITHUB_REF_NAME" \
-              --repo "$GITHUB_REPOSITORY" \
-              --verify-tag \
-              --draft=false \
-              "${release_flags[@]}" \
-              --title "Clun $GITHUB_REF_NAME"
-            gh release upload "$GITHUB_REF_NAME" \
-              --repo "$GITHUB_REPOSITORY" \
-              --clobber \
-              dist/clun-*.tar.gz dist/checksums.txt
-          else
-            gh release create "$GITHUB_REF_NAME" \
-              --repo "$GITHUB_REPOSITORY" \
-              --verify-tag \
-              "${release_flags[@]}" \
-              --generate-notes \
-              --title "Clun $GITHUB_REF_NAME" \
-              dist/clun-*.tar.gz dist/checksums.txt
+          set -euo pipefail
+
+          release_json="$RUNNER_TEMP/existing-release.json"
+          release_error="$RUNNER_TEMP/existing-release.error"
+          if gh api \
+            "repos/$GITHUB_REPOSITORY/releases/tags/$GITHUB_REF_NAME" \
+            >"$release_json" 2>"$release_error"; then
+            test "$(jq -r .tag_name "$release_json")" = "$GITHUB_REF_NAME"
+            if test "$(jq -r .draft "$release_json")" = true &&
+               test "$(jq -r '.immutable // false' "$release_json")" = false; then
+              # `gh release create` leaves a draft when an asset upload fails.
+              echo "deleting recoverable unpublished draft $GITHUB_REF_NAME"
+              gh release delete "$GITHUB_REF_NAME" \
+                --repo "$GITHUB_REPOSITORY" \
+                --yes
+            else
+              echo "release $GITHUB_REF_NAME is already published; refusing to edit or replace it" >&2
+              exit 1
+            fi
+          elif ! grep -Eq 'HTTP[[:space:]]+404|\(HTTP 404\)' "$release_error"; then
+            cat "$release_error" >&2
+            echo "could not determine whether release $GITHUB_REF_NAME already exists" >&2
+            exit 1
           fi
+
+          release_flags=(--prerelease=false --latest=false)
+          tag_without_build="${GITHUB_REF_NAME%%+*}"
+          case "$tag_without_build" in
+            v*-*)
+              release_flags=(--prerelease --latest=false)
+              ;;
+            *)
+              export LC_ALL=C
+              stable_pattern='^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$'
+              [[ "$GITHUB_REF_NAME" =~ $stable_pattern ]] || {
+                echo "stable release tag is not strict SemVer: $GITHUB_REF_NAME" >&2
+                exit 1
+              }
+
+              compare_uint() {
+                local left=$1
+                local right=$2
+                if (( ${#left} < ${#right} )); then
+                  printf '%s\n' -1
+                elif (( ${#left} > ${#right} )); then
+                  printf '%s\n' 1
+                elif [[ "$left" < "$right" ]]; then
+                  printf '%s\n' -1
+                elif [[ "$left" > "$right" ]]; then
+                  printf '%s\n' 1
+                else
+                  printf '%s\n' 0
+                fi
+              }
+
+              version_compare() {
+                local left_core right_core comparison index
+                local -a left_parts right_parts
+                left_core=${1#v}
+                right_core=${2#v}
+                left_core=${left_core%%+*}
+                right_core=${right_core%%+*}
+                IFS=. read -r -a left_parts <<<"$left_core"
+                IFS=. read -r -a right_parts <<<"$right_core"
+                for index in 0 1 2; do
+                  comparison="$(compare_uint "${left_parts[$index]}" "${right_parts[$index]}")"
+                  if test "$comparison" -ne 0; then
+                    printf '%s\n' "$comparison"
+                    return
+                  fi
+                done
+                printf '%s\n' 0
+              }
+
+              # Never let workflow completion order override stable SemVer precedence.
+              stable_tags="$RUNNER_TEMP/published-stable-tags"
+              gh api --paginate \
+                "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+                --jq '.[] | select(.draft == false and .prerelease == false) | .tag_name' \
+                >"$stable_tags"
+              highest_stable=
+              while IFS= read -r stable_tag; do
+                test -n "$stable_tag" || continue
+                [[ "$stable_tag" =~ $stable_pattern ]] || {
+                  echo "published stable release tag is not strict SemVer: $stable_tag" >&2
+                  exit 1
+                }
+                if test -z "$highest_stable" ||
+                   test "$(version_compare "$stable_tag" "$highest_stable")" -gt 0; then
+                  highest_stable=$stable_tag
+                fi
+              done <"$stable_tags"
+
+              mark_latest=false
+              if test -z "$highest_stable" ||
+                 test "$(version_compare "$GITHUB_REF_NAME" "$highest_stable")" -gt 0; then
+                mark_latest=true
+              fi
+              if test "$mark_latest" = true; then
+                release_flags=(--prerelease=false --latest)
+              fi
+              ;;
+          esac
+
+          gh release create "$GITHUB_REF_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --verify-tag \
+            "${release_flags[@]}" \
+            --generate-notes \
+            --title "Clun $GITHUB_REF_NAME" \
+            dist/clun-*.tar.gz dist/checksums.txt

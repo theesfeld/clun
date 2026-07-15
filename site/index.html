@@ -19,9 +19,9 @@
     <a class="skip-link" href="#main">Skip to content</a>
 
     <div class="announcement">
-      <a href="https://github.com/theesfeld/clun/releases/tag/v0.0.1-dev">
+      <a href="https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.1">
         <span>Available now</span>
-        v0.0.1-dev for Linux and macOS
+        v0.1.0-dev.1 for Linux and macOS
         <span aria-hidden="true">-&gt;</span>
       </a>
     </div>
@@ -53,7 +53,7 @@
           <div class="hero-mark-wrap">
             <img class="hero-mark" src="assets/clun.jpg" alt="Clun mascot wearing a Lisp helmet" width="250" height="250">
           </div>
-          <p class="eyebrow"><span class="status-dot" aria-hidden="true"></span> v0.0.1-dev / pre-alpha</p>
+          <p class="eyebrow"><span class="status-dot" aria-hidden="true"></span> v0.1.0-dev.1 / pre-alpha</p>
           <h1>Clun is JavaScript tooling,<br>rewritten in pure Common Lisp.</h1>
           <p class="hero-copy">
             A from-scratch JavaScript engine with TypeScript stripping, a package manager,
@@ -83,10 +83,18 @@
 
           <dl class="hero-facts" tabindex="0" role="region" aria-label="Project facts">
             <div><dt>Implementation</dt><dd>Pure Common Lisp</dd></div>
-            <div><dt>Curated test262 baseline</dt><dd>22,643 pass</dd></div>
-            <div><dt>Phase 25b progress</dt><dd>80.52% current</dd></div>
+            <div><dt>Curated test262 pass list</dt><dd>22,862 pass</dd></div>
+            <div><dt>Phase 25b progress</dt><dd>81.17% current</dd></div>
             <div><dt>License</dt><dd>GPL-3.0-or-later</dd></div>
           </dl>
+          <p class="hero-phase">
+            Full run: 22,862 pass / 5,301 fail / 12,491 skip / 0 crash. Slice: 181 files /
+            162 owned Object controls pass / 15 static skips / four later-runtime Phase 37 failures.
+            <a href="https://github.com/theesfeld/clun/issues/57">Phase 25b milestone 3</a> is next.
+            The issue is the canonical live record; <a href="https://github.com/theesfeld/clun/blob/master/PLAN.md">PLAN</a>
+            is the technical contract, and <a href="https://github.com/theesfeld/clun/blob/master/STATE.md">STATE</a>
+            is the local resume checklist.
+          </p>
         </div>
       </section>
 
@@ -196,6 +204,7 @@
               <p>Execute JavaScript, CommonJS, ESM, JSON, and erasable TypeScript with a from-scratch engine.</p>
               <ul>
                 <li>Strict and sloppy language modes</li>
+                <li><code>Object.seal</code>, <code>Object.isSealed</code>, and legacy accessor hooks</li>
                 <li>ESM and CommonJS resolution</li>
                 <li>Timers, promises, files, fetch, and URL</li>
                 <li>No JSX, Proxy, Intl, or native addons</li>
@@ -312,7 +321,7 @@ Clun.write(file, <span class="tok-str">"hello from Clun\n"</span>)
               <thead>
                 <tr>
                   <th scope="col">Capability</th>
-                  <th scope="col" class="clun-col"><a href="https://github.com/theesfeld/clun">Clun</a><span>0.0.1-dev / pre-alpha</span></th>
+                  <th scope="col" class="clun-col"><a href="https://github.com/theesfeld/clun">Clun</a><span>0.1.0-dev.1 / pre-alpha</span></th>
                   <th scope="col"><a href="https://bun.sh/">Bun</a><span>1.3.14 / toolkit</span></th>
                   <th scope="col"><a href="https://nodejs.org/">Node.js</a><span>26 / current</span></th>
                   <th scope="col"><a href="https://deno.com/">Deno</a><span>2.9.2 / runtime</span></th>
@@ -551,7 +560,7 @@ Clun.write(file, <span class="tok-str">"hello from Clun\n"</span>)
             </table>
           </div>
           <p class="source-note">
-            Snapshot checked July 14, 2026. Sources:
+            Snapshot checked July 15, 2026. Sources:
             <a href="https://github.com/theesfeld/clun/blob/master/PLAN.md">Clun scope</a>,
             <a href="https://github.com/oven-sh/bun/releases/tag/bun-v1.3.14">Bun 1.3.14</a>,
             the roadmap's separate
@@ -630,7 +639,7 @@ Clun.write(file, <span class="tok-str">"hello from Clun\n"</span>)
           <a class="brand" href="#top"><img src="assets/clun.jpg" alt="" width="40" height="40"><span>Clun</span></a>
           <p>Bun, rewritten in pure Common Lisp. Scoped, pre-alpha, and GPL-3.0-or-later.</p>
         </div>
-        <div><h2>Project</h2><a href="https://github.com/theesfeld/clun">Source</a><a href="https://github.com/theesfeld/clun/blob/master/README.md">README</a><a href="https://github.com/theesfeld/clun/blob/master/STATE.md">Current status</a></div>
+        <div><h2>Project</h2><a href="https://github.com/theesfeld/clun">Source</a><a href="https://github.com/theesfeld/clun/blob/master/README.md">README</a><a href="https://github.com/theesfeld/clun/issues/57">Current status</a></div>
         <div><h2>Evidence</h2><a href="https://github.com/theesfeld/clun/blob/master/docs/benchmarks.md">Benchmarks</a><a href="https://github.com/theesfeld/clun/actions">CI</a><a href="https://github.com/theesfeld/clun/blob/master/LICENSE">License</a></div>
         <div><h2>Install</h2><a href="install">Shell installer</a><a href="https://github.com/theesfeld/clun/releases">Releases</a><a href="https://github.com/theesfeld/clun#building-from-source">Build from source</a></div>
       </div>

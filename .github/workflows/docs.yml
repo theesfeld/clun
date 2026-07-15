@@ -7,6 +7,8 @@ on:
       - "AGENTS.md"
       - "PHASE_PROMPT.md"
       - "PLAN.md"
+      - "STATE.md"
+      - "DECISIONS.md"
       - "README.md"
       - "docs/**"
       - "src/version.lisp"
@@ -21,6 +23,8 @@ on:
       - "AGENTS.md"
       - "PHASE_PROMPT.md"
       - "PLAN.md"
+      - "STATE.md"
+      - "DECISIONS.md"
       - "README.md"
       - "docs/**"
       - "src/version.lisp"
@@ -31,9 +35,19 @@ on:
       - "site/**"
       - ".github/workflows/docs.yml"
 
+permissions:
+  contents: read
+  issues: read
+
 jobs:
   claims:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - run: sh scripts/public-claims-check.sh
+      - name: Verify canonical live roadmap issues
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ROADMAP_REPO: ${{ github.repository }}
+        run: make roadmap-verify-live

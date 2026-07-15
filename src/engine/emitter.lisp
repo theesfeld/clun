@@ -374,13 +374,18 @@ base and computed key exactly once, before evaluating a right-hand side."
 
 (defun compile-delete (comp arg)
   (if (member-expression-p arg)
-      (let ((obj-fn (compile-node comp (member-expression-object arg))))
+      (let ((obj-fn (compile-node comp (member-expression-object arg)))
+            (strict (comp-strict comp)))
         (if (member-expression-computed arg)
             (let ((prop-fn (compile-node comp (member-expression-property arg))))
-              (lambda (env) (js-boolean (jm-delete (to-object (funcall obj-fn env))
-                                                   (to-property-key (funcall prop-fn env))))))
+              (lambda (env)
+                (let ((base (funcall obj-fn env))
+                      (property (funcall prop-fn env)))
+                  (js-boolean (js-delete (to-object base)
+                                         (to-property-key property)
+                                         strict)))))
             (let ((key (identifier-name (member-expression-property arg))))
-              (lambda (env) (js-boolean (jm-delete (to-object (funcall obj-fn env)) key))))))
+              (lambda (env) (js-boolean (js-delete (to-object (funcall obj-fn env)) key strict))))))
       (lambda (env) (declare (ignore env)) +true+)))    ; delete of a non-reference -> true
 
 (defun compile-update (comp node)

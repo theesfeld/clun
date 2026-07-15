@@ -39,6 +39,117 @@
   (is eq eng:+true+ (ev "var o=Object.freeze({a:1}); o.a=2; o.a===1"))
   (is eq eng:+true+ (ev "Object.getPrototypeOf([]) === Array.prototype")))
 
+(define-test objects/seal-and-is-sealed
+  (is eq eng:+true+
+      (ev "(function(){var o={a:1},before=Object.isSealed(o),same=Object.seal(o)===o;
+             var d=Object.getOwnPropertyDescriptor(o,'a');
+             return !before&&same&&Object.isSealed(o)&&!Object.isExtensible(o)&&
+                    d.value===1&&d.writable===true&&d.enumerable===true&&d.configurable===false;
+           })()"))
+  (is eq eng:+true+
+      (ev "(function(){var get=function(){return 3},set=function(v){};
+             var o={},sym=Symbol('sealed'),p={inherited:1};Object.setPrototypeOf(o,p);
+             Object.defineProperty(o,'x',{get:get,set:set,enumerable:false,configurable:true});
+             Object.defineProperty(o,sym,{value:4,writable:true,enumerable:false,configurable:true});
+             Object.seal(o);var x=Object.getOwnPropertyDescriptor(o,'x');
+             var s=Object.getOwnPropertyDescriptor(o,sym);
+             return x.get===get&&x.set===set&&!x.enumerable&&!x.configurable&&
+                    s.value===4&&s.writable&&!s.enumerable&&!s.configurable&&
+                    Object.getOwnPropertyDescriptor(p,'inherited').configurable;
+           })()"))
+  (is eq eng:+true+
+      (ev "(function(){var o={x:1};Object.preventExtensions(o);
+             var before=!Object.isSealed(o);Object.seal(o);
+             return before&&Object.isSealed(o)&&Object.seal(7)===7&&Object.isSealed(null);
+           })()"))
+  (is eq eng:+true+
+      (ev "(function(){var a=new Int8Array(1),threw=false;
+             try{Object.seal(a)}catch(e){threw=e instanceof TypeError}
+             return threw&&!Object.isExtensible(a);
+           })()"))
+  (is eq eng:+true+
+      (ev "(function(){var o={x:1};Object.seal(o);return (delete o.x)===false})()"))
+  (is eq eng:+true+
+      (evs "(function(){var o={},s=Symbol('x');o[s]=1;Object.seal(o);
+              try{delete o[s]}catch(e){return e instanceof TypeError}return false;
+            })()"))
+  (dolist (evaluate (list #'ev #'evs))
+    (is eq eng:+true+
+        (funcall evaluate
+                 "(function(){var sideEffect=0;
+                    try{delete null[(sideEffect=1)]}
+                    catch(e){return sideEffect===1&&e instanceof TypeError}
+                    return false})()"))
+    (is eq eng:+true+
+        (funcall evaluate
+                 "(function(){var coerced=0,key={toString:function(){coerced++;return 'x'}};
+                    try{delete null[key]}
+                    catch(e){return coerced===0&&e instanceof TypeError}
+                    return false})()"))))
+
+(define-test objects/legacy-accessor-definition-methods
+  (is eq eng:+true+
+      (ev "(function(){var o={},get=function(){return 1},set=function(v){},sym=Symbol('x');
+             o.__defineSetter__('x',set);o.__defineGetter__('x',get);o.__defineGetter__(sym,get);
+             var d=Object.getOwnPropertyDescriptor(o,'x'),s=Object.getOwnPropertyDescriptor(o,sym);
+             return d.get===get&&d.set===set&&d.enumerable&&d.configurable&&
+                    s.get===get&&s.set===undefined&&s.enumerable&&s.configurable;
+           })()"))
+  (is eq eng:+true+
+      (ev "(function(){var o={},set=function(v){};Object.defineProperty(o,'x',{value:1,configurable:true});
+             o.__defineSetter__('x',set);var d=Object.getOwnPropertyDescriptor(o,'x');
+             return d.get===undefined&&d.set===set&&d.value===undefined&&d.enumerable;
+           })()"))
+  (is eq eng:+true+
+      (ev "(function(){var count=0,key={toString:function(){count++;return 'x'}};
+             try{({}).__defineGetter__(key,1)}catch(e){return e instanceof TypeError&&count===0}
+             return false;
+           })()"))
+  (is eq eng:+true+
+      (ev "(function(){var f=Object.prototype.__defineGetter__,count=0;
+             var key={toString:function(){count++;return 'x'}};
+             try{f.call(null,key,function(){})}catch(e){return e instanceof TypeError&&count===0}
+             return false;
+           })()"))
+  (is eq eng:+true+
+      (ev "(function(){var o={};Object.defineProperty(o,'x',{configurable:false});
+             try{o.__defineGetter__('x',function(){})}catch(e){return e instanceof TypeError}
+             return false;
+           })()"))
+  (is eq eng:+true+
+      (ev "(function(){var o={};Object.preventExtensions(o);
+             try{o.__defineSetter__('x',function(v){})}catch(e){return e instanceof TypeError}
+             return false;
+           })()"))
+  (is eq eng:+true+
+      (ev "(function(){var a=new Int8Array(1),getFailed=false,setFailed=false;
+             try{a.__defineGetter__('0',function(){})}catch(e){getFailed=e instanceof TypeError}
+             try{a.__defineSetter__('0',function(v){})}catch(e){setFailed=e instanceof TypeError}
+             a.__defineSetter__('named',function(v){});
+             var d=Object.getOwnPropertyDescriptor(a,'named');
+             return getFailed&&setFailed&&typeof d.set==='function'&&d.configurable&&d.enumerable;
+           })()")))
+
+(define-test objects/legacy-accessor-lookup-methods
+  (is eq eng:+true+
+      (ev "(function(){var calls=0,get=function(){calls++;return 1},set=function(v){};
+             var root={},mid=Object.create(root),o=Object.create(mid),sym=Symbol('x');
+             root.__defineGetter__('x',get);mid.__defineSetter__(sym,set);
+             return o.__lookupGetter__('x')===get&&calls===0&&
+                    o.__lookupSetter__(sym)===set&&o.__lookupGetter__('missing')===undefined;
+           })()"))
+  (is eq eng:+true+
+      (ev "(function(){var get=function(){return 1},set=function(v){},p={};p.__defineGetter__('x',get);
+             var data=Object.create(p);Object.defineProperty(data,'x',{value:1});
+             var opposite=Object.create(p);opposite.__defineSetter__('x',set);
+             return data.__lookupGetter__('x')===undefined&&opposite.__lookupGetter__('x')===undefined;
+           })()"))
+  (is eq eng:+true+
+      (ev "Object.prototype.__defineGetter__.length===2&&
+           Object.prototype.__defineSetter__.length===2&&
+           Object.prototype.__lookupGetter__.length===1&&
+           Object.prototype.__lookupSetter__.length===1")))
+
 (define-test shapes/pshape-cap-bounds-the-tree
   ;; Phase 25: the global shape transition tree is hard-capped so a long-lived process can't exhaust
   ;; the heap. Past the cap, objects run dict-mode (shape NIL) but stay fully correct.

@@ -1,8 +1,24 @@
 ;;;; builtins-object.lisp — Object statics + Object.prototype breadth (Phase 04,
 ;;;; §20.1). Extends the Phase 03 Object set with is / fromEntries /
-;;;; getOwnPropertyDescriptors and the __proto__ accessor.
+;;;; getOwnPropertyDescriptors, the legacy accessor methods, and __proto__.
 
 (in-package :clun.engine)
+
+(defun object-prototype-lookup-accessor (this property-key kind)
+  (let ((o (to-object this))
+        (key (to-property-key property-key)))
+    (loop
+      (let ((desc (jm-get-own-property o key)))
+        (when desc
+          (return
+            (if (accessor-descriptor-p desc)
+                (ecase kind
+                  (:get (defaulted (pd-get desc) +undefined+))
+                  (:set (defaulted (pd-set desc) +undefined+)))
+                +undefined+))))
+      (setf o (jm-get-prototype-of o))
+      (unless (js-object-p o)
+        (return +undefined+)))))
 
 (defun %bootstrap-object-extra ()
   (let ((oc (intrinsic :object-constructor)) (op (intrinsic :object-prototype)))
@@ -27,6 +43,32 @@
           (when (js-object-p o)
             (unless (jm-set-prototype-of o p) (throw-type-error "cannot set prototype")))
           o)))
+    (install-method op "__defineGetter__" 2
+      (lambda (this args)
+        (let ((o (to-object this))
+              (getter (arg args 1)))
+          (unless (callable-p getter)
+            (throw-type-error "getter must be callable"))
+          (define-property-or-throw
+           o (to-property-key (arg args 0))
+           (make-prop-desc :get getter :enumerable t :configurable t))
+          +undefined+)))
+    (install-method op "__defineSetter__" 2
+      (lambda (this args)
+        (let ((o (to-object this))
+              (setter (arg args 1)))
+          (unless (callable-p setter)
+            (throw-type-error "setter must be callable"))
+          (define-property-or-throw
+           o (to-property-key (arg args 0))
+           (make-prop-desc :set setter :enumerable t :configurable t))
+          +undefined+)))
+    (install-method op "__lookupGetter__" 1
+      (lambda (this args)
+        (object-prototype-lookup-accessor this (arg args 0) :get)))
+    (install-method op "__lookupSetter__" 1
+      (lambda (this args)
+        (object-prototype-lookup-accessor this (arg args 0) :set)))
     ;; __proto__ accessor (Annex B, widely relied upon)
     (obj-set-desc op "__proto__"
       (accessor-pd

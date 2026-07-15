@@ -126,6 +126,18 @@
                                                               (or (accessor-descriptor-p d)
                                                                   (eq (pd-writable d) nil)))))
                                            (jm-own-property-keys o))))))))
+        (m "seal" 1
+           (lambda (this args) (declare (ignore this))
+             (let ((o (arg args 0)))
+               (when (and (js-object-p o) (not (set-integrity-level o :sealed)))
+                 (throw-type-error "cannot seal object"))
+               o)))
+        (m "isSealed" 1
+           (lambda (this args) (declare (ignore this))
+             (let ((o (arg args 0)))
+               (if (js-object-p o)
+                   (js-boolean (test-integrity-level o :sealed))
+                   +true+))))
         (m "preventExtensions" 1
            (lambda (this args) (declare (ignore this))
              (let ((o (arg args 0))) (when (js-object-p o) (jm-prevent-extensions o)) o)))

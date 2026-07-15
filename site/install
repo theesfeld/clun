@@ -3,7 +3,7 @@
 set -eu
 
 repo=${CLUN_GITHUB_REPO:-theesfeld/clun}
-requested_version=${CLUN_VERSION:-v0.0.1-dev}
+requested_version=${CLUN_VERSION:-v0.1.0-dev.1}
 install_root=${CLUN_INSTALL:-"$HOME/.clun"}
 no_modify_path=${CLUN_NO_MODIFY_PATH:-0}
 
@@ -18,6 +18,24 @@ fail() {
 
 command_exists() {
   command -v "$1" >/dev/null 2>&1
+}
+
+semver_identifier='(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)'
+semver_pattern="^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(-${semver_identifier}(\\.${semver_identifier})*)?(\\+[0-9A-Za-z-]+(\\.[0-9A-Za-z-]+)*)?$"
+
+is_semver() {
+  case "$1" in
+    *'
+'*) return 1 ;;
+  esac
+  printf '%s\n' "$1" | LC_ALL=C grep -Eq "$semver_pattern"
+}
+
+is_release_tag() {
+  case "$1" in
+    v?*) is_semver "${1#v}" ;;
+    *) return 1 ;;
+  esac
 }
 
 download() {
@@ -74,14 +92,15 @@ esac
 target="$os-$arch"
 asset="clun-$target.tar.gz"
 
+if [ "$requested_version" != latest ] && ! is_release_tag "$requested_version"; then
+  fail "CLUN_VERSION must be 'latest' or v-prefixed strict SemVer"
+fi
+
 if [ -n "${CLUN_DOWNLOAD_BASE:-}" ]; then
   download_base=${CLUN_DOWNLOAD_BASE%/}
 elif [ "$requested_version" = latest ]; then
   download_base="https://github.com/$repo/releases/latest/download"
 else
-  case "$requested_version" in
-    *[!A-Za-z0-9._-]*) fail "CLUN_VERSION contains unsupported characters" ;;
-  esac
   download_base="https://github.com/$repo/releases/download/$requested_version"
 fi
 
@@ -135,10 +154,10 @@ package_dir="$tmp_dir/unpacked/clun-$target"
 [ -f "$package_dir/VERSION" ] || fail "release archive is missing VERSION"
 [ -x "$package_dir/bin/clun" ] || fail "release archive is missing an executable bin/clun"
 
-release_version=$(sed -n '1p' "$package_dir/VERSION" | tr -d '\r\n')
-case "$release_version" in
-  ''|*[!A-Za-z0-9._-]*) fail "release archive contains an invalid version" ;;
-esac
+version_line_count=$(awk 'END { print NR + 0 }' "$package_dir/VERSION")
+[ "$version_line_count" -eq 1 ] || fail "release archive contains an invalid VERSION file"
+release_version=$(sed -n '1{s/\r$//;p;}' "$package_dir/VERSION")
+is_semver "$release_version" || fail "release archive version is not strict SemVer"
 if [ -z "${CLUN_DOWNLOAD_BASE:-}" ] && [ "$requested_version" != latest ]; then
   expected_release_version=${requested_version#v}
   [ "$release_version" = "$expected_release_version" ] ||
@@ -149,7 +168,9 @@ validate_release() {
   candidate_dir=$1
   [ -f "$candidate_dir/VERSION" ] || return 1
   [ -x "$candidate_dir/bin/clun" ] || return 1
-  candidate_version=$(sed -n '1p' "$candidate_dir/VERSION" | tr -d '\r\n')
+  [ "$(awk 'END { print NR + 0 }' "$candidate_dir/VERSION")" -eq 1 ] || return 1
+  candidate_version=$(sed -n '1{s/\r$//;p;}' "$candidate_dir/VERSION")
+  is_semver "$candidate_version" || return 1
   [ "$candidate_version" = "$release_version" ] || return 1
   candidate_reported=$("$candidate_dir/bin/clun" --version 2>/dev/null) || return 1
   [ "$candidate_reported" = "clun $release_version" ]

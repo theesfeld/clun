@@ -1,8 +1,9 @@
 # Phase 25b - Conformance Push to 90%
 
-Status: **milestone 1 complete - failure inventory and costed order only.** Phase 25 is complete,
-so the dependency is satisfied. This milestone changes no engine behavior and does not begin a
-correctness bucket. Milestone 2 is next and remains unstarted.
+Status: **milestones 1 and 2 complete; milestone 3 is next and has not started.** Phase 25 is
+complete, so the dependency is satisfied. Milestone 2 was the bounded Object wave specified in
+section 6: two integrity APIs and four Annex-B accessor APIs, with no Proxy/Reflect or later Object
+work absorbed into the milestone.
 
 ## 1. Scope and invariant
 
@@ -11,21 +12,21 @@ The execution runner's curated denominator is fixed for this phase: tests classi
 `fail` are eligible, while the runner's existing explicit `skip` rules remain excluded. Milestone 1
 does not add skip tags, weaken the corpus, or count a scope exclusion as a pass.
 
-The latest measured execution result on the Phase-25-complete tree is:
+The milestone-1 baseline measured on the Phase-25-complete tree was:
 
 | Classification | Count |
 |---|---:|
-| Pass today | 22,677 |
+| Pass at m1 baseline | 22,677 |
 | Fail/gap | 5,486 |
 | Explicit skip | 12,491 |
 | Crash | 0 |
 | Total files | 40,654 |
 | Eligible (`pass + fail`) | 28,163 |
 
-The current live pass rate is `22,677 / 28,163 = 80.52%`. The hard target is
-`ceil(28,163 * 0.90) = 25,347`, so Phase 25b needs **2,670 additional live passes**. The checked-in
-monotonic pass list contains 22,643 entries; 34 tests already pass beyond that frozen baseline, so
-the final regenerated list must grow by at least 2,704 entries and contain at least 25,347 tests.
+The milestone-1 baseline pass rate was `22,677 / 28,163 = 80.52%`. The hard target is
+`ceil(28,163 * 0.90) = 25,347`, so the initial Phase-25b requirement was **2,670 additional live
+passes**. The checked-in monotonic pass list then contained 22,643 entries; 34 tests passed beyond
+that frozen list at m1, so the final Phase-25b list must contain at least 25,347 tests.
 
 These numbers come from executable classifications, not from subtracting the pass list from the
 corpus. That subtraction produces the stale 5,520-candidate estimate because it mistakes the 34
@@ -62,7 +63,7 @@ The analyzer enforces these invariants:
    built-ins `.js` corpus after its `_FIXTURE` exclusion;
 2. classifications are limited to `pass`, `fail`, `skip`, and `crash`, with zero crashes;
 3. every checked-in execution pass-list entry appears exactly once and still classifies `pass`;
-   the report records both the frozen baseline and the 34 currently-unfrozen passes;
+   the m1 report records both the frozen baseline and the 34 passes then beyond it;
 4. every failure receives exactly one exclusive work bucket and remains visible on orthogonal
    path-owner, phase-owner, topic, raw-feature, and raw-include axes; the exclusive axes reconcile
    to 5,486, while feature/include counts are non-additive tag frequencies and their report tables
@@ -107,8 +108,9 @@ its reusable semantic dependency remains in an async/iterator work bucket.
 | 16 | `primitive-builtins` | String, Number, Math, Date, JSON, Symbol, Error, Boolean, URI |
 | 17 | `other-runtime` | audited residual language and built-in behavior |
 
-The exact measured counts are checked in with the completed inventory report at
-`docs/conformance/test262-execution.md`; all 17 rows reconcile to 5,486 failures.
+The milestone-1 measured counts were checked in with the completed inventory report at
+`docs/conformance/test262-execution.md`; its 17 rows reconciled to the 5,486-failure baseline. Each
+later milestone replaces that generated report with a fresh, fully reconciled snapshot.
 
 ## 4. Costed correctness order
 
@@ -120,7 +122,7 @@ win from that origin. Shared enabling work receives no separate pass credit.
 
 | Milestone | Correctness wave | Frozen disjoint origin pool | Pool | Low / nominal / high lift | Cost |
 |---:|---|---|---:|---:|---|
-| m2 | Two Object integrity and four Annex-B meta APIs | `objects` (164 owned rows from 166 runnable controls) | 243 | 122 / 150 / 164 | M |
+| m2 | Two Object integrity and four Annex-B meta APIs | `objects` (162 owned rows from 166 runnable controls) | 243 | 122 / 150 / 162 | M |
 | m3 | IteratorRecord plus binding/destructuring | `binding-patterns` + `iterator-protocol` | 1,494 | 400 / 900 / 1,200 | XL |
 | m4 | Functions, classes, parameters, `super`, arguments | `functions-arguments` + `classes` | 394 | 120 / 260 / 330 | L/XL |
 | m5 | Synchronous generators and `yield*` | `generators` | 108 | 30 / 75 / 100 | L |
@@ -135,8 +137,9 @@ win from that origin. Shared enabling work receives no separate pass credit.
 | m14 | Primitive built-ins | `primitive-builtins` | 154 | 30 / 95 / 135 | L |
 | m15 | Audited residual | `other-runtime` | 201 | 40 / 125 / 175 | L/XL, split |
 
-The disjoint pools sum to exactly 4,599 Phase-25b-owned failures. Range totals are 1,192 / 2,800 /
-3,774. Only the nominal scenario clears the required 2,670 lift, by 130; the low scenario does not.
+The corrected milestone-1 ownership pools sum to exactly 4,597 Phase-25b-owned failures. Range
+totals are 1,192 / 2,800 / 3,772. Only the nominal scenario clears the initial required 2,670 lift,
+by 130; the low scenario does not.
 This is an uncertainty model, not a conservative guarantee. If measurement remains below target
 after m15, m16+ is created from the exact remaining in-scope rows, never from a skip or denominator
 change. After every milestone the fresh ledger replaces estimates and the remaining pools are
@@ -153,10 +156,11 @@ the first two waves without importing implementation code:
   `Source/JavaScriptCore/runtime/ObjectConstructor.cpp`, then uses those shared algorithms for
   `Object.seal` and `Object.isSealed`. The four Annex-B accessor methods are registered and
   implemented together in `ObjectPrototype.cpp`; lookup walks descriptors without invoking getters.
-  The six pinned test262 directories contain 181 files, 15 current static skips, and 166 runnable
-  controls: 164 m2-owned rows plus the two Phase-37 controls identified below. Clun freezes zero
-  passes from them today. This makes m2 bounded and supports a nominal 150-pass lift without copying
-  JSC's object-layout fast paths into a correctness phase.
+  The six pinned test262 directories contain 181 files, 15 static skips, and 166 runnable controls:
+  162 m2-owned rows plus the four Phase-37 controls identified below. Before m2, Clun froze zero
+  passes from them. The focused post-implementation run now passes all 162 owned controls while the
+  four later-phase controls remain visible failures. This makes m2 bounded without copying JSC's
+  object-layout fast paths into a correctness phase.
 - JSC's runtime built-ins use `IterationRecord` plus shared open/next/step/close operations in
   `IteratorOperations.h/.cpp`. Its language `for-of` and array-destructuring paths implement the
   same semantic shape through bytecompiler helpers in `BytecodeGenerator.cpp` and
@@ -169,11 +173,12 @@ the first two waves without importing implementation code:
 
 ## 5. Scope ownership without denominator gaming
 
-The current runnable failure set includes later-ECMAScript proposal tests that Phase 37 will
+The milestone-1 runnable failure set included later-ECMAScript proposal tests that Phase 37 will
 eventually own. The analyzer assigns an orthogonal phase owner from 25 conservative feature tags,
-full inline-or-block frontmatter parsing, and ten exact generated-test path overrides for untagged
-coalescing/integer-separator syntax. That classifier finds **887** Phase-37-owned failures and
-**4,599** Phase-25b-owned failures. The feature set covers set methods, change-array-by-copy,
+full inline-or-block frontmatter parsing, ten exact generated-test path overrides for untagged
+coalescing/integer-separator syntax, and two exact Object-seal path overrides for untagged Proxy
+dependencies. The ownership correction assigns **889** baseline failures to Phase 37 and
+**4,597** to Phase 25b. The feature set covers set methods, change-array-by-copy,
 `Array.fromAsync`, immutable ArrayBuffer, Float16Array, array grouping, RegExp.escape, newer Promise
 helpers, Temporal, WeakRef/FinalizationRegistry, and the other exact tags encoded in the analyzer.
 
@@ -209,16 +214,72 @@ the regenerated checked-in list is green. Parser, lexer, analyzer, or early-erro
 both parse and execution conformance. Emitter or shared execution-semantic changes also run
 `make conformance-exec-compare` so the maintained eager tier cannot diverge from the default tier.
 
-Milestone 1 stops after generating and reviewing the inventory artifacts and passing every gate
+Milestone 1 stopped after generating and reviewing the inventory artifacts and passing every gate
 above. On GitHub, the CI and release execution gate is the stronger fresh-ledger
 `make conformance-buckets-verify`, which includes the full execution run, analyzer self-test, exact
-corpus/skip validation, and semantic artifact comparison. The next `phase` invocation starts m2 and
-is limited to `Object.seal`, `Object.isSealed`,
+corpus/skip validation, and semantic artifact comparison. Milestone 2 is limited to `Object.seal`,
+`Object.isSealed`,
 `Object.prototype.__defineGetter__`, `__defineSetter__`, `__lookupGetter__`, and `__lookupSetter__`.
-Its target corpus is exactly those six test262 directories: 181 files, 15 current static skips, and
-166 runnable controls. Of those, 164 are m2-owned; `seal-finalizationregistry.js` and
-`seal-weakref.js` remain expected Phase-37 gaps because their missing globals are outside m2. Run
-all 166 controls, but gate m2's lift against the 164 owned rows. `Object.hasOwn`,
+Its target corpus is exactly those six test262 directories: 181 files, 15 static skips, and 166
+runnable controls. Of those, 162 are m2-owned. Four controls remain assigned to Phase 37:
+`seal-finalizationregistry.js`, `seal-weakref.js`, `seal-proxy.js`, and `throws-when-false.js`. The
+first two require the later WeakRef/FinalizationRegistry globals; the latter two require Proxy even
+though their frontmatter omits that feature tag. Run all 166 controls, but gate m2's lift against
+the 162 owned rows. `Object.hasOwn`,
 `Object.freeze`/`isFrozen`, `Object.preventExtensions`/`isExtensible`, Proxy/Reflect, `__proto__`, and
 all other Object residuals are excluded from m2. It must not silently absorb m3 work; split m2a
 (integrity) and m2b (Annex-B accessors) if either half exposes a cross-subsystem dependency.
+
+### 6.1 Milestone 2 implementation design
+
+The implementation stays behind Clun's existing object internal-method protocol. No object-layout
+special case or Test262-specific branch is needed:
+
+1. Add shared `set-integrity-level` and `test-integrity-level` abstract operations beside the object
+   kernel. `set-integrity-level` first calls `[[PreventExtensions]]`, then snapshots
+   `[[OwnPropertyKeys]]`. For `sealed`, it applies the partial descriptor
+   `{ [[Configurable]]: false }` to every key with `DefinePropertyOrThrow`. The frozen branch is
+   retained in the abstract operation for spec completeness and sets `[[Writable]]` false only for
+   data descriptors. `test-integrity-level` first rejects an extensible object, then inspects every
+   own descriptor without invoking accessors; sealed requires only non-configurable properties,
+   while frozen also requires non-writable data properties.
+2. Install `Object.seal` and `Object.isSealed` with arity 1 on the existing Object constructor.
+   Primitives are returned unchanged by `seal` and report true from `isSealed`. A false integrity
+   result becomes a `TypeError`; abrupt completions from internal methods propagate unchanged.
+3. Install the four Annex-B methods on `Object.prototype` beside the existing `__proto__` accessor.
+   `__defineGetter__` and `__defineSetter__` perform `ToObject(this)` before validating the callback,
+   validate callability before coercing the key, then use `ToPropertyKey` and
+   `DefinePropertyOrThrow`. Their descriptors contain only the requested `[[Get]]` or `[[Set]]`
+   field plus enumerable/configurable true, so redefining one half preserves the other half.
+4. `__lookupGetter__` and `__lookupSetter__` perform `ToObject(this)`, then `ToPropertyKey`, and walk
+   `[[GetOwnProperty]]` / `[[GetPrototypeOf]]` directly. The first matching data descriptor stops the
+   walk with undefined; an accessor returns its requested function or undefined. Lookup never calls
+   the accessor and preserves symbol keys and prototype order.
+
+Focused Lisp regressions cover primitive behavior, all integrity descriptor invariants, symbol and
+prototype-chain lookup, accessor-half preservation, non-extensible/non-configurable failures, and
+observable coercion order. The focused seal run also exposed a shared reference-semantics dependency:
+strict-mode deletion must throw when an internal `[[Delete]]` returns false, while sloppy deletion
+returns false. The emitter now routes member deletion through the shared `js-delete` operation and
+preserves the reference evaluation order: evaluate the base expression, evaluate the computed key
+expression, then apply `ToObject` before `ToPropertyKey`. This is required by the seal controls and
+does not expand m2 into another Object API. The pre-existing failure to evaluate non-member `delete`
+operands remains an explicit m13 operators/references residual.
+
+Adversarial review also found that integer-indexed TypedArray `[[DefineOwnProperty]]` rejected
+getter-only accessors but accidentally accepted setter-only descriptors. Because `__defineSetter__`
+made that shared defect directly observable, m2 corrects the predicate to reject every accessor
+descriptor and covers getter-only, setter-only, and ordinary non-index properties.
+
+The focused milestone gate classifies all 181 files in the six pinned directories: 15 static skips,
+162/162 passing m2-owned controls, and the four expected Phase-37 residual failures above. The full
+40,654-file off/eager `make conformance-exec-compare` completed with byte-identical classifications:
+22,862 pass, 5,301 fail, 12,491 skip, and zero crash in both modes, with zero eager fallback. The
+monotonic execution pass list grew from 22,643 to 22,862 (`+219`); relative to the milestone-1 live
+ledger, m2 gained 185 passes. Eligible remains fixed at 28,163, so the exact current rate is
+81.177431% (publicly truncated to 81.17%) and the remaining lift to 25,347 is 2,485. The regenerated
+gap inventory assigns 4,416 residuals to Phase 25b and 885 to Phase 37.
+
+Milestone 2 begins the `0.1.0` release train at `0.1.0-dev.1` because six backward-compatible public
+APIs make the mixed API-plus-fix unit a SemVer minor change. Milestone 3 is the next bounded unit:
+IteratorRecord plus binding/destructuring. It has not started.

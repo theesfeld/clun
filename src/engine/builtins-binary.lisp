@@ -182,7 +182,7 @@ exhausting the heap (test262 ArrayBuffer/allocation-limit allocates PiB-scale)."
     (if canon
         (cond
           ((not (valid-integer-index-p ta n)) nil)
-          ((and (pd-set-p (pd-get desc))) nil)   ; accessor rejected
+          ((accessor-descriptor-p desc) nil)
           ((eq (pd-configurable desc) nil) nil)
           ((eq (pd-enumerable desc) nil) nil)
           ((eq (pd-writable desc) nil) nil)

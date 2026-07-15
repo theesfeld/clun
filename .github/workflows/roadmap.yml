@@ -1,13 +1,8 @@
-name: Roadmap Issues
+name: Roadmap Issue Reconciliation
 
+# Deliberately manual: canonical issues must be reconciled before publishing
+# repository claims, whose read-only workflows fail closed on any live drift.
 on:
-  push:
-    branches: [master]
-    paths:
-      - "PLAN.md"
-      - "docs/roadmap.tsv"
-      - "scripts/roadmap.sh"
-      - ".github/workflows/roadmap.yml"
   workflow_dispatch:
 
 permissions:
@@ -20,9 +15,13 @@ concurrency:
 
 jobs:
   sync:
+    name: Reconcile canonical issues
+    if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: master
       - name: Validate roadmap source
         run: sh scripts/roadmap.sh check
       - name: Reconcile milestone, labels, and issues
@@ -30,3 +29,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           ROADMAP_REPO: ${{ github.repository }}
         run: sh scripts/roadmap.sh sync
+      - name: Verify canonical live roadmap issues
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ROADMAP_REPO: ${{ github.repository }}
+        run: make roadmap-verify-live

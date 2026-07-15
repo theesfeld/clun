@@ -5,11 +5,15 @@ on:
     branches: [master]
     paths:
       - "site/**"
+      - "src/version.lisp"
+      - "scripts/release-live-check.sh"
+      - "scripts/test-release-live-check.sh"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 
 permissions:
   contents: read
+  issues: read
   pages: write
   id-token: write
 
@@ -19,6 +23,7 @@ concurrency:
 
 jobs:
   deploy:
+    if: github.ref == 'refs/heads/master'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -27,6 +32,26 @@ jobs:
       - uses: actions/checkout@v7
       - name: Verify published claims and roadmap links
         run: sh scripts/public-claims-check.sh
+      - name: Verify canonical live roadmap issues
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ROADMAP_REPO: ${{ github.repository }}
+        run: make roadmap-verify-live
+      - name: Test release publication gate
+        run: make test-release-live-check
+      - name: Wait for matching published release assets
+        timeout-minutes: 125
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CLUN_RELEASE_REPO: ${{ github.repository }}
+          CLUN_RELEASE_WAIT_SECONDS: "7200"
+          CLUN_RELEASE_POLL_SECONDS: "30"
+        run: sh scripts/release-live-check.sh
+      - name: Reverify canonical issues immediately before deployment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ROADMAP_REPO: ${{ github.repository }}
+        run: make roadmap-verify-live
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5
         with:

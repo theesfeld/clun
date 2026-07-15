@@ -25,8 +25,25 @@ reject_text() {
   fi
 }
 
-version=$(sed -n 's/^(defparameter \*clun-version\* "\([^"]*\)".*/\1/p' src/version.lisp)
-[ -n "$version" ] || fail "could not read *clun-version* from src/version.lisp"
+versions=$(sed -n 's/^(defparameter \*clun-version\* "\([^"]*\)".*/\1/p' src/version.lisp)
+version_count=$(printf '%s\n' "$versions" | awk 'NF { count++ } END { print count + 0 }')
+[ "$version_count" -eq 1 ] ||
+  fail "src/version.lisp must contain exactly one nonempty *clun-version*"
+version=$(printf '%s\n' "$versions" | sed -n '1p')
+
+semver_identifier='(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)'
+semver_pattern="^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(-${semver_identifier}(\\.${semver_identifier})*)?(\\+[0-9A-Za-z-]+(\\.[0-9A-Za-z-]+)*)?$"
+printf '%s\n' "$version" | LC_ALL=C grep -Eq "$semver_pattern" ||
+  fail "src/version.lisp version is not strict SemVer: $version"
+
+asdf_versions=$(sed -n 's/^[[:space:]]*:version "\([^"]*\)".*/\1/p' clun.asd)
+asdf_version_count=$(printf '%s\n' "$asdf_versions" | awk 'NF { count++ } END { print count + 0 }')
+[ "$asdf_version_count" -eq 1 ] || fail "clun.asd must contain exactly one ASDF :version"
+asdf_version=$(printf '%s\n' "$asdf_versions" | sed -n '1p')
+version_without_build=${version%%+*}
+version_core=${version_without_build%%-*}
+[ "$asdf_version" = "$version_core" ] ||
+  fail "clun.asd version $asdf_version does not match source SemVer core $version_core"
 
 scratch_dir=$(mktemp -d "${TMPDIR:-/tmp}/clun-claims.XXXXXX") ||
   fail "could not create a claims-check scratch directory"
@@ -143,9 +160,12 @@ report_pass=$(report_measure Pass)
 report_fail=$(report_measure Fail)
 report_skip=$(report_measure Skip)
 report_crash=$(report_measure Crash)
+# Backticks are literal Markdown in the generated report labels.
+# shellcheck disable=SC2016
 report_eligible=$(report_measure 'Eligible (`pass + fail`)')
 report_frozen=$(report_measure 'Frozen baseline pass count')
 report_delta=$(report_measure 'Current-pass delta from frozen baseline')
+# shellcheck disable=SC2016
 report_target=$(report_measure '`ceil(90% * eligible)`')
 report_lift=$(report_measure 'Required pass lift')
 report_source_revision=$(report_provenance source-revision)
@@ -250,6 +270,7 @@ require_text docs/conformance/test262-execution.md \
   "| Pass rate | $report_pass / $report_eligible = $report_rate_exact% |"
 pretty_report_pass=$(format_count "$report_pass")
 pretty_report_fail=$(format_count "$report_fail")
+pretty_report_skip=$(format_count "$report_skip")
 pretty_report_eligible=$(format_count "$report_eligible")
 pretty_report_lift=$(format_count "$report_lift")
 
@@ -495,6 +516,36 @@ if ! cmp -s "$readme_matrix" "$site_matrix"; then
 fi
 capability_rows=$(wc -l <"$site_matrix" | tr -d ' ')
 
+phase25b_issue_url=https://github.com/theesfeld/clun/issues/57
+require_text README.md "$phase25b_issue_url"
+require_text site/index.html "$phase25b_issue_url"
+
+linked_phase25b_marker() {
+  file=$1
+  awk -v issue_url="$phase25b_issue_url" '
+    index($0, issue_url) {
+      line = $0
+      while (match(line, /Phase 25b milestone [0-9][0-9]*/)) {
+        marker = substr(line, RSTART, RLENGTH)
+        if (selected != "" && selected != marker) conflict = 1
+        selected = marker
+        line = substr(line, RSTART + RLENGTH)
+      }
+    }
+    END {
+      if (selected == "" || conflict) exit 2
+      print selected
+    }
+  ' "$file"
+}
+
+readme_phase25b_marker=$(linked_phase25b_marker README.md) ||
+  fail "README.md must link issue #57 beside one unambiguous Phase 25b milestone marker"
+site_phase25b_marker=$(linked_phase25b_marker site/index.html) ||
+  fail "site/index.html must link issue #57 beside one unambiguous Phase 25b milestone marker"
+[ "$readme_phase25b_marker" = "$site_phase25b_marker" ] ||
+  fail "README and site current Phase 25b milestone markers disagree"
+
 for tag in html head title body header nav main section article div p pre code table \
            thead tbody tr th td a span b strong button i footer dl dt dd ol ul li; do
   openings=$(grep -E -o "<$tag([[:space:]>])" site/index.html | wc -l | tr -d ' ')
@@ -515,14 +566,22 @@ if command -v node >/dev/null 2>&1; then
 fi
 
 require_text README.md "./build/clun --version   # => clun $version"
+require_text README.md "The current source version is \`$version\`"
+require_text tests/lisp/smoke.lisp "(is string= \"$version\" clun::*clun-version*)"
+require_text docs/versioning.md "Its impact is \`minor\`"
+require_text docs/versioning.md "\`$version\` under tag \`v$version\`"
 require_text README.md "$pretty_passes tests"
 require_text README.md "$pretty_report_pass passes and $pretty_report_fail gaps across $pretty_report_eligible eligible tests"
-require_text README.md "($report_rate%), with zero crashes"
+require_text README.md "($report_rate%), with $pretty_report_skip skips and zero crashes"
 require_text site/index.html "href=\"https://github.com/theesfeld/clun/releases/tag/v$version\""
 require_text site/index.html "v$version for Linux and macOS"
 require_text site/index.html "</span> v$version / pre-alpha</p>"
 require_text site/index.html "<span>$version / pre-alpha</span>"
 require_text site/index.html "$pretty_passes pass"
+require_text site/index.html "Full run: $pretty_report_pass pass / $pretty_report_fail fail / $pretty_report_skip skip / $report_crash crash."
+require_text README.md "slice contains 181 tests: 162/162 milestone-owned controls pass, 15 are static skips, and four"
+require_text site/index.html "Slice: 181 files /"
+require_text site/index.html "162 owned Object controls pass / 15 static skips / four later-runtime Phase 37 failures."
 if [ "$report_lift" -gt 0 ]; then
   require_text README.md "reaching 90% requires $pretty_report_lift additional live passes"
   reject_text README.md "Phase 25b's 90% target is met"

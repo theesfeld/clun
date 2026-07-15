@@ -1945,17 +1945,17 @@ m1 was rejected because it would move the approved denominator instead of measur
 ### 2026-07-15 - Phase 25b m1: orthogonal phase ownership and disjoint milestone accounting
 
 Every live failure keeps two independent labels: an implementation work bucket and a phase owner. A
-conservative 25-feature plus 10-exact-path classifier assigns 887 failures to Phase 37 and 4,599 to Phase
+conservative 25-feature plus 12-exact-path classifier assigns 889 failures to Phase 37 and 4,597 to Phase
 25b, but all 5,486 remain failures in the global denominator. Future pass credit is tied to each path's
 frozen m1 origin bucket and recorded only at the first milestone where it flips, preventing shared iterator
-or species work from being counted twice. The low/nominal/high Phase-25b projections are 1,192/2,800/3,774;
+or species work from being counted twice. The low/nominal/high Phase-25b projections are 1,192/2,800/3,772;
 only the nominal case clears the 2,670 target, so this is an order under uncertainty, not a schedule promise.
 Pinned Bun `c1076ce95effb909bfe9f596919b5dba5567d550` and its JSC/WebKit pin
 `c9ad5813fd23bd8b98b0738abc3d037ec716aa92` support m2 as the first bounded wave and one shared iterator
 semantic shape before binder/class/generator/async work; JSC's runtime `IterationRecord` and language
 bytecompiler helpers are separate layers. M2 is limited to `Object.seal`, `Object.isSealed`, and the four
-Annex-B getter/setter methods across 166 runnable controls. Of those, 164 are m2-owned; the WeakRef and
-FinalizationRegistry seal controls remain expected Phase-37 gaps. Other integrity APIs, `Object.hasOwn`,
+Annex-B getter/setter methods across 166 runnable controls. Of those, 162 are m2-owned; WeakRef,
+FinalizationRegistry, and two untagged Proxy seal controls remain expected Phase-37 gaps. Other integrity APIs, `Object.hasOwn`,
 Proxy/Reflect, `__proto__`, and iterator work remain outside that milestone.
 
 Adversarial review closed three future-regeneration loopholes without changing the measured data. The analyzer
@@ -1969,3 +1969,58 @@ scratch, then publishes the complete outputs. Execution provenance is the clean 
 with the checked-in artifacts after validating volatile provenance. Public percentages are
 truncated to two decimals, and claim validation distinguishes a positive remaining lift from an exact target-met
 state so rounding cannot announce the 90% gate early.
+
+### 2026-07-15 - Phase 25b m2: bounded Object integrity and Annex-B accessor wave
+
+Milestone 2 implements `Object.seal`, `Object.isSealed`, and the four Annex-B getter/setter methods
+through the existing object internal-method protocol. Shared `set-integrity-level` and
+`test-integrity-level` operations preserve partial descriptors and accessor halves; lookup walks own
+descriptors and prototypes without invoking accessors. Existing `Object.freeze`/`isFrozen` are not
+rewired, and Proxy/Reflect, `Object.hasOwn`, `__proto__`, iterator work, and other Object residuals
+remain outside m2. A focused seal control exposed one required shared reference fix: failed member
+deletion throws in strict mode and returns false in sloppy mode through `js-delete`.
+
+The exact six-directory slice is 181 files: 15 static skips and 166 runnable controls. All 162
+m2-owned controls pass. Four visible failures remain Phase-37-owned:
+`seal-finalizationregistry.js`, `seal-weakref.js`, `seal-proxy.js`, and `throws-when-false.js`; the last
+two are untagged Proxy dependencies and therefore require exact path ownership overrides. This
+keeps the corrected milestone-1 ownership baseline at 4,597 Phase-25b / 889 Phase-37 failures and
+the m2 high estimate at 162. The classifier now has ten generated syntax-path
+overrides plus those two Object-seal Proxy-path overrides.
+
+Adversarial review found and fixed two shared runtime defects exposed by the new APIs. Computed
+member deletion now evaluates the base and key expressions exactly once before applying `ToObject`
+then `ToPropertyKey`, and integer-indexed TypedArray `[[DefineOwnProperty]]` rejects setter-only as
+well as getter-only accessor descriptors. The pre-existing failure to evaluate non-member `delete`
+operands remains visible and assigned to m13 operators/references rather than expanding m2.
+
+The required full-corpus comparison completed with byte-identical off/eager classifications and zero
+fallback: 22,862 pass, 5,301 fail, 12,491 skip, and zero crash across 40,654 files. The monotonic pass
+list grew from 22,643 to 22,862 (`+219`), a 185-live-pass gain from m1. Eligible remains 28,163, the
+exact rate is 81.177431% (public 81.17%), and 2,485 additional passes remain to the 25,347 target.
+Regenerated ownership is 4,416 Phase-25b / 885 Phase-37 residuals. M2 is complete; m3 is next and has
+not started.
+
+### 2026-07-15 - Release versions follow completed SemVer impact, not push count
+
+Release numbering is a publication gate. Breaking public work selects a major core, new
+backward-compatible functionality selects a minor core, and backward-compatible bug-only work
+selects a patch core; mixed work takes the highest impact. Once a not-yet-stable release train has
+selected `X.Y.Z`, each later published release unit in that same canonical scope retains the core
+and advances only the numeric prerelease sequence unless its actual work requires a higher-impact
+core. Corrective commits before the selected unit's immutable tag exists do not advance the sequence
+by themselves. Documentation-only work may leave the version unchanged only when its
+canonical issue records an explicit `none` rationale.
+
+The canonical issue records separate impact, rationale, bare SemVer, and immutable `v<SemVer>` tag
+fields. Source, ASDF core, tests, installer default, README, landing page, release tag/assets, and
+deployment evidence must agree. `scripts/public-claims-check.sh` validates strict SemVer and local
+surfaces; `scripts/roadmap.sh verify-live` validates the live Phase-25b issue fields; Pages waits for
+the matching non-draft GitHub release and all four platform archives plus `checksums.txt` before
+deploying an installer that names that version. Full policy and publication order live in
+`docs/versioning.md`.
+
+Phase 25b milestone 2 adds six backward-compatible public Object APIs plus bug fixes, so the mixed
+unit is `minor`: bare version `0.1.0-dev.1`, tag `v0.1.0-dev.1`, and ASDF core `0.1.0`. Later
+Phase-25b release-bearing milestones advance `dev.N`; Phase 26 removes the suffix only after the
+stable `0.1.0` hardening gate passes.
