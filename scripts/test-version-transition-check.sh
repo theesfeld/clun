@@ -306,7 +306,8 @@ run_dirty_tagged_correction_case() (
   issue_body=$fixture/issue.md
   write_issue_body 1.3.0 patch "$issue_body"
   set +e
-  output=$(CLUN_INCLUDE_DIRTY=1 CLUN_VERSION_REPO_ROOT="$fixture" \
+  output=$(BASE_SHA="$fixture_head" \
+    CLUN_INCLUDE_DIRTY=1 CLUN_VERSION_REPO_ROOT="$fixture" \
     CLUN_CANONICAL_ISSUE_BODY_FILE="$issue_body" \
     CLUN_CANONICAL_ISSUE_REF='fixture issue #94' \
     HEAD_SHA="$fixture_head" sh "$checker" 2>&1)
