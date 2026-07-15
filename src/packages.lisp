@@ -55,6 +55,7 @@
    ;; handles / refcount
    #:make-handle #:handle #:handle-p #:handle-ref #:handle-unref
    #:handle-activate #:handle-deactivate
+   #:register-loop-resource #:register-loop-handle-resource #:unregister-loop-resource
    ;; timers
    #:set-timer #:clear-timer #:timer #:timer-p #:next-timer-delay
    #:timer-ref #:timer-unref #:timer-refd-p

@@ -63,28 +63,41 @@
 (defun set-timer (loop delay-ms callback &key repeat (refd t))
   "Schedule CALLBACK after max(0,DELAY-MS). REPEAT (ms) reschedules it. A ref'd
 timer keeps the loop alive; an unref'd one only fires if the loop is running."
-  (let* ((delay (max 0 delay-ms))
-         (timer (%make-timer
-                 :deadline (+ (now-ms) delay)
-                 :seq (incf (el-timer-seq loop))
-                 :callback callback
-                 :interval (and repeat (max 1 repeat))
-                 :handle (make-handle loop :refd refd :kind :timer))))
-    (heap-push (el-timers loop) timer)
-    (handle-activate (timer-handle timer))
-    timer))
+  (let ((delay (max 0 delay-ms)))
+    (with-loop-lifecycle-lock (loop)
+      (%ensure-loop-open-locked loop "schedule a timer")
+      (let ((timer (%make-timer
+                    :deadline (+ (now-ms) delay)
+                    :seq (incf (el-timer-seq loop))
+                    :callback callback
+                    :interval (and repeat (max 1 repeat))
+                    :handle (make-handle loop :refd refd :kind :timer))))
+        (heap-push (el-timers loop) timer)
+        (%handle-activate-locked (timer-handle timer))
+        timer))))
 
 (defun clear-timer (timer)
   (unless (timer-cancelled timer)
     (setf (timer-cancelled timer) t)
     (handle-deactivate (timer-handle timer))))
 
+(defun clear-loop-timers (loop)
+  "Cancel every timer during loop destruction and leave the heap empty."
+  (let ((vec (timer-heap-vec (el-timers loop))))
+    (dotimes (i (fill-pointer vec))
+      (clear-timer (aref vec i)))
+    (setf (fill-pointer vec) 0))
+  (values))
+
 ;;; ref/unref: a ref'd timer keeps the loop alive; an unref'd one only fires if the
 ;;; loop is otherwise running (Node's Timeout.ref/unref/hasRef). Delegated to the
 ;;; handle so the refcount bookkeeping stays in one place.
 (defun timer-ref (timer) (handle-ref (timer-handle timer)) timer)
 (defun timer-unref (timer) (handle-unref (timer-handle timer)) timer)
-(defun timer-refd-p (timer) (handle-refd (timer-handle timer)))
+(defun timer-refd-p (timer)
+  (let ((handle (timer-handle timer)))
+    (with-loop-lifecycle-lock ((handle-loop handle))
+      (handle-refd handle))))
 
 (defun next-timer-delay (loop)
   "Ms until the earliest live timer, or NIL if none."

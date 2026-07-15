@@ -799,9 +799,9 @@ EOF
   canonical_url="https://github.com/$repo/issues/$issue_number"
   [ "$(grep -F -x -c "**Canonical issue:** $canonical_url" "$STATE_FILE" 2>/dev/null || :)" -eq 1 ] ||
     fail "STATE.md must name the exact canonical Phase 25b issue URL"
-  state_milestone_line=$(printf '**Next Phase 25b milestone:** `m%s`' "$milestone")
+  state_milestone_line=$(printf '**Current Phase 25b milestone:** `m%s`' "$milestone")
   [ "$(grep -F -x -c "$state_milestone_line" "$STATE_FILE" 2>/dev/null || :)" -eq 1 ] ||
-    fail "STATE.md next Phase 25b milestone disagrees with issue #$issue_number"
+    fail "STATE.md current Phase 25b milestone disagrees with issue #$issue_number"
 
   printf 'roadmap: Phase 25b public marker matches canonical issue #%s (m%s, v%s)\n' \
     "$issue_number" "$milestone" "$source_version"

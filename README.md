@@ -8,8 +8,9 @@ surface, one gated capability at a time. Performance targets are workload-specif
 Clun does not claim blanket speed parity with Bun.
 
 > **Status: pre-alpha, under active construction.** Phase 25 performance work is complete.
-> Phase 25b milestone 3 completed its shared iterator and binding/destructuring correctness wave;
-> [Phase 25b milestone 4](https://github.com/theesfeld/clun/issues/57) is next.
+> [Phase 25b milestone 3](https://github.com/theesfeld/clun/issues/57) completed its shared iterator
+> and binding/destructuring correctness wave. The canonical issue records `v0.1.0-dev.3` publication
+> status and the handoff to milestone 4; milestone 4 does not begin before verified publication.
 > Clun executes its scoped JS/TS surface, but it is not a drop-in Node.js or Bun replacement.
 > The issue is the canonical live record, `PLAN.md` is the technical contract, and `STATE.md` is
 > the local resume checklist.
@@ -121,8 +122,10 @@ sets between this README and the landing page; descriptive prose still requires 
 workflows are read-only and fail closed if the canonical issues, README, or site have drifted.
 
 Release versions follow the actual SemVer impact recorded in the canonical issue, not the number of
-pushes. The current source version is `0.1.0-dev.2`; [the versioning contract](docs/versioning.md)
+pushes. The current source version is `0.1.0-dev.3`; [the versioning contract](docs/versioning.md)
 defines prerelease sequencing, synchronized surfaces, immutable tags, assets, and installer evidence.
+[Live release and milestone status](https://github.com/theesfeld/clun/issues/57) remains on the canonical
+issue so this README never substitutes a stale publication claim for verified assets.
 
 ## The purity contract
 
@@ -161,7 +164,7 @@ vendored under `vendor/` and located via `scripts/registry.lisp`.
 make build     # compile everything, save build/clun (save-lisp-and-die)
 make test      # run the CL suites and JS/TS fixture harnesses
 make purity    # fail on any CFFI/foreign-code token
-./build/clun --version   # => clun 0.1.0-dev.2
+./build/clun --version   # => clun 0.1.0-dev.3
 ```
 
 A fresh clone builds with `make build` alone: ASDF compiles the vendored closure and `src/` into

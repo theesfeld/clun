@@ -16,13 +16,46 @@
 
 (defun reactor-add (loop fd direction fn)
   "Register FN (called with FD) for DIRECTION (:input or :output) on FD."
-  (let ((h (sb-sys:add-fd-handler fd direction fn)))
-    (push (cons fd h) (el-fd-handlers loop))
-    h))
+  (with-loop-lifecycle-lock (loop)
+    (when (or (el-destroying loop) (el-destroyed loop))
+      (error "cannot register an fd on a destroyed event loop"))
+    (let ((owner (el-reactor-thread loop)))
+      (when (and owner
+                 (not (eq owner sb-thread:*current-thread*))
+                 (or (sb-thread:thread-alive-p owner) (el-fd-handlers loop)))
+        (error "cannot register an fd off the event loop's reactor thread"))
+      (setf (el-reactor-thread loop) sb-thread:*current-thread*))
+    (let ((h (sb-sys:add-fd-handler fd direction fn)))
+      (push (cons fd h) (el-fd-handlers loop))
+      h)))
 
 (defun reactor-remove (loop handler)
-  (sb-sys:remove-fd-handler handler)
-  (setf (el-fd-handlers loop) (delete handler (el-fd-handlers loop) :key #'cdr))
+  "Idempotently detach HANDLER. Destruction may have already detached it."
+  (with-loop-lifecycle-lock (loop)
+    (when (find handler (el-fd-handlers loop) :key #'cdr)
+      (let ((owner (el-reactor-thread loop)))
+        (when (and owner
+                   (not (eq owner sb-thread:*current-thread*))
+                   (sb-thread:thread-alive-p owner))
+          (error "cannot remove an fd handler off the event loop's reactor thread")))
+      ;; SBCL removal is nonblocking. Keep it in the same lifecycle admission as
+      ;; Clun's bookkeeping so destruction cannot observe a detached raw handler
+      ;; before its thread-local serve-event registration is actually gone.
+      ;; On the validated owner thread a failure is actionable: keep our entry and
+      ;; surface it so the caller can retry instead of publishing a false detach.
+      (sb-sys:remove-fd-handler handler)
+      (setf (el-fd-handlers loop)
+            (delete handler (el-fd-handlers loop) :key #'cdr))))
+  (values))
+
+(defun close-loop-reactor-handlers (loop)
+  "Detach every tracked handler, then unregister them outside the lifecycle lock."
+  (let ((handlers
+          (with-loop-lifecycle-lock (loop)
+            (prog1 (el-fd-handlers loop)
+              (setf (el-fd-handlers loop) nil)))))
+    (dolist (pair handlers)
+      (ignore-errors (sb-sys:remove-fd-handler (cdr pair)))))
   (values))
 
 (defun %fd-closed-p (fd)
@@ -37,15 +70,17 @@ which would otherwise kill the loop. This recovers from the narrow race where an
 closed before its handler is unregistered — a re-entrant close during dispatch, a peer
 reset, or a GC finalizer closing an orphaned socket under memory pressure (§6). Only
 handlers WE track (el-fd-handlers) are touched; the run-loop self-pipe handler is not."
-  (let ((pruned 0))
-    (setf (el-fd-handlers loop)
-          (remove-if (lambda (pair)
-                       (when (%fd-closed-p (car pair))
-                         (ignore-errors (sb-sys:remove-fd-handler (cdr pair)))
-                         (incf pruned)
-                         t))
-                     (el-fd-handlers loop)))
-    pruned))
+  (let ((stale '()))
+    (with-loop-lifecycle-lock (loop)
+      (setf (el-fd-handlers loop)
+            (remove-if (lambda (pair)
+                         (when (%fd-closed-p (car pair))
+                           (push pair stale)
+                           t))
+                       (el-fd-handlers loop))))
+    (dolist (pair stale)
+      (ignore-errors (sb-sys:remove-fd-handler (cdr pair))))
+    (length stale)))
 
 (defun reactor-poll (loop timeout-ms)
   "Block up to TIMEOUT-MS in poll, dispatching every ready fd handler. Returns T if an

@@ -92,5 +92,8 @@ all five required assets exist before deploying an installer that targets the ve
    issue.
 
 The current Phase 25b milestone adds backward-compatible shared iterator-record operations, lazy
-iterable consumers, iterator-closing behavior, and binding/destructuring fixes. Its impact is `minor`,
-and its release target is `0.1.0-dev.2` under tag `v0.1.0-dev.2`. Milestone 4 is next.
+iterable consumers, iterator-closing behavior, and binding/destructuring fixes. Its impact is `minor`.
+The original `v0.1.0-dev.2` tag failed its darwin-arm64 release gate before assets were published.
+The deterministic issue-60 teardown correction therefore targets `0.1.0-dev.3` under tag `v0.1.0-dev.3`,
+as required by the immutable-tag rule; issue #59 retains the longer Darwin stress
+evidence for Phase 26. Milestone 4 remains unstarted until dev.3 publication completes.

@@ -220,6 +220,174 @@
       (is eq :err (first result))
       (true (typep (second result) 'error)))))
 
+(define-test loop/destroy-drops-in-flight-worker-completion
+  ;; DESTROY marks the loop before joining workers. A worker that finishes in that
+  ;; interval must drop its post without signaling from the producer thread.
+  (let ((loop (lp:make-event-loop :workers 1)) (callback-ran nil))
+    (lp:worker-submit loop (lambda () (sleep 0.02) :done)
+                      (lambda (result) (declare (ignore result)) (setf callback-ran t)))
+    (lp:destroy-event-loop loop)
+    (false callback-ran)
+    (is = 0 (lp:el-ref-count loop))
+    (is = 0 (sb-concurrency:mailbox-count (clun.loop::el-mailbox loop)))))
+
+(define-test loop/concurrent-worker-teardown-keeps-exact-refcount
+  ;; Four workers used to race plain DECF updates while destruction rejected their
+  ;; completion posts. Hundreds of accepted jobs make the accounting race visible.
+  (let* ((jobs 500)
+         (loop (lp:make-event-loop :workers 4))
+         (started (sb-thread:make-semaphore :count 0))
+         (release (sb-thread:make-semaphore :count 0))
+         (callback-count 0)
+         (destroyer nil))
+    (unwind-protect
+         (progn
+           (dotimes (i jobs)
+             (declare (ignore i))
+             (lp:worker-submit
+              loop
+              (lambda ()
+                (sb-thread:signal-semaphore started)
+                (sb-thread:wait-on-semaphore release)
+                :done)
+              (lambda (result)
+                (declare (ignore result))
+                (incf callback-count))))
+           (true (sb-thread:wait-on-semaphore started :n 4 :timeout 2))
+           (is = jobs (lp:el-ref-count loop))
+           (setf destroyer
+                 (sb-thread:make-thread (lambda () (lp:destroy-event-loop loop))
+                                        :name "clun-worker-teardown"))
+           (loop repeat 200
+                 until (clun.loop::el-destroying loop)
+                 do (sleep 0.001))
+           (true (clun.loop::el-destroying loop))
+           (sb-thread:signal-semaphore release jobs)
+           (sb-thread:join-thread destroyer)
+           (setf destroyer nil)
+           (is = 0 callback-count)
+           (is = 0 (lp:el-ref-count loop))
+           (false (clun.loop::el-resources loop))
+           (false (clun.loop::worker-pool-threads (clun.loop::el-workers loop))))
+      (sb-thread:signal-semaphore release jobs)
+      (when destroyer
+        (ignore-errors (sb-thread:join-thread destroyer :timeout 5 :default nil)))
+      (lp:destroy-event-loop loop))))
+
+(define-test loop/destroyed-loop-rejects-new-work
+  (let* ((loop (lp:make-event-loop :workers 0))
+         (timer (lp:set-timer loop 60000 (lambda () (error "must not run"))))
+         (raw-handle (lp:make-handle loop)))
+    (is = 1 (lp:el-ref-count loop))
+    (lp:destroy-event-loop loop)
+    (is = 0 (lp:el-ref-count loop))
+    (lp:clear-timer timer)
+    (is = 0 (lp:el-ref-count loop))
+    (let ((timer-seq (clun.loop::el-timer-seq loop)))
+      (true (handler-case
+                (progn (lp:set-timer loop 0 (lambda () (error "must not run"))) nil)
+              (error () t)))
+      (is = timer-seq (clun.loop::el-timer-seq loop))
+      (is = 0 (fill-pointer
+               (clun.loop::timer-heap-vec (clun.loop::el-timers loop)))))
+    (true (handler-case
+              (progn (lp:worker-submit loop (lambda () :never)
+                                      (lambda (result) (declare (ignore result))))
+                     nil)
+            (error () t)))
+    (false (clun.loop::worker-pool-threads (clun.loop::el-workers loop)))
+    (is = 0 (sb-concurrency:mailbox-count
+             (clun.loop::worker-pool-job-mailbox (clun.loop::el-workers loop))))
+    (false (clun.loop::el-resources loop))
+    (true (handler-case
+              (progn (lp:install-signal-handler loop sb-posix:sigusr2 (lambda ())) nil)
+            (error () t)))
+    (false (aref (clun.loop::signal-state-installed
+                  (clun.loop::el-signal-state loop))
+                 sb-posix:sigusr2))
+    (false (aref (clun.loop::signal-state-listeners
+                  (clun.loop::el-signal-state loop))
+                 sb-posix:sigusr2))
+    (false (eq (aref clun.loop::*signal-owners* sb-posix:sigusr2) loop))
+    (is = 0 (lp:el-ref-count loop))
+    (true (handler-case (progn (lp:handle-activate raw-handle) nil) (error () t)))
+    (true (handler-case (progn (lp:handle-ref raw-handle) nil) (error () t)))
+    (false (clun.loop::handle-active raw-handle))
+    (is = 0 (lp:el-ref-count loop))
+    (false (lp:loop-post loop (lambda () (error "must not run"))))
+    (true (handler-case (progn (lp:run-loop loop) nil) (error () t)))
+    ;; Destruction itself remains idempotent.
+    (true (progn (lp:destroy-event-loop loop) t))))
+
+(define-test loop/concurrent-destroy-waits-and-rejects-new-work
+  (let* ((loop (lp:make-event-loop :workers 0))
+         (cleanup-started (sb-thread:make-semaphore :count 0))
+         (release-cleanup (sb-thread:make-semaphore :count 0))
+         (second-entered (sb-thread:make-semaphore :count 0))
+         (second-returned (sb-thread:make-semaphore :count 0))
+         (cleanup-count 0)
+         (first nil)
+         (second nil))
+    (lp:register-loop-resource
+     loop (list :blocked-cleanup)
+     (lambda ()
+       (incf cleanup-count)
+       (sb-thread:signal-semaphore cleanup-started)
+       (sb-thread:wait-on-semaphore release-cleanup)))
+    (unwind-protect
+         (progn
+           (setf first
+                 (sb-thread:make-thread (lambda () (lp:destroy-event-loop loop))
+                                        :name "clun-first-destroy"))
+           (true (sb-thread:wait-on-semaphore cleanup-started :timeout 2))
+           (true (clun.loop::el-destroying loop))
+           (false (clun.loop::el-destroyed loop))
+
+           ;; Admission while teardown is in progress must be side-effect free.
+           (true (handler-case
+                     (progn (lp:set-timer loop 0 (lambda () ())) nil)
+                   (error () t)))
+           (true (handler-case
+                     (progn (lp:worker-submit loop (lambda () :never)
+                                             (lambda (result) (declare (ignore result))))
+                            nil)
+                   (error () t)))
+           (true (handler-case
+                     (progn (lp:install-signal-handler loop sb-posix:sigusr2 (lambda ())) nil)
+                   (error () t)))
+           (is = 0 (lp:el-ref-count loop))
+           (is = 0 (fill-pointer
+                    (clun.loop::timer-heap-vec (clun.loop::el-timers loop))))
+           (false (clun.loop::worker-pool-threads (clun.loop::el-workers loop)))
+           (is = 0 (sb-concurrency:mailbox-count
+                    (clun.loop::worker-pool-job-mailbox (clun.loop::el-workers loop))))
+           (false (aref (clun.loop::signal-state-installed
+                         (clun.loop::el-signal-state loop))
+                        sb-posix:sigusr2))
+           (false (eq (aref clun.loop::*signal-owners* sb-posix:sigusr2) loop))
+
+           (setf second
+                 (sb-thread:make-thread
+                  (lambda ()
+                    (sb-thread:signal-semaphore second-entered)
+                    (lp:destroy-event-loop loop)
+                    (sb-thread:signal-semaphore second-returned))
+                  :name "clun-second-destroy"))
+           (true (sb-thread:wait-on-semaphore second-entered :timeout 2))
+           (false (sb-thread:wait-on-semaphore second-returned :timeout 0.02))
+           (sb-thread:signal-semaphore release-cleanup)
+           (true (sb-thread:wait-on-semaphore second-returned :timeout 2))
+           (sb-thread:join-thread first)
+           (sb-thread:join-thread second)
+           (setf first nil second nil)
+           (is = 1 cleanup-count)
+           (false (clun.loop::el-destroying loop))
+           (true (clun.loop::el-destroyed loop)))
+      (sb-thread:signal-semaphore release-cleanup)
+      (when first (ignore-errors (sb-thread:join-thread first :timeout 2 :default nil)))
+      (when second (ignore-errors (sb-thread:join-thread second :timeout 2 :default nil)))
+      (lp:destroy-event-loop loop))))
+
 ;;; --- reactor robustness: recover from a handler left on a closed fd -----------
 
 (define-test loop/reactor-recovers-from-closed-fd
@@ -231,9 +399,13 @@
   ;; socket-suite flakiness observed under heavy concurrent load.
   (with-loop (loop)
     (multiple-value-bind (r w) (sb-posix:pipe)
-      (declare (ignore w))
-      (lp:reactor-add loop r :input (lambda (fd) (declare (ignore fd)) nil))
-      (is = 1 (length (clun.loop::el-fd-handlers loop)))
-      (sb-posix:close r)                              ; the race: fd closed, handler still live
-      (true (progn (clun.loop::reactor-poll loop 20) t))  ; must NOT signal a bad-fd error
-      (is = 0 (length (clun.loop::el-fd-handlers loop))))))  ; stale handler pruned
+      (unwind-protect
+           (progn
+             (lp:reactor-add loop r :input (lambda (fd) (declare (ignore fd)) nil))
+             (is = 1 (length (clun.loop::el-fd-handlers loop)))
+             (sb-posix:close r)                           ; the race: closed fd, live handler
+             (setf r nil)
+             (true (progn (clun.loop::reactor-poll loop 20) t))
+             (is = 0 (length (clun.loop::el-fd-handlers loop)))) ; stale handler pruned
+        (when r (ignore-errors (sb-posix:close r)))
+        (ignore-errors (sb-posix:close w))))))

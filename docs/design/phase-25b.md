@@ -390,5 +390,41 @@ Eligible remains 28,163. The exact rate is `24,504 / 28,163 = 87.007776%`, publi
 87.00%; 843 more passes are required to reach the fixed 25,347 target. The regenerated gap inventory
 assigns 2,775 failures to Phase 25b and 884 to Phase 37, and its canonical artifact digest is
 `1DF243B2047FC7F1`. M3 is a backward-compatible functionality unit in the existing `0.1.0` train,
-so its disposition remains SemVer minor and its release target is `0.1.0-dev.2`. Milestone 4 is next
-and has not started.
+so its disposition remains SemVer minor. The original `v0.1.0-dev.2` tag passed master CI, but the
+darwin-arm64 release builder exposed an inverted FD-bound test before any release assets were
+published. The issue-59/60 correction advances the immutable prerelease target to `0.1.0-dev.3`
+without changing the m3 conformance evidence. Milestone 4 is next and has not started.
+
+#### 6.2.2 Release-gate and loop-ownership correction
+
+Parachute's `is` form is `(is comparator expected form)` and calls the comparator with the evaluated
+form first. The socket lifetime gate wrote `(is <= delta 1)`, which therefore asserted `1 <= delta`:
+darwin-arm64 correctly produced a zero descriptor delta and failed, while a larger leak could have
+passed. The corrected gate snapshots descriptors outside the event-loop lifetime, filters the
+enumeration descriptor by rechecking each numeric entry with `fstat`, and requires exact set equality
+after 400 connection cycles and loop destruction.
+
+That stronger gate also made the underlying issue-59 runtime defect explicit. The last client close
+can request `loop-stop` before its accepted peer consumes EOF; `destroy-event-loop` previously removed
+the peer's reactor handler without closing its SBCL socket, leaving a finalizer able to close a later
+recycled descriptor. Event loops now admit synchronous cleanup ownership and handle activation for TCPs
+and listeners atomically under the lifecycle lock. Normal close detaches reactor handlers before closing
+the descriptor, then deactivates its handle and unregisters the ownership token only after the descriptor
+is closed. Destruction rejects new resource/timer/worker/signal/handle admission, joins workers, clears
+timers, removes signals, detaches all reactor handlers, closes every still-owned resource object, waits for
+in-flight posters, discards accepted mailbox completions, and finally closes the self-pipe. Concurrent destroy
+callers wait for the single teardown owner. A persistent reactor-thread owner survives `run-loop` return
+because SBCL fd-handler tables are thread-local; off-owner close queues to it, while off-owner destruction
+with live handlers fails without mutating lifecycle state. Terminal TCP/listener state is assigned after
+affinity-sensitive removal and close so a rejected attempt remains retryable. Teardown suppresses user
+close callbacks, remains idempotent, cancels timers, and releases in-flight worker handles through
+serialized accounting without overwriting aggregate refcount state. The deterministic regression
+forces full GC after recycling the listener, client, and accepted-peer descriptor numbers, calls
+destruction a second time, and proves every replacement descriptor stays open. The adjacent
+stale-handler regression also closes both ends of its raw test pipe. Issue #60 is the deterministic
+dev.3 blocker; issue #59 remains open for the Phase-26 Darwin soak matrix. Active async `Clun.spawn`
+resource ownership is tracked separately rather than expanding this correction.
+
+Because the remote annotated dev.2 tag already establishes publication under the versioning
+contract, the correction uses the next prerelease suffix, dev.3; the dev.2 tag remains immutable and
+has no GitHub release or assets.

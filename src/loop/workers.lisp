@@ -53,16 +53,34 @@ so concurrent submits (Promise.all of fetches) spawn exactly one set."
 (defun worker-submit (loop fn on-done)
   "Run blocking FN on a worker thread; ON-DONE is called on the loop thread with
 (:ok value) or (:err condition). Returns the in-flight handle (keeps loop alive)."
-  (ensure-workers (el-workers loop))
-  (let ((handle (make-handle loop :kind :worker)))
-    (handle-activate handle)
-    (sb-concurrency:send-message
-     (worker-pool-job-mailbox (el-workers loop))
-     (lambda ()
-       (let ((result (handler-case (list :ok (funcall fn))
-                       (error (c) (list :err c)))))
-         (loop-post loop
-                    (lambda ()
-                      (handle-deactivate handle)
-                      (funcall on-done result))))))
+  (let ((handle (make-handle loop :kind :worker)) (resource nil))
+    (handler-case
+        (with-loop-lifecycle-lock (loop)
+          ;; Keep worker creation, handle/resource activation, and queue admission in
+          ;; the same lifecycle critical section. Destruction can then either reject
+          ;; the submit without side effects or observe the complete in-flight job.
+          (%ensure-loop-open-locked loop "submit worker work")
+          (ensure-workers (el-workers loop))
+          (setf resource
+                (%register-loop-handle-resource-locked
+                 loop handle (lambda () (handle-deactivate handle)) handle))
+          (sb-concurrency:send-message
+           (worker-pool-job-mailbox (el-workers loop))
+           (lambda ()
+             (let ((result (handler-case (list :ok (funcall fn))
+                             (error (c) (list :err c)))))
+               (unless
+                   (loop-post loop
+                              (lambda ()
+                                (unregister-loop-resource resource)
+                                (handle-deactivate handle)
+                                (funcall on-done result)))
+                 ;; Destruction rejected the completion post. Release accounting on
+                 ;; this producer thread; DESTROY waits for the worker before teardown.
+                 (unregister-loop-resource resource)
+                 (handle-deactivate handle))))))
+      (error (e)
+        (unregister-loop-resource resource)
+        (handle-deactivate handle)
+        (error e)))
     handle))

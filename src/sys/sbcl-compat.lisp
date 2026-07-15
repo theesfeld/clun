@@ -51,8 +51,15 @@ NIL — so no condition is consed here."
     (loop while (listen s) do (read-byte s nil nil))))
 
 (defun self-pipe-close (sp)
-  (ignore-errors (close (self-pipe-read-stream sp)))    ; closes read-fd
-  (ignore-errors (sb-posix:close (self-pipe-write-fd sp))))
+  "Close both ends exactly once and invalidate their stored descriptor numbers."
+  (when (self-pipe-read-stream sp)
+    (ignore-errors (close (self-pipe-read-stream sp)))  ; closes read-fd
+    (setf (self-pipe-read-stream sp) nil
+          (self-pipe-read-fd sp) -1))
+  (when (>= (self-pipe-write-fd sp) 0)
+    (ignore-errors (sb-posix:close (self-pipe-write-fd sp)))
+    (setf (self-pipe-write-fd sp) -1))
+  (values))
 
 ;;; --- reactor capability probe (Appendix C.5) ---------------------------------
 

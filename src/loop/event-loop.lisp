@@ -19,18 +19,28 @@ self-pipe makes real signal/worker latency ~immediate, not cap-bound (Appendix C
    :workers (make-worker-pool workers)))
 
 (defun destroy-event-loop (loop)
-  (stop-worker-pool (el-workers loop))
-  (dolist (pair (el-fd-handlers loop))
-    (ignore-errors (sb-sys:remove-fd-handler (cdr pair))))
-  (setf (el-fd-handlers loop) nil)
-  ;; Uninstall OS signal handlers BEFORE closing the self-pipe: a surviving handler
-  ;; closes over this pipe and would write the wake byte to the closed (and possibly
-  ;; OS-recycled) fd on the next delivery — cross-object corruption / EBADF (§6).
-  (let ((st (el-signal-state loop)))
-    (dotimes (s +max-signal+)
-      (when (aref (signal-state-installed st) s)
-        (remove-signal-handler loop s))))
-  (clun.sys:self-pipe-close (el-self-pipe loop))
+  (when (begin-loop-destruction loop)
+    (unwind-protect
+         (progn
+           (stop-worker-pool (el-workers loop))
+           (clear-loop-timers loop)
+           ;; Stop asynchronous signal writers before any descriptor can be recycled.
+           (let ((st (el-signal-state loop)))
+             (dotimes (s +max-signal+)
+               (when (aref (signal-state-installed st) s)
+                 (ignore-errors (remove-signal-handler loop s)))))
+           ;; No user fd callback may remain dispatchable during owner cleanup.
+           (close-loop-reactor-handlers loop)
+           ;; Closing the SBCL socket object cancels its finalizer. Dropping only the
+           ;; handler could let that finalizer close an OS-recycled fd later.
+           (close-loop-resources loop)
+           ;; LOOP-POST is mutex-free because status hooks call it in interrupt
+           ;; context. Wait for any producer that entered before DESTROYING was set.
+           (loop while (plusp (el-posters loop)) do (sb-thread:thread-yield))
+           ;; Posts accepted before destruction cannot run against closed resources.
+           (sb-concurrency:receive-pending-messages (el-mailbox loop))
+           (ignore-errors (clun.sys:self-pipe-close (el-self-pipe loop))))
+      (finish-loop-destruction loop)))
   (values))
 
 (defun process-completions (loop)
@@ -60,14 +70,26 @@ is requested. Re-entrant-safe only in the single JS-thread sense (§3.2).
 The self-pipe handler is registered HERE, on the running thread: SBCL dispatches
 serve-event fd handlers only for registrations made by the thread that calls
 serve-event, so make-event-loop (possibly a different thread) must not register it."
-  (setf (el-running loop) t (el-stop-requested loop) nil
-        (el-thread loop) sb-thread:*current-thread*)
+  (with-loop-lifecycle-lock (loop)
+    (when (or (el-destroying loop) (el-destroyed loop))
+      (error "cannot run a destroyed event loop"))
+    (when (el-running loop) (error "event loop is already running"))
+    (let ((owner (el-reactor-thread loop)))
+      (when (and owner
+                 (not (eq owner sb-thread:*current-thread*))
+                 (or (sb-thread:thread-alive-p owner) (el-fd-handlers loop)))
+        (error "event loop must run on the thread that owns its fd handlers"))
+      (setf (el-reactor-thread loop) sb-thread:*current-thread*))
+    (setf (el-running loop) t (el-stop-requested loop) nil
+          (el-thread loop) sb-thread:*current-thread*))
   (let* ((sp (el-self-pipe loop))
-         (wake-handler (sb-sys:add-fd-handler
-                        (clun.sys:self-pipe-read-fd sp) :input
-                        (lambda (fd) (declare (ignore fd)) (clun.sys:self-pipe-drain sp)))))
+         (wake-handler nil))
     (unwind-protect
          (progn
+           (setf wake-handler
+                 (sb-sys:add-fd-handler
+                  (clun.sys:self-pipe-read-fd sp) :input
+                  (lambda (fd) (declare (ignore fd)) (clun.sys:self-pipe-drain sp))))
            (drain-microtasks loop)              ; honor pre-run work
            (loop
              (when (el-stop-requested loop) (return))
@@ -80,12 +102,15 @@ serve-event, so make-event-loop (possibly a different thread) must not register 
              (drain-signals loop)
              (expire-due-timers loop)
              (process-tasks loop)))
-      (sb-sys:remove-fd-handler wake-handler)
-      (setf (el-running loop) nil (el-thread loop) nil)))
+      (when wake-handler (ignore-errors (sb-sys:remove-fd-handler wake-handler)))
+      (with-loop-lifecycle-lock (loop)
+        (setf (el-running loop) nil (el-thread loop) nil))))
   (values))
 
 (defun loop-stop (loop)
   "Request a graceful stop and wake the loop. Safe from any thread."
-  (setf (el-stop-requested loop) t)
-  (clun.sys:self-pipe-wake (el-self-pipe loop))
+  (with-loop-lifecycle-lock (loop)
+    (setf (el-stop-requested loop) t)
+    (unless (or (el-destroying loop) (el-destroyed loop))
+      (clun.sys:self-pipe-wake (el-self-pipe loop))))
   (values))

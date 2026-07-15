@@ -18,38 +18,46 @@
 ;; single-loop (§3.2); a second LIVE loop claiming a signo already owned by another
 ;; is a loud error, not a silent clobber. destroy-event-loop releases ownership.
 (sb-ext:defglobal *signal-owners* (make-array +max-signal+ :initial-element nil))
+(sb-ext:defglobal *signal-owners-lock*
+  (sb-thread:make-mutex :name "clun-signal-owners"))
 
 (defun install-signal-handler (loop signo listener)
   "Run LISTENER (a thunk) on the loop thread each time SIGNO is delivered. The OS
 handler does nothing but atomic-incf the counter + wake the self-pipe (§6)."
   (check-type signo (integer 1 (#.+max-signal+)))
-  (let ((owner (aref *signal-owners* signo)))
-    (when (and owner (not (eq owner loop)))
-      (error "signal ~a is already handled by another event loop~
-              ~%note: Clun runs a single event loop (PLAN.md §3.2)" signo)))
-  (let* ((st (el-signal-state loop))
-         (sp (el-self-pipe loop))
-         (counts (signal-state-counts st)))
-    (setf (aref (signal-state-listeners st) signo) listener)
-    (unless (aref (signal-state-installed st) signo)
-      (setf (aref (signal-state-installed st) signo) t
-            (aref *signal-owners* signo) loop)
-      (sb-sys:enable-interrupt
-       signo
-       (lambda (sig info context)
-         (declare (ignore sig info context))
-         (sb-ext:atomic-incf (aref counts signo))
-         (clun.sys:self-pipe-wake sp))))
-    listener))
+  (with-loop-lifecycle-lock (loop)
+    (%ensure-loop-open-locked loop "install a signal handler")
+    (sb-thread:with-mutex (*signal-owners-lock*)
+      (let ((owner (aref *signal-owners* signo)))
+        (when (and owner (not (eq owner loop)))
+          (error "signal ~a is already handled by another event loop~
+                  ~%note: Clun runs a single event loop (PLAN.md §3.2)" signo)))
+      (let* ((st (el-signal-state loop))
+             (sp (el-self-pipe loop))
+             (counts (signal-state-counts st)))
+        (setf (aref (signal-state-listeners st) signo) listener)
+        (unless (aref (signal-state-installed st) signo)
+          (sb-sys:enable-interrupt
+           signo
+           (lambda (sig info context)
+             (declare (ignore sig info context))
+             (sb-ext:atomic-incf (aref counts signo))
+             (clun.sys:self-pipe-wake sp)))
+          (setf (aref (signal-state-installed st) signo) t
+                (aref *signal-owners* signo) loop))
+        listener))))
 
 (defun remove-signal-handler (loop signo)
-  (let ((st (el-signal-state loop)))
-    (setf (aref (signal-state-listeners st) signo) nil)
-    (when (aref (signal-state-installed st) signo)
-      (setf (aref (signal-state-installed st) signo) nil)
-      (when (eq (aref *signal-owners* signo) loop)
-        (setf (aref *signal-owners* signo) nil))
-      (sb-sys:enable-interrupt signo :default)))
+  (check-type signo (integer 1 (#.+max-signal+)))
+  (with-loop-lifecycle-lock (loop)
+    (sb-thread:with-mutex (*signal-owners-lock*)
+      (let ((st (el-signal-state loop)))
+        (when (aref (signal-state-installed st) signo)
+          (sb-sys:enable-interrupt signo :default)
+          (setf (aref (signal-state-installed st) signo) nil)
+          (when (eq (aref *signal-owners* signo) loop)
+            (setf (aref *signal-owners* signo) nil)))
+        (setf (aref (signal-state-listeners st) signo) nil))))
   (values))
 
 (defun pending-signals-p (loop)
