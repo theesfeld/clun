@@ -1,0 +1,32 @@
+name: Roadmap Issues
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "PLAN.md"
+      - "docs/roadmap.tsv"
+      - "scripts/roadmap.sh"
+      - ".github/workflows/roadmap.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: roadmap-issues
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: Validate roadmap source
+        run: sh scripts/roadmap.sh check
+      - name: Reconcile milestone, labels, and issues
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ROADMAP_REPO: ${{ github.repository }}
+        run: sh scripts/roadmap.sh sync

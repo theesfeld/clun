@@ -101,7 +101,8 @@ current Clun capabilities: [73 inventory freeze](https://github.com/theesfeld/cl
 `scripts/roadmap.sh check` validates the phase ledger and public phase references.
 `scripts/public-claims-check.sh` also compares capability names, status values, and complete phase-link
 sets between this README and the landing page; descriptive prose still requires review. Use
-`scripts/roadmap.sh sync` after changing roadmap metadata.
+`scripts/roadmap.sh sync` for a manual reconciliation. Changes merged to `master` are synchronized
+automatically by `.github/workflows/roadmap.yml`.
 
 ## The purity contract
 
