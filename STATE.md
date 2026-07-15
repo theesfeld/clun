@@ -157,16 +157,28 @@ guaranteed" for a tree-walking interpreter.
 **§2.4 SCOPE DECISION — RESOLVED (2026-07-14): operator chose (C) build the §5 background-thread `COMPILE`
 tier** to push deltablue to a true per-benchmark ≥5× (accepting it's large + higher-risk + arguably post-v1).
 
-**Next action:** DESIGN the COMPILE tier (loop DESIGN step), then milestone the build. Framing: the base tier
-already emits COMPILED CL closures (one per AST node — the overhead is the closure-TREE structure, not
-interpretation), so the tier must collapse a HOT function body into a SINGLE monolithic compiled function:
-generate a CL source form for the whole body → `cl:compile` on a background thread → atomically swap it in as
-the function's `compiled-body`. This is effectively a second source-generating emitter backend for a covered
-subset (generators/async/`with`/eval/complex bindings fall back to the closure tree — purely additive,
-correctness-preserving), + a call-count tier-up trigger + a thread-safe swap + a correctness obligation (the
-compiled body must be OBSERVABLY IDENTICAL to the closure-tree body — verify via a differential test:
-tier-up mid-run and assert unchanged results, plus full G1). Produce `docs/design/phase-25-compile-tier.md`
-+ a milestone plan, and surface the plan/scope to the operator before large implementation.
+**DESIGN DONE — `docs/design/phase-25-compile-tier.md`** (workflow: mapped emitter/frame/runtime + coverable
+subset, synthesized the design). Verified the key premise myself: `sb-ext:*evaluator-mode* = :COMPILE` and a
+runtime-constructed closure is `compiled-function-p = T`, so **the emitted closures are already SBCL-native
+compiled** (an early map agent wrongly said "interpreted"; the design correctly says the closures are
+compiled and the residual is the per-node `funcall` glue + no cross-node optimization). So the tier's win is
+COLLAPSING the closure tree into ONE `cl:compile`'d body (direct calls + SBCL register allocation across
+nodes), NOT interpreted→native — a SMALLER, uncertain win, since deltablue's residual cost is largely inside
+the shared runtime primitives (`%ic-read`/`js-call`/`setup-frame`) that the tier still CALLS unchanged.
+
+**Milestone plan (the design's, with an empirical ceiling gate — spend minimal risk before knowing the
+answer):** **m1** = source backend for a tiny subset + `:off`/`:eager`/`:threshold` switch + a differential
+harness (prove ONE deltablue function compiles byte-identically; G1 unchanged under `:eager`). **m2** = widen
+the subset to cover deltablue's hot functions, EAGER-COMPILE, and MEASURE the ceiling. **← DECISION GATE: if
+eager-compiled deltablue is still < 5×, the residual is in the primitives the tier can't change → OFF-RAMP to
+m10 option A (accept G2 on geomean/majority: richards 6.62× + splay 5.30× + geomean ≈5.1×, document deltablue
+as the §8.1 tree-walker holdout, proceed to Phase 25b). Only if the ceiling ≥ 5× → build m3 (background
+tier-up + atomic `compiled-body` swap) + m4 (measure/tune/G1).** The interpreter path is always ground truth
+and `:off` is always available, so abandoning the tier costs only milestones spent, never conformance.
+
+**Next action:** Phase 25 **COMPILE-tier m1** — the source backend (tiny subset) + eager mode + the
+differential harness, proving one deltablue accessor compiles identically (G1 unchanged under `:eager`).
+Then m2 measures the ceiling and hits the decision gate.
 
 **G3 scope concern — RESOLVED (2026-07-14, operator-approved split):** the ≥90% curated-test262 target is
 split out of Phase 25 into a new **Phase 25b — Conformance push to ≥90%** (PLAN §5). Phase 25's gate is now
