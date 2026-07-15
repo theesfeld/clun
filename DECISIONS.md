@@ -1829,3 +1829,19 @@ for a tree-walking closure interpreter; deltablue hardest"). Per PLAN §2.4 this
 (A) accept + declare G2 met on a geomean/majority basis, document deltablue, proceed to Phase 25b; (B) keep
 grinding behavior-preserving micro-opts (diminishing, still likely short); (C) build the §5 COMPILE tier.
 Awaiting the decision before spending further deltablue milestones.
+
+### 2026-07-14 — Phase 25 G2 scope decision: OPERATOR CHOSE (C) build the §5 background-thread COMPILE tier
+The operator selected option C: implement the design-doc §3.1-fallback / §5 hot-function `COMPILE` tier to
+push deltablue to a true per-benchmark ≥5×, accepting it is large + higher-risk + arguably post-v1. Framing
+for the work: the engine already emits COMPILED CL closures (SBCL compiles the `(lambda (env) …)` forms
+returned by the `compile-*` emitter fns), so the base tier is NOT interpreted — the overhead is the
+CLOSURE-TREE STRUCTURE (one closure funcall per AST node, env threaded through, no cross-node optimization).
+The COMPILE tier must therefore collapse a HOT function body from a tree of per-node closure calls into a
+SINGLE monolithic compiled function (generate a CL source form for the whole body → `cl:compile` it on a
+background thread → atomically swap it in as the function's `compiled-body` for subsequent calls). This is
+effectively a second, source-generating emitter backend for the covered subset, with a tier-up trigger
+(call-count), thread-safety of the swap, and a correctness obligation (the compiled body must be
+observably identical to the closure-tree body). DESIGN FIRST (docs/design), then milestone the build; the
+milestone plan + scope will be surfaced to the operator before large implementation, since it may span
+several milestones. Non-covered function shapes (generators/async/`with`/eval/complex bindings) stay on the
+closure tree (fall back), so the tier is purely additive + correctness-preserving.

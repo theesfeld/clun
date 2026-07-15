@@ -154,13 +154,19 @@ RISKY deep-IC work (a general prototype-chain IC / a transition write IC — the
 the machine-code-tier §5 `COMPILE` path — exactly what design-doc §8.1 flagged as "plausible, not
 guaranteed" for a tree-walking interpreter.
 
-**Next action — OPEN §2.4 SCOPE DECISION (raised to operator):** the G2 gate as written is per-benchmark
-≥5×; richards + splay meet it, deltablue does not (and geomean does, 5.1×). Options put to the operator:
-(A) accept the achieved result — close Phase 25 with G2 met on a geomean/majority basis, deltablue
-documented as the tree-walker's hard case (§8.1) — and proceed to Phase 25b (the conformance push); (B) keep
-grinding behavior-preserving micro-opts (param binding, deep-proto/transition ICs) — likely reaches ~4–4.7×
-on deltablue, still short, at rising risk; (C) build the §5 background-thread `COMPILE` tier (large, higher
-risk, arguably post-v1). Await the operator's choice before spending further milestones on deltablue.
+**§2.4 SCOPE DECISION — RESOLVED (2026-07-14): operator chose (C) build the §5 background-thread `COMPILE`
+tier** to push deltablue to a true per-benchmark ≥5× (accepting it's large + higher-risk + arguably post-v1).
+
+**Next action:** DESIGN the COMPILE tier (loop DESIGN step), then milestone the build. Framing: the base tier
+already emits COMPILED CL closures (one per AST node — the overhead is the closure-TREE structure, not
+interpretation), so the tier must collapse a HOT function body into a SINGLE monolithic compiled function:
+generate a CL source form for the whole body → `cl:compile` on a background thread → atomically swap it in as
+the function's `compiled-body`. This is effectively a second source-generating emitter backend for a covered
+subset (generators/async/`with`/eval/complex bindings fall back to the closure tree — purely additive,
+correctness-preserving), + a call-count tier-up trigger + a thread-safe swap + a correctness obligation (the
+compiled body must be OBSERVABLY IDENTICAL to the closure-tree body — verify via a differential test:
+tier-up mid-run and assert unchanged results, plus full G1). Produce `docs/design/phase-25-compile-tier.md`
++ a milestone plan, and surface the plan/scope to the operator before large implementation.
 
 **G3 scope concern — RESOLVED (2026-07-14, operator-approved split):** the ≥90% curated-test262 target is
 split out of Phase 25 into a new **Phase 25b — Conformance push to ≥90%** (PLAN §5). Phase 25's gate is now
