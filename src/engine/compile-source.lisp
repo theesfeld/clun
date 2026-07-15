@@ -256,7 +256,12 @@ source-emitted target; switches increment only the former."
           (lambda (value)
             (cond ((and (eq kind :local) (resolved-import-p comp depth name))
                    `(progn ,value (throw-type-error "Assignment to constant variable.")))
-                  ((eq kind :local) `(frame-set env ,depth ,index ,value))
+                  ((and (eq kind :local) (resolved-immutable-p comp depth name))
+                   `(progn
+                      ,value
+                      (frame-ref env ,depth ,index ,name)
+                      (throw-type-error "Assignment to constant variable.")))
+                  ((eq kind :local) `(frame-set env ,depth ,index ,value ,name))
                   (t `(global-set ,name ,value ,(comp-strict comp)))))))))
     (member-expression
      (if (member-expression-computed node)
@@ -335,6 +340,7 @@ result so a member base/key is evaluated exactly once before the operation."
                (lex-names (collect-lexical-names stmts))
                (func-decls (collect-function-decls stmts)))
           (dolist (n lex-names) (cs-declare scope n))
+          (mark-immutable-lexicals scope stmts)
           (dolist (fd func-decls) (cs-declare scope (identifier-name (function-node-id fd))))
           (let* ((sub (cs-copy-comp comp :scopes (cons scope (comp-scopes comp))))
                  (lexical-idxs (mapcar (lambda (n) (gethash n (cs-names scope))) lex-names))
@@ -419,6 +425,8 @@ result so a member base/key is evaluated exactly once before the operation."
                             collect (identifier-name (variable-declarator-id d))))
                (scope (make-cscope :block)))
           (dolist (n names) (cs-declare scope n))
+          (when (eq (variable-declaration-kind init) :const)
+            (dolist (n names) (cs-mark-immutable scope n)))
           (let* ((sub (cs-copy-comp loop-comp :scopes (cons scope (comp-scopes loop-comp))))
                  (count (cs-count scope))
                  (body (cs-for-body sub node bt ct)))
@@ -438,6 +446,7 @@ result so a member base/key is evaluated exactly once before the operation."
          (scope (and (block-has-lexical-p stmts) (make-cscope :block))))
     (when scope
       (dolist (n lex-names) (cs-declare scope n))
+      (mark-immutable-lexicals scope stmts)
       (dolist (fd func-decls) (cs-declare scope (identifier-name (function-node-id fd)))))
     (let* ((sub (if scope (cs-copy-comp base :scopes (cons scope (comp-scopes base))) base))
            (cases (loop for c in (switch-statement-cases node)

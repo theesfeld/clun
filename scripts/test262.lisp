@@ -50,6 +50,20 @@
   (let ((n (and fm (search "negative:" fm))))
     (and n (search "phase: parse" fm :start2 n))))
 
+(defun fm-scalar-after (fm key start)
+  (let ((position (and fm (search key fm :start2 start))))
+    (when position
+      (let* ((value-start (+ position (length key)))
+             (value-end (or (position #\Newline fm :start value-start) (length fm))))
+        (string-trim '(#\Space #\Tab #\Return) (subseq fm value-start value-end))))))
+
+(defun neg-runtime-type (fm)
+  "Return the declared runtime-negative constructor name, or NIL."
+  (let ((negative (and fm (search "negative:" fm))))
+    (when (and negative
+               (string= "runtime" (or (fm-scalar-after fm "phase:" negative) "")))
+      (fm-scalar-after fm "type:" negative))))
+
 (defun read-source (path)
   "Read PATH as UTF-8 into a code-unit string (as clun loads source)."
   (with-open-file (in path :element-type '(unsigned-byte 8))
@@ -116,13 +130,28 @@ doneprintHandle.js). Returns a thunk fetching the accumulated output."
           (write-line (to-string (arg args 0)) buf) +undefined+)))
     (lambda () (get-output-stream-string buf))))
 
+(defun expected-runtime-error-p (condition expected-name realm)
+  "Whether CONDITION carries an instance of EXPECTED-NAME in REALM."
+  (cond
+    ((typep condition 'js-native-error)
+     (string= expected-name (js-native-error-name (js-native-error-kind condition))))
+    (t
+     (let ((*realm* realm)
+           (value (js-condition-value condition)))
+       (handler-case
+           (let ((constructor (js-get (realm-global realm) expected-name)))
+             (and (callable-p constructor)
+                  (ordinary-has-instance constructor value)))
+         (js-condition () nil))))))
+
 (defun classify-exec (path)
   "Run PATH's harness+includes+source in both modes; :pass/:fail/:skip/:crash/:tmo.
 An `async`-flagged test passes iff $DONE printed AsyncTestComplete (and no Failure)."
   (let* ((src (read-source path))
          (fm (frontmatter src))
          (features (fm-list fm "features:"))
-         (flags (fm-list fm "flags:")))
+         (flags (fm-list fm "flags:"))
+         (runtime-negative (neg-runtime-type fm)))
     (cond
       ((neg-parse-p fm) :skip)                              ; negative-parse handled by parse phase
       ((intersection features *exec-skip* :test #'string=) :skip)
@@ -144,11 +173,18 @@ An `async`-flagged test passes iff $DONE printed AsyncTestComplete (and no Failu
                                        (harness "sta.js") (harness "assert.js")
                                        (if asyncp (harness "doneprintHandle.js") "") inc src)))
                (handler-case
-                   (sb-ext:with-timeout 5 (run-source full :realm realm))
+                   (progn
+                     (sb-ext:with-timeout 5
+                       (run-source full :realm realm
+                                        :report-unhandled-rejections-p (not (null asyncp))))
+                     (when runtime-negative (return :fail)))
                  (sb-ext:timeout () (return :fail))
-                 (js-condition () (return :fail))
+                 (js-condition (condition)
+                   (unless (and runtime-negative
+                                (expected-runtime-error-p condition runtime-negative realm))
+                     (return :fail)))
                  (serious-condition () (return-from classify-exec :crash)))
-               (when asyncp
+               (when (and asyncp (not runtime-negative))
                  (let ((out (funcall getout)))
                    (unless (and (search "Test262:AsyncTestComplete" out)
                                 (not (search "Test262:AsyncTestFailure" out)))

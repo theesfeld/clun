@@ -71,6 +71,7 @@
                 "try {} catch {} " "try {} catch (e) {}" "do x; while (y);"
                 "switch(x){ case 1: break; default: }" "with(o){}"
                 "a, b, c;" "!function(){}();" "({a, b} = c);" "[a, b] = c;"
+                "[{} = value] = source;" "[{a} = value] = source;"
                 "typeof void delete x.y;" "function f(){ new.target; }" "yield;"))
     (true (parses? ok))))
 

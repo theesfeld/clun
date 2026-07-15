@@ -328,6 +328,11 @@
 
 ;;; --- Boolean / Number / String ---------------------------------------------
 
+(defun symbol-descriptive-string (symbol)
+  (format nil "Symbol(~a)"
+          (let ((description (js-symbol-description symbol)))
+            (if (js-undefined-p description) "" description))))
+
 (defun %bootstrap-primitives ()
   ;; Boolean
   (let ((bp (make-wrapper-prototype :boolean-prototype :boolean +false+)))
@@ -383,7 +388,12 @@
                             (if (< start end) (subseq s start end) ""))))
     (setf (realm-intrinsic *realm* :string-constructor)
           (make-constructor "String" 1
-            (lambda (this args) (declare (ignore this)) (if args (to-string (arg args 0)) ""))
+            (lambda (this args)
+              (declare (ignore this))
+              (if args
+                  (let ((value (arg args 0)))
+                    (if (js-symbol-p value) (symbol-descriptive-string value) (to-string value)))
+                  ""))
             :prototype sp
             :construct-fn (lambda (args nt)
                             (make-string-object (if args (to-string (arg args 0)) "")
@@ -414,18 +424,19 @@
     (setf (realm-intrinsic *realm* :symbol-prototype) sp)
     (install-method sp "toString" 0
       (lambda (this args) (declare (ignore args))
-        (format nil "Symbol(~a)" (let ((d (js-symbol-description (this-symbol this))))
-                                   (if (js-undefined-p d) "" d)))))
+        (symbol-descriptive-string (this-symbol this))))
     (let ((ctor (make-native-function "Symbol" 0
                   (lambda (this args) (declare (ignore this))
                     (%make-js-symbol :description (let ((d (arg args 0)))
                                                     (if (js-undefined-p d) +undefined+ (to-string d))))))))
       (obj-set-desc ctor "prototype" (data-pd sp :writable nil :enumerable nil :configurable nil))
-      (hidden-prop ctor "iterator" (well-known :iterator))
-      (hidden-prop ctor "hasInstance" (well-known :has-instance))
-      (hidden-prop ctor "toPrimitive" (well-known :to-primitive))
-      (hidden-prop ctor "toStringTag" (well-known :to-string-tag))
-      (hidden-prop ctor "asyncIterator" (well-known :async-iterator))
+      (dolist (entry `(("iterator" . ,(well-known :iterator))
+                       ("hasInstance" . ,(well-known :has-instance))
+                       ("toPrimitive" . ,(well-known :to-primitive))
+                       ("toStringTag" . ,(well-known :to-string-tag))
+                       ("asyncIterator" . ,(well-known :async-iterator))))
+        (obj-set-desc ctor (car entry)
+                      (data-pd (cdr entry) :writable nil :enumerable nil :configurable nil)))
       (setf (realm-intrinsic *realm* :symbol-constructor) ctor))))
 
 (defun this-symbol (this)

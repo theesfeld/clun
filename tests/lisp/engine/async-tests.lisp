@@ -38,7 +38,20 @@ object/array result reaches its prototype's toString only inside its realm)."
   ;; yield* returns the inner generator's return value
   (is string= "42" (evj "function* inner(){ yield 1; return 42; }
                         function* g(){ var v = yield* inner(); yield v; }
-                        var it=g(); it.next(); it.next().value")))
+                        var it=g(); it.next(); it.next().value"))
+  (is string= "1,1,true,true"
+      (evj "var args,thisValue,calls=0;
+            var iterator={next:function(){calls++;args=arguments;thisValue=this;return {done:true}}};
+            var iterable={[Symbol.iterator]:function(){return iterator}};
+            var it=(function*(){yield* iterable})();it.next(9876);
+            [calls,args.length,args[0]===undefined,thisValue===iterator].join(',')"))
+  (is string= "true,3333,5555,3333"
+      (evj "var received,result,done;
+            var iterable={[Symbol.iterator]:function(){return {next:function(value){received=value;return {done:done,value:3333}}}}};
+            function* g(){result=yield* iterable}
+            done=true;var first=g();first.next(4444);var firstReceived=received===undefined,firstResult=result;
+            done=false;result=null;var second=g();second.next(2222);done=true;second.next(5555);
+            [firstReceived,firstResult,received,result].join(',')")))
 
 (define-test gen/realm-and-floats-in-coroutine
   ;; the coroutine thread rebinds *realm* (globals resolve) and re-enters the float mask
@@ -70,6 +83,14 @@ object/array result reaches its prototype's toString only inside its realm)."
   ;; an unhandled rejection surfaces as an uncaught error after the loop idles
   (true (ev-throws "Promise.reject('boom')"))
   (true (ev-throws "new Promise((res,rej)=>rej(new Error('x')))")))
+
+(define-test promise/conformance-host-can-ignore-result-rejection
+  (let ((realm (eng:make-realm)))
+    (eng:run-source
+     "var closed=0;Promise.resolve=function(){throw 3};var src={ [Symbol.iterator]:function(){return {next:function(){return {value:1,done:false}},return:function(){closed++;return {done:true}}}}};Promise.all(src);globalThis.result=closed;"
+     :realm realm :report-unhandled-rejections-p nil)
+    (let ((eng::*realm* realm))
+      (is eql 1d0 (eng:js-get (eng::realm-global realm) "result")))))
 
 (define-test loop/ordering-nexttick-microtask-timer
   ;; nextTick drains fully, then microtasks, then the timer macrotask (Node-faithful)

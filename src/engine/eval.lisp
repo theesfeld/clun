@@ -1,7 +1,6 @@
 ;;;; eval.lisp — top-level: compile a Program in a realm and run it (Phase 03).
-;;;; Global-scope declarations become properties of the global object (a Phase 03
-;;;; simplification of the split global environment record — documented in the design
-;;;; doc); function bodies get proper declarative frames with TDZ.
+;;;; Script var/function declarations use the global object. Top-level lexical
+;;;; declarations use a per-program declarative frame with TDZ and const metadata.
 
 (in-package :clun.engine)
 
@@ -11,7 +10,33 @@
         (when (string= (expression-statement-directive s) "use strict") (return t))
         (return nil))))
 
-(defun global-instantiate (stmts comp)
+(defun prepare-script-lexical-environment (stmts comp &key outer-env (outer-scopes '()))
+  "Create a script/eval lexical frame over the explicitly supplied ancestry."
+  (let* ((names (collect-lexical-names stmts))
+         (scope (and names (make-cscope :block)))
+         (scopes (if scope (cons scope outer-scopes) outer-scopes))
+         (env (if scope (new-frame (progn
+                                     (dolist (name names) (cs-declare scope name))
+                                     (mark-immutable-lexicals scope stmts)
+                                     (cs-count scope))
+                                   outer-env +tdz+)
+                  outer-env)))
+    (setf (comp-scopes comp) scopes)
+    env))
+
+(defun call-with-active-script-lexicals (realm env scopes thunk)
+  "Expose one script's lexical ancestry to synchronous indirect eval only."
+  (let ((old-env (realm-active-script-lexical-environment realm))
+        (old-scopes (realm-active-script-lexical-scopes realm)))
+    (unwind-protect
+         (progn
+           (setf (realm-active-script-lexical-environment realm) env
+                 (realm-active-script-lexical-scopes realm) scopes)
+           (funcall thunk))
+      (setf (realm-active-script-lexical-environment realm) old-env
+            (realm-active-script-lexical-scopes realm) old-scopes))))
+
+(defun global-instantiate (stmts comp lexical-env)
   "Hoist top-level function and var declarations onto the global object."
   (let ((g (realm-global *realm*)))
     (dolist (fd (collect-function-decls stmts))
@@ -20,22 +45,24 @@
                                                    (function-node-body fd) name
                                                    :generator (function-node-generator fd)
                                                    :async (function-node-async fd))
-                          nil)))
+                          lexical-env)))
         (js-set g name fn t)))
     (multiple-value-bind (vars funcs) (collect-var-names stmts)
       (declare (ignore funcs))
       (dolist (v vars)
-        (unless (has-own-property g v) (create-data-property g v +undefined+))))
-    ;; top-level let/const/class -> global property (TDZ approximated at global scope)
-    (dolist (n (collect-lexical-names stmts))
-      (unless (has-own-property g n) (create-data-property g n +undefined+)))))
+        (unless (has-own-property g v) (create-data-property g v +undefined+))))))
 
 (defun run-program (program realm &key strict)
   (let ((*realm* realm)
         (comp (make-comp)))
     (when (or strict (program-strict-p program)) (setf (comp-strict comp) t))
-    (global-instantiate (program-body program) comp)
-    (funcall (compile-seq comp (program-body program)) nil))
+    (let* ((stmts (program-body program))
+           (lexical-env (prepare-script-lexical-environment stmts comp)))
+      (call-with-active-script-lexicals
+       realm lexical-env (comp-scopes comp)
+       (lambda ()
+         (global-instantiate stmts comp lexical-env)
+         (funcall (compile-seq comp stmts) lexical-env)))))
   +undefined+)
 
 (defun drive-jobs (realm)
@@ -95,7 +122,8 @@ tests (run-module-file :teardown nil) and this drives it per callback."
         (unwind-protect (lp:run-loop loop) (lp:clear-timer timer))))
     (if outcome (values (car outcome) (cdr outcome)) (values :timeout +undefined+))))
 
-(defun run-source (source &key (realm (make-realm)) strict (source-type :script))
+(defun run-source (source &key (realm (make-realm)) strict (source-type :script)
+                               (report-unhandled-rejections-p t))
   "Parse SOURCE, run top-level, drive the job loop to idle, then surface any
 unhandled rejection as an uncaught error (§ Phase 06). Teardown force-finishes live
 coroutines and destroys the loop (leak control). *realm* is bound around parsing too."
@@ -109,7 +137,10 @@ coroutines and destroys the loop (leak control). *realm* is bound around parsing
                (progn
                  (run-program (parse-program source :source-type source-type) realm :strict strict)
                  (drive-jobs realm)
-                 (report-unhandled-rejections realm))
+                 (if report-unhandled-rejections-p
+                     (report-unhandled-rejections realm)
+                     (let ((pending (realm-pending-rejections realm)))
+                       (when pending (clrhash pending)))))
             (teardown-coroutines realm)
             (destroy-realm-loop realm)))
         realm)))
@@ -120,11 +151,19 @@ returning the completion value (§19.2.1). *realm* is already bound by the calle
   (let ((program (parse-program source :source-type :script))
         (comp (make-comp)))
     (when (program-strict-p program) (setf (comp-strict comp) t))
-    (global-instantiate (program-body program) comp)
-    (let ((result +undefined+))
-      (dolist (s (program-body program) result)
-        (let ((c (compile-node comp s)))
-          (if (expression-statement-p s) (setf result (funcall c nil)) (funcall c nil)))))))
+    (let* ((stmts (program-body program))
+           (lexical-env
+             (prepare-script-lexical-environment
+              stmts comp
+              :outer-env (realm-active-script-lexical-environment *realm*)
+              :outer-scopes (realm-active-script-lexical-scopes *realm*))))
+      (global-instantiate stmts comp lexical-env)
+      (let ((result +undefined+))
+        (dolist (s stmts result)
+          (let ((c (compile-node comp s)))
+            (if (expression-statement-p s)
+                (setf result (funcall c lexical-env))
+                (funcall c lexical-env))))))))
 
 ;;; convenience for the REPL/tests: evaluate an expression source, return the value
 (defun eval-source (source &key (realm (make-realm)) strict)
@@ -132,18 +171,24 @@ returning the completion value (§19.2.1). *realm* is already bound by the calle
          (program (parse-program source :source-type :script))
          (comp (make-comp)))
     (when (or strict (program-strict-p program)) (setf (comp-strict comp) t))
-    (global-instantiate (program-body program) comp)
-    (unwind-protect
-         ;; return the completion value of the last expression statement, after
-         ;; draining the job loop (so promise reactions/timers have run)
-         (let ((body (program-body program)) (result +undefined+))
-           (dolist (s body)
-             (let ((c (compile-node comp s)))
-               (if (expression-statement-p s)
-                   (setf result (funcall c nil))
-                   (funcall c nil))))
-           (drive-jobs realm)
-           (report-unhandled-rejections realm)
-           result)
-      (teardown-coroutines realm)
-      (destroy-realm-loop realm))))
+    (let* ((body (program-body program))
+           (lexical-env (prepare-script-lexical-environment body comp)))
+      (unwind-protect
+           ;; The script frame is active only for synchronous program evaluation.
+           ;; Jobs run after it has been restored, matching RUN-SOURCE's boundary.
+           (let ((result
+                   (call-with-active-script-lexicals
+                    realm lexical-env (comp-scopes comp)
+                    (lambda ()
+                      (global-instantiate body comp lexical-env)
+                      (let ((value +undefined+))
+                        (dolist (s body value)
+                          (let ((c (compile-node comp s)))
+                            (if (expression-statement-p s)
+                                (setf value (funcall c lexical-env))
+                                (funcall c lexical-env)))))))))
+             (drive-jobs realm)
+             (report-unhandled-rejections realm)
+             result)
+        (teardown-coroutines realm)
+        (destroy-realm-loop realm)))))

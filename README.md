@@ -8,8 +8,8 @@ surface, one gated capability at a time. Performance targets are workload-specif
 Clun does not claim blanket speed parity with Bun.
 
 > **Status: pre-alpha, under active construction.** Phase 25 performance work is complete.
-> Phase 25b milestone 2 completed its bounded Object integrity and Annex-B accessor wave;
-> [Phase 25b milestone 3](https://github.com/theesfeld/clun/issues/57) is the next correctness wave.
+> Phase 25b milestone 3 completed its shared iterator and binding/destructuring correctness wave;
+> [Phase 25b milestone 4](https://github.com/theesfeld/clun/issues/57) is next.
 > Clun executes its scoped JS/TS surface, but it is not a drop-in Node.js or Bun replacement.
 > The issue is the canonical live record, `PLAN.md` is the technical contract, and `STATE.md` is
 > the local resume checklist.
@@ -37,16 +37,21 @@ interoperability gap.
 - Object integrity and legacy accessor operations including `Object.seal`, `Object.isSealed`,
   `__defineGetter__`, `__defineSetter__`, `__lookupGetter__`, and `__lookupSetter__`. Proxy remains
   unsupported.
+- Shared iterator operations now drive lazy `for...of`, destructuring, `Array.from`, collection
+  constructors, and Promise combinators, including iterator close on abrupt completion.
+- Parameter defaults, catch patterns, and the covered destructuring paths enforce temporal dead
+  zones; `const` bindings reject assignment, and anonymous parameter defaults receive inferred names.
 - Timers, promises, files, buffered HTTP serving, `fetch`, URL APIs, and process spawning.
 - `clun test` with hooks, modifiers, filters, async tests, timeouts, and about 22 matchers.
 - `clun install`, `add`, `remove`, and package scripts with a deterministic lockfile and cache.
 
-The checked-in curated test262 pass list contains 22,862 tests. Phase 25b milestone 2's fresh
-execution ledger measures 22,862 passes and 5,301 gaps across 28,163 eligible tests
-(81.17%), with 12,491 skips and zero crashes; reaching 90% requires 2,485 additional live passes.
-Its exact six-API slice contains 181 tests: 162/162 milestone-owned controls pass, 15 are static skips, and four
-Phase-37 controls remain visible failures because they require Proxy, WeakRef, or FinalizationRegistry:
-`seal-finalizationregistry.js`, `seal-weakref.js`, `seal-proxy.js`, and `throws-when-false.js`.
+The checked-in curated test262 pass list contains 24,504 tests. Phase 25b milestone 3's fresh
+execution ledger measures 24,504 passes and 3,659 gaps across 28,163 eligible tests
+(87.00%), with 12,491 skips and zero crashes; reaching 90% requires 843 additional live passes.
+Its focused m3 slice contains 1,497 tests: 1,442 pass and 55 fail, with zero skips and zero crashes.
+The remaining controls belong to m4 (28), m7 (4), m11 (19), and Phase 37 (4); m3 has no owned
+residual. Cross-script global lexical visibility and broader direct-eval semantics remain explicit
+m11 work. The full gap inventory assigns 2,775 residuals to Phase 25b and 884 to Phase 37.
 Phase 25's final
 default-tier measurements are 6.68x Richards, 3.85x DeltaBlue, and 5.36x Splay against the frozen
 Phase-24 Clun baseline, a 5.16x suite geomean. Clun has no measured cross-runtime benchmark against
@@ -116,7 +121,7 @@ sets between this README and the landing page; descriptive prose still requires 
 workflows are read-only and fail closed if the canonical issues, README, or site have drifted.
 
 Release versions follow the actual SemVer impact recorded in the canonical issue, not the number of
-pushes. The current source version is `0.1.0-dev.1`; [the versioning contract](docs/versioning.md)
+pushes. The current source version is `0.1.0-dev.2`; [the versioning contract](docs/versioning.md)
 defines prerelease sequencing, synchronized surfaces, immutable tags, assets, and installer evidence.
 
 ## The purity contract
@@ -137,16 +142,15 @@ side-channel adversaries. Do not rely on it where a compromise would be serious.
 What Clun does guarantee: HTTPS **fails closed**. A connection is rejected with a distinct, catchable
 error whenever the server's certificate is expired, is for the wrong host, is self-signed, chains to
 an untrusted root, or is simply not presented — and there is no "ignore certificate errors" switch.
-(pure-tls's own verify step skips when no peer certificate is recorded; Clun patches it so that
-`verify-required` with a missing certificate rejects rather than silently accepting — see
-`DECISIONS.md`.) Trust anchors resolve from `$SSL_CERT_FILE` / `$SSL_CERT_DIR`, else the system CA
-bundle; if none is found, verification rejects rather than trusting nothing.
+Clun explicitly rejects a missing peer certificate when verification is required, closing the
+pure-tls verification gap recorded in `DECISIONS.md`. Trust anchors resolve from `$SSL_CERT_FILE` /
+`$SSL_CERT_DIR`, else the system CA bundle; if none is found, verification rejects rather than
+trusting nothing.
 
 Known limitations (see `STATE.md`): pure-tls does not yet interoperate with every server frontend
 (e.g. `registry.npmjs.org` currently returns a `protocol_version` alert); DNS resolution is blocking;
-each in-flight HTTPS request uses one worker thread. When package installation lands, tarball
-integrity is additionally enforced by SRI sha512 verification of every downloaded tarball, so a TLS
-compromise cannot by itself corrupt an install.
+each in-flight HTTPS request uses one worker thread. Package tarballs are additionally protected by
+SRI SHA-512 verification before extraction, so a TLS compromise cannot by itself corrupt an install.
 
 ## Building from source
 
@@ -155,9 +159,9 @@ vendored under `vendor/` and located via `scripts/registry.lisp`.
 
 ```sh
 make build     # compile everything, save build/clun (save-lisp-and-die)
-make test      # run the parachute CL suites
+make test      # run the CL suites and JS/TS fixture harnesses
 make purity    # fail on any CFFI/foreign-code token
-./build/clun --version   # => clun 0.1.0-dev.1
+./build/clun --version   # => clun 0.1.0-dev.2
 ```
 
 A fresh clone builds with `make build` alone: ASDF compiles the vendored closure and `src/` into

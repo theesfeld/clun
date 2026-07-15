@@ -26,10 +26,20 @@
       (lambda (this args) (declare (ignore this)) (js-boolean (js-same-value (arg args 0) (arg args 1)))))
     (install-method oc "fromEntries" 1
       (lambda (this args) (declare (ignore this))
-        (let ((o (new-object)))
-          (dolist (entry (iterable->list (arg args 0)) o)
-            (unless (js-object-p entry) (throw-type-error "iterable entry is not an object"))
-            (create-data-property o (to-property-key (js-getv entry "0")) (js-getv entry "1"))))))
+        (let* ((o (new-object))
+               (record (get-iterator-record (arg args 0))))
+          (loop
+            (multiple-value-bind (entry done) (iterator-step-value record)
+              (when done (return o))
+              (call-with-iterator-close-on-abrupt
+               record
+               (lambda ()
+                 (unless (js-object-p entry)
+                   (throw-type-error "iterable entry is not an object"))
+                 (let ((key (js-getv entry "0"))
+                       (value (js-getv entry "1")))
+                   (create-data-property-or-throw
+                    o (to-property-key key) value)))))))))
     (install-method oc "getOwnPropertyDescriptors" 1
       (lambda (this args) (declare (ignore this))
         (let* ((obj (to-object (arg args 0))) (result (new-object)))

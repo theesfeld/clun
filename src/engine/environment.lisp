@@ -23,8 +23,13 @@
         (throw-reference-error (format nil "cannot access '~a' before initialization" name))
         v)))
 
-(defun frame-set (env depth index value)
-  (setf (svref (env-slots (env-ancestor env depth)) index) value))
+(defun frame-set (env depth index value name)
+  "Set an initialized mutable binding. Assignment cannot initialize a TDZ slot."
+  (let* ((frame (env-ancestor env depth))
+         (slots (env-slots frame)))
+    (when (eq (svref slots index) +tdz+)
+      (throw-reference-error (format nil "cannot access '~a' before initialization" name)))
+    (setf (svref slots index) value)))
 
 (defun frame-init (env depth index value)
   "Initialize a slot (bypasses the TDZ read check; for declaration evaluation)."
@@ -38,6 +43,8 @@
 (defstruct (realm (:conc-name realm-) (:constructor %make-realm) (:copier nil))
   (intrinsics (make-hash-table :test 'eq))
   global
+  active-script-lexical-environment
+  (active-script-lexical-scopes '())
   (loop nil)                     ; the event-loop hosting this realm's jobs (Phase 06)
   (coroutines '())               ; live coroutines, for teardown (Phase 06)
   (pending-rejections nil)       ; hash promise->reason of unhandled rejections (Phase 06)

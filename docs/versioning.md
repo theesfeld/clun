@@ -91,6 +91,6 @@ all five required assets exist before deploying an installer that targets the ve
 7. Record commit, workflow, tag, assets, checksum, installer, and Pages evidence in the canonical
    issue.
 
-The current Phase 25b milestone adds six backward-compatible public Object APIs and includes
-backward-compatible semantic fixes. Its impact is `minor`, and its first published version is
-`0.1.0-dev.1` under tag `v0.1.0-dev.1`.
+The current Phase 25b milestone adds backward-compatible shared iterator-record operations, lazy
+iterable consumers, iterator-closing behavior, and binding/destructuring fixes. Its impact is `minor`,
+and its release target is `0.1.0-dev.2` under tag `v0.1.0-dev.2`. Milestone 4 is next.

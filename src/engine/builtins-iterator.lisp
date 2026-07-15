@@ -35,9 +35,9 @@
     (make-iterator proto-key
                    (lambda () (if cell (values (pop cell) nil) (values +undefined+ t))))))
 
-(defun %array-iterator-step (o len-box index-box kind)
-  "One step over array-like O; INDEX-BOX/LEN-BOX are single-element vectors."
-  (let ((i (aref index-box 0)) (len (aref len-box 0)))
+(defun %array-iterator-step (o index-box kind)
+  "One step over array-like O, observing its current length on every step."
+  (let ((i (aref index-box 0)) (len (length-of-array-like o)))
     (if (>= i len) (values +undefined+ t)
         (progn (setf (aref index-box 0) (1+ i))
                (values (ecase kind
@@ -48,10 +48,9 @@
                        nil)))))
 
 (defun make-array-iterator (o kind)
-  (let ((index-box (make-array 1 :initial-element 0))
-        (len-box (make-array 1 :initial-element (length-of-array-like o))))
+  (let ((index-box (make-array 1 :initial-element 0)))
     (make-iterator :array-iterator-prototype
-                   (lambda () (%array-iterator-step o len-box index-box kind)))))
+                   (lambda () (%array-iterator-step o index-box kind)))))
 
 (defun string->code-points (s)
   "List of one-code-point strings (surrogate pairs kept whole)."
@@ -97,5 +96,6 @@
                   (data-pd (make-native-function "[Symbol.iterator]" 0
                              (lambda (this args) (declare (ignore args))
                                (make-list-iterator :string-iterator-prototype
-                                                   (string->code-points (this-string this)))))
+                                                   (string->code-points
+                                                    (to-string (require-object-coercible this))))))
                            :writable t :enumerable nil :configurable t))))

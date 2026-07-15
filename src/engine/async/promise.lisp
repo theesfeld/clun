@@ -192,28 +192,56 @@ C, else resolve a fresh C-capability with it."
   "Promise.all (SETTLED-P nil) / allSettled (SETTLED-P t), constructor C = receiver."
   (multiple-value-bind (result resolve reject) (new-promise-capability c)
    (%if-abrupt-reject (reject result)
-    (let* ((resolve-method (js-get c "resolve"))
-           (elems (mapcar (lambda (e) (js-call resolve-method c (list e))) (iterable->list iterable)))
-           (n (length elems)) (vals (make-array n :initial-element +undefined+)) (remaining (1+ n)))
-      (flet ((done () (when (zerop (decf remaining))
-                        (js-call resolve +undefined+ (list (new-array (coerce vals 'list)))))))
-        (loop for pr in elems for i from 0 do
-          ;; per-element AlreadyCalled guard (§25.4.4.1.2): count each element once
-          (let ((idx i) (called nil))
-            (promise-then-generic
-             pr
-             (make-native-function "" 1 (lambda (th a) (declare (ignore th))
-                     (unless called
-                       (setf called t (aref vals idx) (if settled-p (%settled-record :fulfilled (arg a 0)) (arg a 0)))
-                       (done))
-                     +undefined+))
-             (if settled-p
-                 (make-native-function "" 1 (lambda (th a) (declare (ignore th))
-                         (unless called (setf called t (aref vals idx) (%settled-record :rejected (arg a 0))) (done))
-                         +undefined+))
-                 reject))))
-        (done)
-        result)))))
+    (let ((resolve-method (js-get c "resolve")))
+      (unless (callable-p resolve-method)
+        (throw-type-error "Promise resolve is not callable"))
+      (let ((record (get-iterator-record iterable))
+            (vals (make-array 8 :adjustable t :fill-pointer 0))
+            (remaining 1)
+            (i 0))
+        (labels ((done ()
+                   (when (zerop (decf remaining))
+                     (js-call resolve +undefined+
+                              (list (new-array (coerce vals 'list)))))))
+          (loop
+            (multiple-value-bind (value iteration-done)
+                (iterator-step-value record)
+              (when iteration-done
+                (done)
+                (return result))
+              (let ((idx i))
+                (call-with-iterator-close-on-abrupt
+                 record
+                 (lambda ()
+                   (let ((pr (js-call resolve-method c (list value)))
+                         (called nil))
+                     (vector-push-extend +undefined+ vals)
+                     (incf remaining)
+                     (promise-then-generic
+                      pr
+                      (make-native-function "" 1
+                        (lambda (th a)
+                          (declare (ignore th))
+                          (unless called
+                            (setf called t
+                                  (aref vals idx)
+                                  (if settled-p
+                                      (%settled-record :fulfilled (arg a 0))
+                                      (arg a 0)))
+                            (done))
+                          +undefined+))
+                      (if settled-p
+                          (make-native-function "" 1
+                            (lambda (th a)
+                              (declare (ignore th))
+                              (unless called
+                                (setf called t
+                                      (aref vals idx)
+                                      (%settled-record :rejected (arg a 0)))
+                                (done))
+                              +undefined+))
+                          reject)))))
+                (incf i))))))))))
 
 (defun %settled-record (state value)
   (let ((o (new-object)))
@@ -226,25 +254,55 @@ C, else resolve a fresh C-capability with it."
   (multiple-value-bind (result resolve reject) (new-promise-capability c)
    (%if-abrupt-reject (reject result)
     (let ((resolve-method (js-get c "resolve")))
-      (dolist (e (iterable->list iterable) result)
-        (promise-then-generic (js-call resolve-method c (list e)) resolve reject))))))
+      (unless (callable-p resolve-method)
+        (throw-type-error "Promise resolve is not callable"))
+      (let ((record (get-iterator-record iterable)))
+        (loop
+          (multiple-value-bind (value done) (iterator-step-value record)
+            (when done (return result))
+            (call-with-iterator-close-on-abrupt
+             record
+             (lambda ()
+               (promise-then-generic
+                (js-call resolve-method c (list value)) resolve reject))))))))))
 
 (defun %promise-any (c iterable)
   (multiple-value-bind (result resolve reject) (new-promise-capability c)
    (%if-abrupt-reject (reject result)
-    (let* ((resolve-method (js-get c "resolve"))
-           (elems (mapcar (lambda (e) (js-call resolve-method c (list e))) (iterable->list iterable)))
-           (n (length elems)) (errors (make-array n :initial-element +undefined+)) (remaining (1+ n)))
-      (flet ((fail () (when (zerop (decf remaining))
-                        (js-call reject +undefined+ (list (%aggregate-error (coerce errors 'list)))))))
-        (loop for pr in elems for i from 0 do
-          (let ((idx i) (called nil))
-            (promise-then-generic
-             pr resolve
-             (make-native-function "" 1 (lambda (th a) (declare (ignore th))
-                     (unless called (setf called t (aref errors idx) (arg a 0)) (fail)) +undefined+)))))
-        (if (zerop n) (js-call reject +undefined+ (list (%aggregate-error '()))) (fail))
-        result)))))
+    (let ((resolve-method (js-get c "resolve")))
+      (unless (callable-p resolve-method)
+        (throw-type-error "Promise resolve is not callable"))
+      (let ((record (get-iterator-record iterable))
+            (errors (make-array 8 :adjustable t :fill-pointer 0))
+            (remaining 1)
+            (i 0))
+        (labels ((fail ()
+                   (when (zerop (decf remaining))
+                     (js-call reject +undefined+
+                              (list (%aggregate-error (coerce errors 'list)))))))
+          (loop
+            (multiple-value-bind (value done) (iterator-step-value record)
+              (when done
+                (fail)
+                (return result))
+              (let ((idx i))
+                (call-with-iterator-close-on-abrupt
+                 record
+                 (lambda ()
+                   (let ((pr (js-call resolve-method c (list value)))
+                         (called nil))
+                     (vector-push-extend +undefined+ errors)
+                     (incf remaining)
+                     (promise-then-generic
+                      pr resolve
+                      (make-native-function "" 1
+                        (lambda (th a)
+                          (declare (ignore th))
+                          (unless called
+                            (setf called t (aref errors idx) (arg a 0))
+                            (fail))
+                          +undefined+))))))
+                (incf i))))))))))
 
 (defun %aggregate-error (errors)
   "The rejection reason for Promise.any — an AggregateError instance."

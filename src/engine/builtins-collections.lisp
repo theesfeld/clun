@@ -78,10 +78,27 @@
 (defun this-set-data (this)
   (if (js-set-p this) (js-set-data this) (throw-type-error "Method called on incompatible receiver")))
 
-(defun collection-add-all (obj iterable adder)
-  "Drive ITERABLE, calling ADDER on each element (used by the constructors)."
+(defun collection-add-all (obj iterable adder-name entries-p)
+  "Drive ITERABLE through OBJ's named adder (used by collection constructors)."
   (unless (js-nullish-p iterable)
-    (dolist (item (iterable->list iterable)) (funcall adder obj item))))
+    (let ((adder (js-get obj adder-name)))
+      (unless (callable-p adder)
+        (throw-type-error (format nil "~a is not callable" adder-name)))
+      (let ((record (get-iterator-record iterable)))
+        (loop
+          (multiple-value-bind (item done) (iterator-step-value record)
+            (when done (return))
+            (call-with-iterator-close-on-abrupt
+             record
+             (lambda ()
+               (if entries-p
+                   (progn
+                     (unless (js-object-p item)
+                       (throw-type-error "iterator value is not an entry object"))
+                     (let ((key (js-getv item "0"))
+                           (value (js-getv item "1")))
+                       (js-call adder obj (list key value))))
+                   (js-call adder obj (list item)))))))))))
 
 ;;; --- Map --------------------------------------------------------------------
 
@@ -106,10 +123,7 @@
                   :prototype mp
                   :construct-fn (lambda (args nt)
                                   (let ((o (%make-js-map :proto (proto-from-newtarget nt :map-prototype) :data (make-map-data))))
-                                    (collection-add-all o (arg args 0)
-                                      (lambda (obj item)
-                                        (unless (js-object-p item) (throw-type-error "iterator value is not an entry object"))
-                                        (md-set (js-map-data obj) (js-getv item "0") (js-getv item "1"))))
+                                    (collection-add-all o (arg args 0) "set" t)
                                     o)))))
       (setf (realm-intrinsic *realm* :map-constructor) ctor))))
 
@@ -137,8 +151,7 @@
                   :prototype sp
                   :construct-fn (lambda (args nt)
                                   (let ((o (%make-js-set :proto (proto-from-newtarget nt :set-prototype) :data (make-map-data))))
-                                    (collection-add-all o (arg args 0)
-                                      (lambda (obj item) (let ((k (%svz-store item))) (md-set (js-set-data obj) k k))))
+                                    (collection-add-all o (arg args 0) "add" nil)
                                     o)))))
       (setf (realm-intrinsic *realm* :set-constructor) ctor))))
 
@@ -162,10 +175,7 @@
                   :construct-fn (lambda (args nt)
                                   (let ((o (%make-js-weakmap :proto (proto-from-newtarget nt :weakmap-prototype)
                                                              :table (make-hash-table :test 'eq :weakness :key))))
-                                    (collection-add-all o (arg args 0)
-                                      (lambda (obj item)
-                                        (unless (js-object-p item) (throw-type-error "iterator value is not an entry object"))
-                                        (setf (gethash (%weak-key (js-getv item "0")) (js-weakmap-table obj)) (js-getv item "1"))))
+                                    (collection-add-all o (arg args 0) "set" t)
                                     o)))))
       (setf (realm-intrinsic *realm* :weakmap-constructor) ctor))))
 
@@ -183,7 +193,6 @@
                   :construct-fn (lambda (args nt)
                                   (let ((o (%make-js-weakset :proto (proto-from-newtarget nt :weakset-prototype)
                                                              :table (make-hash-table :test 'eq :weakness :key))))
-                                    (collection-add-all o (arg args 0)
-                                      (lambda (obj item) (setf (gethash (%weak-key item) (js-weakset-table obj)) t)))
+                                    (collection-add-all o (arg args 0) "add" nil)
                                     o)))))
       (setf (realm-intrinsic *realm* :weakset-constructor) ctor))))

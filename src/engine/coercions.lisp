@@ -22,6 +22,7 @@
     (double-float (not (or (js-nan-p v) (zerop v))))
     (integer (not (zerop v)))              ; BigInt: 0n is falsy
     (string (plusp (length v)))
+    (js-symbol t)
     (js-object t)
     (t (eq v +true+))))                    ; of the singletons only +true+ is truthy
 

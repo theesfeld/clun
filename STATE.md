@@ -5,10 +5,10 @@ Update before every commit and keep it consistent with PLAN.md, DECISIONS.md, RE
 
 ---
 
-## Current phase: **25b — Conformance push to >= 90%**  (IN PROGRESS — m1 and m2 DONE; next = m3 IteratorRecord + binding/destructuring)
+## Current phase: **25b — Conformance push to >= 90%**  (IN PROGRESS — m1, m2, and m3 DONE; next = m4 functions/classes/parameters/super)
 
 **Canonical issue:** https://github.com/theesfeld/clun/issues/57
-**Next Phase 25b milestone:** `m3`
+**Next Phase 25b milestone:** `m4`
 
 **Phase 25 COMPLETE** (Performance pass; deps: all engine phases ✓; milestoned). Final default-tier
 best-of-nine results vs the frozen Phase-24 baseline are richards **6.68×**, deltablue **3.85×**, and splay
@@ -81,6 +81,44 @@ roadmap, and **47/47 SemVer-transition fixtures** pass; shell syntax, ShellCheck
 `actionlint`, diff check, and independent engine/claims/SemVer/automation reviews are green.
 Desktop and mobile Playwright audits found no overflow, broken resources, or console errors and
 verified the mobile navigation focus loop.
+
+**Phase 25b milestone 3 DONE — shared iterator records plus binding/destructuring semantics.** One
+completion-aware `iterator-record` now caches the iterator and `next` method, tracks completion, and supplies
+lazy stepping and closing to array binding/assignment, synchronous `for-of`, Array/Object iterable consumers,
+Map/Set/WeakMap/WeakSet construction, and shipped Promise combinators. The binder now covers elisions, rest,
+defaults, nested abrupt completion, parameter/catch TDZ, immutable `const`, expected function length, and
+anonymous-default name inference. Array iterators observe live length, arguments are iterable, and related
+String/Symbol behavior is aligned with the same protocol. A supplied-argument marker bug exposed by `yield*`
+was corrected without claiming the remaining generator wave.
+
+The focused m3 origin slice is **1,497 files: 1,442 pass / 55 fail / 0 skip / 0 crash**. Binding patterns are
+**1,368 pass / 44 fail** and iterator protocol is **74 pass / 11 fail**. Exact diagnosis assigns all 55
+residuals to later work: **28 m4, 4 m7, 19 m11, and 4 Phase 37**, with zero known m3-owned failures. Script
+execution now publishes its per-program lexical frame only while that Script runs synchronously, which gives
+current-Script eval the required lexical ancestry without pretending that async callbacks or later Scripts
+have a persistent global environment. Those cross-Script/async global-environment semantics remain explicit
+m11 work.
+
+The final 40,654-file off/eager ledgers are byte-identical with zero eager fallback: **24,504 pass / 3,659
+fail / 12,491 skip / 0 crash**. Eligible remains **28,163**; exact rate = **87.007776%** (public **87.00%**),
+target = **25,347**, and remaining lift = **843**. Residual ownership is **2,775 Phase-25b / 884 Phase 37**.
+The corrected monotonic pass list contains **24,504** entries: a net **+1,642** from m2 after removing three
+older runtime-negative false passes, and **+1,861** from phase entry. The generated canonical artifacts have
+digest `1DF243B2047FC7F1`.
+
+The execution runner now validates `negative.phase=runtime` and the declared thrown type. That correction
+exposed the three invalid frozen entries documented in DECISIONS; they remain visible failures rather than
+being skipped. The prior parse gate is **23,713 total / 17,523 live pass / 1,152 fail / 5,038 skip / 0 crash**,
+with all **17,512** frozen parse entries holding. This backward-compatible functionality retains the planned
+SemVer minor core and targets source/release version **`0.1.0-dev.2`** and tag **`v0.1.0-dev.2`**. M4 is next
+and has not started.
+
+**M3 local gates:** the `0.1.0-dev.2` build, **42/42** TypeScript-strip fixtures, **74/74** JS/TS
+fixtures, purity (**690 files / 0 violations**), public claims, roadmap/live-issue verification, SemVer
+transition fixtures (**47/47**), installer/release fixtures, shell checks, workflow `actionlint`, and diff
+check are green. The full Lisp gate cannot run faithfully in this restricted workspace because it does not
+provide `/tmp`, which the existing temp-heavy suites require; the normal GitHub Linux runner must pass the
+complete `make test` gate before `v0.1.0-dev.2` is tagged.
 
 **Milestone 1 DONE — "measure first":** the benchmark suite + the frozen Phase-24 baseline + the design doc
 (no engine change). `bench/{richards,deltablue,splay}.js` — the Octane trio ported to clun (self-contained,
@@ -277,10 +315,9 @@ richards **539.3/444.6 ms**, deltablue **764.5/694.6 ms**, splay **283.9/249.7 m
 out of the saved image (~125 MiB final vs 512–632 MiB before). Independent adversarial review findings are
 resolved: eager conformance now requires fallback=0 and the compare harness pins trace=0.
 
-**Next action:** publish and verify the completed m2 commit/release, then execute Phase 25b milestone 3 only:
-land the completion-aware IteratorRecord semantic shape, migrate iterable consumers, and implement the
-binding/destructuring slice specified in `docs/design/phase-25b.md`. Do not begin m4 or change the fixed
-denominator/skip set. M3 has not started.
+**Next action:** publish and verify the completed m3 commit/release, then execute Phase 25b milestone 4 only:
+the functions, classes, parameters, `super`, and arguments slice specified in `docs/design/phase-25b.md`.
+Do not begin m5 or change the fixed denominator/skip set. M4 has not started.
 
 **G3 scope concern — RESOLVED (2026-07-14, operator-approved split):** the >=90% curated-test262 target is
 split out of Phase 25 into a new **Phase 25b — Conformance push to >=90%** (PLAN §5). Phase 25 is now closed

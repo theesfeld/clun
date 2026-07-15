@@ -182,6 +182,7 @@ module scope is a function-like frame; imports are marked slots. Modules are str
         (dolist (n vars) (cs-declare scope n))
         (dolist (n funcs) (cs-declare scope n))
         (dolist (n (collect-lexical-names stmts)) (cs-declare scope n))
+        (mark-immutable-lexicals scope stmts)
         (setf (comp-scopes comp) (list scope))
         (validate-module-early-errors stmts scope)
         (let* ((lexical-idxs (loop for n in (collect-lexical-names stmts)

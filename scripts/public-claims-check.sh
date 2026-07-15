@@ -273,6 +273,21 @@ pretty_report_fail=$(format_count "$report_fail")
 pretty_report_skip=$(format_count "$report_skip")
 pretty_report_eligible=$(format_count "$report_eligible")
 pretty_report_lift=$(format_count "$report_lift")
+pretty_phase25b_rows=$(format_count "$phase25b_rows")
+pretty_phase37_rows=$(format_count "$phase37_rows")
+
+focused_milestone=m3
+focused_total=1497
+focused_pass=1442
+focused_fail=55
+focused_skip=0
+focused_crash=0
+focused_m4=28
+focused_m7=4
+focused_m11=19
+focused_phase37=4
+pretty_focused_total=$(format_count "$focused_total")
+pretty_focused_pass=$(format_count "$focused_pass")
 
 benchmark_baseline=$(awk '/^\| Phase-24 baseline / { print; exit }' docs/benchmarks.md)
 benchmark_latest=$(awk '/^\| m[0-9][0-9]* / { latest = $0 } END { print latest }' docs/benchmarks.md)
@@ -579,9 +594,12 @@ require_text site/index.html "</span> v$version / pre-alpha</p>"
 require_text site/index.html "<span>$version / pre-alpha</span>"
 require_text site/index.html "$pretty_passes pass"
 require_text site/index.html "Full run: $pretty_report_pass pass / $pretty_report_fail fail / $pretty_report_skip skip / $report_crash crash."
-require_text README.md "slice contains 181 tests: 162/162 milestone-owned controls pass, 15 are static skips, and four"
-require_text site/index.html "Slice: 181 files /"
-require_text site/index.html "162 owned Object controls pass / 15 static skips / four later-runtime Phase 37 failures."
+require_text README.md "focused $focused_milestone slice contains $pretty_focused_total tests: $pretty_focused_pass pass and $focused_fail fail, with zero skips and zero crashes"
+require_text README.md "remaining controls belong to m4 ($focused_m4), m7 ($focused_m7), m11 ($focused_m11), and Phase 37 ($focused_phase37)"
+require_text README.md "full gap inventory assigns $pretty_phase25b_rows residuals to Phase 25b and $pretty_phase37_rows to Phase 37"
+require_text site/index.html "Focused $focused_milestone slice: $pretty_focused_total total / $pretty_focused_pass pass / $focused_fail fail / $focused_skip skip / $focused_crash crash."
+require_text site/index.html "Residual owners: m4 $focused_m4 / m7 $focused_m7 / m11 $focused_m11 / Phase 37 $focused_phase37. Remaining ownership:"
+require_text site/index.html "$pretty_phase25b_rows Phase-25b / $pretty_phase37_rows Phase-37 gaps."
 if [ "$report_lift" -gt 0 ]; then
   require_text README.md "reaching 90% requires $pretty_report_lift additional live passes"
   reject_text README.md "Phase 25b's 90% target is met"

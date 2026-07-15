@@ -15,6 +15,7 @@
   (names (make-hash-table :test 'equal))
   (count 0)
   (imports nil)                  ; name -> t for ESM import slots (deref via thunk, Phase 07)
+  (immutable nil)                ; name -> t for initialized const bindings
   (uses-arguments nil)           ; T once `arguments` resolves to this function scope (Phase 25 m5)
   kind)                          ; :function :block
 
@@ -31,6 +32,11 @@
   (unless (cs-imports scope) (setf (cs-imports scope) (make-hash-table :test 'equal)))
   (setf (gethash name (cs-imports scope)) t))
 
+(defun cs-mark-immutable (scope name)
+  (unless (cs-immutable scope)
+    (setf (cs-immutable scope) (make-hash-table :test 'equal)))
+  (setf (gethash name (cs-immutable scope)) t))
+
 (defun resolved-import-p (comp depth name)
   "True iff NAME, resolved to :local at DEPTH in COMP, lands on an import slot.
 Because comp-resolve returns the INNERMOST binding, a shadowing local (in a closer
@@ -38,6 +44,11 @@ scope) makes this NIL automatically — the shadowing scope has no import mark."
   (let* ((scope (nth depth (comp-scopes comp)))
          (imps (and scope (cs-imports scope))))
     (and imps (gethash name imps))))
+
+(defun resolved-immutable-p (comp depth name)
+  (let* ((scope (nth depth (comp-scopes comp)))
+         (bindings (and scope (cs-immutable scope))))
+    (and bindings (gethash name bindings))))
 
 (defvar *current-return-tag* nil
   "The CL catch tag `return` throws to; bound while a function body is compiled.")
@@ -113,6 +124,28 @@ the `arguments` object when nothing references it (Phase 25 m5)."
 
 (defun collect-lexical-names (stmts)
   (loop for s in stmts append (stmt-lexical-names s)))
+
+(defun stmt-immutable-lexical-names (statement)
+  "Immutable lexical names introduced directly by STATEMENT."
+  (typecase statement
+    (variable-declaration
+     (when (eq (variable-declaration-kind statement) :const)
+       (loop for declaration in (variable-declaration-declarations statement)
+             append (binding-bound-names (variable-declarator-id declaration)))))
+    (export-named-declaration
+     (when (export-named-declaration-declaration statement)
+       (stmt-immutable-lexical-names (export-named-declaration-declaration statement))))
+    (export-default-declaration
+     (stmt-immutable-lexical-names (export-default-declaration-declaration statement)))
+    (t nil)))
+
+(defun collect-immutable-lexical-names (statements)
+  (loop for statement in statements
+        append (stmt-immutable-lexical-names statement)))
+
+(defun mark-immutable-lexicals (scope statements)
+  (dolist (name (collect-immutable-lexical-names statements))
+    (cs-mark-immutable scope name)))
 
 ;;; --- the dispatcher ---------------------------------------------------------
 
@@ -270,7 +303,12 @@ slot."
                       (throw-type-error "Assignment to constant variable."))))
            ((eq kind :local)
             (values (lambda (env) (frame-ref env depth index name))
-                    (lambda (env v) (frame-set env depth index v))))
+                    (if (resolved-immutable-p comp depth name)
+                        (lambda (env v)
+                          (declare (ignore v))
+                          (frame-ref env depth index name)
+                          (throw-type-error "Assignment to constant variable."))
+                        (lambda (env v) (frame-set env depth index v name)))))
            (t (let ((strict (comp-strict comp)))
                 (values (lambda (env) (declare (ignore env)) (global-get name))
                         (lambda (env v) (declare (ignore env)) (global-set name v strict)))))))))
@@ -594,27 +632,53 @@ base and computed key exactly once, before evaluating a right-hand side."
   (declare (ignore comp node))
   (lambda (env) (declare (ignore env)) (throw-type-error "tagged templates not supported yet")))
 
-;;; --- iteration helpers ------------------------------------------------------
-
-(defun iterable->list (obj)
-  (cond ((js-array-p obj) (loop for i below (array-length obj) collect (js-getv obj (int->string i))))
-        ((stringp obj) (map 'list #'string obj))
-        (t (iterable->list-protocol obj))))
-
-(defun iterable->list-protocol (obj)
-  (when (js-nullish-p obj) (throw-type-error "value is not iterable"))
-  (let ((iter-fn (get-method obj (well-known :iterator))))
-    (when (js-undefined-p iter-fn) (throw-type-error "value is not iterable"))
-    (let ((iter (js-call iter-fn obj '())))
-      (unless (js-object-p iter) (throw-type-error "iterator is not an object"))
-      (let ((next (js-get iter "next")) (result '()))
-        (unless (callable-p next) (throw-type-error "iterator.next is not a function"))
-        (loop (let ((r (js-call next iter '())))
-                (unless (js-object-p r) (throw-type-error "iterator result is not an object"))
-                (when (js-truthy (js-get r "done")) (return (nreverse result)))
-                (push (js-get r "value") result)))))))
-
 ;;; --- binding targets (params, declarations, destructuring) ------------------
+
+(defun target-inference-name (target)
+  (and (identifier-p target) (identifier-name target)))
+
+(defun compile-array-pattern-binder (comp elements assignment-p)
+  "Compile a lazy array-pattern binder. Assignment entries prepare references before stepping."
+  (let ((entries
+          (mapcar (lambda (element)
+                    (cond
+                      ((null element) (cons :elision nil))
+                      ((rest-element-p element)
+                       (cons :rest
+                             (if assignment-p
+                                 (compile-prepared-assign-target comp (rest-element-argument element))
+                                 (compile-bind-target comp (rest-element-argument element)))))
+                      (t (cons :element
+                               (if assignment-p
+                                   (compile-prepared-assign-target comp element)
+                                   (compile-bind-target comp element))))))
+                  elements)))
+    (lambda (env value)
+      (let ((record (get-iterator-record value)))
+        (call-with-iterator-close-on-abrupt
+         record
+         (lambda ()
+           (dolist (entry entries)
+             (case (car entry)
+               (:elision
+                (iterator-step record))
+               (:element
+                (if assignment-p
+                    (let ((setter (funcall (cdr entry) env)))
+                      (multiple-value-bind (element-value done) (iterator-step-value record)
+                        (declare (ignore done))
+                        (funcall setter element-value)))
+                    (multiple-value-bind (element-value done) (iterator-step-value record)
+                      (declare (ignore done))
+                      (funcall (cdr entry) env element-value))))
+               (:rest
+                (if assignment-p
+                    (let ((setter (funcall (cdr entry) env)))
+                      (funcall setter (new-array (iterator-record->list record))))
+                    (funcall (cdr entry) env (new-array (iterator-record->list record)))))))
+           (unless (iterator-record-done record)
+             (iterator-close record))
+           +undefined+))))))
 
 (defun compile-bind-target (comp target)
   "Return (lambda (env value)) binding VALUE into TARGET via declaration semantics."
@@ -627,25 +691,12 @@ base and computed key exactly once, before evaluating a right-hand side."
              (lambda (env value) (declare (ignore env)) (global-set name value strict))))))
     (assignment-pattern
      (let ((inner (compile-bind-target comp (assignment-pattern-left target)))
-           (default (compile-node comp (assignment-pattern-right target))))
+           (default (compile-named-value comp (assignment-pattern-right target)
+                                         (target-inference-name (assignment-pattern-left target)))))
        (lambda (env value) (funcall inner env (if (js-undefined-p value) (funcall default env) value)))))
     (rest-element (compile-bind-target comp (rest-element-argument target)))
     (array-pattern
-     (let ((binders (loop for e in (array-pattern-elements target) for i from 0
-                          collect (cons (and (rest-element-p e) :rest)
-                                        (if e (compile-bind-target comp e) nil))
-                          into acc
-                          finally (return acc))))
-       (lambda (env value)
-         (let ((items (if (js-nullish-p value)
-                          (throw-type-error "cannot destructure null or undefined")
-                          (iterable->list value)))
-               (i 0))
-           (dolist (b binders)
-             (cond ((eq (car b) :rest)
-                    (when (cdr b) (funcall (cdr b) env (new-array (nthcdr i items)))))
-                   ((cdr b) (funcall (cdr b) env (or (nth i items) +undefined+)) (incf i))
-                   (t (incf i))))))))
+     (compile-array-pattern-binder comp (array-pattern-elements target) nil))
     (object-pattern
      (let ((binders (loop for pr in (object-pattern-properties target)
                           collect (if (rest-element-p pr)
@@ -682,37 +733,69 @@ base and computed key exactly once, before evaluating a right-hand side."
         (rhs-fn (compile-node comp rhs)))
     (lambda (env) (let ((v (funcall rhs-fn env))) (funcall binder env v) v))))
 
-(defun compile-assign-target (comp target)
+(defun compile-prepared-assign-target (comp target)
+  "Return (lambda (env) -> setter), preserving reference-before-value ordering."
   (typecase target
-    ((or identifier member-expression)
+    (identifier
      (multiple-value-bind (get set) (compile-reference comp target)
-       (declare (ignore get)) (lambda (env value) (funcall set env value))))
+       (declare (ignore get))
+       (lambda (env)
+         (lambda (value) (funcall set env value)))))
+    (member-expression
+     (multiple-value-bind (obj-fn computed key-part rcache wcache strict)
+         (compile-member-reference-parts comp target)
+       (declare (ignore rcache))
+       (lambda (env)
+         (let ((object (funcall obj-fn env))
+               (key-value (if computed (funcall key-part env) key-part)))
+           (lambda (value)
+             (if computed
+                 (js-set (to-object object) (to-property-key key-value) value strict)
+                 (%ic-write object key-value value wcache strict)))))))
     (assignment-pattern
-     (let ((inner (compile-assign-target comp (assignment-pattern-left target)))
-           (default (compile-node comp (assignment-pattern-right target))))
-       (lambda (env value) (funcall inner env (if (js-undefined-p value) (funcall default env) value)))))
-    (rest-element (compile-assign-target comp (rest-element-argument target)))
+     (let ((inner (compile-prepared-assign-target comp (assignment-pattern-left target)))
+           (default (compile-named-value comp (assignment-pattern-right target)
+                                         (target-inference-name (assignment-pattern-left target)))))
+       (lambda (env)
+         (let ((setter (funcall inner env)))
+           (lambda (value)
+             (funcall setter (if (js-undefined-p value) (funcall default env) value)))))))
+    (rest-element (compile-prepared-assign-target comp (rest-element-argument target)))
     (array-pattern
-     (let ((binders (loop for e in (array-pattern-elements target)
-                          collect (cons (and (rest-element-p e) :rest) (and e (compile-assign-target comp e))))))
-       (lambda (env value)
-         (let ((items (iterable->list value)) (i 0))
-           (dolist (b binders)
-             (cond ((eq (car b) :rest) (when (cdr b) (funcall (cdr b) env (new-array (nthcdr i items)))))
-                   ((cdr b) (funcall (cdr b) env (or (nth i items) +undefined+)) (incf i))
-                   (t (incf i))))))))
+     (let ((binder (compile-array-pattern-binder comp (array-pattern-elements target) t)))
+       (lambda (env) (lambda (value) (funcall binder env value)))))
     (object-pattern
-     (let ((binders (loop for pr in (object-pattern-properties target)
-                          collect (if (rest-element-p pr)
-                                      (cons :rest (compile-assign-target comp (rest-element-argument pr)))
-                                      (cons (property-key-target comp pr)
-                                            (compile-assign-target comp (property-value pr)))))))
-       (lambda (env value)
-         (let ((o (to-object value)))
-           (dolist (b binders)
-             (if (eq (car b) :rest) (funcall (cdr b) env (new-object))
-                 (funcall (cdr b) env (js-getv o (funcall (car b) env)))))))))
+     (let ((entries
+             (loop for property in (object-pattern-properties target)
+                   collect (if (rest-element-p property)
+                               (list :rest nil
+                                     (compile-prepared-assign-target comp
+                                                                    (rest-element-argument property)))
+                               (list :property (property-key-target comp property)
+                                     (compile-prepared-assign-target comp (property-value property)))))))
+       (lambda (env)
+         (lambda (value)
+           (let ((object (to-object value)) (seen '()))
+             (dolist (entry entries)
+               (if (eq (first entry) :rest)
+                   (let ((setter (funcall (third entry) env))
+                         (rest (new-object)))
+                     (dolist (key (jm-own-property-keys object))
+                       (let ((descriptor (jm-get-own-property object key)))
+                         (when (and descriptor (eq (pd-enumerable descriptor) t)
+                                    (not (member key seen :test #'equal)))
+                           (create-data-property rest key (js-get object key)))))
+                     (funcall setter rest))
+                   (let* ((key (funcall (second entry) env))
+                          (setter (funcall (third entry) env)))
+                     (push key seen)
+                     (funcall setter (js-getv object key))))))))))
     (t (error "bad assignment target"))))
+
+(defun compile-assign-target (comp target)
+  (let ((prepare (compile-prepared-assign-target comp target)))
+    (lambda (env value)
+      (funcall (funcall prepare env) value))))
 
 ;;; --- functions --------------------------------------------------------------
 
@@ -721,6 +804,14 @@ base and computed key exactly once, before evaluating a right-hand side."
     (if (and (expression-statement-p s) (expression-statement-directive s))
         (when (string= (expression-statement-directive s) "use strict") (return t))
         (return nil))))
+
+(defun expected-argument-count (params)
+  "ECMAScript function length: parameters before the first default or rest parameter."
+  (loop for parameter in params
+        for count from 0
+        when (or (assignment-pattern-p parameter) (rest-element-p parameter))
+          return count
+        finally (return (length params))))
 
 (defun compile-function-common (comp params body fname &key arrow method generator async)
   "Return (lambda (env) -> js-function). Sets up the function scope and body closure.
@@ -736,14 +827,19 @@ the live coroutine that yield/await suspend."
           (args-idx (unless arrow (cs-declare scope "arguments")))
           (coro-idx (when coro-p (cs-declare scope "%coro%"))))
       ;; parameters
-      (let ((param-binders '()) (simple-params (every #'identifier-p params)))
+      (let ((param-binders '())
+            (simple-params (every #'identifier-p params))
+            (param-indices '())
+            (param-names (loop for parameter in params append (binding-bound-names parameter))))
         ;; declare param names in the scope
-        (dolist (p params) (dolist (n (binding-bound-names p)) (cs-declare scope n)))
+        (dolist (name param-names)
+          (pushnew (cs-declare scope name) param-indices))
         ;; hoisted vars / funcs / lexicals of the body
         (multiple-value-bind (vars funcs) (collect-var-names stmts)
           (dolist (n vars) (cs-declare scope n))
           (dolist (n funcs) (cs-declare scope n))
           (dolist (n (collect-lexical-names stmts)) (cs-declare scope n))
+          (mark-immutable-lexicals scope stmts)
           (let ((sub (make-comp)) (return-tag (gensym "RET")))
             (setf (comp-scopes sub) (cons scope (comp-scopes comp))
                   (comp-strict sub) strict)
@@ -789,12 +885,15 @@ the live coroutine that yield/await suspend."
               (lambda (defenv)
                 (labels ((setup-frame (this args new-target)
                            (let ((frame (new-frame count defenv)))
+                             (dolist (parameter-index param-indices)
+                               (setf (svref (env-slots frame) parameter-index) +tdz+))
                              (unless arrow
                                (setf (svref (env-slots frame) this-idx) (coerce-this this this-mode)
                                      (svref (env-slots frame) nt-idx) new-target)
                                ;; build the `arguments` object ONLY if the body references it (m5):
                                ;; skipping it for the common case avoids an object allocation per call.
-                               (when needs-args
+                               (when (and needs-args
+                                          (not (member "arguments" param-names :test #'string=)))
                                  (setf (svref (env-slots frame) args-idx) (make-arguments-object args))))
                              (dolist (li lexical-idxs) (setf (svref (env-slots frame) li) +tdz+))
                              (bind-parameters param-binders args frame simple-params)
@@ -829,7 +928,7 @@ the live coroutine that yield/await suspend."
                         (declare (ignore fn))
                         (run-body (setup-frame this args new-target)))))
                    defenv
-                   :fname fname :param-count (count-if (lambda (p) (and (identifier-p p))) params)
+                   :fname fname :param-count (expected-argument-count params)
                    :strict strict :this-mode this-mode
                    :constructable (and (not arrow) (not coro-p))
                    :kind (cond (generator :generator)
@@ -855,6 +954,8 @@ the live coroutine that yield/await suspend."
     (loop for a in args for i from 0 do (create-data-property o (int->string i) a))
     (obj-set-desc o "length" (data-pd (coerce (length args) 'double-float)
                                       :writable t :enumerable nil :configurable t))
+    (obj-set-desc o (well-known :iterator)
+                  (obj-own-desc (intrinsic :array-prototype) "values"))
     o))
 
 (defun collect-function-decls (stmts)
@@ -892,7 +993,7 @@ the live coroutine that yield/await suspend."
       (and (class-node-p node) (null (class-node-id node)))))
 
 (defun compile-named-value (comp node name)
-  "Like compile-node, but names an anonymous function/arrow after NAME (§ NamedEvaluation)."
+  "Like compile-node, but names an anonymous function/arrow/class after NAME (§ NamedEvaluation)."
   (cond
     ((or (null name) (string= name "")) (compile-node comp node))
     ((arrow-function-p node) (compile-arrow comp node name))
@@ -900,6 +1001,8 @@ the live coroutine that yield/await suspend."
      (compile-function-common comp (function-node-params node) (function-node-body node) name
                                :generator (function-node-generator node)
                                :async (function-node-async node)))
+    ((and (class-node-p node) (null (class-node-id node)))
+     (compile-class comp node name))
     (t (compile-node comp node))))
 
 (defun compile-method (comp fn-node)
@@ -938,25 +1041,15 @@ the live coroutine that yield/await suspend."
 ;;; --- lazy iterator protocol (yield*, for-of/for-await) -----------------------
 
 (defun get-iterator (obj &optional async)
-  "Returns (values iterator async-from-sync-p). ASYNC-FROM-SYNC-P is true when an
+  "Returns (values iterator-record async-from-sync-p). ASYNC-FROM-SYNC-P is true when an
 async iterator was requested but only a sync @@iterator exists — the caller must
 then Await each yielded value (§27.1.4.1)."
   (let ((iter-fn (and async (get-method obj (well-known :async-iterator)))))
     (when (or (null iter-fn) (js-undefined-p iter-fn))
       (let ((sync-fn (get-method obj (well-known :iterator))))
         (when (js-undefined-p sync-fn) (throw-type-error "value is not iterable"))
-        (let ((iter (js-call sync-fn obj '())))
-          (unless (js-object-p iter) (throw-type-error "iterator is not an object"))
-          (return-from get-iterator (values iter async)))))
-    (let ((iter (js-call iter-fn obj '())))
-      (unless (js-object-p iter) (throw-type-error "iterator is not an object"))
-      (values iter nil))))
-
-(defun iterator-step (iter &optional (value +undefined+))
-  "Call iter.next(value); returns the result object (validated)."
-  (let ((r (js-call (js-get iter "next") iter (list value))))
-    (unless (js-object-p r) (throw-type-error "iterator result is not an object"))
-    r))
+        (return-from get-iterator (values (get-iterator-record obj sync-fn) async))))
+    (values (get-iterator-record obj iter-fn) nil)))
 
 (defun %yield-delegate (co iter)
   "yield* (§15.5.5): forward next/throw/return to the inner iterator, yielding each
@@ -966,25 +1059,23 @@ value to the outer driver and returning the inner iterator's final value."
       (let* ((mode (car sent)) (v (cdr sent))
              (result
               (ecase mode
-                (:next (iterator-step iter v))
+                (:next (iterator-next iter v))
                 (:throw
-                 (let ((m (js-get iter "throw")))
-                   (if (callable-p m) (js-call m iter (list v))
-                       (progn (%iterator-close iter) (throw-type-error "iterator has no throw method")))))
+                 (let* ((iterator (iterator-record-iterator iter))
+                        (m (js-get iterator "throw")))
+                   (if (callable-p m) (js-call m iterator (list v))
+                       (progn (iterator-close iter) (throw-type-error "iterator has no throw method")))))
                 (:return
-                 (let ((m (js-get iter "return")))
-                   (if (callable-p m) (js-call m iter (list v))
+                 (let* ((iterator (iterator-record-iterator iter))
+                        (m (js-get iterator "return")))
+                   (if (callable-p m) (js-call m iterator (list v))
                        (throw *coroutine-return-tag* (cons :return v))))))))
         (unless (js-object-p result) (throw-type-error "iterator result is not an object"))
-        (when (js-truthy (js-get result "done"))
-          (let ((rv (js-get result "value")))
+        (when (iterator-complete iter result)
+          (let ((rv (iterator-value iter result)))
             ;; a forwarded .return whose inner iterator finished completes the outer generator
             (if (eq mode :return) (throw *coroutine-return-tag* (cons :return rv)) (return rv))))
-        (setf sent (coroutine-suspend-raw co (js-get result "value")))))))
-
-(defun %iterator-close (iter)
-  (let ((m (js-get iter "return")))
-    (when (callable-p m) (ignore-errors (js-call m iter '())))))
+        (setf sent (coroutine-suspend-raw co (iterator-value iter result)))))))
 
 ;;; --- statements -------------------------------------------------------------
 
@@ -998,6 +1089,7 @@ value to the outer driver and returning the inner iterator's final value."
                  (func-names (mapcar (lambda (fd) (identifier-name (function-node-id fd)))
                                      (collect-function-decls stmts))))
             (dolist (n lex-names) (cs-declare scope n))
+            (mark-immutable-lexicals scope stmts)
             (dolist (n func-names) (cs-declare scope n))
             (let ((sub (make-comp)))
               (setf (comp-scopes sub) (cons scope (comp-scopes comp))
@@ -1121,6 +1213,8 @@ continue target. A switch is breakable but is not itself an iteration statement.
                       append (binding-bound-names (variable-declarator-id d))))
          (scope (make-cscope :block)))
     (dolist (n names) (cs-declare scope n))
+    (when (eq (variable-declaration-kind init) :const)
+      (dolist (n names) (cs-mark-immutable scope n)))
     (with-loop (comp bt ct)
       (let ((sub (make-comp)))
         (setf (comp-scopes sub) (cons scope (comp-scopes comp)) (comp-strict sub) (comp-strict comp)
@@ -1160,7 +1254,10 @@ Runs inside the enclosing async function/generator's coroutine (%coro%)."
            (names (when lexical (loop for d in (variable-declaration-declarations left)
                                       append (binding-bound-names (variable-declarator-id d)))))
            (scope (when lexical (make-cscope :block))))
-      (when lexical (dolist (n names) (cs-declare scope n)))
+      (when lexical
+        (dolist (n names) (cs-declare scope n))
+        (when (eq (variable-declaration-kind left) :const)
+          (dolist (n names) (cs-mark-immutable scope n))))
       (let ((sub comp))
         (when lexical
           (setf sub (make-comp))
@@ -1181,13 +1278,16 @@ Runs inside the enclosing async function/generator's coroutine (%coro%)."
                   (unwind-protect
                        (catch bt
                          (loop
-                           (let ((result (await-value co (iterator-step iter))))
-                             (unless (js-object-p result) (throw-type-error "iterator result is not an object"))
-                             (when (js-truthy (js-get result "done")) (return))
+                           (let ((result (await-value co (iterator-next iter))))
+                             (unless (js-object-p result)
+                               (setf (iterator-record-done iter) t)
+                               (throw-type-error "iterator result is not an object"))
+                             (when (iterator-complete iter result) (return))
                              ;; async-from-sync: Await the value too (§27.1.4.1); a native
                              ;; async iterator yields already-settled values (no re-Await).
-                             (let ((val (if from-sync (await-value co (js-get result "value")) (js-get result "value")))
-                                   (frame (if lexical (new-frame count env) env)))
+                             (let* ((step-value (iterator-value iter result))
+                                    (val (if from-sync (await-value co step-value) step-value))
+                                   (frame (if lexical (new-frame count env +tdz+) env)))
                                (funcall binder frame val)
                                (catch ct (funcall body-fn frame)))))
                          (setf done-normally t))
@@ -1199,8 +1299,9 @@ Runs inside the enclosing async function/generator's coroutine (%coro%)."
                       ;; ignore-errors, not just the call — a throwing return getter must not
                       ;; escape the cleanup and mask the in-flight completion.)
                       (ignore-errors
-                       (let ((m (js-get iter "return")))
-                         (when (callable-p m) (js-call m iter '()))))))))
+                       (let* ((iterator (iterator-record-iterator iter))
+                              (m (js-get iterator "return")))
+                         (when (callable-p m) (js-call m iterator '()))))))))
               :normal)))))))
 
 (defun compile-for-each (comp node left right body kind)
@@ -1210,7 +1311,10 @@ Runs inside the enclosing async function/generator's coroutine (%coro%)."
            (names (when lexical (loop for d in (variable-declaration-declarations left)
                                       append (binding-bound-names (variable-declarator-id d)))))
            (scope (when lexical (make-cscope :block))))
-      (when lexical (dolist (n names) (cs-declare scope n)))
+      (when lexical
+        (dolist (n names) (cs-declare scope n))
+        (when (eq (variable-declaration-kind left) :const)
+          (dolist (n names) (cs-mark-immutable scope n))))
       (let ((sub comp))
         (when lexical
           (setf sub (make-comp))
@@ -1221,15 +1325,24 @@ Runs inside the enclosing async function/generator's coroutine (%coro%)."
                (body-fn (compile-node sub body))
                (count (and lexical (cs-count scope))))
           (lambda (env)
-            (let* ((rv (funcall right-fn env))
-                   (items (if (eq kind :in)
-                              (if (js-nullish-p rv) '() (for-in-keys (to-object rv)))
-                              (iterable->list rv))))
-              (catch bt
-                (dolist (item items)
-                  (let ((frame (if lexical (new-frame count env) env)))
-                    (funcall binder frame item)
-                    (catch ct (funcall body-fn frame)))))
+            (let ((rv (funcall right-fn env)))
+              (if (eq kind :in)
+                  (catch bt
+                    (dolist (item (if (js-nullish-p rv) '() (for-in-keys (to-object rv))))
+                      (let ((frame (if lexical (new-frame count env +tdz+) env)))
+                        (funcall binder frame item)
+                        (catch ct (funcall body-fn frame)))))
+                  (let ((record (get-iterator-record rv)))
+                    (catch bt
+                      (loop
+                        (multiple-value-bind (item done) (iterator-step-value record)
+                          (when done (return))
+                          (call-with-iterator-close-on-abrupt
+                           record
+                           (lambda ()
+                             (let ((frame (if lexical (new-frame count env +tdz+) env)))
+                               (funcall binder frame item)
+                               (catch ct (funcall body-fn frame))))))))))
               :normal)))))))
 
 (defun for-each-binder (comp left)
@@ -1259,6 +1372,7 @@ Runs inside the enclosing async function/generator's coroutine (%coro%)."
          (scope (and (block-has-lexical-p stmts) (make-cscope :block))))
     (when scope
       (dolist (n lex-names) (cs-declare scope n))
+      (mark-immutable-lexicals scope stmts)
       (dolist (fd func-decls) (cs-declare scope (identifier-name (function-node-id fd)))))
     (let* ((sub (if scope
                     (let ((c (make-comp)))
@@ -1380,6 +1494,8 @@ Runs inside the enclosing async function/generator's coroutine (%coro%)."
                               (body-fn (compile-node sub (catch-clause-body handler)))
                               (count (cs-count scope)))
                           (lambda (env err) (let ((frame (new-frame count env)))
+                                              (dotimes (i count)
+                                                (setf (svref (env-slots frame) i) +tdz+))
                                               (funcall binder frame err) (funcall body-fn frame))))))
                     (let ((body-fn (compile-node comp (catch-clause-body handler))))
                       (lambda (env err) (declare (ignore err)) (funcall body-fn env))))))))
@@ -1404,12 +1520,13 @@ Runs inside the enclosing async function/generator's coroutine (%coro%)."
 
 ;;; --- classes (basic: constructor + methods + extends) -----------------------
 
-(defun compile-class (comp node)
+(defun compile-class (comp node &optional inferred-name)
   (let* ((super-fn (and (class-node-super-class node) (compile-node comp (class-node-super-class node))))
          (members (class-body-body (class-node-body node)))
          (ctor-m (find :constructor members :key #'method-definition-kind))
          (ctor-fn (and ctor-m (compile-method comp (method-definition-value ctor-m))))
          (id (class-node-id node))
+         (class-name (if id (identifier-name id) (or inferred-name "")))
          (methods (loop for m in members
                         unless (eq (method-definition-kind m) :constructor)
                         collect (list (method-definition-static m)
@@ -1424,7 +1541,7 @@ Runs inside the enclosing async function/generator's coroutine (%coro%)."
                                 (t (throw-type-error "class extends value is not a constructor"))))
              (proto (js-make-object super-proto))
              (ctor (if ctor-fn (funcall ctor-fn env)
-                       (make-native-function (if id (identifier-name id) "") 0
+                       (make-native-function class-name 0
                          (lambda (this args)
                            (when super (js-construct super args))
                            this)
@@ -1441,7 +1558,7 @@ Runs inside the enclosing async function/generator's coroutine (%coro%)."
         (obj-set-desc ctor "prototype" (data-pd proto :writable nil :enumerable nil :configurable nil))
         (obj-set-desc proto "constructor" (data-pd ctor :writable t :enumerable nil :configurable t))
         (when (js-object-p super) (jm-set-prototype-of ctor super))
-        (obj-set-desc ctor "name" (data-pd (if id (identifier-name id) "") :writable nil :enumerable nil :configurable t))
+        (obj-set-desc ctor "name" (data-pd class-name :writable nil :enumerable nil :configurable t))
         (dolist (m methods)
           (destructuring-bind (static kind key-fn fn-fn) m
             (let ((target (if static ctor proto)) (k (funcall key-fn env)) (f (funcall fn-fn env)))

@@ -1314,6 +1314,8 @@ a parenthesized expression."
   (typecase node
     (identifier node)
     (member-expression node)
+    (array-pattern node)
+    (object-pattern node)
     (array-expression
      (finish (make-array-pattern
               :elements (loop for rest on (array-expression-elements node)

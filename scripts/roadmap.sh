@@ -789,7 +789,9 @@ EOF
     'built-ins/Object/seal/seal-finalizationregistry.js' \
     'built-ins/Object/seal/seal-weakref.js' \
     'built-ins/Object/seal/seal-proxy.js' \
-    'built-ins/Object/seal/throws-when-false.js'; do
+    'built-ins/Object/seal/throws-when-false.js' \
+    'Focused m3 slice: 1,497 total / 1,442 pass / 55 fail / 0 skip / 0 crash.' \
+    'Residual ownership: m4 28 / m7 4 / m11 19 / Phase 37 4.'; do
     grep -Fq "$expected_text" "$body" ||
       fail "Phase 25b issue #$issue_number is missing measured scope evidence: $expected_text"
   done

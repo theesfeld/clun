@@ -9,6 +9,18 @@
   (handler-case (progn (eng:eval-source src) nil)
     (eng:js-condition () t)))
 
+(defun ev-error-name (src)
+  "The native Error constructor name thrown by SRC, or NIL."
+  (let ((realm (eng:make-realm)))
+    (let ((eng:*realm* realm))
+      (handler-case (progn (eng:eval-source src :realm realm) nil)
+        (eng:js-condition (condition)
+          (if (typep condition 'eng:js-native-error)
+              (eng:js-native-error-name (eng:js-native-error-kind condition))
+              (let ((value (eng:js-condition-value condition)))
+                (and (eng:js-object-p value)
+                     (eng:to-string (eng:js-get value "name"))))))))))
+
 (define-test eval/arithmetic
   (is eql 7d0 (ev "1 + 2 * 3"))
   (is eql 6d0 (ev "2 ** 3 - 2"))
@@ -83,6 +95,122 @@
   (is eql 5d0 (ev "var [a,...rest]=[1,2,3,4]; rest.length + rest[0]"))
   (is eql 6d0 (ev "function f(...nums){ var t=0; for(var i=0;i<nums.length;i++) t+=nums[i]; return t; } f(1,2,3)"))
   (is eql 10d0 (ev "var a=[1,2]; var b=[3,4]; [...a,...b].reduce ? 10 : 10")))
+
+(define-test eval/iterator-record-basics
+  (is string= "1,3,2"
+      (ev "var gets=0,calls=0; var src={ [Symbol.iterator]: function(){ return { get next(){ gets++; return function(){ calls++; return calls<3 ? {value:calls,done:false}:{done:true}; }; } }; } }; var a=[...src]; [gets,calls,a.length].join(',')"))
+  (is eql 7d0
+      (ev "var a=[1,2]; a[Symbol.iterator]=function(){ var done=false; return {next:function(){ if(done)return {done:true}; done=true; return {value:7,done:false}; }}; }; [...a][0]"))
+  (true (ev-throws "var x={ [Symbol.iterator]: function(){ return {next:function(){return 1;}}; } }; [...x]"))
+  (is string= "iter,return,ok"
+      (ev "var log=[];var src={ [Symbol.iterator]:function(){log.push('iter');return {next:1,return:function(){log.push('return');return {}}}}};try{var []=src;log.push('ok')}catch(e){log.push(e.name)};log.join(',')"))
+  (is string= "TypeError,0"
+      (ev "var closed=0,name='';var src={ [Symbol.iterator]:function(){return {next:1,return:function(){closed++;return {}}}}};try{var [x]=src}catch(e){name=e.name};name+','+closed")))
+
+(define-test eval/iterator-done-coercion
+  (is eql 0d0
+      (ev "var body=0;var src={ [Symbol.iterator]:function(){return {next:function(){return {done:Symbol('done'),value:1}}}}};for(var x of src){body++};body")))
+
+(define-test eval/iterator-close-and-for-of
+  (is string= "1,1"
+      (ev "var n=0,c=0;var src={ [Symbol.iterator]:function(){return {next:function(){n++;return {value:n,done:false}},return:function(){c++;return {done:true}}}}};for(var x of src){break};[n,c].join(',')"))
+  (is eql 7d0
+      (ev "var caught=0;var src={ [Symbol.iterator]:function(){return {next:function(){return {value:1,done:false}},return:function(){throw 8}}}};try{for(var x of src){throw 7}}catch(e){caught=e};caught"))
+  (is eql 8d0
+      (ev "var caught=0;var src={ [Symbol.iterator]:function(){return {next:function(){return {value:1,done:false}},return:function(){throw 8}}}};try{for(var x of src){break}}catch(e){caught=e};caught"))
+  (is eql 9d0
+      (ev "var caught=0;var src={ [Symbol.iterator]:function(){return {next:function(){return {value:1,done:false}},return:function(){throw 9}}}};try{for(var x of src){try{throw 1}finally{break}}}catch(e){caught=e};caught"))
+  (is eql 2d0
+      (ev "var caught=0;var src={ [Symbol.iterator]:function(){return {next:function(){return {value:1,done:false}},return:function(){throw 9}}}};try{for(var x of src){try{break}finally{throw 2}}}catch(e){caught=e};caught"))
+  (is string= "3,0"
+      (ev "var n=0,c=0;var src={ [Symbol.iterator]:function(){return {next:function(){n++;return n<3?{value:n,done:false}:{done:true}},return:function(){c++;return {done:true}}}}};for(var x of src){continue};[n,c].join(',')"))
+  (is eql 1d0
+      (ev "var c=0;var src={ [Symbol.iterator]:function(){return {next:function(){return {value:1,done:false}},return:function(){c++;return {done:true}}}}};outer:for(var i=0;i<1;i++){for(var x of src){continue outer}};c"))
+  (is eql 0d0
+      (ev "var c=0;var src={ [Symbol.iterator]:function(){return {next:function(){return {done:false,get value(){throw 4}}},return:function(){c++;return {done:true}}}}};try{for(var x of src){}}catch(e){};c")))
+
+(define-test eval/lazy-array-patterns
+  (is string= "0,1"
+      (ev "var n=0,c=0;var src={ [Symbol.iterator]:function(){return {next:function(){n++;return {done:true}},return:function(){c++;return {done:true}}}}};var []=src;[n,c].join(',')"))
+  (is string= "2,2,1,1"
+      (ev "var n=0,v=0,c=0;var src={ [Symbol.iterator]:function(){return {next:function(){n++;var q=n;return {done:false,get value(){v++;return q}}},return:function(){c++;return {done:true}}}}};var [,x]=src;[x,n,v,c].join(',')"))
+  (is string= "1:2,3"
+      (ev "var a,b;[a,...b]=[1,2,3];[a,b.join(',')].join(':')"))
+  (is eql 1d0
+      (ev "var hit=0;[{}=(hit=1,{})]=[];hit"))
+  (is string= "key,next"
+      (ev "var log=[];var o={};var src={ [Symbol.iterator]:function(){return {next:function(){log.push('next');return {value:3,done:false}},return:function(){return {done:true}}}}};[o[(log.push('key'),'x')]]=src;log.join(',')"))
+  (is eql 1d0
+      (ev "var c=0;var o={set x(v){throw 6}};var src={ [Symbol.iterator]:function(){return {next:function(){return {value:1,done:false}},return:function(){c++;return {done:true}}}}};try{[o.x]=src}catch(e){};c"))
+  (is eql 0d0
+      (ev "var c=0;var o={set x(v){throw 6}};var src={ [Symbol.iterator]:function(){var n=0;return {next:function(){n++;return n<2?{value:1,done:false}:{done:true}},return:function(){c++;return {done:true}}}}};try{[...o.x]=src}catch(e){};c")))
+
+(define-test eval/parameter-binding-semantics
+  (is eql 1d0
+      (ev "function f(a=b,b=1){};var hit=0;try{f()}catch(e){hit=1};hit"))
+  (is eql 1d0 (ev "function f(a=1,b=a){return b};f()"))
+  (is eql 2d0 (ev "function f(a,{b},c=1,d){};f.length"))
+  (is string= "x,y"
+      (ev "function f({x=function(){},y=class {}}={}){return x.name+','+y.name};f()"))
+  (is string= "1,2,3" (ev "function f(){return [...arguments].join(',')};f(1,2,3)"))
+  (is eql 1d0
+      (ev "var hit=0;try{try{throw []}catch([x=x]){hit=2}}catch(e){hit=1};hit")))
+
+(define-test eval/lexical-assignment-semantics
+  (is eql 1d0
+      (ev "var hit=0;try{0,[x]=[]}catch(e){hit=e.name==='ReferenceError'?1:2};let x;hit"))
+  (is eql 1d0
+      (ev "const c=null;var hit=0;try{[c]=[1]}catch(e){hit=e.name==='TypeError'?1:2};hit"))
+  (is eql 1d0
+      (ev "const x=1;function f(){return x};f()"))
+  (is eql 1d0
+      (ev "const x=1;{let x=2;x=3};x")))
+
+(define-test eval/global-lexical-tdz-and-indirect-eval
+  (is string= "ReferenceError" (ev-error-name "let x=x+1"))
+  (is string= "ReferenceError" (ev-error-name "x;let x"))
+  (is string= "ReferenceError" (ev-error-name "const x=x+1"))
+  (is string= "ReferenceError" (ev-error-name "x;const x=1"))
+  (is string= "outside,outside"
+      (ev "var a,b;let x='outside';{let x='inside';a=(0,eval)('x');b=(0,eval)('\"use strict\";x')}[a,b].join(',')"))
+  (is string= "outside,undefined"
+      (ev "let x='outside';(0,eval)(\"let y='eval';[(0,eval)('x'),(0,eval)('typeof y')].join(',')\")")))
+
+(define-test eval/top-level-function-captures-script-lexical
+  (let ((realm (eng:make-realm)))
+    (eng:eval-source "let x=7;function f(){return x}" :realm realm)
+    (is eql 7d0 (eng:eval-source "f()" :realm realm))))
+
+(define-test eval/active-script-lexicals-restored
+  (let ((realm (eng:make-realm)))
+    (eng:eval-source
+     "var seen;let x=1;Promise.resolve().then(function(){seen=(0,eval)('typeof x')})"
+     :realm realm)
+    (is string= "undefined" (eng:eval-source "seen" :realm realm))
+    (is eq nil (eng::realm-active-script-lexical-environment realm))
+    (is equal '() (eng::realm-active-script-lexical-scopes realm))
+    (true
+     (handler-case
+         (progn (eng:eval-source "let x=1;throw new Error('boom')" :realm realm) nil)
+       (eng:js-condition () t)))
+    (is eq nil (eng::realm-active-script-lexical-environment realm))
+    (is equal '() (eng::realm-active-script-lexical-scopes realm))))
+
+(define-test eval/iterable-consumer-close
+  (is eql 1d0
+      (ev "var c=0;var src={ [Symbol.iterator]:function(){return {next:function(){return {value:1,done:false}},return:function(){c++;return {done:true}}}}};try{Array.from(src,function(){throw 2})}catch(e){};c"))
+  (is eql 1d0
+      (ev "var c=0;var src={ [Symbol.iterator]:function(){return {next:function(){return {value:1,done:false}},return:function(){c++;return {done:true}}}}};try{Object.fromEntries(src)}catch(e){};c"))
+  (is eql 1d0
+      (ev "var c=0;Map.prototype.set=function(){throw 3};var src={ [Symbol.iterator]:function(){return {next:function(){return {value:[1,2],done:false}},return:function(){c++;return {done:true}}}}};try{new Map(src)}catch(e){};c"))
+  (is eql 1d0
+      (ev "var c=0;Promise.resolve=function(){throw 3};var src={ [Symbol.iterator]:function(){return {next:function(){return {value:1,done:false}},return:function(){c++;return {done:true}}}}};Promise.all(src).catch(function(){});c"))
+  (is eql 0d0
+      (ev "var c=0;var src={ [Symbol.iterator]:function(){return {next:function(){throw 3},return:function(){c++;return {done:true}}}}};try{Array.from(src)}catch(e){};c"))
+  (is string= "false,false,false"
+      (ev "var d=Object.getOwnPropertyDescriptor(Symbol,'iterator');[d.writable,d.enumerable,d.configurable].join(',')"))
+  (is string= "Symbol(x)" (ev "String(Symbol('x'))"))
+  (is string= "4" (ev "String.prototype[Symbol.iterator].call(42).next().value")))
 
 (define-test eval/prototype-and-instanceof
   (is eq eng:+true+ (ev "function C(){} var c=new C(); c instanceof C"))

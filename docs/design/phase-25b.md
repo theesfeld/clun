@@ -1,9 +1,9 @@
 # Phase 25b - Conformance Push to 90%
 
-Status: **milestones 1 and 2 complete; milestone 3 is next and has not started.** Phase 25 is
-complete, so the dependency is satisfied. Milestone 2 was the bounded Object wave specified in
-section 6: two integrity APIs and four Annex-B accessor APIs, with no Proxy/Reflect or later Object
-work absorbed into the milestone.
+Status: **milestones 1, 2, and 3 complete; milestone 4 is next and has not started.** Phase 25 is
+complete, so the dependency is satisfied. Milestone 3 delivered the shared IteratorRecord and
+binding/destructuring wave specified in section 6.2 while leaving diagnosed function/class,
+species, global-environment, and Phase-37 residuals visible for their later owners.
 
 ## 1. Scope and invariant
 
@@ -280,6 +280,115 @@ ledger, m2 gained 185 passes. Eligible remains fixed at 28,163, so the exact cur
 81.177431% (publicly truncated to 81.17%) and the remaining lift to 25,347 is 2,485. The regenerated
 gap inventory assigns 4,416 residuals to Phase 25b and 885 to Phase 37.
 
-Milestone 2 begins the `0.1.0` release train at `0.1.0-dev.1` because six backward-compatible public
-APIs make the mixed API-plus-fix unit a SemVer minor change. Milestone 3 is the next bounded unit:
-IteratorRecord plus binding/destructuring. It has not started.
+Milestone 2 began the `0.1.0` release train at `0.1.0-dev.1` because six backward-compatible public
+APIs made the mixed API-plus-fix unit a SemVer minor change. Milestone 3 retained that minor core and
+advanced the prerelease train to `0.1.0-dev.2`; its completed implementation and evidence follow.
+
+### 6.2 Milestone 3 implementation design
+
+Milestone 3 owns the frozen `binding-patterns` and `iterator-protocol` origin pools. At the
+milestone-2 boundary those pools contain 1,412 and 85 live failures respectively. Surrounding
+function, class, generator, async, and loop syntax does not move a generated binding test into a
+later milestone: m3 fixes the shared binding operation while leaving unrelated surrounding-construct
+residuals visible under their original phase owner.
+
+The implementation order is deliberately semantic rather than path-specific:
+
+1. Add `src/engine/iterator-operations.lisp` before the iterator and collection built-ins in the
+   ASDF load plan. Its `iterator-record` caches `[[Iterator]]` and `[[NextMethod]]` exactly once and
+   carries `[[Done]]`. Shared operations implement GetIteratorFromMethod, IteratorNext,
+   IteratorComplete, IteratorValue, IteratorStep/StepValue, and IteratorClose. Step, `done`, and
+   `value` abrupt completions mark the record done so a caller never incorrectly closes after an
+   iterator-protocol failure. IteratorClose preserves an in-flight throw over `return` lookup/call
+   failures, but a break/return/other non-throw completion observes close failures and rejects a
+   non-object return result.
+2. Remove the array/string eager shortcut from `iterable->list`; observable `@@iterator` lookup and
+   the cached `next` method apply uniformly. Migrate synchronous `for-of` to lazy stepping. Only
+   binding/body abrupt completion closes the iterator: failure in `next`, `done`, or `value` does
+   not. An unlabelled continue stays inside the loop without closing, while break, return, throw,
+   and control transfer to an outer label close exactly once.
+3. Replace eager array-pattern materialization in declaration, parameter, catch, loop-head, and
+   assignment binders. Empty patterns do not step. Elisions step without reading `value`. Ordinary
+   elements step once, defaults run only for undefined, rest exhausts into a fresh Array, and a
+   non-rest pattern closes an iterator left open by early pattern completion. Nested binding/default
+   failure closes with the original throw taking precedence.
+4. Keep object binding property-driven: ToObject once, computed keys in source order, Get before
+   nested binding, and named evaluation for identifier defaults. Object-rest execution tests remain
+   under the existing explicit `object-rest` skip and are not claimed by m3. Add anonymous
+   function/arrow/class name inference at identifier defaults, parameter TDZ initialization before
+   left-to-right binding, and the ECMAScript expected-argument-count rule for function `length`.
+5. Migrate m3 iterable consumers that can fail after a value is produced: Array.from,
+   Object.fromEntries, Map/Set/WeakMap/WeakSet constructors, and shipped Promise combinators. Each
+   consumer processes one value at a time inside the shared close-on-abrupt boundary. TypedArray
+   residual algorithms remain m9-owned; yield delegation and async-iterator expansion remain m5/m6,
+   except that existing call sites may consume the shared record without claiming those later
+   feature gaps.
+
+Focused Lisp tests cover cached-next behavior, result validation, `done` transitions, close
+precedence, lazy pattern/elision/rest behavior, nested/default abrupt completion, function-name
+inference, parameter TDZ, function length, and loop control. The focused test262 gate classifies
+every current m3 origin row and reports Phase-25b versus Phase-37 ownership separately; no expected
+failure is hidden or converted to a skip. Because parser/emitter/shared execution semantics change,
+the final gate includes parse conformance, a complete off/eager execution comparison, a monotonic
+pass-list regeneration from the proven ledger, and fresh deterministic gap/report artifacts.
+
+This is backward-compatible functionality within the already selected `0.1.0` release train.
+Milestone 3 therefore retains the minor core and advances the immutable prerelease target to
+`0.1.0-dev.2`; it does not create a new minor core merely because it is a later push.
+
+#### 6.2.1 Milestone 3 completion evidence
+
+The implementation follows the shared design above. A single completion-aware iterator record now
+drives lazy array binding and assignment, synchronous `for-of`, observable iterable-to-list
+conversion, Array and Object consumers, collection constructors, and shipped Promise combinators.
+It caches `next`, records terminal completion, and centralizes close precedence. Binding execution
+now handles empty patterns, elisions, ordinary elements, rest, defaults, nested abrupt completion,
+prepared assignment references, parameter and catch TDZ, immutable `const`, expected function
+length, and anonymous-default name inference. Array iterators use live length, arguments objects are
+iterable, and the related String and Symbol protocol behavior is covered by the same implementation.
+
+The focused frozen-origin slice is 1,497 files:
+
+| Origin | Pass | Fail | Skip | Crash |
+|---|---:|---:|---:|---:|
+| `binding-patterns` | 1,368 | 44 | 0 | 0 |
+| `iterator-protocol` | 74 | 11 | 0 | 0 |
+| **Total** | **1,442** | **55** | **0** | **0** |
+
+Exact residual diagnosis finds zero known m3-owned failures. The 55 remaining rows are assigned to
+m4 functions/classes/parameters/`super` (28), m7 constructor/species protocol (4), m11 direct eval
+and global environment (19), and Phase 37 proposals (4). The m3 implementation does not convert any
+of them into skips.
+
+Current-Script lexical visibility uses a deliberately transient boundary. While a Script executes
+synchronously, its per-program lexical frame is the active Script ancestry used by eval. The frame
+is restored on normal and abrupt completion and is not installed as persistent realm state. Async
+callbacks and later Scripts therefore do not falsely inherit it; complete cross-Script and async
+global-environment semantics remain m11 work. This bounded choice avoids claiming the static
+compiler can already resolve lexicals introduced by later Scripts.
+
+Two gate diagnoses corrected shared infrastructure rather than weakening evidence. The `yield*`
+regressions came from an incorrectly declared Common Lisp optional supplied-argument marker in the
+new iterator step path; correcting it restored both strict and sloppy controls while generator
+residuals remain m5-owned. Runtime-negative execution rows now pass only when execution throws the
+declared error type. The corrected runner exposed and removed three older frozen false positives;
+those rows remain live m11/m13 failures. The resulting monotonic pass list contains 24,504 entries,
+a net gain of 1,642 from m2 after the three corrections and 1,861 from phase entry.
+
+The prior parser gate remains green at 23,713 total files: 17,523 live pass, 1,152 fail, 5,038 skip,
+and zero crash, with all 17,512 frozen parse passes holding. The complete execution comparison is
+byte-identical between off and eager across 40,654 files, with zero eager fallback:
+
+| Classification | Count |
+|---|---:|
+| Pass | 24,504 |
+| Fail/gap | 3,659 |
+| Explicit skip | 12,491 |
+| Crash | 0 |
+
+Eligible remains 28,163. The exact rate is `24,504 / 28,163 = 87.007776%`, publicly truncated to
+87.00%; 843 more passes are required to reach the fixed 25,347 target. The regenerated gap inventory
+assigns 2,775 failures to Phase 25b and 884 to Phase 37, and its canonical artifact digest is
+`1DF243B2047FC7F1`. M3 is a backward-compatible functionality unit in the existing `0.1.0` train,
+so its disposition remains SemVer minor and its release target is `0.1.0-dev.2`. Milestone 4 is next
+and has not started.

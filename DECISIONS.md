@@ -2024,3 +2024,63 @@ Phase 25b milestone 2 adds six backward-compatible public Object APIs plus bug f
 unit is `minor`: bare version `0.1.0-dev.1`, tag `v0.1.0-dev.1`, and ASDF core `0.1.0`. Later
 Phase-25b release-bearing milestones advance `dev.N`; Phase 26 removes the suffix only after the
 stable `0.1.0` hardening gate passes.
+
+### 2026-07-15 - Phase 25b m3 uses one completion-aware iterator record
+
+Milestone 3 replaces eager and duplicated iterable consumption with a shared `iterator-record`
+abstract-operation layer that caches the iterator's `next` method and tracks terminal completion.
+Array binding, `for-of`, and shipped iterable built-ins consume that record lazily and apply
+IteratorClose only around consumer/binding abrupt completion; errors produced by `next`, `done`, or
+`value` mark the record done and are not followed by an incorrect close. A throw completion keeps
+precedence over failures from `return`, while break/return and other non-throw control completions
+observe close failures. This record discipline was selected over more eager list conversion because
+empty patterns, elisions, early loop exit, cached-next observability, and close ordering cannot be
+implemented correctly after an iterator has already been exhausted. The change is backward-compatible
+functionality within the planned `0.1.0` train, so m3 targets `0.1.0-dev.2` rather than selecting a
+new core version.
+
+### 2026-07-15 - Phase 25b m3 corrects runtime-negative execution classification
+
+The execution runner now honors Test262 `negative: { phase: runtime, type: ... }` metadata: a row
+passes only when execution throws an instance of the declared error constructor, and it fails when
+execution completes normally or throws the wrong value. This exposed three older frozen false
+positives, so the documented only-grows exception removes them from `exec-passlist.txt` by hand:
+`eval-code/direct/strict-caller-global.js`,
+`eval-code/direct/var-env-global-lex-non-strict.js`, and
+`identifier-resolution/assign-to-global-undefined.js`. They previously passed only because the
+runner treated normal completion as success and never validated the declared runtime error. The
+rows remain executable failures in the fixed denominator, with the direct-eval cases owned by m11
+and the assignment-reference ordering case owned by m13; none is skipped or hidden. The four
+global TDZ negative tests changed in m3 now pass for the correct reason: Clun throws the declared
+`ReferenceError`.
+
+### 2026-07-15 - Phase 25b m3 keeps current-Script lexical exposure transient
+
+Each top-level program executes in its own lexical frame, and that frame is published as the active
+Script environment only for the synchronous dynamic extent of that program. Eval performed during
+the current Script can therefore resolve its lexical declarations, while unwind protection restores
+the prior active environment after normal or abrupt completion. Persistently chaining those frames
+on the realm was rejected: the static compiler cannot yet make a function compiled by an earlier
+Script dynamically resolve a lexical introduced by a later Script, and retaining only part of that
+global-environment model would make cross-Script behavior internally inconsistent. Async callbacks
+and later Scripts remain visible m11 global-environment work rather than an m3 claim.
+
+### 2026-07-15 - Phase 25b m3 closes with measured later-owner residuals
+
+The frozen m3 origin slice closes at 1,442 pass and 55 fail across 1,497 files, with no skip or crash:
+binding patterns are 1,368/44 and iterator protocol is 74/11. Exact diagnosis assigns the residuals
+to m4 (28), m7 (4), m11 (19), and Phase 37 (4), leaving zero known m3-owned failures. Two gate findings
+were fixed rather than waived: the new iterator step function used incorrect Common Lisp optional
+supplied-argument syntax, regressing four strict/sloppy `yield*` controls, and the Test262 runner did
+not previously validate runtime-negative completion and error type. The supplied-argument correction
+restored the generator controls; the runtime-negative correction removed three false frozen passes
+under the documented exception and keeps those paths as visible m11/m13 failures.
+
+The canonical 40,654-file off/eager comparison is byte-identical with zero eager fallback: 24,504
+pass, 3,659 fail, 12,491 skip, and zero crash. Eligible remains 28,163, the exact rate is 87.007776%
+(public 87.00%), and 843 passes remain to the 25,347 target. Residual ownership is 2,775 Phase-25b and
+884 Phase-37 failures. The pass list is 24,504: net +1,642 from m2 after the three false-pass
+corrections and +1,861 from phase entry. Canonical artifact digest `1DF243B2047FC7F1` binds the
+regenerated inventory. The prior parse gate remains 23,713 total / 17,523 live pass / 1,152 fail /
+5,038 skip / zero crash, with all 17,512 frozen entries holding. This backward-compatible functionality
+retains the planned minor core and selects `0.1.0-dev.2`; m4 is next and has not started.

@@ -39,10 +39,27 @@
               (push e acc)))))))
 
 (defun %array-from (items mapfn this-arg)
-  (let ((iter-fn (and (not (js-nullish-p items)) (get-method items (well-known :iterator)))))
-    (if (and iter-fn (not (js-undefined-p iter-fn)))
-        (let ((vals (iterable->list items)) (i 0))
-          (new-array (mapcar (lambda (v) (prog1 (if mapfn (js-call mapfn this-arg (list v (coerce i 'double-float))) v) (incf i))) vals)))
+  (when (and mapfn (not (callable-p mapfn)))
+    (throw-type-error "Array.from mapper is not a function"))
+  (let ((iter-fn (get-method items (well-known :iterator))))
+    (if (not (js-undefined-p iter-fn))
+        (let ((record (get-iterator-record items iter-fn))
+              (vals '())
+              (i 0))
+          (loop
+            (multiple-value-bind (value done) (iterator-step-value record)
+              (when done
+                (return (new-array (nreverse vals))))
+              (let ((mapped
+                      (call-with-iterator-close-on-abrupt
+                       record
+                       (lambda ()
+                         (if mapfn
+                             (js-call mapfn this-arg
+                                      (list value (coerce i 'double-float)))
+                             value)))))
+                (push mapped vals)
+                (incf i)))))
         (let* ((o (to-object items)) (len (%alen o)))
           (new-array (loop for i below len
                            collect (let ((v (%aget o i))) (if mapfn (js-call mapfn this-arg (list v (coerce i 'double-float))) v))))))))
