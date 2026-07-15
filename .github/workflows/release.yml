@@ -112,9 +112,9 @@ jobs:
           CLUN_SKIP_PERFORMANCE_TESTS: "1"
         run: make test
 
-      - name: Verify published test262 execution pass set
+      - name: Verify live test262 inventory matches published claims
         if: matrix.target == 'linux-x64'
-        run: make conformance-exec
+        run: make conformance-buckets-verify
 
       - name: Test cryptography
         run: make test-crypto

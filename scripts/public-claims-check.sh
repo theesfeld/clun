@@ -17,6 +17,14 @@ require_text() {
     fail "$file is missing expected text: $expected"
 }
 
+reject_text() {
+  file=$1
+  rejected=$2
+  if grep -Fq -- "$rejected" "$file"; then
+    fail "$file contains stale text: $rejected"
+  fi
+}
+
 version=$(sed -n 's/^(defparameter \*clun-version\* "\([^"]*\)".*/\1/p' src/version.lisp)
 [ -n "$version" ] || fail "could not read *clun-version* from src/version.lisp"
 
@@ -78,6 +86,172 @@ pretty_passes=$(awk -v n="$test262_passes" '
   }
   BEGIN { print commas(n) }
 ')
+
+report_measure() {
+  label=$1
+  awk -F '|' -v label="$label" '
+    function trim(value) {
+      sub(/^[[:space:]]+/, "", value)
+      sub(/[[:space:]]+$/, "", value)
+      return value
+    }
+    trim($2) == label {
+      print trim($3)
+      found = 1
+      exit
+    }
+    END { if (!found) exit 2 }
+  ' docs/conformance/test262-execution.md ||
+    fail "could not read $label from the test262 execution report"
+}
+
+report_provenance() {
+  label=$1
+  awk -F '|' -v label="$label" '
+    function trim(value) {
+      sub(/^[[:space:]]+/, "", value)
+      sub(/[[:space:]]+$/, "", value)
+      return value
+    }
+    trim($2) == label {
+      value = trim($3)
+      sub(/^`/, "", value)
+      sub(/`$/, "", value)
+      print value
+      found = 1
+      exit
+    }
+    END { if (!found) exit 2 }
+  ' docs/conformance/test262-execution.md ||
+    fail "could not read $label from the test262 execution report"
+}
+
+format_count() {
+  awk -v n="$1" '
+    function commas(value, text, length_) {
+      text = sprintf("%.0f", value)
+      length_ = length(text)
+      if (length_ <= 3) return text
+      return commas(substr(text, 1, length_ - 3)) "," substr(text, length_ - 2)
+    }
+    BEGIN { print commas(n) }
+  '
+}
+
+report_total=$(report_measure Total)
+report_pass=$(report_measure Pass)
+report_fail=$(report_measure Fail)
+report_skip=$(report_measure Skip)
+report_crash=$(report_measure Crash)
+report_eligible=$(report_measure 'Eligible (`pass + fail`)')
+report_frozen=$(report_measure 'Frozen baseline pass count')
+report_delta=$(report_measure 'Current-pass delta from frozen baseline')
+report_target=$(report_measure '`ceil(90% * eligible)`')
+report_lift=$(report_measure 'Required pass lift')
+report_source_revision=$(report_provenance source-revision)
+
+printf '%s\n' "$report_source_revision" | grep -Eq '^(working-tree@)?[0-9a-f]{40}$' ||
+  fail "test262 execution report has an invalid source revision: $report_source_revision"
+
+for value in "$report_total" "$report_pass" "$report_fail" "$report_skip" \
+             "$report_crash" "$report_eligible" "$report_frozen" \
+             "$report_target" "$report_lift"; do
+  case "$value" in
+    ''|*[!0-9]*) fail "test262 execution report contains a non-integer measure: $value" ;;
+  esac
+done
+case "$report_delta" in
+  +*) delta_digits=${report_delta#+} ;;
+  -*) delta_digits=${report_delta#-} ;;
+  *) delta_digits=$report_delta ;;
+esac
+case "$delta_digits" in
+  ''|*[!0-9]*) fail "test262 execution report has an invalid pass delta: $report_delta" ;;
+esac
+
+[ "$report_total" -eq $((report_pass + report_fail + report_skip + report_crash)) ] ||
+  fail "test262 execution report classifications do not sum to Total"
+[ "$report_eligible" -eq $((report_pass + report_fail)) ] ||
+  fail "test262 execution report eligible count is not pass + fail"
+[ "$report_crash" -eq 0 ] || fail "test262 execution report contains crashes"
+[ "$report_frozen" -eq "$test262_passes" ] ||
+  fail "test262 execution report frozen baseline disagrees with the pass-list"
+[ "$report_delta" -eq $((report_pass - report_frozen)) ] ||
+  fail "test262 execution report current-pass delta is inconsistent"
+computed_target=$(((report_eligible * 9 + 9) / 10))
+[ "$report_target" -eq "$computed_target" ] ||
+  fail "test262 execution report 90% target is inconsistent"
+computed_lift=$((report_target - report_pass))
+[ "$computed_lift" -ge 0 ] || computed_lift=0
+[ "$report_lift" -eq "$computed_lift" ] ||
+  fail "test262 execution report required lift is inconsistent"
+
+gap_stats="$scratch_dir/gap-stats"
+bucket_stats="$scratch_dir/bucket-stats"
+: >"$bucket_stats"
+LC_ALL=C awk -F '\t' -v buckets="$bucket_stats" '
+  function die(message) {
+    print "public-claims-check: execution gap snapshot: " message > "/dev/stderr"
+    failed = 1
+    exit 2
+  }
+  /^#/ { next }
+  !header {
+    expected = "path\towner\tphase_owner\twork_bucket\ttopic\tfeatures\tflags\tincludes"
+    if ($0 != expected) die("unexpected TSV header")
+    header = 1
+    next
+  }
+  {
+    if (NF != 8) die("row does not have eight fields: " $1)
+    if ($6 == "" || $7 == "" || $8 == "")
+      die("metadata fields must use the explicit - sentinel: " $1)
+    if (previous != "" && $1 <= previous) die("paths are not strictly sorted: " $1)
+    previous = $1
+    if ($3 != "phase-25b" && $3 != "phase-37")
+      die("unknown phase owner for " $1 ": " $3)
+    if ($4 !~ /^(binding-patterns|dynamic-scope-eval|async-iteration|async-generators|generators|classes|binary-data|regexp|iterator-protocol|promises|collections|arrays|objects|functions-arguments|operators-references|primitive-builtins|other-runtime)$/)
+      die("unknown work bucket for " $1 ": " $4)
+    rows++
+    phases[$3]++
+    bucket_count[$4]++
+  }
+  END {
+    if (failed) exit 2
+    if (!header) die("missing TSV header")
+    printf "%d\t%d\t%d\n", rows, phases["phase-25b"], phases["phase-37"]
+    for (bucket in bucket_count)
+      printf "%s\t%d\n", bucket, bucket_count[bucket] > buckets
+  }
+' tests/conformance/exec-gaps.tsv >"$gap_stats" ||
+  fail "could not validate the execution gap snapshot"
+
+IFS="$(printf '\t')" read -r gap_rows phase25b_rows phase37_rows <"$gap_stats"
+[ "$gap_rows" -eq "$report_fail" ] ||
+  fail "execution gap snapshot row count disagrees with the report"
+[ $((phase25b_rows + phase37_rows)) -eq "$report_fail" ] ||
+  fail "execution gap snapshot phase-owner counts do not reconcile"
+require_text docs/conformance/test262-execution.md "| \`phase-25b\` | $phase25b_rows |"
+require_text docs/conformance/test262-execution.md "| \`phase-37\` | $phase37_rows |"
+LC_ALL=C sort -o "$bucket_stats" "$bucket_stats"
+while IFS="$(printf '\t')" read -r bucket count; do
+  require_text docs/conformance/test262-execution.md "| \`$bucket\` | $count |"
+done <"$bucket_stats"
+
+report_rate=$(awk -v pass="$report_pass" -v eligible="$report_eligible" '
+  BEGIN {
+    scaled = int((pass * 10000) / eligible)
+    printf "%d.%02d", int(scaled / 100), scaled % 100
+  }
+')
+report_rate_exact=$(awk -v pass="$report_pass" -v eligible="$report_eligible" \
+  'BEGIN { printf "%.6f", (pass * 100) / eligible }')
+require_text docs/conformance/test262-execution.md \
+  "| Pass rate | $report_pass / $report_eligible = $report_rate_exact% |"
+pretty_report_pass=$(format_count "$report_pass")
+pretty_report_fail=$(format_count "$report_fail")
+pretty_report_eligible=$(format_count "$report_eligible")
+pretty_report_lift=$(format_count "$report_lift")
 
 benchmark_baseline=$(awk '/^\| Phase-24 baseline / { print; exit }' docs/benchmarks.md)
 benchmark_latest=$(awk '/^\| m[0-9][0-9]* / { latest = $0 } END { print latest }' docs/benchmarks.md)
@@ -342,11 +516,24 @@ fi
 
 require_text README.md "./build/clun --version   # => clun $version"
 require_text README.md "$pretty_passes tests"
+require_text README.md "$pretty_report_pass passes and $pretty_report_fail gaps across $pretty_report_eligible eligible tests"
+require_text README.md "($report_rate%), with zero crashes"
 require_text site/index.html "href=\"https://github.com/theesfeld/clun/releases/tag/v$version\""
 require_text site/index.html "v$version for Linux and macOS"
 require_text site/index.html "</span> v$version / pre-alpha</p>"
 require_text site/index.html "<span>$version / pre-alpha</span>"
 require_text site/index.html "$pretty_passes pass"
+if [ "$report_lift" -gt 0 ]; then
+  require_text README.md "reaching 90% requires $pretty_report_lift additional live passes"
+  reject_text README.md "Phase 25b's 90% target is met"
+  require_text site/index.html "<dt>Phase 25b progress</dt><dd>$report_rate% current</dd>"
+  reject_text site/index.html "90% target met"
+else
+  require_text README.md "Phase 25b's 90% target is met"
+  reject_text README.md "reaching 90% requires"
+  require_text site/index.html "$report_rate% current"
+  require_text site/index.html "90% target met"
+fi
 require_text site/index.html "github.com/theesfeld/clun/blob/master/PLAN.md"
 require_text site/index.html "Phase 25 / milestone ${benchmark_milestone#m}"
 require_text site/index.html "$benchmark_met of 3 workloads"
@@ -363,5 +550,6 @@ sh -n site/install
 sh scripts/test-installer.sh
 sh scripts/roadmap.sh check
 
-printf 'public claim anchors agree: version=%s test262=%s capabilities=%s js-syntax=%s\n' \
-  "$version" "$test262_passes" "$capability_rows" "$js_syntax"
+printf 'public claim anchors agree: version=%s frozen-test262=%s current=%s/%s (%s%%) gaps=%s capabilities=%s js-syntax=%s\n' \
+  "$version" "$test262_passes" "$report_pass" "$report_eligible" "$report_rate" \
+  "$report_fail" "$capability_rows" "$js_syntax"

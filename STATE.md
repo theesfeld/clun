@@ -5,7 +5,7 @@ Update before every commit. Seeded from PLAN.md §5.
 
 ---
 
-## Current phase: **25b — Conformance push to >= 90%**  (READY, NOT STARTED — Phase 25 complete; next = m1 failure-bucket analysis)
+## Current phase: **25b — Conformance push to >= 90%**  (IN PROGRESS — m1 inventory DONE; next = m2 bounded Object wave)
 
 **Phase 25 COMPLETE** (Performance pass; deps: all engine phases ✓; milestoned). Final default-tier
 best-of-nine results vs the frozen Phase-24 baseline are richards **6.68×**, deltablue **3.85×**, and splay
@@ -13,11 +13,40 @@ best-of-nine results vs the frozen Phase-24 baseline are richards **6.68×**, de
 user bodies but reached only **4.24× / 694.6 ms** in diagnostic eager mode, so its preapproved off-ramp
 closed G2 on the 2-of-3 + geomean basis and canceled background-tier m3/m4. G1 holds: the complete 40,654-file
 off/eager classification ledgers are byte-identical, all 22,643 frozen passes remain, and crashes/fallback
-are zero. The former G3 is the separate **Phase 25b** (deps: 25), now ready but not started.
+are zero. The former G3 is the separate **Phase 25b** (deps: 25), now active.
 
-**Phase 25b READY — NOT STARTED.** Objective and gate remain PLAN §5: bucket the current 5,487 execution
-gaps, fix correctness by subsystem, reach >=90% curated test262 with a monotonic pass-list, and keep purity
-clean. The next `phase` invocation performs milestone 1 only: failure-bucket analysis and a costed order.
+**Phase 25b milestone 1 DONE — authoritative failure inventory and costed order; no engine change.** A fresh
+40,654-file execution run at source revision `9c46a3d63c058ec85df1a70c19340f7cbb1c5fd9` measured **22,677
+pass / 5,486 fail / 12,491 skip / 0 crash**; all **22,643** frozen pass-list entries hold. Eligible =
+28,163, current = **80.520541%**, and `ceil(90% * 28,163)` = 25,347, so the required live lift is exactly
+**2,670** (the frozen list ultimately needs +2,704 because 34 current passes are not frozen yet).
+
+`scripts/test262-buckets.lisp` validates the sorted ledger, pinned files, runner skip compatibility, and
+every frozen pass, then deterministically generates `tests/conformance/exec-gaps.tsv` plus
+`docs/conformance/test262-execution.md`. Ledger SHA-256 is
+`859dcc677d8347d5efc92c0d666cbe21588185c2e9e91337b7d34d4a531827cc`; artifact provenance uses FNV-1a-64
+`18A8793E750F5FD4`; two generations are byte-identical. Orthogonal ownership keeps all failures in the fixed
+denominator: **4,599 Phase-25b-owned + 887 Phase-37-owned = 5,486**. The cost model freezes disjoint m1 origin
+buckets so a future pass is credited once; its low/nominal/high totals are 1,192/2,800/3,774, explicitly an
+uncertainty model rather than a guarantee. Pinned Bun/JSC inspection supports the order: m2 first, then one
+canonical iterator-record semantic shape before binding/class/generator/async/species work; JSC's runtime
+record and language bytecompiler helpers are separate implementation layers.
+
+Regeneration is fail-closed after adversarial review: the analyzer requires exact equality with all 40,654
+runner corpus paths and requires `skip` exactly when the runner's static rules do. `make conformance-buckets`
+deletes any old ledger, runs execution plus analysis in one freshness-bound target, and publishes only
+complete scratch outputs. Its computed provenance says `working-tree@<base-commit>` whenever execution inputs
+are dirty instead of mislabeling them as clean `HEAD`. CI and release builds now run the fresh
+ledger through `make conformance-buckets-verify` and semantically compare its digest, rows, buckets, and counts
+to the checked-in artifacts; volatile provenance is format-validated before comparison. Public percentages
+truncate at two decimals and cannot report a rounded-up 90.00%/100.00% before the exact integer gate.
+
+**M1 gates:** analyzer self-test green; `make build`; `make test` **2730 Lisp / 42 TS strip / 74 JS, zero
+failures**; `make purity` **689 files / 0 violations**; parse conformance **17,512 frozen passes / 0 crashes**;
+execution conformance numbers above; the post-review `make conformance-buckets-verify` fresh run reproduced all
+40,654 classifications and matched the checked-in inventory; public claims + installer fixture + roadmap checks,
+shell checks, workflow `actionlint`, and diff check green. Three independent final reviewers' findings are
+resolved; the publication follow-up found no remaining blocker.
 
 **Milestone 1 DONE — "measure first":** the benchmark suite + the frozen Phase-24 baseline + the design doc
 (no engine change). `bench/{richards,deltablue,splay}.js` — the Octane trio ported to clun (self-contained,
@@ -214,15 +243,19 @@ richards **539.3/444.6 ms**, deltablue **764.5/694.6 ms**, splay **283.9/249.7 m
 out of the saved image (~125 MiB final vs 512–632 MiB before). Independent adversarial review findings are
 resolved: eager conformance now requires fallback=0 and the compare harness pins trace=0.
 
-**Next action:** Phase 25b milestone 1 — analyze and bucket the current **5,487** `fail(gap)` execution tests,
-estimate each subsystem's lift/cost, and record the ordered correctness plan. Do not begin fixes beyond that
-milestone in the same `phase` invocation.
+**Next action:** Phase 25b milestone 2 only — implement `Object.seal`, `Object.isSealed`, and
+`Object.prototype.__defineGetter__` / `__defineSetter__` / `__lookupGetter__` / `__lookupSetter__` against
+their exact six-directory, 166-runnable-control slice. Gate lift against the 164 m2-owned rows;
+`seal-finalizationregistry.js` and `seal-weakref.js` remain expected Phase-37 gaps. Exclude `Object.hasOwn`,
+other Object integrity APIs, Proxy/Reflect, `__proto__`, and m3 iterator/binding work. Split m2a/m2b if a
+cross-subsystem dependency appears.
 
 **G3 scope concern — RESOLVED (2026-07-14, operator-approved split):** the >=90% curated-test262 target is
 split out of Phase 25 into a new **Phase 25b — Conformance push to >=90%** (PLAN §5). Phase 25 is now closed
-under G1 plus the approved G2 disposition above. Phase 25b owns the remaining correctness lift, starting with
-a failure-bucket analysis of the current 5,487 `fail(gap)` tests. DoD §1.4 point 2's ">=90% at Phase 25's
-close" now reads "at Phase 25b's close"; that work proceeds separately on the faster engine.
+under G1 plus the approved G2 disposition above. Phase 25b owns the remaining correctness lift; milestone 1
+has now analyzed the current 5,486 `fail(gap)` tests and frozen the cost/accounting order. DoD §1.4 point 2's
+">=90% at Phase 25's close" now reads "at Phase 25b's close"; correctness work proceeds separately on the
+faster engine.
 
 ---
 

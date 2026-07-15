@@ -4,9 +4,16 @@
 SBCL       ?= sbcl
 SBCL_FLAGS := --non-interactive --no-userinit --no-sysinit
 
+CONFORMANCE_CLASSIFICATIONS ?= tmp-test/test262-exec-classifications.tsv
+CONFORMANCE_SOURCE_REVISION ?= $(shell sh scripts/conformance-source-revision.sh)
+CONFORMANCE_GAPS           ?= tests/conformance/exec-gaps.tsv
+CONFORMANCE_REPORT         ?= docs/conformance/test262-execution.md
+CONFORMANCE_VERIFY_DIR     ?= tmp-test/conformance-buckets-verify
+
 .PHONY: all build test test-lisp test-js test-tls test-crypto registry-fixture purity bench \
 		bench-check compile-tier-ceiling test-installer public-claims-check roadmap-check roadmap-sync \
-		conformance-exec-compare clean
+		conformance-exec-compare conformance-buckets conformance-buckets-check \
+		conformance-buckets-verify clean
 
 all: build
 
@@ -66,6 +73,51 @@ conformance-exec:
 ## tier off and eager, then require byte-identical per-file classifications.
 conformance-exec-compare:
 	SBCL='$(SBCL)' sh scripts/conformance-exec-compare.sh
+
+## conformance-buckets -- run the execution corpus, generate both inventory
+## artifacts in scratch, then publish them from that fresh complete ledger.
+conformance-buckets: conformance-buckets-check
+	rm -f '$(CONFORMANCE_CLASSIFICATIONS)'
+	CLUN_EXEC=1 CLUN_CONFORMANCE_CLASSIFICATIONS='$(CONFORMANCE_CLASSIFICATIONS)' \
+		$(SBCL) --dynamic-space-size 6144 $(SBCL_FLAGS) --load scripts/test262.lisp
+	test -s '$(CONFORMANCE_CLASSIFICATIONS)'
+	rm -rf '$(CONFORMANCE_VERIFY_DIR)/publish'
+	mkdir -p '$(CONFORMANCE_VERIFY_DIR)/publish'
+	$(SBCL) --script scripts/test262-buckets.lisp \
+		--ledger '$(CONFORMANCE_CLASSIFICATIONS)' \
+		--passlist tests/conformance/exec-passlist.txt \
+		--gaps '$(CONFORMANCE_VERIFY_DIR)/publish/exec-gaps.tsv' \
+		--report '$(CONFORMANCE_VERIFY_DIR)/publish/test262-execution.md' \
+		--source-revision '$(CONFORMANCE_SOURCE_REVISION)'
+	sh scripts/test262-buckets-publish.sh \
+		'$(CONFORMANCE_VERIFY_DIR)/publish/exec-gaps.tsv' \
+		'$(CONFORMANCE_VERIFY_DIR)/publish/test262-execution.md' \
+		'$(CONFORMANCE_GAPS)' '$(CONFORMANCE_REPORT)'
+
+## conformance-buckets-check -- exercise parser, validation, precedence, and
+## digest invariants without running the 40,654-file corpus.
+conformance-buckets-check:
+	$(SBCL) --script scripts/test262-buckets.lisp --self-test
+
+## conformance-buckets-verify -- rerun the complete execution corpus and reject
+## checked-in public inventory artifacts that differ semantically from the live
+## result. Only the fresh ledger path and source revision are ignored in compare.
+conformance-buckets-verify: conformance-buckets-check
+	rm -f '$(CONFORMANCE_CLASSIFICATIONS)'
+	CLUN_EXEC=1 CLUN_CONFORMANCE_CLASSIFICATIONS='$(CONFORMANCE_CLASSIFICATIONS)' \
+		$(SBCL) --dynamic-space-size 6144 $(SBCL_FLAGS) --load scripts/test262.lisp
+	test -s '$(CONFORMANCE_CLASSIFICATIONS)'
+	rm -rf '$(CONFORMANCE_VERIFY_DIR)'
+	mkdir -p '$(CONFORMANCE_VERIFY_DIR)'
+	$(SBCL) --script scripts/test262-buckets.lisp \
+		--ledger '$(CONFORMANCE_CLASSIFICATIONS)' \
+		--passlist tests/conformance/exec-passlist.txt \
+		--gaps '$(CONFORMANCE_VERIFY_DIR)/exec-gaps.tsv' \
+		--report '$(CONFORMANCE_VERIFY_DIR)/test262-execution.md' \
+		--source-revision '$(CONFORMANCE_SOURCE_REVISION)'
+	sh scripts/test262-buckets-compare.sh \
+		'$(CONFORMANCE_VERIFY_DIR)/exec-gaps.tsv' \
+		'$(CONFORMANCE_VERIFY_DIR)/test262-execution.md'
 
 ## bench — Phase 25 benchmark suite (richards/deltablue/splay + startup) against build/clun.
 ## Self-relative (clun-vs-clun on a fixed workload); the >=5x gate is the ratio vs the Phase-24

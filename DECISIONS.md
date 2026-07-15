@@ -1928,3 +1928,44 @@ rounded into parity. Phase 25b is next and has not started.
 One-process cold ASDF builds also retained compiler state in the saved core, yielding 512–632 MiB images and
 distorting allocation-heavy timing. `make build` now performs ASDF compilation in a disposable process and
 loads the warm FASLs into a second clean save process. The final measured executable is about 125 MiB.
+
+### 2026-07-15 - Phase 25b m1: freeze the measured denominator and deterministic gap inventory
+
+Phase 25b uses the existing execution runner's fixed curated denominator; milestone 1 adds no skip rule and
+does not report a scope disposition as a pass. The authoritative Phase-25-complete run classifies 40,654
+files as 22,677 pass, 5,486 fail, 12,491 skip, and zero crash, so eligible = 28,163, current = 80.520541%,
+the exact 90% target is 25,347, and the required live lift is 2,670. The 22,643-entry frozen pass list is
+validated as a subset of those live passes; the 34 additional current passes explain why the earlier
+pass-list-subtraction estimate said 5,520 rather than 5,486. `scripts/test262-buckets.lisp` now owns a
+deterministic, pure-CL transformation from the complete classification ledger to the checked-in gap TSV and
+Markdown cross-tabs, with pinned-source/digest provenance, full test262 inline-or-block metadata, runner-
+compatible skip validation, and byte-identical repeat generation. The alternative of changing curation in
+m1 was rejected because it would move the approved denominator instead of measuring correctness.
+
+### 2026-07-15 - Phase 25b m1: orthogonal phase ownership and disjoint milestone accounting
+
+Every live failure keeps two independent labels: an implementation work bucket and a phase owner. A
+conservative 25-feature plus 10-exact-path classifier assigns 887 failures to Phase 37 and 4,599 to Phase
+25b, but all 5,486 remain failures in the global denominator. Future pass credit is tied to each path's
+frozen m1 origin bucket and recorded only at the first milestone where it flips, preventing shared iterator
+or species work from being counted twice. The low/nominal/high Phase-25b projections are 1,192/2,800/3,774;
+only the nominal case clears the 2,670 target, so this is an order under uncertainty, not a schedule promise.
+Pinned Bun `c1076ce95effb909bfe9f596919b5dba5567d550` and its JSC/WebKit pin
+`c9ad5813fd23bd8b98b0738abc3d037ec716aa92` support m2 as the first bounded wave and one shared iterator
+semantic shape before binder/class/generator/async work; JSC's runtime `IterationRecord` and language
+bytecompiler helpers are separate layers. M2 is limited to `Object.seal`, `Object.isSealed`, and the four
+Annex-B getter/setter methods across 166 runnable controls. Of those, 164 are m2-owned; the WeakRef and
+FinalizationRegistry seal controls remain expected Phase-37 gaps. Other integrity APIs, `Object.hasOwn`,
+Proxy/Reflect, `__proto__`, and iterator work remain outside that milestone.
+
+Adversarial review closed three future-regeneration loopholes without changing the measured data. The analyzer
+now requires the ledger path set to equal the runner's complete 40,654-file language+built-ins corpus and
+requires `skip` if and only if the runner's static skip rules select the row. Canonical regeneration is
+freshness-bound and avoids partial output files:
+`make conformance-buckets` deletes any pre-existing ledger, reruns execution, generates both artifacts in
+scratch, then publishes the complete outputs. Execution provenance is the clean commit or
+`working-tree@<base-commit>` when the engine, runner, pass list, or pinned corpus is dirty. CI and release use
+`make conformance-buckets-verify` to produce a fresh temporary inventory and compare every semantic field
+with the checked-in artifacts after validating volatile provenance. Public percentages are
+truncated to two decimals, and claim validation distinguishes a positive remaining lift from an exact target-met
+state so rounding cannot announce the 90% gate early.

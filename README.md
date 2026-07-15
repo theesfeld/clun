@@ -7,8 +7,9 @@ breadth. After v0.1, the roadmap targets evidence-backed parity with Bun's purit
 surface, one gated capability at a time. Performance targets are workload-specific and published;
 Clun does not claim blanket speed parity with Bun.
 
-> **Status: pre-alpha, under active construction.** Phase 25 performance work is complete;
-> Phase 25b, the curated-test262 conformance push, is next and has not started.
+> **Status: pre-alpha, under active construction.** Phase 25 performance work is complete.
+> Phase 25b is underway: milestone 1 measured and ordered the curated-test262 correctness work;
+> milestone 2 starts with 164 owned object-integrity and Annex-B meta-operation gaps.
 > Clun executes its scoped JS/TS surface, but it is not a drop-in Node.js or Bun replacement.
 > See `PLAN.md` for the compatibility matrix and `STATE.md` for live progress.
 
@@ -36,10 +37,12 @@ interoperability gap.
 - `clun test` with hooks, modifiers, filters, async tests, timeouts, and about 22 matchers.
 - `clun install`, `add`, `remove`, and package scripts with a deterministic lockfile and cache.
 
-The checked-in curated test262 pass list contains 22,643 tests. Phase 25's final default-tier
-measurements are 6.68x Richards, 3.85x DeltaBlue, and 5.36x Splay against the frozen Phase-24
-Clun baseline, a 5.16x suite geomean. Clun has no measured cross-runtime benchmark against Bun or
-Node.js; `docs/benchmarks.md` reports only reproducible Clun-versus-Clun measurements.
+The checked-in curated test262 pass list contains 22,643 tests. Phase 25b milestone 1's fresh
+execution ledger currently measures 22,677 passes and 5,486 gaps across 28,163 eligible tests
+(80.52%), with zero crashes; reaching 90% requires 2,670 additional live passes. Phase 25's final
+default-tier measurements are 6.68x Richards, 3.85x DeltaBlue, and 5.36x Splay against the frozen
+Phase-24 Clun baseline, a 5.16x suite geomean. Clun has no measured cross-runtime benchmark against
+Bun or Node.js; `docs/benchmarks.md` reports only reproducible Clun-versus-Clun measurements.
 
 ## Compatibility roadmap
 
