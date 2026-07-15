@@ -1,6 +1,13 @@
 (() => {
   const menuButton = document.querySelector(".menu-button");
   const navigation = document.querySelector(".site-nav");
+  const siteHeader = document.querySelector(".site-header");
+
+  const syncMobileMenuTop = () => {
+    if (!navigation || !siteHeader || window.innerWidth > 760) return;
+    const top = Math.max(0, Math.round(siteHeader.getBoundingClientRect().bottom));
+    navigation.style.setProperty("--mobile-nav-top", `${top}px`);
+  };
 
   const closeMenu = () => {
     if (!menuButton || !navigation) return;
@@ -13,6 +20,7 @@
   if (menuButton && navigation) {
     menuButton.addEventListener("click", () => {
       const opening = menuButton.getAttribute("aria-expanded") !== "true";
+      if (opening) syncMobileMenuTop();
       menuButton.setAttribute("aria-expanded", String(opening));
       menuButton.querySelector(".sr-only").textContent = opening
         ? "Close navigation"
@@ -26,8 +34,16 @@
     });
 
     window.addEventListener("resize", () => {
-      if (window.innerWidth > 760) closeMenu();
+      if (window.innerWidth > 760) {
+        closeMenu();
+      } else if (menuButton.getAttribute("aria-expanded") === "true") {
+        syncMobileMenuTop();
+      }
     });
+
+    window.addEventListener("scroll", () => {
+      if (menuButton.getAttribute("aria-expanded") === "true") syncMobileMenuTop();
+    }, { passive: true });
 
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape" && menuButton.getAttribute("aria-expanded") === "true") {

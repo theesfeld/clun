@@ -313,24 +313,31 @@ npm_* env, arg passthrough); if <name> is not a script, fall through to running 
   "Toplevel for the saved executable. Never lets a Lisp backtrace reach the user
 unless --backtrace was passed; JS throws render as the value + stack."
   (let* ((argv (rest sb-ext:*posix-argv*))
-         (backtrace (and (member "--backtrace" argv :test #'string=) t)))
-    (sb-ext:exit
-     :code
-     (handler-case (dispatch argv)
-       (rt:process-exit (c) (rt:process-exit-code c))
-       (eng:js-condition (c)
-         (render-uncaught (eng:js-condition-value c))
-         (ignore-errors (rt:run-exit-handlers 1))       ; 'exit' fires on uncaught too
-         1)
-       (bad-cwd (c)
-         (format *error-output* "clun: cannot change directory to '~a'~%" (bad-cwd-dir c))
-         2)
-       ;; stack/heap exhaustion → a JS RangeError, never a raw Lisp backtrace
-       (storage-condition ()
-         (format *error-output* "RangeError: Maximum call stack size exceeded~%")
-         (when backtrace (sb-debug:print-backtrace :stream *error-output* :count 30))
-         1)
-       (error (c)
-         (format *error-output* "clun: ~a~%" c)
-         (when backtrace (sb-debug:print-backtrace :stream *error-output* :count 30))
-         1)))))
+         (backtrace (and (member "--backtrace" argv :test #'string=) t))
+         (code
+           (handler-case
+               (progn
+                 (eng::cs-reset-telemetry)
+                 (setf eng::*compile-tier-mode* (eng::compile-tier-mode-from-environment)
+                       eng::*cs-trace-executions* (eng::compile-tier-trace-enabled-p))
+                 (dispatch argv))
+             (rt:process-exit (c) (rt:process-exit-code c))
+             (eng:js-condition (c)
+               (render-uncaught (eng:js-condition-value c))
+               (ignore-errors (rt:run-exit-handlers 1))       ; 'exit' fires on uncaught too
+               1)
+             (bad-cwd (c)
+               (format *error-output* "clun: cannot change directory to '~a'~%" (bad-cwd-dir c))
+               2)
+             ;; stack/heap exhaustion → a JS RangeError, never a raw Lisp backtrace
+             (storage-condition ()
+               (format *error-output* "RangeError: Maximum call stack size exceeded~%")
+               (when backtrace (sb-debug:print-backtrace :stream *error-output* :count 30))
+               1)
+             (error (c)
+               (format *error-output* "clun: ~a~%" c)
+               (when backtrace (sb-debug:print-backtrace :stream *error-output* :count 30))
+               1))))
+    (when (eng::compile-tier-report-enabled-p) (eng::write-compile-tier-report))
+    (when (eng::compile-tier-details-enabled-p) (eng::write-compile-tier-details))
+    (sb-ext:exit :code code)))

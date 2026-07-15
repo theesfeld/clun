@@ -1,7 +1,9 @@
 // deltablue.js — DeltaBlue one-way constraint solver, ported for the clun benchmark suite
 // (Phase 25). Stresses prototype chains + many small polymorphic call sites (proto-chain inline
 // caching + direct calls). Based on the classic V8/Octane DeltaBlue (Mario Wolczko & John Maloney).
-// Self-contained, deterministic, ES2017 only. Prints exactly: BENCH deltablue <ms> <iterations>.
+// Self-contained, deterministic, ES2017 only. Preserves the benchmark line
+// `BENCH deltablue <ms> <iterations>` and follows it with an untimed,
+// deterministic `CHECKSUM deltablue <digest>` result marker.
 // Correctness: chainTest + projectionTest assert expected variable values and THROW on any mismatch,
 // so a broken port fails loudly instead of silently mis-measuring.
 
@@ -388,4 +390,14 @@ var start = Clun.nanoseconds();
 for (var iter = 0; iter < ITERATIONS; iter++) deltaBlue();
 var totalMs = (Clun.nanoseconds() - start) / 1e6;
 
+// Each run above validates these exact terminal values before returning. Keep
+// the digest calculation outside the frozen timed workload and below 2^53.
+var chainChecksum = 99 * 1000 + 99;
+var projectionChecksum = 2000;
+projectionChecksum = projectionChecksum * 131 + 2490;
+projectionChecksum = projectionChecksum * 131 + 5;
+projectionChecksum = projectionChecksum * 131 + 2000;
+var resultChecksum = chainChecksum * 131 + projectionChecksum;
+
 console.log("BENCH deltablue " + totalMs.toFixed(1) + " " + ITERATIONS);
+console.log("CHECKSUM deltablue " + resultChecksum);

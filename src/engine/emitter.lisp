@@ -5,6 +5,10 @@
 
 (in-package :clun.engine)
 
+;; Defined by compile-source.lisp, which follows this file in the ASDF load plan.
+;; Proclaim the specials here so compiling the integration seam is warning-free.
+(declaim (special *compile-tier-mode* *cs-ineligible-count*))
+
 ;;; --- compile-time context ---------------------------------------------------
 
 (defstruct (cscope (:conc-name cs-) (:constructor make-cscope (kind)))
@@ -284,6 +288,16 @@ slot."
     (t (values (lambda (env) (declare (ignore env)) (throw-reference-error "invalid reference"))
                (lambda (env v) (declare (ignore env v)) (throw-syntax-error "invalid assignment target"))))))
 
+(defun compile-member-reference-parts (comp node)
+  "Compile the pieces of a member reference so assignment/update can snapshot its
+base and computed key exactly once, before evaluating a right-hand side."
+  (let ((obj-fn (compile-node comp (member-expression-object node)))
+        (strict (comp-strict comp)))
+    (if (member-expression-computed node)
+        (values obj-fn t (compile-node comp (member-expression-property node)) nil nil strict)
+        (values obj-fn nil (identifier-name (member-expression-property node))
+                (%make-ic) (%make-ic) strict))))
+
 ;;; --- member / call / new ----------------------------------------------------
 
 (defun compile-member (comp node)
@@ -370,16 +384,29 @@ slot."
       (lambda (env) (declare (ignore env)) +true+)))    ; delete of a non-reference -> true
 
 (defun compile-update (comp node)
-  (let ((op (update-expression-operator node)) (prefix (update-expression-prefix node)))
-    (multiple-value-bind (get set) (compile-reference comp (update-expression-argument node))
-      (let ((step (if (string= op "++") 1 -1)))
-        (lambda (env)
-          ;; ToNumeric so `let x=1n; x++` stays a BigInt (not a TypeError via to-number).
-          (let* ((old (to-numeric (funcall get env)))
-                 (new (if (integerp old) (+ old step)
-                          (with-js-floats (+ old (coerce step 'double-float))))))
-            (funcall set env new)
-            (if prefix new old)))))))
+  (let ((op (update-expression-operator node)) (prefix (update-expression-prefix node))
+        (target (update-expression-argument node)))
+    (let ((step (if (string= op "++") 1 -1)))
+      (if (member-expression-p target)
+          (multiple-value-bind (obj-fn computed key-part rcache wcache strict)
+              (compile-member-reference-parts comp target)
+            (lambda (env)
+              (let* ((o (funcall obj-fn env))
+                     (k (if computed (to-property-key (funcall key-part env)) key-part))
+                     (old (to-numeric (if computed (js-getv o k) (%ic-read o k rcache))))
+                     (new (if (integerp old) (+ old step)
+                              (with-js-floats (+ old (coerce step 'double-float))))))
+                (if computed (js-set (to-object o) k new strict)
+                    (%ic-write o k new wcache strict))
+                (if prefix new old))))
+          (multiple-value-bind (get set) (compile-reference comp target)
+            (lambda (env)
+              ;; ToNumeric so `let x=1n; x++` stays a BigInt (not a TypeError via to-number).
+              (let* ((old (to-numeric (funcall get env)))
+                     (new (if (integerp old) (+ old step)
+                              (with-js-floats (+ old (coerce step 'double-float))))))
+                (funcall set env new)
+                (if prefix new old))))))))
 
 (defun compile-binary (comp node)
   (let ((l (compile-node comp (binary-expression-left node)))
@@ -415,9 +442,12 @@ slot."
   (let ((l (compile-node comp (logical-expression-left node)))
         (r (compile-node comp (logical-expression-right node)))
         (op (logical-expression-operator node)))
-    (if (string= op "&&")
-        (lambda (env) (let ((a (funcall l env))) (if (js-truthy a) (funcall r env) a)))
-        (lambda (env) (let ((a (funcall l env))) (if (js-truthy a) a (funcall r env)))))))
+    (cond ((string= op "&&")
+           (lambda (env) (let ((a (funcall l env))) (if (js-truthy a) (funcall r env) a))))
+          ((string= op "??")
+           (lambda (env) (let ((a (funcall l env))) (if (js-nullish-p a) (funcall r env) a))))
+          (t
+           (lambda (env) (let ((a (funcall l env))) (if (js-truthy a) a (funcall r env))))))))
 
 (defun compile-conditional (comp node)
   (let ((test (compile-node comp (conditional-expression-test node)))
@@ -435,18 +465,41 @@ slot."
     (if (string= op "=")
         (if (or (array-pattern-p target) (object-pattern-p target))
             (compile-destructuring-assignment comp target (assignment-expression-right node))
-            (multiple-value-bind (get set) (compile-reference comp target)
-              (declare (ignore get))
-              (let ((rhs (compile-named-value comp (assignment-expression-right node)
-                                              (and (identifier-p target) (identifier-name target)))))
-                (lambda (env) (let ((v (funcall rhs env))) (funcall set env v) v)))))
-        (multiple-value-bind (get set) (compile-reference comp target)
-          (let ((rhs (compile-node comp (assignment-expression-right node)))
-                (binop (subseq op 0 (1- (length op)))))
-            (lambda (env)
-              (let* ((a (funcall get env)) (d (funcall rhs env))
-                     (v (apply-binop binop a d)))
-                (funcall set env v) v)))))))
+            (let ((rhs (compile-named-value comp (assignment-expression-right node)
+                                            (and (identifier-p target) (identifier-name target)))))
+              (if (member-expression-p target)
+                  (multiple-value-bind (obj-fn computed key-part rcache wcache strict)
+                      (compile-member-reference-parts comp target)
+                    (declare (ignore rcache))
+                    (lambda (env)
+                      (let* ((o (funcall obj-fn env))
+                             (k (if computed (to-property-key (funcall key-part env)) key-part))
+                             (v (funcall rhs env)))
+                        (if computed (js-set (to-object o) k v strict)
+                            (%ic-write o k v wcache strict))
+                        v)))
+                  (multiple-value-bind (get set) (compile-reference comp target)
+                    (declare (ignore get))
+                    (lambda (env) (let ((v (funcall rhs env))) (funcall set env v) v))))))
+        (let ((rhs (compile-node comp (assignment-expression-right node)))
+              (binop (subseq op 0 (1- (length op)))))
+          (if (member-expression-p target)
+              (multiple-value-bind (obj-fn computed key-part rcache wcache strict)
+                  (compile-member-reference-parts comp target)
+                (lambda (env)
+                  (let* ((o (funcall obj-fn env))
+                         (k (if computed (to-property-key (funcall key-part env)) key-part))
+                         (a (if computed (js-getv o k) (%ic-read o k rcache)))
+                         (d (funcall rhs env))
+                         (v (apply-binop binop a d)))
+                    (if computed (js-set (to-object o) k v strict)
+                        (%ic-write o k v wcache strict))
+                    v)))
+              (multiple-value-bind (get set) (compile-reference comp target)
+                (lambda (env)
+                  (let* ((a (funcall get env)) (d (funcall rhs env))
+                         (v (apply-binop binop a d)))
+                    (funcall set env v) v))))))))
 
 (defun apply-binop (op a d)
   (cond ((string= op "+") (js-add a d)) ((string= op "-") (js-sub a d))
@@ -706,13 +759,22 @@ the live coroutine that yield/await suspend."
                                                                                (identifier-name (function-node-id fd))
                                                                                :generator (function-node-generator fd)
                                                                                :async (function-node-async fd)))))
-                   ;; Phase-25 COMPILE tier: under :eager, if this (non-coroutine) function's body is
-                   ;; in the source-backend's coverable subset, run-body invokes ONE cl:compiled native
-                   ;; body instead of the per-node closure tree. cs-compile-body returns NIL on any
-                   ;; failure, so we fall back to compile-seq — the tier is purely additive.
-                   (body-fn (or (and (eq *compile-tier-mode* :eager) (not coro-p)
-                                     (cs-compilable-p params stmts)
-                                     (cs-compile-body sub stmts return-tag))
+                   ;; Phase-25 COMPILE tier: eager mode classifies every body and records a named
+                   ;; outcome. A coverable non-coroutine body invokes ONE cl:compiled native form;
+                   ;; rejection or any compile failure falls back to the unchanged closure emitter.
+                   (source-requested (eq *compile-tier-mode* :eager))
+                   (source-id (and source-requested (cs-function-id fname body)))
+                   (source-blockers (and source-requested
+                                         (if coro-p '("coroutine")
+                                             (cs-function-blockers params stmts))))
+                   (source-body
+                     (when source-requested
+                       (if source-blockers
+                           (progn (incf *cs-ineligible-count*)
+                                  (cs-note-status source-id :ineligible source-blockers)
+                                  nil)
+                           (cs-compile-body sub stmts return-tag source-id))))
+                   (body-fn (or source-body
                                 (compile-seq sub stmts)))
                    ;; read AFTER the body is compiled: set iff `arguments` was referenced (m5)
                    (needs-args (and (not arrow) (cs-uses-arguments scope)))
@@ -968,10 +1030,12 @@ value to the outer driver and returning the inner iterator's final value."
                                      (and (variable-declarator-init d)
                                           (compile-named-value comp (variable-declarator-init d)
                                                                (and (identifier-p id) (identifier-name id))))))))
-    (declare (ignore kind))
     (lambda (env)
       (dolist (b binders :normal)
-        (when (or (cdr b) t)
+        ;; `var x;` is a runtime no-op: declaration instantiation already
+        ;; initialized its slot, and overwriting here would erase a parameter or
+        ;; hoisted function. `let x;` performs InitializeBinding(undefined).
+        (when (or (cdr b) (not (eq kind :var)))
           (funcall (car b) env (if (cdr b) (funcall (cdr b) env) +undefined+)))))))
 
 (defun compile-if (comp node)
@@ -993,6 +1057,18 @@ value to the outer driver and returning the inner iterator's final value."
           (comp-loops c) (cons (cons break-tag continue-tag) (comp-loops comp))
           (comp-labels c) (if lbl (cons (list* lbl break-tag continue-tag) (comp-labels comp))
                               (comp-labels comp)))
+    c))
+
+(defun copy-comp-for-switch (comp break-tag)
+  "Add a switch break target while preserving the nearest enclosing iteration's
+continue target. A switch is breakable but is not itself an iteration statement."
+  (let ((c (make-comp)))
+    (setf (comp-scopes c) (comp-scopes comp)
+          (comp-strict c) (comp-strict comp)
+          (comp-loops c) (cons (cons break-tag (and (comp-loops comp)
+                                                    (cdr (first (comp-loops comp)))))
+                               (comp-loops comp))
+          (comp-labels c) (comp-labels comp))
     c))
 
 (defun compile-while (comp node)
@@ -1051,6 +1127,7 @@ value to the outer driver and returning the inner iterator's final value."
               (count (cs-count scope)))
           (lambda (env)
             (let ((frame (new-frame count env)))
+              (dotimes (i count) (setf (svref (env-slots frame) i) +tdz+))
               (funcall init-fn frame)
               (catch bt
                 (loop while (or (null test-fn) (js-truthy (funcall test-fn frame)))
@@ -1167,26 +1244,63 @@ Runs inside the enclosing async function/generator's coroutine (%coro%)."
     (nreverse result)))
 
 (defun compile-switch (comp node)
-  (with-loop (comp bt ct)
-    (declare (ignore ct))
-    (let* ((disc (compile-node comp (switch-statement-discriminant node)))
+  (let* ((bt (list 'break))
+         (disc (compile-node comp (switch-statement-discriminant node)))
+         (base (copy-comp-for-switch comp bt))
+         (stmts (loop for c in (switch-statement-cases node)
+                      append (switch-case-consequent c)))
+         (lex-names (collect-lexical-names stmts))
+         (func-decls (collect-function-decls stmts))
+         (scope (and (block-has-lexical-p stmts) (make-cscope :block))))
+    (when scope
+      (dolist (n lex-names) (cs-declare scope n))
+      (dolist (fd func-decls) (cs-declare scope (identifier-name (function-node-id fd)))))
+    (let* ((sub (if scope
+                    (let ((c (make-comp)))
+                      (setf (comp-scopes c) (cons scope (comp-scopes base))
+                            (comp-strict c) (comp-strict base)
+                            (comp-loops c) (comp-loops base)
+                            (comp-labels c) (comp-labels base))
+                      c)
+                    base))
            (cases (loop for c in (switch-statement-cases node)
-                        collect (list (and (switch-case-test c) (compile-node comp (switch-case-test c)))
-                                      (compile-seq comp (switch-case-consequent c))))))
-      (lambda (env)
-        (let ((d (funcall disc env)))
-          (catch bt
-            (let ((matched nil))
-              (dolist (c cases)
-                (when (and (not matched) (first c) (js-strict-eq d (funcall (first c) env)))
-                  (setf matched t))
-                (when matched (funcall (second c) env)))
-              (unless matched                 ; run default and following
-                (let ((run nil))
-                  (dolist (c cases)
-                    (when (null (first c)) (setf run t))
-                    (when run (funcall (second c) env))))))))
-        :normal))))
+                        collect (list (and (switch-case-test c) (compile-node sub (switch-case-test c)))
+                                      (compile-seq sub (switch-case-consequent c)))))
+           (lexical-idxs (and scope (mapcar (lambda (n) (gethash n (cs-names scope))) lex-names)))
+           (func-compiled
+             (and scope
+                  (loop for fd in func-decls
+                        collect (cons (gethash (identifier-name (function-node-id fd)) (cs-names scope))
+                                      (compile-function-common
+                                       sub (function-node-params fd) (function-node-body fd)
+                                       (identifier-name (function-node-id fd))
+                                       :generator (function-node-generator fd)
+                                       :async (function-node-async fd))))))
+           (count (and scope (cs-count scope))))
+      (labels ((run-cases (frame d)
+                 (catch bt
+                   (let ((matched nil))
+                     (dolist (c cases)
+                       (when (and (not matched) (first c)
+                                  (js-strict-eq d (funcall (first c) frame)))
+                         (setf matched t))
+                       (when matched (funcall (second c) frame)))
+                     (unless matched
+                       (let ((run nil))
+                         (dolist (c cases)
+                           (when (null (first c)) (setf run t))
+                           (when run (funcall (second c) frame)))))))))
+        (lambda (env)
+          ;; The discriminant is outside the CaseBlock lexical environment.
+          (let ((d (funcall disc env)))
+            (if (not scope)
+                (run-cases env d)
+                (let ((frame (new-frame count env)))
+                  (dolist (i lexical-idxs) (setf (svref (env-slots frame) i) +tdz+))
+                  (dolist (fc func-compiled)
+                    (setf (svref (env-slots frame) (car fc)) (funcall (cdr fc) frame)))
+                  (run-cases frame d))))
+          :normal)))))
 
 (defun compile-return (comp node)
   (let ((arg (and (return-statement-argument node) (compile-node comp (return-statement-argument node))))

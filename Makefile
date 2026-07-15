@@ -5,12 +5,15 @@ SBCL       ?= sbcl
 SBCL_FLAGS := --non-interactive --no-userinit --no-sysinit
 
 .PHONY: all build test test-lisp test-js test-tls test-crypto registry-fixture purity bench \
-	test-installer public-claims-check roadmap-check roadmap-sync clean
+		bench-check compile-tier-ceiling test-installer public-claims-check roadmap-check roadmap-sync \
+		conformance-exec-compare clean
 
 all: build
 
-## build — compile everything and save build/clun via save-lisp-and-die.
+## build — compile FASLs in a disposable image, then save build/clun from a clean image.
+## Keeping those processes separate prevents cold-build compiler state from bloating the executable.
 build:
+	$(SBCL) $(SBCL_FLAGS) --load scripts/registry.lisp --eval '(asdf:compile-system :clun)'
 	$(SBCL) $(SBCL_FLAGS) --load scripts/build.lisp
 
 ## test — parachute CL suites + the tests/js + tests/ts harnesses (need the binary).
@@ -59,11 +62,26 @@ conformance:
 conformance-exec:
 	CLUN_EXEC=1 $(SBCL) --dynamic-space-size 6144 $(SBCL_FLAGS) --load scripts/test262.lisp
 
+## conformance-exec-compare -- run the complete execution corpus with the COMPILE
+## tier off and eager, then require byte-identical per-file classifications.
+conformance-exec-compare:
+	SBCL='$(SBCL)' sh scripts/conformance-exec-compare.sh
+
 ## bench — Phase 25 benchmark suite (richards/deltablue/splay + startup) against build/clun.
 ## Self-relative (clun-vs-clun on a fixed workload); the >=5x gate is the ratio vs the Phase-24
 ## baseline in docs/benchmarks.md. Override reps with REPS=N.
 bench: build
 	sh bench/run.sh
+
+## bench-check -- prove off/eager result identity, telemetry integrity, and record the
+## best of nine source-tier ceiling samples for each Phase-25 benchmark.
+bench-check: build
+	sh scripts/bench-check.sh
+
+## compile-tier-ceiling -- prove all 72 DeltaBlue user bodies compile, the only
+## ineligible function is the generated untimed module wrapper, and compiled code executes.
+compile-tier-ceiling: build
+	sh scripts/compile-tier-ceiling.sh
 
 ## public-claims-check -- keep release/version/conformance facts aligned across docs and Pages.
 public-claims-check:

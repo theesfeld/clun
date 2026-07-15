@@ -6,8 +6,9 @@
 // finding, and removing nodes in a self-balancing splay tree whose payloads
 // are freshly allocated objects and arrays.
 //
-// Output contract: exactly one line on success:
+// Output contract on success:
 //   BENCH splay <total_ms> <iterations>
+//   CHECKSUM splay <deterministic_digest>
 
 'use strict';
 
@@ -324,4 +325,20 @@ for (var it = 0; it < ITERATIONS; it++) {
 }
 var totalMs = (Clun.nanoseconds() - start) / 1e6;
 
+// Re-run the deterministic workload after timing and hash its actual key set.
+// This keeps checksum work entirely outside the frozen timed function body.
+var checksumRng = new Random(49734321);
+var checksumTree = splaySetup(checksumRng);
+for (var checksumStep = 0; checksumStep < kStepsPerIteration; checksumStep++) {
+  splayStep(checksumTree, checksumRng);
+}
+verify(checksumTree);
+var checksumKeys = checksumTree.exportKeys();
+var resultChecksum = 0;
+for (var checksumIndex = 0; checksumIndex < checksumKeys.length; checksumIndex++) {
+  var keyInteger = checksumKeys[checksumIndex] * 2147483648;
+  resultChecksum = (resultChecksum * 65599 + keyInteger) % 2147483647;
+}
+
 console.log('BENCH splay ' + totalMs.toFixed(1) + ' ' + ITERATIONS);
+console.log('CHECKSUM splay ' + resultChecksum);

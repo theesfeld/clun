@@ -1,5 +1,6 @@
 ;;;; build.lisp — produce build/clun via save-lisp-and-die.
-;;;; Run from the Makefile: sbcl --non-interactive ... --load scripts/build.lisp
+;;;; Run from the Makefile after its disposable ASDF compile pass. This image
+;;;; only loads warm FASLs, so compiler state is not retained in build/clun.
 
 (load (merge-pathnames "registry.lisp" *load-truename*))
 

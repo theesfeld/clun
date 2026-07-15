@@ -11,7 +11,9 @@
 // and the workload is identical on every run.
 //
 // Correctness check: after a full scheduler run, queueCount === 2322 and
-// holdCount === 928. If either differs, the port is broken and we throw.
+// holdCount === 928. If either differs, the port is broken and we throw. The
+// untimed result is also emitted as `CHECKSUM richards <digest>` so execution
+// modes can be compared without treating a timing value as program output.
 
 "use strict";
 
@@ -524,5 +526,9 @@ for (var iter = 0; iter < ITERATIONS; iter++) {
   runRichards();
 }
 var totalMs = (Clun.nanoseconds() - start) / 1e6;
+// Every run above validates these exact result counters before returning. Keep
+// the digest calculation outside the frozen timed workload.
+var resultChecksum = EXPECTED_QUEUE_COUNT * 1000 + EXPECTED_HOLD_COUNT;
 
 console.log("BENCH richards " + totalMs.toFixed(1) + " " + ITERATIONS);
+console.log("CHECKSUM richards " + resultChecksum);

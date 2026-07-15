@@ -1,11 +1,10 @@
 # Phase 25 — §5 Background-Thread Hot-Function COMPILE Tier
 
-Status: DESIGN (operator-approved to build; scope is large and honestly spans several
-milestones — reconfirm after m1). This document specifies the COMPILE tier deferred from
-`docs/design/phase-25.md` §5 and named as an option in the m10 open decision. Its single
-target is to push **deltablue** from its current **3.81×** (`phase-25.md` m9) to a
-per-benchmark **≥5×**. Richards (6.62×) and splay (5.30×) already meet the gate; they are
-in scope only as correctness/regression guards, not as the thing this tier is trying to fix.
+Status: **M2 COMPLETE; CEILING BELOW TARGET; OFF-RAMP TAKEN.** The operator-approved source
+backend was built through its empirical ceiling gate. Diagnostic eager mode reaches 694.6 ms
+on DeltaBlue (4.24x vs. the Phase-24 baseline), above the 588.4 ms / 5x target. The preapproved
+off-ramp therefore cancels m3/m4; no background compiler thread or atomic body swap is built.
+The validated backend remains disabled by default for differential testing and diagnostics.
 
 Everything below is grounded in the actual Phase-03 emitter (`src/engine/emitter.lisp`),
 the function kernel (`src/engine/functions.lisp`), the object/IC layer
@@ -369,8 +368,8 @@ concurrency risk built yet.
 
 | Milestone | Deliverable | How verified |
 |---|---|---|
-| **m1 — Source backend (tiny subset) + eager mode + differential harness** — ✅ **DONE** (see §7.1) | `compile-source-*` backend covering: identifier/literal, local `frame-ref`/`frame-set`, member read/write via `%ic-read`/`%ic-write` (fresh cells), method + plain calls (no spread), arithmetic/comparison/logical ops, `if`, `while`, `return`. `compilable` predicate (§5, m1 tightness) + `:off`/`:eager`/`:threshold` switch. Prove **one** representative function (e.g. a deltablue accessor) compiles and runs identically. | Differential `:off` vs `:eager` byte-identical on a hand-written fixture set; the one target function's compiled body diffed against its closure output; **full test262 G1 pass-list unchanged (22,643)** under `:eager`. |
-| **m2 — Widen subset to cover deltablue + measure the ceiling** | Add `for`/`do-while`, plain `try`/`catch`, `new`, object/array literals, nested member chains, unlabeled break/continue, `this`/reserved-slot reads. Confirm the **hot** deltablue functions are all coverable. Eager-compile deltablue, measure. | G1 pass-list unchanged under `:eager`; deltablue/richards/splay result checksums identical `:off` vs `:eager`; **eager-compiled deltablue timing recorded** — this is the ceiling. **Decision gate:** if ceiling < 5×, go to §7 off-ramp; else continue. |
+| **m1 — Source backend (tiny subset) + eager mode + differential harness** — ✅ **DONE** (see §7.1) | `compile-source-*` backend covering: identifier/literal, local `frame-ref`/`frame-set`, member read/write via `%ic-read`/`%ic-write` (fresh cells), method + plain calls (no spread), arithmetic/comparison/logical ops, `if`, and `return`. `compilable` predicate (§5, m1 tightness) + `:off`/`:eager` switch. Prove representative straight-line functions compile and run identically. | Differential `:off` vs `:eager` identity on a hand-written fixture set; focused Lisp tests; the production `:off` G1 pass-list unchanged. The full G1 run under `:eager` is intentionally the m2 gate, after the subset has meaningful coverage. |
+| **m2 — Widen subset to cover deltablue + measure the ceiling** | Add identifier `var`/`let`/`const` declarations with the closure backend's frame/TDZ behavior; `while`/`for`/`do-while`; update expressions; plain `try`/`catch` and `throw`; `new`; simple object/array literals; `switch`; nested member chains; unlabeled break/continue; `arguments`, `this`, and reserved-slot reads. Add an explicit external `off`/`eager` mode seam plus named compiled/ineligible/failed/executed telemetry. Confirm every timed hot DeltaBlue function is compiled, then eager-compile DeltaBlue and measure. | Fixed differential probes + seeded subset fuzz have zero divergences and no unexpected fallback; complete test262 classifications are byte-identical `:off` vs `:eager` and the frozen G1 pass-list remains 22,643 with zero crashes; deterministic deltablue/richards/splay result digests are identical; **eager-compiled deltablue timing recorded** from best-of-nine samples. **Decision gate:** if the ceiling is below 5×, take the §8 off-ramp and do not build m3/m4; otherwise stop after m2 and leave m3 as the next milestone. |
 | **m3 — Background tier-up + atomic swap** | `call-count` slot + `incf` in `jm-call`/`jm-construct`; tri-state `compilable`; lock-protected job queue; single dedicated compiler thread; CAS/atomic `compiled-body` publish. Main thread never blocks. | Stress test: N threads-of-work is single-threaded JS, but run the corpus with `:threshold T=1` (tier up almost immediately) and assert identical output to `:off`; ThreadSanitizer-style review of the swap; forced concurrent tier-up during a hot loop shows no torn body. G1 pass-list unchanged under `:threshold`. |
 | **m4 — Measure + G1 + tune** | Tune `T`; optionally reuse warm IC cells (gated on a soundness check for the shared-mutation window); memory ceiling if needed. Record the deltablue number against the ≥5× gate (≤588 ms; `phase-25.md`). | `make bench` under `:threshold`; **deltablue ≥5× or the off-ramp is taken**; richards/splay non-regressed (still ≥5×); **G1 pass-list unchanged (22,643)**; soundness panel on the swap + cell-reuse path, 0 divergences. |
 
@@ -397,6 +396,8 @@ Verified:
   equality/bit operator, logical `&&`/`||`/`??`, conditional, `if`/`else`, `return`, `typeof`, unary,
   and identical-throw parity (member read on `undefined`). The source backend compiled ≥1 function in
   every case (non-vacuous); zero divergences.
+- `??` coverage is emitter-level only: Clun's ES2017 parser deliberately rejects coalescing syntax, so
+  these regressions construct the AST directly and do not claim user-facing parser support.
 - **`make test-lisp` green: 2670 / 0** with the tier present (default `:off`).
 - The harness caught two real transcription bugs before they could ship — relational/equality
   primitives return **CL** booleans, so the generated form must keep `compile-binary`'s `(js-boolean …)`
@@ -408,9 +409,73 @@ subset is widened to cover real loop/var bodies and eager coverage on the suite 
 `:eager` run now would exercise the compiled path on a negligible fraction). Production G1 under the
 default `:off` is unchanged by construction and is re-confirmed by the standard conformance-exec run.
 
+### 7.2 m2 pre-implementation audit (2026-07-14)
+
+The first direct AST inventory corrected the original shorthand before implementation. DeltaBlue uses
+`while`, postfix/prefix update, `throw`, and `switch` in addition to the constructs named in the initial
+m2 row. Coverability is whole-function, so even a normally cold `throw` branch excludes its containing
+driver; aggregate compile counts therefore cannot prove that the timed workload ran through the source
+backend. m2 consequently requires per-function status keyed by source span/name and an executed-body
+counter in diagnostic mode. Every timed hot function must be either compiled and executed or explicitly
+shown not to contribute to the timed path; compile failures are never silently counted as success.
+
+The audit also found that the closure emitter treated `??` as `||`, while the source emitter used the
+correct nullish predicate. That is an existing semantic bug and a backend divergence, not an optimization
+choice. m2 fixes the closure emitter, adds a falsy-non-nullish regression, and expands the differential
+obligation beyond final-value strings to thrown values, ordered side effects, and deterministic final-state
+digests. The integration gate selects `:off` or `:eager` explicitly through a test-only environment seam,
+prints the active mode and telemetry, and rejects an eager run with zero successful compilations.
+
+### 7.3 m2 result (built; decision gate closed)
+
+The source backend now covers DeltaBlue's complete user-function set: declarations and block TDZ,
+arrays/objects, `while`/`do-while`/`for`, update and compound assignment, `new`, `switch`, unlabeled
+break/continue, `try`/`catch`, `throw`, `arguments`, sequence expressions, and nested member chains.
+Direct `eval`, coroutines, function expressions, complex parameters, spread, `with`, labels, and
+`finally` remain conservative exclusions. `CLUN_COMPILE_TIER=off|eager` is the only external mode seam;
+the planned `threshold` mode belongs to canceled m3 and was never built.
+
+The widening exposed shared closure-backend correctness bugs, all fixed in both backends: member
+references now snapshot base/key once before the RHS; switch preserves an enclosing loop's continue
+target and uses one CaseBlock lexical/TDZ scope; bare `var` no longer erases parameters or hoisted
+functions; lexical `for` frames start in TDZ; and logical `??` uses nullish rather than truthiness
+semantics at the emitter level. Fixed language-oracle tests cover each case.
+
+Evidence:
+
+- `scripts/ct-diff.lisp`: **51 passed, 0 failed**, including structured thrown-value identity and 32
+  deterministic fuzz programs (`25C0FFEE` -> `D714294E`).
+- Full Lisp suite: **2,721 passed, 0 failed, 0 skipped**.
+- DeltaBlue coverage: **72/72** user bodies compiled, **69** executed under trace, exactly one
+  ineligible generated CommonJS wrapper, zero fallback, digest `4551897514`.
+- Best of nine on the final compact image (same frozen timed bodies):
+
+  | Workload | Default `off` | Diagnostic `eager` | Eager vs. Phase-24 baseline |
+  |---|---:|---:|---:|
+  | Richards | 539.3 ms | 444.6 ms | 8.10x |
+  | DeltaBlue | 764.5 ms | **694.6 ms** | **4.24x** |
+  | Splay | 283.9 ms | 249.7 ms | 6.09x |
+
+- Complete Test262 execution classifications are byte-identical across `off` and `eager`: 40,654
+  files; 22,676 pass today; all 22,643 frozen pass-list entries hold; 5,487 gaps; 12,491 skips; zero
+  crashes. Eager compiled 978,168 bodies, rejected 50,874 as ineligible, and recorded **zero fallback**.
+  The gate rejects eager fallback and forces tracing off so the result cannot pass vacuously or inherit
+  timing-affecting ambient instrumentation.
+- A two-process build (disposable ASDF compile image, then clean FASL load/save image) prevents cold
+  compiler state from inflating the executable from 512-632 MiB; the measured final image is about
+  125 MiB.
+
+DeltaBlue's eager ceiling is 105.8 ms above target. Because m3 threshold mode would compile a strict
+subset of what eager mode already compiled, background tier-up cannot exceed this ceiling. The §8
+off-ramp is therefore final: keep default `off`, do not build m3/m4, accept Phase 25 on the previously
+approved 2-of-3 plus 5.16x-geomean basis, and proceed to Phase 25b.
+
 ---
 
 ## 8. Fallback / off-ramp
+
+**Result (2026-07-14): triggered at m2.** DeltaBlue's diagnostic eager ceiling is 694.6 ms / 4.24x,
+so steps 1 and 2 below are now the recorded Phase 25 disposition rather than a hypothetical.
 
 If, at the m2 gate, **eager-compiled deltablue is still below 5×** — i.e. removing the
 per-node `funcall` glue does not close the gap because the residual cost is inside the

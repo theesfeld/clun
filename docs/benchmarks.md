@@ -1,8 +1,9 @@
 # Benchmarks
 
 Clun's performance is tracked with a small, fixed benchmark suite (the classic V8/Octane trio,
-ported to run on the `clun` engine). Phase 25's speed gate is **≥5× vs. the Phase-24 baseline**
-recorded below.
+ported to run on the `clun` engine). Phase 25's original speed target was **>=5x vs. the Phase-24
+baseline on every workload**. The final, operator-approved disposition is recorded below: two of
+three workloads and the suite geomean clear 5x; DeltaBlue remains an explicit holdout.
 
 ## Methodology (read before quoting a number)
 
@@ -59,7 +60,7 @@ against any load-time compilation — §5 of the design doc).
 ## Progress (per milestone, vs. the frozen baseline)
 
 Every row uses the same host, compiler, and fixed workloads. Sampling was best of 5 for the baseline,
-m2, and m3; best of 7 for m4–m7; and best of 9 for m8–m9. "×" is
+m2, and m3; best of 7 for m4–m7; and best of 9 for m8–m10. "×" is
 `baseline_ms / current_ms` (higher is faster).
 
 | Milestone | richards | deltablue | splay | startup |
@@ -73,6 +74,7 @@ m2, and m3; best of 7 for m4–m7; and best of 9 for m8–m9. "×" is
 | m7 — create fast-path + write IC | 695.3 ms (**5.18×**) | 964.3 ms (3.05×) | 370.6 ms (4.10×) | 15 ms |
 | m8 — array create + integer ToString | 580.0 ms (**6.21×**) | 848.1 ms (3.47×) | 342.9 ms (4.43×) | 14 ms |
 | m9 — small-integer string cache | 543.5 ms (**6.62×**) | 771.8 ms (3.81×) | 286.9 ms (**5.30×**) | 14 ms |
+| m10 — COMPILE ceiling + off-ramp | 539.3 ms (**6.68×**) | 764.5 ms (3.85×) | 283.9 ms (**5.36×**) | 14 ms |
 
 **m2 (profile-guided fast paths)** — a `sb-sprof` profile of the baseline (`scripts/profile.lisp`)
 showed property access + dispatch + the property-write validate path + per-op FP-trap masking
@@ -147,14 +149,32 @@ shared instance is safe as both a value and a property key) is handed out by `in
 a reviewer confirmed sharing is unobservable — all comparisons are `string=`/`equal`, never `eq`). **splay
 crossed 5× (5.30×)**; deltablue 3.47×→3.81×.
 
-**Gate status — 2 of 3 benchmarks MET; geomean ≥ 5×.** richards 6.62×, splay 5.30×, deltablue 3.81×
-(geomean ≈ **5.1×**). The per-benchmark gate (each ≥ 5×) is met by richards + splay; **deltablue (≤588 ms
-target, at 772 ms) is the holdout** — its residual cost is property-lookup scanning at IC-*miss* sites,
-dominated by **deep-prototype method dispatch** (its constraint class hierarchy puts methods at depth ≥ 2,
-which the depth-1 proto IC can't cache) plus call-frame machinery and constructor-write creation. Closing
-the ~31% deltablue gap needs either risky deep-IC work (a general prototype-chain IC / a transition write
-IC) or the machine-code-tier `COMPILE` path (§5) — exactly the case §8.1 flagged as "plausible, not
-guaranteed" for a tree-walking interpreter. This is an open PLAN §2.4 scope decision (per-benchmark ≥5×
-vs geomean/majority ≥5×).
+**m10 (COMPILE-tier m2 ceiling + off-ramp)** — the source backend was widened to compile all 72
+DeltaBlue user bodies into monolithic SBCL functions. The table's m10 row is the final default `off`
+path. The diagnostic `eager` ceiling used the same frozen timed bodies, best of nine, and identical
+result digests:
+
+| Benchmark | Digest | Default `off` | Diagnostic `eager` | Eager vs. baseline |
+|---|---:|---:|---:|---:|
+| richards | `2322928` | 539.3 ms | 444.6 ms | 8.10× |
+| deltablue | `4551897514` | 764.5 ms | 694.6 ms | **4.24×** |
+| splay | `1074755528` | 283.9 ms | 249.7 ms | 6.09× |
+
+The strict coverage gate records 72 compiled DeltaBlue user bodies, 69 exercised bodies, one
+ineligible generated CommonJS wrapper, and zero compilation fallback. DeltaBlue's eager ceiling is
+still above the 588.4 ms target, so the preapproved off-ramp applies: no background-thread tier-up or
+atomic-swap machinery is built. The source backend remains disabled by default as a differential and
+diagnostic backend.
+
+A cold one-process ASDF build was also retaining compiler state and producing 512–632 MiB executables,
+which distorted the allocation-heavy measurements. `make build` now compiles FASLs in a disposable
+SBCL process and saves from a second clean image. The final executable measured about 125 MiB; checksum
+work is outside every frozen timed function body.
+
+**Phase 25 outcome — complete on the operator-approved majority/geomean basis.** Richards is 6.68×,
+Splay is 5.36×, DeltaBlue is 3.85×, and the suite geomean is **5.16×**. DeltaBlue remains the explicit
+per-workload holdout. Its residual cost is dominated by shared runtime primitives and deep-prototype
+dispatch that the source tier does not remove; the measured eager ceiling proves m3/m4 cannot close the
+gap. Phase 25b owns the separate curated-test262 correctness lift.
 
 _This file gains a new row per milestone, so every ratio is traceable to the frozen baseline above._

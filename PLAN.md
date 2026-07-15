@@ -661,6 +661,15 @@ baseline; overall curated test262 ≥ 90%.
 > fixes. DoD §1.4 point 2's "≥ 90% at Phase 25's close" now reads "at Phase 25b's close". Recorded in
 > DECISIONS.md.
 
+> **PERFORMANCE DISPOSITION (2026-07-14, preapproved off-ramp executed):** after two workloads and
+> the suite geomean cleared 5×, the operator authorized a COMPILE-tier ceiling experiment with an
+> explicit fallback: if eager compilation still left DeltaBlue below 5×, accept G2 on the
+> majority/geomean basis and do not build the background tier. The m2 ceiling compiled all 72
+> DeltaBlue user bodies but reached 694.6 ms / 4.24×, above the 588.4 ms target. Phase 25 therefore
+> closes at richards 6.68×, deltablue 3.85×, splay 5.36×, and a 5.16× geomean; DeltaBlue remains an
+> explicit holdout. Background-tier m3/m4 are canceled. Evidence: `docs/benchmarks.md` and
+> `docs/design/phase-25-compile-tier.md`.
+
 ### Phase 25b — Conformance push to ≥ 90%  *(deps: 25)*
 Objective: lift overall curated test262 from ~80.4% to ≥ 90% (DoD §1.4 point 2), correctness only.
 Tasks: bucket the ~5,520 `fail(gap)` tests by feature/subsystem (a small analysis pass over the

@@ -5,12 +5,19 @@ Update before every commit. Seeded from PLAN.md §5.
 
 ---
 
-## Current phase: **25 — Performance pass**  (IN PROGRESS — m1–m9 done + COMPILE-tier designed & m1 built; richards 6.62× + splay 5.30× MEET ≥5×, deltablue 3.81× holdout; next = COMPILE-tier m2 ceiling gate)
+## Current phase: **25b — Conformance push to >= 90%**  (READY, NOT STARTED — Phase 25 complete; next = m1 failure-bucket analysis)
 
-**Phase 25 IN PROGRESS** (Performance pass; deps: all engine phases ✓; ~3k LOC, milestoned). The gate (after
-the 2026-07-14 operator-approved split) is **(G1)** conformance pass-list unchanged/grown + **(G2)** ≥5× on
-the benchmark suite vs the Phase-24 baseline. The former **(G3)** curated test262 ≥ 90% is now its own
-**Phase 25b** (deps: 25) — see PLAN §5 + the resolved note below.
+**Phase 25 COMPLETE** (Performance pass; deps: all engine phases ✓; milestoned). Final default-tier
+best-of-nine results vs the frozen Phase-24 baseline are richards **6.68×**, deltablue **3.85×**, and splay
+**5.36×**, a **5.16× geomean**. The operator-approved COMPILE ceiling experiment compiled all 72 DeltaBlue
+user bodies but reached only **4.24× / 694.6 ms** in diagnostic eager mode, so its preapproved off-ramp
+closed G2 on the 2-of-3 + geomean basis and canceled background-tier m3/m4. G1 holds: the complete 40,654-file
+off/eager classification ledgers are byte-identical, all 22,643 frozen passes remain, and crashes/fallback
+are zero. The former G3 is the separate **Phase 25b** (deps: 25), now ready but not started.
+
+**Phase 25b READY — NOT STARTED.** Objective and gate remain PLAN §5: bucket the current 5,487 execution
+gaps, fix correctness by subsystem, reach >=90% curated test262 with a monotonic pass-list, and keep purity
+clean. The next `phase` invocation performs milestone 1 only: failure-bucket analysis and a costed order.
 
 **Milestone 1 DONE — "measure first":** the benchmark suite + the frozen Phase-24 baseline + the design doc
 (no engine change). `bench/{richards,deltablue,splay}.js` — the Octane trio ported to clun (self-contained,
@@ -167,8 +174,9 @@ nodes), NOT interpreted→native — a SMALLER, uncertain win, since deltablue's
 the shared runtime primitives (`%ic-read`/`js-call`/`setup-frame`) that the tier still CALLS unchanged.
 
 **Milestone plan (the design's, with an empirical ceiling gate — spend minimal risk before knowing the
-answer):** **m1** = source backend for a tiny subset + `:off`/`:eager`/`:threshold` switch + a differential
-harness (prove ONE deltablue function compiles byte-identically; G1 unchanged under `:eager`). **m2** = widen
+answer):** **m1** = source backend for a tiny subset + `:off`/`:eager` seam (threshold mode planned only for
+m3) + a differential harness (prove ONE deltablue function compiles byte-identically; G1 unchanged under
+`:eager`). **m2** = widen
 the subset to cover deltablue's hot functions, EAGER-COMPILE, and MEASURE the ceiling. **← DECISION GATE: if
 eager-compiled deltablue is still < 5×, the residual is in the primitives the tier can't change → OFF-RAMP to
 m10 option A (accept G2 on geomean/majority: richards 6.62× + splay 5.30× + geomean ≈5.1×, document deltablue
@@ -193,21 +201,28 @@ equality primitives return **CL** booleans (need the `js-boolean` wrap) and `!=`
 (js-loose-eq …)))`. Full G1-under-`:eager` is scoped to m2 (m1's tiny subset makes almost no test262 function
 coverable, so eager coverage on the suite is negligible until the subset widens). See design §7.1.
 
-**Next action:** Phase 25 **COMPILE-tier m2** — widen `cs-node` to cover deltablue's hot functions (`for`/
-`do-while`, `var`/`let`/`const` local decls + TDZ, `new`, object/array literals, unlabeled break/continue,
-`this`/reserved-slot reads, plain `try`/`catch`), confirm the hot deltablue functions are all coverable,
-EAGER-COMPILE deltablue, and **MEASURE the ceiling** (deltablue `:off` vs `:eager` timing; result checksums
-identical). **← DECISION GATE:** if eager-compiled deltablue is still < 5×, OFF-RAMP to m10 option A (accept G2
-on geomean/majority: richards 6.62× + splay 5.30× + geomean ≈5.1×, document deltablue as the §8.1 tree-walker
-holdout, proceed to Phase 25b); only if ≥ 5× → build m3/m4. Also run full G1 under `:eager` at m2 (coverage is
-substantial once the subset widens).
+**COMPILE-tier m2 DONE — CEILING GATE CLOSED / OFF-RAMP TAKEN.** The backend now covers declarations + TDZ,
+blocks, loops, update/compound assignment, `new`, object/array literals, switch, unlabeled break/continue,
+plain `try`/`catch`, throw, arguments, sequence expressions, and nested member chains. Direct eval and every
+untranscribed shape fail closed. Shared semantic corrections landed in both backends for member-reference
+evaluation order, switch continue + CaseBlock TDZ, bare-var initialization, lexical-for TDZ, and emitter-level
+nullish behavior (`??` remains parser-unsupported; the regression uses a manual AST). Evidence: differential
+**51/0** including 32 deterministic fuzz cases; Lisp **2721/0/0**; DeltaBlue **72/72 compiled, 69 executed,
+1 wrapper ineligible, 0 fallback**; identical digests across all benchmarks; best-of-nine default/eager
+richards **539.3/444.6 ms**, deltablue **764.5/694.6 ms**, splay **283.9/249.7 ms**. Eager DeltaBlue is
+**4.24×**, below 5×, so m3/m4 are canceled. A separate precompile process also keeps cold-build compiler state
+out of the saved image (~125 MiB final vs 512–632 MiB before). Independent adversarial review findings are
+resolved: eager conformance now requires fallback=0 and the compare harness pins trace=0.
 
-**G3 scope concern — RESOLVED (2026-07-14, operator-approved split):** the ≥90% curated-test262 target is
-split out of Phase 25 into a new **Phase 25b — Conformance push to ≥90%** (PLAN §5). Phase 25's gate is now
-just G1+G2 (perf); Phase 25b (deps: 25) owns the ~2,700-test correctness lift, to start with a failure-bucket
-analysis of the ~5,520 `fail(gap)` tests. DoD §1.4 point 2's "≥90% at Phase 25's close" now reads "at Phase
-25b's close". So Phase 25 closes when shapes/ICs/etc. reach ≥5×; the conformance work proceeds separately
-after (on the faster engine).
+**Next action:** Phase 25b milestone 1 — analyze and bucket the current **5,487** `fail(gap)` execution tests,
+estimate each subsystem's lift/cost, and record the ordered correctness plan. Do not begin fixes beyond that
+milestone in the same `phase` invocation.
+
+**G3 scope concern — RESOLVED (2026-07-14, operator-approved split):** the >=90% curated-test262 target is
+split out of Phase 25 into a new **Phase 25b — Conformance push to >=90%** (PLAN §5). Phase 25 is now closed
+under G1 plus the approved G2 disposition above. Phase 25b owns the remaining correctness lift, starting with
+a failure-bucket analysis of the current 5,487 `fail(gap)` tests. DoD §1.4 point 2's ">=90% at Phase 25's
+close" now reads "at Phase 25b's close"; that work proceeds separately on the faster engine.
 
 ---
 

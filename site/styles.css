@@ -1528,6 +1528,11 @@ a {
     min-height: 62px;
   }
 
+  .site-header {
+    /* backdrop-filter makes fixed descendants use the header as their containing block. */
+    backdrop-filter: none;
+  }
+
   .brand {
     font-size: 20px;
   }
@@ -1544,7 +1549,7 @@ a {
   .site-nav {
     position: fixed;
     z-index: 120;
-    top: 103px;
+    top: var(--mobile-nav-top, 103px);
     right: 0;
     bottom: 0;
     left: 0;
@@ -1981,6 +1986,27 @@ a {
 
   .footer-brand {
     grid-column: auto;
+  }
+}
+
+@media (max-width: 382px) {
+  .command-row {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    padding-block: 13px;
+  }
+
+  .command-row code {
+    overflow: visible;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+    text-overflow: clip;
+    white-space: normal;
+  }
+
+  .command-row .copy-button {
+    width: 100%;
+    grid-column: 1 / -1;
   }
 }
 

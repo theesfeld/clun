@@ -1890,3 +1890,41 @@ scoped to m2: m1's tiny subset makes almost no test262 function coverable (they 
 so a G1-under-`:eager` run now would exercise the compiled path on a negligible fraction — it becomes
 meaningful only once m2 widens the subset. Next: m2 widens to cover deltablue's hot functions, eager-compiles,
 and MEASURES the ceiling — the decision gate (< 5× → off-ramp to m10 option A; ≥ 5× → build m3/m4).
+
+### 2026-07-14 — Phase 25 COMPILE-tier m2: measured ceiling misses 5x; preapproved option A off-ramp taken
+
+M2 widened the source-generating backend through DeltaBlue's full user-function surface: declarations and
+block TDZ, arrays/objects, `while`/`do-while`/`for`, updates and compound assignment, `new`, switch,
+unlabeled break/continue, plain `try`/`catch`, throw, `arguments`, sequence expressions, and nested member
+chains. Direct eval now has an explicit coverability blocker; coroutines, complex parameters, function
+expressions, spread, `with`, labels, and `finally` remain fail-closed exclusions. The external diagnostic
+seam accepts only `CLUN_COMPILE_TIER=off|eager`; planned threshold/background mode was never built.
+
+The transcription audit found shared interpreter bugs rather than hiding them behind backend equivalence.
+Both emitters now snapshot a member reference's base/computed key exactly once before its RHS, preserve an
+enclosing loop's continue target through switch, give all switch cases one lexical/TDZ frame, treat bare
+`var x;` as the runtime no-op required after declaration instantiation, and initialize lexical-for frames
+to TDZ. The closure emitter's logical `??` path now uses nullish semantics; the parser still deliberately
+rejects coalescing syntax, so this is locked by manual-AST emitter tests and is not a parser-support claim.
+Focused evidence is 51/0 differential cases (32 deterministic fuzz cases, seed `25C0FFEE`, final state
+`D714294E`) and the full Lisp suite at 2721/0/0.
+
+Coverage and equivalence are non-vacuous. The DeltaBlue gate reports 72/72 user bodies compiled, 69
+executed, exactly one ineligible generated CommonJS wrapper, zero compilation fallback, and digest
+`4551897514`. The complete Test262 execution ledger is byte-identical between off and eager across 40,654
+files: 22,676 pass today, all 22,643 frozen pass-list entries hold, 5,487 gaps, 12,491 skips, zero crashes;
+eager compiled 978,168 bodies, classified 50,874 ineligible, and recorded zero fallback. Review found the
+first harness only *reported* fallback; fixed so eager conformance rejects any fallback (including CLUN_GEN),
+and the compare script now pins trace=0. Compiler notes are muffled during generated-body compilation.
+
+Final best-of-nine results on the compact image, with frozen timed bodies and identical digests, are:
+default/eager richards 539.3/444.6 ms, DeltaBlue 764.5/694.6 ms, and splay 283.9/249.7 ms. Relative to the
+Phase-24 baseline, eager DeltaBlue is only **4.24x**, still 105.8 ms above the 588.4 ms / 5x target. Because
+background threshold mode would compile a strict subset of eager mode, m3/m4 cannot beat that ceiling and
+are canceled. The preapproved m10 option A therefore closes Phase 25 on the majority/geomean basis: default
+richards 6.68x, DeltaBlue 3.85x, splay 5.36x, geomean 5.16x. DeltaBlue remains explicitly documented, not
+rounded into parity. Phase 25b is next and has not started.
+
+One-process cold ASDF builds also retained compiler state in the saved core, yielding 512–632 MiB images and
+distorting allocation-heavy timing. `make build` now performs ASDF compilation in a disposable process and
+loads the warm FASLs into a second clean save process. The final measured executable is about 125 MiB.

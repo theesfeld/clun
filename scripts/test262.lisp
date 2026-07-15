@@ -9,6 +9,13 @@
 (asdf:load-system :clun)
 (in-package :clun.engine)
 
+;; The conformance image is also the full-corpus COMPILE-tier differential gate.
+;; Keep the default at :off, but make an explicit environment selection authoritative
+;; so the shell harness can run identical corpora through both backends.
+(setf *compile-tier-mode* (compile-tier-mode-from-environment))
+(setf *cs-trace-executions* (compile-tier-trace-enabled-p))
+(cs-reset-telemetry)
+
 (defparameter *lang-root*
   (merge-pathnames "vendor-data/test262/test/language/" cl-user::*clun-root*))
 (defparameter *passlist-path*
@@ -167,20 +174,36 @@ prefixed 'built-ins/' so both live in one exec pass-list without collision."
         #'string< :key #'namestring))
 
 (defun run ()
-  (let ((pass '()) (fail 0) (skip 0) (crash '()) (tmo 0) (n 0))
+  (let ((pass '()) (fail 0) (skip 0) (crash '()) (tmo 0) (n 0)
+        (classifications '()))
     (dolist (path (all-tests))
       (incf n)
       ;; The exec phase runs ~21k program executions (language + built-ins × 2 modes)
       ;; in one image; a full GC every 500 keeps discarded realms/ASTs from
       ;; accumulating into an old generation and exhausting the heap.
       (when (and *exec* (zerop (mod n 500))) (sb-ext:gc :full t))
-      (case (if *exec* (classify-exec path) (classify path))
-        (:pass (push (rel-name path) pass))
-        (:fail (incf fail))
-        (:skip (incf skip))
-        (:tmo (incf tmo) (incf fail))
-        (:crash (push (rel-name path) crash))))
-    (values (nreverse pass) fail skip (nreverse crash) n)))
+      (let* ((name (rel-name path))
+             (classification (if *exec* (classify-exec path) (classify path))))
+        (push (cons name classification) classifications)
+        (case classification
+          (:pass (push name pass))
+          (:fail (incf fail))
+          (:skip (incf skip))
+          (:tmo (incf tmo) (incf fail))
+          (:crash (push name crash)))))
+    (values (nreverse pass) fail skip (nreverse crash) n
+            (sort classifications #'string< :key #'car))))
+
+(defun write-classifications (classifications)
+  "Write the complete deterministic PATH<TAB>CLASSIFICATION ledger when requested."
+  (let ((path (sb-ext:posix-getenv "CLUN_CONFORMANCE_CLASSIFICATIONS")))
+    (when (and path (plusp (length path)))
+      (ensure-directories-exist path)
+      (with-open-file (out path :direction :output :if-exists :supersede
+                                :if-does-not-exist :create)
+        (dolist (entry classifications)
+          (format out "~a~c~(~a~)~%" (car entry) #\Tab (cdr entry))))
+      (format t "wrote classifications: ~a (~a files)~%" path (length classifications)))))
 
 (defun passlist-file () (if *exec* *exec-passlist-path* *passlist-path*))
 
@@ -191,17 +214,31 @@ prefixed 'built-ins/' so both live in one exec pass-list without collision."
             for tt = (string-trim '(#\Space #\Return) line)
             unless (or (string= tt "") (char= (char tt 0) #\#)) collect tt))))
 
-(multiple-value-bind (pass fail skip crash total) (run)
+(multiple-value-bind (pass fail skip crash total classifications) (run)
+  (write-classifications classifications)
   (format t "~&=== test262 ~a phase — ~a files ===~%" (if *exec* "execution" "parse") total)
   (format t "pass ~a | fail(gap) ~a | skip(unsupported syntax) ~a | CRASH ~a~%"
           (length pass) fail skip (length crash))
+  (format t "COMPILE_TIER mode=~(~a~) compiled=~a ineligible=~a fallback=~a executed=~a~%"
+          *compile-tier-mode* *cs-compiled-count* *cs-ineligible-count* *cs-fallback-count*
+          *cs-executed-count*)
+  (let ((eager-vacuous (and (eq *compile-tier-mode* :eager)
+                            (zerop *cs-compiled-count*)))
+        (eager-fallback (and (eq *compile-tier-mode* :eager)
+                             (plusp *cs-fallback-count*))))
+    (when eager-vacuous
+      (format t "COMPILE-tier eager conformance compiled zero function bodies; refusing a vacuous pass.~%"))
+    (when eager-fallback
+      (format t "COMPILE-tier eager conformance recorded ~a compilation fallbacks; refusing a partial pass.~%"
+              *cs-fallback-count*))
   (cond
     ((sb-ext:posix-getenv "CLUN_GEN")
      ;; UNION with the existing list so the pass-list can only grow — a correctness
      ;; fix that removes false-passes must be recorded as a dated DECISIONS.md entry,
      ;; not silently shrink the baseline. If crashes exist, refuse to regenerate.
-     (when crash
-       (format t "refusing to regenerate pass-list with ~a crashes present~%" (length crash))
+     (when (or crash eager-vacuous eager-fallback)
+       (when crash
+         (format t "refusing to regenerate pass-list with ~a crashes present~%" (length crash)))
        (sb-ext:exit :code 1))
      (let* ((existing (load-passlist))
             (union (sort (remove-duplicates (append existing pass) :test #'string=) #'string<))
@@ -233,8 +270,8 @@ prefixed 'built-ins/' so both live in one exec pass-list without collision."
        (when regressions
          (format t "~%PASS-LIST REGRESSIONS (~a):~%" (length regressions))
          (dolist (r regressions) (format t "  ~a~%" r)))
-       (if (and (null crash) (null regressions))
+       (if (and (null crash) (null regressions) (not eager-vacuous) (not eager-fallback))
            (progn (format t "conformance: OK (~a pass-list entries hold, 0 crashes)~%"
                           (length expected))
                   (sb-ext:exit :code 0))
-           (progn (format t "conformance: FAILED~%") (sb-ext:exit :code 1)))))))
+           (progn (format t "conformance: FAILED~%") (sb-ext:exit :code 1))))))))
