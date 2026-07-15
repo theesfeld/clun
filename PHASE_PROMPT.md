@@ -83,7 +83,10 @@ milestone. Do not begin the next phase or milestone.
   its tag exists retain the selected version. Phase 25b
   targets `0.1.0-dev.N`, beginning with `0.1.0-dev.1`, and Phase 26
   stabilizes `0.1.0`. Documentation-only work may use impact `none` without a bump only when the
-  canonical issue records the reason.
+  canonical issue records the reason. After immutable release assets, Pages, and the hosted installer
+  are verified, an evidence-only status update may also use `none` when it does not change the source
+  version, installer target, packaged artifacts, capabilities, or compatibility claims; record the
+  exact publication evidence in the canonical issue.
 - Show `Partial` or `No` until executable evidence supports `Yes`.
 - Run `make public-claims-check` and `make roadmap-check` whenever public documentation or roadmap
   data changes.

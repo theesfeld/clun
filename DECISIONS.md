@@ -2113,12 +2113,30 @@ aggregate refcount state, serializes handle/refcount transitions, rejects timer/
 admission once teardown starts, and makes concurrent destroy callers wait for the single cleanup owner.
 
 Issue #60 corrects the assertion and replaces the tolerance with exact filtered FD-set equality after
-loop destruction; it is the deterministic dev.3 publication blocker. Issue #59 remains open for its
-long-running Darwin stress matrix and is a Phase-26 evidence follow-up after the deterministic ownership
-fix ships. Active async `Clun.spawn` handles are a separately tracked ownership hardening item and are not
+loop destruction; it was the deterministic dev.3 publication blocker and is now closed. Issue #59
+remains open for its long-running Darwin stress matrix and is a Phase-26 evidence follow-up after the
+deterministic ownership fix shipped. Active async `Clun.spawn` handles are a separately tracked ownership
+hardening item and are not
 silently absorbed into this socket correction. The dev.2 GitHub release and assets were never published,
 but the remote annotated tag itself is a publication boundary under `docs/versioning.md` and must not be
 moved, deleted, or reused. The child runtime defect is a patch correction, while the enclosing m3 unit remains the
 documented minor functionality milestone. Source, tests, installer, README, landing page, state,
-design, and canonical issue #57 therefore advance together to `0.1.0-dev.3`; m4 remains unstarted
-until dev.3 publication completes.
+design, and canonical issue #57 therefore advanced together to `0.1.0-dev.3`. Dev.3 publication is
+complete; m4 is next and remains unstarted.
+
+### 2026-07-15 - Verified dev.3 publication hands Phase 25b to queued milestone 4
+
+Commit `d93b2fce5282ca1543bcfcbcdffff53f7a37a440` passed CI, Documentation, and all four native
+release builders. The immutable annotated `v0.1.0-dev.3` release contains the four expected native
+archives plus `checksums.txt`; a fresh download verified every archive checksum. The release-gated
+Pages workflow deployed `clun.sh`, and an isolated hosted Linux x64 install reported
+`clun 0.1.0-dev.3`. Issue #60 is therefore complete and closed. Issue #59 remains open only for the
+separate Phase-26 Darwin soak, and issue #61 retains async subprocess lifecycle ownership.
+The legacy `v0.0.1-dev` GitHub release metadata was also corrected from a full release to a
+prerelease; GitHub will not name a stable `Latest` release until the first actual stable release.
+
+This handoff changes status documentation, not runtime behavior or package artifacts, so its SemVer
+impact is `none`: source remains `0.1.0-dev.3` and no new tag is created. The current Phase 25b pointer
+moves to m4 to prevent future `phase` invocations from repeating m3 release acceptance. M4 remains
+unstarted in this revision; the next execution owns only functions, classes, parameters, `super`, and
+arguments.

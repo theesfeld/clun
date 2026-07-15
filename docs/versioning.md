@@ -11,8 +11,11 @@ Classify the completed unit before it is pushed:
 - `major`: an incompatible change to a public interface or documented behavior;
 - `minor`: backward-compatible public functionality;
 - `patch`: a backward-compatible bug fix with no new public functionality;
-- `none`: documentation or internal automation only, with no behavior or public release-claim
-  change. The canonical GitHub issue must explain why no version change is warranted.
+- `none`: documentation or internal automation only, with no behavior change. A post-publication
+  evidence-only update may report an already verified release, assets, Pages deployment, or hosted
+  installer without a bump when it does not change the source version, installer target, packaged
+  artifacts, capabilities, or compatibility claims. The canonical GitHub issue must record the
+  evidence and explain why no version change is warranted.
 
 A unit containing more than one kind of change takes the highest applicable impact. A public API
 addition plus bug fixes is therefore `minor`, not `patch`.
@@ -91,9 +94,12 @@ all five required assets exist before deploying an installer that targets the ve
 7. Record commit, workflow, tag, assets, checksum, installer, and Pages evidence in the canonical
    issue.
 
-The current Phase 25b milestone adds backward-compatible shared iterator-record operations, lazy
+Phase 25b milestone 3 added backward-compatible shared iterator-record operations, lazy
 iterable consumers, iterator-closing behavior, and binding/destructuring fixes. Its impact is `minor`.
 The original `v0.1.0-dev.2` tag failed its darwin-arm64 release gate before assets were published.
-The deterministic issue-60 teardown correction therefore targets `0.1.0-dev.3` under tag `v0.1.0-dev.3`,
+The deterministic issue-60 teardown correction was published as `0.1.0-dev.3` under tag `v0.1.0-dev.3`,
 as required by the immutable-tag rule; issue #59 retains the longer Darwin stress
-evidence for Phase 26. Milestone 4 remains unstarted until dev.3 publication completes.
+evidence for Phase 26. Dev.3 publication is verified across all four native builders, its five release
+assets and checksums, Pages, and the hosted installer. Issue #60 is closed; milestone 4 is the current
+queued milestone and remains unstarted. This post-publication status handoff is documentation-only with
+SemVer impact `none`, so the source version remains `0.1.0-dev.3` and no new tag is created.

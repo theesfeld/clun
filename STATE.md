@@ -5,12 +5,12 @@ Update before every commit and keep it consistent with PLAN.md, DECISIONS.md, RE
 
 ---
 
-## Current phase: **25b — Conformance push to >= 90%**  (IN PROGRESS — m1, m2, and m3 implementation DONE; dev.3 release acceptance ACTIVE; m4 NOT STARTED)
+## Current phase: **25b — Conformance push to >= 90%**  (IN PROGRESS — m1, m2, and m3 DONE; dev.3 PUBLISHED; m4 QUEUED / NOT STARTED)
 
 **Canonical issue:** https://github.com/theesfeld/clun/issues/57
-**Current Phase 25b milestone:** `m3`
-**Current completed unit:** m3 dev.3 lifecycle/release correction
-**Next Phase 25b milestone after dev.3 publication:** `m4`
+**Current Phase 25b milestone:** `m4`
+**Current completed unit:** m3 implementation plus verified dev.3 lifecycle/release correction
+**Current milestone scope:** m4 functions, classes, parameters, `super`, and arguments; implementation not started
 
 **Phase 25 COMPLETE** (Performance pass; deps: all engine phases ✓; milestoned). Final default-tier
 best-of-nine results vs the frozen Phase-24 baseline are richards **6.68×**, deltablue **3.85×**, and splay
@@ -114,20 +114,18 @@ being skipped. The prior parse gate is **23,713 total / 17,523 live pass / 1,152
 with all **17,512** frozen parse entries holding. This backward-compatible functionality retains the planned
 SemVer minor core. The immutable **`v0.1.0-dev.2`** tag passed master CI but its release run failed before
 asset publication because the macOS zero-FD-delta result exposed an inverted Parachute `<=` assertion.
-Child issues **#59/#60** track the Darwin stress residual and the deterministic loop-owned socket
-teardown/gate defect respectively, advancing the synchronized target to source/release version
-**`0.1.0-dev.3`** and tag **`v0.1.0-dev.3`**. Issue #60 blocks dev.3 publication. Issue #59 remains open
-for the Phase-26 Darwin soak evidence but does not block dev.3 after the deterministic fix and all four
-release builders pass. M4 is next and has not started.
+Child issue **#60** tracked the deterministic loop-owned socket teardown/gate defect and is closed after
+verified **`v0.1.0-dev.3`** publication. Issue **#59** remains open for the Phase-26 Darwin soak evidence;
+the deterministic fix shipped in dev.3 and all four release builders passed. M4 is current, queued, and
+has not started.
 
 **M3 implementation gates:** the `0.1.0-dev.2` build, **42/42** TypeScript-strip fixtures, **74/74** JS/TS
 fixtures, purity (**690 files / 0 violations**), public claims, roadmap/live-issue verification, SemVer
 transition fixtures (**47/47**), installer/release fixtures, shell checks, workflow `actionlint`, and diff
 check are green. GitHub CI then passed the complete build, version, `make test`, fresh Test262 inventory,
 and purity gates for commit `64b5e67a`. The dev.2 release matrix passed linux-x64, linux-arm64, and
-darwin-x64; darwin-arm64 failed only the backwards FD-bound assertion with a correct zero delta. Dev.3 must
-pass the corrected exact teardown gate on all four builders before assets, Pages, or installer verification
-are claimed.
+darwin-x64; darwin-arm64 failed only the backwards FD-bound assertion with a correct zero delta. That failed
+publication was superseded by the verified dev.3 correction described below.
 
 **Dev.3 correction gates:** the source builds as `clun 0.1.0-dev.3`; the broad focused lifecycle set is
 **102/102**, covering exact FD-set equality after 400 connection cycles, explicit destruction with a live
@@ -141,9 +139,12 @@ After independent review tightened normal handler-removal errors and the destroy
 affected set passed **72/72**; these sets overlap and are not summed.
 The refreshed lightweight gates are green: purity **690 files / 0 violations**, synchronized public claims,
 the complete live roadmap/issue contract, installer and release-live fixtures, **47/47** SemVer fixtures,
-changed installer ShellCheck, build/version, and diff check. Workflow files are unchanged from the earlier
-green `actionlint` result. The candidate still requires the exact dev.2-to-dev.3 transition gate, GitHub CI,
-and all four release builders. No m4 implementation has begun.
+changed installer ShellCheck, build/version, and diff check. The exact dev.2-to-dev.3 transition passed.
+Commit `d93b2fce` passed CI **29453691070**, Documentation **29453691119**, and Release **29454037059**,
+including linux-x64, linux-arm64, darwin-x64, and darwin-arm64. The immutable annotated
+`v0.1.0-dev.3` release contains the four native archives plus `checksums.txt`; a fresh download verified
+all four checksums. Pages **29453691036** deployed the matching site and installer, and an isolated hosted
+linux-x64 install reported `clun 0.1.0-dev.3`. Issue #60 is closed. No m4 implementation has begun.
 
 **Milestone 1 DONE — "measure first":** the benchmark suite + the frozen Phase-24 baseline + the design doc
 (no engine change). `bench/{richards,deltablue,splay}.js` — the Octane trio ported to clun (self-contained,
@@ -340,11 +341,10 @@ richards **539.3/444.6 ms**, deltablue **764.5/694.6 ms**, splay **283.9/249.7 m
 out of the saved image (~125 MiB final vs 512–632 MiB before). Independent adversarial review findings are
 resolved: eager conformance now requires fallback=0 and the compare harness pins trace=0.
 
-**Next action:** if `v0.1.0-dev.3` does not yet have green CI, four native archives, checksums, Pages, and
-a verified hosted installer, finish that m3 correction publication first. Once those exact artifacts are
-verified on the immutable candidate commit, execute Phase 25b milestone 4 only: the functions, classes,
-parameters, `super`, and arguments slice specified in `docs/design/phase-25b.md`. Do not begin m5 or change
-the fixed denominator/skip set. M4 has not started in this source revision.
+**Next action:** execute Phase 25b milestone 4 only: the functions, classes, parameters, `super`, and
+arguments slice specified in `docs/design/phase-25b.md`. The immutable dev.3 release, all five assets,
+checksums, Pages, and hosted installer are verified. Do not rerun m3, begin m5, or change the fixed
+denominator/skip set. M4 has not started in this source revision.
 
 **G3 scope concern — RESOLVED (2026-07-14, operator-approved split):** the >=90% curated-test262 target is
 split out of Phase 25 into a new **Phase 25b — Conformance push to >=90%** (PLAN §5). Phase 25 is now closed

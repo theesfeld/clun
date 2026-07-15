@@ -392,8 +392,9 @@ assigns 2,775 failures to Phase 25b and 884 to Phase 37, and its canonical artif
 `1DF243B2047FC7F1`. M3 is a backward-compatible functionality unit in the existing `0.1.0` train,
 so its disposition remains SemVer minor. The original `v0.1.0-dev.2` tag passed master CI, but the
 darwin-arm64 release builder exposed an inverted FD-bound test before any release assets were
-published. The issue-59/60 correction advances the immutable prerelease target to `0.1.0-dev.3`
-without changing the m3 conformance evidence. Milestone 4 is next and has not started.
+published. The issue-59/60 correction was published as immutable prerelease `0.1.0-dev.3` without
+changing the m3 conformance evidence. Dev.3 is verified; milestone 4 is the current queued milestone
+and has not started.
 
 #### 6.2.2 Release-gate and loop-ownership correction
 
@@ -421,8 +422,9 @@ close callbacks, remains idempotent, cancels timers, and releases in-flight work
 serialized accounting without overwriting aggregate refcount state. The deterministic regression
 forces full GC after recycling the listener, client, and accepted-peer descriptor numbers, calls
 destruction a second time, and proves every replacement descriptor stays open. The adjacent
-stale-handler regression also closes both ends of its raw test pipe. Issue #60 is the deterministic
-dev.3 blocker; issue #59 remains open for the Phase-26 Darwin soak matrix. Active async `Clun.spawn`
+stale-handler regression also closes both ends of its raw test pipe. Issue #60 was the deterministic
+dev.3 blocker and is closed after verified publication; issue #59 remains open for the Phase-26 Darwin
+soak matrix. Active async `Clun.spawn`
 resource ownership is tracked separately rather than expanding this correction.
 
 Because the remote annotated dev.2 tag already establishes publication under the versioning
