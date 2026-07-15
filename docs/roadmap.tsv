@@ -1,0 +1,57 @@
+phase	slug	title	track
+27	compatibility-evidence-ledger-release-doc-automation	Compatibility evidence ledger and release-doc automation	governance
+28	tls-dns-streaming-transport-public-npm	TLS, DNS, streaming transport, and public npm	foundation
+29	public-semver-api	Public semver API	utilities
+30	glob-api	Glob API	utilities
+31	yaml-api-module-loading	YAML API and module loading	utilities
+32	cookies-cookiemap	Cookies and CookieMap	utilities
+33	terminal-string-width-ansi-utilities	Terminal string width and ANSI utilities	utilities
+34	css-color-api	CSS Color API	utilities
+35	csrf-api	CSRF API	utilities
+36	password-hash-apis	Password and hash APIs	utilities
+37	modern-ecmascript-gap-wave	Modern ECMAScript gap wave	runtime
+38	web-platform-foundations	Web platform foundations	runtime
+39	full-typescript-transforms	Full TypeScript transforms	language
+40	jsx-tsx	JSX and TSX	language
+41	runtime-build-loader-plugins	Runtime and build loader plugins	tooling
+42	node-stream-compatibility	node:stream compatibility	node
+43	node-net-dns-tls-datagram-compatibility	node:net, DNS, TLS, and datagram compatibility	node
+44	node-http-https-http2-compatibility	node:http, node:https, and HTTP/2 compatibility	node
+45	node-crypto-zlib-compatibility	node:crypto and node:zlib compatibility	node
+46	processes-vm-workers-async-hooks	Processes, VM, workers, and async hooks	node
+47	node-compatibility-certification	Node compatibility certification	node
+48	native-addon-constitutional-checkpoint-conditional-implementation	Native-addon constitutional checkpoint and conditional implementation	architecture
+49	http-server-parity	HTTP server parity	server
+50	router-static-files-filesystemrouter	Router, static files, and FileSystemRouter	server
+51	websocket-pubsub	WebSocket and Pub/Sub	server
+52	single-file-executables	Single-file executables	tooling
+53	s3-client	S3 client	cloud
+54	redis-valkey-client	Redis and Valkey client	database
+55	postgresql-driver	PostgreSQL driver	database
+56	mysql-driver	MySQL driver	database
+57	sqlite-design-checkpoint-implementation	SQLite design checkpoint and implementation	database
+58	operating-system-secrets-constitutional-checkpoint	Operating-system secrets constitutional checkpoint	architecture
+59	package-registry-dependency-spec-breadth	Package registry and dependency-spec breadth	package-manager
+60	workspaces-monorepos	Workspaces and monorepos	package-manager
+61	package-manager-tools-security	Package-manager tools and security	package-manager
+62	bundler-core	Bundler core	bundler
+63	advanced-bundler	Advanced bundler	bundler
+64	css-html-asset-pipeline	CSS, HTML, and asset pipeline	bundler
+65	cross-platform-shell-api	Cross-platform shell API	tooling
+66	jest-compatible-test-runner-parity	Jest-compatible test-runner parity	tooling
+67	watch-mode-state-preserving-hot-reload	Watch mode and state-preserving hot reload	tooling
+68	frontend-development-server-hmr	Frontend development server and HMR	tooling
+69	formatter	Formatter	exceed
+70	linter	Linter	exceed
+71	comparative-performance-lab-engine-tier	Comparative performance lab and engine tier	performance
+72	subsystem-performance-wave	Subsystem performance wave	performance
+73	exhaustive-bun-public-surface-freeze	Exhaustive Bun public-surface freeze	governance
+74	archive-compression-apis	Archive and compression APIs	runtime
+75	data-formats-markdown-htmlrewriter	Data formats, Markdown, and HTMLRewriter	runtime
+76	cron-scheduling-interactive-repl	Cron, scheduling, and interactive REPL	tooling
+77	programmatic-transpiler-build-apis	Programmatic transpiler and build APIs	bundler
+78	image-processing	Image processing	runtime
+79	webview-constitutional-checkpoint-conditional-implementation	WebView constitutional checkpoint and conditional implementation	architecture
+80	zero-unowned-full-public-surface-closure	Zero-unowned full public-surface closure	governance
+81	full-surface-performance-recheck	Full-surface performance recheck	performance
+82	purity-compatible-bun-surface-final-audit-release	Purity-compatible Bun-surface final audit and release	release

@@ -13,7 +13,8 @@ recorded below.
 - **Steady-state timing** excludes startup: each file runs one untimed warmup, then times
   `ITERATIONS` iterations of the core workload with `Clun.nanoseconds()` (a monotonic nanosecond
   clock — `Date.now()` is only 1-second-granular here). Reported number = **best of `REPS` runs**
-  (default 5), which damps GC/scheduler noise.
+  (default 5), which damps GC/scheduler noise. The progress table states where later milestones
+  deliberately increased `REPS`.
 - **Startup measured separately** (`clun -e ''` wall-clock), never folded into the throughput ratio.
 - **No cross-runtime comparison.** `node` and `bun` are **not installed on this host**, so there are
   **no clun-vs-node/bun numbers here** — none are fabricated. The same fixed-workload files run
@@ -57,7 +58,9 @@ against any load-time compilation — §5 of the design doc).
 
 ## Progress (per milestone, vs. the frozen baseline)
 
-Same host / compiler / measurement as above. "×" is `baseline_ms / current_ms` (higher is faster).
+Every row uses the same host, compiler, and fixed workloads. Sampling was best of 5 for the baseline,
+m2, and m3; best of 7 for m4–m7; and best of 9 for m8–m9. "×" is
+`baseline_ms / current_ms` (higher is faster).
 
 | Milestone | richards | deltablue | splay | startup |
 |---|---|---|---|---|

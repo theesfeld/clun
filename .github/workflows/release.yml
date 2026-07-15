@@ -9,8 +9,16 @@ permissions:
   contents: read
 
 jobs:
+  claims:
+    name: Verify published claims
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - run: sh scripts/public-claims-check.sh
+
   build:
     name: Build ${{ matrix.target }}
+    needs: claims
     strategy:
       fail-fast: false
       matrix:
@@ -25,7 +33,7 @@ jobs:
             runner: macos-15-intel
             expected_machine: x86_64
           - target: darwin-arm64
-            runner: macos-14
+            runner: macos-15
             expected_machine: arm64
     runs-on: ${{ matrix.runner }}
     steps:
@@ -104,6 +112,10 @@ jobs:
           CLUN_SKIP_PERFORMANCE_TESTS: "1"
         run: make test
 
+      - name: Verify published test262 execution pass set
+        if: matrix.target == 'linux-x64'
+        run: make conformance-exec
+
       - name: Test cryptography
         run: make test-crypto
 
@@ -164,14 +176,31 @@ jobs:
         working-directory: dist
         run: sha256sum clun-*.tar.gz > checksums.txt
 
-      - name: Create development release
+      - name: Create release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" \
-            --repo "$GITHUB_REPOSITORY" \
-            --verify-tag \
-            --latest \
-            --generate-notes \
-            --title "Clun $GITHUB_REF_NAME" \
-            dist/clun-*.tar.gz dist/checksums.txt
+          release_flags=(--prerelease=false --latest)
+          case "$GITHUB_REF_NAME" in
+            v*-*) release_flags=(--prerelease --latest=false) ;;
+          esac
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release edit "$GITHUB_REF_NAME" \
+              --repo "$GITHUB_REPOSITORY" \
+              --verify-tag \
+              --draft=false \
+              "${release_flags[@]}" \
+              --title "Clun $GITHUB_REF_NAME"
+            gh release upload "$GITHUB_REF_NAME" \
+              --repo "$GITHUB_REPOSITORY" \
+              --clobber \
+              dist/clun-*.tar.gz dist/checksums.txt
+          else
+            gh release create "$GITHUB_REF_NAME" \
+              --repo "$GITHUB_REPOSITORY" \
+              --verify-tag \
+              "${release_flags[@]}" \
+              --generate-notes \
+              --title "Clun $GITHUB_REF_NAME" \
+              dist/clun-*.tar.gz dist/checksums.txt
+          fi

@@ -67,8 +67,17 @@ a {
 }
 
 :focus-visible {
-  outline: 3px solid var(--blue);
+  outline: 3px solid var(--ink);
   outline-offset: 3px;
+}
+
+.skip-link:focus-visible,
+.proof-band :focus-visible,
+.code-section :focus-visible,
+.site-footer :focus-visible,
+.command-row :focus-visible,
+.compat-table thead :focus-visible {
+  outline-color: var(--white);
 }
 
 .sr-only {
@@ -1095,7 +1104,7 @@ a {
 }
 
 .compat-table thead .clun-col > span {
-  color: #4d2823;
+  color: var(--ink);
 }
 
 .compat-table tbody th {
@@ -1139,6 +1148,60 @@ a {
   font-size: 0.92em;
 }
 
+.compat-table .phase-link {
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  margin-top: 9px;
+  color: #7e3d35;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.35;
+  text-decoration-line: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.compat-table .phase-link:hover {
+  color: #a33c32;
+}
+
+.compat-table .phase-link:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+}
+
+.compat-table .phase-links {
+  display: block;
+  margin-top: 9px;
+  color: #7e3d35;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.55;
+}
+
+.compat-table .phase-links > span {
+  color: inherit;
+}
+
+.compat-table .phase-links a {
+  color: inherit;
+  text-decoration-line: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.compat-table .phase-links a:hover {
+  color: #a33c32;
+}
+
+.compat-table .phase-links a:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
 .state {
   display: block;
   width: max-content;
@@ -1169,6 +1232,66 @@ a {
   margin: 14px 0 0;
   color: var(--muted);
   font-size: 12px;
+}
+
+.beyond-matrix {
+  display: grid;
+  grid-template-columns: minmax(240px, 0.7fr) minmax(0, 1.3fr);
+  gap: 64px;
+  margin-top: 48px;
+  padding-top: 36px;
+  border-top: 2px solid var(--ink);
+}
+
+.beyond-matrix-heading h3 {
+  margin: 5px 0 12px;
+  font-size: 27px;
+  letter-spacing: 0;
+  line-height: 1.12;
+}
+
+.beyond-matrix-heading > p:last-child {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.beyond-roadmap {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--ink);
+  list-style: none;
+}
+
+.beyond-roadmap li {
+  min-width: 0;
+  border-bottom: 1px solid var(--ink);
+}
+
+.beyond-roadmap li:nth-child(odd) {
+  border-right: 1px solid var(--ink);
+}
+
+.beyond-roadmap a {
+  display: grid;
+  grid-template-columns: 68px minmax(0, 1fr);
+  gap: 12px;
+  height: 100%;
+  padding: 13px 14px;
+  text-decoration: none;
+}
+
+.beyond-roadmap a:hover {
+  background: #e9e6de;
+}
+
+.beyond-roadmap a > span {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
 }
 
 .internals-section {
@@ -1356,6 +1479,11 @@ a {
   .split-heading {
     grid-template-columns: 1fr;
     gap: 22px;
+  }
+
+  .beyond-matrix {
+    grid-template-columns: 1fr;
+    gap: 26px;
   }
 
   .hero-facts {
@@ -1652,13 +1780,65 @@ a {
 
   .compat-table th,
   .compat-table td {
-    padding: 16px;
+    width: 164px;
+    padding: 14px 12px;
+  }
+
+  .compat-table {
+    width: 788px;
+    min-width: 788px;
+    font-size: 12px;
+    line-height: 1.45;
+  }
+
+  .compat-table tr > *:first-child {
+    width: 132px;
+  }
+
+  .compat-table thead th:first-child {
+    position: sticky;
+    z-index: 5;
+    left: 0;
   }
 
   .compat-table tbody tr:not(.compare-group) > th {
     position: sticky;
-    z-index: 2;
+    z-index: 3;
     left: 0;
+  }
+
+  .compat-table tbody tr:not(.compare-group) > td::before {
+    display: block;
+    margin-bottom: 7px;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 9px;
+    font-weight: 800;
+    text-transform: uppercase;
+  }
+
+  .compat-table tbody tr:not(.compare-group) > td:nth-child(2)::before {
+    content: "Clun";
+  }
+
+  .compat-table tbody tr:not(.compare-group) > td:nth-child(3)::before {
+    content: "Bun";
+  }
+
+  .compat-table tbody tr:not(.compare-group) > td:nth-child(4)::before {
+    content: "Node.js";
+  }
+
+  .compat-table tbody tr:not(.compare-group) > td:nth-child(5)::before {
+    content: "Deno";
+  }
+
+  .beyond-roadmap {
+    grid-template-columns: 1fr;
+  }
+
+  .beyond-roadmap li:nth-child(odd) {
+    border-right: 0;
   }
 
   .contract-list li {

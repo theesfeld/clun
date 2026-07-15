@@ -3,7 +3,7 @@
 set -eu
 
 repo=${CLUN_GITHUB_REPO:-theesfeld/clun}
-requested_version=${CLUN_VERSION:-latest}
+requested_version=${CLUN_VERSION:-v0.0.1-dev}
 install_root=${CLUN_INSTALL:-"$HOME/.clun"}
 no_modify_path=${CLUN_NO_MODIFY_PATH:-0}
 
@@ -93,10 +93,15 @@ cleanup() {
     rm -rf "$stage_dir"
   fi
 }
-trap cleanup EXIT HUP INT TERM
+trap cleanup 0
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 archive="$tmp_dir/$asset"
 checksums="$tmp_dir/checksums.txt"
+archive_names="$tmp_dir/archive.names"
+archive_types="$tmp_dir/archive.types"
 
 say "Downloading Clun for $target..."
 download "$download_base/$asset" "$archive"
@@ -109,12 +114,20 @@ actual=$(sha256_file "$archive")
 
 command_exists tar || fail "tar is required to unpack Clun"
 mkdir -p "$tmp_dir/unpacked"
-if ! tar -tzf "$archive" | awk -v prefix="clun-$target/" '
+tar -tzf "$archive" >"$archive_names" || fail "release archive is not a valid gzip-compressed tar file"
+if ! awk -v prefix="clun-$target/" '
   index($0, prefix) != 1 { bad = 1 }
   /(^|\/)\.\.($|\/)/ { bad = 1 }
   END { exit bad }
-'; then
+' "$archive_names"; then
   fail "release archive contains an unsafe path"
+fi
+tar -tvzf "$archive" >"$archive_types" || fail "could not inspect release archive entry types"
+if ! awk '
+  substr($0, 1, 1) != "-" && substr($0, 1, 1) != "d" { bad = 1 }
+  END { exit bad }
+' "$archive_types"; then
+  fail "release archive contains a link or special file"
 fi
 tar -xzf "$archive" -C "$tmp_dir/unpacked"
 
@@ -126,6 +139,11 @@ release_version=$(sed -n '1p' "$package_dir/VERSION" | tr -d '\r\n')
 case "$release_version" in
   ''|*[!A-Za-z0-9._-]*) fail "release archive contains an invalid version" ;;
 esac
+if [ -z "${CLUN_DOWNLOAD_BASE:-}" ] && [ "$requested_version" != latest ]; then
+  expected_release_version=${requested_version#v}
+  [ "$release_version" = "$expected_release_version" ] ||
+    fail "release archive version $release_version does not match requested tag $requested_version"
+fi
 
 validate_release() {
   candidate_dir=$1

@@ -4,7 +4,8 @@
 SBCL       ?= sbcl
 SBCL_FLAGS := --non-interactive --no-userinit --no-sysinit
 
-.PHONY: all build test test-lisp test-js test-tls test-crypto registry-fixture purity bench clean
+.PHONY: all build test test-lisp test-js test-tls test-crypto registry-fixture purity bench \
+	test-installer public-claims-check roadmap-check roadmap-sync clean
 
 all: build
 
@@ -63,6 +64,20 @@ conformance-exec:
 ## baseline in docs/benchmarks.md. Override reps with REPS=N.
 bench: build
 	sh bench/run.sh
+
+## public-claims-check -- keep release/version/conformance facts aligned across docs and Pages.
+public-claims-check:
+	sh scripts/public-claims-check.sh
+
+test-installer:
+	sh scripts/test-installer.sh
+
+## roadmap-check/sync -- validate the post-v0.1 ledger or reconcile its GitHub issues.
+roadmap-check:
+	sh scripts/roadmap.sh check
+
+roadmap-sync:
+	sh scripts/roadmap.sh sync
 
 ## clean — remove the built binary and any in-tree fasls.
 clean:

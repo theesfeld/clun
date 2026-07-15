@@ -1,0 +1,39 @@
+name: Documentation
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "AGENTS.md"
+      - "PHASE_PROMPT.md"
+      - "PLAN.md"
+      - "README.md"
+      - "docs/**"
+      - "src/version.lisp"
+      - "tests/conformance/exec-passlist.txt"
+      - "scripts/public-claims-check.sh"
+      - "scripts/roadmap.sh"
+      - "scripts/test-installer.sh"
+      - "site/**"
+      - ".github/workflows/docs.yml"
+  pull_request:
+    paths:
+      - "AGENTS.md"
+      - "PHASE_PROMPT.md"
+      - "PLAN.md"
+      - "README.md"
+      - "docs/**"
+      - "src/version.lisp"
+      - "tests/conformance/exec-passlist.txt"
+      - "scripts/public-claims-check.sh"
+      - "scripts/roadmap.sh"
+      - "scripts/test-installer.sh"
+      - "site/**"
+      - ".github/workflows/docs.yml"
+
+jobs:
+  claims:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - run: sh scripts/public-claims-check.sh

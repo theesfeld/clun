@@ -1,13 +1,18 @@
 # Clun — Bun, Rewritten in Pure Common Lisp
 
 **This document is the operating manual for the agent building Clun.** It was authored by the
-project's engineer/PM (with four parallel research agents whose empirical findings are baked in —
-see Appendix C) and is designed to be executed by Claude Opus 4.8 running in Claude Code,
-iterating the phase loop in §2 until v1 ships. Read §2 at the start of every session.
+project's engineer/PM (with parallel research findings baked in — see Appendix C) and is designed
+exclusively for **Codex/Sol 5.6** executing the phase loop in §2. Available Codex/Sol 5.6
+subagents should accelerate bounded research, implementation, and review work; every phase must
+also retain a complete serial execution path. Do not translate model names or orchestration
+instructions for another model family. Read §2 at the start of every session.
 
 - **This repo:** `/home/glenda/Projects/clun` (you are building this; git is already initialized)
-- **Reference implementation:** `/home/glenda/Projects/bun` (read-only — never modify it; matrix
-  comparisons pin its commit `c1076ce95e`)
+- **Engineering reference:** `/home/glenda/Projects/bun` (read-only — never modify it), commit
+  `c1076ce95e`, identified by that checkout as **Bun 1.4.0-dev**. This is the forward engineering
+  source/test baseline, not the stable version printed in the public comparison table.
+- **Public comparison reference:** **Bun 1.3.14 stable**. README/site version labels and stable-release
+  behavior claims use its release binary/tag. Never describe `c1076ce95e` as Bun 1.3.14.
 - **Host toolchain:** SBCL 2.6.4 on PATH (`:sb-thread`, `:mark-region-gc`, poll-backed
   serve-event — all verified). Linux x86-64. Pin this SBCL version.
 
@@ -18,8 +23,8 @@ Kick off each working session with:
 > Read PLAN.md and STATE.md in this repo, then execute the loop in PLAN.md §2. Continue until the
 > current phase gate passes.
 
-Append `ultracode` to that prompt if you want workflow-grade multi-agent orchestration that
-session; the plan works either way (§2 explains how the executing agent should adapt).
+Use available Codex/Sol 5.6 subagents for disjoint work and independent verification. If subagents are not
+available, execute the same tasks serially in the listed order without weakening or skipping a gate.
 
 ---
 
@@ -28,7 +33,9 @@ session; the plan works either way (§2 explains how the executing agent should 
 Bun is ~1M lines of Rust/C++ on top of JavaScriptCore. Clun is **not** a literal port. It is a
 sharply scoped, faithful-in-spirit JavaScript/TypeScript runtime and toolkit written in **pure
 Common Lisp** — including a from-scratch ECMAScript engine. Correctness of the scoped surface and
-purity of the implementation beat breadth and speed.
+purity of the implementation beat breadth and speed for the v0.1 foundation. After v0.1, the
+purity-compatible surface-parity program deliberately expands breadth and pursues measured
+performance against Bun while retaining the same correctness and purity contract.
 
 ### 1.1 The Purity Contract (constitutional — every phase gate re-checks it)
 
@@ -46,7 +53,7 @@ purity of the implementation beat breadth and speed.
   all vendored sources for `cffi`, `foreign-funcall`, `sb-alien`, `define-alien` outside SBCL
   itself, and fails CI on any hit. It runs as part of every phase gate.
 
-### 1.2 v1 delivers (the `clun` binary)
+### 1.2 v0.1 delivers (the `clun` binary)
 
 | Command | Behavior |
 |---|---|
@@ -64,27 +71,27 @@ Node-faithful micro/macrotask + `nextTick` ordering; `console` (Bun-faithful for
 (minus IDNA), `TextEncoder/TextDecoder` (UTF-8), `AbortController`, `crypto.randomUUID`/
 `getRandomValues`; node-compat: `path` (posix), `fs` (sync core + promises subset + callback
 shims), `os`, `events`, `util` (subset), `url`, `buffer` (subset), `querystring`, `assert`,
-timers modules; a 14-member `Clun` global (`version`, `revision`, `env`, `argv`, `main`, `sleep`,
+timers modules; an 18-member `Clun` global (`version`, `revision`, `env`, `argv`, `main`, `sleep`,
 `sleepSync`, `file`, `write`, `spawn`, `spawnSync`, `serve`, `inspect`, `deepEquals`, plus
 `which`/`nanoseconds`/`fileURLToPath`/`pathToFileURL`).
 
-### 1.3 Explicit non-goals for v1 (do not build; do not partially build)
+### 1.3 Explicit non-goals for v0.1 (do not build; do not partially build)
 
 Bundler/minifier, CSS, HTML rewriter, dev server, N-API, `bun:ffi`, `bun:sqlite`, WebSocket,
 HTTP/2/3, shell language (`Bun.$`), workers, macros, `--compile`, watch/hot reload, snapshots,
-coverage, mocks (v1), `clun x`/bunx, REPL, JSX/`.tsx`, sourcemaps (by design — whitespace-
+coverage, mocks (v0.1), `clun x`/bunx, REPL, JSX/`.tsx`, sourcemaps (by design — whitespace-
 preserving TS strip makes them unnecessary), Proxy/Reflect, Intl, Temporal, Atomics/SAB,
 `node:stream`/`net`/`http`/`crypto`/`child_process`/`worker_threads`/`vm`/`zlib`, workspaces,
 git/file dependencies, lifecycle scripts (never executed — stricter than Bun), and Windows.
 Linux and macOS 13+ release builds target x86-64 and arm64; platform-specific APIs may remain partial.
-If a v1 task appears to require one of these non-goals, it doesn't — rescope and
-record why in `DECISIONS.md`. Post-v1 backlog lives in Appendix E.
+If a v0.1 task appears to require one of these non-goals, it doesn't — rescope and record why in
+`DECISIONS.md`. Phases 27–82 promote the compatible items into the post-v0.1 purity-compatible surface program.
 
-### 1.4 Definition of Done for v1
+### 1.4 Definition of Done for v0.1
 
 1. All phase gates 00–26 pass (each is a concrete command sequence).
 2. test262: the checked-in pass-list contains every passing test (monotonically grown, zero
-   regressions), with overall curated pass rate ≥ 90% at Phase 25's close.
+   regressions), with overall curated pass rate ≥ 90% at Phase 25b's close.
 3. End-to-end demo (`examples/e2e.sh`): `clun install` against the local registry fixture →
    `clun run build` (a script invoking a `.bin` tool) → `clun test` — all green, hermetic.
 4. `Clun.serve` example survives 1k sequential + 500 concurrent requests, RSS plateaus.
@@ -93,15 +100,42 @@ record why in `DECISIONS.md`. Post-v1 backlog lives in Appendix E.
    TLS security-posture statement (§3.4).
 7. Tagged `v0.1.0`.
 
-**Scale honesty:** ~65–70k LOC of new CL plus vendored pure-CL deps. Expect *hundreds* of loop
-iterations. The loop protocol and state files below are what make that sustainable.
+### 1.5 Definition of Done for the post-v0.1 purity-compatible Bun-surface program
+
+1. Every gate in Phases 27–82 passes, including the universal feature-evidence gate in §5.
+2. Every public API, CLI command/flag, loader, protocol, and observable behavior in the Phase-73
+   frozen surface has exactly one primary owner and executable evidence. Every purity-compatible
+   item meets or exceeds the frozen Bun behavior; the generated landing matrix is a summary, not the
+   boundary of parity. A constitutional conflict is never relabeled as parity: it remains explicit
+   until the operator accepts or rejects a narrowly written amendment.
+3. Both baselines are recorded without conflation: Bun 1.3.14 stable supplies the public comparison
+   version and stable-binary evidence, while `/home/glenda/Projects/bun` at `c1076ce95e`
+   (Bun 1.4.0-dev) supplies the forward engineering source/test inventory. Phase 73 freezes their
+   complete delta once at phase entry. A Bun release or commit published after that freeze belongs to
+   the next release train and cannot move this program's completion target.
+4. Release artifacts and feature gates pass on Linux and macOS 13+ for x86-64 and arm64. A feature
+   that works on fewer targets stays partial and says which target is missing.
+5. Performance claims come only from identical workloads measured on the same host, architecture,
+   power mode, toolchain, and release builds. Cold start, warm throughput, latency, peak RSS, and
+   artifact size remain separate numbers; no projected or cross-host number is a release claim.
+6. `README.md`, `site/index.html`, release notes, and the compatibility evidence ledger agree with
+   the shipped version and are checked mechanically before the release tag.
+7. Phase 82 produces the purity-compatible surface release tag only after the final review finds no
+   unsupported claim.
+
+**Scale honesty:** the ~65–70k LOC estimate applies only to the v0.1 foundation. Phases 27–82 are a
+multi-release purity-compatible surface program with no credible fixed LOC estimate; each bounded
+phase and milestone is estimated only after its pinned surface inventory and design. Expect *hundreds*
+of loop iterations. The loop protocol and state files below are what make that sustainable.
 
 ---
 
 ## 2. Execution Protocol — THE LOOP (read every session)
 
 You (the executing agent) drive this project with a deterministic outer loop. One iteration ≈ one
-phase, or one milestone of a large phase. Do not freelance outside the loop.
+phase, or one milestone of a large phase. Phases 00–26 are the v0.1 track; after its release,
+Phases 27–82 are the post-v0.1 purity-compatible Bun-surface track. `STATE.md` names the active track and phase. Do not
+freelance outside the loop.
 
 ### 2.1 State files (the only session-to-session memory)
 
@@ -118,18 +152,20 @@ phase, or one milestone of a large phase. Do not freelance outside the loop.
 ### 2.2 The loop
 
 ```
-while v1 not done:
+while active release track not done:
   1. ORIENT   Read STATE.md and this file's section for the current phase. Pick the first phase
               whose Dependencies are all DONE. If the current phase is blocked, pick the next
               unblocked phase (§5 marks which are independent) and record why in STATE.md.
-  2. DESIGN   If docs/design/phase-NN.md doesn't exist and the phase is non-trivial: spawn a Plan
-              agent with the phase spec + references; distill its output into the design doc.
-  3. RESEARCH As needed, spawn Explore agents (read-only) against /home/glenda/Projects/bun and
+  2. DESIGN   If docs/design/phase-NN.md doesn't exist and the phase is non-trivial: assign a
+              planning subagent the phase spec + references, or do the same analysis serially;
+              distill the result into the design doc.
+  3. RESEARCH As needed, assign read-only research subagents against /home/glenda/Projects/bun and
               vendored sources for behavior questions. Check Appendix C FIRST — many facts are
               already verified; do not re-derive them.
   4. BUILD    Implement task by task. After EVERY task: `make build && make test` green before
               the next task. Fan out to parallel implementer subagents ONLY for disjoint files
-              (§5 marks fan-out phases); otherwise work serially in the main loop.
+              (§5 marks fan-out phases); otherwise work serially in the main loop. When no
+              subagents are available, execute every listed task serially.
   5. GATE     Run the phase's Acceptance Gate exactly as written — all commands, plus
               `make purity`. For engine phases, also: zero test262 pass-list regressions.
   6. REVIEW   Code-review the phase's diff: use the code-review skill if this session has one;
@@ -143,12 +179,12 @@ while v1 not done:
 
 ### 2.3 Agents, skills, and orchestration
 
-- **Explore agents** (read-only search): all reference mining in `/home/glenda/Projects/bun`
-  (its own CLAUDE.md describes the layout) and in vendored sources. Ask for conclusions with
+- **Research subagents** (read-only search): all reference mining in `/home/glenda/Projects/bun`
+  (read its repository guidance first) and in vendored sources. Ask for conclusions with
   cited file:line, not file dumps.
-- **Plan agents**: phase designs and any §3 decision that lists a fallback — have the agent argue
+- **Planning subagents**: phase designs and any §3 decision that lists a fallback — have the agent argue
   both sides; you decide and log it.
-- **Implementer subagents** (general-purpose): parallel fan-out for disjoint work. Give each:
+- **Implementer subagents**: parallel fan-out for disjoint work. Give each:
   exact files it owns, the standards in §6, and the command proving its slice green. Re-run the
   full suite yourself after merging — never trust "it passes".
 - **Reviewer subagents**: after every phase and after any change to the engine object kernel,
@@ -158,11 +194,11 @@ while v1 not done:
   untested claims, and pass-list regressions.
 - **Skills**: if the session exposes a code-review skill, use it at step 6; if a verify/run
   skill exists, use it for the serve/e2e gates. Never invent skill names — use what's listed.
-- **Workflow orchestration (ultracode)**: if the session has the Workflow tool / ultracode
-  enabled, use it for the fan-out-heavy steps — the node-compat module wave (Phase 12), fixture
-  corpus authoring (Phases 02, 09, 21, 22), and end-of-phase adversarial review panels
-  (find → independently verify each finding). If not enabled, do the same work with parallel
-  Agent calls; the protocol is identical, only the mechanism differs.
+- **Codex/Sol 5.6 orchestration**: use available Codex/Sol 5.6 subagents for fan-out-heavy steps — compatibility
+  inventory, disjoint module implementations, fixture-corpus authoring, and end-of-phase review
+  panels (find → independently verify each finding). The main agent owns integration and reruns the
+  complete gate. If subagents are unavailable or ownership would overlap, execute serially; parallel
+  execution is an optimization, never a prerequisite.
 - **Context discipline**: each iteration, re-read only STATE.md + the current phase section +
   its design doc + Appendix C. Don't re-read the whole plan or re-litigate settled decisions.
 
@@ -186,29 +222,29 @@ Research verified these empirically on this exact host — evidence in Appendix 
 | Execution | **Compile analyzed AST → CL closures** (pre-resolved variable slots; one closure per node; no per-node dispatch). Never `COMPILE`-per-function at load (measured 0.16–0.5 ms/fn → 10–25 s startup on big bundles). cl-js (`github.com/akapav/js`) is the design blueprint — study, don't vendor (it's ES3) | Hot-function tiering via `COMPILE` on a background thread (P25); plain tree-walker for `with`-containing functions if the emitter fights |
 | Strings | **CL strings, one character = one UTF-16 code unit** (astral → surrogate pairs; lone surrogates are legal SBCL chars — verified). `.length` = `length`. UTF-8⇄code-units (WTF-8 for lone surrogates) at host boundaries only | `(unsigned-byte 16)` vectors if memory (4 B/unit) ever dominates — costs bespoke hashing/printing/regex bridge |
 | Numbers | `double-float` + `sb-int:with-float-traps-masked (:overflow :invalid :divide-by-zero)` at engine entry points (verified: Inf/NaN/−0 correct). Int32 ops via `(ldb (byte 32 0) …)` + sign fix. NaN via `sb-ext:float-nan-p`. **BigInt IN, late phase** (CL bignums make it cheap). Number→String: **port Ryū** (naive bignum shortest-round-trip as fallback). Emitter must never emit constant-foldable trapping float literals (SBCL folds at compile time — verified) | Per-operation trap wrapping (cl-js's `wrap-js`) if entry-point masking leaks through callbacks |
-| Object model | Spec internal-methods protocol ([[Get]]/[[Set]]/[[GetOwnProperty]]/[[DefineOwnProperty]]…) as struct-dispatched functions, **deliberately Proxy-shaped** for post-v1. v1 storage: per-object property table (small simple-vector → `equal` hash-table promotion), full descriptors, prototype as struct slot. **Structs, never hash-table-per-object** (measured 4× memory + 2.7× GC win). Arrays: dense adjustable vector + sparse hash overflow. Shapes/inline-caches deferred to Phase 25 behind the protocol (cl-js's scls/hcls proves the design) | Lift cl-js's shape tree early if property-table perf blocks a gate |
+| Object model | Spec internal-methods protocol ([[Get]]/[[Set]]/[[GetOwnProperty]]/[[DefineOwnProperty]]…) as struct-dispatched functions, **deliberately Proxy-shaped** for post-v0.1. v0.1 storage: per-object property table (small simple-vector → `equal` hash-table promotion), full descriptors, prototype as struct slot. **Structs, never hash-table-per-object** (measured 4× memory + 2.7× GC win). Arrays: dense adjustable vector + sparse hash overflow. Shapes/inline-caches deferred to Phase 25 behind the protocol (cl-js's scls/hcls proves the design) | Lift cl-js's shape tree early if property-table perf blocks a gate |
 | Scoping/modes | Parser does full scope analysis (hoisting, let/const slot indices, TDZ sentinel, eval/with/arguments flags); frames are simple-vectors; `with`/direct-eval scopes use hash-backed slow frames. **Strict AND sloppy from day 1, including `with` and direct eval** — test262 runs both modes; npm CJS is sloppy | None — design constraint, not a bet |
 | Async/generators | **Regenerator-style state-machine lowering** as an AST→AST pass before closure emission (hoisted locals, `switch(state)` loop, try-entry tables — copy `facebook/regenerator`'s scheme exactly). Engine owns the microtask/job queue; async generators & for-await desugar per spec | Thread-per-generator (sb-thread + semaphore handoff) — semantically safe, slow; acceptable for rare generators if lowering is buggy |
-| RegExp | v1: own JS-regex parser → **CL-PPCRE parse trees** (pure CL, zero deps — verified; supports fixed-length lookbehind, named groups, backrefs, `:start` for lastIndex/sticky). Documented gaps that **error loudly** (SyntaxError), never silently mismatch: variable-length lookbehind, `\p{…}` until own UCD tables. Known silent gap to fix earliest: unparticipated-group backrefs (PPCRE fails where JS matches empty — verified) | Phase-25+ own backtracking VM over code-unit strings; the regex parser and RegExp object survive the swap |
+| RegExp | v0.1: own JS-regex parser → **CL-PPCRE parse trees** (pure CL, zero deps — verified; supports fixed-length lookbehind, named groups, backrefs, `:start` for lastIndex/sticky). Documented gaps that **error loudly** (SyntaxError), never silently mismatch: variable-length lookbehind, `\p{…}` until own UCD tables. Known silent gap to fix earliest: unparticipated-group backrefs (PPCRE fails where JS matches empty — verified) | Phase 37 owns the modern RegExp/UCD gap wave; the parser and RegExp object survive a backend swap |
 | Unicode data | **Own build-time UCD table generator** (vendor current Unicode data files, emit Lisp tables). cl-unicode is Unicode 6.2 (2012) — reference for technique only | — |
 | Conformance | Vendor **test262 pinned @ `d1d583d`** (53,690 test files measured): `harness/` + `test/language/**` + built-ins for implemented globals. Skip by `features:` tags (Proxy, Reflect, Temporal, Atomics, SharedArrayBuffer, Intl…) and `$262.createRealm`. Own runner: ~200-LOC YAML-frontmatter parser per test262 INTERPRETING.md; default = run each test in both sloppy+strict; async via `doneprintHandle.js`. **Gate mechanism: checked-in sorted pass-list — CI fails if any test leaves it; it only grows** | Skip-list polarity if curation churns |
-| v1 language tier | ES2017-ish: full ES2015 minus Proxy/Reflect/tail-calls, plus async/await, `**`, Object.entries/values, trailing commas; Symbols incl. iterator/toPrimitive/toStringTag/hasInstance; BigInt (late); no Intl/Temporal/Atomics. Per-realm intrinsics indirection designed in from Phase 03 (cheap now, painful later) | Proxy/Reflect is the v1.1 headline |
-| Date/TZ | UTC-correct core in Phase 04; pure-CL TZif (`/etc/localtime`) parser as a Phase 26 task, deferrable to post-v1 with `getTimezoneOffset() = 0` documented | — |
+| v0.1 language tier | ES2017-ish: full ES2015 minus Proxy/Reflect/tail-calls, plus async/await, `**`, Object.entries/values, trailing commas; Symbols incl. iterator/toPrimitive/toStringTag/hasInstance; BigInt (late); no Intl/Temporal/Atomics. Per-realm intrinsics indirection designed in from Phase 03 (cheap now, painful later) | Phase 37 owns the pinned-Bun modern language gap |
+| Date/TZ | UTC-correct core in Phase 04; pure-CL TZif (`/etc/localtime`) parser as a Phase 26 task, deferrable to post-v0.1 Phase 37 with `getTimezoneOffset() = 0` documented | — |
 
 ### 3.2 The substrate (event loop, I/O — pure SBCL)
 
 | Topic | Decision | Fallback |
 |---|---|---|
-| Event loop | **Hybrid**: one JS thread owns the heap, timers, microtasks, and a `serve-event`-based reactor for sockets & child pipes (poll backend verified — no 1024-fd cap on this build; startup capability probe required); small worker pool (sb-thread) for blocking ops (DNS, async fs, TLS v1); completions via `sb-concurrency:mailbox` + **self-pipe wakeup** (signals do NOT wake serve-event — verified). fd/signal handlers **enqueue only** — JS runs solely at loop dispatch points, each followed by a full microtask drain, with `process.nextTick`'s dedicated queue drained first | All-blocking-I/O-on-workers model (simpler, 2 context switches per op) if reactor integration stalls |
+| Event loop | **Hybrid**: one JS thread owns the heap, timers, microtasks, and a `serve-event`-based reactor for sockets & child pipes (poll backend verified — no 1024-fd cap on this build; startup capability probe required); small worker pool (sb-thread) for blocking ops (DNS, async fs, TLS in v0.1); completions via `sb-concurrency:mailbox` + **self-pipe wakeup** (signals do NOT wake serve-event — verified). fd/signal handlers **enqueue only** — JS runs solely at loop dispatch points, each followed by a full microtask drain, with `process.nextTick`'s dedicated queue drained first | All-blocking-I/O-on-workers model (simpler, 2 context switches per op) if reactor integration stalls |
 | Timers | **Own binary-heap timer queue**; loop timeout = `min(next-timer − now, cap)`. `sb-ext:timer` is unusable for JS callbacks (runs via `interrupt-thread`, unspecified thread, interrupts disabled — verified docstring) | — |
 | Lifetime | Handle refcounting (listeners, sockets, ref'd timers, in-flight work, child watchers); loop exits at refs=0 ∧ queues empty. `ref()`/`unref()` are real | — |
 | Paths | **Every user-supplied path goes through `sb-ext:parse-native-namestring`/`native-namestring`** — raw strings with `[` crash SBCL pathname parsing (verified). CI grep-gate for raw namestring constructors outside `src/sys/` | — |
-| Files | `sb-posix` (coverage verified near-complete) + CL streams (11 GB/s cached reads measured — not a bottleneck). realpath via `truename` with dangling-symlink handler. mtime is second-granularity (no nanosec in sb-posix) — documented. No inotify → `fs.watch` is out of v1 | readlink-loop realpath |
+| Files | `sb-posix` (coverage verified near-complete) + CL streams (11 GB/s cached reads measured — not a bottleneck). realpath via `truename` with dangling-symlink handler. mtime is second-granularity (no nanosec in sb-posix) — documented. No inotify → `fs.watch` is out of v0.1 | readlink-loop realpath |
 | Processes | `sb-ext:run-program :wait nil` (verified: `:stream` pipes, `process-kill`, `:status-hook` fires in interrupt context, zombies auto-reaped, fds closed-by-default + `:preserve-fds`). status-hook enqueues to mailbox + self-pipe only. Pipe fds go non-blocking into the reactor | Worker-thread blocking pipe drains |
 | Signals | `sb-sys:enable-interrupt` handlers: push to queue + 1 byte to self-pipe, nothing else (handlers run in arbitrary threads — verified). SIGPIPE already neutralized by SBCL (write-to-closed-peer → catchable `SB-INT:BROKEN-PIPE` — verified) | Flag polled each loop iteration |
 | HTTP server | Event-driven on the JS-thread reactor, non-blocking sockets, **own incremental HTTP/1.1 parser** (~1k LOC; study fast-http and Hunchentoot's taskmaster/shedding — both pure-CL, neither fits the reactor). Keep-alive, chunked both ways, 16KB header / configurable body limits (fail 431/413), graceful shutdown, port 0 via `socket-name`. Substrate ceiling measured 325k req/s — target ≥30k with real parsing | Thread-per-connection with cap (measured fast) + handler marshaling to the JS thread |
-| HTTP client | Same reactor; pool keyed `(host, port, family, tls-config)`; connect/header/body timeouts via the timer heap; gzip via chipz; redirects follow (max 20, drop auth cross-origin) | Blocking client on worker pool for v1 fetch |
-| DNS | v4 via `sb-bsd-sockets:get-host-by-name` on the worker pool (blocking; no getaddrinfo in SBCL — verified). IPv6 literals parsed in-process; AAAA lookup is post-v1 | Pure-CL DNS resolver (verify `dns-client` purity first) post-v1 |
+| HTTP client | Same reactor; pool keyed `(host, port, family, tls-config)`; connect/header/body timeouts via the timer heap; gzip via chipz; redirects follow (max 20, drop auth cross-origin) | Blocking client on worker pool for v0.1 fetch |
+| DNS | v4 via `sb-bsd-sockets:get-host-by-name` on the worker pool (blocking; no getaddrinfo in SBCL — verified). IPv6 literals parsed in-process; AAAA lookup is post-v0.1 | Pure-CL resolver in Phases 28/43 |
 | GC discipline | Never `gc :full` on hot paths; minor GCs measured 2–4 ms at 1 GB live; struct-based objects keep the heap small. Internal SBCL APIs (`sb-unix:unix-realpath`, `fd-stream-fd`) isolated in one `src/sys/sbcl-compat.lisp` | — |
 
 ### 3.3 TypeScript (type stripping, not transpilation)
@@ -238,7 +274,7 @@ TLS_CHACHA20_POLY1305_SHA256 (ARX — friendlier to constant-time pure Lisp than
 Randomness: ironclad `os-prng` (/dev/urandom via plain CL streams — verified pure).
 
 Live npm over plain HTTP is **dead** (verified: registry.npmjs.org and npmmirror 301→HTTPS
-including tarball paths). So TLS is on the v1 critical path for live installs; all install
+including tarball paths). So TLS is on the v0.1 critical path for live installs; all install
 *tests* are hermetic against a local registry fixture regardless, and pure-tls's server side lets
 tests exercise the real HTTPS client path in-process against a test CA.
 
@@ -290,7 +326,7 @@ executed** (logged at install end) — stricter than Bun, documented loudly. JSO
   toBeInstanceOf, toBeGreaterThan/LessThan(OrEqual), toBeCloseTo, toMatch, toContain(Equal),
   toHaveLength, toHaveProperty, toMatchObject, toThrow (class/message/regex), `.not`,
   `.resolves`/`.rejects` (Jest async semantics — returned promise must be awaited; we do NOT
-  replicate Bun's sync loop-pumping), expect.assertions/hasAssertions. No snapshots/mocks in v1.
+  replicate Bun's sync loop-pumping), expect.assertions/hasAssertions. No snapshots/mocks in v0.1.
 - **Scripts**: `/bin/sh -c`; PATH = script pkg dir + `node_modules/.bin` for **every ancestor of
   cwd** + original PATH; `pre`/`post` scripts run (failing pre aborts); `npm_lifecycle_event`,
   `npm_package_name/version/json`, `npm_config_user_agent`, `npm_execpath` env vars; exit code
@@ -349,9 +385,9 @@ clun/
 
 Every phase lists Dependencies, objective, tasks (seed STATE.md from these), and an **Acceptance
 Gate** (`make` targets — literal commands, all of them, plus `make purity` always). LOC figures
-are informed estimates, not promises. Phases marked ⚡ are fan-out-friendly (disjoint files —
-parallel subagents / ultracode). Phases marked ◇ are **independent early**: pull them forward
-whenever the main track is blocked.
+are informed estimates, not promises. Phases marked ⚡ are fan-out-friendly (disjoint files for
+available Codex/Sol 5.6 subagents, with the same work executable serially). Phases marked ◇ are
+**independent early**: pull them forward whenever the main track is blocked.
 
 ---
 
@@ -552,7 +588,7 @@ CI; extend `make purity` over the new tree; file the upstream patch issue (log i
 ### Phase 20 — HTTPS  *(deps: 18, 19)* ~1.5k LOC
 Objective: `fetch("https://…")` and the registry client's transport.
 Tasks: TLS streams integrated via worker pool (blocking gray-stream handshake/IO off the JS
-thread; reactor-native TLS is post-v1); trust store (system PEM bundle, `SSL_CERT_FILE`/
+thread; reactor-native TLS is post-v0.1 Phase 28); trust store (system PEM bundle, `SSL_CERT_FILE`/
 `SSL_CERT_DIR` overrides); hostname verification; connection-pool keys gain TLS config
 (monotonic — never downgrade); test CA + in-process pure-tls **server** fixtures; negative
 matrix; posture labeling (§3.4) in README + errors.
@@ -605,7 +641,7 @@ pipes non-blocking into the reactor, `.exited` promise, exitCode/signalCode, kil
 **Gate:** spawn matrix (echo/cat/exit/signal); **10 MB dual-pipe child drained concurrently
 without deadlock**; 1,000 spawns → zero zombies; scripts fixture (pre-fail aborts, env vars
 asserted, exit propagation); `examples/e2e.sh` (install → run build via `.bin` tool → clun test)
-green and hermetic — this is the v1 workflow demo.
+green and hermetic — this is the v0.1 workflow demo.
 
 ### Phase 25 — Performance pass  *(deps: all engine phases)* ~3k LOC
 Objective: close the gap toward cl-js-era performance claims; no correctness cost.
@@ -633,7 +669,7 @@ runner output) to estimate cost and order the work; then targeted correctness fi
 Phase-25 engine is quicker. **Gate:** overall curated test262 ≥ 90%; zero pass-list regressions
 (monotonic); `make purity` clean. (May itself be milestoned; the bucket analysis is milestone 1.)
 
-### Phase 26 — Hardening, docs, release  *(deps: everything)*
+### Phase 26 — Hardening, docs, release  *(deps: 25b + all prior phases)*
 Objective: shippable v0.1.0.
 Tasks: error-message audit (every user-reachable failure: named resource, violated constraint
 with rejected value, `note:` remedy; no Lisp backtraces without `--backtrace`); stress pass
@@ -641,9 +677,767 @@ with rejected value, `note:` remedy; no Lisp backtraces without `--backtrace`); 
 mid-install exits cleanly, partial installs don't corrupt; TZif local-time task (or explicitly
 defer with matrix note); README (what/why, install-from-source, quickstart, architecture, compat
 matrix from Appendix A, TLS posture, contributing); CI release jobs (Linux/macOS, x64/arm64);
-final adversarial review sweep over the whole tree (§2.3 reviewer profile; ultracode panel if
-available); triage → fix safety/error-path findings, log style findings.
+final adversarial review sweep over the whole tree (§2.3 reviewer profile; parallel Codex/Sol 5.6 review
+panel when available, otherwise serial passes by review dimension); triage → fix safety/error-path
+findings, log style findings.
 **Gate:** §1.4 Definition of Done, every item checked with evidence links in STATE.md; tag `v0.1.0`.
+
+### Post-v0.1 purity-compatible Bun-surface program — rules for Phases 27–82
+
+The program starts only after Phase 26 tags v0.1.0. Until Phase 73, engineering work uses the
+read-only clone at `/home/glenda/Projects/bun`, commit **`c1076ce95e` (Bun 1.4.0-dev)**, while public
+comparison copy continues to identify **Bun 1.3.14 stable**. Every design doc cites the exact Bun
+types, docs, source, and tests that define its surface (start with `packages/bun-types/`, `docs/`,
+`test/js/bun/`, `test/js/node/`, `test/js/web/`, `test/cli/`, and `test/bundler/`) and says which
+baseline supplies each assertion. Phase 73 freezes the exhaustive stable-versus-engineering delta;
+after that gate passes, neither baseline moves during this release train and old fixtures remain
+regression tests.
+
+**Universal feature-evidence gate (created in Phase 27; mandatory in every later phase):**
+
+1. Write `docs/design/phase-NN.md` before implementation. It must contain the bounded public API
+   inventory, ownership/lifetimes, file layout, purity analysis, Linux/macOS portability analysis,
+   milestones, risks/fallbacks, and cited Bun reference paths at the pinned commit.
+2. Add/update the canonical compatibility ledger with status, supported platforms, evidence paths,
+   immutable benchmark IDs, Bun release/commit, one primary owning phase, and any integration owners
+   for every item. The inventory covers all exported APIs, CLI commands/flags, loaders, protocols,
+   module/global members, and documented observable behavior, not only landing-page rows. Validation
+   fails on an unowned item, duplicate primary owner, unknown status, or prose-only `Yes` claim.
+3. Add hermetic fixtures that run through the shipped `clun` binary. Where behavior is shared, run
+   the same fixture against the pinned Bun release and compare typed values, bytes, errors, exit
+   status, and ordering; do not merely compare pretty-printed text.
+4. Run `make build`, `make test`, `make purity`, `make compat FEATURE=<feature-id>`, and
+   `make docs-check`. Engine/parser/runtime-semantic phases also run `make conformance-exec` and
+   prove the checked-in pass-list is monotonic. Platform-specific features run the same feature
+   target in CI on Linux and macOS 13+, x86-64 and arm64; a missing platform keeps the cell partial.
+5. Performance-relevant phases register a reproducible workload in a frozen manifest before tuning
+   and make no cross-runtime claim until Phase 71. Any Bun comparison uses release builds on the same
+   host and reports cold start, warm throughput, latency distribution, peak RSS, and output/artifact
+   size separately. A passing aggregate never licenses `faster than Bun`, `better than Bun`, or
+   `stronger than Bun`; generated copy names the exact workload/suite, Bun baseline, host, metric,
+   result, and any losses.
+6. Update `STATE.md`, append the decision/evidence entry to `DECISIONS.md`, regenerate README/site
+   claims, run an adversarial review, fix findings, and rerun the full gate. If Codex/Sol 5.6 subagents are
+   unavailable, perform the research, implementation, and independent review passes serially.
+7. Record provenance for every copied fixture/data file: origin repository, exact commit, file path,
+   license, modifications, and required notices. Bun's root code is MIT, but vendored Node, WebKit, WPT,
+   esbuild and other corpora retain their own licenses. Confirm GPL-3.0-or-later compatibility instead of
+   assuming Bun's root license covers them. JavaScript/TypeScript may enter Clun only as fixtures or
+   conformance data, never as implementation code.
+
+### Phase 27 — Compatibility evidence ledger and release-doc automation  *(deps: 26)* ~2k LOC ⚡
+Objective: make every compatibility and release claim mechanically traceable to shipped behavior.
+Tasks: create the structured canonical ledger (schema + stable feature IDs + status/platform/evidence/
+benchmark/reference/primary-owner/integration-owner fields); distinguish Bun 1.3.14 stable evidence
+from the `c1076ce95e` Bun 1.4.0-dev engineering evidence; inventory the current README/site matrix;
+generate marked compatibility and version sections in `README.md`, `site/index.html`, and release notes;
+add `make compat`, `make compat-validate`, and `make docs-check`; reject an upgrade to `Yes` without
+passing evidence and reject unqualified cross-runtime superlatives; create the immutable benchmark-
+manifest schema and workload-coverage rules used by Phases 71, 72, and 81;
+add a Linux/macOS x64/arm64 compatibility workflow while keeping Pages deployment site-only; seed the
+stable 1.3.14 executable map and pinned Bun 1.4.0-dev `c1076ce95e` engineering map from its
+types/docs/test trees. Serial fallback: inventory → schema → validator → generators → CI, in that order.
+**Gate:** `make compat-validate`; `make docs-check` is byte-idempotent and fails after deliberate
+version/status/evidence drift; `make build`; `make test`; `make purity`; the four-platform workflow
+passes; generated README and site matrices agree byte-for-byte on every shared field.
+
+### Phase 28 — TLS, DNS, streaming transport, and public npm  *(deps: 20, 23, 27)* ~6k LOC ⚡
+Objective: make HTTPS/fetch/package transport interoperable, streaming, bounded, and production-usable.
+Tasks: design from Bun `src/http/`, `src/runtime/webcore/`, `src/install/`, `test/js/web/fetch/`, and
+`test/cli/install/`; close TLS 1.2/1.3 and certificate/ALPN interoperability gaps without weakening
+verification; add pure-CL A/AAAA resolution, Happy Eyeballs, pooling, streaming request/response bodies,
+backpressure, cancellation, proxy/timeout semantics, decompression limits, and registry.npmjs.org
+metadata+tarball support; retain hermetic TLS/DNS/registry peers and one explicitly logged live smoke.
+**Gate:** `make test-tls`; `make compat FEATURE=transport`; `make compat FEATURE=fetch`;
+`make compat FEATURE=public-npm`; `make build`; `make test`; `make purity`; `make docs-check`; opt-in
+`make smoke-npm` installs and executes a pinned package with SRI verified; transport gates pass on all
+four supported targets with zero fd/thread leaks and bounded-memory streaming of a 1 GiB synthetic body.
+
+### Phase 29 — Public semver API  *(deps: 21, 27)* ~1k LOC
+Objective: expose a Bun-compatible public semver API over the proven installer implementation.
+Tasks: inventory `docs/runtime/semver.mdx`, Bun semver types/source/tests, and node-semver; implement
+`Clun.semver`/`Bun.semver`-compatible satisfies/order operations, coercion/errors, prerelease/build and
+range edges; keep one parser/range engine shared with install; add a public API differential corpus.
+**Gate:** `make compat FEATURE=semver` passes 100% of the vendored node-semver corpus and the pinned
+Bun differential fixtures; `make build`; `make test`; `make purity`; `make docs-check`; no installer
+semver regression.
+
+### Phase 30 — Glob API  *(deps: 13, 27)* ~2.5k LOC
+Objective: deliver `Clun.Glob` with Bun-compatible matching and filesystem scanning.
+Tasks: inventory Bun `src/runtime/api/Glob`, glob types/docs/tests, and Node glob behavior; implement
+parser/automaton, braces/extglobs/classes/dotfiles/platform separators, match/scan/scanSync and async
+iteration; enforce path discipline, symlink-loop handling, deterministic traversal, cancellation, and
+bounded state growth; share matching with test discovery and package tooling where semantics coincide.
+**Gate:** `make compat FEATURE=glob` passes the complete pinned pattern + filesystem fixture inventory
+against Bun on Linux and macOS; a million-entry synthetic tree remains bounded and cancellable;
+`make build`; `make test`; `make purity`; `make docs-check`.
+
+### Phase 31 — YAML API and module loading  *(deps: 07, 27)* ~2.5k LOC
+Objective: support Bun-compatible YAML parsing and YAML module imports without foreign code.
+Tasks: inventory `docs/runtime/yaml.mdx`, types, parser/tests; implement YAML 1.2 core scalars,
+collections, block/flow forms, anchors/aliases/merge keys, directives, multi-doc input and useful
+source locations; add `.yaml`/`.yml` loader integration; cap alias expansion, nesting, document size,
+and duplicate-key policy; error on unsupported tags rather than constructing host objects.
+**Gate:** `make compat FEATURE=yaml` passes the pinned Bun corpus plus YAML conformance/security cases;
+alias-bomb and depth/size adversaries fail boundedly; import/cache/error fixtures match Bun;
+`make build`; `make test`; `make purity`; `make docs-check`.
+
+### Phase 32 — Cookies and CookieMap  *(deps: 17, 27)* ~2k LOC
+Objective: match Bun's Cookie/CookieMap API and automatic server request/response integration.
+Tasks: inventory `docs/runtime/cookies.mdx`, `packages/bun-types/serve.d.ts`, and HTTP cookie tests;
+implement strict Set-Cookie/Cookie parsing and serialization, attributes/prefix rules, mutation,
+iteration, expiry and multiple-header behavior; integrate request cookies with Phase-17 serving while
+preventing header injection and cross-request state reuse.
+**Gate:** `make compat FEATURE=cookies` passes the complete API/HTTP differential corpus, RFC edge
+fixtures, prefix/security cases, and concurrent-request isolation; `make build`; `make test`;
+`make purity`; `make docs-check` on all four supported targets.
+
+### Phase 33 — Terminal string width and ANSI utilities  *(deps: 10, 27)* ~1.5k LOC
+Objective: meet `Bun.stringWidth` behavior with current Unicode and ANSI handling.
+Tasks: inventory `docs/runtime/utils.mdx`, Bun types/tests and string-width fixtures; vendor pinned UCD
+width/grapheme/emoji data; implement ANSI parsing, combining marks, ZWJ sequences, variation selectors,
+ambiguous-width policy and `countAnsiEscapeCodes`; generate compact pure-CL tables and linear-time scans.
+**Gate:** `make compat FEATURE=string-width` passes Bun and string-width corpora byte-for-byte;
+malformed ANSI and million-code-unit inputs stay linear and bounded; record same-host workload only
+without claiming parity yet; `make build`; `make test`; `make purity`; `make docs-check`.
+
+### Phase 34 — CSS Color API  *(deps: 27)* ~2.5k LOC
+Objective: implement the complete `Bun.color` parse/normalize/conversion surface.
+Tasks: inventory `docs/runtime/color.mdx`, Bun CSS color source/types/tests and CSS Color standards;
+implement named/hex/rgb/hsl/hwb/lab/lch/oklab/oklch/color() inputs, alpha, clamping, color-space
+conversion and every Bun output format (CSS, number, ANSI tiers, object and tuple); share the parser with
+Phase 64 and reject invalid input as Bun does.
+**Gate:** `make compat FEATURE=css-color` passes the pinned Bun corpus plus published CSS color vectors
+within documented numeric tolerances; round-trip and gamut-edge properties pass; `make build`;
+`make test`; `make purity`; `make docs-check`.
+
+### Phase 35 — CSRF API  *(deps: 19, 27)* ~1.2k LOC
+Objective: provide Bun-compatible authenticated, expiring CSRF tokens.
+Tasks: inventory `docs/runtime/csrf.mdx`, types/source/tests; implement generate/verify overloads, HMAC,
+timestamps, session binding, encoding and cryptographically secure defaults over Phase-19 primitives;
+use constant-time authentication checks, strict size limits, injectable clocks only in tests, and
+version tokens for future rotation.
+**Gate:** `make compat FEATURE=csrf` matches Bun for deterministic seeded vectors and API errors;
+tamper/expiry/session/cross-key/fuzz cases reject; timing review confirms no early MAC comparison;
+`make test-crypto`; `make build`; `make test`; `make purity`; `make docs-check`.
+
+### Phase 36 — Password and hash APIs  *(deps: 19, 27)* ~4k LOC ⚡
+Objective: match `Bun.password` and `Bun.hash` in pure Common Lisp with explicit cost controls.
+Tasks: inventory `docs/runtime/hashing.mdx`, types/source/tests; implement compatible password formats,
+hash/verify sync+async, bcrypt/Argon2 algorithms required by the pinned surface, automatic salts and
+long-password behavior; implement the listed non-cryptographic hash family with exact seeded outputs;
+run slow password work off the JS thread, zero transient secrets where practical, and cap hostile costs.
+**Gate:** `make compat FEATURE=password-hash` passes published KATs, Bun differential fixtures and
+cross-tool password verification; malformed/cost-exhaustion cases are bounded; async work does not block
+the reactor; `make test-crypto`; `make build`; `make test`; `make purity`; `make docs-check`.
+
+### Phase 37 — Modern ECMAScript gap wave  *(deps: 25b, 27)* ~12k LOC ⚡⚡
+Objective: close the language/runtime gap through the ECMAScript feature level supported by the pinned Bun.
+Tasks: derive a finite proposal/syntax/builtin inventory from Bun parser/runtime and test262 metadata;
+implement missing post-ES2017 syntax and semantics, Proxy/Reflect completion, modern RegExp/Unicode,
+modules/classes/iteration/collections/error features and other inventory items; give Intl/Temporal/
+Atomics/SAB explicit owned milestones rather than implicit skips; update parser, emitter, intrinsics and
+feature-tag curation. Milestone commits remain gated and the phase is not complete while an inventory row
+lacks implementation or an approved constitutional disposition.
+**Gate:** before implementation, freeze a manifest mapping every inventory item to exact test262 and Bun
+fixtures and record Bun's pass set on the same commit/build; `make compat FEATURE=modern-ecmascript`
+shows Clun at or above that pass set for every item, with no inventory row dispositioned merely for cost;
+`make conformance-exec` keeps the global pass-list monotonic and enables every frozen feature tag; all
+syntax negative/positive fixtures match Bun and the full vendored language+built-ins corpus has zero
+crashes; `make build`; `make test`; `make purity`; `make docs-check`.
+
+### Phase 38 — Web platform foundations  *(deps: 27, 28)* ~9k LOC ⚡⚡
+Objective: supply the standards substrate required by Bun-compatible libraries, Node modules, and servers.
+Tasks: inventory Bun `src/runtime/webcore/`, `test/js/web/`, types and applicable WPT subsets; implement
+Event/EventTarget/DOMException, Blob/File/FormData, Readable/Writable/Transform streams including BYOB and
+queuing/backpressure, MessageChannel/Port, performance APIs, WebCrypto/SubtleCrypto, compression streams,
+structured clone transfers and missing Request/Response/Headers semantics; connect streams to Phase-28
+transport without buffering; pin each WPT subset and deviation.
+**Gate:** before implementation, freeze every WPT file applicable to each inventoried interface and record
+the pinned Bun pass set; `make compat FEATURE=web-platform` shows Clun at or above Bun's pass set for every
+interface with no unexplained exclusion; `make conformance-exec` is monotonic; 1 GiB stream pipelines have
+bounded RSS and cancellation closes resources; the complete pinned Bun differential inventory passes;
+`make build`; `make test`; `make purity`; `make docs-check` on all supported targets.
+
+### Phase 39 — Full TypeScript transforms  *(deps: 09, 37)* ~7k LOC ⚡
+Objective: execute the TypeScript runtime syntax that Bun transforms instead of rejecting it.
+Tasks: inventory Bun `src/js_parser/`, `src/transpiler/`, TypeScript types/docs and
+`test/bundler/bundler_typescript/`; replace strip-only handling for enums, runtime namespaces,
+parameter properties, import/export assignment, decorators and other pinned syntax with AST transforms;
+preserve module mode, evaluation order, names, comments and source locations; implement source maps for
+non-whitespace-preserving transforms; keep type checking explicitly out unless present in the Bun surface.
+**Gate:** `make compat FEATURE=typescript-transform` passes the complete pinned Bun/TypeScript runtime
+fixture manifest in CJS and ESM modes; generated source maps return every thrown probe to its original
+line/column; `make conformance-exec` is monotonic; `make build`; `make test`; `make purity`;
+`make docs-check`.
+
+### Phase 40 — JSX and TSX  *(deps: 39)* ~3.5k LOC
+Objective: match Bun's direct JSX/TSX parsing and transformation behavior.
+Tasks: inventory Bun JSX parser/transpiler options and fixtures; implement JSX lexical mode, elements,
+fragments, namespaces/spreads and TSX ambiguities; implement classic/automatic/automatic-dev runtimes,
+factory/fragment/import-source pragmas, development metadata and source maps; wire `.jsx`/`.tsx` through
+runtime resolution and leave a shared transform for Phase 62.
+**Gate:** `make compat FEATURE=jsx-tsx` passes all pinned JSX/TSX parser, transform, runtime, pragma,
+module and error fixtures against Bun; source-map probes are exact; `make conformance-exec` is monotonic;
+`make build`; `make test`; `make purity`; `make docs-check`.
+
+### Phase 41 — Runtime and build loader plugins  *(deps: 07, 39, 40)* ~4k LOC ⚡
+Objective: provide Bun-compatible runtime loader plugins and a reusable bundler plugin boundary.
+Tasks: inventory `docs/runtime/plugins.mdx`, plugin types, loader source/tests; implement plugin setup,
+ordered `onResolve`/`onLoad` filters, namespaces, loader selection, virtual modules, pluginData and async
+callbacks; define cache, cycle, error and concurrent-load behavior; keep plugin JS as user code and all
+implementation machinery in CL; expose the same host to Phases 62–64 without duplicating semantics.
+**Gate:** `make compat FEATURE=loader-plugins` passes the complete pinned runtime plugin corpus including
+ordering, async, virtual/cycle, invalid-result and cache-invalidation cases; parallel module loads are
+deterministic and leak-free; `make conformance-exec`; `make build`; `make test`; `make purity`;
+`make docs-check`. This gate may upgrade the runtime module-loader row only; build-plugin parity remains
+owned by Phases 63 and 77 and cannot inherit a `Yes` from this gate.
+
+### Phase 42 — node:stream compatibility  *(deps: 38)* ~8k LOC ⚡⚡
+Objective: close the largest Node ecosystem compatibility cliff with stream semantics shared across I/O.
+Tasks: inventory Bun `src/js/node/stream*`, Node compatibility docs and `test/js/node/stream/`; implement
+Readable/Writable/Duplex/Transform/PassThrough, object mode, buffering/highWaterMark, pipe/unpipe,
+finished/pipeline/compose, async iteration, destroy/error/close ordering and Web-stream bridges; connect
+fs, child pipes, HTTP and compression without copying or reactor-thread violations.
+**Gate:** `make compat FEATURE=node-stream` passes the pinned Bun surface inventory and selected upstream
+Node stream suites at the recorded Bun pass set; exact event/error/backpressure ordering matches; 1 GiB
+pipelines remain bounded, cancel promptly and leak no handles; `make conformance-exec`; `make build`;
+`make test`; `make purity`; `make docs-check` on all supported targets.
+
+### Phase 43 — node:net, DNS, TLS, and datagram compatibility  *(deps: 28, 42)* ~8k LOC ⚡
+Objective: expose Node-compatible network modules over the pure-CL reactor and transport layers.
+Tasks: inventory Bun/Node `net`, `dns`, `tls`, `dgram` types/docs/source/tests; implement Socket/Server,
+lookup/resolver APIs, TLSSocket/Server/context/session/SNI/ALPN, UDP4/UDP6 membership and relevant options;
+map errno and lifecycle/event ordering exactly; preserve backpressure, half-close, ref/unref, AbortSignal,
+IPv4/IPv6 and platform differences; keep certificate verification fail-closed.
+**Gate:** `make compat FEATURE=node-network` passes the pinned Bun pass set from upstream Node module
+suites against hermetic TCP/UDP/DNS/TLS peers; 2,000 sequential + 500 concurrent connections, IPv6, TLS
+resume, cancellation and 1,000 open/close cycles leak no descriptors/threads; `make build`; `make test`;
+`make test-tls`; `make purity`; `make docs-check` on all four targets.
+
+### Phase 44 — node:http, node:https, and HTTP/2 compatibility  *(deps: 43)* ~10k LOC ⚡⚡
+Objective: meet Bun's Node HTTP client/server compatibility, including the pinned HTTP/2 surface.
+Tasks: inventory Bun/Node HTTP implementations and `test/js/node/http*`; implement ClientRequest,
+IncomingMessage, ServerResponse, Agent/pooling, upgrade/connect, trailers, streaming bodies and precise
+event/error semantics over Phases 28/42/43; implement the pinned `node:http2` client/server, framing,
+HPACK, flow control, cancellation and limits in pure CL; share parsers without weakening Phase-17 bounds.
+**Gate:** `make compat FEATURE=node-http` passes the recorded Bun pass set from Node HTTP/HTTPS/HTTP2
+suites and hermetic interop peers; slowloris, smuggling, oversized-frame/header and abort adversaries fail
+safely; streaming load has bounded RSS and no handles leak; `make build`; `make test`; `make test-tls`;
+`make purity`; `make docs-check` on supported targets.
+
+### Phase 45 — node:crypto and node:zlib compatibility  *(deps: 19, 38, 42)* ~8k LOC ⚡
+Objective: supply the crypto and compression module breadth required by Bun-compatible packages.
+Tasks: inventory Bun `src/runtime/crypto/`, Node crypto/zlib docs and tests; wrap the approved pure-CL
+primitives in Node Hash/Hmac/Cipher/Decipher/Sign/Verify/KeyObject/KDF/random/certificate APIs, streams and
+WebCrypto bridges; add missing approved algorithms only after a purity/security audit; implement zlib,
+gzip, deflate and the pinned Brotli surface where a pure implementation is approved, with dictionaries,
+flush parameters, streams and strict expansion limits; never claim FIPS or side-channel hardening unproven.
+**Gate:** `make compat FEATURE=node-crypto-zlib` passes published KATs and the pinned Bun pass set from
+Node crypto/zlib suites; cross-tool vectors round-trip; decompression bombs and hostile key parameters
+are bounded; `make test-crypto`; `make test-tls`; `make build`; `make test`; `make purity`;
+`make docs-check`.
+
+### Phase 46 — Processes, VM, workers, and async hooks  *(deps: 24, 37, 42, 43)* ~12k LOC ⚡⚡
+Objective: implement the remaining execution/concurrency modules that real Node packages assume.
+Tasks: inventory Bun's `child_process`, `vm`, `worker_threads`, `async_hooks`, `cluster` and process tests;
+complete spawn/exec/fork/IPC and stdio streams; add realms/contexts/Script/Module with timeouts and
+break-on-signal; implement Worker/MessagePort/transfer/SharedArrayBuffer semantics without sharing mutable
+JS heaps unsafely; propagate AsyncLocalStorage across promises/timers/I/O; implement cluster scheduling
+where portable and document exact platform limits. Milestone each module behind a complete fixture set.
+**Gate:** `make compat FEATURE=node-execution` passes the pinned Bun pass set for all five module groups;
+IPC/transfer/context isolation, async-context propagation, forced termination and 1,000 lifecycle cycles
+are exact and leak-free; `make conformance-exec`; `make build`; `make test`; `make purity`;
+`make docs-check` on all supported targets.
+
+### Phase 47 — Node compatibility certification  *(deps: 42–46)* ~12k LOC ⚡⚡
+Objective: make the Node-compatibility matrix at least as capable as the pinned Bun baseline in practice.
+Tasks: derive a finite module/global inventory from `docs/runtime/nodejs-compat.mdx`, Bun types and
+`test/js/node/`; complete remaining fs/buffer/process/url/util/events/assert/module/perf_hooks/tty/readline/
+string_decoder/diagnostics/trace/domain/WASI surfaces to Bun's recorded level; run a pinned, licensed
+real-package/framework corpus covering CLIs, servers, build tools and test libraries; record every Bun
+partial as an explicit threshold rather than calling it full Node compatibility.
+**Gate:** `make compat FEATURE=node-certification` shows no purity-compatible module/global below the
+pinned Bun status or recorded upstream-Node pass set; every package corpus entry installs, runs its smoke
+and exits identically; `make conformance-exec`; `make build`; `make test`; `make purity`;
+`make docs-check`; the Node compatibility row may improve only from this evidence.
+
+### Phase 48 — Native-addon constitutional checkpoint and conditional implementation  *(deps: 27, 47)* research + milestones
+Objective: decide honestly whether N-API/V8/FFI compatibility can coexist with Clun's constitutional purity
+and, if amended, keep this phase open through the actual implementation.
+Tasks: inventory Bun `test/napi/`, `test/v8/`, `bun:ffi` types/source and the binary loading/calling path;
+write threat, portability and implementation analyses for Linux/macOS x64/arm64; test pure-CL process-
+isolation or protocol alternatives only as a timeboxed spike and reject them as parity if they require an
+external runtime or cannot load the same addon; present one narrow optional-boundary amendment and one
+purity-preserving rejection, with consequences. Do not implement CFFI, alien calls, executable trampolines,
+or a subprocess disguise before the operator records a constitutional decision. If the amendment is
+accepted, add gated milestones inside Phase 48 for the foreign-call boundary, dynamic library loading,
+N-API lifecycle/thread-safety, the pinned V8 compatibility subset, `bun:ffi`, and all four targets; do not
+advance `STATE.md` to Phase 49 while any conditional milestone is incomplete.
+**Gate:** `docs/design/phase-48.md` contains cited executable spike evidence and an operator decision is
+recorded in `DECISIONS.md`. If purity is retained, `make compat FEATURE=native-addons` proves a clear,
+tested unsupported error and the matrix remains `No — constitutional`; if amended, the implemented Phase-48
+milestones and `make compat FEATURE=native-addons` must pass the complete frozen N-API/V8/FFI corpus on all
+four targets before the phase completes or any `Yes` claim appears. In either completed branch: `make build`;
+`make test`; the decision-adjusted `make purity`; and `make docs-check` remain green.
+
+### Phase 49 — HTTP server parity  *(deps: 38, 44)* ~8k LOC ⚡
+Objective: meet the pinned `Bun.serve` HTTP/TLS surface before routing and WebSocket extensions.
+Tasks: inventory Bun `src/runtime/server/`, `packages/bun-types/serve.d.ts`, docs and HTTP server tests;
+complete streaming Request/Response bodies, TLS options/reload, timeouts, limits, error/development modes,
+abort/disconnect, graceful reload/stop, Unix sockets, multi-listen/reuse-port and supported protocol
+options; align Server properties/methods and per-request metadata; retain smuggling/header/path safety.
+**Gate:** `make compat FEATURE=http-server` passes the complete pinned non-router/non-WebSocket
+`Bun.serve` inventory; hermetic curl/Bun clients exercise HTTP, HTTPS, streaming, abort and reload;
+50k sequential + 2k concurrent requests plateau in RSS and leak no handles; same-host workload is recorded
+without a speed claim; `make build`; `make test`; `make test-tls`; `make purity`; `make docs-check`.
+
+### Phase 50 — Router, static files, and FileSystemRouter  *(deps: 30, 49)* ~5k LOC ⚡
+Objective: match Bun's first-party route table, static response and filesystem routing facilities.
+Tasks: inventory serve route types/tests and FileSystemRouter source/docs; implement exact/static/parameter/
+wildcard/method routes, precedence, decoded params and reload; implement safe static-file responses with
+range/conditional/cache headers and traversal/symlink defenses; implement filesystem route discovery,
+style matching, params, origin/assetPrefix and development refresh; share glob/path primitives.
+**Gate:** `make compat FEATURE=http-router` passes the complete pinned route/FileSystemRouter/static
+differential corpus; ambiguous precedence, percent-encoding, traversal, symlink escape, range and reload
+adversaries pass; a 100k-route synthetic table meets the design's lookup/memory bound; `make build`;
+`make test`; `make purity`; `make docs-check` on all supported targets.
+
+### Phase 51 — WebSocket and Pub/Sub  *(deps: 43, 49, 50)* ~7k LOC ⚡
+Objective: match Bun's WebSocket client/server and topic-based Pub/Sub behavior.
+Tasks: inventory Bun server WebSocket types/source/tests and `src/http/websocket_client/`; implement RFC
+6455 handshake/framing, masking, fragmentation, control frames, close/error states, compression negotiation,
+client redirects/proxy/TLS, backpressure and AbortSignal; integrate `Bun.serve`-shaped upgrade/data,
+per-socket data, cork, publish/subscribe/topic counts and server-wide publish without running JS in I/O
+callbacks; bound frames, compression expansion, queues and subscriber cleanup.
+**Gate:** `make compat FEATURE=websocket-pubsub` passes the complete pinned Bun differential corpus and
+protocol Autobahn-style fixtures; 10k connect/message/close cycles and 10k subscribers leak no handles or
+topics; fragmentation, slow-consumer, compression-bomb and malformed-frame adversaries pass;
+`make build`; `make test`; `make test-tls`; `make purity`; `make docs-check` on all supported targets.
+
+### Phase 52 — Single-file executables  *(deps: 39, 40, 47, 62–64)* estimate after bundle/signing design ⚡
+Objective: compile a Clun application and declared assets into a distributable executable.
+Tasks: inventory the complete Bun compile CLI/options/types/tests; define the one versioned module/asset
+graph and bundle table by extending the production bundle graph already proven in Phases 62–64, never
+a parallel compile graph, including entry/module resolution, embedded assets/files, argv/env/import.meta
+behavior, bytecode/source policy, dynamic-import limits and reproducible builds; package
+audited target-runtime templates so every supported host can emit Linux/macOS x64/arm64 artifacts without a
+host compiler; implement pure-CL Mach-O signing for the frozen Bun-supported modes over approved crypto and
+portable icon/metadata handling; treat external `codesign` only as a test oracle, never an implementation
+step; preserve GPL/source-notice obligations in produced artifacts.
+**Gate:** `make compat FEATURE=single-executable` passes the complete frozen Bun compile corpus for CLI,
+server, worker, asset and dynamic-import cases; every Linux/macOS x64/arm64 source-host job emits all four
+targets (16 host→target pairs), and each artifact executes in its native target job with no installed Clun;
+macOS outputs signed by Clun pass independent `codesign --verify` fixtures, two clean builds are byte-identical
+apart from an explicitly documented build-id/signature field, and tampered bundle metadata fails closed. If
+pure signing proves impossible, only an operator-approved constitutional amendment may change the gate; a
+manual signer or native-only build leaves the row `Partial` and the phase open. `make build`; `make test`;
+`make purity`; `make docs-check`.
+
+### Phase 53 — S3 client  *(deps: 19, 28, 38)* ~5k LOC ⚡
+Objective: match the pinned `Bun.s3`/S3Client/S3File surface over pure-CL transport and crypto.
+Tasks: inventory `docs/runtime/s3.mdx`, types/source/tests; implement credential/provider precedence,
+AWS SigV4, endpoint/region/path-style options, get/head/exists/write/delete, ranges, multipart upload,
+presign, retries/cancellation/checksums and Blob/File integration; stream bodies with backpressure and cap
+metadata/errors; use a hermetic S3 protocol fixture with deterministic clock/credentials plus one opt-in
+live smoke against an operator-provided endpoint.
+**Gate:** `make compat FEATURE=s3` matches Bun request bytes, signatures, responses and errors for the full
+pinned inventory; multipart retry/abort, 5 GiB synthetic streaming, clock skew and hostile XML cases pass
+boundedly; `make build`; `make test`; `make test-crypto`; `make purity`; `make docs-check` on all targets.
+
+### Phase 54 — Redis and Valkey client  *(deps: 19, 28)* ~5k LOC ⚡
+Objective: provide Bun-compatible Redis/Valkey commands, pipelining and Pub/Sub.
+Tasks: inventory Bun Redis types/docs/source/tests; implement RESP2/RESP3 framing, typed replies/errors,
+connection/auth/select, command API, pipelining/transactions, reconnect/backoff, TLS, cluster redirection and
+sentinel behavior present in the pinned surface; implement dedicated Pub/Sub connections and async message
+delivery with bounded queues; generate command metadata from a pinned data file rather than hand-copying it.
+**Gate:** `make compat FEATURE=redis` passes the full pinned API corpus against hermetic RESP peers and
+pinned Redis/Valkey integration services; fragmentation, MOVED/ASK, reconnect, cancellation, slow subscriber
+and malformed-length adversaries pass; 1M pipelined replies remain bounded; `make build`; `make test`;
+`make test-tls`; `make purity`; `make docs-check`.
+
+### Phase 55 — PostgreSQL driver  *(deps: 19, 28, 38)* ~8k LOC ⚡
+Objective: implement the PostgreSQL half of Bun's unified SQL API without a native client library.
+Tasks: inventory Bun `src/sql/`, `docs/runtime/sql.mdx`, SQL types/tests; implement startup/auth including
+SCRAM, TLS, simple/extended query, prepared statements, parameter/result codecs, transactions/savepoints,
+pooling, cancellation, notices/errors, arrays/JSON/date/numeric/binary types, COPY and tagged-template query
+safety present in the pinned surface; isolate protocol framing and cap every server-controlled length.
+**Gate:** `make compat FEATURE=postgresql` passes the pinned Bun API/protocol corpus against pinned
+PostgreSQL versions on all supported targets; transaction/pool/cancel/reconnect/type/COPY and SQL-injection
+fixtures pass; malformed server frames fail boundedly; 10k acquire/query/release cycles leak no handles;
+`make build`; `make test`; `make test-tls`; `make purity`; `make docs-check`.
+
+### Phase 56 — MySQL driver  *(deps: 19, 28, 38, 55)* ~8k LOC ⚡
+Objective: implement the MySQL half of Bun's unified SQL API with semantics aligned to Phase 55.
+Tasks: inventory Bun SQL MySQL source/tests; implement handshake/capabilities, approved authentication,
+TLS, text/binary protocols, prepared statements, parameter/result codecs, transactions, pooling,
+cancellation/timeout, multi-result behavior and tagged-template safety; share only the public SQL/pool layer,
+not protocol assumptions; cap packet lengths and reject insecure auth downgrade.
+**Gate:** `make compat FEATURE=mysql` passes the pinned Bun corpus against pinned MySQL and MariaDB peers
+on supported targets; auth/TLS/type/transaction/pool/cancel/multi-result/injection fixtures pass; malformed
+packets and downgrade attempts fail closed; 10k pool cycles leak no handles; `make build`; `make test`;
+`make test-tls`; `make purity`; `make docs-check`.
+
+### Phase 57 — SQLite design checkpoint and implementation  *(deps: 19, 27, 55)* research + milestones
+Objective: implement Bun's SQLite surface in pure Common Lisp unless the operator explicitly abandons the
+purity-compatible Bun-surface release target; implementation cost alone is not a constitutional conflict.
+Tasks: inventory `bun:sqlite`, `node:sqlite`, Bun SQL SQLite source/tests and file/locking requirements;
+compare a pure-CL SQLite file-format+B-tree+pager+SQL-engine implementation, a narrowly amended optional
+native boundary, and an explicit scope-reduction decision; analyze WAL, locking, crash recovery, SQL breadth,
+extensions, platform behavior and maintenance cost. The default parity path milestones pager/journal →
+parser/planner/VM → types/statements/transactions → Bun/node APIs, with corruption fuzzing at each step. No
+native binding lands before an operator-approved constitutional amendment; declining both implementation
+paths records a non-parity scope change and does not complete Phase 57.
+**Gate:** the implementation decision is recorded with spike evidence. The selected implementation must pass
+`make compat FEATURE=sqlite`, the pinned Bun/node SQLite corpus, transactional crash-recovery/corruption/
+locking tests and all four platform jobs before the phase completes or a positive claim appears. An
+unsupported result keeps the matrix explicit, leaves this phase and §1.5 open, and requires the release to be
+renamed or rescoped rather than calling the gap constitutional. `make build`; `make test`; `make purity`;
+`make docs-check`.
+
+### Phase 58 — Operating-system secrets constitutional checkpoint  *(deps: 19, 27)* ~2k LOC research
+Objective: decide whether Bun-compatible OS credential storage can be delivered on all supported targets
+without native foreign calls or shell-command substitution.
+Tasks: inventory `docs/runtime/secrets.mdx`, types/source/tests and Bun's macOS Keychain/Linux libsecret
+paths; research a pure D-Bus Secret Service client and a pure protocol to macOS Keychain services; threat-
+model ACLs, prompts, locked stores, service/account encoding, cancellation and CI fixtures; distinguish an
+encrypted Clun file from OS-keychain parity and never relabel it. Present pure implementation, narrow
+optional-boundary amendment and explicit unsupported choices to the operator.
+**Gate:** an operator decision with cited spikes is recorded. A positive path must pass
+`make compat FEATURE=os-secrets`, hermetic locked/unlocked/error/concurrency fixtures and native jobs on
+Linux/macOS x64/arm64 before `Yes`; otherwise the ledger remains `No — constitutional` with a tested clear
+error. Always run `make build`; `make test`; `make purity`; `make docs-check`.
+
+### Phase 59 — Package registry and dependency-spec breadth  *(deps: 19, 28)* estimate after Git/SSH design ⚡⚡
+Objective: match Bun's accepted package specifications, registry configuration and deterministic install graph.
+Tasks: inventory Bun `src/install/`, install CLI docs/tests and lockfile formats; implement npm aliases,
+dist-tags, tarball/URL, git/GitHub, local file/directory, workspace/catalog specs, overrides/resolutions,
+optional/peer/peerOptional/bundled deps, engines/os/cpu, auth/scoped registries/proxies/certs and lockfile
+migration; implement Git smart-HTTP negotiation, pack/index/delta validation and safe checkout in pure CL;
+implement the frozen `git+ssh` surface with a pure-CL SSH transport, strict host-key verification and pinned
+key/agent authentication over approved crypto, never by invoking `git` or `ssh`; add isolated/hoisted linker
+modes where pinned; treat lifecycle execution as Phase 61 policy; keep fetch/extract transactional,
+integrity-checked and traversal-safe.
+**Gate:** `make compat FEATURE=package-specs` passes the complete pinned Bun install graph/spec/config/
+lockfile corpus; offline reinstall is byte-identical; conflict/peer/platform/git/file/tarball/auth and
+malicious archive cases pass; hermetic smart-HTTP and SSH peers exercise branch/tag/commit, host-key, auth,
+pack corruption and subdirectory cases while `PATH` contains neither `git` nor `ssh`; public smoke installs a
+pinned representative graph; `make build`;
+`make test`; `make purity`; `make docs-check` on all supported targets.
+
+### Phase 60 — Workspaces and monorepos  *(deps: 59)* ~5k LOC ⚡
+Objective: provide Bun-compatible workspace discovery, protocols, filtering and monorepo execution.
+Tasks: inventory Bun workspace/catalog/filter docs/source/tests; implement workspace globs/exclusions,
+`workspace:` resolution, catalogs, root/leaf rules, dependency linking, focused/filter installs and
+deterministic lock entries; implement filtered recursive script execution with dependency/topological and
+parallel limits, cancellation and exact exit propagation; prevent symlink escape and duplicate ownership.
+**Gate:** `make compat FEATURE=workspaces` passes the pinned Bun monorepo/install/run corpus including
+cycles, nested roots, catalogs, filters and failures; offline reinstall/layout/lock are byte-identical;
+1,000-package synthetic workspaces stay within recorded time/RSS bounds; `make build`; `make test`;
+`make purity`; `make docs-check`.
+
+### Phase 61 — Package-manager tools and security  *(deps: 19, 59, 60)* ~7k LOC ⚡
+Objective: complete Bun-class package workflows without weakening Clun's install security posture.
+Tasks: inventory Bun `x`/`bunx`, publish, link/unlink, outdated/update/why, patch, cache, audit and lifecycle
+security docs/tests; implement cache-backed isolated `clun x`, registry publish/auth/OTP, global/local link,
+updates/explanations, reproducible patching and cache administration; implement explicit trusted-dependency
+lifecycle policy, sandbox/timeout/output limits where possible, and default-deny behavior for untrusted
+packages; never execute scripts during mere metadata inspection.
+**Gate:** `make compat FEATURE=package-tools` passes every pinned command/exit/output/filesystem fixture;
+hermetic publish→install, x cache/offline, link, update/why/patch/audit and trusted/untrusted lifecycle e2e
+flows pass; malicious scripts cannot escape documented policy or corrupt a prior install; `make build`;
+`make test`; `make purity`; `make docs-check` on all targets.
+
+### Phase 62 — Bundler core  *(deps: 37, 39–41)* ~12k LOC ⚡⚡
+Objective: produce correct deterministic JavaScript/TypeScript bundles through one programmatic and CLI API.
+Tasks: inventory Bun `src/bundler/`, parser/transpiler/resolver/AST, `Bun.build` types/docs and core
+`test/bundler/` fixtures; implement entry graph, resolver conditions, CJS/ESM linking and live-binding
+semantics, cycles, JS/TS/JSX/JSON/text/file loaders, runtime helpers, target/format/output naming, define/
+external and diagnostics; reuse Phase-41 plugins and language transforms; make graph and output order
+deterministic, path-safe and bounded. Defer advanced optimization and CSS/HTML to Phases 63–64.
+**Gate:** `make compat FEATURE=bundler-core` passes the pinned core bundler manifest in API and CLI modes;
+every output executes to the same typed results under its target runtime; clean builds are byte-identical;
+cycle/live-binding/path/error adversaries pass; `make conformance-exec`; `make build`; `make test`;
+`make purity`; `make docs-check` on all supported targets.
+
+### Phase 63 — Advanced bundler  *(deps: 41, 62)* ~10k LOC ⚡⚡
+Objective: match Bun's production optimization, splitting, mapping and introspection surface.
+Tasks: inventory the remaining `Bun.build` types/docs/tests; implement tree shaking with sideEffects,
+dead-code/constant folding, minification, code splitting/chunk naming, dynamic imports, source maps, banners/
+footers, metafile, naming templates, compile-time env, macros, packages/external modes and plugin interaction;
+preserve evaluation and error/source positions; establish conservative fallbacks whenever proof is absent.
+**Gate:** `make compat FEATURE=bundler-advanced` passes the complete pinned non-CSS/HTML bundler corpus;
+bundles execute identically before/after every optimization, source-map probes map exactly, and incremental/
+parallel builds are deterministic; malicious names cannot escape outdir; record same-host workloads without
+a speed claim; `make build`; `make test`; `make purity`; `make docs-check`.
+
+### Phase 64 — CSS, HTML, and asset pipeline  *(deps: 31, 34, 62, 63)* ~12k LOC ⚡⚡
+Objective: match Bun's browser-facing CSS/HTML entry points and production asset graph.
+Tasks: inventory Bun `src/css/`, HTML/bundler sources, docs and CSS/HTML/asset fixtures; implement CSS
+tokenize/parse/print, imports, modules, nesting, targets/prefixing, minification, source maps and URL graph;
+implement HTML entry parsing, module/classic script and stylesheet discovery, preload/output rewriting and
+dev/production modes; implement binary/text assets, hashes, public paths, data URLs, copy/file loaders and
+manifest integrity; use Phase-34 color parsing and Phase-41 plugins without duplicate parsers.
+**Gate:** `make compat FEATURE=web-bundler` passes the complete pinned CSS/HTML/asset corpus; generated
+sites load in a hermetic browser smoke with correct module/style/asset behavior and source maps; traversal,
+malformed markup/CSS and asset-collision cases pass; two builds are byte-identical; `make build`;
+`make test`; `make purity`; `make docs-check`.
+
+### Phase 65 — Cross-platform shell API  *(deps: 24, 30)* ~9k LOC ⚡
+Objective: implement Bun's `$` shell language consistently on supported Linux and macOS targets.
+Tasks: inventory Bun `src/shell/`, shell types/docs/tests; implement tagged-template interpolation with safe
+escaping, parser/AST, variables, quoting, expansions/globs, substitutions, pipelines, redirects, logical/
+control forms, background jobs and required builtins; expose stdout/stderr/text/json/lines, cwd/env, quiet/
+nothrow and ShellError semantics; execute external commands only as the user-requested shell feature, never
+as an internal implementation dependency; define platform-specific command behavior explicitly.
+**Gate:** `make compat FEATURE=shell` passes the complete pinned Bun shell corpus on Linux/macOS x64/arm64;
+injection fixtures prove interpolated values remain data, pipeline backpressure drains concurrently, signal/
+exit ordering matches and 1,000 jobs leak no children/fds; `make build`; `make test`; `make purity`;
+`make docs-check`.
+
+### Phase 66 — Jest-compatible test-runner parity  *(deps: 15, 37, 39, 40)* ~10k LOC ⚡⚡
+Objective: raise `clun test` from the v0.1 subset to the pinned Bun/Jest-compatible surface.
+Tasks: inventory Bun `src/runtime/test_runner/`, `bun:test` types/docs and test-runner fixtures; implement
+remaining expect matchers/asymmetric matchers, snapshots/inline snapshots, mocks/spies/module mocks/fake
+timers, coverage, parameterized tests, retries, concurrency/parallel files, watch integration hooks,
+preload/setup, reporters/JUnit, sharding/randomization and CLI filters; isolate files/workers and preserve
+deterministic default output; make coverage account for TS/JSX source maps. Before implementation, freeze a
+licensed upstream Jest compatibility manifest and record the pinned Bun pass set on exactly that manifest.
+**Gate:** `make compat FEATURE=test-runner` passes the complete pinned Bun meta-test/CLI/output corpus and
+shows Clun at or above Bun's pass set on every category in the frozen Jest manifest; no test may be dropped or
+reclassified after implementation begins; snapshots are stable, mock/timer state cannot leak, coverage maps
+to sources, serial/parallel results agree and 10k tests plateau in RSS; `make build`; `make test`;
+`make purity`; `make docs-check` on all targets.
+
+### Phase 67 — Watch mode and state-preserving hot reload  *(deps: 41, 49, 62, 66)* ~7k LOC ⚡
+Objective: provide Bun-compatible restart watch mode and state-preserving hot reload where supported.
+Tasks: inventory `docs/runtime/watch-mode.mdx`, watcher/hot-reload source/tests; implement portable stat-
+polling change detection with coalescing, dependency-graph invalidation and ignore rules; implement `--watch`
+process restart and `--hot` module replacement/state retention, dispose/accept/error recovery and server
+connection preservation; integrate runtime, test runner, plugins and bundler without inotify/FSEvents FFI;
+define fallbacks for modules that cannot be safely retained.
+**Gate:** `make compat FEATURE=watch-hot` passes the pinned edit/add/delete/rename/config/error/server/test
+corpus on Linux/macOS x64/arm64; changes are neither lost nor duplicated, old code/resources are collected,
+connections survive promised hot cases, and 10k edit cycles plateau in RSS/fds; `make build`; `make test`;
+`make purity`; `make docs-check`.
+
+### Phase 68 — Frontend development server and HMR  *(deps: 49–51, 62–64, 67)* ~12k LOC ⚡⚡
+Objective: match Bun's first-party frontend serving, transform graph and browser HMR experience.
+Tasks: inventory Bun `src/bake/`, development server types/docs/tests; implement HTML entry serving,
+on-demand graph builds, browser module resolution, CSS/asset handling, overlay diagnostics, source maps,
+WebSocket HMR protocol, module/CSS hot updates and full-reload fallback; integrate routing/static serving,
+plugins and env modes; enforce origin/host controls, path isolation, cache invalidation and production-off
+defaults; use real browser fixtures rather than DOM string assertions.
+**Gate:** `make compat FEATURE=frontend-dev-server` passes the pinned Bun dev-server/HMR corpus; Playwright
+desktop/mobile fixtures load actual output, apply JS/CSS updates, preserve accepted state, display mapped
+errors and recover; cross-origin/traversal/cache adversaries pass; 10k changes plateau in RSS; `make build`;
+`make test`; `make purity`; `make docs-check` on all supported targets.
+
+### Phase 69 — Formatter  *(deps: 31, 34, 37, 39, 40, 64)* ~10k LOC ⚡⚡
+Objective: exceed Bun's current matrix by shipping a deterministic first-party formatter.
+Tasks: define and freeze Clun's JS/TS/JSX/JSON/YAML/CSS formatting contract; inventory licensed language
+conformance and formatter corpora with explicit provenance; implement comment-preserving AST/doc layout,
+stable line breaking, range/stdin/check/write modes, ignore files and editor-safe diagnostics; parse each
+language with the shared production parser and guarantee idempotence. Do not claim Prettier identity unless
+the complete chosen compatibility corpus proves it.
+**Gate:** `make compat FEATURE=formatter` passes the pinned formatter corpus with zero parse/semantic
+changes; format(format(x)) is byte-identical over the corpus and fuzz set; check/write/range/ignore/line-
+ending fixtures pass on all targets; `make build`; `make test`; `make purity`; `make docs-check`; the matrix
+marks this as a Clun advantage, not a Bun-compatible API.
+
+### Phase 70 — Linter  *(deps: 37, 39, 40, 69)* ~10k LOC ⚡⚡
+Objective: exceed Bun's current matrix with a fast, deterministic, extensible first-party linter.
+Tasks: define a versioned recommended ruleset; implement shared AST/scope/control-flow/type-free semantic
+analysis, diagnostics/fixes, config/ignore/overrides, per-file and project operation, stable parallel output
+and machine-readable results; seed a bounded high-value rule inventory from specifications and licensed
+corpora, with exact provenance; design pure-CL rule registration and no arbitrary foreign plugin execution.
+**Gate:** `make compat FEATURE=linter` passes every rule's positive/negative/fix/idempotence corpus and
+project/config/ignore/parallel CLI fixtures; applying all safe fixes then relinting is clean; fuzzed syntax
+never crashes; `make build`; `make test`; `make purity`; `make docs-check` on all targets.
+
+### Phase 71 — Comparative performance lab and engine tier  *(deps: 37, 47)* ~12k LOC ⚡
+Objective: create defensible same-host Bun comparisons and add the measured engine tier needed to compete.
+Tasks: pin release Clun and Bun binaries/commits; build a harness that records host, architecture, OS,
+toolchain, power mode, affinity, warmup, repetitions and raw samples; cover cold startup, Richards/
+DeltaBlue/Splay plus representative language/module/async/stream workloads; profile Clun, then implement only
+measured engine work such as background `COMPILE` tiering, deeper/polymorphic ICs, specialized calls,
+allocation reduction or compact bytecode, with deoptimization and conformance guards; publish all results,
+including losses, in `docs/benchmarks.md`; freeze mandatory workload IDs, inputs, coverage categories and
+directional metrics in the Phase-27 benchmark manifest before collecting an optimization baseline.
+**Gate:** `make compat-bench FEATURE=engine --compare bun` reruns from clean release builds on one host and
+produces statistically stable raw+summary artifacts; every mandatory engine workload individually meets or
+exceeds the frozen Bun median in its declared throughput/latency metric with confidence intervals reported;
+no aggregate may hide a losing workload, while cold start/RSS are separately reported and carry no parity
+claim unless they independently meet their declared thresholds;
+`make conformance-exec` is monotonic; `make build`; `make test`; `make purity`; `make docs-check`. If the
+hard target is not met, the phase remains open or an operator changes scope explicitly; generated wording
+names only the exact passing workloads and never says Clun is categorically faster than Bun.
+
+### Phase 72 — Subsystem performance wave  *(deps: 28–47, 49–57, 59–71)* ~12k LOC ⚡⚡
+Objective: make runtime tooling and services competitive with Bun on real, same-host workloads.
+Tasks: freeze the mandatory subsystem workload inventory and coverage map before tuning; profile and optimize,
+one green milestone at a time, HTTP/WebSocket throughput+tail latency,
+package cold/warm/offline install, bundling/dev rebuild, test discovery/execution, shell pipelines, streams,
+glob/string width, databases and cloud clients; preserve fixed workloads and separate I/O peer ceilings from
+runtime cost; optimize algorithms/copying/allocation/scheduling only after a profile; keep correctness,
+security bounds and portability gates ahead of a faster number.
+**Gate:** `make compat-bench FEATURE=subsystems --compare bun` shows every mandatory registered workload at
+or above the pinned Bun median throughput (or at/below its latency/time), with p95/p99, RSS, artifact size
+and raw samples reported on the same host; all corresponding `make compat FEATURE=<id>` targets, four-
+platform jobs, `make build`, `make test`, `make conformance-exec`, `make purity`, and `make docs-check` pass.
+Any missing coverage category or miss leaves the owning milestone and Phase 72 open. Public claims name the
+workload, Bun baseline, host and metric; this gate never licenses a blanket runtime/toolkit speed claim.
+
+### Phase 73 — Exhaustive Bun public-surface freeze  *(deps: 27–72)* ~3k LOC tooling ⚡
+Objective: freeze one finite, exhaustive Bun-surface target before implementing the remaining Bun 1.4.0-dev delta;
+this phase does not release, tag, or move the baseline again.
+Tasks: create a read-only Bun 1.3.14 stable tag checkout and record its commit, release-binary hashes and
+observable CLI/API results without mutating `/home/glenda/Projects/bun`; separately verify that the existing
+`c1076ce95e` checkout identifies as Bun 1.4.0-dev; generate a normalized public-surface manifest from all
+`packages/bun-types` exports, documented runtime/package-manager/bundler/test APIs, CLI commands and flags,
+loaders, protocols, globals/modules and platform-qualified behavior; execute both Bun baselines to resolve
+docs/type/source disagreements; classify stable-only, shared and engineering-dev additions; assign exactly one
+primary phase owner and any integration owners to every entry; hash and check in the manifest, corpus lists and
+baseline metadata. Items published by Bun after this hash are explicitly queued for the next release train.
+**Gate:** `make compat-freeze` produces byte-identical manifests in two clean scans; `make compat-validate`
+reports zero unowned or duplicate-primary entries and proves every source/type/doc/CLI export is represented;
+stable entries cite Bun 1.3.14 evidence while dev additions cite `c1076ce95e` / Bun 1.4.0-dev evidence; every
+remaining gap is assigned to Phases 74–80; `make docs-check`; `make build`; `make test`; `make purity`. No
+README/site parity status changes and no tag are permitted in this phase.
+
+### Phase 74 — Archive and compression APIs  *(deps: 45, 59, 73)* estimate after inventory ⚡
+Objective: match the frozen `Bun.Archive`/tar and high-level compression utility surface in pure Common Lisp.
+Tasks: inventory the Phase-73 archive, gzip/gunzip, deflate/inflate, zstd and stream/file overloads; implement
+archive inspect/create/extract and streaming entry iteration over the shared safe tar primitives; implement
+all missing compressors/decompressors, options, sync/async forms, dictionaries and exact errors without
+foreign codecs; preserve metadata and deterministic output where Bun does; enforce path, link, count, ratio,
+window, allocation and output limits before allocation or extraction; run CPU-heavy work off the JS thread.
+**Gate:** `make compat FEATURE=archive-compression` passes the complete frozen Bun API/error corpus and
+cross-tool vectors for every format; generated archives round-trip metadata, malicious paths/links and
+truncation fail closed, compression bombs remain bounded, async operations do not block the reactor, and
+1,000 open/close/error cycles leak no handles; `make build`; `make test`; `make test-crypto`; `make purity`;
+`make docs-check` on all supported targets.
+
+### Phase 75 — Data formats, Markdown, and HTMLRewriter  *(deps: 31, 38, 64, 73)* estimate after inventory ⚡⚡
+Objective: close the frozen TOML, JSON5, JSONL, Markdown and streaming HTMLRewriter surface omitted from the
+original post-v0.1 backlog.
+Tasks: milestone each format independently from the Phase-73 manifest; implement exact parse/stringify,
+module-loader and streaming forms for TOML/JSON5/JSONL; implement Bun's Markdown parse/render/API contract;
+implement streaming HTML tokenization and selector matching with element/text/comment/document handlers,
+mutation, async callbacks, encoding and backpressure semantics; share YAML/JSON, Web-stream and Phase-64 HTML
+primitives only where behavior is identical; cap nesting, token/input size, JSONL records and handler queues;
+record provenance for every standards corpus and never import a JS parser as implementation code.
+**Gate:** `make compat FEATURE=data-formats-html-rewriter` passes every frozen API/module/error fixture and the
+pinned standards corpora at Bun's pass set; chunk-boundary differential tests produce identical typed values
+and bytes for every split point; malformed/deep/large inputs and expansion adversaries fail boundedly; browser
+smokes consume rewritten output; `make conformance-exec`; `make build`; `make test`; `make purity`;
+`make docs-check` on all targets.
+
+### Phase 76 — Cron, scheduling, and interactive REPL  *(deps: 14, 37, 46, 73)* estimate after inventory ⚡
+Objective: match Bun's frozen cron/scheduling behavior and promote the standalone REPL backlog into a shipped,
+scriptable interactive interface.
+Tasks: implement the frozen cron expression grammar, timezone/clock behavior, overlap/cancellation/ref-unref,
+missed-run and shutdown semantics over the timer/event-loop substrate; implement an interactive `clun repl`
+with multiline parsing, top-level await, persistent lexical state, history/config, inspect/error output,
+signals and piped/non-TTY operation; make terminal editing an internal pure-CL facility with dumb-terminal
+fallback rather than invoking another runtime or line editor; use injectable clocks and terminal peers only in
+tests; bound catch-up work, history size and hostile pasted input.
+**Gate:** `make compat FEATURE=cron-scheduling` passes every frozen Bun scheduling fixture across DST,
+timezone, overlap and cancellation cases; `make compat FEATURE=repl` passes hermetic PTY and piped-input
+transcripts for expressions, modules, await, multiline, errors, Ctrl-C/Ctrl-D and history; fake-clock tests
+contain no sleeps, 100k scheduled entries remain within the design bound, and 1,000 REPL sessions leak no
+processes/fds; `make conformance-exec`; `make build`; `make test`; `make purity`; `make docs-check`.
+
+### Phase 77 — Programmatic transpiler and build APIs  *(deps: 41, 52, 62–64, 73)* estimate after inventory ⚡
+Objective: expose the complete frozen `Bun.Transpiler` and programmatic build surface over the same production
+parser, transform, plugin, bundle and compile graph used by the CLIs.
+Tasks: implement constructor/options, scan/scanImports, transform/transformSync, loader/target/define/macro,
+source-map and diagnostic behavior; finish `Bun.build`/buildSync result/log/output/metafile APIs, cancellation,
+incremental behavior and runtime/build plugins; remove any semantic fork between runtime transforms, bundling
+and Phase-52 executable compilation; rerun the cross-target compile surface after integration; preserve exact
+async ordering, typed errors and deterministic bytes.
+**Gate:** `make compat FEATURE=programmatic-transpiler-build` passes every frozen type/doc/test overload in
+sync and async modes and the complete plugin corpus; API and CLI builds produce byte-identical graphs/outputs
+for equivalent options; Phase-52 host×target and signing gates rerun unchanged; source-map probes are exact,
+cancellation leaks no work, and parallel builds are deterministic; `make conformance-exec`; `make build`;
+`make test`; `make purity`; `make docs-check` on all targets. Build-plugin and single-executable rows may become
+`Yes` only from this combined evidence.
+
+### Phase 78 — Image processing  *(deps: 34, 38, 64, 73, 74)* estimate after inventory ⚡⚡
+Objective: implement the complete frozen Bun image API and codec set without native libraries or subprocesses.
+Tasks: freeze the exact formats, color models, metadata, decode/encode, resize/crop/transform and sync/async
+surface; implement the required codecs and pixel pipeline in pure CL, reusing approved compression/color
+primitives; define alpha, orientation, ICC/profile and deterministic encoder behavior; stream where the API
+permits and run CPU work off the JS thread; bounds-check dimensions, strides, chunk lengths, metadata,
+allocation products and decompression ratios before allocation; fuzz every parser and differential-test Bun
+within documented numeric/image tolerances.
+**Gate:** `make compat FEATURE=image` passes every frozen Bun fixture plus licensed conformance and malformed-
+image corpora for every claimed format; decoded pixels/metadata and encoded round trips meet the frozen exact
+or tolerance rule; gigapixel headers and compression bombs fail before large allocation, async work keeps the
+reactor responsive, and repeated decode/error cycles plateau in RSS; `make build`; `make test`; `make purity`;
+`make docs-check` on all supported targets.
+
+### Phase 79 — WebView constitutional checkpoint and conditional implementation  *(deps: 46, 68, 73)* research + milestones
+Objective: determine whether the frozen WebView surface can coexist with the purity contract and, if amended,
+keep the phase open through a real implementation rather than substituting an external browser command.
+Tasks: inventory Bun WebView types/docs/source/tests and each platform's lifecycle, IPC, navigation, window,
+permission and packaging requirements; timebox pure protocol/process-isolation spikes and reject any approach
+that cannot expose the same observable surface; threat-model untrusted content and origin/IPC boundaries;
+present a narrow optional foreign-boundary amendment and an explicit purity-preserving rejection. If amended,
+milestone the boundary, Linux/macOS backends, event-loop/worker integration, packaging and complete four-target
+corpus inside Phase 79; never invoke `open`, `xdg-open`, a browser CLI or a hidden JS runtime as parity.
+**Gate:** an operator decision with cited executable evidence is recorded. If purity is retained,
+`make compat FEATURE=webview` proves a clear tested unsupported error and the ledger remains
+`No — constitutional`; if amended, every conditional milestone and the complete frozen WebView corpus,
+security fixtures and all four platform jobs pass before the phase completes or a positive claim appears.
+In either completed branch: `make build`; `make test`; the decision-adjusted `make purity`; `make docs-check`.
+
+### Phase 80 — Zero-unowned full public-surface closure  *(deps: 73–79)* milestones from frozen manifest ⚡⚡
+Objective: implement every frozen purity-compatible public entry not already closed by Phases 27–79 so no
+landing-row summary can hide an omitted Bun API, CLI flag, loader, protocol or utility.
+Tasks: query the Phase-73 manifest for every `missing`, `partial`, `planned` or evidence-less item; create one
+bounded green milestone per coherent owner group, including direct Bun TCP/UDP APIs, remaining utility/ANSI/
+serialization APIs, package security-scanner hooks, CLI flags, globals and platform-qualified behavior found
+by the freeze; implement each item in pure CL and rerun its primary plus integration-owner gates; for an
+inherent purity conflict, require a narrowly written operator decision and tested explicit error rather than a
+cost-based exception; remove a manifest entry only by proving it was not public at either frozen baseline.
+**Gate:** `make compat-validate --frozen` reports zero unowned, duplicate-primary, `missing`, `planned`,
+unexplained `partial`, or evidence-less entries; `make compat FEATURE=all` shows every purity-compatible entry
+at or above its frozen Bun behavior and every inherent constitutional exception has its checkpoint decision
+and tested error; an independent generated API/CLI/docs diff is empty; all affected feature gates and four-
+platform jobs rerun; `make conformance-exec`; `make build`; `make test`; `make purity`; `make docs-check`.
+
+### Phase 81 — Full-surface performance recheck  *(deps: 71, 72, 74–80)* estimate after inventory ⚡⚡
+Objective: remeasure the complete frozen surface after the final API waves and close every workload-specific
+regression without turning an aggregate into a blanket performance claim.
+Tasks: before tuning, extend and freeze the Phase-27 benchmark manifest with representative archive/format/
+HTMLRewriter/cron/REPL/transpiler/build/image/WebView-or-exception and Phase-80 workloads; rerun all Phase-71/
+72 workloads from clean builds on the same recorded host; profile and optimize each losing workload without
+weakening correctness, purity, bounds or portability; retain raw samples and publish losses as well as wins;
+mark features with no meaningful Bun performance comparator explicitly rather than inventing one.
+**Gate:** `make compat-bench FEATURE=full-surface --compare bun` reports every mandatory workload individually
+at or above its frozen Bun throughput median or at/below its declared latency/time metric with confidence
+intervals, p95/p99, RSS and artifact size separate; no missing coverage category or aggregate substitution is
+allowed; all Phase-71/72 benchmark gates rerun, and all touched compatibility, conformance, four-platform,
+build, test, purity and docs gates pass. Generated copy names only exact workloads and never makes a blanket
+`faster/better/stronger than Bun` claim.
+
+### Phase 82 — Purity-compatible Bun-surface final audit and release  *(deps: 27–81)*
+Objective: prove the shipped release meets §1.5 against the immutable Phase-73 surface without an unsupported
+or version-confused claim, then and only then tag it.
+Tasks: verify the Phase-73 manifest hash and refuse a baseline refresh; audit every public entry, landing row,
+platform qualifier, evidence link and workload-specific claim; ensure constitutional decisions for native
+addons, OS secrets and WebView are explicit while SQLite has real implementation evidence; rerun security,
+fuzz, stress, license/notices, reproducibility, installer and Linux/macOS x64/arm64 release tests; regenerate
+README/site/release notes with Bun 1.3.14 labeled as the public stable comparison and `c1076ce95e` labeled as
+the Bun 1.4.0-dev engineering target; perform independent correctness, security, purity, portability,
+performance and claims reviews serially or with Codex/Sol 5.6 subagents.
+**Gate:** `make compat-freeze --check`; `make compat-validate --frozen`; `make compat FEATURE=all`;
+`make compat-bench FEATURE=full-surface --compare bun`; `make docs-check`; `make build`; `make test`;
+`make conformance-exec`; `make test-crypto`; `make test-tls`; `make purity`; every required four-platform
+release job and installer smoke passes; every frozen purity-compatible entry meets/exceeds Bun and every
+inherent constitutional exception is plainly labeled; §1.5 is checked with evidence links in `STATE.md`;
+tag the purity-compatible surface release only on that exact green commit.
 
 ---
 
@@ -696,7 +1490,7 @@ available); triage → fix safety/error-path findings, log style findings.
 
 | Risk | L | Mitigation / fallback |
 |---|---|---|
-| Raw perf: closure-compiled CL is 50–500× slower than JIT JS on hot loops | Certain | Phase 25 shapes/ICs/tiering; positioning: Clun's value is purity + tooling, never speed parity |
+| Raw perf: closure-compiled CL starts far behind a JIT on hot loops | Certain | Phase 25 improves the foundation; Phases 71–72 add same-host comparative labs and measured tiering; Phase 81 rechecks the frozen full surface. Only workload-specific claims may follow their hard gates |
 | Async lowering correctness (try/finally × yield × return) | Med | Copy regenerator's scheme exactly; dense 262 coverage; thread-per-generator fallback is semantically safe |
 | pure-tls is young, single-maintainer, unaudited | High | Vendor + pin; keep its suites in our CI; SRI sha512 independent integrity; posture labeling; fail-closed certs; MIT permits maintaining the fork |
 | Purity leaks via transitive deps (one already found & patched) | Med | `make purity` in every gate; audit every `.asd` at vendor time |
@@ -705,18 +1499,18 @@ available); triage → fix safety/error-path findings, log style findings.
 | SBCL internals churn (`unix-realpath`, `fd-stream-fd`) | Med | Pinned SBCL; quarantined in sbcl-compat.lisp with startup probes |
 | Hoisted-resolution subtle wrongness | Med | Conflict-forcing fixtures; honest error over silent pick; compare observable layout to npm's for the same tree |
 | GC pauses at large heaps | Med | Struct objects (measured 4×/2.7× win); minor-GC-only steady state; RSS-plateau gates |
-| Scope creep toward "real Bun" | High | §1.3 is contractual; Appendix A tracks every divergence honestly |
+| Parity scope becomes an unfinishable monolith | High | Phases 27–72 close the landing matrix; Phase 73 freezes one exhaustive finite surface; Phases 74–80 close it without accepting later Bun churn; constitutional exceptions remain explicit |
 
 ---
 
 ## Appendix A — Compatibility Matrix (maintain as you build; ships in README)
 
-Legend: ✅ as documented · 🟡 partial (note what's missing) · ❌ non-goal v1.
+Legend: ✅ as documented · 🟡 partial (note what's missing) · ❌ non-goal v0.1.
 
-| Area | v1 | Notes |
+| Area | v0.1 | Notes |
 |---|---|---|
 | Language core (ES2017 tier) | 🟡 | Strict+sloppy incl. `with`; no Proxy/Reflect/Intl/Temporal/Atomics; test262 pass-list is the ground truth |
-| BigInt | 🟡 | Late-v1; drops to v1.1 if slipping |
+| BigInt | 🟡 | Late-v0.1 scope; shipped status is evidence-driven |
 | RegExp | 🟡 | PPCRE bridge; var-length lookbehind + `\p{}` error loudly; unparticipated backrefs known gap |
 | ESM / CJS | 🟡 | Full resolution; import-of-CJS = default-only; require-of-ESM errors |
 | TypeScript | 🟡 | Strip-only; enum/namespace/param-props/decorators **error** (Bun transpiles them); no `.tsx` |
@@ -812,7 +1606,8 @@ Established empirically on this host (SBCL 2.6.4, Linux x86-64) during planning 
 
 ## Appendix D — Reference Map (Explore-agent targets; behavior only, never port structure)
 
-Into `/home/glenda/Projects/bun` (pinned c1076ce95e):
+Into `/home/glenda/Projects/bun` (engineering baseline `c1076ce95e`, Bun 1.4.0-dev; not the
+Bun 1.3.14 stable public-comparison baseline):
 - CLI flags & dispatch: `src/runtime/cli/Arguments.rs` (:112-129, :243-246, :357-358, :554-625,
   :734-737, :1097-1102), `src/runtime/cli/run_command.rs` (:151-182, :1928-2052, :2357-2784,
   :2489-2556, :2956-2978), install flags `src/install/PackageManager/CommandLineArguments.rs`
@@ -832,17 +1627,36 @@ facebook/regenerator (lowering scheme); mathiasbynens/regexpu-core (u-flag trans
 tc39/test262 INTERPRETING.md; Ryū paper; RFC 8446 (TLS 1.3), 8439, 5869, 7748; WHATWG URL;
 nodejs.org/api/typescript.html + nodejs/amaro; npm/registry docs; node-semver.
 
-## Appendix E — Post-v1 Backlog (do not start before v0.1.0)
+## Appendix E — Promoted post-v0.1 backlog and remaining follow-ups
 
-1. Proxy/Reflect (the object protocol is already shaped for it) — v1.1 headline.
-2. Own regex backtracking VM (kills all PPCRE gaps); `\p{…}` via the UCD tables.
-3. node:stream (the biggest compat cliff), then net/http shims over src/net.
-4. WebSocket server/client (RFC 6455 on the Phase-17 parser).
-5. Snapshot testing + mocks (`jest.fn`) + asymmetric matchers; parallel test files.
-6. Watch mode (stat-polling; no inotify in pure SBCL).
-7. Reactor-native TLS (off the worker pool); AAAA/DNS resolver (verify `dns-client` purity).
-8. `clun x` (bunx) on the install cache; isolated (pnpm-style) installs; workspaces.
-9. TZif local time (if deferred), Intl skeleton, punycode/IDNA for URL.
-10. Deeper macOS substrate parity (native memory/uptime/CPU metrics); `--compile`-style single-file bundles
-    (save-lisp-and-die tricks).
-11. `bun:sqlite` equivalent — requires a pure-CL SQLite file-format reader or a rethink; research first.
+The former post-v0.1 backlog is now owned by the numbered purity-compatible surface program and must not be executed as an
+unnumbered side track:
+
+| Former backlog item | Owning phase(s) |
+|---|---|
+| Proxy/Reflect, modern RegExp/UCD and later ECMAScript/Intl work | 37 (plus 38 for Web-facing APIs) |
+| `node:stream`, net, DNS, TLS, HTTP/HTTPS/HTTP2 | 42–44 |
+| WebSocket server/client | 51 |
+| Snapshots, mocks, matchers, coverage and parallel test files | 66 |
+| Watch and hot reload | 67–68 |
+| Reactor-native streaming TLS and A/AAAA resolution | 28, 43 |
+| `clun x`, isolated installs and workspaces | 59–61 |
+| punycode/IDNA and Node URL compatibility | 38, 47 |
+| Single-file executables, cross-target packaging and signing | 52, 77 |
+| SQLite design/decision/implementation | 57 |
+| HTML rewriter | 75 |
+| Standalone interactive REPL | 76 |
+| Archive/compression runtime APIs | 74 |
+| TOML, JSON5, JSONL and Markdown | 75 |
+| Cron and scheduling | 76 |
+| Programmatic Transpiler/build APIs | 77 |
+| Image processing | 78 |
+| WebView constitutional decision/conditional implementation | 79 |
+| Frozen residual Bun utilities/APIs/CLI surface | 80 |
+
+Items not present in the immutable Phase-73 surface remain explicitly unpromoted: HTTP/3/QUIC, deeper
+macOS-native memory/uptime/CPU metrics beyond the portable `node:os` contract, and Windows support. If any
+is present in the frozen surface, Phase 80 owns it instead; if Bun adds it after the freeze, it belongs to the
+next release train. TZif local time, if Phase 26 defers it, moves into Phase 37's modern Date/Intl milestone.
+These follow-ups require a new numbered phase or an operator-approved amendment before implementation; they
+are not permission to freelance outside §2.
