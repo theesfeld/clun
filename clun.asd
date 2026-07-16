@@ -29,6 +29,12 @@
                                            (:file "fs")
                                            (:file "json")
                                            (:file "platform")))
+                             ;; Unicode-pinned string width substrate (Phase 33):
+                             ;; generated tables must load before the scanner.
+                             (:module "text"
+                              :serial t
+                              :components ((:file "unicode-width-tables")
+                                           (:file "string-width")))
                              ;; Security substrate (Phase 35): engine-free CSRF token
                              ;; encoding/authentication over vendored crypto primitives.
                              (:module "security"
@@ -154,6 +160,7 @@
                                            (:file "spawn")     ; Clun.spawnSync (Phase 24) — before clun-global
                                            (:file "clun-semver"); Clun.semver (Phase 29) — before clun-global
                                            (:file "clun-csrf")  ; Clun.CSRF (Phase 35) — before clun-global
+                                           (:file "clun-string-width") ; Clun.stringWidth (Phase 33) — before clun-global
                                            (:file "clun-global")
                                            (:file "abort")     ; AbortController/AbortSignal (Phase 14)
                                            (:file "globals")   ; structuredClone, crypto (Phase 12)
@@ -211,6 +218,9 @@
                                            (:module "security"
                                             :serial t
                                             :components ((:file "csrf-tests")))
+                                           (:module "text"
+                                            :serial t
+                                            :components ((:file "string-width-tests")))
                                            (:module "resolver"
                                             :serial t
                                             :components ((:file "resolver-tests")))

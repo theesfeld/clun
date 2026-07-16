@@ -735,18 +735,20 @@ Tasks: inventory Bun `src/runtime/api/Glob`, glob types/docs/tests, and Node glo
 parser/automaton, braces/extglobs/classes/dotfiles/platform separators, match/scan/scanSync and async
 iteration; enforce path discipline, symlink-loop handling, deterministic traversal, cancellation, and
 bounded state growth; share matching with test discovery and package tooling where semantics coincide.
-**Gate:** `make compat FEATURE=glob` passes the complete pinned pattern + filesystem fixture inventory
+**Gate:** `make compat FEATURE=filesystem.glob` passes the complete pinned pattern + filesystem fixture inventory
 against Bun on Linux and macOS; a million-entry synthetic tree remains bounded and cancellable;
 `make build`; `make test`; `make purity`; `make docs-check`.
 
 ### Phase 31 — YAML API and module loading  *(deps: 07, 27)* ~2.5k LOC
-Objective: support Bun-compatible YAML parsing and YAML module imports without foreign code.
-Tasks: inventory `docs/runtime/yaml.mdx`, types, parser/tests; implement YAML 1.2 core scalars,
-collections, block/flow forms, anchors/aliases/merge keys, directives, multi-doc input and useful
-source locations; add `.yaml`/`.yml` loader integration; cap alias expansion, nesting, document size,
-and duplicate-key policy; error on unsupported tags rather than constructing host objects.
-**Gate:** `make compat FEATURE=yaml` passes the pinned Bun corpus plus YAML conformance/security cases;
-alias-bomb and depth/size adversaries fail boundedly; import/cache/error fixtures match Bun;
+Objective: support Bun-compatible YAML parsing, stringification, and YAML module imports without foreign code.
+Tasks: inventory `docs/runtime/yaml.mdx`, types, parser/stringifier/tests; implement YAML 1.2 core scalars,
+collections, block/flow forms, anchors/aliases/merge keys, directives, multi-doc input, deterministic
+stringification and useful source locations; add `.yaml`/`.yml` loader integration; preserve supported
+alias identity and cycles, cap alias expansion, nesting and document size, define duplicate-key policy,
+and error on unsupported tags rather than constructing host objects.
+**Gate:** `make compat FEATURE=data.yaml` passes the pinned parse/stringify corpus plus YAML
+conformance/security cases; serializer round-trips and alias identity/cycle cases pass; alias-bomb and
+depth/size adversaries fail boundedly; import/cache/error fixtures match Bun;
 `make build`; `make test`; `make purity`; `make docs-check`.
 
 ### Phase 32 — Cookies and CookieMap  *(deps: 17, 27)* ~2k LOC
@@ -755,18 +757,22 @@ Tasks: inventory `docs/runtime/cookies.mdx`, `packages/bun-types/serve.d.ts`, an
 implement strict Set-Cookie/Cookie parsing and serialization, attributes/prefix rules, mutation,
 iteration, expiry and multiple-header behavior; integrate request cookies with Phase-17 serving while
 preventing header injection and cross-request state reuse.
-**Gate:** `make compat FEATURE=cookies` passes the complete API/HTTP differential corpus, RFC edge
+**Gate:** `make compat FEATURE=web.cookies` passes the complete API/HTTP differential corpus, RFC edge
 fixtures, prefix/security cases, and concurrent-request isolation; `make build`; `make test`;
 `make purity`; `make docs-check` on all four supported targets.
 
-### Phase 33 — Terminal string width and ANSI utilities  *(deps: 10, 27)* ~1.5k LOC
-Objective: meet `Bun.stringWidth` behavior with current Unicode and ANSI handling.
-Tasks: inventory `docs/runtime/utils.mdx`, Bun types/tests and string-width fixtures; vendor pinned UCD
-width/grapheme/emoji data; implement ANSI parsing, combining marks, ZWJ sequences, variation selectors,
-ambiguous-width policy and `countAnsiEscapeCodes`; generate compact pure-CL tables and linear-time scans.
-**Gate:** `make compat FEATURE=string-width` passes Bun and string-width corpora byte-for-byte;
-malformed ANSI and million-code-unit inputs stay linear and bounded; record same-host workload only
-without claiming parity yet; `make build`; `make test`; `make purity`; `make docs-check`.
+### Phase 33 — Terminal string width and ANSI utilities  *(deps: 10, 27)* ~2.5k LOC + generated data
+Objective: meet `Bun.stringWidth` behavior with Unicode 17 and bounded ANSI handling.
+Tasks: inventory `docs/runtime/utils.mdx`, the exact Bun types/source/tests, and string-width fixtures;
+vendor byte-pinned UCD width/grapheme/emoji data and conformance corpora; implement the exact public
+descriptor/coercion/options contract, UTF-16 scanning, ANSI parsing, UAX #29 clustering, emoji/ZWJ/keycap
+sequences, variation selectors, ambiguous-width policy and `countAnsiEscapeCodes`; generate compact pure-CL
+tables and keep the scanner linear with constant auxiliary state. Do not claim a `Bun` global or separate
+ANSI utility APIs.
+**Gate:** `make compat FEATURE=text.string-width` passes the pinned Bun public/corpus/stress fixtures through
+`build/clun`; all vendored Unicode 17 grapheme and fully-qualified emoji rows pass; malformed ANSI,
+lone-surrogate transitions, and million-code-unit inputs stay linear and bounded; `make build`; `make test`;
+`make purity`; `make docs-check` on all four supported targets.
 
 ### Phase 34 — CSS Color API  *(deps: 27)* ~2.5k LOC
 Objective: implement the complete `Bun.color` parse/normalize/conversion surface.
@@ -774,7 +780,7 @@ Tasks: inventory `docs/runtime/color.mdx`, Bun CSS color source/types/tests and 
 implement named/hex/rgb/hsl/hwb/lab/lch/oklab/oklch/color() inputs, alpha, clamping, color-space
 conversion and every Bun output format (CSS, number, ANSI tiers, object and tuple); share the parser with
 Phase 64 and reject invalid input as Bun does.
-**Gate:** `make compat FEATURE=css-color` passes the pinned Bun corpus plus published CSS color vectors
+**Gate:** `make compat FEATURE=web.css-color` passes the pinned Bun corpus plus published CSS color vectors
 within documented numeric tolerances; round-trip and gamut-edge properties pass; `make build`;
 `make test`; `make purity`; `make docs-check`.
 
@@ -795,7 +801,7 @@ Tasks: inventory `docs/runtime/hashing.mdx`, types/source/tests; implement compa
 hash/verify sync+async, bcrypt/Argon2 algorithms required by the pinned surface, automatic salts and
 long-password behavior; implement the listed non-cryptographic hash family with exact seeded outputs;
 run slow password work off the JS thread, zero transient secrets where practical, and cap hostile costs.
-**Gate:** `make compat FEATURE=password-hash` passes published KATs, Bun differential fixtures and
+**Gate:** `make compat FEATURE=security.password-hashing` passes published KATs, Bun differential fixtures and
 cross-tool password verification; malformed/cost-exhaustion cases are bounded; async work does not block
 the reactor; `make test-crypto`; `make build`; `make test`; `make purity`; `make docs-check`.
 

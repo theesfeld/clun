@@ -1,10 +1,10 @@
 <!-- clun-generated:release-notes:begin -->
-# Clun 0.1.0-dev.9
+# Clun 0.1.0-dev.10
 
-Phase 35: CSRF API.
+Phase 33: Terminal string width and ANSI utilities.
 
 - SemVer impact: `minor` within the selected `0.1.0` prerelease train.
-- Compatibility snapshot: 2 Yes / 6 Partial / 22 No across 30 generated rows.
+- Compatibility snapshot: 3 Yes / 6 Partial / 21 No across 30 generated rows.
 - Public baseline: Bun 1.3.14; engineering baseline: Bun `c1076ce95e`.
 - Target release platforms: Linux and macOS, x64 and arm64.
 - License: `GPL-3.0-or-later`.

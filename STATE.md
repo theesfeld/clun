@@ -7,39 +7,38 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **35 - CSRF API**  (IN PROGRESS)
+## Current phase: **33 - Terminal string width and ANSI utilities**  (IN PROGRESS)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/9
-**Current implementation unit:** convert `web.csrf` from `No` to the second evidence-backed compatibility
-ledger `Yes` with a bounded, interoperable `Clun.CSRF` token implementation.
+**Canonical issue:** https://github.com/theesfeld/clun/issues/7
+**Current implementation unit:** convert `text.string-width` from `No` to the third evidence-backed
+compatibility-ledger `Yes` through the public `Clun.stringWidth` API.
 **SemVer impact:** `minor`
-**Release target:** `0.1.0-dev.9` / `v0.1.0-dev.9`
-**Entry boundary:** Phase 29 / issue #3 completed the first ledger `Yes` and published immutable dev.8 at
-`db56bee7540bfc84c5e730d2ab23a886c65dd160`. Reconciliation commit
-`725cb998d3416ff4af3486c4cb8f18c5ea5d49a1` passed exact CI, Documentation, and Pages; live site bytes and
-an isolated hosted dev.8 install are verified. Phase 35 dependencies 19 and 27 are complete. Issue #3 remains
-open only until this candidate becomes the active ledger unit. Phase 26 remains after Phase 82.
-**Current scope:** reconcile the published dev.9 release, deploy its generated Pages snapshot, verify the
-hosted installer, and hand the active compatibility ledger to Phase 33 / issue #7. The release contains the
-complete pure-CL SHA-512/256 and bounded `Clun.CSRF` implementation, and all four native targets have executed
-the registered shipped-binary evidence. Phase 35 remains active only through publication reconciliation.
+**Release target:** `0.1.0-dev.10` / `v0.1.0-dev.10`
+**Entry boundary:** Phase 35 / issue #9 published the second ledger `Yes` as immutable dev.9 at
+`5d3da6f49898cf93fba7cc24534655278964f35d`. Reconciliation commit
+`848c453f18356b4561c4ffac8abceec594962c91` passed exact CI, Documentation, and Pages; live `clun.sh`
+shows both published `Yes` rows and an isolated hosted dev.9 install is verified. Phase 33 dependencies 10
+and 27 are complete. Phase 26 remains after Phase 82.
+**Current scope:** finish the complete local gate, independent review, PR and four-target native receipts,
+then publish and reconcile dev.10. The candidate contains a pure-Common-Lisp linear UTF-16 scanner,
+byte-pinned Unicode 17 width/grapheme/emoji data, bounded ANSI CSI/OSC handling, exact JavaScript
+coercion/options/descriptors, and shipped public/corpus/stress fixtures. It does not claim a `Bun` global,
+module alias, or unrelated ANSI utility APIs.
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
 easiest to hardest among dependency-ready rows. Core engine/runtime/network/tooling changes are expected.
 Every conversion requires a legitimate canonical issue, accepted design, full declared behavior, executable
-four-target evidence, synchronized public surfaces, and the correct SemVer transition. Completed surveys put
-terminal string width next, followed by cookies, CSS color, and Glob; later rows remain cost-ordered as their
-dependencies and mandatory surveys become ready.
+four-target evidence, synchronized public surfaces, and the correct SemVer transition. The audited next queue
+is cookies, CSS color, password/hash, Glob, then YAML; exact canonical ledger IDs are frozen in `PLAN.md`.
 
-**Current checkpoint:** issue #9 is active and records `minor`, `0.1.0-dev.9`, and `v0.1.0-dev.9`.
-The final merge commit `5d3da6f49898cf93fba7cc24534655278964f35d` passed exact-master CI
-`29522573976`, Documentation `29522575206`, and four-target Compatibility `29522573677`; aggregate receipt
-job `87704268230` passed. Release run `29522601664` then passed all four native builders and publication job
-`87706437694`. Annotated tag `v0.1.0-dev.9` peels to the final merge. Immutable prerelease `355283403`
-contains exactly four native archives plus `checksums.txt`; a fresh download verified every archive hash and
-all four `VERSION` files as `0.1.0-dev.9`. The published ledger is **2 Yes / 6 Partial / 22 No**. Pending:
-merge this evidence-only reconciliation, pass its exact CI/Documentation/Pages gates, verify live `clun.sh`
-bytes and an isolated hosted dev.9 install, then activate Phase 33 without reopening Phase 26.
+**Current checkpoint:** issue #7 records `minor`, `0.1.0-dev.10`, and `v0.1.0-dev.10`. The accepted design
+is `docs/design/phase-33.md`. The real build passes; focused review passes **65 / 0 / 0**, including all
+**766** Unicode 17 grapheme rows, **3,944** fully-qualified emoji rows plus **9** components, 55 measured
+emoji/width edge assertions, and the 800,000-unit core stress case. The shipped basic, 100-case corpus, and
+million-unit stress fixtures are byte-exact at 934, 37, and 57 bytes. The candidate ledger is
+**3 Yes / 6 Partial / 21 No**. Remaining: complete the registered gate and policy suite, resolve final
+adversarial review, pass PR and four native target receipts, publish immutable dev.10, deploy Pages, verify
+the hosted installer, and reconcile the release before closing issue #7.
 
 **M5 entry boundary:** immutable dev.4 diagnostic set **56 total / 0 pass / 56 fail / 0 skip / 0 crash**:
 **43 m5-owned** (32 intrinsic/prototype, 7 parser, 4 raw delegation), **12 m11** direct-eval/`with`

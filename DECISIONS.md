@@ -2581,3 +2581,38 @@ the archives all record `0.1.0-dev.9`, and the Linux x64 binary reports `clun 0.
 post-publication ledger reconciliation is evidence-only with impact `none`: source, ASDF core, installer
 default, and tag do not change. Pages and hosted-installer evidence remain pending until the reconciliation
 itself passes and deploys.
+
+### 2026-07-16 - Phase 33 freezes one Unicode-pinned Clun.stringWidth surface
+
+Phase 33 exposes only `Clun.stringWidth(input, options)`. It does not create a `Bun` global, a `bun` module
+alias, or separate strip/slice/wrap ANSI utilities. The function and namespace descriptors, input `ToString`
+ordering, option getter order, inherited lookup boundary, default-preserving nullish/empty option values,
+detached calls, nonconstruction, and exact Symbol error are part of the public contract rather than incidental
+bridge behavior.
+
+Terminal measurement is a pure-Common-Lisp, linear UTF-16 scan over byte-pinned Unicode 17.0.0 East Asian
+Width, Grapheme Break, Indic Conjunct Break, and emoji data. The offline generator verifies all seven input
+hashes, rejects malformed ranges, and emits reload-safe compact tables; builds and runtime never read UCD text
+or contact unicode.org. Complete GraphemeBreakTest and fully-qualified emoji corpora, hostile ANSI and lone
+surrogate transitions, million-unit stress, and shipped-binary fixtures own the claim.
+
+The stable Bun 1.3.14 executable remains the public baseline. Phase 33 deliberately adopts the pinned
+engineering fixes for bidi controls, Arabic Letter Mark, and Mongolian selectors, and returns width 2 for
+family emoji despite a stale documentation example. Both stable and the engineering pin incorrectly return
+width 2 for zero-width-only clusters ending in VS16; preserving width 0 there is an explicit Clun correctness
+improvement, as is applying `ambiguousIsNarrow` uniformly instead of depending on backing-string storage.
+Clun also follows Unicode 17's GCB Control classification for `U+E0001`; Bun's carried boundary table joins
+the measured `0890 E0001 20E3` sequence at width 2, while the current UAX boundary produces width 3.
+These are enumerated correctness dispositions, not permission for unmeasured drift. Ordinary selector state
+still follows Bun: an initial selector is ignored, VS15 and VS16 are independently recorded, and VS16 wins
+regardless of order.
+Adding the backward-compatible public function is SemVer `minor`; the actual prerelease number is assigned by
+the active issue only after the preceding publication boundary is verified.
+
+Clun keeps Unicode 17 grapheme boundaries distinct from Bun's measured width-component boundaries.
+A non-adjacent `Emoji_Modifier` starts a bounded width component except directly after GCB `Prepend`;
+this preserves UAX #29 conformance while matching malformed modifier, keycap, RI, and ZWJ-tail widths.
+The pinned UTF-16 ASCII fast path also creates a width component before each ASCII scalar even where UAX #29
+joins a leading `Prepend`; Clun reproduces the accumulator boundary without changing boundary conformance.
+Non-ASCII input retains the original first-codepoint and emoji-base semantics. The shipped corpus freezes
+these order-sensitive rules so they cannot regress into broad emoji or invented effective-base approximations.

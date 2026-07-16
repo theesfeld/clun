@@ -1,12 +1,17 @@
 # Third-party notices
 
 Clun is GPL-3.0-or-later. Its source distribution also contains vendored,
-GPL-compatible Common Lisp components under `vendor/`; those components retain
-their original copyrights and licenses. Release archives copy the available
-license and copyright files into `licenses/vendor/`.
+GPL-compatible Common Lisp components under `vendor/` and Unicode data under
+`vendor-data/`; those components and data retain their original copyrights and
+licenses. Release archives copy the available license and copyright files into
+the corresponding paths below `licenses/`.
 
 The native release archive also contains or incorporates these runtime pieces:
 
+- Unicode Character Database 17.0.0. Copyright 1991-2026 Unicode, Inc.
+  Distributed under the Unicode License v3. The exact notice is included at
+  `licenses/vendor-data/ucd/17.0.0/LICENSE.txt`; source data is available from
+  <https://www.unicode.org/Public/17.0.0/>.
 - SBCL. Most SBCL code is in the public domain; some portions use BSD-style
   licenses. The exact SBCL 2.6.4 source and notices are published by the SBCL
   project at
