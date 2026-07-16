@@ -1,57 +1,73 @@
-# Clun Agent Instructions
+# Clun — repository overlay
 
-The keyword `phase` is a complete execution request.
+**Inherits:** `~/.config/agents/AGENTS.md` (sole process constitution for all owned work).  
+This file is **project facts only** — language, paths, gates, and the `phase` shortcut.  
+It does **not** redefine process. On conflict, the user standard wins. **No legacy process standards.**
 
-When the user's message is exactly `phase`, read `PHASE_PROMPT.md` and execute it for the current
-phase or milestone recorded in `STATE.md`. When the message is `phase NN`, execute the same prompt
-for Phase NN after verifying that its dependencies are complete. Do not require the user to paste
-the long prompt again.
+| Fact | Value |
+|------|--------|
+| Class | **Product** (CLI) |
+| Default branch | `master` (do not rename; PR base only) |
+| License | GPL-3.0-or-later |
+| Language | Pure Common Lisp (not Rust — no cargo-dist; **same release outcomes** as user standard §0.1 / §8) |
+| Install | `https://clun.sh/install` / Pages installer |
+| Bun reference | `/home/glenda/Projects/bun` — **read-only upstream**; never modify; never copy license-incompatible code |
 
-These instructions apply to the Clun repository, excluding nested directories with their own
-`AGENTS.md` instructions.
+Ship path: user standard **§5.0** (Issue → branch `…/issue-N-…` → PR → squash-merge into `master`). No direct push to `master` as the ship path.
 
-## Canonical phase tracking
+---
 
-Every active or planned phase and independently tracked defect must have a GitHub issue. A phase
-issue may canonically track all of that phase's milestones unless a milestone is explicitly split
-into its own issue. The matching phase or defect issue is the canonical source of truth for live scope,
-status, blockers, decisions, measured evidence, and completion. `PLAN.md` remains the technical
-contract and `STATE.md` remains the local resume checklist; neither may silently disagree with the
-canonical issue.
+## Keyword: `phase` / `phase NN`
 
-Keep the issue, `README.md`, and `site/index.html` synchronized in the same completed unit whenever
-behavior, compatibility, roadmap status, counts, or claims change. There must never be a publication
-gap between those three surfaces. Keep the issue body current for live scope and status, and add
-substantive issue comments for implementation decisions, diagnosed residuals, gate results, commit
-hashes, and deployment status. Create or update the issue before implementation if necessary, and
-close it only when its complete scope and acceptance gates are actually finished.
+Convenience only — **not** a second constitution and **not** a separate prompt file.
 
-## Release versioning
+When the user message is exactly `phase` or `phase NN`:
 
-Follow the authoritative workflow and publication order in [`docs/versioning.md`](docs/versioning.md).
-Treat SemVer disposition as part of the canonical issue record for every completed unit. Before a
-push, record both the impact and target version in the applicable issue, with a rationale when the
-classification is not self-evident:
+1. **Select work** — `phase NN` → that phase (after dependency check from Issue / derived `PLAN.md`/`STATE.md`); else active phase from the canonical Issue (and derived `STATE.md`), or first unblocked phase if blocked. Prefer milestones on the phase Issue when split.
+2. **Survey gate** — if this is a **new plan phase** never approved under the user standard, survey first (mandatory even under yolo / always-approve). Already-approved phases/milestones run autonomously.
+3. **Issue first** → **branch** `feat/issue-<n>-…` off `master` → execute scope from Issue + derived `PLAN.md` + `docs/design/` → **verify** with § Gates → **PR** with `Closes #N` / `Refs #N` → squash-merge when green.
+4. **Release** only if release-bearing: tag merge SHA per `docs/versioning.md`, verify assets + installer, evidence on Issue.
+5. **Sync** Issue, README, `site/`, and derived `STATE.md`/`PLAN.md` in the same unit. Continue to the next unblocked milestone/phase without waiting for another `phase` message (unless a new phase needs survey).
 
-- a breaking public interface or behavior change is `major`;
-- backward-compatible functionality is `minor`;
-- a backward-compatible bug-only change is `patch`;
-- a mixed unit takes the highest applicable impact.
+Do not ask the user to paste a long phase prompt. Spawn subagents for bounded work; primary owns merge gates.
 
-Select `X.Y.Z` from the actual completed work, not from push count. Once an unreleased release train
-has selected its core version, each later published release unit in that train retains the core and
-increments only the numeric prerelease sequence unless the actual completed work requires a
-higher-impact core. Corrective commits made before that unit's immutable tag exists do not advance
-the sequence by themselves. The Phase 25b compatibility program
-targets the existing planned `0.1.0` release: its first behavioral milestone is `0.1.0-dev.1`, later
-published milestones are `0.1.0-dev.2`, `0.1.0-dev.3`, and so on, and Phase 26 stabilizes `0.1.0` by
-removing the prerelease suffix. A documentation-only push with no behavior or public release-claim
-change may record impact `none` and leave the source version unchanged only when its canonical issue
-records why no version change is warranted.
+---
 
-When behavior or public release claims change, update `src/version.lisp`, the ASDF core version,
-version tests, installer default, README, and site consistently before pushing. Push the completed
-commit to `origin/master` and wait for required master checks to pass before creating the immutable
-`v<version>` tag. After the tag workflow finishes, verify the GitHub release assets, checksums, and
-the shell installer on the supported current system, then record the tag, asset evidence, and
-installer result in the canonical issue. Never move or reuse a release tag.
+## Tracking surfaces
+
+| Surface | Role |
+|---------|------|
+| **GitHub Issues** | Live SoT |
+| `PLAN.md` | Technical notebook (phase specs) — **derived**; repair if it disagrees with Issues |
+| `STATE.md` | Resume checklist — **derived** |
+| `DECISIONS.md` | Decision log — mirror material decisions on the Issue |
+| `README.md` + `site/` | Public claims; no publication gap vs Issue |
+
+---
+
+## Implementation constraints
+
+- Pure Common Lisp only: no CFFI, native libraries, implementation JS/TS, or shell-outs as implementation shortcuts.
+- Match or exceed frozen Bun behavior where constitutionally compatible; do not weaken tests or invent parity exceptions.
+- Performance claims need reproducible same-host measurements. No unqualified “faster than Bun” claims.
+- Record architectural decisions in `DECISIONS.md` and on the Issue.
+
+---
+
+## Gates (Clun-specific)
+
+Before merge of a phase/unit:
+
+- Phase acceptance commands exactly as written in `PLAN.md` / Issue
+- `make build`, `make test`, `make purity`
+- Required conformance / portability / security / stress / benchmark gates for that unit
+- When public docs/roadmap change: `make public-claims-check` and `make roadmap-check` (or live roadmap verify)
+- Release-bearing:
+  `BASE_SHA=<base> HEAD_SHA=<head> make version-transition-check`
+  (bounds exactly this unit; must match Issue SemVer disposition)
+
+Version files when behavior/claims change (same unit): `src/version.lisp`, ASDF core, version tests, installer default, README, site. Details: [`docs/versioning.md`](docs/versioning.md).
+
+Publication evidence order (after squash-merge to `master`): tag → release assets + checksums → ledger/README/site → Pages → `https://clun.sh/install` smoke → Issue comments. Never move/reuse tags.
+
+Historical train notes (keep accurate via Issues): active `0.1.0-dev.N` work; Phase 26 deferred until after Phase 82.
