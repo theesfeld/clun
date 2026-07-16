@@ -8,13 +8,13 @@ surface, one gated capability at a time. Performance targets are workload-specif
 Clun does not claim blanket speed parity with Bun.
 
 > **Status: pre-alpha, under active construction.** Phase 25 performance work is complete.
-> Milestone 5 shipped as [`v0.1.0-dev.5`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.5)
-> (SemVer impact: `minor`) with same-realm synchronous generators and `yield*`; the phase remains
-> open at 88.95%. Implementation commit `f814751b1afc30a58abea43d41ef3194b8dfe36c`, CI run
-> `29476921973`, Documentation run `29476922006`, and Release run `29477285549` attempt 2 (all four
-> native builders, assets, and checksums) are verified. The release-gated installer from Pages run
-> `29476921956` is also verified. [Phase 25b milestone 6](https://github.com/theesfeld/clun/issues/57), covering async
-> generators and async iteration, is now current and has not been implemented yet.
+> [Phase 25b milestone 6](https://github.com/theesfeld/clun/issues/57) is a local
+> `0.1.0-dev.6` release candidate (SemVer impact: `minor`) for async generators and async
+> iteration. Its off-mode execution ledger reaches 90.40%, so Phase 25b's 90% target is met.
+> The `v0.1.0-dev.6` tag, native assets, Pages deployment, and hosted-installer verification are
+> not published yet. The last published release remains
+> [`v0.1.0-dev.5`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.5), whose native
+> archives, checksums, Pages deployment, and hosted installer are verified.
 > Clun executes its scoped JS/TS surface, but it is not a drop-in Node.js or Bun replacement.
 > The issue is the canonical live record, `PLAN.md` is the technical contract, and `STATE.md` is
 > the local resume checklist.
@@ -52,21 +52,29 @@ interoperability gap.
 - Same-realm synchronous generators support dynamic `GeneratorFunction` construction, per-function
   prototypes, and `yield*` delegation with iterator-result identity and close/error precedence.
   Cross-realm generator semantics remain outside the current milestone.
+- Async generators serialize `next`, `return`, and `throw` requests, await yielded and returned
+  values, reject incompatible receivers, and support async `yield*`. Async iteration includes
+  AsyncFromSync fallback and completion-correct `for await...of` close behavior.
 - Timers, promises, files, buffered HTTP serving, `fetch`, URL APIs, and process spawning.
 - `clun test` with hooks, modifiers, filters, async tests, timeouts, and about 22 matchers.
 - `clun install`, `add`, `remove`, and package scripts with a deterministic lockfile and cache.
 
-The checked-in curated test262 pass list contains 25,051 tests. Phase 25b milestone 5's published
-40,654-row execution ledger measures 25,051 passes and 3,112 gaps across 28,163 eligible tests
-(88.95%), with 12,491 skips and zero crashes; the 25,347-pass target requires 296 additional live
-passes to reach 90%. The pass list gained 43 tests from milestone 4 and 2,408 from the Phase 25b entry.
-Its focused m5 slice contains 56 tests: 43 pass and 13 fail, with zero skips, timeouts, and crashes.
-All 43 milestone-owned rows pass; the 13 deliberate controls remain assigned to m11 (12) and Phase 37
-(1), leaving m5 with no owned residual. Cross-script global lexical visibility and broader direct-eval
-semantics remain explicit m11 work. The full gap inventory assigns 2,227 residuals to Phase 25b and
-885 to Phase 37. The canonical execution ledger digest is `C104919DBAF109E4`. The parse gate classifies
-23,713 tests as 17,699 pass, 976 fail, 5,038 skip, and zero crash while retaining all 17,512 frozen
-passes; the Common Lisp suite passes 3,187 tests with zero failures.
+The checked-in curated test262 pass list contains 25,461 tests. Phase 25b milestone 6's release-candidate
+40,654-row off-mode execution ledger measures 25,461 passes and 2,702 gaps across 28,163 eligible tests
+(90.40%), with 12,491 skips and zero crashes. Phase 25b's 90% target is met: the 25,347-pass target has
+zero remaining lift. The pass list gained 410 tests from milestone 5 and 2,818 from the Phase 25b entry.
+Its focused m6 slice contains 509 tests: 407 pass and 102 fail, with zero skips, timeouts, and crashes.
+All 407 milestone-owned rows pass; the 102 deliberate controls remain assigned to m11 (7) and Phase 37
+(95), leaving m6 with no owned residual. Three additional `Promise.prototype.finally` rows passed
+incidentally: `species-constructor.js`, `subclass-reject-count.js`, and `subclass-resolve-count.js`.
+The full gap inventory assigns 1,817 residuals to Phase 25b and 885 to Phase 37.
+The canonical candidate execution ledger digest is `A742D885346DA23C`.
+The off/eager ledgers are byte-identical; eager mode compiled
+1,030,545 forms, classified 56,018 as ineligible, fell back zero times, and executed zero interpreter
+fallbacks. The parse gate classifies
+23,713 tests as 17,699 pass, 976 fail, 5,038 skip, and zero crash
+while retaining all 17,512 frozen passes.
+The Common Lisp suite passes 3,234 tests with zero failures and zero skips.
 Phase 25's final
 default-tier measurements are 6.68x Richards, 3.85x DeltaBlue, and 5.36x Splay against the frozen
 Phase-24 Clun baseline, a 5.16x suite geomean. Clun has no measured cross-runtime benchmark against
@@ -79,8 +87,9 @@ gate, not a claim that the capability already exists. A roadmap item becomes com
 specified conformance, stress, platform, and benchmark evidence; `PLAN.md` is the authoritative
 gate definition.
 
-The landing-page comparison uses the stable Bun 1.3.14 release. The engineering roadmap separately
-audits Bun source commit `c1076ce95e` (`1.4.0-dev`) so newer upstream work is not missed.
+The landing-page comparison snapshot uses Bun 1.3.14, Node.js 26.5.0, and Deno 2.9.3, checked
+July 16, 2026. The engineering roadmap separately audits Bun source commit `c1076ce95e`
+(`1.4.0-dev`) so newer upstream work is not missed.
 
 | Capability | Current pre-alpha state | Evidence-backed target |
 |---|---|---|
@@ -136,8 +145,9 @@ sets between this README and the landing page; descriptive prose still requires 
 workflows are read-only and fail closed if the canonical issues, README, or site have drifted.
 
 Release versions follow the actual SemVer impact recorded in the canonical issue, not the number of
-pushes. The current source version is `0.1.0-dev.5`; it is also the
-[latest published release](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.5).
+pushes. The current source version is `0.1.0-dev.6`; it is a release candidate, and no dev.6 tag or
+release assets are published. The last published release remains
+[`v0.1.0-dev.5`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.5).
 [The versioning contract](docs/versioning.md)
 defines prerelease sequencing, synchronized surfaces, immutable tags, assets, and installer evidence.
 [Live release and milestone status](https://github.com/theesfeld/clun/issues/57) remains on the canonical
@@ -180,7 +190,7 @@ vendored under `vendor/` and located via `scripts/registry.lisp`.
 make build     # compile everything, save build/clun (save-lisp-and-die)
 make test      # run the CL suites and JS/TS fixture harnesses
 make purity    # fail on any CFFI/foreign-code token
-./build/clun --version   # => clun 0.1.0-dev.5
+./build/clun --version   # => clun 0.1.0-dev.6
 ```
 
 A fresh clone builds with `make build` alone: ASDF compiles the vendored closure and `src/` into

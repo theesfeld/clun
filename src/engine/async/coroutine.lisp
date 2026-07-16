@@ -14,7 +14,7 @@
   (resume-sem (sb-thread:make-semaphore))   ; driver posts, coroutine waits
   (yield-sem (sb-thread:make-semaphore))     ; coroutine posts, driver waits
   in-box                         ; (mode . value): mode in {:next :throw :return}
-  out-box                        ; (kind . value): :yield, :yield-result, :await, :return, :throw
+  out-box                        ; :yield, :yield-no-await, :yield-result, :await, :return, :throw
   body                           ; zero-arg thunk running the compiled function body
   (realm *realm*))
 
@@ -29,6 +29,18 @@ realm so teardown can force-finish it (leak control for the conformance run)."
   (let ((co (%make-coroutine :body body :realm *realm*)))
     (when *realm* (push co (realm-coroutines *realm*)))
     co))
+
+(defun complete-unstarted-coroutine (co)
+  "Complete CO without starting a thread and remove its teardown registration."
+  (unless (eq (coro-state co) :suspended-start)
+    (error "cannot complete a coroutine in state ~s without resuming it"
+           (coro-state co)))
+  (setf (coro-state co) :completed
+        (coro-out-box co) (cons :return +undefined+))
+  (when (coro-realm co)
+    (setf (realm-coroutines (coro-realm co))
+          (delete co (realm-coroutines (coro-realm co)))))
+  co)
 
 (defun %coroutine-thread-body (co)
   "Runs on the coroutine's own thread. Rebinds *realm* and re-enters the float-trap
@@ -101,9 +113,9 @@ point, :return unwinds through finally blocks."
 
 (defun coroutine-suspend-raw (co value &optional (kind :yield))
   "Like COROUTINE-SUSPEND but returns the raw injected (mode . value) cons instead of
-acting on it. KIND is :YIELD for async delegation's value path or :YIELD-RESULT for
-a synchronous generator's validated iterator-result object."
-  (ecase kind (:yield) (:yield-result))
+acting on it. :YIELD-NO-AWAIT is async delegation's already-adopted value path;
+:YIELD-RESULT preserves a synchronous iterator-result object by identity."
+  (ecase kind (:yield) (:yield-no-await) (:yield-result))
   (setf (coro-out-box co) (cons kind value)
         (coro-state co) :suspended-yield)
   (sb-thread:signal-semaphore (coro-yield-sem co))

@@ -7,7 +7,7 @@
   :author "TJ Theesfeld"
   :license "GPL-3.0-or-later"
   ;; ASDF wants dotted integers; the user-facing string is src/version.lisp's
-  ;; *clun-version* = "0.1.0-dev.5".
+  ;; *clun-version* = "0.1.0-dev.6".
   :version "0.1.0"
   ;; SBCL contribs for the event loop (Phase 05); cl-ppcre is the RegExp backend
   ;; (Phase 10, vendored + pure). sb-thread is built in (feature :sb-thread).
@@ -218,6 +218,8 @@
                                                          (:file "compile-source-tests")
                                                          (:file "builtins-tests")
                                                          (:file "async-tests")
+                                                         (:file "async-generator-queue-tests")
+                                                         (:file "async-iteration-tests")
                                                          (:file "modules-tests")
                                                          (:file "inspect-tests")
                                                          (:file "regexp-tests")

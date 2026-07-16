@@ -427,7 +427,17 @@ object/array result reaches its prototype's toString only inside its realm)."
 (define-test promise/finally-awaits-onfinally
   ;; finally awaits the promise onFinally returns, and propagates its rejection
   (is string= "rejFE" (evj "var o=[]; Promise.resolve('V').finally(()=>Promise.reject('FE')).then(v=>o.push('t'+v),e=>o.push('rej'+e)); o"))
-  (is string= "V" (evj "var o=[]; Promise.resolve('V').finally(()=>Promise.resolve('ignored')).then(v=>o.push(v)); o")))
+  (is string= "V" (evj "var o=[]; Promise.resolve('V').finally(()=>Promise.resolve('ignored')).then(v=>o.push(v)); o"))
+  (is string= "constructor,then"
+      (evj "var out=[],receiver={};
+            Object.defineProperty(receiver,'constructor',{get(){out.push('constructor');return Promise}});
+            Object.defineProperty(receiver,'then',{get(){out.push('then');return function(){}}});
+            Promise.prototype.finally.call(receiver,()=>{});out"))
+  (is string= "constructor,caught"
+      (evj "var out=[],receiver={};
+            Object.defineProperty(receiver,'constructor',{get(){out.push('constructor');throw 'stop'}});
+            Object.defineProperty(receiver,'then',{get(){out.push('then');return function(){}}});
+            try{Promise.prototype.finally.call(receiver,()=>{})}catch(error){out.push('caught')}out")))
 
 (define-test promise/aggregate-error-global
   (is string= "true:2" (evj "var o=[]; Promise.any([Promise.reject(1),Promise.reject(2)]).catch(e=>o.push((e instanceof AggregateError)+':'+e.errors.length)); o"))

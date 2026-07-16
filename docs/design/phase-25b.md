@@ -1,6 +1,6 @@
 # Phase 25b - Conformance Push to 90%
 
-Status: **milestones 1 through 5 complete and published; milestone 6 is current and queued for execution.**
+Status: **milestones 1 through 5 complete and published; milestone 6 is a locally green dev.6 candidate awaiting publication.**
 Phase 25 is complete, so the dependency is satisfied. Milestone 4 delivered the function, class,
 parameter, arguments-object, and `super` wave specified in section 6.3 while leaving diagnosed
 generator, species, global-environment, operator, primitive, and Phase-37 residuals visible for
@@ -788,8 +788,160 @@ archives independently match `checksums.txt`:
 
 Pages run `29476921956` completed after the release and deployed the dev.5 candidate-status page plus the
 release-gated installer. An isolated execution of `curl -fsSL https://clun.sh/install | sh` installed a
-binary reporting `clun 0.1.0-dev.5`. The post-publication handoff changes evidence and milestone status only,
-so its SemVer impact is `none`, source remains dev.5, and no tag is created. The handoff commit's own Pages
-run must deploy the published-status page and be recorded in issue #57 before m6 implementation begins.
-Phase 25b remains open at 88.950041%, 296 passes short of its fixed target; m6 async generators and async
-iteration are current and queued behind that deployment verification.
+binary reporting `clun 0.1.0-dev.5`. Evidence-only handoff commit
+`d3e114749655738ecbfbec21419d4dc0e5276614` then passed Pages run `29479561951`; the hosted page reports
+dev.5 published and m6 current without candidate wording. The handoff changes evidence and milestone status
+only, so its SemVer impact is `none`, source remains dev.5, and no tag is created. M5 is complete. Phase 25b
+was still open at 88.950041%, 296 passes short of its fixed target at that handoff. M6 has since produced
+a locally green dev.6 candidate above the fixed target. Only committed-range SemVer, exact `master` CI and
+Documentation, release assets, Pages, and hosted-installer verification remain.
+
+### 6.5 Milestone 6 async-generator and async-iteration design
+
+Milestone 6 starts from the immutable dev.5 inventory after the published-status handoff. The frozen
+selection is every `exec-gaps.tsv` row whose work bucket is `async-iteration` or `async-generators`.
+Bucket precedence currently labels every selected row `async-iteration`, including the async-generator
+rows; ownership is therefore recorded separately and cannot be inferred from that one label. The sorted,
+unique selection contains **509 rows: 0 pass / 509 fail / 0 skip / 0 timeout / 0 crash** at entry.
+
+Conceptual ownership is exact and disjoint:
+
+| Owner and first failing semantic operation | Rows | Milestone-6 disposition |
+|---|---:|---|
+| m6 async-generator `yield*` delegation | 328 | pass |
+| m6 yielded-value awaiting and rejection injection | 47 | pass |
+| m6 AsyncFromSync iterator wrapping | 9 | pass |
+| m6 `for await` ordering and AsyncIteratorClose | 6 | pass |
+| m6 FIFO request queue | 6 | pass |
+| m6 invalid-receiver promise rejection | 6 | pass |
+| m6 `.return()` value awaiting | 5 | pass |
+| m11 direct eval and `with`/unscopables controls | 7 | retain as visible failures |
+| Phase 37 `Array.fromAsync` controls | 95 | retain as visible failures |
+| **Total** | **509** | **407 m6-owned / 102 controls** |
+
+The 328/47 language split is reproducible rather than count-fitted. A selected async-generator path
+containing `yield-star` enters delegation, except the 16
+`yield-promise-reject-next-yield-star-*` rows: those first require an ordinary yielded rejection to be
+awaited and injected, and use delegation only as the continuation that proves the result. All other
+selected async-generator language rows enter the yield-await group. Seven exact direct-eval and
+`Symbol.unscopables` paths remain m11 controls. The complete `built-ins/Array/fromAsync/**` subtree
+remains Phase 37 even though it uses the same iterator plumbing.
+
+The focused implementation closes all 407 owned rows without changing the skip set. The confirmed
+default/off corpus additionally gains three Promise `finally` rows, producing **25,461 / 28,163 =
+90.405852%**, 114 passes above the fixed 25,347 target. The monotonic pass-list gain is +410 from m5
+and +2,818 from the frozen 22,643-row Phase-25b entry list.
+
+#### 6.5.1 Pinned reference architecture and dev.5 root causes
+
+The reference boundary remains Bun `c1076ce95effb909bfe9f596919b5dba5567d550`, whose
+`scripts/build/deps/webkit.ts` pins JavaScriptCore/WebKit
+`c9ad5813fd23bd8b98b0738abc3d037ec716aa92`. Bun's `test/cli/run/syntax.test.ts` and
+`test/regression/issue/014187.test.ts` provide only public syntax/resumption smoke; Bun delegates the
+runtime semantics to JSC. At the pinned JSC revision,
+`Source/JavaScriptCore/runtime/JSAsyncGenerator.h/.cpp` stores explicit generator state and a FIFO of
+value/mode/promise requests; `Source/JavaScriptCore/builtins/AsyncGeneratorPrototype.js` enqueues requests,
+resumes only a resumable generator, and drains completion through promise jobs in
+`Source/JavaScriptCore/runtime/JSMicrotask.cpp`.
+`Source/JavaScriptCore/builtins/AsyncFromSyncIteratorPrototype.js` and
+`Source/JavaScriptCore/runtime/JSAsyncFromSyncIterator.h` define the sync-wrapper boundary.
+`Source/JavaScriptCore/bytecompiler/BytecodeGenerator.cpp` prefers `@@asyncIterator` for async consumption,
+falls back to that wrapper, and emits the `for await` close path. Shared iterator operations remain in
+`Source/JavaScriptCore/runtime/IteratorOperations.h/.cpp`. Clun adopts that state/queue/wrapper scheme only;
+it does not copy JSC source, storage layout, built-in code, or Bun parser code. The implementation is
+independent GPL-3.0-or-later Common Lisp and is judged by observable Test262 behavior.
+
+The immutable dev.5 implementation has four shared defects:
+
+1. `js-async-generator` stores only a coroutine and a `done` bit. `%async-gen-step` immediately drives
+   each call, so concurrent `next`/`return`/`throw` requests can resume an executing coroutine and have no
+   per-request promise capability or FIFO settlement order. `this-async-generator` throws before a
+   promise exists, so invalid receivers escape synchronously instead of returning rejected promises.
+2. `%async-gen-drive` resolves a yielded iterator-result immediately and marks return/throw completion
+   directly. It does not adopt ordinary yielded values before exposing them, inject rejected yields at the
+   suspended expression, await `.return()` values in start/yield/completed states, or drain queued requests
+   after completion.
+3. `get-iterator` represents async-from-sync as a boolean beside the original synchronous iterator record.
+   It has no wrapper object with promise-returning `next`/`return`/`throw`, so wrapper identity, poisoned
+   result access, rejection, missing-method, and close precedence cannot be expressed once and reused.
+4. Async `yield*` asks for an ordinary iterator and suspends on a raw inner value without awaiting the
+   inner result promise or applying async-generator resumption rules. `for await` separately awaits and
+   performs best-effort cleanup under `ignore-errors`; it does not implement completion-aware
+   AsyncIteratorClose, including awaited return results and the distinct throw/non-throw precedence.
+
+#### 6.5.2 Implementation shape
+
+Clun keeps the existing thread-backed coroutine as the single body evaluator. `js-async-generator` gains
+an explicit state (`suspended-start`, `executing`, `awaiting`, `suspended-yield`, or `completed`) and a FIFO
+of request records holding resume kind, value, and promise capability. Each prototype method allocates its
+promise before validating the receiver, rejects that promise for an incompatible receiver, enqueues a
+valid request, and starts the driver only from a resumable state. Exactly one driver transition owns the
+coroutine at a time. Completion settles and removes the head request, then drains completed-state requests
+without re-entering the coroutine.
+
+Ordinary async-generator `yield` first adopts its operand. Fulfillment exposes `{ value, done: false }` for
+the head request and suspends; rejection resumes the body as `throw` at the yield expression. Resumption
+values are adopted at the grammar-required points. `.return(value)` awaits `value` before closing a
+suspended-start or completed generator and before injecting return at suspended-yield; a rejected value
+rejects that request without corrupting the remaining queue. Body return and throw complete the generator
+once and drain all pending requests with the required completed-state results.
+
+One async iterator record owns iterator object, cached next method, and whether it is native async or an
+AsyncFromSync wrapper. Selection performs `GetMethod(@@asyncIterator)` first and falls back only when it is
+absent. The wrapper's `next`, `return`, and `throw` always return promises, validate object results, adopt
+their `value`, preserve argument presence, and implement missing-throw close before protocol rejection.
+Async `yield*` uses this same record, awaits each method result, validates it, forwards incomplete results
+through AsyncGeneratorYield, and preserves `GetMethod`, missing-method, and close precedence for normal,
+throw, and return resumptions.
+
+`for await` also uses the shared async record. Each loop step awaits `next()`, validates the result, then
+binds the value in job order. Abrupt exit calls and awaits `return()` when present and requires its result
+to be an object. For a non-throw completion, a close getter/call/rejection/non-object failure replaces the
+pending completion; for a throw completion, the original throw is preserved after attempting close. No
+cleanup path uses blanket error suppression.
+
+#### 6.5.3 Verification and release contract
+
+The tracked `tests/conformance/phase-25b-m6.tsv` manifest freezes all 509 paths, entry labels, conceptual
+owners, root causes, and required final classifications. Path-list FNV-1a-64
+`D9A872B337562D21` binds the exact sorted selection. `make phase-25b-m6-check` is the final gate;
+`CLUN_PHASE_25B_M6_MODE=entry make phase-25b-m6-check` reproduces the all-fail dev.5 entry boundary. The
+runner rejects malformed, unsorted, duplicate, missing, remapped, count-shifted, or path-digest-shifted
+manifests before executing a test.
+
+The focused m6 gate passes exactly **407 m6 pass / 7 m11 fail / 95 Phase-37 fail / 0 skip /
+0 timeout / 0 crash**.
+Focused regressions must additionally cover overlapping requests, completed-state next/return/throw,
+promise-first brand rejection, yielded and returned thenables, rejection injection, AsyncFromSync argument
+presence and poisoned results, async `yield*` method/close precedence, and `for await` ordering and abrupt
+close. Review-driven regressions specifically bind synchronous PromiseResolve setup abrupts and the second
+Await when native-async `yield*` receives a completed delegated `return` or `throw`.
+The suspended-start `return`/`throw` path completes and unregisters its underlying coroutine without
+spawning a thread; regressions cover return, throw, repetition, completed-state behavior, and nil-thread
+cleanup.
+
+The confirmed default/off 40,654-path ledger is **25,461 pass / 2,702 fail / 12,491 skip / 0 crash**.
+Eligible remains **28,163**, the exact rate is **90.405852%**, and residual ownership is **1,817
+Phase-25b / 885 Phase 37**. All 25,051 dev.5 passes remain. The three incidental passes beyond the 407
+owned rows are `built-ins/Promise/prototype/finally/species-constructor.js`,
+`built-ins/Promise/prototype/finally/subclass-reject-count.js`, and
+`built-ins/Promise/prototype/finally/subclass-resolve-count.js`. The base PromiseResolve correction required
+by async generators exposed `Promise.prototype.finally`'s species-constructor bug; the implementation now
+also preserves its specified job order and object handling, with focused coverage.
+
+The full default/off and eager ledgers are byte-identical across all 40,654 paths. Eager mode compiled
+**1,030,545** forms, classified **56,018** as ineligible, and fell back **0** times. The regenerated
+monotonic pass list contains **25,461** paths, **+410** from m5; canonical digest
+`A742D885346DA23C` binds the exact residual artifacts. Parse conformance is green at **23,713 total /
+17,699 pass / 976 fail / 5,038 skip / 0 crash**, with every frozen parser pass preserved. The integrated
+Lisp gate is green at **3,234 pass / 0 fail / 0 skip**. The local build, full-test, purity, security,
+public-claim, roadmap, installer, conformance, and visual gates are green. Final acceptance is limited to
+committed-range SemVer, exact `master` CI and Documentation runs, release assets, Pages deployment, and
+hosted-installer verification.
+
+This is backward-compatible functionality in the existing `0.1.0` minor train. Dev.5 is immutable, so m6
+selects source/release `0.1.0-dev.6` and tag `v0.1.0-dev.6`. Publication remains unclaimed until
+committed-range SemVer, exact `master` CI and Documentation runs, release assets, Pages deployment, and the
+hosted installer are independently verified and recorded in issue #57. Dev.5 remains the last published
+release; the dev.6 version and tag are local
+candidate/target identifiers, not a claim that a dev.6 tag, release, deployment, or hosted installer exists.

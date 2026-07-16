@@ -53,7 +53,7 @@
           <div class="hero-mark-wrap">
             <img class="hero-mark" src="assets/clun.jpg" alt="Clun mascot wearing a Lisp helmet" width="250" height="250">
           </div>
-          <p class="eyebrow"><span class="status-dot" aria-hidden="true"></span> v0.1.0-dev.5 / pre-alpha</p>
+          <p class="eyebrow"><span class="status-dot" aria-hidden="true"></span> v0.1.0-dev.6 release candidate / pre-alpha</p>
           <h1>Clun is JavaScript tooling,<br>rewritten in pure Common Lisp.</h1>
           <p class="hero-copy">
             A from-scratch JavaScript engine with TypeScript stripping, a package manager,
@@ -83,26 +83,27 @@
 
           <dl class="hero-facts" tabindex="0" role="region" aria-label="Project facts">
             <div><dt>Implementation</dt><dd>Pure Common Lisp</dd></div>
-            <div><dt>Curated test262 pass list</dt><dd>25,051 pass</dd></div>
-            <div><dt>Phase 25b progress</dt><dd>88.95% current</dd></div>
+            <div><dt>Curated test262 pass list</dt><dd>25,461 pass</dd></div>
+            <div><dt>Phase 25b progress</dt><dd>90.40% current / 90% target met</dd></div>
             <div><dt>License</dt><dd>GPL-3.0-or-later</dd></div>
           </dl>
           <p class="hero-phase">
-            Full run: 40,654 total = 25,051 pass / 3,112 fail / 12,491 skip / 0 crash.
-            Eligible: 28,163 / target: 25,347 pass / remaining lift: 296.
-            Pass-list gain: +43 from m4 / +2,408 from Phase 25b entry.
-            Focused m5 slice: 56 total / 43 pass / 13 fail / 0 skip / 0 timeout / 0 crash.
-            All 43 owned rows pass; controls: 12 m11 / 1 Phase 37; m5 residual: 0. Remaining ownership:
-            2,227 Phase-25b / 885 Phase-37 gaps. Ledger digest: <code>C104919DBAF109E4</code>.
+            Full run: 40,654 total = 25,461 pass / 2,702 fail / 12,491 skip / 0 crash.
+            Eligible: 28,163 / target: 25,347 pass / remaining lift: 0.
+            Pass-list gain: +410 from m5 / +2,818 from Phase 25b entry.
+            Focused m6 slice: 509 total / 407 pass / 102 fail / 0 skip / 0 timeout / 0 crash.
+            All 407 owned rows pass; controls: 7 m11 / 95 Phase 37; m6 residual: 0. Remaining ownership:
+            1,817 Phase-25b / 885 Phase-37 gaps. Incidental <code>Promise.prototype.finally</code> passes:
+            <code>species-constructor.js</code>, <code>subclass-reject-count.js</code>, and
+            <code>subclass-resolve-count.js</code>. Ledger digest: <code>A742D885346DA23C</code>.
+            Off/eager ledgers are byte-identical; eager compiled 1,030,545 forms / classified 56,018
+            as ineligible / fell back 0 times / executed 0 interpreter fallbacks.
             Parse gate: 23,713 total / 17,699 pass / 976 fail / 5,038 skip / 0 crash; all 17,512
-            frozen passes hold. Common Lisp suite: 3,187 pass / 0 fail.
-            Milestone 5 is published and verified in <a href="https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.5">v0.1.0-dev.5</a>:
-            implementation <code>f814751b1afc30a58abea43d41ef3194b8dfe36c</code>; CI <code>29476921973</code>;
-            Documentation <code>29476922006</code>; and Release <code>29477285549</code> attempt 2 with all four
-            native builders, assets, and checksums. The release-gated installer from Pages
-            <code>29476921956</code> is also verified.
-            <a href="https://github.com/theesfeld/clun/issues/57">Phase 25b milestone 6</a>, covering async
-            generators and async iteration, is now current and has not been implemented yet.
+            frozen passes hold.
+            Common Lisp suite: 3,234 pass / 0 fail / 0 skip.
+            <a href="https://github.com/theesfeld/clun/issues/57">Phase 25b milestone 6</a> is a local
+            dev.6 release candidate. Its tag, native assets, Pages deployment, and hosted-installer
+            verification are not published yet; dev.5 remains the last published release.
             The issue is the canonical live record; <a href="https://github.com/theesfeld/clun/blob/master/PLAN.md">PLAN</a>
             is the technical contract, and <a href="https://github.com/theesfeld/clun/blob/master/STATE.md">STATE</a>
             is the local resume checklist.
@@ -219,7 +220,8 @@
                 <li>Lazy iterator protocol with abrupt-completion close behavior</li>
                 <li>Binding TDZ, <code>const</code>, and destructuring correctness</li>
                 <li>Function/class construction, <code>super</code>, and arguments objects</li>
-                <li>Same-realm dynamic <code>GeneratorFunction</code> and <code>yield*</code> delegation; cross-realm semantics remain excluded</li>
+                <li>Same-realm dynamic <code>GeneratorFunction</code> and synchronous <code>yield*</code> delegation; cross-realm semantics remain excluded</li>
+                <li>FIFO async generators, awaited yield/return, async <code>yield*</code>, AsyncFromSync, and <code>for await...of</code> close behavior</li>
                 <li><code>Object.seal</code>, <code>Object.isSealed</code>, and legacy accessor hooks</li>
                 <li>ESM and CommonJS resolution</li>
                 <li>Timers, promises, files, fetch, and URL</li>
@@ -337,10 +339,10 @@ Clun.write(file, <span class="tok-str">"hello from Clun\n"</span>)
               <thead>
                 <tr>
                   <th scope="col">Capability</th>
-                  <th scope="col" class="clun-col"><a href="https://github.com/theesfeld/clun">Clun</a><span>0.1.0-dev.5 / pre-alpha</span></th>
+                  <th scope="col" class="clun-col"><a href="https://github.com/theesfeld/clun">Clun</a><span>0.1.0-dev.6 candidate / pre-alpha</span></th>
                   <th scope="col"><a href="https://bun.sh/">Bun</a><span>1.3.14 / toolkit</span></th>
-                  <th scope="col"><a href="https://nodejs.org/">Node.js</a><span>26 / current</span></th>
-                  <th scope="col"><a href="https://deno.com/">Deno</a><span>2.9.2 / runtime</span></th>
+                  <th scope="col"><a href="https://nodejs.org/">Node.js</a><span>26.5.0 / current</span></th>
+                  <th scope="col"><a href="https://deno.com/">Deno</a><span>2.9.3 / runtime</span></th>
                 </tr>
               </thead>
               <tbody>
@@ -576,14 +578,14 @@ Clun.write(file, <span class="tok-str">"hello from Clun\n"</span>)
             </table>
           </div>
           <p class="source-note">
-            Snapshot checked July 15, 2026. Sources:
+            Snapshot checked July 16, 2026. Sources:
             <a href="https://github.com/theesfeld/clun/blob/master/PLAN.md">Clun scope</a>,
             <a href="https://github.com/oven-sh/bun/releases/tag/bun-v1.3.14">Bun 1.3.14</a>,
             the roadmap's separate
             <a href="https://github.com/oven-sh/bun/tree/c1076ce95e">Bun source audit</a>,
-            <a href="https://nodejs.org/en/about/previous-releases">Node.js releases</a>,
+            <a href="https://github.com/nodejs/node/releases/tag/v26.5.0">Node.js 26.5.0</a>,
             <a href="https://deno.com/blog/v2.9">Deno 2.9 features</a>, and the
-            <a href="https://github.com/denoland/deno/releases/tag/v2.9.2">Deno 2.9.2 release</a>.
+            <a href="https://github.com/denoland/deno/releases/tag/v2.9.3">Deno 2.9.3 release</a>.
             npm appears as tooling, not as a runtime column. Clun has no same-host speed
             comparison against these projects.
           </p>

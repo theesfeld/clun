@@ -194,6 +194,8 @@ printf '%s\n' "$report_source_revision" | grep -Eq '^(working-tree@)?[0-9a-f]{40
   fail "test262 execution report has an invalid source revision: $report_source_revision"
 printf '%s\n' "$report_digest" | grep -Eq '^[0-9A-F]{16}$' ||
   fail "test262 execution report has an invalid FNV-1a-64 digest: $report_digest"
+[ "$report_digest" = A742D885346DA23C ] ||
+  fail "Phase 25b m6 execution digest is not the frozen A742D885346DA23C"
 
 for value in "$report_total" "$report_pass" "$report_fail" "$report_skip" \
              "$report_crash" "$report_eligible" "$report_frozen" \
@@ -227,6 +229,12 @@ computed_lift=$((report_target - report_pass))
 [ "$computed_lift" -ge 0 ] || computed_lift=0
 [ "$report_lift" -eq "$computed_lift" ] ||
   fail "test262 execution report required lift is inconsistent"
+[ "$test262_passes" -eq 25461 ] && [ "$report_total" -eq 40654 ] &&
+  [ "$report_pass" -eq 25461 ] && [ "$report_fail" -eq 2702 ] &&
+  [ "$report_skip" -eq 12491 ] && [ "$report_crash" -eq 0 ] &&
+  [ "$report_eligible" -eq 28163 ] && [ "$report_target" -eq 25347 ] &&
+  [ "$report_lift" -eq 0 ] ||
+  fail "Phase 25b m6 execution artifacts no longer match the frozen 25,461/28,163 candidate result"
 
 gap_stats="$scratch_dir/gap-stats"
 bucket_stats="$scratch_dir/bucket-stats"
@@ -273,6 +281,8 @@ IFS="$(printf '\t')" read -r gap_rows phase25b_rows phase37_rows <"$gap_stats"
   fail "execution gap snapshot row count disagrees with the report"
 [ $((phase25b_rows + phase37_rows)) -eq "$report_fail" ] ||
   fail "execution gap snapshot phase-owner counts do not reconcile"
+[ "$phase25b_rows" -eq 1817 ] && [ "$phase37_rows" -eq 885 ] ||
+  fail "Phase 25b m6 residual ownership no longer matches the frozen 1,817/885 split"
 require_text docs/conformance/test262-execution.md "| \`phase-25b\` | $phase25b_rows |"
 require_text docs/conformance/test262-execution.md "| \`phase-37\` | $phase37_rows |"
 LC_ALL=C sort -o "$bucket_stats" "$bucket_stats"
@@ -288,6 +298,8 @@ report_rate=$(awk -v pass="$report_pass" -v eligible="$report_eligible" '
 ')
 report_rate_exact=$(awk -v pass="$report_pass" -v eligible="$report_eligible" \
   'BEGIN { printf "%.6f", (pass * 100) / eligible }')
+[ "$report_rate_exact" = 90.405852 ] ||
+  fail "Phase 25b m6 exact pass rate is not the frozen 90.405852%"
 require_text docs/conformance/test262-execution.md \
   "| Pass rate | $report_pass / $report_eligible = $report_rate_exact% |"
 pretty_report_pass=$(format_count "$report_pass")
@@ -300,11 +312,11 @@ pretty_report_lift=$(format_count "$report_lift")
 pretty_phase25b_rows=$(format_count "$phase25b_rows")
 pretty_phase37_rows=$(format_count "$phase37_rows")
 
-focused_milestone='m5'
+focused_milestone='m6'
 focused_stats="$scratch_dir/focused-stats"
 LC_ALL=C awk -F '\t' '
   function die(message) {
-    print "public-claims-check: Phase 25b m5 manifest: " message > "/dev/stderr"
+    print "public-claims-check: Phase 25b m6 manifest: " message > "/dev/stderr"
     failed = 1
     exit 2
   }
@@ -320,7 +332,7 @@ LC_ALL=C awk -F '\t' '
     previous = $1
     if ($2 != "phase-25b" && $2 != "phase-37")
       die("unknown entry phase owner for " $1 ": " $2)
-    if ($4 != "m5" && $4 != "m11" && $4 != "phase-37")
+    if ($4 != "m6" && $4 != "m11" && $4 != "phase-37")
       die("unknown milestone owner for " $1 ": " $4)
     if ($7 != "pass" && $7 != "fail")
       die("required_final must be pass or fail for " $1 ": " $7)
@@ -334,12 +346,12 @@ LC_ALL=C awk -F '\t' '
     if (NR < 2) die("manifest has no rows")
     printf "%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n",
       total, outcomes["pass"] + 0, outcomes["fail"] + 0,
-      owners["m5", "pass"] + 0, owners["m5", "fail"] + 0,
+      owners["m6", "pass"] + 0, owners["m6", "fail"] + 0,
       owners["m11", "fail"] + 0, owners["phase-37", "fail"] + 0,
       phases["phase-25b"] + 0, phases["phase-37"] + 0
   }
-' tests/conformance/phase-25b-m5.tsv >"$focused_stats" ||
-  fail "could not validate the Phase 25b m5 manifest"
+' tests/conformance/phase-25b-m6.tsv >"$focused_stats" ||
+  fail "could not validate the Phase 25b m6 manifest"
 
 IFS="$(printf '\t')" read -r focused_total focused_pass focused_fail \
   focused_owned_pass focused_owned_fail focused_m11 focused_phase37 \
@@ -352,31 +364,32 @@ pretty_focused_total=$(format_count "$focused_total")
 pretty_focused_pass=$(format_count "$focused_pass")
 
 [ "$focused_total" -eq $((focused_pass + focused_fail + focused_skip + focused_crash)) ] ||
-  fail "focused m5 classifications do not sum to the frozen total"
+  fail "focused m6 classifications do not sum to the frozen total"
 [ "$focused_total" -eq $((focused_phase25b_rows + focused_phase37_rows)) ] ||
-  fail "focused m5 phase-owner rows do not sum to the frozen total"
+  fail "focused m6 phase-owner rows do not sum to the frozen total"
 [ "$focused_fail" -eq "$focused_controls" ] ||
-  fail "focused m5 control owners do not sum to the failure count"
-[ "$focused_total" -eq 56 ] && [ "$focused_pass" -eq 43 ] &&
-  [ "$focused_fail" -eq 13 ] && [ "$focused_owned_pass" -eq 43 ] &&
-  [ "$focused_owned_fail" -eq 0 ] && [ "$focused_m11" -eq 12 ] &&
-  [ "$focused_phase37" -eq 1 ] && [ "$focused_phase25b_rows" -eq 55 ] &&
-  [ "$focused_phase37_rows" -eq 1 ] ||
-  fail "focused m5 manifest no longer matches its frozen 43-owned-pass/13-control contract"
+  fail "focused m6 control owners do not sum to the failure count"
+[ "$focused_total" -eq 509 ] && [ "$focused_pass" -eq 407 ] &&
+  [ "$focused_fail" -eq 102 ] && [ "$focused_owned_pass" -eq 407 ] &&
+  [ "$focused_owned_fail" -eq 0 ] && [ "$focused_m11" -eq 7 ] &&
+  [ "$focused_phase37" -eq 95 ] && [ "$focused_phase25b_rows" -eq 414 ] &&
+  [ "$focused_phase37_rows" -eq 95 ] ||
+  fail "focused m6 manifest no longer matches its frozen 407-owned-pass/102-control contract"
 
 parse_total=23713
 parse_pass=17699
 parse_fail=976
 parse_skip=5038
 parse_crash=0
-lisp_pass=3187
+lisp_pass=3234
 lisp_fail=0
+lisp_skip=0
 [ "$parse_total" -eq $((parse_pass + parse_fail + parse_skip + parse_crash)) ] ||
-  fail "recorded m5 parse classifications do not sum to the corpus total"
+  fail "recorded m6 parse classifications do not sum to the corpus total"
 [ "$parse_frozen" -eq 17512 ] ||
-  fail "parse pass-list no longer matches the m5 frozen baseline"
+  fail "parse pass-list no longer matches the m6 frozen baseline"
 [ "$parse_pass" -ge "$parse_frozen" ] ||
-  fail "recorded m5 parse pass count regresses the frozen baseline"
+  fail "recorded m6 parse pass count regresses the frozen baseline"
 pretty_parse_total=$(format_count "$parse_total")
 pretty_parse_pass=$(format_count "$parse_pass")
 pretty_parse_fail=$(format_count "$parse_fail")
@@ -679,16 +692,17 @@ require_text README.md "./build/clun --version   # => clun $version"
 require_text README.md "The current source version is \`$version\`"
 require_text tests/lisp/smoke.lisp "(is string= \"$version\" clun::*clun-version*)"
 require_text docs/versioning.md "Its impact is \`minor\`"
-require_text docs/versioning.md "\`$version\` under tag \`v$version\`"
-[ "$version" = 0.1.0-dev.5 ] ||
-  fail "Phase 25b milestone 5 public claims require source version 0.1.0-dev.5"
+require_text docs/versioning.md "local source candidate is \`$version\` under tag"
+require_text docs/versioning.md "\`v$version\` within the existing \`0.1.0\` train"
+[ "$version" = 0.1.0-dev.6 ] ||
+  fail "Phase 25b milestone 6 public claims require source version 0.1.0-dev.6"
 require_text README.md "$pretty_passes tests"
-require_text README.md "$pretty_report_total-row execution ledger"
+require_text README.md "$pretty_report_total-row off-mode execution ledger"
 require_text README.md "$pretty_report_pass passes and $pretty_report_fail gaps across $pretty_report_eligible eligible tests"
 require_text README.md "($report_rate%), with $pretty_report_skip skips and zero crashes"
 
 release_url="https://github.com/theesfeld/clun/releases/tag/v$version"
-previous_version=0.1.0-dev.4
+previous_version=0.1.0-dev.5
 previous_release_url="https://github.com/theesfeld/clun/releases/tag/v$previous_version"
 readme_candidate_marker="\`$version\` release candidate"
 site_candidate_marker="v$version release candidate / pre-alpha"
@@ -701,10 +715,10 @@ grep -Fq -- "$site_candidate_marker" site/index.html && site_candidate=1
 
 if [ "$readme_candidate" -eq 1 ]; then
   release_state=candidate
-  require_text README.md "The \`v$version\` tag, native assets, Pages"
-  require_text README.md "deployment, and hosted-installer verification are not published yet."
+  require_text README.md "The \`v$version\` tag, native assets, Pages deployment, and hosted-installer verification are"
+  require_text README.md "not published yet. The last published release remains"
   require_text README.md "The last published release"
-  require_text README.md "remains [\`v$previous_version\`]($previous_release_url)"
+  require_text README.md "[\`v$previous_version\`]($previous_release_url)"
   reject_text README.md "$release_url"
 
   require_text site/index.html "href=\"$previous_release_url\""
@@ -712,7 +726,7 @@ if [ "$readme_candidate" -eq 1 ]; then
   require_text site/index.html "<a href=\"$previous_release_url\">v$previous_version release</a>"
   require_text site/index.html "</span> v$version release candidate / pre-alpha</p>"
   require_text site/index.html "<span>$version candidate / pre-alpha</span>"
-  require_text site/index.html "verification are not published yet; dev.4 remains the last published release"
+  require_text site/index.html "verification are not published yet; dev.5 remains the last published release"
   reject_text site/index.html "$release_url"
 else
   release_state=published
@@ -736,18 +750,28 @@ require_text site/index.html "Full run: $pretty_report_total total = $pretty_rep
 require_text site/index.html "Eligible: $pretty_report_eligible / target: $pretty_report_target pass / remaining lift: $pretty_report_lift."
 require_text README.md "focused $focused_milestone slice contains $pretty_focused_total tests: $pretty_focused_pass pass and $focused_fail fail, with zero skips, timeouts, and crashes"
 require_text README.md "All $focused_owned_pass milestone-owned rows pass; the $focused_controls deliberate controls remain assigned to m11 ($focused_m11) and Phase 37"
-require_text README.md "($focused_phase37), leaving m5 with no owned residual."
+require_text README.md "($focused_phase37), leaving m6 with no owned residual."
 require_text README.md "full gap inventory assigns $pretty_phase25b_rows residuals to Phase 25b and"
 require_text README.md "$pretty_phase37_rows to Phase 37."
 require_text site/index.html "Focused $focused_milestone slice: $pretty_focused_total total / $pretty_focused_pass pass / $focused_fail fail / $focused_skip skip / $focused_timeout timeout / $focused_crash crash."
-require_text site/index.html "All $focused_owned_pass owned rows pass; controls: $focused_m11 m11 / $focused_phase37 Phase 37; m5 residual: $focused_owned_fail. Remaining ownership:"
+require_text site/index.html "All $focused_owned_pass owned rows pass; controls: $focused_m11 m11 / $focused_phase37 Phase 37; m6 residual: $focused_owned_fail. Remaining ownership:"
 require_text site/index.html "$pretty_phase25b_rows Phase-25b / $pretty_phase37_rows Phase-37 gaps."
-require_text README.md "canonical execution ledger digest is \`$report_digest\`"
+require_text README.md "pass list gained 410 tests from milestone 5 and 2,818 from the Phase 25b entry"
+require_text site/index.html "Pass-list gain: +410 from m5 / +2,818 from Phase 25b entry."
+require_text README.md "\`species-constructor.js\`, \`subclass-reject-count.js\`, and \`subclass-resolve-count.js\`"
+require_text site/index.html "<code>species-constructor.js</code>, <code>subclass-reject-count.js</code>, and"
+require_text site/index.html "<code>subclass-resolve-count.js</code>."
+require_text README.md "canonical candidate execution ledger digest is \`$report_digest\`"
 require_text site/index.html "Ledger digest: <code>$report_digest</code>."
+require_text README.md "off/eager ledgers are byte-identical; eager mode compiled"
+require_text README.md "1,030,545 forms, classified 56,018 as ineligible, fell back zero times, and executed zero interpreter"
+require_text README.md "fallbacks."
+require_text site/index.html "Off/eager ledgers are byte-identical; eager compiled 1,030,545 forms / classified 56,018"
+require_text site/index.html "as ineligible / fell back 0 times / executed 0 interpreter fallbacks."
 require_text README.md "$pretty_parse_total tests as $pretty_parse_pass pass, $pretty_parse_fail fail, $pretty_parse_skip skip, and zero crash"
-require_text README.md "Common Lisp suite passes $pretty_lisp_pass tests with zero failures"
+require_text README.md "Common Lisp suite passes $pretty_lisp_pass tests with zero failures and zero skips"
 require_text site/index.html "Parse gate: $pretty_parse_total total / $pretty_parse_pass pass / $pretty_parse_fail fail / $pretty_parse_skip skip / $parse_crash crash; all $pretty_parse_frozen"
-require_text site/index.html "Common Lisp suite: $pretty_lisp_pass pass / $lisp_fail fail."
+require_text site/index.html "Common Lisp suite: $pretty_lisp_pass pass / $lisp_fail fail / $lisp_skip skip."
 if [ "$report_lift" -gt 0 ]; then
   require_text README.md "the $pretty_report_target-pass target requires $pretty_report_lift additional live"
   reject_text README.md "Phase 25b's 90% target is met"
@@ -762,6 +786,15 @@ fi
 require_text site/index.html "github.com/theesfeld/clun/blob/master/PLAN.md"
 require_text site/index.html "Phase 25 / milestone ${benchmark_milestone#m}"
 require_text site/index.html "$benchmark_met of 3 workloads"
+require_text README.md "Bun 1.3.14, Node.js 26.5.0, and Deno 2.9.3"
+require_text README.md "July 16, 2026"
+require_text site/index.html "<span>26.5.0 / current</span>"
+require_text site/index.html "github.com/nodejs/node/releases/tag/v26.5.0"
+require_text site/index.html "<span>2.9.3 / runtime</span>"
+require_text site/index.html "github.com/denoland/deno/releases/tag/v2.9.3"
+require_text site/index.html "Snapshot checked July 16, 2026"
+reject_text README.md "Deno 2.9.2"
+reject_text site/index.html "Deno 2.9.2"
 installer_default="requested_version=\${CLUN_VERSION:-v$version}"
 [ "$(grep -Fxc "$installer_default" site/install)" -eq 1 ] ||
   fail "site/install default CLUN_VERSION is not v$version"

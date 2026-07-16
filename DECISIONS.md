@@ -2307,6 +2307,69 @@ release-gated installer. An isolated `curl -fsSL https://clun.sh/install | sh` i
 change source, installer target, artifacts, behavior, capabilities, or compatibility claims. Its SemVer
 impact is therefore `none`, dev.5 remains current, and no tag is created. The handoff commit's own Pages run
 must deploy the published-status page and be recorded in issue #57 before m6 implementation begins. M5 is
-complete. M6 async generators and async iteration are current and queued; its future release impact and
-target will be determined from the bounded completed work and recorded in issue #57 before implementation.
-Phase 25b remains open at 25,051 / 28,163 = 88.950041%, 296 passes below its fixed target.
+complete. That handoff made m6 async generators and async iteration current; issue #57 then recorded its
+bounded scope, `minor` impact, and exact dev.6 target before implementation. At the handoff boundary,
+Phase 25b remained at 25,051 / 28,163 = 88.950041%, 296 passes below its fixed target.
+
+### 2026-07-16 - Phase 25b m6 freezes and implements async iteration behind one queued state machine
+
+The immutable dev.5 gap inventory replaces m1's 468-row planning estimate. M6 freezes every current
+`async-iteration` or `async-generators` work-bucket row: 509 total, all classified fail at entry with zero
+skip, timeout, or crash. Conceptual ownership is 407 m6 required-pass rows, seven m11 direct-eval/`with`
+controls, and 95 Phase-37 `Array.fromAsync` controls. The owned split is async-generator delegation 328,
+yield awaiting/rejection 47, AsyncFromSync 9, `for await` ordering/close 6, request queue 6,
+invalid-receiver promise rejection 6, and `.return()` value awaiting 5. The 16
+`yield-promise-reject-next-yield-star-*` paths are yield-await rows because rejection injection is their
+first required operation; every other selected `yield-star` language row is delegation. The fail-closed
+manifest fixes this partition under path-list FNV-1a-64 `D9A872B337562D21` and the target result of
+407 pass / 102 retained failures.
+
+M6 keeps Clun's thread coroutine as the sole body driver and adds an explicit async-generator state plus a
+FIFO of resume-kind/value/promise-capability requests. Prototype methods create the promise before brand
+validation, queue valid requests, and permit only one coroutine transition at a time. Yielded and returned
+values are adopted at their specified suspension points, rejections are injected without corrupting later
+requests, and completed generators drain the queue without re-entry. One shared async iterator record
+prefers `@@asyncIterator`, otherwise wraps the captured sync iterator and next method with promise-returning
+`next`/`return`/`throw`. Async `yield*` and `for await` use that record and completion-aware
+AsyncIteratorClose; close failures replace non-throw completions, while an original throw remains primary.
+
+This scheme is informed by observable behavior and the state/queue/wrapper separation in Bun
+`c1076ce95effb909bfe9f596919b5dba5567d550`'s pinned JSC/WebKit
+`c9ad5813fd23bd8b98b0738abc3d037ec716aa92`, specifically `JSAsyncGenerator`,
+`AsyncGeneratorPrototype.js`, `AsyncFromSyncIteratorPrototype.js`, `BytecodeGenerator.cpp`, and shared
+iterator operations. No Bun or JSC implementation text or storage layout is copied; Clun's implementation
+is independent GPL-3.0-or-later Common Lisp.
+
+The implementation passes the frozen focused gate exactly: 407 m6-owned pass, seven m11 fail, 95 Phase-37
+fail, and zero skip, timeout, or crash. The confirmed default/off ledger is 25,461 pass, 2,702 fail,
+12,491 skip, and zero crash across 40,654 paths. Eligible remains 28,163, so the exact rate is 90.405852%:
+114 passes above the fixed 25,347 target. The monotonic pass-list gain is +410 from m5 and +2,818 from
+the frozen 22,643-row Phase-25b entry list. Residual ownership
+is 1,817 Phase-25b and 885 Phase-37. The three incidental passes beyond m6's 407 owned rows are
+`built-ins/Promise/prototype/finally/species-constructor.js`, `subclass-reject-count.js`, and
+`subclass-resolve-count.js`; the required base PromiseResolve correction exposed `finally`'s species,
+ordering, and object-handling defect, which is fixed rather than hidden from the monotonic result.
+
+Review also required PromiseResolve setup abrupts to occur synchronously before a queued async-generator
+request could be overtaken and required the second Await when native-async `yield*` receives a completed
+delegated `return` or `throw`. Focused regressions now bind those cases along with FIFO/completed-state
+requests, invalid-receiver promise rejection, yield/return adoption, rejection injection, AsyncFromSync,
+delegation close precedence, and `for await` close ordering.
+The suspended-start `return`/`throw` path completes and unregisters its underlying coroutine without
+spawning a thread; regressions cover return, throw, repetition, completed-state behavior, and nil-thread
+cleanup.
+
+The complete default/off and eager ledgers are byte-identical across all 40,654 paths. Eager mode compiled
+1,030,545 forms, classified 56,018 as ineligible, and fell back zero times. The regenerated monotonic pass
+list contains 25,461 paths, +410 from m5, and the exact residual artifacts are bound by canonical digest
+`A742D885346DA23C`. Parse conformance is green at 23,713 total, 17,699 pass, 976 fail, 5,038 skip, and zero
+crash; all frozen parser passes hold. The integrated Lisp gate is green at 3,234 pass, zero fail, zero skip.
+The local build, full-test, purity, security, public-claim, roadmap, installer, conformance, and visual gates
+are green.
+
+This is backward-compatible functionality in the selected `0.1.0` train, so the canonical impact remains
+`minor`. Dev.5 is immutable and remains the last published release; the synchronized local candidate is
+exactly `0.1.0-dev.6` with future target `v0.1.0-dev.6`. No dev.6 tag, native asset, Pages deployment, or
+hosted-installer result is claimed. Only committed-range SemVer, exact `master` CI and Documentation runs,
+release assets, Pages deployment, and hosted-installer verification remain. Issue #57 remains the canonical
+live record.

@@ -10,13 +10,14 @@ CONFORMANCE_GAPS           ?= tests/conformance/exec-gaps.tsv
 CONFORMANCE_REPORT         ?= docs/conformance/test262-execution.md
 CONFORMANCE_VERIFY_DIR     ?= tmp-test/conformance-buckets-verify
 PHASE_25B_M5_MANIFEST      ?= tests/conformance/phase-25b-m5.tsv
+PHASE_25B_M6_MANIFEST      ?= tests/conformance/phase-25b-m6.tsv
 
 .PHONY: all build test test-lisp test-js test-tls test-crypto registry-fixture purity bench \
 		bench-check compile-tier-ceiling test-installer test-release-live-check \
 		public-claims-check version-transition-check test-version-transition-check \
 		roadmap-check roadmap-sync \
 		roadmap-verify-live \
-		conformance-exec-compare phase-25b-m5-check \
+		conformance-exec-compare phase-25b-m5-check phase-25b-m6-check \
 		conformance-buckets conformance-buckets-check \
 		conformance-buckets-verify clean
 
@@ -79,6 +80,13 @@ conformance-exec:
 phase-25b-m5-check:
 	CLUN_PHASE_25B_M5_MANIFEST='$(PHASE_25B_M5_MANIFEST)' \
 		$(SBCL) --dynamic-space-size 6144 $(SBCL_FLAGS) --load scripts/phase-25b-m5.lisp
+
+## phase-25b-m6-check -- require the frozen async-generator/iteration slice to
+## have 407 owned passes while its seven m11 and 95 Phase-37 controls still fail.
+## Set CLUN_PHASE_25B_M6_MODE=entry to reproduce the immutable dev.5 baseline.
+phase-25b-m6-check:
+	CLUN_PHASE_25B_M6_MANIFEST='$(PHASE_25B_M6_MANIFEST)' \
+		$(SBCL) --dynamic-space-size 6144 $(SBCL_FLAGS) --load scripts/phase-25b-m6.lisp
 
 ## conformance-exec-compare -- run the complete execution corpus with the COMPILE
 ## tier off and eager, then require byte-identical per-file classifications.

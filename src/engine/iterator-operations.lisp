@@ -1,4 +1,4 @@
-;;;; iterator-operations.lisp -- shared synchronous iterator abstract operations.
+;;;; iterator-operations.lisp -- shared iterator abstract operations.
 
 (in-package :clun.engine)
 
@@ -7,6 +7,27 @@
             (:copier nil))
   iterator
   next-method
+  (done nil))
+
+;;; Async-from-sync is a real iterator adapter, not a flag on a synchronous
+;;; record.  Its methods return promises and normalize each synchronous result
+;;; into a fresh iterator-result object after adopting its value.
+
+(defstruct (async-from-sync-iterator-record
+            (:constructor %make-async-from-sync-iterator-record
+                (iterator next-method))
+            (:copier nil))
+  iterator
+  next-method
+  (done nil))
+
+(defstruct (async-iterator-record
+            (:constructor %make-async-iterator-record
+                (iterator next-method &optional from-sync))
+            (:copier nil))
+  iterator
+  next-method
+  from-sync
   (done nil))
 
 (defun get-iterator-record (obj &optional method)
@@ -113,3 +134,211 @@
 
 (defun iterable->list-protocol (obj)
   (iterable->list obj))
+
+;;; --- asynchronous iteration -------------------------------------------------
+
+(defun %new-iterator-result (value done)
+  ;; Kept local because this file loads before builtins-iterator.lisp.
+  (let ((result (new-object)))
+    (create-data-property result "value" value)
+    (create-data-property result "done" (js-boolean done))
+    result))
+
+(defun %reject-iterator-promise (promise condition)
+  (%reject-promise promise (js-condition-value condition))
+  promise)
+
+(defun %close-sync-iterator (record &key throw-completion-p)
+  "Close an AsyncFromSync adapter's underlying iterator synchronously."
+  (unless (async-from-sync-iterator-record-done record)
+    (setf (async-from-sync-iterator-record-done record) t)
+    (flet ((finish-close ()
+             (let ((return-method
+                     (get-method
+                      (async-from-sync-iterator-record-iterator record)
+                      "return")))
+               (unless (js-undefined-p return-method)
+                 (let ((result
+                         (js-call
+                          return-method
+                          (async-from-sync-iterator-record-iterator record)
+                          '())))
+                   (unless (js-object-p result)
+                     (throw-type-error
+                      "iterator return result is not an object")))))))
+      (if throw-completion-p
+          (handler-case (finish-close)
+            (js-condition () +undefined+))
+          (finish-close))))
+  +undefined+)
+
+(defun %async-from-sync-continuation
+    (record result promise &key close-on-rejection)
+  "Adopt RESULT.value and settle PROMISE with a fresh iterator result."
+  (unless (js-object-p result)
+    (throw-type-error "iterator result is not an object"))
+  (let* ((done (js-truthy (js-get result "done")))
+         (value (js-get result "value"))
+         (value-promise
+           (handler-case (base-resolve value)
+             (js-condition (condition)
+               (when (and close-on-rejection (not done))
+                 (%close-sync-iterator record :throw-completion-p t))
+               (%reject-promise promise (js-condition-value condition))
+               (return-from %async-from-sync-continuation promise)))))
+    (when done
+      (setf (async-from-sync-iterator-record-done record) t))
+    (multiple-value-bind (resolve reject) (make-resolving-functions promise)
+      (perform-promise-then
+       value-promise
+       (make-native-function
+        "" 1
+        (lambda (this args)
+          (declare (ignore this))
+          (%new-iterator-result (arg args 0) done)))
+       (and close-on-rejection
+            (not done)
+            (make-native-function
+             "" 1
+             (lambda (this args)
+               (declare (ignore this))
+               ;; A rejected yielded value closes the synchronous source, but
+               ;; the rejection itself retains precedence over close failures.
+               (%close-sync-iterator record :throw-completion-p t)
+               (throw-js-value (arg args 0)))))
+       resolve reject)))
+  promise)
+
+(defun async-from-sync-iterator-next
+    (record &optional (value +undefined+ value-supplied-p))
+  (let ((promise (make-promise)))
+    (handler-case
+        (%async-from-sync-continuation
+         record
+         (js-call (async-from-sync-iterator-record-next-method record)
+                  (async-from-sync-iterator-record-iterator record)
+                  (if value-supplied-p (list value) '()))
+         promise
+         :close-on-rejection t)
+      (js-condition (condition)
+        (%reject-iterator-promise promise condition)))
+    promise))
+
+(defun async-from-sync-iterator-return
+    (record &optional (value +undefined+ value-supplied-p))
+  (let ((promise (make-promise)))
+    (handler-case
+        (let ((return-method
+                (get-method
+                 (async-from-sync-iterator-record-iterator record)
+                 "return")))
+          (if (js-undefined-p return-method)
+              (progn
+                (setf (async-from-sync-iterator-record-done record) t)
+                (%resolve-promise promise (%new-iterator-result value t)))
+              (%async-from-sync-continuation
+               record
+               (js-call return-method
+                        (async-from-sync-iterator-record-iterator record)
+                        (if value-supplied-p (list value) '()))
+               promise)))
+      (js-condition (condition)
+        (%reject-iterator-promise promise condition)))
+    promise))
+
+(defun async-from-sync-iterator-throw
+    (record &optional (value +undefined+ value-supplied-p))
+  (let ((promise (make-promise)))
+    (handler-case
+        (let ((throw-method
+                (get-method
+                 (async-from-sync-iterator-record-iterator record)
+                 "throw")))
+          (if (js-undefined-p throw-method)
+              (progn
+                ;; Missing throw performs a normal IteratorClose first.  A
+                ;; close failure wins; otherwise reject with the protocol error.
+                (%close-sync-iterator record)
+                (%reject-promise
+                 promise
+                 (%promise-type-error "iterator has no throw method")))
+              (%async-from-sync-continuation
+               record
+               (js-call throw-method
+                        (async-from-sync-iterator-record-iterator record)
+                        (if value-supplied-p (list value) '()))
+               promise
+               :close-on-rejection t)))
+      (js-condition (condition)
+        (%reject-iterator-promise promise condition)))
+    promise))
+
+(defun get-async-iterator-record (obj)
+  "GetAsyncIterator: prefer @@asyncIterator, otherwise create AsyncFromSync."
+  (let ((async-method (get-method obj (well-known :async-iterator))))
+    (if (not (js-undefined-p async-method))
+        (let ((iterator (js-call async-method obj '())))
+          (unless (js-object-p iterator)
+            (throw-type-error "iterator is not an object"))
+          (%make-async-iterator-record iterator (js-get iterator "next")))
+        (let* ((sync-record (get-iterator-record obj))
+               (adapter
+                 (%make-async-from-sync-iterator-record
+                  (iterator-record-iterator sync-record)
+                  (iterator-record-next-method sync-record))))
+          (%make-async-iterator-record
+           (async-from-sync-iterator-record-iterator adapter)
+           (async-from-sync-iterator-record-next-method adapter)
+           adapter)))))
+
+(defun async-iterator-next
+    (record &optional (value +undefined+ value-supplied-p))
+  "Invoke an async iterator's cached next method, returning its raw promise/value."
+  (let ((adapter (async-iterator-record-from-sync record)))
+    (if adapter
+        (if value-supplied-p
+            (async-from-sync-iterator-next adapter value)
+            (async-from-sync-iterator-next adapter))
+        (js-call (async-iterator-record-next-method record)
+                 (async-iterator-record-iterator record)
+                 (if value-supplied-p (list value) '())))))
+
+(defun async-iterator-return
+    (record &optional (value +undefined+ value-supplied-p))
+  "Invoke return. The second value says whether the async iterator has the method."
+  (let ((adapter (async-iterator-record-from-sync record)))
+    (if adapter
+        (values
+         (if value-supplied-p
+             (async-from-sync-iterator-return adapter value)
+             (async-from-sync-iterator-return adapter))
+         t)
+        (let ((return-method
+                (get-method (async-iterator-record-iterator record) "return")))
+          (if (js-undefined-p return-method)
+              (values +undefined+ nil)
+              (values
+               (js-call return-method
+                        (async-iterator-record-iterator record)
+                        (if value-supplied-p (list value) '()))
+               t))))))
+
+(defun async-iterator-throw
+    (record &optional (value +undefined+ value-supplied-p))
+  "Invoke throw. AsyncFromSync always exposes the adapter's throwing method."
+  (let ((adapter (async-iterator-record-from-sync record)))
+    (if adapter
+        (values
+         (if value-supplied-p
+             (async-from-sync-iterator-throw adapter value)
+             (async-from-sync-iterator-throw adapter))
+         t)
+        (let ((throw-method
+                (get-method (async-iterator-record-iterator record) "throw")))
+          (if (js-undefined-p throw-method)
+              (values +undefined+ nil)
+              (values
+               (js-call throw-method
+                        (async-iterator-record-iterator record)
+                        (if value-supplied-p (list value) '()))
+               t))))))

@@ -1397,9 +1397,13 @@ the live coroutine that yield/await suspend."
         (generator-kind *current-generator-kind*))
     (if (yield-expression-delegate node)
         (lambda (env)
-          (%yield-delegate (funcall coro-ref env)
-                           (get-iterator (funcall arg-fn env))
-                           generator-kind))
+          (let ((value (funcall arg-fn env)))
+            (%yield-delegate
+             (funcall coro-ref env)
+             (if (eq generator-kind :async)
+                 (get-async-iterator-record value)
+                 (get-iterator-record value))
+             generator-kind)))
         (lambda (env)
           (coroutine-suspend (funcall coro-ref env) :yield
                              (if arg-fn (funcall arg-fn env) +undefined+))))))
@@ -1411,18 +1415,55 @@ the live coroutine that yield/await suspend."
 
 ;;; --- lazy iterator protocol (yield*, for-of/for-await) -----------------------
 
-(defun get-iterator (obj &optional async)
-  "Returns (values iterator-record async-from-sync-p). ASYNC-FROM-SYNC-P is true when an
-async iterator was requested but only a sync @@iterator exists — the caller must
-then Await each yielded value (§27.1.4.1)."
-  (let ((iter-fn (and async (get-method obj (well-known :async-iterator)))))
-    (when (or (null iter-fn) (js-undefined-p iter-fn))
-      (let ((sync-fn (get-method obj (well-known :iterator))))
-        (when (js-undefined-p sync-fn) (throw-type-error "value is not iterable"))
-        (return-from get-iterator (values (get-iterator-record obj sync-fn) async))))
-    (values (get-iterator-record obj iter-fn) nil)))
+(defun %await-async-iterator-result (co value)
+  (let ((result (await-value co value)))
+    (unless (js-object-p result)
+      (throw-type-error "iterator result is not an object"))
+    result))
 
-(defun %yield-delegate (co iter generator-kind)
+(defun %async-iterator-complete (record result)
+  (let ((done (js-truthy (js-get result "done"))))
+    (when done
+      (setf (async-iterator-record-done record) t))
+    done))
+
+(defun %async-iterator-value (result)
+  (js-get result "value"))
+
+(defun %perform-async-iterator-close (co record)
+  (unless (async-iterator-record-done record)
+    ;; The close is attempted at most once even if its getter, call, await, or
+    ;; result validation fails.
+    (setf (async-iterator-record-done record) t)
+    (multiple-value-bind (result present-p) (async-iterator-return record)
+      (when present-p
+        (%await-async-iterator-result co result))))
+  +undefined+)
+
+(defun async-iterator-close (co record &key throw-completion-p)
+  "AsyncIteratorClose. An in-flight throw retains precedence over close errors."
+  (if throw-completion-p
+      (handler-case (%perform-async-iterator-close co record)
+        (js-condition () +undefined+))
+      (%perform-async-iterator-close co record))
+  +undefined+)
+
+(defun call-with-async-iterator-close-on-abrupt (co record thunk)
+  "Run one loop binding/body step and close if control leaves it abruptly."
+  (let ((completed nil)
+        (throw-completion-p nil))
+    (unwind-protect
+         (multiple-value-prog1
+             (handler-case (funcall thunk)
+               (js-condition (condition)
+                 (setf throw-completion-p t)
+                 (error condition)))
+           (setf completed t))
+      (unless completed
+        (async-iterator-close
+         co record :throw-completion-p throw-completion-p)))))
+
+(defun %sync-yield-delegate (co iter)
   "yield* (§15.5.5): forward next/throw/return to the inner iterator, yielding each
 value to the outer driver and returning the inner iterator's final value."
   (let ((sent (cons :next +undefined+)))
@@ -1452,12 +1493,57 @@ value to the outer driver and returning the inner iterator's final value."
           (let ((rv (iterator-value iter result)))
             ;; a forwarded .return whose inner iterator finished completes the outer generator
             (if (eq mode :return) (throw *coroutine-return-tag* (cons :return rv)) (return rv))))
+        ;; Sync yield* exposes this validated result object by identity.
+        (setf sent (coroutine-suspend-raw co result :yield-result))))))
+
+(defun %async-yield-delegate (co iter)
+  "Async yield*: await iterator results, but do not re-adopt their settled values."
+  (let ((sent (cons :next +undefined+)))
+    (loop
+      (let ((mode (car sent))
+            (value (cdr sent))
+            (result nil)
+            (method-present-p t))
+        (multiple-value-setq (result method-present-p)
+          (ecase mode
+            (:next (values (async-iterator-next iter value) t))
+            (:throw (async-iterator-throw iter value))
+            (:return (async-iterator-return iter value))))
+        (unless method-present-p
+          (ecase mode
+            (:throw
+             ;; Missing throw closes normally first. Any close error wins over
+             ;; the protocol TypeError.
+             (async-iterator-close co iter)
+             (throw-type-error "iterator has no throw method"))
+            (:return
+             ;; AsyncGeneratorUnwrapYieldResumption already awaited this value
+             ;; once. A missing delegate return method requires the separate
+             ;; Await in yield* before propagating the outer Return completion.
+             (throw *coroutine-return-tag*
+                    (cons :return (await-value co value))))))
+        (setf result (%await-async-iterator-result co result))
+        (when (%async-iterator-complete iter result)
+          (let ((return-value (%async-iterator-value result)))
+            ;; The throw and return branches each perform a second Await after
+            ;; the iterator result itself settles. A normal next completion
+            ;; deliberately returns its value without adopting it.
+            (when (member mode '(:throw :return))
+              (setf return-value (await-value co return-value)))
+            (if (eq mode :return)
+                (throw *coroutine-return-tag* (cons :return return-value))
+                (return return-value))))
+        ;; The iterator result was already awaited. AsyncFromSync also adopted
+        ;; its value before creating this result, so the outer driver must wrap
+        ;; the value without a second PromiseResolve.
         (setf sent
-              (if (eq generator-kind :async)
-                  ;; Preserve the existing async path. Full Await/queue semantics are m6.
-                  (coroutine-suspend-raw co (iterator-value iter result) :yield)
-                  ;; Sync yield* exposes this validated result object by identity.
-                  (coroutine-suspend-raw co result :yield-result)))))))
+              (coroutine-suspend-raw
+               co (%async-iterator-value result) :yield-no-await))))))
+
+(defun %yield-delegate (co iter generator-kind)
+  (if (eq generator-kind :async)
+      (%async-yield-delegate co iter)
+      (%sync-yield-delegate co iter)))
 
 ;;; --- statements -------------------------------------------------------------
 
@@ -1653,38 +1739,29 @@ Runs inside the enclosing async function/generator's coroutine (%coro%)."
                (count (and lexical (cs-count scope))))
           (lambda (env)
             (let ((co (funcall coro-ref env)))
-              (multiple-value-bind (iter from-sync) (get-iterator (funcall right-fn env) t)
-                ;; IteratorClose on abrupt completion: break/return/throw must call the
-                ;; iterator's return() so lazy sources (e.g. timers/promises setInterval)
-                ;; release their resources. DONE-NORMALLY is set only on exhaustion.
-                (let ((done-normally nil))
-                  (unwind-protect
-                       (catch bt
-                         (loop
-                           (let ((result (await-value co (iterator-next iter))))
-                             (unless (js-object-p result)
-                               (setf (iterator-record-done iter) t)
-                               (throw-type-error "iterator result is not an object"))
-                             (when (iterator-complete iter result) (return))
-                             ;; async-from-sync: Await the value too (§27.1.4.1); a native
-                             ;; async iterator yields already-settled values (no re-Await).
-                             (let* ((step-value (iterator-value iter result))
-                                    (val (if from-sync (await-value co step-value) step-value))
-                                   (frame (if lexical (new-frame count env +tdz+) env)))
-                               (funcall binder frame val)
-                               (catch ct (funcall body-fn frame)))))
-                         (setf done-normally t))
-                    (unless done-normally
-                      ;; IteratorClose: suppress errors from BOTH get(return) and return()
-                      ;; itself — when unwinding a throw the ORIGINAL must propagate (test262
-                      ;; iterator-close-throw-get-method-abrupt), and on break/return freeing
-                      ;; the source best-effort beats leaking it. (get(return) is inside the
-                      ;; ignore-errors, not just the call — a throwing return getter must not
-                      ;; escape the cleanup and mask the in-flight completion.)
-                      (ignore-errors
-                       (let* ((iterator (iterator-record-iterator iter))
-                              (m (js-get iterator "return")))
-                         (when (callable-p m) (js-call m iterator '()))))))))
+              (let ((iter (get-async-iterator-record (funcall right-fn env))))
+                (catch bt
+                  (loop
+                    ;; Errors while acquiring/awaiting the next result propagate
+                    ;; directly. AsyncFromSync itself closes when adoption of a
+                    ;; yielded value rejects.
+                    (let ((result
+                            (%await-async-iterator-result
+                             co (async-iterator-next iter))))
+                      (when (%async-iterator-complete iter result)
+                        (return))
+                      (let ((value (%async-iterator-value result))
+                            (frame (if lexical
+                                       (new-frame count env +tdz+)
+                                       env)))
+                        ;; Binding, body, break, outer continue, and return are
+                        ;; inside the close boundary. A local continue is caught
+                        ;; and therefore does not close the iterator.
+                        (call-with-async-iterator-close-on-abrupt
+                         co iter
+                         (lambda ()
+                           (funcall binder frame value)
+                           (catch ct (funcall body-fn frame)))))))))
               :normal)))))))
 
 (defun compile-for-each (comp node left right body kind)
@@ -1807,8 +1884,22 @@ Runs inside the enclosing async function/generator's coroutine (%coro%)."
 
 (defun compile-return (comp node)
   (let ((arg (and (return-statement-argument node) (compile-node comp (return-statement-argument node))))
-        (tag (comp-return-tag comp)))
-    (lambda (env) (throw tag (if arg (funcall arg env) +undefined+)))))
+        (tag (comp-return-tag comp))
+        (async-generator-p
+          (and (return-statement-argument node)
+               (eq *current-generator-kind* :async)))
+        (coro-ref
+          (and (return-statement-argument node)
+               (eq *current-generator-kind* :async)
+               (compile-coro-ref comp))))
+    (lambda (env)
+      (let ((value (if arg (funcall arg env) +undefined+)))
+        ;; Async-generator ReturnStatement awaits an explicit expression before
+        ;; completing. The queue driver then wraps this settled value directly.
+        (throw tag
+               (if async-generator-p
+                   (await-value (funcall coro-ref env) value)
+                   value))))))
 
 (defun comp-return-tag (comp)
   ;; the return tag is the symbol we threw to in compile-function-common; we look it

@@ -37,6 +37,7 @@ resource does not exist with a 404 response:
 0.1.0-dev.3
 0.1.0-dev.4
 0.1.0-dev.5
+0.1.0-dev.6
 0.1.0
 ```
 
@@ -119,6 +120,30 @@ an immutable annotated tag within the existing `0.1.0` train, so the ASDF core r
 and documentation, all four native archives and checksums, and the release-gated hosted installer are
 verified. The post-publication handoff to milestone 6 is evidence-only with impact `none`, so source and
 installer remain dev.5 and no tag is created. Its published-status page must pass Pages and be recorded in
-the canonical issue before milestone 6 implementation begins. Milestone 6 is current; its release impact and
-target must be determined from its completed scope and recorded in the canonical issue before implementation
-begins.
+the canonical issue before milestone 6 implementation begins. That gate is complete; milestone 6's selected
+impact and target are recorded below and in the canonical issue before the implementation candidate.
+
+Phase 25b milestone 6 adds backward-compatible FIFO async-generator requests, awaited yield and return
+resumptions, AsyncFromSync iteration, async `yield*`, and completion-correct `for await` close behavior. Its
+impact is `minor`; dev.5 is immutable, so the local source candidate is `0.1.0-dev.6` under tag
+`v0.1.0-dev.6` within the existing `0.1.0` train, while the ASDF core remains `0.1.0`. Dev.5 remains the
+last published release. No dev.6 tag, native assets, Pages deployment, or hosted-installer result is claimed
+until the complete focused/full conformance, master-check, release, and deployment lifecycle passes. The
+focused candidate gate is **407 m6 pass / 7 m11 fail / 95 Phase-37 fail / 0 skip / 0 timeout / 0 crash**.
+Its confirmed default/off corpus is **25,461 pass / 2,702 fail / 12,491 skip / 0 crash**, or
+**25,461 / 28,163 = 90.405852%**: 114 above target. The monotonic pass-list gain is +410 from dev.5
+and +2,818 from the frozen 22,643-row Phase-25b entry list, with **1,817 Phase-25b / 885 Phase-37**
+residuals. Three incidental `Promise.prototype.finally` passes
+result from the required base PromiseResolve correction and its exposed species/order/object fix.
+The suspended-start `return`/`throw` path completes and unregisters its underlying coroutine without
+spawning a thread; regressions cover return, throw, repetition, completed-state behavior, and nil-thread
+cleanup.
+
+The m6 default/off and eager ledgers are byte-identical. Eager mode compiled **1,030,545** forms, classified
+**56,018** as ineligible, and used zero fallback. The regenerated **25,461**-row monotonic pass list is
+**+410** from dev.5, and digest `A742D885346DA23C` binds the exact conformance artifacts. Parse is green at
+**23,713 total / 17,699 pass / 976 fail / 5,038 skip / 0 crash**; Lisp is green at **3,234 pass /
+0 fail / 0 skip**. The local build, full-test, purity, security, public-claim, roadmap, installer,
+conformance, and visual gates are green. Only committed-range SemVer, exact `master` CI and Documentation
+runs, release assets, Pages deployment, and hosted-installer verification remain before dev.6 may change
+from a local candidate into a published release.

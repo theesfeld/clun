@@ -814,6 +814,48 @@ EOF
       fail "Phase 25b issue #$issue_number is missing measured scope evidence: $expected_text"
   done
 
+  m6_candidate='This is local candidate evidence only. No dev.6 tag, release assets, Pages deployment, or hosted-installer result is claimed yet; dev.5 remains the last published release.'
+  if grep -Fq "$m6_candidate" "$body"; then
+    for expected_text in \
+      'Milestone-6 local release-candidate result:' \
+      'Focused fail-closed m6 gate: 509 total = 407 m6 pass / 7 m11 fail / 95 Phase-37 fail / 0 skip / 0 timeout / 0 crash; m6 has no owned residual.' \
+      'Off ledger: 25,461 pass / 2,702 fail / 12,491 skip / 0 crash.' \
+      'Full off/eager ledgers are byte-identical; eager compiled 1,030,545 forms, classified 56,018 as ineligible, fell back 0 times, and executed 0 interpreter fallbacks.' \
+      'Monotonic pass-list gain: 410 from milestone 5; 2,818 from the frozen 22,643-row phase-entry list.' \
+      'Monotonic artifacts: 25,461 frozen pass-list entries (+410 from m5 and +2,818 from the frozen 22,643-row phase-entry list), with 1,817 Phase-25b and 885 Phase-37 residual gaps.' \
+      'Target margin: 114 passes above the fixed 25,347-pass target.' \
+      'M6 canonical artifact digest: `A742D885346DA23C`.' \
+      'M6 parse gate: 23,713 total / 17,699 pass / 976 fail / 5,038 skip / 0 crash; all 17,512 frozen parser passes hold.' \
+      'M6 `make test-lisp`: 3,234 pass / 0 fail / 0 skipped.' \
+      'Eager compiled forms: `1,030,545`.' \
+      'Eager ineligible forms: `56,018`.' \
+      'Parse pass count: `17,699`.' \
+      'Parse fail count: `976`.' \
+      'Lisp pass count: `3,234`.' \
+      'The suspended-start `return`/`throw` path completes and unregisters its underlying coroutine without spawning a thread; regressions cover return, throw, repetition, completed-state behavior, and nil-thread cleanup.' \
+      'Local gates: build, full test, purity, security, public claims, roadmap, installer, conformance, and visual checks are green.' \
+      'Committed-range SemVer gate: passed from `0.1.0-dev.5` to `0.1.0-dev.6` (`prerelease`; canonical impact `minor`).' \
+      'Only the exact `master` CI and Documentation runs, release assets, Pages deployment, and hosted-installer verification remain.' \
+      'Three incidental Promise.finally rows pass outside the 509-row focused manifest; they remain visible in the global +410 gain and are not credited to the 407 owned rows.' \
+      'Independent review required PromiseResolve setup abruptions to occur synchronously before a queued async-generator request could be overtaken, and added the second Await when native-async `yield*` receives a completed delegated `return` or `throw`.' \
+      '**Last published release:** `0.1.0-dev.5` / `v0.1.0-dev.5`; all four native archives, checksums, the release-gated Pages installer, and hosted installer are verified.'; do
+      grep -Fq "$expected_text" "$body" ||
+        fail "Phase 25b issue #$issue_number is missing m6 candidate evidence: $expected_text"
+    done
+    if grep -Fq 'Milestone-6 publication evidence:' "$body"; then
+      fail "Phase 25b issue #$issue_number mixes m6 candidate and publication evidence"
+    fi
+  else
+    for expected_text in \
+      'Milestone-6 publication evidence:' \
+      'published [`v0.1.0-dev.6`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.6) as a prerelease.' \
+      'Assets: `clun-linux-x64.tar.gz`, `clun-linux-arm64.tar.gz`, `clun-darwin-x64.tar.gz`, `clun-darwin-arm64.tar.gz`, and `checksums.txt`;' \
+      'installed binary reported `clun 0.1.0-dev.6`.'; do
+      grep -Fq "$expected_text" "$body" ||
+        fail "Phase 25b issue #$issue_number is missing m6 publication evidence: $expected_text"
+    done
+  fi
+
   m5_candidate='This is local candidate evidence only. No dev.5 tag, release assets, Pages deployment, or hosted-installer result is claimed yet; dev.4 remains the last published release.'
   if grep -Fq "$m5_candidate" "$body"; then
     for expected_text in \

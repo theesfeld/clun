@@ -174,7 +174,10 @@ C, else resolve a fresh C-capability with it."
 
 (defun base-resolve (value)
   "PromiseResolve with the intrinsic Promise (internal adoption for await/combinators)."
-  (if (js-promise-p value) value (promise-resolve* (intrinsic :promise-constructor) value)))
+  ;; PromiseResolve must read an existing Promise's `constructor` before it can
+  ;; decide to return that Promise unchanged. Do not shortcut js-promise values:
+  ;; the Get is observable and may complete abruptly.
+  (promise-resolve* (intrinsic :promise-constructor) value))
 
 (defun promise-then-generic (thenable on-fulfilled on-rejected)
   "Call THENABLE.then(onFulfilled, onRejected) — subclass/thenable-aware."
@@ -347,20 +350,27 @@ C, else resolve a fresh C-capability with it."
           (multiple-value-bind (result resolve reject) (new-promise-capability c)
             (perform-promise-then p (arg args 0) (arg args 1) resolve reject)
             result))))
-    ;; catch/finally delegate to `this.then` (subclass-aware). js-getv (not js-get)
-    ;; so a non-object `this` coerces → JS TypeError, never a host no-applicable-method.
+    ;; catch delegates to `this.then`; js-getv turns a primitive receiver into a
+    ;; catchable JS TypeError rather than a host no-applicable-method condition.
     (install-method pp "catch" 1
       (lambda (this args) (js-call (js-getv this "then") this (list +undefined+ (arg args 0)))))
     ;; finally per §27.2.5.3: thenFinally/catchFinally (length 1) each compute
-    ;; PromiseResolve(onFinally()).then(thunk) with a length-0 value-thunk/thrower and
-    ;; a SINGLE `then` argument, so the chain awaits onFinally's result + propagates it.
+    ;; PromiseResolve(C, onFinally()).then(thunk), where C is this promise's
+    ;; species constructor. A length-0 value-thunk/thrower and a SINGLE `then`
+    ;; argument make the chain await onFinally's result and propagate it.
     (install-method pp "finally" 1
       (lambda (this args)
-        (let ((on (arg args 0)) (then (js-getv this "then")))
+        (unless (js-object-p this)
+          (throw-type-error "Promise.prototype.finally called on a non-object"))
+        (let* ((on (arg args 0))
+               ;; SpeciesConstructor precedes Invoke(promise, "then", ...).
+               ;; Both property accesses are observable and may throw.
+               (c (species-constructor this (intrinsic :promise-constructor)))
+               (then (js-get this "then")))
           (if (callable-p on)
               (flet ((then1 (thunk) (lambda (th a) (declare (ignore th))
                        (let* ((v (funcall thunk (arg a 0)))
-                              (p (base-resolve (js-call on +undefined+ '()))))
+                              (p (promise-resolve* c (js-call on +undefined+ '()))))
                          (js-call (js-getv p "then") p (list v))))))
                 (js-call then this
                   (list (make-native-function "" 1

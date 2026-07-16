@@ -14,15 +14,31 @@ us with the settled result (:next) or the rejection (:throw)."
 
 (defun %resume-on-settle (value on-step)
   "Schedule ON-STEP (a 2-arg fn of mode+value) to run when VALUE's promise settles.
-The result capability is a throwaway — the async driver only wants the handler side."
-  (let ((ap (base-resolve value)))
-    (multiple-value-bind (rp res rej) (promise-and-caps)
-      (declare (ignore rp))
-      (perform-promise-then
-       ap
-       (make-native-function "" 1 (lambda (th a) (declare (ignore th)) (funcall on-step :next (arg a 0)) +undefined+))
-       (make-native-function "" 1 (lambda (th a) (declare (ignore th)) (funcall on-step :throw (arg a 0)) +undefined+))
-       res rej))))
+The result capability is a throwaway — the async driver only wants the handler side.
+Return true when reactions were installed. A PromiseResolve setup failure returns
+false plus its reason synchronously; callers feed that abrupt completion directly
+back into their iterative driver."
+  (handler-case
+      (let ((ap (base-resolve value)))
+        (multiple-value-bind (rp res rej) (promise-and-caps)
+          (declare (ignore rp))
+          (perform-promise-then
+           ap
+           (make-native-function "" 1
+             (lambda (th a)
+               (declare (ignore th))
+               (funcall on-step :next (arg a 0))
+               +undefined+))
+           (make-native-function "" 1
+             (lambda (th a)
+               (declare (ignore th))
+               (funcall on-step :throw (arg a 0))
+               +undefined+))
+           res rej)
+          (values t +undefined+)))
+    ;; PromiseResolve can fail while reading a Promise subclass's constructor.
+    (js-condition (condition)
+      (values nil (js-condition-value condition)))))
 
 ;;; --- async functions ---------------------------------------------------------
 
@@ -30,11 +46,16 @@ The result capability is a throwaway — the async driver only wants the handler
   "Call an async function: run its body in CO up to the first await synchronously,
 return the result promise, and resume across awaits via microtasks."
   (labels ((%step (mode value)
-             (multiple-value-bind (kind v) (coroutine-resume co mode value)
-               (ecase kind
-                 (:await (%resume-on-settle v #'%step))
-                 (:return (%resolve-promise p v))
-                 (:throw (%reject-promise p v))))))
+             (loop
+               (multiple-value-bind (kind v) (coroutine-resume co mode value)
+                 (ecase kind
+                   (:await
+                    (multiple-value-bind (pending-p reason)
+                        (%resume-on-settle v #'%step)
+                      (when pending-p (return))
+                      (setf mode :throw value reason)))
+                   (:return (%resolve-promise p v) (return))
+                   (:throw (%reject-promise p v) (return)))))))
     (%step :next +undefined+))
   p)
 
@@ -50,13 +71,17 @@ escaping synchronously from the async call."
     promise))
 
 ;;; --- async generators --------------------------------------------------------
-;;; A simplified AsyncGenerator: next/return/throw return promises. Serialized use
-;;; (for-await awaits each next() before the next call) is fully supported; the spec
-;;; request-queue for concurrent next() calls is deferred (Phase 25 if profiling shows).
+
+(defstruct (async-generator-request (:constructor make-async-generator-request
+                                                   (mode value promise resolve reject)))
+  mode value promise resolve reject)
 
 (defstruct (js-async-generator (:include js-object (class :async-generator))
                                (:constructor %make-js-async-generator))
-  coroutine (done nil))
+  coroutine
+  (state :suspended-start)
+  request-head
+  request-tail)
 
 (defun make-async-generator (fn co)
   "Create an async generator using FN.prototype when it is an object."
@@ -66,30 +91,173 @@ escaping synchronously from the async call."
                          (intrinsic :async-generator-prototype)))))
     (%make-js-async-generator :proto prototype :coroutine co)))
 
-(defun this-async-generator (this)
-  (if (js-async-generator-p this) this
-      (throw-type-error "AsyncGenerator method called on an incompatible receiver")))
+(defun %async-gen-enqueue-request (agen request)
+  (let ((cell (list request)))
+    (if (js-async-generator-request-tail agen)
+        (setf (cdr (js-async-generator-request-tail agen)) cell)
+        (setf (js-async-generator-request-head agen) cell))
+    (setf (js-async-generator-request-tail agen) cell)))
 
-(defun %async-gen-drive (agen p mode value)
-  (let ((co (js-async-generator-coroutine agen)))
-    (labels ((%step (mode value)
-               (multiple-value-bind (kind v) (coroutine-resume co mode value)
-                 (ecase kind
-                   (:yield (%resolve-promise p (make-iter-result v nil)))
-                   (:await (%resume-on-settle v #'%step))
-                   (:return (setf (js-async-generator-done agen) t) (%resolve-promise p (make-iter-result v t)))
-                   (:throw (setf (js-async-generator-done agen) t) (%reject-promise p v))))))
-      (%step mode value))))
+(defun %async-gen-current-request (agen)
+  (car (js-async-generator-request-head agen)))
 
-(defun %async-gen-step (agen mode value)
-  (let ((p (make-promise)))
-    (if (js-async-generator-done agen)
-        (ecase mode
-          (:next (%resolve-promise p (make-iter-result +undefined+ t)))
-          (:return (%resolve-promise p (make-iter-result value t)))
-          (:throw (%reject-promise p value)))
-        (%async-gen-drive agen p mode value))
-    p))
+(defun %async-gen-pop-request (agen)
+  (let ((request (%async-gen-current-request agen)))
+    (setf (js-async-generator-request-head agen)
+          (cdr (js-async-generator-request-head agen)))
+    (unless (js-async-generator-request-head agen)
+      (setf (js-async-generator-request-tail agen) nil))
+    request))
+
+(defun %async-gen-resolve-current (agen value done)
+  (let ((request (%async-gen-pop-request agen)))
+    (js-call (async-generator-request-resolve request) +undefined+
+             (list (make-iter-result value done)))))
+
+(defun %async-gen-reject-current (agen reason)
+  (let ((request (%async-gen-pop-request agen)))
+    (js-call (async-generator-request-reject request) +undefined+ (list reason))))
+
+(defun %async-gen-active-p (agen)
+  (member (js-async-generator-state agen)
+          '(:executing :awaiting-value :awaiting-return)))
+
+(defun %async-gen-resume-next (agen)
+  "Run queued requests in FIFO order until the coroutine or an adopted value waits."
+  (loop
+    (when (or (null (js-async-generator-request-head agen))
+              (%async-gen-active-p agen))
+      (return))
+    (let* ((request (%async-gen-current-request agen))
+           (mode (async-generator-request-mode request))
+           (value (async-generator-request-value request))
+           (state (js-async-generator-state agen)))
+      (cond
+        ((eq state :completed)
+         (ecase mode
+           (:next (%async-gen-resolve-current agen +undefined+ t))
+           (:throw (%async-gen-reject-current agen value))
+           (:return
+            (setf (js-async-generator-state agen) :awaiting-return)
+            (multiple-value-bind (pending-p reason)
+                (%resume-on-settle
+                 value
+                 (lambda (settled-mode settled-value)
+                   (setf (js-async-generator-state agen) :completed)
+                   (if (eq settled-mode :next)
+                       (%async-gen-resolve-current agen settled-value t)
+                       (%async-gen-reject-current agen settled-value))
+                   (%async-gen-resume-next agen)))
+              (if pending-p
+                  (return)
+                  (progn
+                    (setf (js-async-generator-state agen) :completed)
+                    (%async-gen-reject-current agen reason)))))))
+        ((and (eq state :suspended-start) (not (eq mode :next)))
+         ;; An abrupt request before the first next closes without starting the
+         ;; coroutine. A return still Await-adopts its value.
+         (complete-unstarted-coroutine (js-async-generator-coroutine agen))
+         (setf (js-async-generator-state agen) :completed)
+         (if (eq mode :throw)
+             (%async-gen-reject-current agen value)
+             (progn
+               (setf (js-async-generator-state agen) :awaiting-return)
+               (multiple-value-bind (pending-p reason)
+                   (%resume-on-settle
+                    value
+                    (lambda (settled-mode settled-value)
+                      (setf (js-async-generator-state agen) :completed)
+                      (if (eq settled-mode :next)
+                          (%async-gen-resolve-current agen settled-value t)
+                          (%async-gen-reject-current agen settled-value))
+                      (%async-gen-resume-next agen)))
+                 (if pending-p
+                     (return)
+                     (progn
+                       (setf (js-async-generator-state agen) :completed)
+                       (%async-gen-reject-current agen reason)))))))
+        ((and (eq state :suspended-yield) (eq mode :return))
+         ;; AsyncGeneratorYield awaits the return resumption value before the
+         ;; completion is injected at the suspended yield expression.
+         (setf (js-async-generator-state agen) :awaiting-return)
+         (multiple-value-bind (pending-p reason)
+             (%resume-on-settle
+              value
+              (lambda (settled-mode settled-value)
+                (%async-gen-drive agen
+                                  (if (eq settled-mode :next) :return :throw)
+                                  settled-value)))
+           (if pending-p
+               (return)
+               (%async-gen-drive agen :throw reason nil)))
+         (when (%async-gen-active-p agen) (return)))
+        (t
+         (%async-gen-drive agen mode value nil)
+         (when (%async-gen-active-p agen) (return)))))))
+
+(defun %async-gen-drive (agen mode value &optional (drain-queue-p t))
+  "Resume the single coroutine driver for the current queued request."
+  (loop
+    (setf (js-async-generator-state agen) :executing)
+    (multiple-value-bind (kind result)
+        (coroutine-resume (js-async-generator-coroutine agen) mode value)
+      (ecase kind
+        (:yield
+         ;; AsyncGeneratorYield awaits even a plain yield operand. A rejection is
+         ;; thrown back into the same suspension and therefore may be caught there.
+         (setf (js-async-generator-state agen) :awaiting-value)
+         (multiple-value-bind (pending-p reason)
+             (%resume-on-settle
+              result
+              (lambda (settled-mode settled-value)
+                (if (eq settled-mode :next)
+                    (progn
+                      (setf (js-async-generator-state agen) :suspended-yield)
+                      (%async-gen-resolve-current agen settled-value nil)
+                      (%async-gen-resume-next agen))
+                    (%async-gen-drive agen :throw settled-value))))
+           (when pending-p (return))
+           (setf mode :throw value reason)))
+        (:yield-no-await
+         ;; Async yield* has already Awaited the iterator result's value.
+         (setf (js-async-generator-state agen) :suspended-yield)
+         (%async-gen-resolve-current agen result nil)
+         (return))
+        (:await
+         (setf (js-async-generator-state agen) :awaiting-value)
+         (multiple-value-bind (pending-p reason)
+             (%resume-on-settle
+              result
+              (lambda (settled-mode settled-value)
+                (%async-gen-drive agen settled-mode settled-value)))
+           (when pending-p (return))
+           (setf mode :throw value reason)))
+        (:return
+         ;; Explicit async-generator return expressions are Awaited in the emitter;
+         ;; an implicit fallthrough is resolved directly without an extra tick.
+         (setf (js-async-generator-state agen) :completed)
+         (%async-gen-resolve-current agen result t)
+         (return))
+        (:throw
+         (setf (js-async-generator-state agen) :completed)
+         (%async-gen-reject-current agen result)
+         (return)))))
+  (when (and drain-queue-p (not (%async-gen-active-p agen)))
+    (%async-gen-resume-next agen)))
+
+(defun %async-gen-enqueue (this mode value)
+  "AsyncGeneratorEnqueue: always return a promise, rejecting invalid receivers."
+  (multiple-value-bind (promise resolve reject) (promise-and-caps)
+    (if (not (js-async-generator-p this))
+        (js-call reject +undefined+
+                 (list (%promise-type-error
+                        "AsyncGenerator method called on an incompatible receiver")))
+        (progn
+          (%async-gen-enqueue-request
+           this (make-async-generator-request mode value promise resolve reject))
+          (unless (%async-gen-active-p this)
+            (%async-gen-resume-next this))))
+    promise))
 
 ;;; --- bootstrap: %AsyncIteratorPrototype% + %AsyncGeneratorPrototype% ---------
 
@@ -178,11 +346,11 @@ escaping synchronously from the async call."
     (let ((agp (js-make-object aip)))
       (setf (realm-intrinsic *realm* :async-generator-prototype) agp)
       (install-method agp "next" 1
-        (lambda (this args) (%async-gen-step (this-async-generator this) :next (arg args 0))))
+        (lambda (this args) (%async-gen-enqueue this :next (arg args 0))))
       (install-method agp "return" 1
-        (lambda (this args) (%async-gen-step (this-async-generator this) :return (arg args 0))))
+        (lambda (this args) (%async-gen-enqueue this :return (arg args 0))))
       (install-method agp "throw" 1
-        (lambda (this args) (%async-gen-step (this-async-generator this) :throw (arg args 0))))
+        (lambda (this args) (%async-gen-enqueue this :throw (arg args 0))))
       (obj-set-desc agp (well-known :to-string-tag)
                     (data-pd "AsyncGenerator" :writable nil :enumerable nil :configurable t))
       (bootstrap-async-generator-function agp))))
