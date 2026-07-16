@@ -14,6 +14,7 @@
     (eng:data-prop clun "version" clun::*clun-version*)
     (eng:data-prop clun "revision" clun::*clun-revision*)
     (eng:fixed-data-prop clun "semver" (make-clun-semver))
+    (eng:nonconfigurable-data-prop clun "CSRF" (make-clun-csrf g))
     ;; env / argv mirror process (same objects)
     (when (eng:js-object-p proc)
       (eng:data-prop clun "env" (eng:js-get proc "env"))

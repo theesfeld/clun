@@ -783,8 +783,9 @@ Objective: provide Bun-compatible authenticated, expiring CSRF tokens.
 Tasks: inventory `docs/runtime/csrf.mdx`, types/source/tests; implement generate/verify overloads, HMAC,
 timestamps, session binding, encoding and cryptographically secure defaults over Phase-19 primitives;
 use constant-time authentication checks, strict size limits, injectable clocks only in tests, and
-version tokens for future rotation.
-**Gate:** `make compat FEATURE=csrf` matches Bun for deterministic seeded vectors and API errors;
+preserve the pinned unprefixed wire format as implicit version 0 and reserve future formats for explicit
+opt-in rotation.
+**Gate:** `make compat FEATURE=web.csrf` matches Bun for deterministic seeded vectors and API errors;
 tamper/expiry/session/cross-key/fuzz cases reject; timing review confirms no early MAC comparison;
 `make test-crypto`; `make build`; `make test`; `make purity`; `make docs-check`.
 

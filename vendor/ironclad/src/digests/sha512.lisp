@@ -28,6 +28,20 @@
 
 (defconst +pristine-sha512-registers+ (initial-sha512-regs))
 
+;; FIPS 180-4 section 5.3.6. SHA-512/256 uses the SHA-512 compression
+;; function with a distinct IV; it is not SHA-512 with a truncated result.
+(define-digest-registers (sha512/256 :endian :big :size 8 :digest-registers 4)
+  (a #x22312194FC2BF72C)
+  (b #x9F555FA3C84C64C2)
+  (c #x2393B86B6F53B151)
+  (d #x963877195940EABD)
+  (e #x96283EE2A88EFFE3)
+  (f #xBE5E1E2553863992)
+  (g #x2B0199FC2C85B8AA)
+  (h #x0EB72DDC81C52CA2))
+
+(defconst +pristine-sha512/256-registers+ (initial-sha512/256-regs))
+
 (defconst +sha512-round-constants+
 #64@(#x428A2F98D728AE22 #x7137449123EF65CD #xB5C0FBCFEC4D3B2F #xE9B5DBA58189DBBC
 #x3956C25BF348B538 #x59F111F1B605D019 #x923F82A4AF194F9B #xAB1C5ED5DA6D8118
@@ -121,6 +135,15 @@
   ;; No slots.
   )
 
+(defstruct (sha512/256
+             (:include sha512)
+             (:constructor %make-sha512/256-digest
+              (&aux (regs (initial-sha512/256-regs))
+                    (buffer (make-array 128 :element-type '(unsigned-byte 8)))))
+             (:copier nil))
+  ;; No slots.
+  )
+
 (defmethod reinitialize-instance ((state sha512) &rest initargs)
   (declare (ignore initargs))
   ;; Some versions of Clozure CCL have a bug where the elements of
@@ -151,12 +174,26 @@
         (sha384-buffer-index state) 0)
   state)
 
+(defmethod reinitialize-instance ((state sha512/256) &rest initargs)
+  (declare (ignore initargs))
+  #+ccl
+  (let ((regs (sha512/256-regs state)))
+    (dotimes (i (length +pristine-sha512/256-registers+))
+      (setf (aref regs i)
+            (ldb (byte 64 0) (aref +pristine-sha512/256-registers+ i)))))
+  #-ccl
+  (replace (sha512/256-regs state) +pristine-sha512/256-registers+)
+  (setf (sha512/256-amount state) 0
+        (sha512/256-buffer-index state) 0)
+  state)
+
 (defmethod copy-digest ((state sha512) &optional copy)
   (check-type copy (or null sha512))
   (let ((copy (if copy
                   copy
                   (etypecase state
                     (sha384 (%make-sha384-digest))
+                    (sha512/256 (%make-sha512/256-digest))
                     (sha512 (%make-sha512-digest))))))
     (declare (type sha512 copy))
     (replace (sha512-regs copy) (sha512-regs state))
@@ -175,7 +212,7 @@
     (declare (notinline mdx-updater))
     (mdx-updater state #'compress sequence start end)))
 
-(define-digest-finalizer ((sha512 64) (sha384 48))
+(define-digest-finalizer ((sha512 64) (sha384 48) (sha512/256 32))
   (let ((regs (sha512-regs state))
         (block (sha512-block state))
         (buffer (sha512-buffer state))
@@ -210,3 +247,4 @@
 
 (defdigest sha512 :digest-length 64 :block-length 128)
 (defdigest sha384 :digest-length 48 :block-length 128)
+(defdigest sha512/256 :digest-length 32 :block-length 128)

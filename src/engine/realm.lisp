@@ -22,6 +22,9 @@
   (obj-set-desc obj key (data-pd value :writable nil :enumerable t :configurable nil)))
 (defun hidden-prop (obj key value)
   (obj-set-desc obj key (data-pd value :writable t :enumerable nil :configurable t)))
+(defun nonconfigurable-data-prop (obj key value)
+  "Define a writable, enumerable, non-configurable data property."
+  (obj-set-desc obj key (data-pd value :writable t :enumerable t :configurable nil)))
 
 ;;; --- ToPrimitive / ToObject / error hooks -----------------------------------
 

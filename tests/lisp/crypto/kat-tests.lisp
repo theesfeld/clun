@@ -59,7 +59,7 @@
       (setf (aref a i) (ldb (byte 8 (* i 8)) n)))))
 
 ;;; ---------------------------------------------------------------------------
-;;; 1. SHA-256 / SHA-512 — FIPS 180-4 (NIST example digests)
+;;; 1. SHA-256 / SHA-512 / SHA-512/256 — FIPS 180-4 (NIST example digests)
 ;;; ---------------------------------------------------------------------------
 
 (define-test crypto/sha2-fips180-4
@@ -83,6 +83,43 @@
                            "63b931bd47417a81a538327af927da3e")
       (kat-bytes->hex (ironclad:digest-sequence :sha512 (kat-empty)))))
 
+(define-test crypto/sha512-256-fips180-4
+  (true (ironclad:digest-supported-p :sha512/256))
+  (true (member :sha512/256 (ironclad:list-all-digests)))
+  (is eq :external
+      (nth-value 1 (find-symbol "SHA512/256" (find-package :ironclad))))
+  ;; NIST CAVP byte-oriented vectors: empty input and the one-byte message FA.
+  (is string= "c672b8d1ef56ed28ab87c3622c5114069bdd3ad7b8f9737498d0c01ecef0967a"
+      (kat-bytes->hex (ironclad:digest-sequence :sha512/256 (kat-empty))))
+  (is string= "c4ef36923c64e51e875720e550298a5ab8a3f2f875b1e1a4c9b95babf7344fef"
+      (kat-bytes->hex (ironclad:digest-sequence :sha512/256
+                                                (kat-hex->bytes "fa"))))
+  (let ((digest (ironclad:make-digest :sha512/256)))
+    (is = 32 (ironclad:digest-length digest))
+    (is = 128 (ironclad:block-length digest)))
+  ;; A copied partial state must evolve independently from the original.
+  (let* ((prefix (kat-ascii "prefix:"))
+         (left (kat-ascii "left"))
+         (right (kat-ascii "right"))
+         (original (ironclad:make-digest :sha512/256)))
+    (ironclad:update-digest original prefix)
+    (let ((copy (ironclad:copy-digest original)))
+      (ironclad:update-digest original left)
+      (ironclad:update-digest copy right)
+      (is equalp
+          (ironclad:digest-sequence :sha512/256 (kat-concat prefix left))
+          (ironclad:produce-digest original))
+      (is equalp
+          (ironclad:digest-sequence :sha512/256 (kat-concat prefix right))
+          (ironclad:produce-digest copy))))
+  ;; Reinitialization restores the FIPS IV after a populated partial state.
+  (let ((digest (ironclad:make-digest :sha512/256)))
+    (ironclad:update-digest digest (kat-ascii "discarded state"))
+    (reinitialize-instance digest)
+    (ironclad:update-digest digest (kat-hex->bytes "fa"))
+    (is string= "c4ef36923c64e51e875720e550298a5ab8a3f2f875b1e1a4c9b95babf7344fef"
+        (kat-bytes->hex (ironclad:produce-digest digest)))))
+
 ;;; ---------------------------------------------------------------------------
 ;;; 2. HMAC-SHA256 — RFC 4231 test cases 1 & 2
 ;;; ---------------------------------------------------------------------------
@@ -102,6 +139,46 @@
   (is string= "5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843"
       (kat-hmac-sha256 (kat-ascii "Jefe")
                        (kat-ascii "what do ya want for nothing?"))))
+
+(defparameter +wycheproof-sha512/256-key+
+  (concatenate 'string
+               "8a0c46eb8a2959e39865330079763341e7439dab149694ee57e0d61ec73d947e"
+               "1d5301cd974e18a5e0d1cf0d2c37e8aadd9fd589d57ef32e47024a99bc3f70c077"))
+
+(defparameter +wycheproof-sha512/256-tag+
+  "05a64be452f9c6e190113eea89bd4ca6ecd14e8fe924a3adf41a53a381615f34")
+
+(defun kat-hmac (digest key-bytes msg-bytes)
+  (let ((mac (ironclad:make-mac :hmac key-bytes digest)))
+    (ironclad:update-mac mac msg-bytes)
+    (ironclad:produce-mac mac)))
+
+(define-test crypto/hmac-sha512-256-wycheproof
+  ;; C2SP Wycheproof hmac_sha512_256_test.json tcId 170. The 65-byte key is
+  ;; deliberately longer than a SHA-256 block and shorter than SHA-512's
+  ;; 128-byte block, so this catches an incorrect 64-byte HMAC block size.
+  (let* ((key (kat-hex->bytes +wycheproof-sha512/256-key+))
+         (message (kat-empty))
+         (expected (kat-hex->bytes +wycheproof-sha512/256-tag+))
+         (actual (kat-hmac :sha512/256 key message))
+         (ordinary (kat-hmac :sha512 key message))
+         (ordinary-first-32 (subseq ordinary 0 32)))
+    (is = 65 (length key))
+    (is = 32 (length actual))
+    (is equalp expected actual)
+    ;; Exact negative control: ordinary HMAC-SHA-512 truncated to 32 bytes.
+    (is string= "e1657f44bf84895e6db0810a2cca61a6e105e12ec006f0b5961020301b57744e"
+        (kat-bytes->hex ordinary-first-32))
+    (isnt equalp expected ordinary-first-32)
+    ;; PRODUCE-MAC is non-destructive, and reinitialization with the same key
+    ;; must reproduce the published tag.
+    (let ((mac (ironclad:make-mac :hmac key :sha512/256)))
+      (ironclad:update-mac mac message)
+      (is equalp expected (ironclad:produce-mac mac))
+      (is equalp expected (ironclad:produce-mac mac))
+      (reinitialize-instance mac :key key)
+      (ironclad:update-mac mac message)
+      (is equalp expected (ironclad:produce-mac mac)))))
 
 ;;; ---------------------------------------------------------------------------
 ;;; 3. HKDF-SHA256 — RFC 5869 test cases 1 & 3

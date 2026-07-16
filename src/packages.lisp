@@ -28,7 +28,7 @@
            ;; Phase 08 — platform primitives for the runtime (process/console)
            #:stream-fd #:tty-p #:environ-alist #:getenv #:getpid
            #:current-directory #:change-directory #:machine-arch #:platform-name
-           #:monotonic-nanoseconds #:heap-bytes-used #:bytes-consed
+           #:monotonic-nanoseconds #:unix-milliseconds #:heap-bytes-used #:bytes-consed
            ;; Phase 12 — OS info + CSPRNG bytes for node:os / crypto
            #:os-random-bytes #:hostname #:os-release #:os-type #:tmpdir #:homedir
            #:total-memory #:free-memory #:uptime-seconds #:cpu-count
@@ -41,6 +41,12 @@
            #:make-directory #:remove-directory #:remove-file #:rename-path #:make-symlink
            #:read-symlink #:change-mode #:truncate-file #:make-temp-dir #:check-access
            #:remove-recursive #:read-file-octets #:write-file-octets #:copy-file*))
+
+(defpackage :clun.csrf
+  (:use :cl)
+  (:local-nicknames (:crypto :ironclad))
+  (:documentation "Engine-free bounded CSRF token encoding, authentication, and expiry.")
+  (:export #:core-generate #:core-verify))
 
 ;; Defined before clun.engine so the engine's :lp local-nickname can target it.
 (defpackage :clun.loop
@@ -85,7 +91,8 @@
    #:throw-native-error #:throw-type-error #:throw-range-error
    #:throw-syntax-error #:throw-reference-error
    ;; strings (WTF-8 boundary)
-   #:code-units->utf8 #:utf8->code-units #:ta-subview #:high-surrogate-p #:low-surrogate-p
+   #:code-units->utf8 #:code-units->utf8-replacing #:utf8->code-units
+   #:ta-subview #:high-surrogate-p #:low-surrogate-p
    ;; numbers
    #:with-js-floats #:+js-infinity+ #:+js-neg-infinity+ #:*js-nan*
    #:js-nan-p #:js-infinite-p #:js-finite-p #:js-neg-zero-p #:js-zero-p
@@ -117,7 +124,7 @@
    #:teardown-realm #:run-callback-to-settlement #:drive-jobs #:current-loop
    #:js-promise-p #:js-promise-pstate #:js-promise-value #:to-string #:js-object-class
    #:make-native-function #:install-method #:install-getter #:install-accessor
-   #:data-prop #:fixed-data-prop #:hidden-prop
+   #:data-prop #:fixed-data-prop #:nonconfigurable-data-prop #:hidden-prop
    #:new-object #:new-array #:throw-type-error #:js-undefined-p #:js-truthy #:js-boolean
    #:to-number #:arg #:intrinsic #:function-name #:js-function-p #:js-native-function-p
    #:js-nullish-p #:array-like->list #:array-length

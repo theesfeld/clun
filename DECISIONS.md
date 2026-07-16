@@ -2536,3 +2536,33 @@ exactly `checksums.txt` plus the four native archives, and every checksum verifi
 `8d7a63df462d49fe714ea706b6948e3940329ccb6984cbd89b1adf67fdfde67a`. The post-publication ledger,
 README, and landing-page reconciliation is evidence-only with impact `none`: source, installer default, and
 tag remain dev.8. Pages deployment and hosted-installer success remain unclaimed until their live gates pass.
+
+### 2026-07-16 - Phase 35 freezes an interoperable bounded CSRF wire contract
+
+Phase 35 exposes exactly `Clun.CSRF.generate` and `Clun.CSRF.verify` without creating a `Bun` alias. The
+unprefixed `timestamp || nonce || expiresIn || HMAC` token remains implicit wire version 0 so stable Bun
+tokens interoperate; engineering session binding appends replacement-mode UTF-8 session bytes only to the
+HMAC input. Six HMAC algorithms and three canonical encodings are required, including a real FIPS
+SHA-512/256 digest variant rather than truncated SHA-512.
+
+The JavaScript boundary follows pinned engineering behavior for getter order, undefined/null distinctions,
+`-0`, string-only algorithm selection, `ToString` encoding selection, errors, descriptors, detached calls,
+and one lazy 16-byte default secret per installed namespace. Full u64 wire fields use exact integer arithmetic.
+Selected security improvements are explicit: safer invalid-number handling, raw and decoded input bounds,
+secret/session caps, non-ASCII token rejection, and authentication before expiry interpretation. Replay,
+textual base64 malleability, future timestamps, zero-age disablement, and process-local default-secret limits
+remain documented.
+
+Independent security, pinned Bun compatibility, and architecture/evidence reviews accepted the corrected
+design before implementation. After the complete local core, crypto, and shipped-binary evidence passed, the
+candidate ledger advanced to **2 Yes / 6 Partial / 22 No** so the same claim can be exercised on all four
+native targets. This staged `Yes` is not accepted or published until those receipts pass. The new public API
+is SemVer `minor`, selecting `0.1.0-dev.9` / `v0.1.0-dev.9` while the ASDF core remains `0.1.0`.
+
+Final adversarial implementation review accepted the bounded decoder, equal-length constant-time comparison,
+authentication-before-expiry ordering, and per-namespace secret isolation. Its evidence findings were resolved
+with six fixed pinned-Bun algorithm vectors, an external replacement-UTF-8 vector, inherited getter and abrupt
+coercion fixtures, wall-clock expiry, both hostile string caps, and exact object-valued errors. The resulting
+focused core gate is **209/209** and the shipped-binary feature gate passes both executable receipts. The local
+broad suite remains environment-blocked only where legacy tests hard-code absent `/tmp/clun-*` directories;
+normal GitHub runners own that broad receipt.

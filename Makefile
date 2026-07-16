@@ -52,8 +52,8 @@ test-ts:
 test-tls:
 	$(SBCL) --dynamic-space-size 4096 $(SBCL_FLAGS) --load scripts/run-pure-tls-suites.lisp
 
-## test-crypto — RFC/FIPS known-answer tests over ironclad (Phase-19 gate).  Own image
-## (ironclad is not a clun/tests dep), so the socket suites' reactor stays fd-pressure-free.
+## test-crypto — RFC/FIPS/Wycheproof KATs plus focused Ironclad generated vectors.
+## Runs in its own image, keeping the socket suites' reactor fd-pressure-free.
 test-crypto:
 	$(SBCL) --dynamic-space-size 3072 $(SBCL_FLAGS) --load scripts/run-crypto-kats.lisp
 

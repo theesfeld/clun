@@ -68,6 +68,11 @@ nanosecond clock (Phase 08)."
   (multiple-value-bind (sec usec) (sb-ext:get-time-of-day)
     (+ (* sec 1000000000) (* usec 1000))))
 
+(defun unix-milliseconds ()
+  "Current Unix epoch time in integer milliseconds."
+  (multiple-value-bind (sec usec) (sb-ext:get-time-of-day)
+    (+ (* sec 1000) (floor usec 1000))))
+
 ;;; --- memory ----------------------------------------------------------------
 
 (defun heap-bytes-used ()

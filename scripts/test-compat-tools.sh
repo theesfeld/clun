@@ -17,6 +17,23 @@ scratch=$(mktemp -d "${TMPDIR:-/tmp}/clun-compat-tools.XXXXXX") ||
 trap 'rm -rf "$scratch"' 0 HUP INT TERM
 mkdir -p "$scratch/tmp"
 pristine=$scratch/pristine
+current_version=$(sed -n \
+  's/^(defparameter \*clun-version\* "\([^"]*\)".*/\1/p' \
+  "$repo_root/src/version.lisp")
+[ -n "$current_version" ] || fail 'could not read the current source version'
+current_phase=$(awk -F "$TAB" 'NR == 2 { print $8 }' "$repo_root/compat/release.tsv")
+current_issue=$(awk -F "$TAB" 'NR == 2 { print $9 }' "$repo_root/compat/release.tsv")
+if [ "$current_phase" = 30 ]; then
+  test_phase=31
+  test_issue=5
+else
+  test_phase=30
+  test_issue=4
+fi
+test_phase_title=$(awk -F "$TAB" -v phase="$test_phase" \
+  'NR > 1 && $1 == phase { print $3 }' "$repo_root/docs/roadmap.tsv")
+[ -n "$current_phase" ] && [ -n "$current_issue" ] && [ -n "$test_phase_title" ] ||
+  fail 'could not read the active and test roadmap phases'
 
 copy_input() {
   path=$1
@@ -361,22 +378,28 @@ remove_benchmark_row() {
   ' "$file"
 }
 
-move_release_to_phase_30() {
+move_release_to_test_phase() {
   file=$1
   # shellcheck disable=SC2016 # AWK field references must not expand in the shell.
-  replace_file "$file" awk -F "$TAB" -v OFS="$TAB" '
-    NR == 2 { $8 = "30"; $9 = "4"; changed = 1 }
+  replace_file "$file" awk -F "$TAB" -v OFS="$TAB" \
+    -v phase="$test_phase" -v issue="$test_issue" '
+    NR == 2 { $8 = phase; $9 = issue; changed = 1 }
     { print }
     END { if (!changed) exit 3 }
   ' "$file"
 }
 
-move_state_to_phase_30() {
+move_state_to_test_phase() {
   file=$1
   replace_file "$file" sed \
-    -e 's/^## Current phase: \*\*29 /## Current phase: **30 /' \
-    -e 's|^\*\*Canonical issue:\*\* https://github.com/theesfeld/clun/issues/3$|**Canonical issue:** https://github.com/theesfeld/clun/issues/4|' \
+    -e "s/^## Current phase: \*\*$current_phase /## Current phase: **$test_phase /" \
+    -e "s|^\*\*Canonical issue:\*\* https://github.com/theesfeld/clun/issues/$current_issue$|**Canonical issue:** https://github.com/theesfeld/clun/issues/$test_issue|" \
     "$file"
+  if ! grep -F "## Current phase: **$test_phase " "$file" >/dev/null 2>&1 ||
+     ! grep -F "**Canonical issue:** https://github.com/theesfeld/clun/issues/$test_issue" \
+       "$file" >/dev/null 2>&1; then
+    fail 'could not move STATE.md to the test phase'
+  fi
 }
 
 mutate_evidence_executable() {
@@ -485,7 +508,8 @@ expect_failure_matching missing-release-notes "$case_root" validate \
 
 fresh_case stale-binary
 mkdir -p "$case_root/build"
-printf '%s\n' '#!/bin/sh' 'printf "%s\\n" "clun 0.1.0-dev.7"' > "$case_root/build/clun"
+stale_version=0.0.0-stale
+printf '%s\n' '#!/bin/sh' "printf '%s\\n' 'clun $stale_version'" > "$case_root/build/clun"
 chmod +x "$case_root/build/clun"
 stale_log=$scratch/stale-binary.log
 if CLUN_COMPAT_ROOT=$case_root TMPDIR=$scratch/tmp \
@@ -493,7 +517,7 @@ if CLUN_COMPAT_ROOT=$case_root TMPDIR=$scratch/tmp \
   cat "$stale_log" >&2
   fail 'stale-binary unexpectedly passed'
 fi
-grep -F 'build/clun version mismatch: expected clun 0.1.0-dev.8, got clun 0.1.0-dev.7' \
+grep -F "build/clun version mismatch: expected clun $current_version, got clun $stale_version" \
   "$stale_log" >/dev/null 2>&1 || {
   cat "$stale_log" >&2
   fail 'stale-binary failed without the expected version diagnostic'
@@ -505,29 +529,29 @@ mutate_feature_status "$case_root/compat/features.tsv"
 expect_failure feature-status-drift "$case_root" check
 
 fresh_case next-phase-render
-move_release_to_phase_30 "$case_root/compat/release.tsv"
-move_state_to_phase_30 "$case_root/STATE.md"
+move_release_to_test_phase "$case_root/compat/release.tsv"
+move_state_to_test_phase "$case_root/STATE.md"
 expect_pass next-phase-generate "$case_root" generate
-grep -F '# Clun 0.1.0-dev.8' "$case_root/docs/releases/current.md" >/dev/null 2>&1 ||
+grep -F "# Clun $current_version" "$case_root/docs/releases/current.md" >/dev/null 2>&1 ||
   fail 'next-phase render lost the release version'
-grep -F 'Phase 30: Glob API.' \
+grep -F "Phase $test_phase: $test_phase_title." \
   "$case_root/docs/releases/current.md" >/dev/null 2>&1 ||
-  fail 'next-phase render retained a Phase 29-specific summary'
+  fail 'next-phase render did not use the selected roadmap phase'
 if grep -Fq 'Phase 25b is complete' "$case_root/README.md"; then
   fail 'next-phase render retained a Phase 25b-specific prior-release statement'
 fi
-grep -F 'Phase 30 is active:' "$case_root/site/index.html" >/dev/null 2>&1 ||
+grep -F "Phase $test_phase is active:" "$case_root/site/index.html" >/dev/null 2>&1 ||
   fail 'next-phase render did not update the landing-page phase status'
-grep -F 'github.com/theesfeld/clun/issues/4' "$case_root/site/index.html" >/dev/null 2>&1 ||
+grep -F "github.com/theesfeld/clun/issues/$test_issue" "$case_root/site/index.html" >/dev/null 2>&1 ||
   fail 'next-phase render did not update the landing-page canonical issue'
-if grep -Fq 'Phase 29 is active:' "$case_root/site/index.html"; then
-  fail 'next-phase render retained stale Phase 29 landing-page status'
+if grep -Fq "Phase $current_phase is active:" "$case_root/site/index.html"; then
+  fail 'next-phase render retained the active landing-page phase status'
 fi
 
 fresh_case active-state-drift
-move_release_to_phase_30 "$case_root/compat/release.tsv"
+move_release_to_test_phase "$case_root/compat/release.tsv"
 expect_failure_matching active-state-drift "$case_root" validate \
-  'STATE.md current phase 29 disagrees with release ledger phase 30'
+  "STATE.md current phase $current_phase disagrees with release ledger phase $test_phase"
 
 fresh_case published-render
 publish_release "$case_root/compat/release.tsv"

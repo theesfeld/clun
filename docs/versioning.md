@@ -40,6 +40,7 @@ resource does not exist with a 404 response:
 0.1.0-dev.6
 0.1.0-dev.7
 0.1.0-dev.8
+0.1.0-dev.9
 ```
 
 Phase 25b is the compatibility program for the planned `0.1.0` release. Its first behavioral
@@ -55,6 +56,9 @@ The annotated tag peels to `db56bee7540bfc84c5e730d2ab23a886c65dd160`, whose exa
 Documentation, and four-target Compatibility workflows passed before release run `29515697679` built and
 published the four native archives plus `checksums.txt`. The evidence-only ledger reconciliation retains
 dev.8 and creates no tag; Pages and hosted-installer success are recorded only after their own live gates.
+Phase 35 targets `0.1.0-dev.9` / `v0.1.0-dev.9` for the backward-compatible public
+`Clun.CSRF` API. It remains an unpublished candidate until the complete Phase 35 gate, four-target
+Compatibility receipts, immutable assets, Pages deployment, and hosted-installer verification pass.
 
 ## Canonical record
 

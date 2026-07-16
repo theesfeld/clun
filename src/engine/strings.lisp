@@ -62,6 +62,32 @@
            (incf i)))))
     (coerce out '(simple-array (unsigned-byte 8) (*)))))
 
+(defun code-units->utf8-replacing (string)
+  "Encode UTF-16 code units as UTF-8, replacing every lone surrogate with U+FFFD.
+Unlike CODE-UNITS->UTF8 this is scalar-value UTF-8, not WTF-8."
+  (let ((out (make-array (length string) :element-type '(unsigned-byte 8)
+                                         :adjustable t :fill-pointer 0))
+        (i 0)
+        (n (length string)))
+    (loop while (< i n) do
+      (let ((cp (char-code (char string i))))
+        (cond
+          ((and (high-surrogate-p cp) (< (1+ i) n)
+                (low-surrogate-p (char-code (char string (1+ i)))))
+           (let* ((lo (char-code (char string (1+ i))))
+                  (scalar (+ #x10000
+                             (ash (- cp +high-surrogate-start+) 10)
+                             (- lo +low-surrogate-start+))))
+             (%push-utf8 scalar out)
+             (incf i 2)))
+          ((or (high-surrogate-p cp) (low-surrogate-p cp))
+           (%push-utf8 +replacement-char+ out)
+           (incf i))
+          (t
+           (%push-utf8 cp out)
+           (incf i)))))
+    (coerce out '(simple-array (unsigned-byte 8) (*)))))
+
 (defun %push-code-point (cp out)
   "Append code point CP to fill-pointer string OUT as 1 or 2 code units."
   (if (>= cp #x10000)

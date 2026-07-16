@@ -7,22 +7,23 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **29 — Public semver API**  (IN PROGRESS)
+## Current phase: **35 - CSRF API**  (IN PROGRESS)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/3
-**Current implementation unit:** convert `utility.semver` from `No` to the first evidence-backed compatibility
-ledger `Yes` by exposing the proven installer engine through `Clun.semver`.
+**Canonical issue:** https://github.com/theesfeld/clun/issues/9
+**Current implementation unit:** convert `web.csrf` from `No` to the second evidence-backed compatibility
+ledger `Yes` with a bounded, interoperable `Clun.CSRF` token implementation.
 **SemVer impact:** `minor`
-**Release target:** `0.1.0-dev.8` / `v0.1.0-dev.8`
-**Entry boundary:** Phase 21's shared pure-CL SemVer engine is complete. Phase 27 / issue #1 is closed after
-verified dev.7 publication, four-target receipts, release-gated Pages, hosted installer verification, and
-published-ledger reconciliation. Phase 29 depends only on Phases 21 and 27, so Phase 28 remains independently
-not-started. Phase 26 remains blocked behind Phase 82 and will be re-baselined at final entry.
-**Current scope:** freeze the pinned Bun 1.3.14 and `c1076ce95e` two-method contract; expose
-`Clun.semver.satisfies` and `Clun.semver.order` over the single installer parser/range engine; match argument
-count, coercion, invalid input, non-ASCII, prerelease, build, and range behavior; execute the public fixture
-through `build/clun` on Linux/macOS x64/arm64; then atomically promote the ledger row and regenerate README,
-site, and release notes. Do not promote a claim from static/internal tests alone.
+**Release target:** `0.1.0-dev.9` / `v0.1.0-dev.9`
+**Entry boundary:** Phase 29 / issue #3 completed the first ledger `Yes` and published immutable dev.8 at
+`db56bee7540bfc84c5e730d2ab23a886c65dd160`. Reconciliation commit
+`725cb998d3416ff4af3486c4cb8f18c5ea5d49a1` passed exact CI, Documentation, and Pages; live site bytes and
+an isolated hosted dev.8 install are verified. Phase 35 dependencies 19 and 27 are complete. Issue #3 remains
+open only until this candidate becomes the active ledger unit. Phase 26 remains after Phase 82.
+**Current scope:** finish review and publication of the implemented stable Bun 1.3.14 and engineering
+`c1076ce95e` generate/verify contract. The candidate now includes pure-CL SHA-512/256, bounded wire
+encoding/decoding, HMAC, expiry, session binding, default-secret lifetime, replacement-mode UTF-8, exact JS
+errors/descriptors, deterministic core tests, and shipped-binary fixtures. The compatibility claim remains a
+candidate until CI executes those fixtures through native `build/clun` binaries on Linux/macOS x64/arm64.
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
 easiest to hardest among dependency-ready rows. Core engine/runtime/network/tooling changes are expected.
@@ -30,19 +31,17 @@ Every conversion requires a legitimate canonical issue, accepted design, full de
 four-target evidence, synchronized public surfaces, and the correct SemVer transition. Current post-SemVer
 cost order is CSRF, cookies, terminal string width, then CSS color, subject to each phase survey.
 
-**Current checkpoint:** issue #3 is active and records `minor`, `0.1.0-dev.8`, and `v0.1.0-dev.8`.
-The Phase 29 design and implementation are independently accepted. `Clun.semver` exposes the shared strict
-engine, including the narrow optional-`=` compatibility path, without enabling loose numeric or partial versions.
-The 48-case Bun matrix, public differential, all 261 applicable strict node-semver assertions, and the
-3,260 / 0 / 0 Lisp suite pass. Final release commit
-`db56bee7540bfc84c5e730d2ab23a886c65dd160` passed exact-master CI `29514944035`, Documentation
-`29514943956`, and four-target Compatibility `29514944097`; receipt verifier job `87679767522` passed.
-Annotated tag `v0.1.0-dev.8` peels to that commit. Release run `29515697679` passed all four native builders
-and published immutable prerelease `355221963` with exactly four archives and `checksums.txt`; a fresh
-download verified every checksum. This reconciliation binds the first ledger `Yes` and public surfaces to
-that release without changing the version. Pending: merge the evidence-only reconciliation, pass its exact
-CI/Documentation/Pages gates, verify live site bytes and the hosted installer, complete issue #3, and hand
-the active ledger to Phase 35 / issue #9.
+**Current checkpoint:** issue #9 is active and records `minor`, `0.1.0-dev.9`, and `v0.1.0-dev.9`.
+Dependency/cost, pinned upstream, architecture, and accepted-design work is complete. The implemented local
+candidate passes its engine-free core suite **209/209**, the SHA-512/256/crypto suite **42/42**, the exact
+`make compat FEATURE=web.csrf` gate with **2 executable receipts passed / 2 static receipts traced**, purity
+at **698 files / 0 violations**, generated-doc byte identity, public claims, live-roadmap verification, and
+all **47/47** SemVer policy fixtures. The candidate ledger is therefore **2 Yes / 6 Partial / 22 No**.
+Independent implementation review is accepted and its fixed-vector, inherited-getter, coercion, wall-clock,
+input-cap, and exact-error findings are resolved. The local broad suite was attempted once but its legacy
+hard-coded `/tmp/clun-*` fixtures cannot run in this sandbox because `/tmp` does not exist; GitHub CI is the
+authoritative broad regression gate. PR checks and all four native target receipts remain before immutable
+dev.9 publication and active-ledger handoff.
 
 **M5 entry boundary:** immutable dev.4 diagnostic set **56 total / 0 pass / 56 fail / 0 skip / 0 crash**:
 **43 m5-owned** (32 intrinsic/prototype, 7 parser, 4 raw delegation), **12 m11** direct-eval/`with`
