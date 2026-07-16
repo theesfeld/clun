@@ -15,6 +15,7 @@
   ;; Phase 05 — quarantined internal-SBCL bits (§3.2/§6): self-pipe + poll probe.
   (:export #:make-self-pipe #:self-pipe #:self-pipe-p #:self-pipe-read-fd
            #:self-pipe-wake #:self-pipe-drain #:self-pipe-close #:poll-backend-p
+           #:select-fd-limit
            ;; Phase 07 — path discipline (parse-native-namestring boundary, §3.2)
            #:native->pathname #:pathname->native #:path-join #:path-dirname
            #:path-basename #:path-extension #:absolute-path-p #:normalize-path

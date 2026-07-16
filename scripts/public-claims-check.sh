@@ -5,6 +5,10 @@ set -eu
 repo_root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
 cd "$repo_root"
 
+# Compatibility/version blocks are generated from compat/*.tsv. Keep this
+# check first so later claim parsing never accepts hand-edited matrix prose.
+sh scripts/compat.sh check
+
 fail() {
   printf 'public-claims-check: %s\n' "$*" >&2
   exit 1
@@ -44,6 +48,70 @@ version_without_build=${version%%+*}
 version_core=${version_without_build%%-*}
 [ "$asdf_version" = "$version_core" ] ||
   fail "clun.asd version $asdf_version does not match source SemVer core $version_core"
+
+release_row=$(sed -n '2p' compat/release.tsv)
+IFS="$(printf '\t')" read -r release_id release_version release_asdf installer_tag release_tag \
+  release_state release_license active_phase active_issue semver_impact previous_version \
+  version_source asdf_source installer_source release_commit extra <<EOF
+$release_row
+EOF
+[ -z "${extra:-}" ] && [ -n "${release_id:-}" ] || fail 'compat/release.tsv must contain one complete release row'
+[ "$release_version" = "$version" ] || fail "release ledger version $release_version disagrees with source $version"
+[ "$release_asdf" = "$asdf_version" ] || fail "release ledger ASDF core disagrees with clun.asd"
+[ "$installer_tag" = "v$version" ] || fail "release ledger installer default disagrees with source version"
+[ "$release_tag" = "v$version" ] || fail "release ledger tag disagrees with source version"
+[ "$release_license" = GPL-3.0-or-later ] || fail 'release ledger license must be GPL-3.0-or-later'
+[ "$version_source:$asdf_source:$installer_source" = 'src/version.lisp:clun.asd:site/install' ] ||
+  fail 'release ledger source paths drifted'
+case "$release_state" in candidate|published) ;; *) fail "invalid release state: $release_state" ;; esac
+case "$active_phase:$active_issue" in *[!0-9:]*|:*|*:|*::* ) fail 'release ledger has invalid phase or issue' ;; esac
+case "$semver_impact" in major|minor|patch|none) ;; *) fail 'release ledger has invalid SemVer impact' ;; esac
+if [ "$release_state" = candidate ]; then
+  [ "$release_commit" = pending ] || fail 'candidate release ledger commit must be pending'
+else
+  printf '%s\n' "$release_commit" | LC_ALL=C grep -Eq '^[0-9a-f]{40}$' ||
+    fail 'published release ledger commit must be a full commit SHA'
+fi
+
+baseline_row() {
+  runtime=$1
+  channel=$2
+  awk -F "$(printf '\t')" -v runtime="$runtime" -v channel="$channel" '
+    NR > 1 && $2 == runtime && $4 == channel {
+      print $3 "\t" $5 "\t" $7 "\t" $9
+      found++
+    }
+    END { if (found != 1) exit 2 }
+  ' compat/baselines.tsv || fail "expected exactly one $runtime/$channel compatibility baseline"
+}
+
+human_date() {
+  awk -v value="$1" 'BEGIN {
+    split("January February March April May June July August September October November December", month)
+    month_index = substr(value, 6, 2) + 0
+    printf "%s %d, %s\n", month[month_index], substr(value, 9, 2) + 0, substr(value, 1, 4)
+  }'
+}
+
+TAB=$(printf '\t')
+bun_public_row=$(baseline_row Bun stable-executable)
+IFS="$TAB" read -r bun_version _ bun_checked bun_source <<EOF
+$bun_public_row
+EOF
+bun_engineering_row=$(baseline_row Bun engineering-source)
+IFS="$TAB" read -r _ bun_engineering_revision _ bun_engineering_source <<EOF
+$bun_engineering_row
+EOF
+node_row=$(baseline_row Node.js comparison-release)
+IFS="$TAB" read -r node_version _ _ node_source <<EOF
+$node_row
+EOF
+deno_row=$(baseline_row Deno comparison-release)
+IFS="$TAB" read -r deno_version _ _ deno_source <<EOF
+$deno_row
+EOF
+baseline_date=$(human_date "$bun_checked")
+bun_engineering_short=$(printf '%.10s' "$bun_engineering_revision")
 
 scratch_dir=$(mktemp -d "${TMPDIR:-/tmp}/clun-claims.XXXXXX") ||
   fail "could not create a claims-check scratch directory"
@@ -381,7 +449,7 @@ parse_pass=17699
 parse_fail=976
 parse_skip=5038
 parse_crash=0
-lisp_pass=3234
+lisp_pass=3240
 lisp_fail=0
 lisp_skip=0
 [ "$parse_total" -eq $((parse_pass + parse_fail + parse_skip + parse_crash)) ] ||
@@ -639,35 +707,9 @@ if ! cmp -s "$readme_matrix" "$site_matrix"; then
 fi
 capability_rows=$(wc -l <"$site_matrix" | tr -d ' ')
 
-phase25b_issue_url=https://github.com/theesfeld/clun/issues/57
-require_text README.md "$phase25b_issue_url"
-require_text site/index.html "$phase25b_issue_url"
-
-linked_phase25b_marker() {
-  file=$1
-  awk -v issue_url="$phase25b_issue_url" '
-    index($0, issue_url) {
-      line = $0
-      while (match(line, /Phase 25b milestone [0-9][0-9]*/)) {
-        marker = substr(line, RSTART, RLENGTH)
-        if (selected != "" && selected != marker) conflict = 1
-        selected = marker
-        line = substr(line, RSTART + RLENGTH)
-      }
-    }
-    END {
-      if (selected == "" || conflict) exit 2
-      print selected
-    }
-  ' "$file"
-}
-
-readme_phase25b_marker=$(linked_phase25b_marker README.md) ||
-  fail "README.md must link issue #57 beside one unambiguous Phase 25b milestone marker"
-site_phase25b_marker=$(linked_phase25b_marker site/index.html) ||
-  fail "site/index.html must link issue #57 beside one unambiguous Phase 25b milestone marker"
-[ "$readme_phase25b_marker" = "$site_phase25b_marker" ] ||
-  fail "README and site current Phase 25b milestone markers disagree"
+active_issue_url="https://github.com/theesfeld/clun/issues/$active_issue"
+require_text README.md "[Phase $active_phase issue #$active_issue]($active_issue_url)"
+require_text site/index.html "href=\"$active_issue_url\""
 
 for tag in html head title body header nav main section article div p pre code table \
            thead tbody tr th td a span b strong button i footer dl dt dd ol ul li; do
@@ -689,20 +731,16 @@ if command -v node >/dev/null 2>&1; then
 fi
 
 require_text README.md "./build/clun --version   # => clun $version"
-require_text README.md "The current source version is \`$version\`"
 require_text tests/lisp/smoke.lisp "(is string= \"$version\" clun::*clun-version*)"
-require_text docs/versioning.md "Its impact is \`minor\`"
-require_text docs/versioning.md "local source candidate is \`$version\` under tag"
-require_text docs/versioning.md "\`v$version\` within the existing \`0.1.0\` train"
-[ "$version" = 0.1.0-dev.6 ] ||
-  fail "Phase 25b milestone 6 public claims require source version 0.1.0-dev.6"
+require_text docs/versioning.md "Phase $active_phase"
+require_text docs/versioning.md "\`$version\` / \`v$version\`"
+require_text docs/versioning.md "impact is \`$semver_impact\`"
 require_text README.md "$pretty_passes tests"
 require_text README.md "$pretty_report_total-row off-mode execution ledger"
 require_text README.md "$pretty_report_pass passes and $pretty_report_fail gaps across $pretty_report_eligible eligible tests"
 require_text README.md "($report_rate%), with $pretty_report_skip skips and zero crashes"
 
 release_url="https://github.com/theesfeld/clun/releases/tag/v$version"
-previous_version=0.1.0-dev.5
 previous_release_url="https://github.com/theesfeld/clun/releases/tag/v$previous_version"
 readme_candidate_marker="\`$version\` release candidate"
 site_candidate_marker="v$version release candidate / pre-alpha"
@@ -713,36 +751,32 @@ grep -Fq -- "$site_candidate_marker" site/index.html && site_candidate=1
 [ "$readme_candidate" -eq "$site_candidate" ] ||
   fail "README and site disagree about whether v$version is a release candidate"
 
-if [ "$readme_candidate" -eq 1 ]; then
-  release_state=candidate
-  require_text README.md "The \`v$version\` tag, native assets, Pages deployment, and hosted-installer verification are"
-  require_text README.md "not published yet. The last published release remains"
-  require_text README.md "The last published release"
+if [ "$release_state" = candidate ]; then
+  [ "$readme_candidate" -eq 1 ] || fail "release ledger says candidate but generated documents do not"
+  require_text README.md "The current source is the \`$version\` release candidate"
+  require_text README.md "immutable tag and assets are not published yet"
+  require_text README.md "The last published prerelease remains"
   require_text README.md "[\`v$previous_version\`]($previous_release_url)"
   reject_text README.md "$release_url"
 
-  require_text site/index.html "href=\"$previous_release_url\""
-  require_text site/index.html "v$previous_version for Linux and macOS"
+  require_text site/index.html "<a href=\"$active_issue_url\">"
+  require_text site/index.html "<span>In development</span>"
+  require_text site/index.html "v$version / Phase $active_phase"
   require_text site/index.html "<a href=\"$previous_release_url\">v$previous_version release</a>"
-  require_text site/index.html "</span> v$version release candidate / pre-alpha</p>"
+  require_text site/index.html "v$version release candidate / pre-alpha</p>"
   require_text site/index.html "<span>$version candidate / pre-alpha</span>"
-  require_text site/index.html "verification are not published yet; dev.5 remains the last published release"
   reject_text site/index.html "$release_url"
 else
-  release_state=published
+  [ "$readme_candidate" -eq 0 ] || fail "release ledger says published but generated documents say candidate"
   require_text README.md "$release_url"
   reject_text README.md "release candidate"
-  reject_text README.md "not published yet"
-  reject_text README.md "$previous_release_url"
 
   require_text site/index.html "href=\"$release_url\""
-  require_text site/index.html "v$version for Linux and macOS"
+  require_text site/index.html "<span>Available now</span>"
   require_text site/index.html "<a href=\"$release_url\">v$version release</a>"
-  require_text site/index.html "</span> v$version / pre-alpha</p>"
+  require_text site/index.html "v$version / pre-alpha</p>"
   require_text site/index.html "<span>$version / pre-alpha</span>"
   reject_text site/index.html "release candidate"
-  reject_text site/index.html "not published yet"
-  reject_text site/index.html "$previous_release_url"
 fi
 
 require_text site/index.html "$pretty_passes pass"
@@ -786,15 +820,16 @@ fi
 require_text site/index.html "github.com/theesfeld/clun/blob/master/PLAN.md"
 require_text site/index.html "Phase 25 / milestone ${benchmark_milestone#m}"
 require_text site/index.html "$benchmark_met of 3 workloads"
-require_text README.md "Bun 1.3.14, Node.js 26.5.0, and Deno 2.9.3"
-require_text README.md "July 16, 2026"
-require_text site/index.html "<span>26.5.0 / current</span>"
-require_text site/index.html "github.com/nodejs/node/releases/tag/v26.5.0"
-require_text site/index.html "<span>2.9.3 / runtime</span>"
-require_text site/index.html "github.com/denoland/deno/releases/tag/v2.9.3"
-require_text site/index.html "Snapshot checked July 16, 2026"
-reject_text README.md "Deno 2.9.2"
-reject_text site/index.html "Deno 2.9.2"
+require_text README.md "Bun $bun_version, Node.js $node_version, and Deno $deno_version"
+require_text README.md "$baseline_date"
+require_text README.md "$bun_engineering_short"
+require_text site/index.html "<span>$node_version / current</span>"
+require_text site/index.html "$node_source"
+require_text site/index.html "<span>$deno_version / runtime</span>"
+require_text site/index.html "$deno_source"
+require_text site/index.html "Snapshot checked $baseline_date"
+require_text site/index.html "$bun_source"
+require_text site/index.html "$bun_engineering_source"
 installer_default="requested_version=\${CLUN_VERSION:-v$version}"
 [ "$(grep -Fxc "$installer_default" site/install)" -eq 1 ] ||
   fail "site/install default CLUN_VERSION is not v$version"

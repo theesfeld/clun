@@ -1,0 +1,121 @@
+reference_id	feature_id	baseline_id	kind	paths	assertion
+ref.cloud.s3.bun-engineering.v1	cloud.s3	bun-engineering-c1076ce95e	engineering-map	docs/runtime/s3.mdx,packages/bun-types/s3.d.ts,test/js/bun/s3	Forward engineering inventory for S3 cloud storage.
+ref.cloud.s3.bun-stable.v1	cloud.s3	bun-stable-1.3.14	stable-map	docs/runtime/s3.mdx,packages/bun-types/s3.d.ts,test/js/bun/s3	Yes: `Bun.s3`
+ref.cloud.s3.deno.v1	cloud.s3	deno-stable-2.9.3	comparison-page	README.md	No: use ecosystem packages
+ref.cloud.s3.node.v1	cloud.s3	node-current-26.5.0	comparison-page	doc/api/index.md	No: use ecosystem packages
+ref.data.yaml.bun-engineering.v1	data.yaml	bun-engineering-c1076ce95e	engineering-map	docs/runtime/yaml.mdx,packages/bun-types/bun.d.ts,test/js/bun/yaml	Forward engineering inventory for YAML APIs and loading.
+ref.data.yaml.bun-stable.v1	data.yaml	bun-stable-1.3.14	stable-map	docs/runtime/yaml.mdx,packages/bun-types/bun.d.ts,test/js/bun/yaml	Yes: API and file imports
+ref.data.yaml.deno.v1	data.yaml	deno-stable-2.9.3	comparison-page	README.md	No: use the standard library
+ref.data.yaml.node.v1	data.yaml	node-current-26.5.0	comparison-page	doc/api/modules.md	No: -
+ref.database.redis.bun-engineering.v1	database.redis	bun-engineering-c1076ce95e	engineering-map	docs/runtime/redis.mdx,packages/bun-types/redis.d.ts	Forward engineering inventory for Redis APIs.
+ref.database.redis.bun-stable.v1	database.redis	bun-stable-1.3.14	stable-map	docs/runtime/redis.mdx,packages/bun-types/redis.d.ts	Yes: built in with Pub/Sub
+ref.database.redis.deno.v1	database.redis	deno-stable-2.9.3	comparison-page	README.md	No: use ecosystem packages
+ref.database.redis.node.v1	database.redis	node-current-26.5.0	comparison-page	doc/api/index.md	No: use ecosystem packages
+ref.database.sql-drivers.bun-engineering.v1	database.sql-drivers	bun-engineering-c1076ce95e	engineering-map	docs/runtime/sql.mdx,docs/runtime/sqlite.mdx,packages/bun-types/sql.d.ts,packages/bun-types/sqlite.d.ts,test/js/bun/sqlite	Forward engineering inventory for PostgreSQL, MySQL, and SQLite APIs.
+ref.database.sql-drivers.bun-stable.v1	database.sql-drivers	bun-stable-1.3.14	stable-map	docs/runtime/sql.mdx,docs/runtime/sqlite.mdx,packages/bun-types/sql.d.ts,packages/bun-types/sqlite.d.ts,test/js/bun/sqlite	Yes: unified built-in API
+ref.database.sql-drivers.deno.v1	database.sql-drivers	deno-stable-2.9.3	comparison-page	cli/tsc/dts/node/sqlite.d.cts	Partial: SQLite through `node:sqlite`
+ref.database.sql-drivers.node.v1	database.sql-drivers	node-current-26.5.0	comparison-page	doc/api/sqlite.md	Partial: built-in SQLite through `node:sqlite`
+ref.filesystem.glob.bun-engineering.v1	filesystem.glob	bun-engineering-c1076ce95e	engineering-map	docs/runtime/glob.mdx,packages/bun-types/bun.d.ts,test/js/bun/glob	Forward engineering inventory for the Glob API.
+ref.filesystem.glob.bun-stable.v1	filesystem.glob	bun-stable-1.3.14	stable-map	docs/runtime/glob.mdx,packages/bun-types/bun.d.ts,test/js/bun/glob	Yes: `Bun.Glob`
+ref.filesystem.glob.deno.v1	filesystem.glob	deno-stable-2.9.3	comparison-page	ext/node/polyfills/_fs/_fs_glob.ts	Yes: through `node:fs`
+ref.filesystem.glob.node.v1	filesystem.glob	node-current-26.5.0	comparison-page	doc/api/fs.md	Yes: `fs.promises.glob`
+ref.language.jsx.bun-engineering.v1	language.jsx	bun-engineering-c1076ce95e	engineering-map	docs/runtime/jsx.mdx,packages/bun-types/jsx.d.ts,test/bundler	Forward engineering inventory for JSX parsing and transformation.
+ref.language.jsx.bun-stable.v1	language.jsx	bun-stable-1.3.14	stable-map	docs/runtime/jsx.mdx,packages/bun-types/jsx.d.ts,test/bundler	Yes: built in
+ref.language.jsx.deno.v1	language.jsx	deno-stable-2.9.3	comparison-page	cli/tools/run/mod.rs	Yes: built in
+ref.language.jsx.node.v1	language.jsx	node-current-26.5.0	comparison-page	doc/api/typescript.md	No: requires a transformer
+ref.language.typescript.bun-engineering.v1	language.typescript	bun-engineering-c1076ce95e	engineering-map	docs/runtime/typescript.mdx,packages/bun-types/bun.d.ts,test/bundler/transpiler	Forward engineering inventory for TypeScript transforms.
+ref.language.typescript.bun-stable.v1	language.typescript	bun-stable-1.3.14	stable-map	docs/runtime/typescript.mdx,packages/bun-types/bun.d.ts,test/bundler	Yes: first-class transpilation
+ref.language.typescript.deno.v1	language.typescript	deno-stable-2.9.3	comparison-page	cli/tsc/00_typescript.js	Yes: execution and type checking
+ref.language.typescript.node.v1	language.typescript	node-current-26.5.0	comparison-page	doc/api/typescript.md	Partial: erasable syntax stripping
+ref.package-manager.monorepo.bun-engineering.v1	package-manager.monorepo	bun-engineering-c1076ce95e	engineering-map	docs/pm/workspaces.mdx,test/cli/install	Forward engineering inventory for workspaces and filtered commands.
+ref.package-manager.monorepo.bun-stable.v1	package-manager.monorepo	bun-stable-1.3.14	stable-map	docs/pm/workspaces.mdx,test/cli/install	Yes: workspaces and filters
+ref.package-manager.monorepo.deno.v1	package-manager.monorepo	deno-stable-2.9.3	comparison-page	libs/config/workspace	Yes: workspaces and concurrent tasks
+ref.package-manager.monorepo.node.v1	package-manager.monorepo	node-current-26.5.0	comparison-page	doc/api/packages.md	Separate: provided through npm workspaces
+ref.package-manager.npm.bun-engineering.v1	package-manager.npm	bun-engineering-c1076ce95e	engineering-map	docs/pm/cli/install.mdx,test/cli/install	Forward engineering inventory for npm-compatible package management.
+ref.package-manager.npm.bun-stable.v1	package-manager.npm	bun-stable-1.3.14	stable-map	docs/pm/cli/install.mdx,test/cli/install	Yes: `bun install`
+ref.package-manager.npm.deno.v1	package-manager.npm	deno-stable-2.9.3	comparison-page	cli/npm.rs	Partial: installs npm projects; publishing is JSR-oriented
+ref.package-manager.npm.node.v1	package-manager.npm	node-current-26.5.0	comparison-page	deps/npm	Separate: npm ships with Node.js installers
+ref.runtime.loader-plugins.bun-engineering.v1	runtime.loader-plugins	bun-engineering-c1076ce95e	engineering-map	docs/runtime/plugins.mdx,packages/bun-types/extensions.d.ts,test/js/bun/plugin	Forward engineering inventory for runtime loader plugins.
+ref.runtime.loader-plugins.bun-stable.v1	runtime.loader-plugins	bun-stable-1.3.14	stable-map	docs/runtime/plugins.mdx,packages/bun-types/extensions.d.ts,test/js/bun/plugin	Yes: `Bun.plugin`
+ref.runtime.loader-plugins.deno.v1	runtime.loader-plugins	deno-stable-2.9.3	comparison-page	ext/node/ops/module_hooks.rs	Yes: synchronous `node:module` hooks
+ref.runtime.loader-plugins.node.v1	runtime.loader-plugins	node-current-26.5.0	comparison-page	doc/api/module.md	Partial: server-side loader APIs
+ref.runtime.native-addons.bun-engineering.v1	runtime.native-addons	bun-engineering-c1076ce95e	engineering-map	docs/runtime/ffi.mdx,docs/runtime/node-api.mdx,packages/bun-types/ffi.d.ts,test/js/bun/ffi	Forward engineering inventory for FFI and native addons.
+ref.runtime.native-addons.bun-stable.v1	runtime.native-addons	bun-stable-1.3.14	stable-map	docs/runtime/ffi.mdx,docs/runtime/node-api.mdx,packages/bun-types/ffi.d.ts,test/js/bun/ffi	Yes: FFI, N-API, and partial V8 C++ API
+ref.runtime.native-addons.deno.v1	runtime.native-addons	deno-stable-2.9.3	comparison-page	ext/ffi/README.md,ext/napi/README.md	Yes: Node-API and FFI
+ref.runtime.native-addons.node.v1	runtime.native-addons	node-current-26.5.0	comparison-page	doc/api/n-api.md	Yes: stable Node-API
+ref.runtime.node-compatibility.bun-engineering.v1	runtime.node-compatibility	bun-engineering-c1076ce95e	engineering-map	docs/runtime/nodejs-compat.mdx,packages/bun-types/bun.d.ts,test/js/node	Forward engineering inventory for Node.js compatibility.
+ref.runtime.node-compatibility.bun-stable.v1	runtime.node-compatibility	bun-stable-1.3.14	stable-map	docs/runtime/nodejs-compat.mdx,packages/bun-types/bun.d.ts,test/js/node	Partial: broad compatibility; still an active goal
+ref.runtime.node-compatibility.deno.v1	runtime.node-compatibility	deno-stable-2.9.3	comparison-page	.github/workflows/node_compat_test.ts	Partial: targets Node.js 26 compatibility
+ref.runtime.node-compatibility.node.v1	runtime.node-compatibility	node-current-26.5.0	comparison-page	doc/api/index.md	Yes: reference runtime
+ref.runtime.web-standard-apis.bun-engineering.v1	runtime.web-standard-apis	bun-engineering-c1076ce95e	engineering-map	docs/runtime/web-apis.mdx,packages/bun-types/globals.d.ts,test/js/web	Forward engineering inventory for Web Standard APIs.
+ref.runtime.web-standard-apis.bun-stable.v1	runtime.web-standard-apis	bun-stable-1.3.14	stable-map	docs/runtime/web-apis.mdx,packages/bun-types/globals.d.ts,test/js/web	Yes: broad WebCore-backed surface
+ref.runtime.web-standard-apis.deno.v1	runtime.web-standard-apis	deno-stable-2.9.3	comparison-page	cli/tsc/dts/lib.deno.shared_globals.d.ts	Yes: standards-first runtime surface
+ref.runtime.web-standard-apis.node.v1	runtime.web-standard-apis	node-current-26.5.0	comparison-page	doc/api/globals.md	Yes: broad standards surface
+ref.security.encrypted-secrets.bun-engineering.v1	security.encrypted-secrets	bun-engineering-c1076ce95e	engineering-map	docs/runtime/secrets.mdx,packages/bun-types/bun.d.ts,test/js/bun	Forward engineering inventory for encrypted secrets storage.
+ref.security.encrypted-secrets.bun-stable.v1	security.encrypted-secrets	bun-stable-1.3.14	stable-map	docs/runtime/secrets.mdx,packages/bun-types/bun.d.ts,test/js/bun	Yes: `Bun.secrets`
+ref.security.encrypted-secrets.deno.v1	security.encrypted-secrets	deno-stable-2.9.3	comparison-page	README.md	No: -
+ref.security.encrypted-secrets.node.v1	security.encrypted-secrets	node-current-26.5.0	comparison-page	doc/api/index.md	No: -
+ref.security.password-hashing.bun-engineering.v1	security.password-hashing	bun-engineering-c1076ce95e	engineering-map	docs/runtime/hashing.mdx,packages/bun-types/bun.d.ts,test/js/bun/crypto	Forward engineering inventory for password and hashing APIs.
+ref.security.password-hashing.bun-stable.v1	security.password-hashing	bun-stable-1.3.14	stable-map	docs/runtime/hashing.mdx,packages/bun-types/bun.d.ts,test/js/bun/crypto	Yes: `Bun.password` and `Bun.hash`
+ref.security.password-hashing.deno.v1	security.password-hashing	deno-stable-2.9.3	comparison-page	ext/crypto/00_crypto.js	Partial: WebCrypto and Argon2 KDF; no password helper
+ref.security.password-hashing.node.v1	security.password-hashing	node-current-26.5.0	comparison-page	doc/api/crypto.md,doc/api/webcrypto.md	Partial: WebCrypto and Argon2 KDF; no password helper
+ref.server.http.bun-engineering.v1	server.http	bun-engineering-c1076ce95e	engineering-map	docs/runtime/http/server.mdx,packages/bun-types/serve.d.ts,test/js/bun/http	Forward engineering inventory for the HTTP server API.
+ref.server.http.bun-stable.v1	server.http	bun-stable-1.3.14	stable-map	docs/runtime/http/server.mdx,packages/bun-types/serve.d.ts,test/js/bun/http	Yes: `Bun.serve`
+ref.server.http.deno.v1	server.http	deno-stable-2.9.3	comparison-page	ext/http/00_serve.ts	Yes: `Deno.serve`
+ref.server.http.node.v1	server.http	node-current-26.5.0	comparison-page	doc/api/http.md,doc/api/http2.md	Yes: `node:http` and `node:http2`
+ref.server.router.bun-engineering.v1	server.router	bun-engineering-c1076ce95e	engineering-map	docs/runtime/http/routing.mdx,packages/bun-types/serve.d.ts,test/js/bun/http	Forward engineering inventory for server routing.
+ref.server.router.bun-stable.v1	server.router	bun-stable-1.3.14	stable-map	docs/runtime/http/routing.mdx,packages/bun-types/serve.d.ts,test/js/bun/http	Yes: routes in `Bun.serve`
+ref.server.router.deno.v1	server.router	deno-stable-2.9.3	comparison-page	ext/http/00_serve.ts	No: use a framework
+ref.server.router.node.v1	server.router	node-current-26.5.0	comparison-page	doc/api/http.md	No: use a framework
+ref.server.websocket.bun-engineering.v1	server.websocket	bun-engineering-c1076ce95e	engineering-map	docs/runtime/http/websockets.mdx,packages/bun-types/serve.d.ts,test/js/bun/websocket	Forward engineering inventory for WebSocket server and Pub/Sub APIs.
+ref.server.websocket.bun-stable.v1	server.websocket	bun-stable-1.3.14	stable-map	docs/runtime/http/websockets.mdx,packages/bun-types/serve.d.ts,test/js/bun/websocket	Yes: through `Bun.serve`
+ref.server.websocket.deno.v1	server.websocket	deno-stable-2.9.3	comparison-page	ext/http/02_websocket.ts,ext/websocket/README.md	Partial: server API without built-in Pub/Sub
+ref.server.websocket.node.v1	server.websocket	node-current-26.5.0	comparison-page	doc/api/globals.md	No: client API only
+ref.text.string-width.bun-engineering.v1	text.string-width	bun-engineering-c1076ce95e	engineering-map	docs/runtime/utils.mdx,packages/bun-types/bun.d.ts,test/js/bun/terminal	Forward engineering inventory for string-width utilities.
+ref.text.string-width.bun-stable.v1	text.string-width	bun-stable-1.3.14	stable-map	docs/runtime/utils.mdx,packages/bun-types/bun.d.ts,test/js/bun/terminal	Yes: `Bun.stringWidth`
+ref.text.string-width.deno.v1	text.string-width	deno-stable-2.9.3	comparison-page	README.md	No: use the standard library
+ref.text.string-width.node.v1	text.string-width	node-current-26.5.0	comparison-page	doc/api/util.md	No: -
+ref.tooling.bundler.bun-engineering.v1	tooling.bundler	bun-engineering-c1076ce95e	engineering-map	docs/bundler/index.mdx,packages/bun-types/bundle.d.ts,test/bundler	Forward engineering inventory for production bundling.
+ref.tooling.bundler.bun-stable.v1	tooling.bundler	bun-stable-1.3.14	stable-map	docs/bundler/index.mdx,packages/bun-types/bundle.d.ts,test/bundler	Yes: `Bun.build`
+ref.tooling.bundler.deno.v1	tooling.bundler	deno-stable-2.9.3	comparison-page	cli/tools/bundle	Partial: `deno bundle` is experimental
+ref.tooling.bundler.node.v1	tooling.bundler	node-current-26.5.0	comparison-page	doc/api/index.md	No: use ecosystem tooling
+ref.tooling.formatter-linter.bun-engineering.v1	tooling.formatter-linter	bun-engineering-c1076ce95e	engineering-map	docs/project/roadmap.mdx	Forward engineering scope reference for formatter and linter capability.
+ref.tooling.formatter-linter.bun-stable.v1	tooling.formatter-linter	bun-stable-1.3.14	stable-map	docs/project/roadmap.mdx	No: -
+ref.tooling.formatter-linter.deno.v1	tooling.formatter-linter	deno-stable-2.9.3	comparison-page	cli/tools/fmt.rs,cli/tools/lint	Yes: `deno fmt` and `deno lint`
+ref.tooling.formatter-linter.node.v1	tooling.formatter-linter	node-current-26.5.0	comparison-page	doc/api/index.md	No: use ecosystem tooling
+ref.tooling.frontend-dev-server.bun-engineering.v1	tooling.frontend-dev-server	bun-engineering-c1076ce95e	engineering-map	docs/bundler/fullstack.mdx,packages/bun-types/devserver.d.ts,test/bundler	Forward engineering inventory for the frontend development server.
+ref.tooling.frontend-dev-server.bun-stable.v1	tooling.frontend-dev-server	bun-stable-1.3.14	stable-map	docs/bundler/fullstack.mdx,packages/bun-types/devserver.d.ts,test/bundler	Yes: HTML entry points and HMR
+ref.tooling.frontend-dev-server.deno.v1	tooling.frontend-dev-server	deno-stable-2.9.3	comparison-page	cli/README.md	No: use ecosystem tooling
+ref.tooling.frontend-dev-server.node.v1	tooling.frontend-dev-server	node-current-26.5.0	comparison-page	doc/api/index.md	No: -
+ref.tooling.hot-reload.bun-engineering.v1	tooling.hot-reload	bun-engineering-c1076ce95e	engineering-map	docs/bundler/hot-reloading.mdx,docs/runtime/watch-mode.mdx,test/cli/hot	Forward engineering inventory for state-preserving hot reload.
+ref.tooling.hot-reload.bun-stable.v1	tooling.hot-reload	bun-stable-1.3.14	stable-map	docs/bundler/hot-reloading.mdx,docs/runtime/watch-mode.mdx,test/cli/hot	Yes: `bun --hot`
+ref.tooling.hot-reload.deno.v1	tooling.hot-reload	deno-stable-2.9.3	comparison-page	cli/rt/hmr.rs,cli/tools/run/hmr.rs	Yes: `--watch-hmr` preserves state when supported
+ref.tooling.hot-reload.node.v1	tooling.hot-reload	node-current-26.5.0	comparison-page	doc/api/cli.md	No: watch mode restarts processes
+ref.tooling.shell.bun-engineering.v1	tooling.shell	bun-engineering-c1076ce95e	engineering-map	docs/runtime/shell.mdx,packages/bun-types/shell.d.ts,test/js/bun/shell	Forward engineering inventory for the cross-platform shell API.
+ref.tooling.shell.bun-stable.v1	tooling.shell	bun-stable-1.3.14	stable-map	docs/runtime/shell.mdx,packages/bun-types/shell.d.ts,test/js/bun/shell	Yes: `Bun.$`
+ref.tooling.shell.deno.v1	tooling.shell	deno-stable-2.9.3	comparison-page	cli/tools/task.rs	No: application API requires `dax`
+ref.tooling.shell.node.v1	tooling.shell	node-current-26.5.0	comparison-page	doc/api/child_process.md	No: -
+ref.tooling.single-file-executables.bun-engineering.v1	tooling.single-file-executables	bun-engineering-c1076ce95e	engineering-map	docs/bundler/executables.mdx,packages/bun-types/bundle.d.ts,test/bundler	Forward engineering inventory for single-file executables.
+ref.tooling.single-file-executables.bun-stable.v1	tooling.single-file-executables	bun-stable-1.3.14	stable-map	docs/bundler/executables.mdx,packages/bun-types/bundle.d.ts,test/bundler	Yes: cross-compilation and code signing
+ref.tooling.single-file-executables.deno.v1	tooling.single-file-executables	deno-stable-2.9.3	comparison-page	cli/tools/compile.rs	Yes: `deno compile` with assets and cross-compilation
+ref.tooling.single-file-executables.node.v1	tooling.single-file-executables	node-current-26.5.0	comparison-page	doc/api/single-executable-applications.md	Partial: multi-step SEA workflow
+ref.tooling.test-runner.bun-engineering.v1	tooling.test-runner	bun-engineering-c1076ce95e	engineering-map	docs/test/index.mdx,packages/bun-types/test.d.ts,test/js/bun/test	Forward engineering inventory for the Jest-compatible test runner.
+ref.tooling.test-runner.bun-stable.v1	tooling.test-runner	bun-stable-1.3.14	stable-map	docs/test/index.mdx,packages/bun-types/test.d.ts,test/js/bun/test	Yes: `bun test`
+ref.tooling.test-runner.deno.v1	tooling.test-runner	deno-stable-2.9.3	comparison-page	cli/js/40_test.js	No: `Deno.test` uses its own API
+ref.tooling.test-runner.node.v1	tooling.test-runner	node-current-26.5.0	comparison-page	doc/api/test.md	No: `node:test` uses its own API
+ref.utility.semver.bun-engineering.v1	utility.semver	bun-engineering-c1076ce95e	engineering-map	docs/runtime/semver.mdx,packages/bun-types/bun.d.ts,test/js/bun/util	Forward engineering inventory for the public semver API.
+ref.utility.semver.bun-stable.v1	utility.semver	bun-stable-1.3.14	stable-map	docs/runtime/semver.mdx,packages/bun-types/bun.d.ts,test/js/bun/util	Yes: `Bun.semver`
+ref.utility.semver.deno.v1	utility.semver	deno-stable-2.9.3	comparison-page	README.md	No: use the standard library
+ref.utility.semver.node.v1	utility.semver	node-current-26.5.0	comparison-page	doc/api/index.md	No: use an ecosystem package
+ref.web.cookies.bun-engineering.v1	web.cookies	bun-engineering-c1076ce95e	engineering-map	docs/runtime/cookies.mdx,packages/bun-types/bun.d.ts,test/js/bun/cookie	Forward engineering inventory for cookie APIs.
+ref.web.cookies.bun-stable.v1	web.cookies	bun-stable-1.3.14	stable-map	docs/runtime/cookies.mdx,packages/bun-types/bun.d.ts,test/js/bun/cookie	Yes: request cookie map
+ref.web.cookies.deno.v1	web.cookies	deno-stable-2.9.3	comparison-page	cli/tsc/dts/node/undici/cookies.d.ts	No: use the standard library
+ref.web.cookies.node.v1	web.cookies	node-current-26.5.0	comparison-page	doc/api/globals.md	No: -
+ref.web.csrf.bun-engineering.v1	web.csrf	bun-engineering-c1076ce95e	engineering-map	docs/runtime/csrf.mdx,packages/bun-types/bun.d.ts	Forward engineering inventory for CSRF APIs.
+ref.web.csrf.bun-stable.v1	web.csrf	bun-stable-1.3.14	stable-map	docs/runtime/csrf.mdx,packages/bun-types/bun.d.ts	Yes: `Bun.CSRF`
+ref.web.csrf.deno.v1	web.csrf	deno-stable-2.9.3	comparison-page	README.md	No: -
+ref.web.csrf.node.v1	web.csrf	node-current-26.5.0	comparison-page	doc/api/index.md	No: -
+ref.web.css-color.bun-engineering.v1	web.css-color	bun-engineering-c1076ce95e	engineering-map	docs/runtime/color.mdx,packages/bun-types/bun.d.ts,test/js/bun/css	Forward engineering inventory for CSS color conversion.
+ref.web.css-color.bun-stable.v1	web.css-color	bun-stable-1.3.14	stable-map	docs/runtime/color.mdx,packages/bun-types/bun.d.ts,test/js/bun/css	Yes: `Bun.color`
+ref.web.css-color.deno.v1	web.css-color	deno-stable-2.9.3	comparison-page	README.md	No: -
+ref.web.css-color.node.v1	web.css-color	node-current-26.5.0	comparison-page	doc/api/index.md	No: -

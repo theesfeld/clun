@@ -21,6 +21,19 @@ cat >"$fake_gh" <<'EOF'
 #!/bin/sh
 set -eu
 
+if [ "${1:-}" = api ]; then
+  [ "${2:-}" = "repos/theesfeld/clun/commits/$FAKE_EXPECTED_TAG" ] || {
+    printf 'unexpected commit query: %s\n' "${2:-}" >&2
+    exit 2
+  }
+  if [ "${FAKE_GH_MODE:-}" = wrong-commit ]; then
+    printf '%s\n' ffffffffffffffffffffffffffffffffffffffff
+  else
+    printf '%s\n' "$FAKE_EXPECTED_SHA"
+  fi
+  exit 0
+fi
+
 case "${1:-} ${2:-}" in
   'auth status')
     [ "${FAKE_GH_MODE:-}" != auth-failure ]
@@ -48,15 +61,19 @@ case "${1:-} ${2:-}" in
         fi
         ;;
       draft)
-        printf 'draft\ttrue\n'
+        printf 'draft\ttrue\tfalse\n'
         exit 0
         ;;
     esac
     if [ "${FAKE_GH_MODE:-}" = stable-complete ] ||
        [ "${FAKE_GH_MODE:-}" = wrong-prerelease ]; then
-      printf 'published\tfalse\n'
+      printf 'published\tfalse\ttrue\n'
     else
-      printf 'published\ttrue\n'
+      if [ "${FAKE_GH_MODE:-}" = mutable ]; then
+        printf 'published\ttrue\tfalse\n'
+      else
+        printf 'published\ttrue\ttrue\n'
+      fi
     fi
     printf 'checksums.txt\tuploaded\t123\n'
     printf 'clun-linux-x64.tar.gz\tuploaded\t123\n'
@@ -83,9 +100,11 @@ run_check() {
   FAKE_GH_MODE=$1 \
   FAKE_GH_COUNT=$work_dir/count \
   FAKE_EXPECTED_TAG=${3:-v1.2.3-rc.4} \
+  FAKE_EXPECTED_SHA=0123456789abcdef0123456789abcdef01234567 \
   CLUN_GH_BIN=$fake_gh \
   CLUN_RELEASE_REPO=theesfeld/clun \
   CLUN_RELEASE_VERSION_FILE=$version_file \
+  CLUN_RELEASE_EXPECTED_SHA=0123456789abcdef0123456789abcdef01234567 \
   CLUN_RELEASE_WAIT_SECONDS=${2:-0} \
   CLUN_RELEASE_POLL_SECONDS=1 \
     sh "$repo_root/scripts/release-live-check.sh"
@@ -98,7 +117,7 @@ run_check complete 0 >/dev/null
   exit 1
 }
 
-for mode in unavailable draft missing-asset empty-asset wrong-prerelease; do
+for mode in unavailable draft mutable missing-asset empty-asset wrong-prerelease wrong-commit; do
   printf '0\n' >"$work_dir/count"
   if run_check "$mode" 0 >"$work_dir/$mode.out" 2>&1; then
     printf 'release-live-check test: %s release unexpectedly passed\n' "$mode" >&2

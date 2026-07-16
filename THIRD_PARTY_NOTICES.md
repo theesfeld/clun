@@ -15,8 +15,11 @@ The native release archive also contains or incorporates these runtime pieces:
   Source: <https://github.com/facebook/zstd>.
 - GNU C Library (Linux archives only), LGPL-2.1-or-later. Clun ships the shared
   loader and libraries so the same archive can run on distributions without a
-  system glibc loader. Source for the Ubuntu 22.04 build is available from
-  <https://packages.ubuntu.com/source/jammy/glibc>.
+  system glibc loader. The `linux-x64` archive copies the Ubuntu 24.04 runner's
+  glibc; its corresponding source is available from
+  <https://packages.ubuntu.com/source/noble/glibc>. The `linux-arm64` archive
+  copies the Ubuntu 22.04 arm64 runner's glibc; its corresponding source is
+  available from <https://packages.ubuntu.com/source/jammy/glibc>.
 
 The corresponding Clun source for each binary release is the Git tag bearing
 the same version. System-library and vendored-component terms apply in addition

@@ -1,30 +1,18 @@
 # Clun — Bun, Rewritten in Pure Common Lisp
 
-**This document is the operating manual for the agent building Clun.** It was authored by the
-project's engineer/PM (with parallel research findings baked in — see Appendix C) and is designed
-exclusively for **Codex/Sol 5.6** executing the phase loop in §2. Available Codex/Sol 5.6
-subagents should accelerate bounded research, implementation, and review work; every phase must
-also retain a complete serial execution path. Do not translate model names or orchestration
-instructions for another model family. Read §2 at the start of every session.
+> **NOT process.** Process is only `~/.config/agents/AGENTS.md` (+ repo `AGENTS.md` facts).
+> This file is a **technical notebook**: mission, purity contract, architecture, phase specs, gates.
+> **Live SoT for status/scope:** GitHub Issues. On conflict, Issues + user standard win.
+> Ship: **Issue → branch `issue-N-…` → PR → squash-merge**.
 
-- **This repo:** `/home/glenda/Projects/clun` (you are building this; git is already initialized)
-- **Engineering reference:** `/home/glenda/Projects/bun` (read-only — never modify it), commit
-  `c1076ce95e`, identified by that checkout as **Bun 1.4.0-dev**. This is the forward engineering
-  source/test baseline, not the stable version printed in the public comparison table.
-- **Public comparison reference:** **Bun 1.3.14 stable**. README/site version labels and stable-release
-  behavior claims use its release binary/tag. Never describe `c1076ce95e` as Bun 1.3.14.
+- **This repo:** `/home/glenda/Projects/clun`
+- **Engineering reference:** `/home/glenda/Projects/bun` (read-only — never modify), commit
+  `c1076ce95e` (**Bun 1.4.0-dev** forward baseline; not the stable comparison version)
+- **Public comparison reference:** **Bun 1.3.14 stable** for README/site labels and stable-binary claims
 - **Host toolchain:** SBCL 2.6.4 on PATH (`:sb-thread`, `:mark-region-gc`, poll-backed
-  serve-event — all verified). Linux x86-64. Pin this SBCL version.
+  serve-event — verified). Linux x86-64. Pin this SBCL version.
 
-### How to drive this plan (note to the human operator)
-
-Kick off each working session with:
-
-> Read PLAN.md and STATE.md in this repo, then execute the loop in PLAN.md §2. Continue until the
-> current phase gate passes.
-
-Use available Codex/Sol 5.6 subagents for disjoint work and independent verification. If subagents are not
-available, execute the same tasks serially in the listed order without weakening or skipping a gate.
+**Session shortcut:** user says `phase` / `phase NN` → see repo `AGENTS.md` (no separate prompt file).
 
 ---
 
@@ -33,9 +21,9 @@ available, execute the same tasks serially in the listed order without weakening
 Bun is ~1M lines of Rust/C++ on top of JavaScriptCore. Clun is **not** a literal port. It is a
 sharply scoped, faithful-in-spirit JavaScript/TypeScript runtime and toolkit written in **pure
 Common Lisp** — including a from-scratch ECMAScript engine. Correctness of the scoped surface and
-purity of the implementation beat breadth and speed for the v0.1 foundation. After v0.1, the
-purity-compatible surface-parity program deliberately expands breadth and pursues measured
-performance against Bun while retaining the same correctness and purity contract.
+purity of the implementation beat breadth and speed for the original v0.1 foundation. The active
+prerelease roadmap now expands the purity-compatible surface and pursues measured performance against
+Bun before Phase 26 re-baselines the resulting system for final hardening and release.
 
 ### 1.1 The Purity Contract (constitutional — every phase gate re-checks it)
 
@@ -85,22 +73,31 @@ preserving TS strip makes them unnecessary), Proxy/Reflect, Intl, Temporal, Atom
 git/file dependencies, lifecycle scripts (never executed — stricter than Bun), and Windows.
 Linux and macOS 13+ release builds target x86-64 and arm64; platform-specific APIs may remain partial.
 If a v0.1 task appears to require one of these non-goals, it doesn't — rescope and record why in
-`DECISIONS.md`. Phases 27–82 promote the compatible items into the post-v0.1 purity-compatible surface program.
+`DECISIONS.md`. Phases 27–82 promote the compatible items into the purity-compatible Bun-surface program
+before the re-baselined Phase 26 final hardening and release.
 
-### 1.4 Definition of Done for v0.1
+### 1.4 Original v0.1 requirements and current ownership
 
-1. All phase gates 00–26 pass (each is a concrete command sequence).
+The former `v0.1.0` target is not a current release boundary. Phases 00–25b established the
+foundation, Phases 27–82 expand and audit the purity-compatible surface, and Phase 26 runs last.
+These requirements remain binding under their current phase owners and are revalidated where still
+relevant when Phase 26 is designed from the then-current system:
+
+1. All foundation phase gates 00–25b pass, followed by the applicable gates in Phases 27–82 and the
+   re-baselined Phase 26 checklist.
 2. test262: the checked-in pass-list contains every passing test (monotonically grown, zero
    regressions), with overall curated pass rate ≥ 90% at Phase 25b's close.
 3. End-to-end demo (`examples/e2e.sh`): `clun install` against the local registry fixture →
    `clun run build` (a script invoking a `.bin` tool) → `clun test` — all green, hermetic.
 4. `Clun.serve` example survives 1k sequential + 500 concurrent requests, RSS plateaus.
-5. One logged live smoke: `clun add ms` against real npm over pure-CL HTTPS, then run it.
+5. Phase 28 records a live smoke that installs a pinned package from public npm over verified pure-CL
+   HTTPS and executes it.
 6. README with install, quickstart, architecture, honest compat matrix (Appendix A), and the
    TLS security-posture statement (§3.4).
-7. Tagged `v0.1.0`.
+7. Phase 26 selects the final version and immutable tag from the completed work and then-current
+   release train; it does not inherit the former `v0.1.0` assumption.
 
-### 1.5 Definition of Done for the post-v0.1 purity-compatible Bun-surface program
+### 1.5 Definition of Done for the purity-compatible Bun-surface program
 
 1. Every gate in Phases 27–82 passes, including the universal feature-evidence gate in §5.
 2. Every public API, CLI command/flag, loader, protocol, and observable behavior in the Phase-73
@@ -123,91 +120,62 @@ If a v0.1 task appears to require one of these non-goals, it doesn't — rescope
 7. Phase 82 produces the purity-compatible surface release tag only after the final review finds no
    unsupported claim.
 
-**Scale honesty:** the ~65–70k LOC estimate applies only to the v0.1 foundation. Phases 27–82 are a
+**Scale honesty:** the ~65–70k LOC estimate applies only to the original v0.1 foundation. Phases 27–82 are a
 multi-release purity-compatible surface program with no credible fixed LOC estimate; each bounded
-phase and milestone is estimated only after its pinned surface inventory and design. Expect *hundreds*
-of loop iterations. The loop protocol and state files below are what make that sustainable.
+phase and milestone is estimated only after its pinned surface inventory and design.
 
 ---
 
-## 2. Execution Protocol — THE LOOP (read every session)
+## 2. Technical iteration notes (not process)
 
-You (the executing agent) drive this project with a deterministic outer loop. One iteration ≈ one
-phase, or one milestone of a large phase. Phases 00–26 are the v0.1 track; after its release,
-Phases 27–82 are the post-v0.1 purity-compatible Bun-surface track. `STATE.md` names the active track and phase. Do not
-freelance outside the loop.
+**Process (mandatory):** user standard — Issue first → branch from Issue → implement → gates → PR →
+squash-merge; plan-phase survey when required; subagents as the coding team.
 
-### 2.1 State files (the only session-to-session memory)
+This section only describes **how to chew Clun technical work** once the Issue/branch exist.
+Phases 00–25b = v0.1 foundation; 27–82 = purity-compatible Bun-surface track; Phase 26 last
+(re-baselined). Active phase/status live on the **GitHub Issue** (and derived `STATE.md`).
 
-- `PLAN.md` — this file. Read-mostly. You may append clarifications; never rewrite intent.
-- `STATE.md` — living checklist: every phase and task with `[ ]`/`[x]`, current-phase marker, a
-  "Blocked" section, and a **"Next action"** line so a cold session resumes instantly. Created in
-  Phase 00 by copying every task list from §5. Updated before every commit.
-- `DECISIONS.md` — append-only log: dated one-paragraph entries for every architectural choice,
-  library pin (name + version + SHA), fallback taken, scope call. Decision, why, alternative rejected.
-- `docs/design/phase-NN.md` — written before implementing any non-trivial phase: data structures,
-  ownership/lifetime notes, file layout, risks. The engine phases (01–04, 06, 10, 11) and TLS
-  phase (19–20) always get one.
+### 2.1 Derived local files (not SoT)
 
-### 2.2 The loop
+- `PLAN.md` — this notebook. Append technical clarifications; do not invent process here.
+- `STATE.md` — resume checklist (`[ ]`/`[x]`, next action). Keep aligned with the Issue.
+- `DECISIONS.md` — append-only architecture/library/scope decisions; mirror material ones on the Issue.
+- `docs/design/phase-NN.md` — before non-trivial implementation (always for engine 01–04, 06, 10, 11 and TLS 19–20).
+
+### 2.2 Technical steps inside an Issue unit
 
 ```
-while active release track not done:
-  1. ORIENT   Read STATE.md and this file's section for the current phase. Pick the first phase
-              whose Dependencies are all DONE. If the current phase is blocked, pick the next
-              unblocked phase (§5 marks which are independent) and record why in STATE.md.
-  2. DESIGN   If docs/design/phase-NN.md doesn't exist and the phase is non-trivial: assign a
-              planning subagent the phase spec + references, or do the same analysis serially;
-              distill the result into the design doc.
-  3. RESEARCH As needed, assign read-only research subagents against /home/glenda/Projects/bun and
-              vendored sources for behavior questions. Check Appendix C FIRST — many facts are
-              already verified; do not re-derive them.
-  4. BUILD    Implement task by task. After EVERY task: `make build && make test` green before
-              the next task. Fan out to parallel implementer subagents ONLY for disjoint files
-              (§5 marks fan-out phases); otherwise work serially in the main loop. When no
-              subagents are available, execute every listed task serially.
-  5. GATE     Run the phase's Acceptance Gate exactly as written — all commands, plus
-              `make purity`. For engine phases, also: zero test262 pass-list regressions.
-  6. REVIEW   Code-review the phase's diff: use the code-review skill if this session has one;
-              otherwise spawn a reviewer subagent prompted adversarially (§2.3). Fix findings,
-              re-run the gate.
-  7. RECORD   Update STATE.md (tasks, phase status, next action), append DECISIONS.md entries,
-              commit `phase-NN: <summary>`. Commit only on green.
-  8. LOOP     Never skip a gate. Never mark done on red. Never start a dependent phase while a
-              dependency's gate is failing.
+1. ORIENT    Issue + this file's phase section + STATE.md; deps complete; SemVer on Issue.
+2. DESIGN    docs/design/phase-NN.md if non-trivial (subagent or serial).
+3. RESEARCH  Bun tree + vendored sources as needed; check Appendix C first.
+4. BUILD     Task-by-task; after each: make build && make test green when practical.
+             Parallel subagents only for disjoint ownership; re-run full suite after merge of slices.
+5. GATE      Phase acceptance commands exactly + make purity (+ test262 pass-list for engine).
+6. REVIEW    Adversarial review (skill or subagent); fix; re-gate.
+7. SHIP      Per user standard: commits Refs #N → PR → squash-merge when CI green;
+             then release tag/evidence if release-bearing (docs/versioning.md).
+8. RECORD    Update Issue evidence; sync STATE/DECISIONS/README/site as required.
 ```
 
-### 2.3 Agents, skills, and orchestration
+Never skip a technical gate. Never mark done on red. Never start a dependent phase while a
+dependency's gate fails. Never freelance outside the active Issue's scope.
 
-- **Research subagents** (read-only search): all reference mining in `/home/glenda/Projects/bun`
-  (read its repository guidance first) and in vendored sources. Ask for conclusions with
-  cited file:line, not file dumps.
-- **Planning subagents**: phase designs and any §3 decision that lists a fallback — have the agent argue
-  both sides; you decide and log it.
-- **Implementer subagents**: parallel fan-out for disjoint work. Give each:
-  exact files it owns, the standards in §6, and the command proving its slice green. Re-run the
-  full suite yourself after merging — never trust "it passes".
-- **Reviewer subagents**: after every phase and after any change to the engine object kernel,
-  the event loop, TLS, or tar extraction. Prompt them to hunt: condition-handling gaps
-  (`ignore-errors` around fallible work), interrupt-context violations (JS or allocation in
-  signal/status-hook handlers), path-discipline violations (raw namestrings), purity leaks,
-  untested claims, and pass-list regressions.
-- **Skills**: if the session exposes a code-review skill, use it at step 6; if a verify/run
-  skill exists, use it for the serve/e2e gates. Never invent skill names — use what's listed.
-- **Codex/Sol 5.6 orchestration**: use available Codex/Sol 5.6 subagents for fan-out-heavy steps — compatibility
-  inventory, disjoint module implementations, fixture-corpus authoring, and end-of-phase review
-  panels (find → independently verify each finding). The main agent owns integration and reruns the
-  complete gate. If subagents are unavailable or ownership would overlap, execute serially; parallel
-  execution is an optimization, never a prerequisite.
-- **Context discipline**: each iteration, re-read only STATE.md + the current phase section +
-  its design doc + Appendix C. Don't re-read the whole plan or re-litigate settled decisions.
+### 2.3 Subagents and review focus (Clun-specific)
 
-### 2.4 When blocked
+- **Research** (read-only): `/home/glenda/Projects/bun` and vendored sources; cite file:line.
+- **Planning:** argue design sides for §3 fallbacks; log the choice on Issue + DECISIONS.md.
+- **Implementers:** disjoint files only; owner re-runs full suite after integrating.
+- **Reviewers:** especially engine object kernel, event loop, TLS, tar extraction — hunt
+  `ignore-errors` around fallible work, interrupt-context violations, path-discipline breaks,
+  purity leaks, untested claims, pass-list regressions.
+- **Codex/Sol 5.6 orchestration:** use maximum reasoning effort and available subagents; execute the
+  same work serially when ownership would overlap or the harness has no free agent slots.
 
-Timebox spikes to one iteration. If a primary bet fails, execute the documented fallback (§3) and
-log it — that is your decision, not a user question. Ask the human ONLY for genuine scope changes
-("gate X is impossible as written because Y; propose Z"). Record open questions in STATE.md under
-"Blocked" and move to the next unblocked phase rather than stalling.
+### 2.4 When technically blocked
+
+Timebox spikes. Prefer documented §3 fallbacks and log them. Escalate to the user only for genuine
+product/scope decisions (or new plan-phase survey per user standard). Record blockers on the Issue
+and in STATE.md; move to an unblocked Issue/phase rather than stalling silently.
 
 ---
 
@@ -222,14 +190,14 @@ Research verified these empirically on this exact host — evidence in Appendix 
 | Execution | **Compile analyzed AST → CL closures** (pre-resolved variable slots; one closure per node; no per-node dispatch). Never `COMPILE`-per-function at load (measured 0.16–0.5 ms/fn → 10–25 s startup on big bundles). cl-js (`github.com/akapav/js`) is the design blueprint — study, don't vendor (it's ES3) | Hot-function tiering via `COMPILE` on a background thread (P25); plain tree-walker for `with`-containing functions if the emitter fights |
 | Strings | **CL strings, one character = one UTF-16 code unit** (astral → surrogate pairs; lone surrogates are legal SBCL chars — verified). `.length` = `length`. UTF-8⇄code-units (WTF-8 for lone surrogates) at host boundaries only | `(unsigned-byte 16)` vectors if memory (4 B/unit) ever dominates — costs bespoke hashing/printing/regex bridge |
 | Numbers | `double-float` + `sb-int:with-float-traps-masked (:overflow :invalid :divide-by-zero)` at engine entry points (verified: Inf/NaN/−0 correct). Int32 ops via `(ldb (byte 32 0) …)` + sign fix. NaN via `sb-ext:float-nan-p`. **BigInt IN, late phase** (CL bignums make it cheap). Number→String: **port Ryū** (naive bignum shortest-round-trip as fallback). Emitter must never emit constant-foldable trapping float literals (SBCL folds at compile time — verified) | Per-operation trap wrapping (cl-js's `wrap-js`) if entry-point masking leaks through callbacks |
-| Object model | Spec internal-methods protocol ([[Get]]/[[Set]]/[[GetOwnProperty]]/[[DefineOwnProperty]]…) as struct-dispatched functions, **deliberately Proxy-shaped** for post-v0.1. v0.1 storage: per-object property table (small simple-vector → `equal` hash-table promotion), full descriptors, prototype as struct slot. **Structs, never hash-table-per-object** (measured 4× memory + 2.7× GC win). Arrays: dense adjustable vector + sparse hash overflow. Shapes/inline-caches deferred to Phase 25 behind the protocol (cl-js's scls/hcls proves the design) | Lift cl-js's shape tree early if property-table perf blocks a gate |
+| Object model | Spec internal-methods protocol ([[Get]]/[[Set]]/[[GetOwnProperty]]/[[DefineOwnProperty]]…) as struct-dispatched functions, **deliberately Proxy-shaped** for later surface work. v0.1 storage: per-object property table (small simple-vector → `equal` hash-table promotion), full descriptors, prototype as struct slot. **Structs, never hash-table-per-object** (measured 4× memory + 2.7× GC win). Arrays: dense adjustable vector + sparse hash overflow. Shapes/inline-caches deferred to Phase 25 behind the protocol (cl-js's scls/hcls proves the design) | Lift cl-js's shape tree early if property-table perf blocks a gate |
 | Scoping/modes | Parser does full scope analysis (hoisting, let/const slot indices, TDZ sentinel, eval/with/arguments flags); frames are simple-vectors; `with`/direct-eval scopes use hash-backed slow frames. **Strict AND sloppy from day 1, including `with` and direct eval** — test262 runs both modes; npm CJS is sloppy | None — design constraint, not a bet |
 | Async/generators | **Regenerator-style state-machine lowering** as an AST→AST pass before closure emission (hoisted locals, `switch(state)` loop, try-entry tables — copy `facebook/regenerator`'s scheme exactly). Engine owns the microtask/job queue; async generators & for-await desugar per spec | Thread-per-generator (sb-thread + semaphore handoff) — semantically safe, slow; acceptable for rare generators if lowering is buggy |
 | RegExp | v0.1: own JS-regex parser → **CL-PPCRE parse trees** (pure CL, zero deps — verified; supports fixed-length lookbehind, named groups, backrefs, `:start` for lastIndex/sticky). Documented gaps that **error loudly** (SyntaxError), never silently mismatch: variable-length lookbehind, `\p{…}` until own UCD tables. Known silent gap to fix earliest: unparticipated-group backrefs (PPCRE fails where JS matches empty — verified) | Phase 37 owns the modern RegExp/UCD gap wave; the parser and RegExp object survive a backend swap |
 | Unicode data | **Own build-time UCD table generator** (vendor current Unicode data files, emit Lisp tables). cl-unicode is Unicode 6.2 (2012) — reference for technique only | — |
 | Conformance | Vendor **test262 pinned @ `d1d583d`** (53,690 test files measured): `harness/` + `test/language/**` + built-ins for implemented globals. Skip by `features:` tags (Proxy, Reflect, Temporal, Atomics, SharedArrayBuffer, Intl…) and `$262.createRealm`. Own runner: ~200-LOC YAML-frontmatter parser per test262 INTERPRETING.md; default = run each test in both sloppy+strict; async via `doneprintHandle.js`. **Gate mechanism: checked-in sorted pass-list — CI fails if any test leaves it; it only grows** | Skip-list polarity if curation churns |
 | v0.1 language tier | ES2017-ish: full ES2015 minus Proxy/Reflect/tail-calls, plus async/await, `**`, Object.entries/values, trailing commas; Symbols incl. iterator/toPrimitive/toStringTag/hasInstance; BigInt (late); no Intl/Temporal/Atomics. Per-realm intrinsics indirection designed in from Phase 03 (cheap now, painful later) | Phase 37 owns the pinned-Bun modern language gap |
-| Date/TZ | UTC-correct core in Phase 04; pure-CL TZif (`/etc/localtime`) parser as a Phase 26 task, deferrable to post-v0.1 Phase 37 with `getTimezoneOffset() = 0` documented | — |
+| Date/TZ | UTC-correct core in Phase 04; pure-CL TZif (`/etc/localtime`) remains unassigned until Phase 26 re-baselines the then-current system, while Phase 37 retains only its existing Date/Intl issue scope | — |
 
 ### 3.2 The substrate (event loop, I/O — pure SBCL)
 
@@ -244,7 +212,7 @@ Research verified these empirically on this exact host — evidence in Appendix 
 | Signals | `sb-sys:enable-interrupt` handlers: push to queue + 1 byte to self-pipe, nothing else (handlers run in arbitrary threads — verified). SIGPIPE already neutralized by SBCL (write-to-closed-peer → catchable `SB-INT:BROKEN-PIPE` — verified) | Flag polled each loop iteration |
 | HTTP server | Event-driven on the JS-thread reactor, non-blocking sockets, **own incremental HTTP/1.1 parser** (~1k LOC; study fast-http and Hunchentoot's taskmaster/shedding — both pure-CL, neither fits the reactor). Keep-alive, chunked both ways, 16KB header / configurable body limits (fail 431/413), graceful shutdown, port 0 via `socket-name`. Substrate ceiling measured 325k req/s — target ≥30k with real parsing | Thread-per-connection with cap (measured fast) + handler marshaling to the JS thread |
 | HTTP client | Same reactor; pool keyed `(host, port, family, tls-config)`; connect/header/body timeouts via the timer heap; gzip via chipz; redirects follow (max 20, drop auth cross-origin) | Blocking client on worker pool for v0.1 fetch |
-| DNS | v4 via `sb-bsd-sockets:get-host-by-name` on the worker pool (blocking; no getaddrinfo in SBCL — verified). IPv6 literals parsed in-process; AAAA lookup is post-v0.1 | Pure-CL resolver in Phases 28/43 |
+| DNS | v4 via `sb-bsd-sockets:get-host-by-name` on the worker pool (blocking; no getaddrinfo in SBCL — verified). IPv6 literals parsed in-process; Phases 28/43 own AAAA lookup | Pure-CL resolver in Phases 28/43 |
 | GC discipline | Never `gc :full` on hot paths; minor GCs measured 2–4 ms at 1 GB live; struct-based objects keep the heap small. Internal SBCL APIs (`sb-unix:unix-realpath`, `fd-stream-fd`) isolated in one `src/sys/sbcl-compat.lisp` | — |
 
 ### 3.3 TypeScript (type stripping, not transpilation)
@@ -386,7 +354,7 @@ clun/
 Every phase lists Dependencies, objective, tasks (seed STATE.md from these), and an **Acceptance
 Gate** (`make` targets — literal commands, all of them, plus `make purity` always). LOC figures
 are informed estimates, not promises. Phases marked ⚡ are fan-out-friendly (disjoint files for
-available Codex/Sol 5.6 subagents, with the same work executable serially). Phases marked ◇ are
+available subagents, with the same work executable serially). Phases marked ◇ are
 **independent early**: pull them forward whenever the main track is blocked.
 
 ---
@@ -588,7 +556,7 @@ CI; extend `make purity` over the new tree; file the upstream patch issue (log i
 ### Phase 20 — HTTPS  *(deps: 18, 19)* ~1.5k LOC
 Objective: `fetch("https://…")` and the registry client's transport.
 Tasks: TLS streams integrated via worker pool (blocking gray-stream handshake/IO off the JS
-thread; reactor-native TLS is post-v0.1 Phase 28); trust store (system PEM bundle, `SSL_CERT_FILE`/
+thread; Phase 28 owns reactor-native TLS); trust store (system PEM bundle, `SSL_CERT_FILE`/
 `SSL_CERT_DIR` overrides); hostname verification; connection-pool keys gain TLS config
 (monotonic — never downgrade); test CA + in-process pure-tls **server** fixtures; negative
 matrix; posture labeling (§3.4) in README + errors.
@@ -715,7 +683,7 @@ regression tests.
    `stronger than Bun`; generated copy names the exact workload/suite, Bun baseline, host, metric,
    result, and any losses.
 6. Update `STATE.md`, append the decision/evidence entry to `DECISIONS.md`, regenerate README/site
-   claims, run an adversarial review, fix findings, and rerun the full gate. If Codex/Sol 5.6 subagents are
+   claims, run an adversarial review, fix findings, and rerun the full gate. If subagents are
    unavailable, perform the research, implementation, and independent review passes serially.
 7. Record provenance for every copied fixture/data file: origin repository, exact commit, file path,
    license, modifications, and required notices. Bun's root code is MIT, but vendored Node, WebKit, WPT,
@@ -1642,9 +1610,9 @@ facebook/regenerator (lowering scheme); mathiasbynens/regexpu-core (u-flag trans
 tc39/test262 INTERPRETING.md; Ryū paper; RFC 8446 (TLS 1.3), 8439, 5869, 7748; WHATWG URL;
 nodejs.org/api/typescript.html + nodejs/amaro; npm/registry docs; node-semver.
 
-## Appendix E — Promoted post-v0.1 backlog and remaining follow-ups
+## Appendix E — Promoted former backlog and remaining follow-ups
 
-The former post-v0.1 backlog is now owned by the numbered purity-compatible surface program and must not be executed as an
+The former deferred backlog is now owned by the numbered purity-compatible surface program and must not be executed as an
 unnumbered side track:
 
 | Former backlog item | Owning phase(s) |
@@ -1672,6 +1640,8 @@ unnumbered side track:
 Items not present in the immutable Phase-73 surface remain explicitly unpromoted: HTTP/3/QUIC, deeper
 macOS-native memory/uptime/CPU metrics beyond the portable `node:os` contract, and Windows support. If any
 is present in the frozen surface, Phase 80 owns it instead; if Bun adds it after the freeze, it belongs to the
-next release train. TZif local time, if Phase 26 defers it, moves into Phase 37's modern Date/Intl milestone.
-These follow-ups require a new numbered phase or an operator-approved amendment before implementation; they
-are not permission to freelance outside §2.
+next release train. TZif local time remains unassigned until Phase 26 re-baselines the then-current system;
+it is not silently added to Phase 37 or inherited from the obsolete final-phase checklist.
+These follow-ups require a new numbered phase (Issue + user-standard plan-phase survey when applicable)
+or an explicit scope amendment on the Issue before implementation; they are not permission to freelance
+outside the active Issue or the purity contract.

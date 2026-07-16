@@ -390,6 +390,39 @@
 
 ;;; --- reactor robustness: recover from a handler left on a closed fd -----------
 
+(define-test loop/select-fallback-is-silent-and-fails-at-real-limit
+  (let* ((limit (clun.sys:select-fd-limit))
+         (expected-range (format nil "supports descriptors 0..~D" (1- limit)))
+         (stderr
+           (with-output-to-string (stream)
+             (let ((*error-output* stream))
+               (with-loop (loop)
+                 (let ((clun.loop::*reactor-poll-backend* t))
+                   (false (clun.loop::probe-reactor nil))
+                   (is = (1- limit)
+                       (clun.loop::ensure-reactor-fd-supported (1- limit)))
+                   (let ((message
+                           (handler-case
+                               (progn
+                                 (lp:reactor-add loop limit :input
+                                                 (lambda (fd) (declare (ignore fd))))
+                                 nil)
+                             (error (condition) (princ-to-string condition)))))
+                     (true message)
+                     (true (search expected-range message)))
+                   (let* ((sp (clun.loop::el-self-pipe loop))
+                          (actual-fd (clun.sys:self-pipe-read-fd sp)))
+                     (unwind-protect
+                          (progn
+                            (setf (clun.sys:self-pipe-read-fd sp) limit)
+                            (let ((message
+                                    (handler-case
+                                        (progn (lp:run-loop loop) nil)
+                                      (error (condition) (princ-to-string condition)))))
+                              (true (search expected-range message))))
+                       (setf (clun.sys:self-pipe-read-fd sp) actual-fd)))))))))
+    (is string= "" stderr)))
+
 (define-test loop/reactor-recovers-from-closed-fd
   ;; A handler left on an fd that gets closed behind serve-event's back — the narrow
   ;; race where a socket fd is closed (a re-entrant close during dispatch, a peer reset,

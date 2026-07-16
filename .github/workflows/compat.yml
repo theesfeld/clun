@@ -1,0 +1,392 @@
+name: Compatibility
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/compat.yml"
+      - ".github/workflows/release.yml"
+      - "Makefile"
+      - "bench/**"
+      - "clun.asd"
+      - "compat/**"
+      - "!compat/release.tsv"
+      - "examples/**"
+      - "scripts/**"
+      - "src/**"
+      - "tests/**"
+      - "vendor/**"
+  pull_request:
+    paths:
+      - ".github/workflows/compat.yml"
+      - ".github/workflows/release.yml"
+      - "Makefile"
+      - "bench/**"
+      - "clun.asd"
+      - "compat/**"
+      - "!compat/release.tsv"
+      - "examples/**"
+      - "scripts/**"
+      - "src/**"
+      - "tests/**"
+      - "vendor/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: compatibility-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compatibility:
+    name: Compatibility ${{ matrix.target }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: linux-x64
+            runner: ubuntu-24.04
+            expected_machine: x86_64
+          - target: linux-arm64
+            runner: ubuntu-22.04-arm
+            expected_machine: aarch64
+          - target: darwin-x64
+            runner: macos-15-intel
+            expected_machine: x86_64
+          - target: darwin-arm64
+            runner: macos-15
+            expected_machine: arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check runner architecture
+        shell: bash
+        run: test "$(uname -m)" = "${{ matrix.expected_machine }}"
+
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential bzip2 curl make sbcl zstd libzstd-dev
+
+      - name: Install macOS build dependencies
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          brew list sbcl >/dev/null 2>&1 || brew install sbcl
+          brew list zstd >/dev/null 2>&1 || brew install zstd
+
+      - name: Install pinned SBCL 2.6.4 binary
+        if: matrix.target == 'linux-x64'
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 \
+            --output "$RUNNER_TEMP/sbcl-binary.tar.bz2" \
+            https://downloads.sourceforge.net/project/sbcl/sbcl/2.6.4/sbcl-2.6.4-x86-64-linux-binary.tar.bz2
+          test "$(shasum -a 256 "$RUNNER_TEMP/sbcl-binary.tar.bz2" | awk '{print $1}')" = \
+            "466933f9b4f403b6a49b2a7cc755fdd5d827c3b354aa3c8c0d96697e5da1e9fc"
+          tar -xjf "$RUNNER_TEMP/sbcl-binary.tar.bz2" -C "$RUNNER_TEMP"
+          cd "$RUNNER_TEMP/sbcl-2.6.4-x86-64-linux"
+          unset SBCL_HOME
+          INSTALL_ROOT="$RUNNER_TEMP/sbcl-2.6.4-installed" sh install.sh
+          echo "SBCL_HOME=$RUNNER_TEMP/sbcl-2.6.4-installed/lib/sbcl" >> "$GITHUB_ENV"
+          echo "$RUNNER_TEMP/sbcl-2.6.4-installed/bin" >> "$GITHUB_PATH"
+
+      - name: Build pinned SBCL 2.6.4 from source
+        if: matrix.target != 'linux-x64'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$RUNNER_OS" == "macOS" ]]; then
+            export MACOSX_DEPLOYMENT_TARGET=13.0
+            echo "MACOSX_DEPLOYMENT_TARGET=13.0" >> "$GITHUB_ENV"
+          fi
+          curl --fail --location --retry 3 \
+            --output "$RUNNER_TEMP/sbcl-source.tar.bz2" \
+            https://downloads.sourceforge.net/project/sbcl/sbcl/2.6.4/sbcl-2.6.4-source.tar.bz2
+          test "$(shasum -a 256 "$RUNNER_TEMP/sbcl-source.tar.bz2" | awk '{print $1}')" = \
+            "3ba53e654b60feb7c4f50466199d6d5260f2661c711ba22d4b770b655400d57b"
+          tar -xjf "$RUNNER_TEMP/sbcl-source.tar.bz2" -C "$RUNNER_TEMP"
+          cd "$RUNNER_TEMP/sbcl-2.6.4"
+          sh make.sh --prefix="$RUNNER_TEMP/sbcl-2.6.4-installed"
+          sh install.sh
+          echo "$RUNNER_TEMP/sbcl-2.6.4-installed/bin" >> "$GITHUB_PATH"
+
+      - name: Report toolchain
+        shell: bash
+        env:
+          COMPAT_TARGET: ${{ matrix.target }}
+        run: |
+          printf 'target=%s\nrunner=%s\nmachine=%s\n' \
+            "$COMPAT_TARGET" "$RUNNER_OS" "$(uname -m)"
+          sbcl --version
+          test "$(sbcl --version)" = "SBCL 2.6.4"
+
+      - name: Build Clun
+        run: make build
+
+      - name: Validate compatibility ledger
+        run: make compat-validate
+
+      - name: Verify generated documentation
+        run: make docs-check
+
+      - name: Run all compatibility evidence
+        shell: bash
+        env:
+          CLUN_COMPAT_TARGET: ${{ matrix.target }}
+        run: |
+          set -euo pipefail
+          sh scripts/compat.sh run all 2>&1 | tee "$RUNNER_TEMP/compat-output.txt"
+
+      - name: Create deterministic compatibility receipt
+        shell: bash
+        env:
+          COMPAT_TARGET: ${{ matrix.target }}
+        run: |
+          set -euo pipefail
+          export LC_ALL=C
+
+          receipt_dir="$RUNNER_TEMP/compat-receipt-$COMPAT_TARGET"
+          ledger_manifest="$RUNNER_TEMP/compat-ledger-manifest.tsv"
+          fixture_paths="$RUNNER_TEMP/compat-fixture-paths.txt"
+          fixture_manifest="$RUNNER_TEMP/compat-fixture-manifest.tsv"
+          expected_outcomes="$RUNNER_TEMP/compat-expected-outcomes.tsv"
+          observed_outcomes="$RUNNER_TEMP/compat-observed-outcomes.tsv"
+          feature_ids_file="$RUNNER_TEMP/compat-feature-ids.txt"
+          expected_executed_ids="$RUNNER_TEMP/compat-expected-executed-ids.txt"
+          expected_traced_ids="$RUNNER_TEMP/compat-expected-traced-ids.txt"
+          executed_ids_file="$RUNNER_TEMP/compat-executed-ids.txt"
+          traced_ids_file="$RUNNER_TEMP/compat-traced-ids.txt"
+          mkdir -p "$receipt_dir"
+
+          : > "$ledger_manifest"
+          for path in \
+            docs/roadmap.tsv \
+            compat/baselines.tsv \
+            compat/features.tsv \
+            compat/evidence.tsv \
+            compat/platforms.tsv \
+            compat/references.tsv \
+            compat/release.tsv \
+            compat/upstream-assets.tsv \
+            compat/benchmarks/workloads.tsv \
+            compat/benchmarks/metrics.tsv; do
+            printf '%s\t%s\n' "$path" "$(shasum -a 256 "$path" | awk '{print $1}')" \
+              >> "$ledger_manifest"
+          done
+          ledger_sha256="$(shasum -a 256 "$ledger_manifest" | awk '{print $1}')"
+
+          {
+            printf '%s\n' compat/evidence.tsv
+            while IFS=$'\t' read -r _id _feature _kind _command _executable fixture expected \
+              _targets _assertion; do
+              [[ "$fixture" == "-" ]] || printf '%s\n' "$fixture"
+              if [[ "$expected" != "-" ]]; then
+                printf '%s\n' "$expected"
+                expected_base="${expected%.*}"
+                for suffix in argv err exit; do
+                  [[ ! -f "$expected_base.$suffix" ]] || \
+                    printf '%s\n' "$expected_base.$suffix"
+                done
+              fi
+            done < <(tail -n +2 compat/evidence.tsv)
+          } | LC_ALL=C sort -u > "$fixture_paths"
+
+          : > "$fixture_manifest"
+          while IFS= read -r path; do
+            test -f "$path"
+            printf '%s\t%s\n' "$path" "$(shasum -a 256 "$path" | awk '{print $1}')" \
+              >> "$fixture_manifest"
+          done < "$fixture_paths"
+          fixture_sha256="$(shasum -a 256 "$fixture_manifest" | awk '{print $1}')"
+
+          awk -F '\t' -v target="$COMPAT_TARGET" '
+            NR > 1 && ($4 == "static" || ("," $8 ",") ~ ("," target ",")) {
+              print ($4 == "static" ? "trace" : "pass") "\t" $1
+            }
+          ' compat/evidence.tsv | LC_ALL=C sort > "$expected_outcomes"
+          awk '
+            $1 == "(pass)" && NF == 2 { print "pass\t" $2 }
+            $1 == "(trace)" && NF == 2 { print "trace\t" $2 }
+          ' "$RUNNER_TEMP/compat-output.txt" | LC_ALL=C sort > "$observed_outcomes"
+          cmp -s "$expected_outcomes" "$observed_outcomes"
+          awk -F '\t' '$1 == "pass" { print $2 }' "$observed_outcomes" > "$executed_ids_file"
+          awk -F '\t' '$1 == "trace" { print $2 }' "$observed_outcomes" > "$traced_ids_file"
+          awk -F '\t' '$1 == "pass" { print $2 }' "$expected_outcomes" > "$expected_executed_ids"
+          awk -F '\t' '$1 == "trace" { print $2 }' "$expected_outcomes" > "$expected_traced_ids"
+          cmp -s "$expected_executed_ids" "$executed_ids_file"
+          cmp -s "$expected_traced_ids" "$traced_ids_file"
+          test -s "$executed_ids_file"
+          awk -F '\t' 'NR > 1 { print $1 }' compat/features.tsv | LC_ALL=C sort \
+            > "$feature_ids_file"
+          test "$(wc -l < "$feature_ids_file" | tr -d ' ')" -eq 30
+          feature_ids="$(paste -s -d, "$feature_ids_file")"
+          executed_ids="$(paste -s -d, "$executed_ids_file")"
+          traced_ids="$(paste -s -d, "$traced_ids_file")"
+          pass_count="$(wc -l < "$executed_ids_file" | tr -d ' ')"
+          trace_count="$(wc -l < "$traced_ids_file" | tr -d ' ')"
+          fail_count=0
+
+          candidate_sha="$(git rev-parse HEAD)"
+          test "$candidate_sha" = "$GITHUB_SHA"
+          binary_sha256="$(shasum -a 256 build/clun | awk '{print $1}')"
+          result_sha256="$(shasum -a 256 "$observed_outcomes" | awk '{print $1}')"
+          receipt="$receipt_dir/receipt.tsv"
+          printf 'schema\tcandidate_sha\ttarget\tbinary_sha256\tledger_sha256\tfixture_sha256\tresult_sha256\tbun_asset_sha256\tfeature_ids\texecuted_ids\ttraced_ids\tpass_count\tfail_count\ttrace_count\n' > "$receipt"
+          printf 'clun-compat-receipt-v2\t%s\t%s\t%s\t%s\t%s\t%s\t-\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+            "$candidate_sha" "$COMPAT_TARGET" "$binary_sha256" "$ledger_sha256" \
+            "$fixture_sha256" "$result_sha256" "$feature_ids" "$executed_ids" \
+            "$traced_ids" "$pass_count" "$fail_count" "$trace_count" >> "$receipt"
+          cat "$receipt"
+
+      - name: Upload compatibility receipt
+        uses: actions/upload-artifact@v7
+        with:
+          name: compat-receipt-${{ matrix.target }}
+          path: ${{ runner.temp }}/compat-receipt-${{ matrix.target }}/receipt.tsv
+          if-no-files-found: error
+          retention-days: 14
+
+  verify-receipts:
+    name: Verify compatibility receipts
+    needs: compatibility
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Download compatibility receipts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: compat-receipt-*
+          path: ${{ runner.temp }}/compat-receipts
+
+      - name: Verify all four target receipts
+        shell: bash
+        run: |
+          set -euo pipefail
+          export LC_ALL=C
+
+          receipt_root="$RUNNER_TEMP/compat-receipts"
+          expected_header=$'schema\tcandidate_sha\ttarget\tbinary_sha256\tledger_sha256\tfixture_sha256\tresult_sha256\tbun_asset_sha256\tfeature_ids\texecuted_ids\ttraced_ids\tpass_count\tfail_count\ttrace_count'
+          expected_feature_ids="$RUNNER_TEMP/compat-expected-feature-ids.txt"
+          ledger_manifest="$RUNNER_TEMP/compat-ledger-manifest.tsv"
+          fixture_paths="$RUNNER_TEMP/compat-fixture-paths.txt"
+          fixture_manifest="$RUNNER_TEMP/compat-fixture-manifest.tsv"
+
+          mapfile -d '' receipt_files < <(
+            find "$receipt_root" -type f -name receipt.tsv -print0 | sort -z
+          )
+          test "${#receipt_files[@]}" -eq 4
+
+          : > "$ledger_manifest"
+          for path in \
+            docs/roadmap.tsv \
+            compat/baselines.tsv \
+            compat/features.tsv \
+            compat/evidence.tsv \
+            compat/platforms.tsv \
+            compat/references.tsv \
+            compat/release.tsv \
+            compat/upstream-assets.tsv \
+            compat/benchmarks/workloads.tsv \
+            compat/benchmarks/metrics.tsv; do
+            printf '%s\t%s\n' "$path" "$(shasum -a 256 "$path" | awk '{print $1}')" \
+              >> "$ledger_manifest"
+          done
+          expected_ledger_sha256="$(shasum -a 256 "$ledger_manifest" | awk '{print $1}')"
+
+          {
+            printf '%s\n' compat/evidence.tsv
+            while IFS=$'\t' read -r _id _feature _kind _command _executable fixture expected \
+              _targets _assertion; do
+              [[ "$fixture" == "-" ]] || printf '%s\n' "$fixture"
+              if [[ "$expected" != "-" ]]; then
+                printf '%s\n' "$expected"
+                expected_base="${expected%.*}"
+                for suffix in argv err exit; do
+                  [[ ! -f "$expected_base.$suffix" ]] || \
+                    printf '%s\n' "$expected_base.$suffix"
+                done
+              fi
+            done < <(tail -n +2 compat/evidence.tsv)
+          } | LC_ALL=C sort -u > "$fixture_paths"
+
+          : > "$fixture_manifest"
+          while IFS= read -r path; do
+            test -f "$path"
+            printf '%s\t%s\n' "$path" "$(shasum -a 256 "$path" | awk '{print $1}')" \
+              >> "$fixture_manifest"
+          done < "$fixture_paths"
+          expected_fixture_sha256="$(shasum -a 256 "$fixture_manifest" | awk '{print $1}')"
+          awk -F '\t' 'NR > 1 { print $1 }' compat/features.tsv | LC_ALL=C sort \
+            > "$expected_feature_ids"
+          expected_features="$(paste -s -d, "$expected_feature_ids")"
+
+          checked_out_sha="$(git rev-parse HEAD)"
+          test "$checked_out_sha" = "$GITHUB_SHA"
+          declare -A seen_targets=()
+          for receipt in "${receipt_files[@]}"; do
+            mapfile -t lines < "$receipt"
+            test "${#lines[@]}" -eq 2
+            test "${lines[0]}" = "$expected_header"
+            test "$(awk -F '\t' 'NR == 2 { print NF }' "$receipt")" -eq 14
+            IFS=$'\t' read -r schema candidate_sha target binary_sha256 ledger_sha256 \
+              fixture_sha256 result_sha256 bun_asset_sha256 feature_ids executed_ids \
+              traced_ids pass_count fail_count trace_count <<< "${lines[1]}"
+
+            case "$target" in
+              linux-x64|linux-arm64|darwin-x64|darwin-arm64) ;;
+              *) echo "unexpected compatibility target: $target" >&2; exit 1 ;;
+            esac
+            target_expected="$RUNNER_TEMP/compat-expected-$target.tsv"
+            target_executed="$RUNNER_TEMP/compat-expected-executed-$target.txt"
+            target_traced="$RUNNER_TEMP/compat-expected-traced-$target.txt"
+            awk -F '\t' -v target="$target" '
+              NR > 1 && ($4 == "static" || ("," $8 ",") ~ ("," target ",")) {
+                print ($4 == "static" ? "trace" : "pass") "\t" $1
+              }
+            ' compat/evidence.tsv | LC_ALL=C sort > "$target_expected"
+            awk -F '\t' '$1 == "pass" { print $2 }' "$target_expected" > "$target_executed"
+            awk -F '\t' '$1 == "trace" { print $2 }' "$target_expected" > "$target_traced"
+            expected_result_sha256="$(shasum -a 256 "$target_expected" | awk '{print $1}')"
+            expected_executed="$(paste -s -d, "$target_executed")"
+            expected_traced="$(paste -s -d, "$target_traced")"
+            expected_pass_count="$(wc -l < "$target_executed" | tr -d ' ')"
+            expected_trace_count="$(wc -l < "$target_traced" | tr -d ' ')"
+
+            test "$schema" = clun-compat-receipt-v2
+            test "$candidate_sha" = "$checked_out_sha"
+            test "$ledger_sha256" = "$expected_ledger_sha256"
+            test "$fixture_sha256" = "$expected_fixture_sha256"
+            test "$result_sha256" = "$expected_result_sha256"
+            test "$bun_asset_sha256" = -
+            test "$feature_ids" = "$expected_features"
+            test "$executed_ids" = "$expected_executed"
+            test "$traced_ids" = "$expected_traced"
+            test "$pass_count" = "$expected_pass_count"
+            test "$fail_count" = 0
+            test "$trace_count" = "$expected_trace_count"
+            [[ "$binary_sha256" =~ ^[0-9a-f]{64}$ ]]
+            [[ "$ledger_sha256" =~ ^[0-9a-f]{64}$ ]]
+            [[ "$fixture_sha256" =~ ^[0-9a-f]{64}$ ]]
+            [[ "$result_sha256" =~ ^[0-9a-f]{64}$ ]]
+            if [[ -n "${seen_targets[$target]+present}" ]]; then
+              echo "duplicate compatibility target: $target" >&2
+              exit 1
+            fi
+            seen_targets[$target]=present
+          done
+
+          for target in linux-x64 linux-arm64 darwin-x64 darwin-arm64; do
+            test -n "${seen_targets[$target]+present}"
+          done
+          printf 'verified four compatibility receipts for %s\n' "$checked_out_sha"

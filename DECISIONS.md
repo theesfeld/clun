@@ -1,5 +1,7 @@
 # DECISIONS
 
+**Not process.** Process: `~/.config/agents/AGENTS.md`. Material decisions also belong on the GitHub Issue.
+
 Append-only architectural log. One dated entry per choice: decision, why, alternative rejected,
 and any pin (name + version + SHA). Newest at the bottom of each section.
 
@@ -2390,8 +2392,8 @@ Pages run `29488866091` succeeded for the exact candidate after the release asse
 `curl -fsSL https://clun.sh/install | sh` installation reported `clun 0.1.0-dev.6`. Phase 25b runtime and
 release scope is complete at 25,461 / 28,163 = 90.405852% (public 90.40%) with 3,234 Lisp assertions green.
 This post-publication handoff changes evidence and phase status only. Its SemVer impact is `none`; source and
-installer remain `0.1.0-dev.6`, and no new tag is created. Only this handoff commit's own Pages deployment
-must be verified and recorded in issue #57 before Phase 25b closes and Phase 27 begins.
+installer remain `0.1.0-dev.6`, and no new tag is created. The handoff commit's Pages deployment is verified,
+issue #57 is closed complete, and Phase 27 is active.
 
 ### 2026-07-16 - Phase 26 moves to the end and is re-baselined there
 
@@ -2401,3 +2403,72 @@ existed. Re-entering that monolithic gate now would block the concrete feature p
 depends directly on completed Phase 25b; issue #58 remains open and blocked on Phase 82. At final-phase entry,
 the design, checklist, Definition-of-Done evidence, release version, and tag are rewritten from the actual
 system, open findings, compatibility ledger, platforms, and release train that exist then.
+
+### 2026-07-16 - TZif local-time ownership waits for the Phase 26 rebaseline
+
+The Phase 04 decision assigned a pure-CL TZif local-time parser to the old Phase 26 checklist, and later
+planning text described it as deferrable to Phase 37. That ordering became impossible when Phase 26 moved
+after Phase 82. TZif is therefore unassigned until Phase 26 inventories the then-current Date/Intl surface
+and open compatibility gaps. Phase 37 retains its canonical issue scope unless that issue is explicitly
+amended; neither phase inherits the obsolete handoff silently.
+
+### 2026-07-16 - Phase 27 makes compatibility claims generated evidence, not duplicated prose
+
+Canonical issue #1 owns the live phase state and selects `0.1.0-dev.7` / `v0.1.0-dev.7` with `minor`
+impact. The repository source is a normalized `compat/` TSV ledger with permanent feature/evidence/workload
+IDs, one primary phase, explicit integration phases, four target rows, and separate Bun 1.3.14 stable versus
+`c1076ce95e` engineering references. The initial public snapshot stays deliberately honest at zero `Yes`,
+six `Partial`, and 24 `No`; Phase 27 adds traceability and does not promote a capability.
+
+POSIX shell and awk implement validation and deterministic rendering so Documentation and Pages checks run
+on both supported operating systems without Node or a network lookup. `make compat-validate` rejects schema,
+ownership, platform, evidence, release, reference, and benchmark-manifest drift. `make docs-generate` is the
+only writer for marked README, landing-page, and release-note sections; `make docs-check` renders twice and
+compares byte-for-byte. `make compat FEATURE=<id>|all` crosses the shipped-binary boundary for Node,
+TypeScript, Web APIs, the test runner, an ephemeral live HTTP server, and the hermetic online/offline package
+install flow. Static Lisp suites supplement those fixtures but never authorize `Yes`.
+
+A dedicated workflow runs that evidence on linux-x64, linux-arm64, darwin-x64, and darwin-arm64. Each v2
+receipt binds the candidate and native binary, ledger and fixture manifests, a canonical pass/trace outcome
+digest, all 30 feature IDs, separately classified executed and trace-only evidence IDs, and exact zero-failure
+counts. The unused Bun asset digest is explicit `-`; Phase 27 records but does not execute Bun. Exactly four
+target receipts must agree with independently recomputed repository inputs. The workflow never deploys Pages,
+does not repeat the full project suite, and is not triggered by landing-page-only changes. Release builders run
+the same compatibility target, and generated release notes are prepended to GitHub's changelog. Benchmark
+manifests freeze startup, Richards, DeltaBlue, and Splay as self-relative Clun workloads only; no cross-runtime
+performance claim is created.
+
+Independent review hardened that boundary before publication. Every one of the 30 rows now has a pinned
+Node.js and Deno repository reference in addition to separate Bun stable and engineering references; all 60
+new paths were resolved against the complete pinned Git trees. Runtime/channel roles, not baseline IDs, drive
+validation and rendering. The generator consumes the roadmap title, derives every baseline/version/date/link,
+and owns the landing source note, so a Phase 28 or renamed-baseline render cannot retain Phase 27 prose.
+
+`make compat` now rebuilds unconditionally, and the runner rejects any executable whose `--version` differs
+from the release ledger. CI supplies an explicit release target, filters executable evidence by its declared
+scope, and recomputes target-specific receipt outcomes. The package offline proof terminates and reaps the
+fixture before reinstalling. Release publication requires exact-SHA `master` success for CI, Documentation,
+and Compatibility before an annotated tag can build. Candidate Pages runs validate without deployment; after
+assets exist, a follow-up ledger row records `published` and the exact tagged commit, which Pages verifies
+before deployment. This keeps GitHub issue state, generated README/site copy, artifacts, and installer evidence
+on one release boundary without forcing the site workflow to rebuild Clun.
+
+### 2026-07-16 - GitHub enforces immutable releases beginning with dev.7
+
+Repository-level GitHub release immutability is enabled before `v0.1.0-dev.7`. Future published releases
+lock their assets and associated tags at the hosting layer; existing releases remain unchanged. The release
+workflow passes every archive and `checksums.txt` to `gh release create`, whose immutable-release path creates
+a draft, uploads all assets, and only then publishes. Both the workflow and the hosted release verifier reject
+a published release unless GitHub reports `isImmutable: true`. Active repository ruleset `19048471` targets
+`refs/tags/v*` with no bypass actors or creation restriction: first creation remains possible, while update,
+non-fast-forward movement, and deletion are blocked throughout the pre-publication build window and afterward.
+
+### 2026-07-16 - Select-backed event loops report limits only when reached
+
+The Phase 27 four-target evidence run showed that official macOS SBCL builds can lack
+`SB-UNIX:UNIX-POLL`. Clun previously warned at every lazy event-loop creation, so even an already-fulfilled
+`Response.text().then(...)` program wrote socket-backend diagnostics to stderr. The capability probe is now
+silent. On a select-backed build, every registration instead rejects only an actual descriptor at or above
+that target SBCL's compiled `SB-UNIX:FD-SETSIZE`, with the resource, supported range, and remedies in the
+error. Ordinary Promise/CLI execution stays clean, while the real boundary fails before calling
+`add-fd-handler`; this includes the event loop's own self-pipe.

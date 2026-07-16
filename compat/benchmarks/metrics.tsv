@@ -1,0 +1,5 @@
+metric_id	workload_id	metric	unit	direction	aggregation	required	claim_scope	immutable_since
+metric.bench.engine.deltablue.v1.elapsed	bench.engine.deltablue.v1	steady-state-elapsed	milliseconds	lower	minimum-of-5	Yes	clun-self-relative-only	phase-27
+metric.bench.engine.richards.v1.elapsed	bench.engine.richards.v1	steady-state-elapsed	milliseconds	lower	minimum-of-5	Yes	clun-self-relative-only	phase-27
+metric.bench.engine.splay.v1.elapsed	bench.engine.splay.v1	steady-state-elapsed	milliseconds	lower	minimum-of-5	Yes	clun-self-relative-only	phase-27
+metric.bench.engine.startup-empty.v1.wall	bench.engine.startup-empty.v1	process-wall-clock	milliseconds	lower	minimum-of-5	Yes	clun-self-relative-only	phase-27

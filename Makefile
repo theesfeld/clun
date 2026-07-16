@@ -11,10 +11,12 @@ CONFORMANCE_REPORT         ?= docs/conformance/test262-execution.md
 CONFORMANCE_VERIFY_DIR     ?= tmp-test/conformance-buckets-verify
 PHASE_25B_M5_MANIFEST      ?= tests/conformance/phase-25b-m5.tsv
 PHASE_25B_M6_MANIFEST      ?= tests/conformance/phase-25b-m6.tsv
+FEATURE                    ?= all
 
 .PHONY: all build test test-lisp test-js test-tls test-crypto registry-fixture purity bench \
 		bench-check compile-tier-ceiling test-installer test-release-live-check \
 		public-claims-check version-transition-check test-version-transition-check \
+		compat compat-validate docs-generate docs-check test-compat-tools \
 		roadmap-check roadmap-sync \
 		roadmap-verify-live \
 		conformance-exec-compare phase-25b-m5-check phase-25b-m6-check \
@@ -157,6 +159,24 @@ compile-tier-ceiling: build
 ## public-claims-check -- keep release/version/conformance facts aligned across docs and Pages.
 public-claims-check:
 	sh scripts/public-claims-check.sh
+
+## compat -- rebuild, then run registered shipped-binary/static evidence for FEATURE=<stable-id>|all.
+compat: build
+	sh scripts/compat.sh run '$(FEATURE)'
+
+## compat-validate -- validate the canonical ledger without building or using the network.
+compat-validate:
+	sh scripts/compat.sh validate
+
+## docs-generate/docs-check -- render public claim blocks or verify checked-in byte identity.
+docs-generate:
+	sh scripts/compat.sh generate
+
+docs-check:
+	sh scripts/compat.sh check
+
+test-compat-tools:
+	sh scripts/test-compat-tools.sh
 
 ## version-transition-check -- enforce actual-impact SemVer across the pushed range.
 version-transition-check:

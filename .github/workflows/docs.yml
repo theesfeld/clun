@@ -5,37 +5,47 @@ on:
     branches: [master]
     paths:
       - "AGENTS.md"
-      - "PHASE_PROMPT.md"
       - "PLAN.md"
       - "STATE.md"
       - "DECISIONS.md"
       - "README.md"
+      - "compat/**"
       - "docs/**"
       - "src/version.lisp"
       - "tests/conformance/exec-passlist.txt"
       - "tests/conformance/exec-gaps.tsv"
       - "scripts/public-claims-check.sh"
+      - "scripts/compat.sh"
+      - "scripts/compat-validate.awk"
+      - "scripts/compat-render.awk"
+      - "scripts/test-compat-tools.sh"
       - "scripts/roadmap.sh"
       - "scripts/test-installer.sh"
       - "site/**"
       - ".github/workflows/docs.yml"
+      - ".github/workflows/compat.yml"
   pull_request:
     paths:
       - "AGENTS.md"
-      - "PHASE_PROMPT.md"
       - "PLAN.md"
       - "STATE.md"
       - "DECISIONS.md"
       - "README.md"
+      - "compat/**"
       - "docs/**"
       - "src/version.lisp"
       - "tests/conformance/exec-passlist.txt"
       - "tests/conformance/exec-gaps.tsv"
       - "scripts/public-claims-check.sh"
+      - "scripts/compat.sh"
+      - "scripts/compat-validate.awk"
+      - "scripts/compat-render.awk"
+      - "scripts/test-compat-tools.sh"
       - "scripts/roadmap.sh"
       - "scripts/test-installer.sh"
       - "site/**"
       - ".github/workflows/docs.yml"
+      - ".github/workflows/compat.yml"
 
 permissions:
   contents: read
@@ -47,6 +57,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - run: sh scripts/public-claims-check.sh
+      - run: make test-compat-tools
       - name: Verify canonical live roadmap issues
         if: github.event_name == 'push'
         env:

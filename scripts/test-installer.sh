@@ -62,7 +62,7 @@ if CLUN_DOWNLOAD_BASE="file://$dist_dir" \
   printf 'installer-test: installer accepted a non-SemVer release tag\n' >&2
   exit 1
 fi
-grep -F "CLUN_VERSION must be 'latest' or v-prefixed strict SemVer" \
+grep -F "CLUN_VERSION must be v-prefixed strict SemVer" \
   "$invalid_tag_error" >/dev/null || {
   printf 'installer-test: malformed tag did not fail SemVer validation\n' >&2
   exit 1

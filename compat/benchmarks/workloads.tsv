@@ -1,0 +1,5 @@
+workload_id	coverage_scope	owner_phase	fixture_path	fixture_sha256	runner_path	runner_sha256	mode	iterations	warmups	default_repetitions	correctness_signal	immutable_since
+bench.engine.deltablue.v1	engine	25	bench/deltablue.js	668b216c1dbb8163fc9e61328032112fa6bbf21b7308fabcb844f6b4565b3169	bench/run.sh	cfe9b85b5d227177a7d8ad03ccee702be876f0f01501088f823c45a1daf768c5	steady-state	40	1	5	CHECKSUM deltablue 4551897514	phase-25
+bench.engine.richards.v1	engine	25	bench/richards.js	f12c2f45c77a6166428d34bd4b76623c1743e9e737f3605a627d97a989d3969d	bench/run.sh	cfe9b85b5d227177a7d8ad03ccee702be876f0f01501088f823c45a1daf768c5	steady-state	80	1	5	CHECKSUM richards 2322928	phase-25
+bench.engine.splay.v1	engine	25	bench/splay.js	127fe3d9c359fbaecfd4c40521069e6c4a2b2060cda24b858ccfcc637e29cc98	bench/run.sh	cfe9b85b5d227177a7d8ad03ccee702be876f0f01501088f823c45a1daf768c5	steady-state	40	1	5	CHECKSUM splay 1074755528	phase-25
+bench.engine.startup-empty.v1	engine	25	-	-	bench/run.sh	cfe9b85b5d227177a7d8ad03ccee702be876f0f01501088f823c45a1daf768c5	cold-start	1	0	5	exit 0 for clun -e empty-source	phase-25

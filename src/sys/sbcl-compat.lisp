@@ -64,6 +64,10 @@ NIL — so no condition is consed here."
 ;;; --- reactor capability probe (Appendix C.5) ---------------------------------
 
 (defun poll-backend-p ()
-  "True iff this SBCL's serve-event uses poll() — no FD_SETSIZE cap, fd>1023 ok."
+  "True iff this SBCL's serve-event uses poll(), without select's FD_SETSIZE cap."
   (let ((unix-poll (find-symbol "UNIX-POLL" :sb-unix)))
     (and unix-poll (fboundp unix-poll) t)))
+
+(defun select-fd-limit ()
+  "Return this SBCL build's exclusive descriptor limit for select-backed serve-event."
+  sb-unix:fd-setsize)

@@ -1,18 +1,33 @@
 ;;;; reactor.lisp — serve-event wrapper (PLAN.md Phase 05, §3.2). fd readiness →
 ;;;; registered handler (which enqueues only; JS runs at dispatch points). Poll
-;;;; backend verified (Appendix C.5). Sockets/pipes register here from Phase 16 on.
+;;;; backend capability probed at loop creation (Appendix C.5). A select-backed
+;;;; fallback stays quiet unless an actual descriptor reaches its hard limit.
+;;;; Sockets/pipes register here from Phase 16 on.
 
 (in-package :clun.loop)
 
 (defvar *reactor-poll-backend* nil
   "Set by PROBE-REACTOR at loop creation; T iff serve-event uses poll().")
 
-(defun probe-reactor ()
-  (setf *reactor-poll-backend* (clun.sys:poll-backend-p))
-  (unless *reactor-poll-backend*
-    (warn "clun.loop: serve-event lacks unix-poll — fd>1023 may hit FD_SETSIZE ~
-           (Appendix C.5). Proceeding; sockets phase must revisit."))
+(defun probe-reactor (&optional (poll-backend (clun.sys:poll-backend-p)))
+  (setf *reactor-poll-backend* poll-backend)
   *reactor-poll-backend*)
+
+(defun ensure-reactor-fd-supported (fd)
+  "Reject FD before SBCL can pass an unsupported descriptor to select()."
+  (unless *reactor-poll-backend*
+    (let ((limit (clun.sys:select-fd-limit)))
+      (when (>= fd limit)
+        (error "cannot register file descriptor ~D: this SBCL uses select-backed serve-event, ~
+                which supports descriptors 0..~D; close unused descriptors or use an SBCL build ~
+                with a poll-backed serve-event"
+               fd (1- limit)))))
+  fd)
+
+(defun add-reactor-fd-handler (fd direction fn)
+  "Register an SBCL handler after applying the active reactor backend's limits."
+  (ensure-reactor-fd-supported fd)
+  (sb-sys:add-fd-handler fd direction fn))
 
 (defun reactor-add (loop fd direction fn)
   "Register FN (called with FD) for DIRECTION (:input or :output) on FD."
@@ -25,7 +40,7 @@
                  (or (sb-thread:thread-alive-p owner) (el-fd-handlers loop)))
         (error "cannot register an fd off the event loop's reactor thread"))
       (setf (el-reactor-thread loop) sb-thread:*current-thread*))
-    (let ((h (sb-sys:add-fd-handler fd direction fn)))
+    (let ((h (add-reactor-fd-handler fd direction fn)))
       (push (cons fd h) (el-fd-handlers loop))
       h)))
 
