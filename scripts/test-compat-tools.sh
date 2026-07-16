@@ -43,6 +43,17 @@ create_presence_input() {
   fi
 }
 
+create_generated_presence_input() {
+  path=$1
+  [ "$path" = - ] && return 0
+  destination=$pristine/$path
+  if [ ! -f "$destination" ]; then
+    mkdir -p "$(dirname -- "$destination")"
+    # Executables are build outputs. Validation needs the declared path, not a local build.
+    : > "$destination"
+  fi
+}
+
 for path in \
   docs/roadmap.tsv \
   STATE.md \
@@ -64,7 +75,13 @@ for path in \
   copy_input "$path"
 done
 
-awk -F "$TAB" 'NR > 1 { print $5; print $6; print $7 }' \
+awk -F "$TAB" 'NR > 1 { print $5 }' \
+  "$repo_root/compat/evidence.tsv" |
+  while IFS= read -r path; do
+    create_generated_presence_input "$path"
+  done
+
+awk -F "$TAB" 'NR > 1 { print $6; print $7 }' \
   "$repo_root/compat/evidence.tsv" |
   while IFS= read -r path; do
     create_presence_input "$path"
