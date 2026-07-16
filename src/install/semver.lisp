@@ -241,18 +241,24 @@ numeric ids, and a hyphen-less prerelease."
       (loop for (p . rest) on (semver-prerelease v)
             do (princ p s) (when rest (write-char #\. s))))))
 
-(defun parse-version (version &key loose)
+(defun parse-version (version &key loose allow-equals-prefix)
   "Parse a version STRING into a semver struct, or signal INVALID-VERSION.
-LOOSE accepts v/= prefixes, hyphen-less prereleases, and loose numeric ids."
+LOOSE accepts v/= prefixes, hyphen-less prereleases, and loose numeric ids.
+ALLOW-EQUALS-PREFIX accepts one optional `=` while retaining the strict grammar."
   (unless (stringp version)
     (error 'invalid-version :input version :reason "Must be a string"))
   (when (> (length version) +max-length+)
     (error 'invalid-version :input version :reason "version is longer than 256 characters"))
-  (multiple-value-bind (ma mi pa pre bld) (%match-full (trim-ws version) loose)
-    (unless ma (error 'invalid-version :input version :reason "not a version"))
-    (let ((v (parse-components ma mi pa pre bld version)))
-      (setf (semver-loose v) (and loose t))
-      v)))
+  (let ((text (trim-ws version)))
+    (when (and allow-equals-prefix
+               (plusp (length text))
+               (char= (char text 0) #\=))
+      (setf text (trim-ws (subseq text 1))))
+    (multiple-value-bind (ma mi pa pre bld) (%match-full text loose)
+      (unless ma (error 'invalid-version :input version :reason "not a version"))
+      (let ((v (parse-components ma mi pa pre bld version)))
+        (setf (semver-loose v) (and loose t))
+        v))))
 
 (defun version-valid-p (version &key loose)
   "Return the canonical version string if VERSION parses, else NIL."

@@ -32,10 +32,11 @@ workload or metric requires a new `.vN` ID.
 - `benchmarks/workloads.tsv` and `benchmarks/metrics.tsv` freeze the four existing Phase 25
   self-relative workloads. They contain no Clun-versus-Bun performance claim.
 
-Feature states are `Yes`, `Partial`, `No`, or `Separate`; the Clun seed contains only `Partial` and
-`No`. Platform support states are `unverified` and `unsupported` in this seed. Later validators must
-reject a Clun `Yes` unless shipped-binary evidence passes on every required target, and must keep a
-feature partial when any required platform remains unverified.
+Feature states are `Yes`, `Partial`, `No`, or `Separate`. Platform support states are `supported`,
+`unverified`, `unsupported`, and `not-applicable`. The validator rejects a Clun `Yes` unless
+shipped-binary evidence is registered for every required target, and keeps a feature partial when any
+required platform remains unverified. A public promotion updates the feature, evidence, four platform
+rows, active release, generated documents, and canonical issue as one reviewed unit.
 
 Display-group keys are `core`, `apis`, `tooling`, and `utilities`; renderers own their human-facing
 labels. Evidence kinds are `fixture`, `suite`, `report`, `decision`, and `benchmark`. Evidence runner

@@ -18,6 +18,8 @@
   (array-of (intrinsic :array-prototype) elements))
 (defun data-prop (obj key value)
   (obj-set-desc obj key (data-pd value :writable t :enumerable t :configurable t)))
+(defun fixed-data-prop (obj key value)
+  (obj-set-desc obj key (data-pd value :writable nil :enumerable t :configurable nil)))
 (defun hidden-prop (obj key value)
   (obj-set-desc obj key (data-pd value :writable t :enumerable nil :configurable t)))
 

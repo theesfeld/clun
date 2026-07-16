@@ -2472,3 +2472,44 @@ silent. On a select-backed build, every registration instead rejects only an act
 that target SBCL's compiled `SB-UNIX:FD-SETSIZE`, with the resource, supported range, and remedies in the
 error. Ordinary Promise/CLI execution stays clean, while the real boundary fails before calling
 `add-fd-handler`; this includes the event loop's own self-pipe.
+
+### 2026-07-16 - Compatibility-ledger Yes conversions become the delivery queue
+
+The current program goal is to convert the 30-row compatibility ledger from `No` and `Partial` to
+defensible `Yes` claims, selecting the cheapest dependency-ready capability first and proceeding toward
+harder core/runtime/network/tooling work. A read-only audit found no evidence-only promotion: every Partial
+row has a substantive declared gap. `utility.semver` is first because its shared Phase 21 parser/range engine
+and vendored node-semver corpus already exist; Phase 29 adds the missing JavaScript boundary and executable
+target evidence. The next provisional cost order is CSRF, cookies, terminal string width, then CSS color,
+subject to each canonical issue's dependency check and mandatory survey.
+
+A row becomes `Yes` only in the same green unit that completes its declared public behavior, registers
+shipped-`build/clun` evidence for Linux/macOS x64/arm64, synchronizes the canonical issue and generated
+README/site/release notes, and records the correct SemVer transition. Static suites, internal implementation,
+or relabeling alone cannot authorize a public promotion. Core implementation changes are expected and are
+preferred over weakening the capability boundary. Phase 26 remains deferred after Phase 82 and is not a
+substitute for this feature queue.
+
+### 2026-07-16 - Phase 29 exposes one strict SemVer engine through `Clun.semver`
+
+Phase 29 reuses `src/install/semver.lisp` as the sole parser, range engine, and comparator for both package
+installation and the public runtime API. Because that module has no engine dependency, `clun.asd` loads the
+install substrate before the JavaScript engine and runtime; a duplicated runtime parser and late symbol
+lookup were rejected. The public surface is exactly `Clun.semver.satisfies` and `Clun.semver.order`. It does
+not create a `Bun` global or `bun` module alias, so the compatibility claim covers Bun's SemVer contract
+without claiming unrelated Bun namespace support.
+
+The bridge is pinned to public Bun 1.3.14 at commit
+`0d9b296af33f2b851fcbf4df3e9ec89751734ba4` and its measured linux-x64-baseline asset SHA-256
+`a063908ae08b7852ca10939bbdc6ceed3ddabce8fb9402dce83d65d73b36e6c7`; engineering inventory uses Bun
+1.4.0-dev commit `c1076ce95effb909bfe9f596919b5dba5567d550`. Clun preserves the documented strict contract and
+classifies Bun's measured malformed-input acceptances as correctness improvements rather than copying parser
+bugs. One explicit, default-off parser option accepts Bun's observed single `=` version prefix without
+enabling loose identifiers or partial versions.
+
+At the JavaScript boundary, both operands are string-coerced left-to-right before validation, original
+coercion exceptions propagate, only shared-engine `invalid-version` conditions are translated, and comparison
+integers are converted to JavaScript numbers. `Clun.semver` matches Bun's enumerable, non-writable,
+non-configurable namespace descriptor, while `satisfies` and `order` are enumerable, writable, and
+configurable. Shipped-binary fixtures, not internal Lisp reachability, authorize the compatibility-ledger
+`Yes` claim.

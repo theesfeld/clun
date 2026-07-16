@@ -7,38 +7,37 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **27 — Compatibility evidence ledger and release-doc automation**  (IN PROGRESS)
+## Current phase: **29 — Public semver API**  (IN PROGRESS)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/1
-**Current implementation unit:** published-ledger reconciliation, release-gated Pages deployment, hosted
-installer verification, and Phase 27 closeout
+**Canonical issue:** https://github.com/theesfeld/clun/issues/3
+**Current implementation unit:** convert `utility.semver` from `No` to the first evidence-backed compatibility
+ledger `Yes` by exposing the proven installer engine through `Clun.semver`.
 **SemVer impact:** `minor`
-**Release target:** `0.1.0-dev.7` / `v0.1.0-dev.7`
-**Entry boundary:** Phase 25b is closed after verified `0.1.0-dev.6` publication and the handoff commit's
-CI, Documentation, and Pages deployment. Phase 27 depends directly on Phase 25b. Phase 26 is blocked behind
-Phase 82 and will be re-baselined from the system and release train that exist when it becomes current.
-**Current scope:** implement the structured 30-row compatibility ledger, pin separate Bun 1.3.14 stable and
-`c1076ce95e` engineering evidence, reject unsupported claims mechanically, generate public compatibility and
-version surfaces byte-deterministically, and run the same evidence on Linux/macOS x64/arm64. Do not rerun
-Phase 25b or Phase 26 heavyweight gates as a substitute for this implementation.
+**Release target:** `0.1.0-dev.8` / `v0.1.0-dev.8`
+**Entry boundary:** Phase 21's shared pure-CL SemVer engine is complete. Phase 27 / issue #1 is closed after
+verified dev.7 publication, four-target receipts, release-gated Pages, hosted installer verification, and
+published-ledger reconciliation. Phase 29 depends only on Phases 21 and 27, so Phase 28 remains independently
+not-started. Phase 26 remains blocked behind Phase 82 and will be re-baselined at final entry.
+**Current scope:** freeze the pinned Bun 1.3.14 and `c1076ce95e` two-method contract; expose
+`Clun.semver.satisfies` and `Clun.semver.order` over the single installer parser/range engine; match argument
+count, coercion, invalid input, non-ASCII, prerelease, build, and range behavior; execute the public fixture
+through `build/clun` on Linux/macOS x64/arm64; then atomically promote the ledger row and regenerate README,
+site, and release notes. Do not promote a claim from static/internal tests alone.
 
-**Current checkpoint:** the dev.7 implementation is squash-merged at
-`7144a33d383c1c3ff7942cd80a6bd2647e6d00f5`. Exact-commit CI, Documentation, all four native Compatibility
-jobs, and receipt verification passed. Release run `29506579486` published annotated tag `v0.1.0-dev.7`,
-which peels to that exact commit; GitHub reports the prerelease immutable, and its four native archives plus
-`checksums.txt` are uploaded and checksum-consistent. The ledger validates at **0 Yes / 6 Partial / 24 No**;
-all **240** pinned Bun, Node.js, and Deno repository paths and all four Bun stable assets were independently
-checked; generated README/site/
-release notes are byte-idempotent; and the shipped binary passes **6 executable** compatibility records while
-**2 static** Lisp-suite records remain explicitly trace-only. The full acceptance run is green at **3,240 Lisp
-assertions**, **42 TypeScript strip/error fixtures**, **74 JS/TS runtime fixtures**, and purity **694 files / 0
-violations**. Compatibility tooling passes two pristine checks, three forward-render cases, and **30 deliberate
-drift rejections**; public claims, live roadmap, ShellCheck, actionlint, and responsive Playwright are green.
-Receipt v2 binds the exact release commit, native binary, ledger, fixtures, canonical outcomes, all 30 feature
-IDs, and pass/fail/trace counts without claiming Bun execution. GitHub native release immutability is enabled,
-and active no-bypass ruleset `19048471` protects every `v*` tag from update or deletion while allowing initial creation.
-Pending: merge the no-version-bump published-state reconciliation, deploy the exact release-gated Pages site,
-verify the hosted installer, and close the synchronized canonical issue.
+**Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
+easiest to hardest among dependency-ready rows. Core engine/runtime/network/tooling changes are expected.
+Every conversion requires a legitimate canonical issue, accepted design, full declared behavior, executable
+four-target evidence, synchronized public surfaces, and the correct SemVer transition. Current post-SemVer
+cost order is CSRF, cookies, terminal string width, then CSS color, subject to each phase survey.
+
+**Current checkpoint:** issue #3 is active and records `minor`, `0.1.0-dev.8`, and `v0.1.0-dev.8`. The Phase
+29 design is independently accepted. The implementation exposes `Clun.semver` over the one shared strict
+engine, adds narrow optional-`=` normalization without enabling loose numeric/partial versions, and preserves
+JavaScript coercion/error identity at the boundary. The built binary passes the 48-case pinned Bun matrix,
+the public differential, and all 261 applicable strict node-semver assertions; the complete Lisp suite passes
+3,260 / 0 / 0. The candidate ledger now records the first `Yes` with all three executable evidence IDs on
+all four targets. Pending: complete the remaining full/purity/docs/version/review gates, obtain four native
+Compatibility receipts on the exact PR/merge commits, synchronize the live issue, and publish dev.8.
 
 **M5 entry boundary:** immutable dev.4 diagnostic set **56 total / 0 pass / 56 fail / 0 skip / 0 crash**:
 **43 m5-owned** (32 intrinsic/prototype, 7 parser, 4 raw delegation), **12 m11** direct-eval/`with`
