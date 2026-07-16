@@ -8,13 +8,16 @@ surface, one gated capability at a time. Performance targets are workload-specif
 Clun does not claim blanket speed parity with Bun.
 
 > **Status: pre-alpha, under active construction.** Phase 25 performance work is complete.
-> [Phase 25b milestone 6](https://github.com/theesfeld/clun/issues/57) is a local
-> `0.1.0-dev.6` release candidate (SemVer impact: `minor`) for async generators and async
-> iteration. Its off-mode execution ledger reaches 90.40%, so Phase 25b's 90% target is met.
-> The `v0.1.0-dev.6` tag, native assets, Pages deployment, and hosted-installer verification are
-> not published yet. The last published release remains
-> [`v0.1.0-dev.5`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.5), whose native
-> archives, checksums, Pages deployment, and hosted installer are verified.
+> [Phase 25b milestone 6](https://github.com/theesfeld/clun/issues/57) shipped as
+> [`v0.1.0-dev.6`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.6) (SemVer impact:
+> `minor`) with async generators and async iteration. Its off-mode execution ledger reaches
+> 90.40%, so Phase 25b's 90% target is met. Implementation commit
+> `4d2b714c1a459264ca9e77f5f25979bb41b50c76`, CI run `29488866153`, Documentation run
+> `29488866083`, Release run `29489277258`, all four native archives and checksums, Pages run
+> `29488866091`, and the hosted installer are verified. Phase 25b's runtime and release scope is
+> complete; only this evidence-only handoff commit's own Pages verification remains before issue
+> #57 closes and Phase 27 begins. Phase 26 is deferred until after Phase 82 and will be re-baselined
+> for the system state at that time.
 > Clun executes its scoped JS/TS surface, but it is not a drop-in Node.js or Bun replacement.
 > The issue is the canonical live record, `PLAN.md` is the technical contract, and `STATE.md` is
 > the local resume checklist.
@@ -59,7 +62,7 @@ interoperability gap.
 - `clun test` with hooks, modifiers, filters, async tests, timeouts, and about 22 matchers.
 - `clun install`, `add`, `remove`, and package scripts with a deterministic lockfile and cache.
 
-The checked-in curated test262 pass list contains 25,461 tests. Phase 25b milestone 6's release-candidate
+The checked-in curated test262 pass list contains 25,461 tests. Phase 25b milestone 6's published
 40,654-row off-mode execution ledger measures 25,461 passes and 2,702 gaps across 28,163 eligible tests
 (90.40%), with 12,491 skips and zero crashes. Phase 25b's 90% target is met: the 25,347-pass target has
 zero remaining lift. The pass list gained 410 tests from milestone 5 and 2,818 from the Phase 25b entry.
@@ -68,7 +71,7 @@ All 407 milestone-owned rows pass; the 102 deliberate controls remain assigned t
 (95), leaving m6 with no owned residual. Three additional `Promise.prototype.finally` rows passed
 incidentally: `species-constructor.js`, `subclass-reject-count.js`, and `subclass-resolve-count.js`.
 The full gap inventory assigns 1,817 residuals to Phase 25b and 885 to Phase 37.
-The canonical candidate execution ledger digest is `A742D885346DA23C`.
+The canonical execution ledger digest is `A742D885346DA23C`.
 The off/eager ledgers are byte-identical; eager mode compiled
 1,030,545 forms, classified 56,018 as ineligible, fell back zero times, and executed zero interpreter
 fallbacks. The parse gate classifies
@@ -145,9 +148,8 @@ sets between this README and the landing page; descriptive prose still requires 
 workflows are read-only and fail closed if the canonical issues, README, or site have drifted.
 
 Release versions follow the actual SemVer impact recorded in the canonical issue, not the number of
-pushes. The current source version is `0.1.0-dev.6`; it is a release candidate, and no dev.6 tag or
-release assets are published. The last published release remains
-[`v0.1.0-dev.5`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.5).
+pushes. The current source version is `0.1.0-dev.6`; it is also the
+[latest published prerelease](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.6).
 [The versioning contract](docs/versioning.md)
 defines prerelease sequencing, synchronized surfaces, immutable tags, assets, and installer evidence.
 [Live release and milestone status](https://github.com/theesfeld/clun/issues/57) remains on the canonical

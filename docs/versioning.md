@@ -38,12 +38,12 @@ resource does not exist with a 404 response:
 0.1.0-dev.4
 0.1.0-dev.5
 0.1.0-dev.6
-0.1.0
 ```
 
 Phase 25b is the compatibility program for the planned `0.1.0` release. Its first behavioral
 milestone is `0.1.0-dev.1`; later Phase 25b release-bearing milestones advance the `dev.N`
-sequence. Phase 26 removes the prerelease suffix only after its hardening and release gates pass.
+sequence. Phase 26 is deferred until after Phase 82; its final version and tag are assigned from the
+then-current release train and actual completed impact rather than the former `0.1.0` assumption.
 
 ## Canonical record
 
@@ -126,10 +126,9 @@ impact and target are recorded below and in the canonical issue before the imple
 Phase 25b milestone 6 adds backward-compatible FIFO async-generator requests, awaited yield and return
 resumptions, AsyncFromSync iteration, async `yield*`, and completion-correct `for await` close behavior. Its
 impact is `minor`; dev.5 is immutable, so the local source candidate is `0.1.0-dev.6` under tag
-`v0.1.0-dev.6` within the existing `0.1.0` train, while the ASDF core remains `0.1.0`. Dev.5 remains the
-last published release. No dev.6 tag, native assets, Pages deployment, or hosted-installer result is claimed
-until the complete focused/full conformance, master-check, release, and deployment lifecycle passes. The
-focused candidate gate is **407 m6 pass / 7 m11 fail / 95 Phase-37 fail / 0 skip / 0 timeout / 0 crash**.
+`v0.1.0-dev.6` within the existing `0.1.0` train, while the ASDF core remains `0.1.0`. That candidate is now
+published as the dev.6 prerelease. The focused release gate is **407 m6 pass / 7 m11 fail / 95 Phase-37 fail /
+0 skip / 0 timeout / 0 crash**.
 Its confirmed default/off corpus is **25,461 pass / 2,702 fail / 12,491 skip / 0 crash**, or
 **25,461 / 28,163 = 90.405852%**: 114 above target. The monotonic pass-list gain is +410 from dev.5
 and +2,818 from the frozen 22,643-row Phase-25b entry list, with **1,817 Phase-25b / 885 Phase-37**
@@ -144,6 +143,15 @@ The m6 default/off and eager ledgers are byte-identical. Eager mode compiled **1
 **+410** from dev.5, and digest `A742D885346DA23C` binds the exact conformance artifacts. Parse is green at
 **23,713 total / 17,699 pass / 976 fail / 5,038 skip / 0 crash**; Lisp is green at **3,234 pass /
 0 fail / 0 skip**. The local build, full-test, purity, security, public-claim, roadmap, installer,
-conformance, and visual gates are green. Only committed-range SemVer, exact `master` CI and Documentation
-runs, release assets, Pages deployment, and hosted-installer verification remain before dev.6 may change
-from a local candidate into a published release.
+conformance, and visual gates are green. Candidate commit `4d2b714c1a459264ca9e77f5f25979bb41b50c76`
+passed CI `29488866153` and Documentation `29488866083`; annotated tag `v0.1.0-dev.6` peels to that exact
+commit. Release run `29489277258` passed all four native builders and published dev.6 as a prerelease. Fresh
+downloads matched `checksums.txt`: darwin-arm64
+`1df087c75a9b335172371196a3553ab568cd85ff0b89921e35c98b467e137f1d`, darwin-x64
+`8588ee870948ad1de7fd3c3a86e66de58a3e00945897a90a4ad06e83fa978ffc`, linux-arm64
+`4eaa6c94f1364f7a07318d52e80e01dc538cbdc489e993353049c195401f5a31`, and linux-x64
+`243dfc96bd5a163707c982bfe61d6054a784fe9bbd52bb72b6436d4ba9774935`. Pages `29488866091` succeeded
+for the exact candidate, and an isolated hosted installation reported `clun 0.1.0-dev.6`. The
+post-publication handoff has impact `none`; source and installer remain dev.6 and no new tag is created.
+Only this handoff commit's own Pages verification remains before Phase 25b closes and Phase 27 begins.
+Phase 26 is deferred until after Phase 82 and will be re-baselined at entry.

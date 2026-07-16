@@ -5,16 +5,16 @@ Update before every commit and keep it consistent with PLAN.md, DECISIONS.md, RE
 
 ---
 
-## Current phase: **25b — Conformance push to >= 90%**  (IN PROGRESS — m1 through m5 PUBLISHED; m6 CURRENT)
+## Current phase: **25b — Conformance push to >= 90%**  (IN PROGRESS — m1 through m6 PUBLISHED; HANDOFF PAGES PENDING)
 
 **Canonical issue:** https://github.com/theesfeld/clun/issues/57
 **Current Phase 25b milestone:** `m6`
-**Current completed unit:** m5 synchronous generators and `yield*`, published as `0.1.0-dev.5` /
-`v0.1.0-dev.5`; evidence-only handoff `d3e114749655738ecbfbec21419d4dc0e5276614`, CI
-`29479561919`, Documentation `29479561905`, Pages `29479561951`, hosted page, and installer are verified
-**Current milestone scope:** m6 async generators and async iteration; implementation and all local candidate
-gates are green. Only committed-range SemVer, exact `master` CI and Documentation, release assets, Pages,
-and hosted-installer verification remain
+**Current completed unit:** m6 async generators and async iteration, published as `0.1.0-dev.6` /
+`v0.1.0-dev.6`; exact candidate, CI, Documentation, release assets and checksums, Pages, and hosted installer
+are verified
+**Current milestone scope:** Phase 25b runtime and release work is complete. Only this evidence-only handoff
+commit's own Pages verification remains before issue #57 closes and Phase 27 begins. Phase 26 is deferred
+until after Phase 82 and will be re-baselined for the system state at that time
 
 **M5 entry boundary:** immutable dev.4 diagnostic set **56 total / 0 pass / 56 fail / 0 skip / 0 crash**:
 **43 m5-owned** (32 intrinsic/prototype, 7 parser, 4 raw delegation), **12 m11** direct-eval/`with`
@@ -32,9 +32,9 @@ invalid-receiver promise rejection, 5 return awaiting), **7 m11** direct-eval/`w
 7 m11 fail / 95 Phase-37 fail / 0 skip / 0 timeout / 0 crash**. The confirmed default/off corpus is
 **25,461 pass / 2,702 fail / 12,491 skip / 0 crash**, or **25,461 / 28,163 = 90.405852%**: 114 above
 the fixed target. The monotonic pass-list gain is +410 from m5 and +2,818 from the frozen 22,643-row
-Phase-25b entry list. This backward-compatible functionality
-is SemVer **minor** with local candidate `0.1.0-dev.6` / target tag `v0.1.0-dev.6`; dev.5 remains the
-last published release and no dev.6 publication is claimed.
+Phase-25b entry list. This backward-compatible functionality was SemVer **minor** and is published as
+`0.1.0-dev.6` / `v0.1.0-dev.6`. Its post-publication evidence handoff is SemVer **none**, retains dev.6,
+and creates no tag.
 
 **Phase 25 COMPLETE** (Performance pass; deps: all engine phases ✓; milestoned). Final default-tier
 best-of-nine results vs the frozen Phase-24 baseline are richards **6.68×**, deltablue **3.85×**, and splay
@@ -260,10 +260,10 @@ impact is **none**, source remains dev.5, and no tag is created. Evidence-only h
 `d3e114749655738ecbfbec21419d4dc0e5276614` passed CI **29479561919** and Documentation
 **29479561905**; Pages **29479561951** deployed the published-status page. The hosted page, HTTPS installer,
 and a fresh isolated install reporting `clun 0.1.0-dev.5` are verified. The issue remains open because
-**88.950041% < 90%** at the m5 handoff; m6 has since produced the local candidate below.
+**88.950041% < 90%** at the m5 handoff; m6 has since produced the published result below.
 
-**Phase 25b milestone 6 LOCAL CANDIDATE — implementation and focused/default evidence complete; global
-gate in progress.** Clun now serializes async-generator `next`/`return`/`throw` requests through one FIFO
+**Phase 25b milestone 6 DONE — async generators and async iteration; dev.6 publication verified.**
+Clun now serializes async-generator `next`/`return`/`throw` requests through one FIFO
 state machine, adopts yielded and returned values at the required suspension points, returns rejected
 promises for invalid receivers, and drains completed generators without coroutine re-entry. A shared
 AsyncFromSync/GetAsyncIterator path now serves async `yield*` and `for await`, including awaited results,
@@ -295,15 +295,26 @@ The final default/off and eager ledgers are byte-identical across all 40,654 pat
 25,461-row pass list and conformance artifacts are regenerated at **+410** from m5; canonical digest
 `A742D885346DA23C` binds the exact residual inventory. The parse gate is green at **23,713 total /
 17,699 pass / 976 fail / 5,038 skip / 0 crash**, with every frozen parser pass preserved. The integrated
-Lisp gate is green at **3,234 pass / 0 fail / 0 skip**. The local build, full-test, purity, security,
-public-claim, roadmap, installer, conformance, and visual gates are green. Final acceptance is limited to
-committed-range SemVer, exact `master` CI and Documentation runs, release assets, Pages deployment, and
-hosted-installer verification.
+Lisp gate is green at **3,234 pass / 0 fail / 0 skip**. The build, full-test, purity, security,
+public-claim, roadmap, installer, conformance, visual, committed-range SemVer, exact `master` CI and
+Documentation, release-asset, Pages, and hosted-installer gates are green.
 
-M6 is backward-compatible functionality, so its SemVer impact is **minor** within the existing `0.1.0`
-train. The synchronized local candidate is `0.1.0-dev.6` and the future immutable target is
-`v0.1.0-dev.6`. Dev.5 remains the last published release; no dev.6 tag, release assets, Pages deployment,
-or hosted-installer result is claimed.
+M6 is backward-compatible functionality, so its release-bearing SemVer impact is **minor** within the
+existing `0.1.0` train. Candidate commit `4d2b714c1a459264ca9e77f5f25979bb41b50c76` passed CI
+**29488866153** and Documentation **29488866083**. Annotated tag `v0.1.0-dev.6` peels to that exact commit.
+Release run **29489277258** passed linux-x64, linux-arm64, darwin-x64, and darwin-arm64 and published dev.6
+as a prerelease. Fresh downloads matched `checksums.txt` for every archive:
+
+- darwin-arm64: `1df087c75a9b335172371196a3553ab568cd85ff0b89921e35c98b467e137f1d`
+- darwin-x64: `8588ee870948ad1de7fd3c3a86e66de58a3e00945897a90a4ad06e83fa978ffc`
+- linux-arm64: `4eaa6c94f1364f7a07318d52e80e01dc538cbdc489e993353049c195401f5a31`
+- linux-x64: `243dfc96bd5a163707c982bfe61d6054a784fe9bbd52bb72b6436d4ba9774935`
+
+Pages **29488866091** succeeded for the exact candidate after the release assets existed. An isolated
+`curl -fsSL https://clun.sh/install | sh` installation reported `clun 0.1.0-dev.6`. Runtime and release
+scope is complete. This evidence-only handoff has SemVer impact **none**: source and installer remain dev.6,
+and no tag is created. Only the handoff commit's own Pages verification remains before issue #57 closes and
+Phase 27 begins; Phase 26 remains deferred until after Phase 82.
 
 **Milestone 1 DONE — "measure first":** the benchmark suite + the frozen Phase-24 baseline + the design doc
 (no engine change). `bench/{richards,deltablue,splay}.js` — the Octane trio ported to clun (self-contained,
@@ -500,9 +511,10 @@ richards **539.3/444.6 ms**, deltablue **764.5/694.6 ms**, splay **283.9/249.7 m
 out of the saved image (~125 MiB final vs 512–632 MiB before). Independent adversarial review findings are
 resolved: eager conformance now requires fallback=0 and the compare harness pins trace=0.
 
-**Next action:** commit the synchronized m6 candidate, pass the committed-range SemVer gate, push exact
-`master`, and wait for its CI and Documentation runs. Then publish immutable `v0.1.0-dev.6` and independently
-verify its four native archives and checksums, Pages deployment, and hosted installer before closing m6.
+**Next action:** commit and push this evidence-only dev.6 publication handoff, then verify the handoff
+commit's own Pages deployment and record it in issue #57. Close Phase 25b only after that exact deployment;
+then begin Phase 27. Phase 26 remains deferred until after Phase 82 and must be re-baselined at entry. Do not
+create a new tag or change the dev.6 source or installer target for this handoff.
 
 **G3 scope concern — RESOLVED (2026-07-14, operator-approved split):** the >=90% curated-test262 target is
 split out of Phase 25 into a new **Phase 25b — Conformance push to >=90%** (PLAN §5). Phase 25 is now closed
@@ -1833,10 +1845,8 @@ Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-earl
 - [ ] benchmark suite (Richards/DeltaBlue/splay) + docs/benchmarks.md (honest methodology)
 - **Gate:** pass-list unchanged or grown; ≥5× on benchmark suite vs Phase-24 baseline; overall curated test262 ≥ 90%.
 
-### Phase 26 — Hardening, docs, release  (deps: everything)
-- [ ] error-message audit (named resource, violated constraint + rejected value, note: remedy; no Lisp backtraces w/o --backtrace)
-- [ ] stress pass (50k-eval loop, long-run serve, biggest fixture tree ×20 — RSS plateaus)
-- [ ] Ctrl-C mid-serve/mid-install clean exit; partial installs don't corrupt; TZif local-time task (or defer w/ matrix note)
-- [ ] README (what/why, install-from-source, quickstart, architecture, compat matrix, TLS posture, contributing); CI release job
-- [ ] final adversarial review sweep; triage → fix safety/error-path findings, log style findings
-- **Gate:** §1.4 Definition of Done, every item checked w/ evidence links here; tag v0.1.0.
+### Phase 26 — Final hardening, docs, and release  (deferred to the end; deps: Phase 82 + everything)
+- [ ] re-baseline the finite scope, open findings, release train, platforms, and SemVer target at entry
+- [ ] replace this checklist with exact then-current stress, security, compatibility, docs, and release gates
+- [ ] complete the re-baselined final audit and publish the resulting immutable release
+- **Gate:** the Phase-26 design and issue must be rewritten from post-Phase-82 evidence before implementation.

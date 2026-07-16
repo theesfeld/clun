@@ -2022,8 +2022,8 @@ deploying an installer that names that version. Full policy and publication orde
 
 Phase 25b milestone 2 adds six backward-compatible public Object APIs plus bug fixes, so the mixed
 unit is `minor`: bare version `0.1.0-dev.1`, tag `v0.1.0-dev.1`, and ASDF core `0.1.0`. Later
-Phase-25b release-bearing milestones advance `dev.N`; Phase 26 removes the suffix only after the
-stable `0.1.0` hardening gate passes.
+Phase-25b release-bearing milestones advance `dev.N`. The final stable transition is selected from
+actual completed impact rather than assumed in advance.
 
 ### 2026-07-15 - Phase 25b m3 uses one completion-aware iterator record
 
@@ -2373,3 +2373,31 @@ exactly `0.1.0-dev.6` with future target `v0.1.0-dev.6`. No dev.6 tag, native as
 hosted-installer result is claimed. Only committed-range SemVer, exact `master` CI and Documentation runs,
 release assets, Pages deployment, and hosted-installer verification remain. Issue #57 remains the canonical
 live record.
+
+### 2026-07-16 - Verified dev.6 publication completes Phase 25b runtime and release scope
+
+Candidate commit `4d2b714c1a459264ca9e77f5f25979bb41b50c76` passed CI `29488866153` and
+Documentation `29488866083`. Annotated tag `v0.1.0-dev.6` peels to that exact commit. Release run
+`29489277258` passed linux-x64, linux-arm64, darwin-x64, and darwin-arm64 and published dev.6 as a
+prerelease. Independent downloads matched `checksums.txt` for every native archive:
+
+- darwin-arm64: `1df087c75a9b335172371196a3553ab568cd85ff0b89921e35c98b467e137f1d`
+- darwin-x64: `8588ee870948ad1de7fd3c3a86e66de58a3e00945897a90a4ad06e83fa978ffc`
+- linux-arm64: `4eaa6c94f1364f7a07318d52e80e01dc538cbdc489e993353049c195401f5a31`
+- linux-x64: `243dfc96bd5a163707c982bfe61d6054a784fe9bbd52bb72b6436d4ba9774935`
+
+Pages run `29488866091` succeeded for the exact candidate after the release assets existed. An isolated
+`curl -fsSL https://clun.sh/install | sh` installation reported `clun 0.1.0-dev.6`. Phase 25b runtime and
+release scope is complete at 25,461 / 28,163 = 90.405852% (public 90.40%) with 3,234 Lisp assertions green.
+This post-publication handoff changes evidence and phase status only. Its SemVer impact is `none`; source and
+installer remain `0.1.0-dev.6`, and no new tag is created. Only this handoff commit's own Pages deployment
+must be verified and recorded in issue #57 before Phase 25b closes and Phase 27 begins.
+
+### 2026-07-16 - Phase 26 moves to the end and is re-baselined there
+
+Phase 26 was written as the final hardening/release phase before the Phase 27-82 implementation program
+existed. Re-entering that monolithic gate now would block the concrete feature program with a checklist and
+`v0.1.0` target based on an obsolete system boundary. The operator moved Phase 26 after Phase 82. Phase 27
+depends directly on completed Phase 25b; issue #58 remains open and blocked on Phase 82. At final-phase entry,
+the design, checklist, Definition-of-Done evidence, release version, and tag are rewritten from the actual
+system, open findings, compatibility ledger, platforms, and release train that exist then.

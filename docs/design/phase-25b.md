@@ -1,6 +1,6 @@
 # Phase 25b - Conformance Push to 90%
 
-Status: **milestones 1 through 5 complete and published; milestone 6 is a locally green dev.6 candidate awaiting publication.**
+Status: **milestones 1 through 6 are complete and published; only the evidence-handoff Pages deployment remains before Phase 25b closes.**
 Phase 25 is complete, so the dependency is satisfied. Milestone 4 delivered the function, class,
 parameter, arguments-object, and `super` wave specified in section 6.3 while leaving diagnosed
 generator, species, global-environment, operator, primitive, and Phase-37 residuals visible for
@@ -792,9 +792,8 @@ binary reporting `clun 0.1.0-dev.5`. Evidence-only handoff commit
 `d3e114749655738ecbfbec21419d4dc0e5276614` then passed Pages run `29479561951`; the hosted page reports
 dev.5 published and m6 current without candidate wording. The handoff changes evidence and milestone status
 only, so its SemVer impact is `none`, source remains dev.5, and no tag is created. M5 is complete. Phase 25b
-was still open at 88.950041%, 296 passes short of its fixed target at that handoff. M6 has since produced
-a locally green dev.6 candidate above the fixed target. Only committed-range SemVer, exact `master` CI and
-Documentation, release assets, Pages, and hosted-installer verification remain.
+was still open at 88.950041%, 296 passes short of its fixed target at that handoff. M6 has since shipped
+dev.6 above the fixed target; its publication evidence is recorded below.
 
 ### 6.5 Milestone 6 async-generator and async-iteration design
 
@@ -934,14 +933,30 @@ The full default/off and eager ledgers are byte-identical across all 40,654 path
 monotonic pass list contains **25,461** paths, **+410** from m5; canonical digest
 `A742D885346DA23C` binds the exact residual artifacts. Parse conformance is green at **23,713 total /
 17,699 pass / 976 fail / 5,038 skip / 0 crash**, with every frozen parser pass preserved. The integrated
-Lisp gate is green at **3,234 pass / 0 fail / 0 skip**. The local build, full-test, purity, security,
-public-claim, roadmap, installer, conformance, and visual gates are green. Final acceptance is limited to
-committed-range SemVer, exact `master` CI and Documentation runs, release assets, Pages deployment, and
-hosted-installer verification.
+Lisp gate is green at **3,234 pass / 0 fail / 0 skip**. The build, full-test, purity, security,
+public-claim, roadmap, installer, conformance, visual, committed-range SemVer, exact `master` CI and
+Documentation, release-asset, Pages, and hosted-installer gates are green.
 
 This is backward-compatible functionality in the existing `0.1.0` minor train. Dev.5 is immutable, so m6
-selects source/release `0.1.0-dev.6` and tag `v0.1.0-dev.6`. Publication remains unclaimed until
-committed-range SemVer, exact `master` CI and Documentation runs, release assets, Pages deployment, and the
-hosted installer are independently verified and recorded in issue #57. Dev.5 remains the last published
-release; the dev.6 version and tag are local
-candidate/target identifiers, not a claim that a dev.6 tag, release, deployment, or hosted installer exists.
+selected source/release `0.1.0-dev.6` and tag `v0.1.0-dev.6`.
+
+#### 6.5.4 Publication evidence
+
+Candidate commit `4d2b714c1a459264ca9e77f5f25979bb41b50c76` passed CI `29488866153` and
+Documentation `29488866083`. Annotated tag `v0.1.0-dev.6` peels to that exact commit. Release run
+`29489277258` passed all four native builders and published dev.6 as a prerelease. Fresh downloads matched
+`checksums.txt`:
+
+| Archive | SHA-256 |
+|---|---|
+| `clun-darwin-arm64.tar.gz` | `1df087c75a9b335172371196a3553ab568cd85ff0b89921e35c98b467e137f1d` |
+| `clun-darwin-x64.tar.gz` | `8588ee870948ad1de7fd3c3a86e66de58a3e00945897a90a4ad06e83fa978ffc` |
+| `clun-linux-arm64.tar.gz` | `4eaa6c94f1364f7a07318d52e80e01dc538cbdc489e993353049c195401f5a31` |
+| `clun-linux-x64.tar.gz` | `243dfc96bd5a163707c982bfe61d6054a784fe9bbd52bb72b6436d4ba9774935` |
+
+Pages run `29488866091` succeeded for the exact candidate after release assets existed. An isolated
+`curl -fsSL https://clun.sh/install | sh` installation reported `clun 0.1.0-dev.6`. Phase 25b runtime and
+release scope is complete. This evidence-only handoff has SemVer impact `none`; source and installer remain
+dev.6 and no new tag is created. Only this handoff commit's own Pages deployment must be verified in issue
+#57 before Phase 25b closes and Phase 27 begins. Phase 26 is deferred until after Phase 82 and will be
+re-baselined for the then-current system.

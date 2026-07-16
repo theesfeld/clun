@@ -678,22 +678,11 @@ runner output) to estimate cost and order the work; then targeted correctness fi
 Phase-25 engine is quicker. **Gate:** overall curated test262 ≥ 90%; zero pass-list regressions
 (monotonic); `make purity` clean. (May itself be milestoned; the bucket analysis is milestone 1.)
 
-### Phase 26 — Hardening, docs, release  *(deps: 25b + all prior phases)*
-Objective: shippable v0.1.0.
-Tasks: error-message audit (every user-reachable failure: named resource, violated constraint
-with rejected value, `note:` remedy; no Lisp backtraces without `--backtrace`); stress pass
-(50k-eval loop, long-run serve, biggest fixture tree ×20 — RSS plateaus); Ctrl-C mid-serve/
-mid-install exits cleanly, partial installs don't corrupt; TZif local-time task (or explicitly
-defer with matrix note); README (what/why, install-from-source, quickstart, architecture, compat
-matrix from Appendix A, TLS posture, contributing); CI release jobs (Linux/macOS, x64/arm64);
-final adversarial review sweep over the whole tree (§2.3 reviewer profile; parallel Codex/Sol 5.6 review
-panel when available, otherwise serial passes by review dimension); triage → fix safety/error-path
-findings, log style findings.
-**Gate:** §1.4 Definition of Done, every item checked with evidence links in STATE.md; tag `v0.1.0`.
+### Purity-compatible Bun-surface program — rules for Phases 27–82
 
-### Post-v0.1 purity-compatible Bun-surface program — rules for Phases 27–82
-
-The program starts only after Phase 26 tags v0.1.0. Until Phase 73, engineering work uses the
+The program starts after Phase 25b. Phase 26 is deliberately deferred until after Phase 82 and is
+re-baselined against the system and release train that exist then; it does not block Phase 27.
+Until Phase 73, engineering work uses the
 read-only clone at `/home/glenda/Projects/bun`, commit **`c1076ce95e` (Bun 1.4.0-dev)**, while public
 comparison copy continues to identify **Bun 1.3.14 stable**. Every design doc cites the exact Bun
 types, docs, source, and tests that define its surface (start with `packages/bun-types/`, `docs/`,
@@ -734,7 +723,7 @@ regression tests.
    assuming Bun's root license covers them. JavaScript/TypeScript may enter Clun only as fixtures or
    conformance data, never as implementation code.
 
-### Phase 27 — Compatibility evidence ledger and release-doc automation  *(deps: 26)* ~2k LOC ⚡
+### Phase 27 — Compatibility evidence ledger and release-doc automation  *(deps: 25b)* ~2k LOC ⚡
 Objective: make every compatibility and release claim mechanically traceable to shipped behavior.
 Tasks: create the structured canonical ledger (schema + stable feature IDs + status/platform/evidence/
 benchmark/reference/primary-owner/integration-owner fields); distinguish Bun 1.3.14 stable evidence
@@ -1447,6 +1436,23 @@ performance and claims reviews serially or with Codex/Sol 5.6 subagents.
 release job and installer smoke passes; every frozen purity-compatible entry meets/exceeds Bun and every
 inherent constitutional exception is plainly labeled; §1.5 is checked with evidence links in `STATE.md`;
 tag the purity-compatible surface release only on that exact green commit.
+
+### Phase 26 — Final hardening, docs, and release  *(deferred to the end; deps: 82 + all prior phases)*
+Objective: harden and publish the complete system that exists after Phase 82.
+Tasks: begin by re-inventorying the shipped surface, open findings, compatibility ledger, release train,
+platform support, and every still-relevant Definition-of-Done item. Rewrite this phase's bounded design and
+release target from that evidence; do not reuse the former `v0.1.0` target or assume today's checklist is
+still complete. Audit every user-reachable failure for resource, rejected value, violated constraint, and
+actionable remedy; prevent Lisp backtraces without `--backtrace`; run resource-plateau, interruption,
+partial-install, largest-fixture, long-run server, and then-current platform stress gates; resolve or clearly
+disposition local-time and other remaining compatibility gaps; regenerate README, landing page, release
+notes, architecture, security posture, and contributing documentation; run Linux/macOS x64/arm64 release
+jobs; perform independent correctness, security, purity, portability, performance, error-path, and claims
+reviews, then fix every release-blocking finding.
+**Gate:** the re-baselined final-phase design and canonical issue define an exact, finite checklist for the
+then-current system; every item has executable evidence in `STATE.md`; all required compatibility,
+conformance, stress, security, documentation, platform, release, and installer gates pass; the release
+version and immutable tag follow `docs/versioning.md` and the actual completed SemVer impact.
 
 ---
 

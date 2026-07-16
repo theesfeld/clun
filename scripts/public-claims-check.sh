@@ -761,7 +761,7 @@ require_text site/index.html "Pass-list gain: +410 from m5 / +2,818 from Phase 2
 require_text README.md "\`species-constructor.js\`, \`subclass-reject-count.js\`, and \`subclass-resolve-count.js\`"
 require_text site/index.html "<code>species-constructor.js</code>, <code>subclass-reject-count.js</code>, and"
 require_text site/index.html "<code>subclass-resolve-count.js</code>."
-require_text README.md "canonical candidate execution ledger digest is \`$report_digest\`"
+require_text README.md "canonical execution ledger digest is \`$report_digest\`"
 require_text site/index.html "Ledger digest: <code>$report_digest</code>."
 require_text README.md "off/eager ledgers are byte-identical; eager mode compiled"
 require_text README.md "1,030,545 forms, classified 56,018 as ineligible, fell back zero times, and executed zero interpreter"
