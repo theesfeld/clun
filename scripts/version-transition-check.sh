@@ -378,7 +378,7 @@ release_bearing=false
 release_bearing_path=
 while IFS= read -r changed_path; do
   case $changed_path in
-    src/*|vendor/*|clun.asd|site/install|scripts/release/*|scripts/build.lisp|scripts/registry.lisp|Makefile|.github/workflows/release.yml|LICENSE|COPYING|THIRD_PARTY_NOTICES.md)
+    src/*|vendor/*|vendor-data/*|clun.asd|site/install|scripts/release/*|scripts/build.lisp|scripts/registry.lisp|Makefile|.github/workflows/release.yml|LICENSE|COPYING|THIRD_PARTY_NOTICES.md)
       release_bearing=true
       release_bearing_path=$changed_path
       break

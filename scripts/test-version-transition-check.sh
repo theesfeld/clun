@@ -406,6 +406,7 @@ run_case site-only 1.2.3 1.2.3 site/index.html pass \
 run_case runtime-published 1.2.3 1.2.3 src/runtime.lisp fail 'already publishes' patch explicit local-tag
 run_case installer-published 1.2.3 1.2.3 site/install fail 'already publishes' patch explicit local-tag
 run_case vendor-published 1.2.3 1.2.3 vendor/library.lisp fail 'already publishes' patch explicit local-tag
+run_case vendor-data-published 1.2.3 1.2.3 vendor-data/table.txt fail 'already publishes' patch explicit local-tag
 run_case asdf-published 1.2.3 1.2.3 clun.asd fail 'already publishes' patch explicit local-tag
 run_case release-script-published 1.2.3 1.2.3 scripts/release/package.sh fail 'already publishes' patch explicit local-tag
 run_case build-script-published 1.2.3 1.2.3 scripts/build.lisp fail 'already publishes' patch explicit local-tag
@@ -423,4 +424,4 @@ run_dirty_ignored_case
 run_dirty_included_case
 run_dirty_tagged_correction_case
 run_dirty_auto_case
-printf 'version-transition fixtures: 47 passed\n'
+printf 'version-transition fixtures: 48 passed\n'

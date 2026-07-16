@@ -48,6 +48,12 @@
   (:documentation "Engine-free bounded CSRF token encoding, authentication, and expiry.")
   (:export #:core-generate #:core-verify))
 
+(defpackage :clun.text.string-width
+  (:nicknames :clun.text)
+  (:use :cl)
+  (:documentation "Unicode-pinned terminal column measurement for Clun.stringWidth.")
+  (:export #:+unicode-width-version+ #:codepoint-width #:string-width))
+
 ;; Defined before clun.engine so the engine's :lp local-nickname can target it.
 (defpackage :clun.loop
   (:use :cl)

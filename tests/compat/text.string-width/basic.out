@@ -1,0 +1,20 @@
+api stringWidth 2 function false true true false
+call-shape 3 TypeError
+function-descriptors false false true false false true
+coercion 0 0 4 5 3
+widths 5 2 1 4 2 2 2
+ansi 3 3 10
+count-option 3 3 3 3 3 10
+ambiguous-option 1 1 1 2 2 2 1
+inherited-getters 9 count,ambiguous
+prototype-pollution 1 9
+empty-short-circuit 0 0
+access-order 10 input,count,ambiguous
+input-error true RangeError input sentinel input
+option-error true RangeError option sentinel count
+symbol-error TypeError Cannot convert a symbol to a string
+indirect-symbol-errors TypeError:Cannot convert a symbol to a string | TypeError:Cannot convert a symbol to a string | TypeError:Cannot convert a symbol to a string | TypeError:Cannot convert a symbol to a string
+primitive-error true RangeError primitive sentinel primitive:string
+valueof-error true RangeError value sentinel toString,valueOf
+primitive-options 3 3 3 3
+property-mutation true TypeError TypeError true

@@ -41,6 +41,7 @@ resource does not exist with a 404 response:
 0.1.0-dev.7
 0.1.0-dev.8
 0.1.0-dev.9
+0.1.0-dev.10
 ```
 
 Phase 25b is the compatibility program for the planned `0.1.0` release. Its first behavioral
@@ -62,6 +63,11 @@ The annotated tag peels to `5d3da6f49898cf93fba7cc24534655278964f35d`, whose exa
 Documentation, and four-target Compatibility workflows passed before release run `29522601664` built and
 published the four native archives plus `checksums.txt`. This evidence-only reconciliation retains dev.9
 and creates no tag; Pages and hosted-installer success are recorded only after their live gates pass.
+Phase 33 adds the third public compatibility-ledger `Yes`, the backward-compatible
+`Clun.stringWidth` API. Its SemVer impact is `minor`; the selected candidate is
+`0.1.0-dev.10` / `v0.1.0-dev.10`, and the ASDF core remains `0.1.0`. Publication requires the complete local gate,
+four-target Compatibility receipts, an immutable tagged release, generated Pages deployment, and hosted
+installer verification before the candidate is reconciled as published.
 
 ## Canonical record
 

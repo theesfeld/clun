@@ -71,8 +71,8 @@ ref.server.websocket.bun-engineering.v1	server.websocket	bun-engineering-c1076ce
 ref.server.websocket.bun-stable.v1	server.websocket	bun-stable-1.3.14	stable-map	docs/runtime/http/websockets.mdx,packages/bun-types/serve.d.ts,test/js/bun/websocket	Yes: through `Bun.serve`
 ref.server.websocket.deno.v1	server.websocket	deno-stable-2.9.3	comparison-page	ext/http/02_websocket.ts,ext/websocket/README.md	Partial: server API without built-in Pub/Sub
 ref.server.websocket.node.v1	server.websocket	node-current-26.5.0	comparison-page	doc/api/globals.md	No: client API only
-ref.text.string-width.bun-engineering.v1	text.string-width	bun-engineering-c1076ce95e	engineering-map	docs/runtime/utils.mdx,packages/bun-types/bun.d.ts,test/js/bun/terminal	Forward engineering inventory for string-width utilities.
-ref.text.string-width.bun-stable.v1	text.string-width	bun-stable-1.3.14	stable-map	docs/runtime/utils.mdx,packages/bun-types/bun.d.ts,test/js/bun/terminal	Yes: `Bun.stringWidth`
+ref.text.string-width.bun-engineering.v1	text.string-width	bun-engineering-c1076ce95e	engineering-map	docs/runtime/utils.mdx,packages/bun-types/bun.d.ts,scripts/generate-stringwidth-tables.mjs,src/jsc/bindings/stringWidth.cpp,src/jsc/bindings/stringWidth.h,src/jsc/bindings/stringWidthTables.h,test/js/bun/util/stringWidth.test.ts	Forward engineering inventory for the exact string-width public contract, implementation, generated data, and tests.
+ref.text.string-width.bun-stable.v1	text.string-width	bun-stable-1.3.14	stable-map	docs/runtime/utils.mdx,packages/bun-types/bun.d.ts,test/js/bun/util/stringWidth.test.ts	Yes: `Bun.stringWidth`
 ref.text.string-width.deno.v1	text.string-width	deno-stable-2.9.3	comparison-page	README.md	No: use the standard library
 ref.text.string-width.node.v1	text.string-width	node-current-26.5.0	comparison-page	doc/api/util.md	No: -
 ref.tooling.bundler.bun-engineering.v1	tooling.bundler	bun-engineering-c1076ce95e	engineering-map	docs/bundler/index.mdx,packages/bun-types/bundle.d.ts,test/bundler	Forward engineering inventory for production bundling.

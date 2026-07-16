@@ -52,10 +52,16 @@ while IFS= read -r -d '' notice; do
   mkdir -p "$(dirname "$notice_destination")"
   cp "$notice" "$notice_destination"
 done < <(
-  find "$repo_root/vendor" -type f \
+  find "$repo_root/vendor" "$repo_root/vendor-data" -type f \
     \( -iname 'LICENSE*' -o -iname 'COPYING*' -o -iname 'COPYRIGHT*' -o -iname 'NOTICE*' \) \
     -print0
 )
+
+unicode_notice="$package_dir/licenses/vendor-data/ucd/17.0.0/LICENSE.txt"
+[[ -f "$unicode_notice" ]] || {
+  echo "package: Unicode 17.0.0 license notice is missing from the archive tree" >&2
+  exit 1
+}
 
 if [[ -f "$repo_root/vendor/pure-tls/README.md" ]]; then
   mkdir -p "$package_dir/licenses/vendor/pure-tls"
