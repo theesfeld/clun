@@ -39,6 +39,7 @@ resource does not exist with a 404 response:
 0.1.0-dev.5
 0.1.0-dev.6
 0.1.0-dev.7
+0.1.0-dev.8
 ```
 
 Phase 25b is the compatibility program for the planned `0.1.0` release. Its first behavioral
@@ -47,6 +48,9 @@ sequence. Phase 26 is deferred until after Phase 82; its final version and tag a
 then-current release train and actual completed impact rather than the former `0.1.0` assumption.
 Phase 27 continues the selected train with the compatibility evidence and generated-release tooling
 unit recorded as `0.1.0-dev.7` / `v0.1.0-dev.7`.
+Phase 29 adds the first public compatibility-ledger `Yes`: the Bun-compatible two-method
+`Clun.semver` API over the existing shared installer engine. This backward-compatible public API is
+the `0.1.0-dev.8` / `v0.1.0-dev.8` release-bearing unit; the ASDF core remains `0.1.0`.
 
 ## Canonical record
 

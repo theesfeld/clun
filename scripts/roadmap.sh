@@ -18,6 +18,7 @@ BUN_VERSION=1.4.0-dev
 MILESTONE="Purity-compatible Bun parity"
 FIRST_PHASE=27
 LAST_PHASE=82
+MILESTONE_DESCRIPTION="Canonical purity-compatible Bun parity roadmap for Clun phases $FIRST_PHASE through $LAST_PHASE. Execution prioritizes evidence-backed compatibility-ledger Yes conversions from easiest to hardest among dependency-ready phase issues; each issue remains the live source of truth."
 PHASE_COUNT=56
 TAB=$(printf '\t')
 CONTRACT_BEGIN='<!-- clun-roadmap-technical-contract:begin -->'
@@ -238,13 +239,13 @@ ensure_milestone() {
   if [ -z "$number" ]; then
     gh api --method POST "repos/$repo/milestones" \
       -f title="$MILESTONE" \
-      -f description="Canonical purity-compatible Bun parity roadmap for Clun phases $FIRST_PHASE through $LAST_PHASE." >/dev/null
+      -f description="$MILESTONE_DESCRIPTION" >/dev/null
     printf 'roadmap: created milestone %s\n' "$MILESTONE"
   else
     gh api --method PATCH "repos/$repo/milestones/$number" \
       -f title="$MILESTONE" \
       -f state=open \
-      -f description="Canonical purity-compatible Bun parity roadmap for Clun phases $FIRST_PHASE through $LAST_PHASE." >/dev/null
+      -f description="$MILESTONE_DESCRIPTION" >/dev/null
     printf 'roadmap: ensured milestone %s\n' "$MILESTONE"
   fi
 }

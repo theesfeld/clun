@@ -92,6 +92,15 @@ Fixture numbers are double-floats; our numeric ids are integers."
     (is = 3 skipped "documented {} deviations skipped")
     (is = (- (length rows) 3) pass "invalid-versions vectors run")))
 
+(define-test semver-strict-equals-prefix-option
+  (fail (clun.install:parse-version "=1.2.3") clun.install:invalid-version)
+  (is equal "1.2.3"
+      (clun.install:semver-version
+       (clun.install:parse-version "= 1.2.3" :allow-equals-prefix t)))
+  (dolist (input '("01.2.3" "1" "1.2"))
+    (fail (clun.install:parse-version input :allow-equals-prefix t)
+          clun.install:invalid-version)))
+
 ;;; --- comparisons (greater > lesser both directions) -------------------------
 
 (define-test semver-comparisons

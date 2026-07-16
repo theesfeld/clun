@@ -54,6 +54,19 @@
                                            (:file "http-parser")
                                            (:file "http-client")
                                            (:file "tls-client")))
+                             ;; install (Phase 21): pure-CL package-manager substrate.
+                             ;; It has no engine dependency, so the public runtime can
+                             ;; reuse the one SemVer implementation without a late bind.
+                             (:module "install"
+                              :serial t
+                              :components ((:file "semver")
+                                           (:file "registry")
+                                           (:file "integrity")
+                                           (:file "tarball")
+                                           (:file "resolver")
+                                           (:file "linker")
+                                           (:file "lockfile")
+                                           (:file "installer")))
                              (:module "engine"
                               :serial t
                               :components ((:file "values")
@@ -134,6 +147,7 @@
                                            (:file "console")
                                            (:file "process")
                                            (:file "spawn")     ; Clun.spawnSync (Phase 24) — before clun-global
+                                           (:file "clun-semver"); Clun.semver (Phase 29) — before clun-global
                                            (:file "clun-global")
                                            (:file "abort")     ; AbortController/AbortSignal (Phase 14)
                                            (:file "globals")   ; structuredClone, crypto (Phase 12)
@@ -166,18 +180,6 @@
                                            (:file "reporter")
                                            (:file "discovery")
                                            (:file "runner")))
-                             ;; install (Phase 21): the package manager's pure-CL
-                             ;; substrate; semver is the version library (no engine).
-                             (:module "install"
-                              :serial t
-                              :components ((:file "semver")
-                                           (:file "registry")
-                                           (:file "integrity")
-                                           (:file "tarball")
-                                           (:file "resolver")
-                                           (:file "linker")
-                                           (:file "lockfile")
-                                           (:file "installer")))
                              ;; CLI (Phase 08): arg parsing, .env, dispatch.
                              (:module "cli"
                               :serial t

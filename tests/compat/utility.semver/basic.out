@@ -1,0 +1,24 @@
+api satisfies,order satisfies 2 order 2
+descriptors true true true true true true
+namespace-descriptor false true false false false true
+documented-ranges true false true false true true
+range-forms true true true false true
+prerelease-build true false true
+order 0 -1 1 -1 1 0
+order-types number number number
+satisfies-types boolean boolean
+stringlike true -1
+detached-extras true -1
+normalization true true 0
+invalid false false true true
+strict-improvements false false false false true
+arity-nonascii true true false 0
+conversion TypeError TypeError coerce
+satisfies-coercion-order left,right true
+order-coercion-order left,right -1
+satisfies-first-throw true RangeError sentinel left
+order-first-throw true RangeError sentinel left
+order-second-throw true RangeError second left,right
+arity-before-coercion Error Expected two arguments 0 Error Expected two arguments 0
+validation-after-coercion true RangeError validate second left,right true RangeError validate second left,right
+messages Error Error Expected two arguments Expected two arguments "Invalid SemVer: bad-left\n" "Invalid SemVer: bad-right\n"

@@ -1,0 +1,49 @@
+case_id	operation	arg1_kind	arg1	arg2_kind	arg2	bun_1_3_14	clun_contract	disposition
+iv-00-equals-prefix	satisfies	string	"=1.2.3"	string	"1.2.3"	true	true	matched pinned prefix-normalization behavior
+corpus-iv-00-overlength	satisfies	repeated-major	255	string	"*"	true	false	node-semver length-limit correctness improvement
+corpus-iv-01-major-overflow	satisfies	string	"90071992547409910.0.0"	string	"*"	true	false	node-semver safe-integer correctness improvement
+corpus-iv-02-minor-overflow	satisfies	string	"0.90071992547409910.0"	string	"*"	true	false	node-semver safe-integer correctness improvement
+corpus-iv-03-patch-overflow	satisfies	string	"0.0.90071992547409910"	string	"*"	true	false	node-semver safe-integer correctness improvement
+corpus-rp-32-x-with-patch	satisfies	string	"1.2.3"	string	"1.x.5"	true	false	node-semver invalid-range correctness improvement
+corpus-rp-33-star-with-patch	satisfies	string	"1.2.3"	string	"1.*.5"	true	false	node-semver invalid-range correctness improvement
+corpus-rp-34-x-with-patch-or	satisfies	string	"1.2.3"	string	"1.x.5 || 2.x"	true	false	node-semver invalid-range correctness improvement
+corpus-rp-35-x-major-minor	satisfies	string	"1.2.3"	string	"x.1"	true	false	node-semver invalid-range correctness improvement
+corpus-rp-36-x-major-minor-patch	satisfies	string	"1.2.3"	string	"x.1.2"	true	false	node-semver invalid-range correctness improvement
+corpus-rp-37-x-x-patch	satisfies	string	"1.2.3"	string	"x.x.1"	true	false	node-semver invalid-range correctness improvement
+corpus-rp-77-missing-prerelease-separator	satisfies	string	"1.2.3"	string	"~1.2.3beta"	true	false	node-semver invalid-range correctness improvement
+ir-01-garbage-word	satisfies	string	"1.2.3"	string	"not-a-range"	true	false	documented-invalid-input correctness improvement
+ir-02-punctuation	satisfies	string	"1.2.3"	string	"?!"	true	false	documented-invalid-input correctness improvement
+ir-03-bad-caret	satisfies	string	"1.2.3"	string	"^invalid"	true	false	documented-invalid-input correctness improvement
+ir-04-bad-comparator	satisfies	string	"1.2.3"	string	">=bad"	true	false	documented-invalid-input correctness improvement
+ir-05-extra-component	satisfies	string	"1.2.3"	string	"1.2.3.4"	true	false	documented-invalid-input correctness improvement
+ir-06-dangling-or	satisfies	string	"1.2.3"	string	"1.2.3 ||"	true	true	matched accepted-any range behavior
+ir-07-double-or	satisfies	string	"1.2.3"	string	"1.2.3 || || 2.0.0"	true	true	matched accepted-any range behavior
+ir-08-bad-hyphen	satisfies	string	"1.2.3"	string	"1.0.0 - bad"	false	false	matched pinned binary behavior
+ir-09-lone-comparator	satisfies	string	"1.2.3"	string	">="	true	true	matched accepted-any range behavior
+ir-10-unclosed-bracket	satisfies	string	"1.2.3"	string	"[1.2.3"	true	false	documented-invalid-input correctness improvement
+ir-11-nonascii	satisfies	string	"1.2.3"	string	"\u22651.0.0"	false	false	matched pinned binary behavior
+ir-12-boolean-coercion	satisfies	string	"1.2.3"	boolean	true	true	false	documented-invalid-input correctness improvement
+ir-13-null-coercion	satisfies	string	"1.2.3"	null	null	true	false	documented-invalid-input correctness improvement
+ir-14-undefined-coercion	satisfies	string	"1.2.3"	undefined	undefined	true	false	documented-invalid-input correctness improvement
+iv-01-empty-star	satisfies	string	""	string	"*"	true	false	documented-invalid-input correctness improvement
+iv-02-empty-zero	satisfies	string	""	string	"0.0.0"	true	false	documented-invalid-input correctness improvement
+iv-03-garbage-star	satisfies	string	"garbage"	string	"*"	false	false	matched pinned binary behavior
+iv-04-garbage-zero	satisfies	string	"garbage"	string	"0.0.0"	false	false	matched pinned binary behavior
+iv-05-extra-component	satisfies	string	"1.2.3.4"	string	"*"	true	false	documented-invalid-input correctness improvement
+iv-06-double-dot	satisfies	string	"1..3"	string	"*"	false	false	matched pinned binary behavior
+iv-07-leading-zero	satisfies	string	"01.2.3"	string	"*"	true	false	documented-invalid-input correctness improvement
+iv-08-negative	satisfies	string	"-1.2.3"	string	"*"	false	false	matched pinned binary behavior
+iv-09-punctuation	satisfies	string	"?!"	string	"*"	false	false	matched pinned binary behavior
+iv-10-nonascii	satisfies	string	"1.2.3\u00e9"	string	"*"	false	false	matched pinned binary behavior
+iv-11-partial-major	satisfies	string	"1"	string	"*"	false	false	matched pinned binary behavior
+iv-12-partial-minor	satisfies	string	"1.2"	string	"*"	false	false	matched pinned binary behavior
+oe-01-partial-major-minimum	order	string	"1"	string	"1.0.0"	1	throw	documented-version grammar correctness improvement
+oe-02-partial-major-next	order	string	"1"	string	"2.0.0"	-1	throw	documented-version grammar correctness improvement
+oe-03-partial-minor-minimum	order	string	"1.2"	string	"1.2.0"	1	throw	documented-version grammar correctness improvement
+oe-04-partial-minor-next	order	string	"1.2"	string	"1.3.0"	-1	throw	documented-version grammar correctness improvement
+oe-05-leading-zero	order	string	"01.2.3"	string	"1.2.3"	0	throw	documented-version grammar correctness improvement
+oe-06-nonascii-left	order	string	"1.2.3\u00e9"	string	"9.9.9"	0	0	matched pinned binary behavior
+oe-07-nonascii-right	order	string	"9.9.9"	string	"1.2.3\u00e9"	0	0	matched pinned binary behavior
+oe-08-number-left	order	number	123	string	"123.0.0"	1	throw	documented-version grammar correctness improvement after ToString
+oe-09-number-right	order	string	"1.0.0"	number	1	-1	throw	documented-version grammar correctness improvement after ToString
+oe-10-bigint-left	order	bigint	1	string	"1.0.0"	1	throw	documented-version grammar correctness improvement after ToString

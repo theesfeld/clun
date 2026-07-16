@@ -724,9 +724,10 @@ Objective: expose a Bun-compatible public semver API over the proven installer i
 Tasks: inventory `docs/runtime/semver.mdx`, Bun semver types/source/tests, and node-semver; implement
 `Clun.semver`/`Bun.semver`-compatible satisfies/order operations, coercion/errors, prerelease/build and
 range edges; keep one parser/range engine shared with install; add a public API differential corpus.
-**Gate:** `make compat FEATURE=semver` passes 100% of the vendored node-semver corpus and the pinned
-Bun differential fixtures; `make build`; `make test`; `make purity`; `make docs-check`; no installer
-semver regression.
+**Gate:** `make compat FEATURE=utility.semver` passes the pinned Bun public differential fixtures and
+100% of the applicable strict public `satisfies`/`order` rows from the vendored node-semver corpus through
+`build/clun`; `make test` passes the complete 15-file engine corpus; `make build`; `make purity`;
+`make docs-check`; no installer semver regression.
 
 ### Phase 30 — Glob API  *(deps: 13, 27)* ~2.5k LOC
 Objective: deliver `Clun.Glob` with Bun-compatible matching and filesystem scanning.

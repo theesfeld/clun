@@ -13,6 +13,7 @@
          (proc (eng:js-get g "process")))
     (eng:data-prop clun "version" clun::*clun-version*)
     (eng:data-prop clun "revision" clun::*clun-revision*)
+    (eng:fixed-data-prop clun "semver" (make-clun-semver))
     ;; env / argv mirror process (same objects)
     (when (eng:js-object-p proc)
       (eng:data-prop clun "env" (eng:js-get proc "env"))

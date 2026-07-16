@@ -116,7 +116,8 @@
    #:run-module-file #:run-module-source #:eval-source #:realm-global
    #:teardown-realm #:run-callback-to-settlement #:drive-jobs #:current-loop
    #:js-promise-p #:js-promise-pstate #:js-promise-value #:to-string #:js-object-class
-   #:make-native-function #:install-method #:install-getter #:install-accessor #:data-prop #:hidden-prop
+   #:make-native-function #:install-method #:install-getter #:install-accessor
+   #:data-prop #:fixed-data-prop #:hidden-prop
    #:new-object #:new-array #:throw-type-error #:js-undefined-p #:js-truthy #:js-boolean
    #:to-number #:arg #:intrinsic #:function-name #:js-function-p #:js-native-function-p
    #:js-nullish-p #:array-like->list #:array-length

@@ -361,21 +361,21 @@ remove_benchmark_row() {
   ' "$file"
 }
 
-move_release_to_phase_28() {
+move_release_to_phase_30() {
   file=$1
   # shellcheck disable=SC2016 # AWK field references must not expand in the shell.
   replace_file "$file" awk -F "$TAB" -v OFS="$TAB" '
-    NR == 2 { $8 = "28"; $9 = "2"; changed = 1 }
+    NR == 2 { $8 = "30"; $9 = "4"; changed = 1 }
     { print }
     END { if (!changed) exit 3 }
   ' "$file"
 }
 
-move_state_to_phase_28() {
+move_state_to_phase_30() {
   file=$1
   replace_file "$file" sed \
-    -e 's/^## Current phase: \*\*27 /## Current phase: **28 /' \
-    -e 's|^\*\*Canonical issue:\*\* https://github.com/theesfeld/clun/issues/1$|**Canonical issue:** https://github.com/theesfeld/clun/issues/2|' \
+    -e 's/^## Current phase: \*\*29 /## Current phase: **30 /' \
+    -e 's|^\*\*Canonical issue:\*\* https://github.com/theesfeld/clun/issues/3$|**Canonical issue:** https://github.com/theesfeld/clun/issues/4|' \
     "$file"
 }
 
@@ -485,7 +485,7 @@ expect_failure_matching missing-release-notes "$case_root" validate \
 
 fresh_case stale-binary
 mkdir -p "$case_root/build"
-printf '%s\n' '#!/bin/sh' 'printf "%s\\n" "clun 0.1.0-dev.6"' > "$case_root/build/clun"
+printf '%s\n' '#!/bin/sh' 'printf "%s\\n" "clun 0.1.0-dev.7"' > "$case_root/build/clun"
 chmod +x "$case_root/build/clun"
 stale_log=$scratch/stale-binary.log
 if CLUN_COMPAT_ROOT=$case_root TMPDIR=$scratch/tmp \
@@ -493,7 +493,7 @@ if CLUN_COMPAT_ROOT=$case_root TMPDIR=$scratch/tmp \
   cat "$stale_log" >&2
   fail 'stale-binary unexpectedly passed'
 fi
-grep -F 'build/clun version mismatch: expected clun 0.1.0-dev.7, got clun 0.1.0-dev.6' \
+grep -F 'build/clun version mismatch: expected clun 0.1.0-dev.8, got clun 0.1.0-dev.7' \
   "$stale_log" >/dev/null 2>&1 || {
   cat "$stale_log" >&2
   fail 'stale-binary failed without the expected version diagnostic'
@@ -505,29 +505,29 @@ mutate_feature_status "$case_root/compat/features.tsv"
 expect_failure feature-status-drift "$case_root" check
 
 fresh_case next-phase-render
-move_release_to_phase_28 "$case_root/compat/release.tsv"
-move_state_to_phase_28 "$case_root/STATE.md"
+move_release_to_phase_30 "$case_root/compat/release.tsv"
+move_state_to_phase_30 "$case_root/STATE.md"
 expect_pass next-phase-generate "$case_root" generate
-grep -F '# Clun 0.1.0-dev.7' "$case_root/docs/releases/current.md" >/dev/null 2>&1 ||
+grep -F '# Clun 0.1.0-dev.8' "$case_root/docs/releases/current.md" >/dev/null 2>&1 ||
   fail 'next-phase render lost the release version'
-grep -F 'Phase 28: TLS, DNS, streaming transport, and public npm.' \
+grep -F 'Phase 30: Glob API.' \
   "$case_root/docs/releases/current.md" >/dev/null 2>&1 ||
-  fail 'next-phase render retained a Phase 27-specific summary'
+  fail 'next-phase render retained a Phase 29-specific summary'
 if grep -Fq 'Phase 25b is complete' "$case_root/README.md"; then
   fail 'next-phase render retained a Phase 25b-specific prior-release statement'
 fi
-grep -F 'Phase 28 is active:' "$case_root/site/index.html" >/dev/null 2>&1 ||
+grep -F 'Phase 30 is active:' "$case_root/site/index.html" >/dev/null 2>&1 ||
   fail 'next-phase render did not update the landing-page phase status'
-grep -F 'github.com/theesfeld/clun/issues/2' "$case_root/site/index.html" >/dev/null 2>&1 ||
+grep -F 'github.com/theesfeld/clun/issues/4' "$case_root/site/index.html" >/dev/null 2>&1 ||
   fail 'next-phase render did not update the landing-page canonical issue'
-if grep -Fq 'Phase 27 is active:' "$case_root/site/index.html"; then
-  fail 'next-phase render retained stale Phase 27 landing-page status'
+if grep -Fq 'Phase 29 is active:' "$case_root/site/index.html"; then
+  fail 'next-phase render retained stale Phase 29 landing-page status'
 fi
 
 fresh_case active-state-drift
-move_release_to_phase_28 "$case_root/compat/release.tsv"
+move_release_to_phase_30 "$case_root/compat/release.tsv"
 expect_failure_matching active-state-drift "$case_root" validate \
-  'STATE.md current phase 27 disagrees with release ledger phase 28'
+  'STATE.md current phase 29 disagrees with release ledger phase 30'
 
 fresh_case published-render
 publish_release "$case_root/compat/release.tsv"
@@ -672,14 +672,12 @@ expect_failure_matching public-superlative "$case_root" check \
   'public documents contain an unqualified cross-runtime superlative'
 
 fresh_case yes-without-executable
-move_release_to_phase_28 "$case_root/compat/release.tsv"
 promote_feature_to_yes "$case_root/compat/features.tsv" cloud.s3
 support_feature_on_all_targets "$case_root/compat/platforms.tsv" cloud.s3 -
 expect_failure_matching yes-without-executable "$case_root" validate \
   'Yes feature cloud.s3 has no shipped-binary evidence'
 
 fresh_case yes-without-four-target-evidence
-move_release_to_phase_28 "$case_root/compat/release.tsv"
 promote_feature_to_yes "$case_root/compat/features.tsv" runtime.web-standard-apis
 support_feature_on_all_targets "$case_root/compat/platforms.tsv" runtime.web-standard-apis \
   ev.runtime.web-standard-apis.fetch-suite.v1

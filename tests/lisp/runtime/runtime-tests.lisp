@@ -75,6 +75,42 @@
   (is equal (format nil "true~%") (run-rt "console.log(Clun.deepEquals({a:1,b:[2]},{a:1,b:[2]}))"))
   (is equal (format nil "false~%") (run-rt "console.log(Clun.deepEquals({a:1},{a:2}))")))
 
+(define-test runtime/clun-semver-satisfies
+  (is equal (format nil "satisfies,order satisfies 2 order 2~%")
+      (run-rt "console.log(Object.keys(Clun.semver).join(','),Clun.semver.satisfies.name,Clun.semver.satisfies.length,Clun.semver.order.name,Clun.semver.order.length)"))
+  (is equal (format nil "true false true false true true~%")
+      (run-rt "console.log(Clun.semver.satisfies('1.0.0','^1.0.0'),Clun.semver.satisfies('1.0.0','^1.0.1'),Clun.semver.satisfies('1.0.0','~1.0.0'),Clun.semver.satisfies('1.0.0','~1.0.1'),Clun.semver.satisfies('1.0.0','1.0.x'),Clun.semver.satisfies('1.0.0','1.0.0 - 2.0.0'))"))
+  (is equal (format nil "true false true~%")
+      (run-rt "console.log(Clun.semver.satisfies('1.2.3-beta.2','>=1.2.3-beta.1 <1.2.3'),Clun.semver.satisfies('1.3.0-beta.1','^1.2.3'),Clun.semver.satisfies('1.2.3+build.9','1.2.3'))"))
+  (is equal (format nil "true~%")
+      (run-rt "console.log(Clun.semver.satisfies({toString:function(){return '1.2.3'}},{toString:function(){return '^1.0.0'}}))"))
+  (is equal (format nil "true -1~%")
+      (run-rt "var s=Clun.semver.satisfies,o=Clun.semver.order;console.log(s.call({ignored:true},'1.2.3','^1.0.0','extra'),o.call(null,'1.2.3','2.0.0','extra'))"))
+  (is equal (format nil "false false~%")
+      (run-rt "console.log(Clun.semver.satisfies('not-a-version','*'),Clun.semver.satisfies('1.0.0','not-a-range'))")))
+
+(define-test runtime/clun-semver-order
+  (is equal (format nil "true 0 true~%")
+      (run-rt "function throws(f){try{f();return false}catch(e){return true}};console.log(Clun.semver.satisfies('=1.2.3','1.2.3'),Clun.semver.order('v1.2.3','=1.2.3'),throws(function(){Clun.semver.order('01.2.3','1.2.3')}))"))
+  (is equal (format nil "0 -1 1 -1 1 0~%")
+      (run-rt "console.log(Clun.semver.order('1.0.0','1.0.0'),Clun.semver.order('1.0.0','1.0.1'),Clun.semver.order('1.0.1','1.0.0'),Clun.semver.order('1.0.0-alpha','1.0.0'),Clun.semver.order('1.0.0-alpha.10','1.0.0-alpha.2'),Clun.semver.order('1.0.0+one','1.0.0+two'))"))
+  (is equal (format nil "-1~%")
+      (run-rt "console.log(Clun.semver.order({toString:function(){return '1.2.3'}},{toString:function(){return '2.0.0'}}))"))
+  (is equal (format nil "number number number~%")
+      (run-rt "console.log(typeof Clun.semver.order('1.0.0','1.0.0'),typeof Clun.semver.order('1.0.0','2.0.0'),typeof Clun.semver.order('2.0.0','1.0.0'))"))
+  ;; The frozen Bun implementation throws for missing/invalid ASCII arguments,
+  ;; but deliberately returns zero when either string contains non-ASCII.
+  (is equal (format nil "true true true true 0~%")
+      (run-rt "function throws(f){try{f();return false}catch(e){return true}};console.log(throws(function(){Clun.semver.satisfies('1.0.0')}),throws(function(){Clun.semver.order('1.0.0')}),throws(function(){Clun.semver.order('bad','1.0.0')}),throws(function(){Clun.semver.order('1.0.0','bad')}),Clun.semver.order('1.0.0','\\u00e4'))"))
+  (is equal (format nil "false~%")
+      (run-rt "console.log(Clun.semver.satisfies('1.0.0','\\u00e4'))"))
+  (is equal (format nil "Expected two arguments Invalid SemVer: bad~%~%")
+      (run-rt "function msg(f){try{f();return 'NO_THROW'}catch(e){return e.message}};console.log(msg(function(){Clun.semver.satisfies('1.0.0')}),msg(function(){Clun.semver.order('bad','1.0.0')}))"))
+  (is equal (format nil "TypeError TypeError coerce~%")
+      (run-rt "function rec(f){try{f();return 'NO_THROW'}catch(e){return e.name}};function msg(f){try{f();return 'NO_THROW'}catch(e){return e.message}};var bad={toString:function(){throw new Error('coerce')}};console.log(rec(function(){Clun.semver.satisfies(Symbol('x'),'*')}),rec(function(){Clun.semver.order(Symbol('x'),'1.0.0')}),msg(function(){Clun.semver.satisfies(bad,'*')}))"))
+  (is equal (format nil "left,right true true RangeError sentinel left~%")
+      (run-rt "var log=[];var left={toString:function(){log.push('left');return '1.2.3'}};var right={toString:function(){log.push('right');return '^1'}};var ok=Clun.semver.satisfies(left,right);var sentinel=new RangeError('sentinel');var bad={toString:function(){log.push('left');throw sentinel}};var untouched={toString:function(){log.push('right');return '*'}};log=[];var caught=null;try{Clun.semver.satisfies(bad,untouched)}catch(e){caught=e};console.log('left,right',ok,caught===sentinel,caught.name,caught.message,log.join(','))")))
+
 ;;; --- .env parsing ----------------------------------------------------------
 
 (define-test runtime/dotenv-parse
