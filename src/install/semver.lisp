@@ -243,7 +243,8 @@ numeric ids, and a hyphen-less prerelease."
 
 (defun parse-version (version &key loose allow-equals-prefix)
   "Parse a version STRING into a semver struct, or signal INVALID-VERSION.
-LOOSE accepts v/= prefixes, hyphen-less prereleases, and loose numeric ids.
+The strict grammar accepts one optional `v` prefix. LOOSE additionally accepts repeated
+v/=/whitespace prefixes, hyphen-less prereleases, and loose numeric ids.
 ALLOW-EQUALS-PREFIX accepts one optional `=` while retaining the strict grammar."
   (unless (stringp version)
     (error 'invalid-version :input version :reason "Must be a string"))
