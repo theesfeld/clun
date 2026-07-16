@@ -42,6 +42,7 @@ resource does not exist with a 404 response:
 0.1.0-dev.8
 0.1.0-dev.9
 0.1.0-dev.10
+0.1.0-dev.11
 ```
 
 Phase 25b is the compatibility program for the planned `0.1.0` release. Its first behavioral
@@ -69,6 +70,10 @@ The annotated tag peels to `3e169ed25f8818621fd383678b313dfd0af71323`, whose exa
 Documentation, and four-target Compatibility workflows passed before release run `29529147937` built and
 published the four native archives plus `checksums.txt`. This evidence-only reconciliation retains dev.10
 and creates no tag; Pages and hosted-installer success are recorded only after their live gates pass.
+Phase 32 targets the fourth public compatibility-ledger `Yes`: backward-compatible `Clun.Cookie` and
+`Clun.CookieMap` APIs plus request/response cookie integration. Its candidate is `0.1.0-dev.11` / `v0.1.0-dev.11`,
+with ASDF core `0.1.0`; publication and reconciliation evidence belong to issue #6
+and are not reported here until the immutable release and live Pages gates pass.
 
 ## Canonical record
 

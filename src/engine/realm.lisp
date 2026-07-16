@@ -152,6 +152,7 @@
       (bootstrap-promise)
       (bootstrap-async)             ; %AsyncIteratorPrototype% + %AsyncGeneratorPrototype%
       (bootstrap-reflect)
+      (bootstrap-proxy)
       (bootstrap-object-extra)
       (bootstrap-array-extra)
       (bootstrap-number-extra)
@@ -299,6 +300,7 @@ itself, so this returns X.prototype = DEFAULT-PROTO — subclassing changes noth
 (defun bootstrap-async () (%bootstrap-async))
 (defun bootstrap-async-globals () (%bootstrap-async-globals))
 (defun bootstrap-reflect () (%bootstrap-reflect))
+(defun bootstrap-proxy () (%bootstrap-proxy))
 (defun bootstrap-object-extra () (%bootstrap-object-extra))
 (defun bootstrap-array-extra () (%bootstrap-array-extra))
 (defun bootstrap-number-extra () (%bootstrap-number-extra))

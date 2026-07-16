@@ -40,7 +40,7 @@
               ((js-null-p this) "[object Null]")
               (t (let* ((o (to-object this))
                         ;; builtin tag from the brand (§20.1.3.6), then @@toStringTag override
-                        (builtin (cond ((js-array-p o) "Array")
+                        (builtin (cond ((is-array o) "Array")
                                        ((eq (js-object-class o) :arguments) "Arguments")
                                        ((callable-p o) "Function")
                                        ((eq (js-object-class o) :error) "Error")
@@ -108,24 +108,15 @@
         (m "freeze" 1
            (lambda (this args) (declare (ignore this))
              (let ((o (arg args 0)))
-               (when (js-object-p o)
-                 (jm-prevent-extensions o)
-                 (dolist (k (jm-own-property-keys o))
-                   (let ((d (jm-get-own-property o k)))
-                     (jm-define-own-property o k
-                       (if (accessor-descriptor-p d) (make-prop-desc :configurable nil)
-                           (make-prop-desc :writable nil :configurable nil))))))
+               (when (and (js-object-p o) (not (set-integrity-level o :frozen)))
+                 (throw-type-error "cannot freeze object"))
                o)))
         (m "isFrozen" 1
            (lambda (this args) (declare (ignore this))
              (let ((o (arg args 0)))
-               (if (not (js-object-p o)) +true+
-                   (js-boolean (and (not (jm-is-extensible o))
-                                    (every (lambda (k) (let ((d (jm-get-own-property o k)))
-                                                         (and (eq (pd-configurable d) nil)
-                                                              (or (accessor-descriptor-p d)
-                                                                  (eq (pd-writable d) nil)))))
-                                           (jm-own-property-keys o))))))))
+               (if (js-object-p o)
+                   (js-boolean (test-integrity-level o :frozen))
+                   +true+))))
         (m "seal" 1
            (lambda (this args) (declare (ignore this))
              (let ((o (arg args 0)))
@@ -140,7 +131,10 @@
                    +true+))))
         (m "preventExtensions" 1
            (lambda (this args) (declare (ignore this))
-             (let ((o (arg args 0))) (when (js-object-p o) (jm-prevent-extensions o)) o)))
+             (let ((o (arg args 0)))
+               (when (and (js-object-p o) (not (jm-prevent-extensions o)))
+                 (throw-type-error "cannot prevent extensions"))
+               o)))
         (m "isExtensible" 1
            (lambda (this args) (declare (ignore this))
              (let ((o (arg args 0))) (js-boolean (and (js-object-p o) (jm-is-extensible o))))))
@@ -238,8 +232,9 @@
          (lambda (this args)
            (let ((result '()))
              (dolist (item (cons (to-object this) args))
-               (if (js-array-p item)
-                   (dotimes (i (array-length item)) (push (js-getv item (princ-to-string i)) result))
+               (if (is-array item)
+                   (dotimes (i (length-of-array-like item))
+                     (push (js-getv item (princ-to-string i)) result))
                    (push item result)))
              (new-array (nreverse result)))))
       (m "toString" 0
@@ -251,7 +246,7 @@
               :prototype ap
               :construct-fn (lambda (args nt) (array-constructor args nt)))))
       (install-method array-ctor "isArray" 1
-        (lambda (this args) (declare (ignore this)) (js-boolean (js-array-p (arg args 0)))))
+        (lambda (this args) (declare (ignore this)) (js-boolean (is-array (arg args 0)))))
       (install-method array-ctor "of" 0
         (lambda (this args) (declare (ignore this)) (new-array args)))
       (setf (realm-intrinsic *realm* :array-constructor) array-ctor))))
@@ -485,6 +480,7 @@
         (glob (kind-name (car entry))
               (intrinsic (intern (format nil "~a-CONSTRUCTOR" (symbol-name (car entry))) :keyword))))
       (glob "Reflect" (intrinsic :reflect))
+      (glob "Proxy" (intrinsic :proxy-constructor))
       (glob "Error" (intrinsic :error-constructor))
       (dolist (k '(:type-error-constructor :range-error-constructor :syntax-error-constructor
                    :reference-error-constructor :eval-error-constructor :uri-error-constructor))

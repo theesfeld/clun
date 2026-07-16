@@ -40,6 +40,11 @@
                              (:module "security"
                               :serial t
                               :components ((:file "csrf")))
+                             ;; Cookie parsing/serialization is engine-free so HTTP
+                             ;; transport and runtime bindings share one contract.
+                             (:module "http"
+                              :serial t
+                              :components ((:file "cookies")))
                              ;; the Node resolver is pure substrate too (depends only
                              ;; on clun.sys, no engine — §3.6) and loads before the
                              ;; engine, whose loader hooks + CJS require both call it.
@@ -95,6 +100,7 @@
                                            (:file "operators")
                                            (:file "functions")
                                            (:file "realm")
+                                           (:file "proxy")
                                            (:file "arguments")
                                            (:file "realm-builtins")
                                            (:file "iterator-operations")
@@ -165,6 +171,7 @@
                                            (:file "abort")     ; AbortController/AbortSignal (Phase 14)
                                            (:file "globals")   ; structuredClone, crypto (Phase 12)
                                            (:file "web-http")  ; Headers/Request/Response (Phase 17)
+                                           (:file "web-cookies") ; Clun.Cookie/CookieMap (Phase 32)
                                            (:file "clun-serve"); Clun.serve HTTP server (Phase 17)
                                            (:file "web-url")   ; URL/URLSearchParams (Phase 18)
                                            (:file "web-fetch") ; fetch (Phase 18)
@@ -218,6 +225,9 @@
                                            (:module "security"
                                             :serial t
                                             :components ((:file "csrf-tests")))
+                                           (:module "http"
+                                            :serial t
+                                            :components ((:file "cookies-tests")))
                                            (:module "text"
                                             :serial t
                                             :components ((:file "string-width-tests")))
@@ -234,6 +244,7 @@
                                                          (:file "lexer-tests")
                                                          (:file "parser-tests")
                                                          (:file "objects-tests")
+                                                         (:file "proxy-tests")
                                                          (:file "eval-tests")
                                                          (:file "arguments-tests")
                                                          (:file "compile-source-tests")

@@ -20,13 +20,29 @@
   (buf (make-array 4096 :element-type '(unsigned-byte 8) :adjustable t :fill-pointer 0))
   (phase :headers)                      ; :headers | :body
   (max-header *max-header-bytes*) (max-body *max-body-bytes*)
+  ;; Chunk metadata is bounded independently from decoded body bytes.  NIL uses
+  ;; max-header; callers that deliberately accept unusually fragmented bodies
+  ;; can opt into a larger finite budget.
+  (max-framing nil)
   (response nil)                        ; T = parse responses (status line, until-close body)
+  (header-scan-start 0 :type (integer 0 *))
   ;; set once the head is parsed:
   method target version status reason headers keep-alive
-  (body-start 0) (content-length nil) (chunked nil) (until-close nil))
+  (body-start 0) (content-length nil) (chunked nil) (until-close nil)
+  ;; Incremental chunk decoder state.  Consumed wire bytes are compacted out of
+  ;; BUF; decoded bytes live in CHUNK-BODY and are copied once per chunk.
+  (chunk-state :size)                   ; :size | :data | :trailers
+  chunk-size
+  (chunk-scan-start 0 :type (integer 0 *))
+  (chunk-trailer-scan-start 0 :type (integer 0 *))
+  (chunk-framing-bytes 0 :type (integer 0 *))
+  (chunk-body (make-array 0 :element-type '(unsigned-byte 8)
+                            :adjustable t :fill-pointer 0)))
 
-(defun make-http-response-parser (&key (max-header *max-header-bytes*) (max-body *max-body-bytes*))
-  (make-http-parser :response t :max-header max-header :max-body max-body))
+(defun make-http-response-parser (&key (max-header *max-header-bytes*)
+                                       (max-body *max-body-bytes*) max-framing)
+  (make-http-parser :response t :max-header max-header :max-body max-body
+                    :max-framing max-framing))
 
 (defun %parse-status-line (line)
   "HTTP/1.x SP code SP reason → (values version code reason) or NIL."
@@ -42,10 +58,97 @@
           (values (if (string= ver "HTTP/1.1") :http/1.1 :http/1.0)
                   (parse-integer code-str) reason))))))
 
-(defun %hp-append (p octets)
-  (let* ((buf (hp-buf p)) (old (fill-pointer buf)) (n (length octets)))
-    (adjust-array buf (max (array-total-size buf) (+ old n)) :fill-pointer (+ old n))
-    (replace buf octets :start1 old)))
+(defun %hp-append (p octets &key (start 0) (end (length octets)))
+  (let* ((buf (hp-buf p)) (old (fill-pointer buf)) (n (- end start)))
+    (let ((needed (+ old n))
+          (capacity (array-total-size buf)))
+      (when (> needed capacity)
+        (loop while (< capacity needed)
+              do (setf capacity (* 2 (max capacity 1))))
+        (adjust-array buf capacity :fill-pointer needed))
+      (setf (fill-pointer buf) needed))
+    (replace buf octets :start1 old :start2 start :end2 end)))
+
+(defun %octet-view (octets start end)
+  "A non-copying view of OCTETS[START,END), used by bounded feed preflights."
+  (if (and (zerop start) (= end (length octets)))
+      octets
+      (make-array (- end start) :element-type '(unsigned-byte 8)
+                  :displaced-to octets :displaced-index-offset start)))
+
+(defun %discard-buffer-prefix (p count)
+  "Remove COUNT already-consumed octets without allocating another wire buffer."
+  (let* ((buf (hp-buf p))
+         (end (fill-pointer buf))
+         (remaining (- end count)))
+    (when (plusp remaining)
+      (replace buf buf :start1 0 :start2 count :end2 end))
+    (setf (fill-pointer buf) remaining)
+    buf))
+
+(defun %chunk-framing-limit (p)
+  (or (hp-max-framing p) (hp-max-header p)))
+
+(defun %chunk-add-framing (p count)
+  "Account consumed chunk metadata.  Return false instead of crossing the cap."
+  (let ((total (+ (hp-chunk-framing-bytes p) count)))
+    (when (<= total (%chunk-framing-limit p))
+      (setf (hp-chunk-framing-bytes p) total)
+      t)))
+
+(defun %chunk-body-append (p source end)
+  "Append SOURCE[0,END) geometrically to the persistent decoded body."
+  (let* ((body (hp-chunk-body p))
+         (old (fill-pointer body))
+         (needed (+ old end))
+         (capacity (array-total-size body)))
+    (when (> needed capacity)
+      (loop while (< capacity needed)
+            do (setf capacity (* 2 (max capacity 1))))
+      (adjust-array body capacity :fill-pointer needed))
+    (setf (fill-pointer body) needed)
+    (replace body source :start1 old :end2 end)
+    body))
+
+(defun %find-crlfcrlf-across-feed-from (p octets start limit)
+  "Find CRLFCRLF in BUF+OCTETS up to absolute LIMIT without retaining OCTETS."
+  (let* ((buf (hp-buf p))
+         (old (fill-pointer buf))
+         (total (+ old (length octets)))
+         (end (min total limit))
+         (start (min start end)))
+    (labels ((byte-at (index)
+               (if (< index old)
+                   (aref buf index)
+                   (aref octets (- index old)))))
+      (loop for index from start below (- end 3)
+            when (and (= (byte-at index) +cr+)
+                      (= (byte-at (+ index 1)) +lf+)
+                      (= (byte-at (+ index 2)) +cr+)
+                      (= (byte-at (+ index 3)) +lf+))
+              do (return index)))))
+
+(defun %find-crlfcrlf-across-feed (p octets limit)
+  "Find an allowed header terminator without first retaining OCTETS.
+LIMIT is the maximum complete header-section length, including CRLFCRLF."
+  (%find-crlfcrlf-across-feed-from
+   p octets (hp-header-scan-start p) limit))
+
+(defun %find-crlf-across-feed (p octets start limit)
+  "Find CRLF in BUF+OCTETS up to absolute LIMIT without retaining OCTETS."
+  (let* ((buf (hp-buf p))
+         (old (fill-pointer buf))
+         (total (+ old (length octets)))
+         (end (min total limit))
+         (start (min start end)))
+    (labels ((byte-at (index)
+               (if (< index old)
+                   (aref buf index)
+                   (aref octets (- index old)))))
+      (loop for index from start below (1- end)
+            when (and (= (byte-at index) +cr+)
+                      (= (byte-at (1+ index)) +lf+))
+              do (return index)))))
 
 (defun %find-crlfcrlf (buf start)
   "Index of the CRLFCRLF terminating the header block (points at the first CR), or NIL."
@@ -79,9 +182,23 @@
                        (every (lambda (c) (and (graphic-char-p c) (not (char= c #\Space)))) method))
               (values method target (if (string= version "HTTP/1.1") :http/1.1 :http/1.0)))))))))
 
+(defun %http-token-character-p (character)
+  "Whether CHARACTER is one of RFC 9110's ASCII field-name token characters."
+  (or (and (char>= character #\a) (char<= character #\z))
+      (and (char>= character #\A) (char<= character #\Z))
+      (and (char>= character #\0) (char<= character #\9))
+      (find character "!#$%&'*+-.^_`|~" :test #'char=)))
+
+(defun %valid-field-value-p (value)
+  "The byte parser already bounds VALUE to Latin-1; reject framing/injection bytes."
+  (notany (lambda (character)
+            (member character '(#\Null #\Return #\Newline) :test #'char=))
+          value))
+
 (defun %parse-headers (buf start end)
-  "Parse header lines in buf[start,end). Returns (values alist ok). Names lowercased;
-duplicates comma-joined. Obs-fold (leading space/tab) and a colon-less line → not ok (400)."
+  "Parse header lines in buf[start,end). Return ordered, lower-cased raw pairs.
+Duplicates stay distinct so Cookie, Set-Cookie, and framing fields can apply their own
+combination rules. Invalid names/values, obs-fold, and colon-less lines return not ok."
   (let ((alist '()) (i start))
     (loop
       (when (>= i end) (return (values (nreverse alist) t)))
@@ -94,22 +211,45 @@ duplicates comma-joined. Obs-fold (leading space/tab) and a colon-less line → 
                (return (values nil nil))))
            (let* ((line (%octets->string buf i eol)) (colon (position #\: line)))
              (unless colon (return (values nil nil)))
-             (let ((name (string-downcase (%trim (subseq line 0 colon))))
-                   (value (%trim (subseq line (1+ colon)))))
-               (when (zerop (length name)) (return (values nil nil)))
-               (let ((existing (assoc name alist :test #'string=)))
-                 (if existing
-                     (setf (cdr existing) (concatenate 'string (cdr existing) ", " value))
-                     (push (cons name value) alist)))))
+             (let* ((raw-name (subseq line 0 colon))
+                    (raw-value (subseq line (1+ colon))))
+               (when (or (zerop (length raw-name))
+                         (not (every #'%http-token-character-p raw-name))
+                         (not (%valid-field-value-p raw-value)))
+                 (return (values nil nil)))
+               ;; Validation precedes OWS trimming. The ordered pair is the transport
+               ;; representation; it must not erase duplicate Set-Cookie fields.
+               (push (cons (string-downcase raw-name) (%trim raw-value)) alist)))
            (setf i (+ eol 2))))))))
 
-(defun %header (alist name) (cdr (assoc name alist :test #'string=)))
+(defun %header-values (alist name)
+  "All values for NAME in wire order."
+  (loop for (field-name . value) in alist
+        when (string= field-name name)
+          collect value))
+
+(defun %header (alist name)
+  "The Headers.get-style joined value for NAME, or NIL when absent."
+  (let ((values (%header-values alist name)))
+    (when values
+      (format nil (if (string= name "cookie") "~{~a~^; ~}" "~{~a~^, ~}") values))))
+
+(defun %comma-members (values)
+  "Split ordered field VALUES on commas, retaining empty members for validation."
+  (loop for value in values append
+    (loop with start = 0
+          for comma = (position #\, value :start start)
+          collect (%trim (subseq value start comma))
+          while comma
+          do (setf start (1+ comma)))))
 
 (defun %keep-alive-p (version headers)
-  (let ((conn (let ((c (%header headers "connection"))) (and c (string-downcase c)))))
+  (let* ((members (%comma-members (%header-values headers "connection")))
+         (close-p (find "close" members :test #'string-equal))
+         (keep-alive-p (find "keep-alive" members :test #'string-equal)))
     (if (eq version :http/1.1)
-        (not (and conn (search "close" conn)))
-        (and conn (search "keep-alive" conn)))))
+        (not close-p)
+        (and keep-alive-p (not close-p)))))
 
 (defun %safe-parse-int (s)
   "Non-negative decimal integer or NIL (no signs, no junk)."
@@ -117,12 +257,21 @@ duplicates comma-joined. Obs-fold (leading space/tab) and a colon-less line → 
        (ignore-errors (parse-integer s))))
 
 (defun %step-headers (p)
-  (let* ((buf (hp-buf p)) (hend (%find-crlfcrlf buf 0)))
+  (let* ((buf (hp-buf p))
+         (hend (%find-crlfcrlf buf (hp-header-scan-start p))))
     (cond
       ((null hend)
+       ;; Only the final three retained bytes can begin a terminator completed by
+       ;; the next feed. Persisting this cursor makes one-byte feeds linear.
+       (setf (hp-header-scan-start p)
+             (max 0 (- (fill-pointer buf) 3)))
        (if (> (fill-pointer buf) (hp-max-header p))
            (values :error '(431 . "Request Header Fields Too Large"))
            (values :need-more nil)))
+      ((> (+ hend 4) (hp-max-header p))
+       ;; The bound covers the complete first header section, not merely feeds that
+       ;; happen to arrive without the terminator and not any pipelined successor.
+       (values :error '(431 . "Request Header Fields Too Large")))
       (t
        ;; search through hend so a no-header request (whose request-line CRLF IS the
        ;; start of the CRLFCRLF terminator) still yields rl-end = hend.
@@ -152,18 +301,44 @@ duplicates comma-joined. Obs-fold (leading space/tab) and a colon-less line → 
       (%frame-body p headers version (+ hend 4)
                    (or (member code '(204 304)) (< code 200))))))
 
+(defun %start-chunked-body (p body-start)
+  "Initialize one message's incremental chunk decoder and discard its parsed head."
+  (setf (hp-chunked p) t
+        (hp-body-start p) 0
+        (hp-chunk-state p) :size
+        (hp-chunk-size p) nil
+        (hp-chunk-scan-start p) 0
+        (hp-chunk-trailer-scan-start p) 0
+        (hp-chunk-framing-bytes p) 0
+        (fill-pointer (hp-chunk-body p)) 0)
+  (%discard-buffer-prefix p body-start))
+
 (defun %frame-body (p headers version body-start no-body)
   (declare (ignore version))
-  (let ((te (let ((v (%header headers "transfer-encoding"))) (and v (string-downcase v))))
-        (cl (%header headers "content-length")))
+  (let* ((te-values (%header-values headers "transfer-encoding"))
+         (cl-values (%header-values headers "content-length"))
+         (cl-members (%comma-members cl-values))
+         (lengths (mapcar #'%safe-parse-int cl-members)))
     (setf (hp-body-start p) body-start (hp-phase p) :body)
     (cond
+      ;; Reject ambiguous framing before considering a response's no-body status.
+      ((and te-values cl-values)
+       (return-from %frame-body (values :error '(400 . "Bad Request"))))
+      ((and te-values
+            (or (/= (length te-values) 1)
+                (not (string-equal (%trim (first te-values)) "chunked"))))
+       (return-from %frame-body (values :error '(400 . "Bad Request"))))
+      ((and cl-values
+            (or (some #'null lengths)
+                (not (every (lambda (n) (= n (first lengths))) (rest lengths)))))
+       (return-from %frame-body (values :error '(400 . "Bad Request"))))
       (no-body (setf (hp-content-length p) 0))
-      ((and te (search "chunked" te)) (setf (hp-chunked p) t))
-      (cl (let ((n (%safe-parse-int (%trim cl))))
-            (cond ((null n) (return-from %frame-body (values :error '(400 . "Bad Request"))))
-                  ((> n (hp-max-body p)) (return-from %frame-body (values :error '(413 . "Payload Too Large"))))
-                  (t (setf (hp-content-length p) n)))))
+      (te-values (%start-chunked-body p body-start))
+      (cl-values
+       (let ((n (first lengths)))
+         (if (> n (hp-max-body p))
+             (return-from %frame-body (values :error '(413 . "Payload Too Large")))
+             (setf (hp-content-length p) n))))
       ((hp-response p) (setf (hp-until-close p) t))    ; no framing → read until the peer closes
       (t (setf (hp-content-length p) 0)))
     (%step-body p)))
@@ -181,7 +356,11 @@ duplicates comma-joined. Obs-fold (leading space/tab) and a colon-less line → 
       (setf (hp-phase p) :headers (hp-method p) nil (hp-target p) nil (hp-version p) nil
             (hp-status p) nil (hp-reason p) nil
             (hp-headers p) nil (hp-content-length p) nil (hp-chunked p) nil (hp-until-close p) nil
-            (hp-body-start p) 0)
+            (hp-body-start p) 0 (hp-header-scan-start p) 0
+            (hp-chunk-state p) :size (hp-chunk-size p) nil
+            (hp-chunk-scan-start p) 0 (hp-chunk-trailer-scan-start p) 0
+            (hp-chunk-framing-bytes p) 0
+            (fill-pointer (hp-chunk-body p)) 0)
       (setf (fill-pointer buf) 0)
       (%hp-append p leftover))
     (values (if (http-response-p result) :response :request) result)))
@@ -205,49 +384,223 @@ body accumulated. Returns (:response resp) or NIL if no response was in progress
   (when (and (hp-response p) (eq (hp-phase p) :body) (hp-until-close p))
     (%emit p (subseq (hp-buf p) (hp-body-start p) (fill-pointer (hp-buf p))) (fill-pointer (hp-buf p)))))
 
-(defun %step-chunked (p)
-  "De-chunk from body-start. Returns :need-more until the terminating 0-chunk arrives,
-:error 400 on malformed, :error 413 if the accumulated body exceeds max-body."
-  (let* ((buf (hp-buf p)) (i (hp-body-start p)) (end (fill-pointer buf))
-         (body (make-array 0 :element-type '(unsigned-byte 8) :adjustable t :fill-pointer 0)))
-    (loop
-      (let ((crlf (%find-crlf buf i end)))
-        (when (null crlf) (return (values :need-more nil)))
-        (let* ((size-line (%trim (%octets->string buf i crlf)))
-               ;; strip any chunk extensions after ';'
-               (semi (position #\; size-line))
-               (hex (if semi (subseq size-line 0 semi) size-line))
-               (size (and (plusp (length hex))
-                          (every (lambda (c) (digit-char-p c 16)) hex)
-                          (ignore-errors (parse-integer hex :radix 16)))))
-          (when (null size) (return (values :error '(400 . "Bad Request"))))
-          (when (> (+ (fill-pointer body) size) (hp-max-body p))
-            (return (values :error '(413 . "Payload Too Large"))))
-          (let ((data-start (+ crlf 2)))
-            (cond
-              ((zerop size)
-               ;; final chunk: expect the trailing CRLF (ignore trailers up to CRLFCRLF)
-               (let ((trailer-end (%find-crlfcrlf buf i)))
-                 (cond ((and (= (aref-safe buf data-start) +cr+) (= (aref-safe buf (1+ data-start)) +lf+))
-                        (return (%emit p (subseq body 0) (+ data-start 2))))
-                       (trailer-end (return (%emit p (subseq body 0) (+ trailer-end 4))))
-                       (t (return (values :need-more nil))))))
-              (t
-               (when (< end (+ data-start size 2)) (return (values :need-more nil)))
-               (let ((chunk-end (+ data-start size)))
-                 (unless (and (= (aref buf chunk-end) +cr+) (= (aref buf (1+ chunk-end)) +lf+))
-                   (return (values :error '(400 . "Bad Request"))))
-                 (let ((old (fill-pointer body)))
-                   (adjust-array body (+ old size) :fill-pointer (+ old size))
-                   (replace body buf :start1 old :start2 data-start :end2 chunk-end))
-                 (setf i (+ chunk-end 2)))))))))))
+(defun %parse-bounded-chunk-size (line limit)
+  "Parse LINE's hexadecimal size without constructing an attacker-sized bignum.
+The second value is :MALFORMED, :TOO-LARGE, or NIL."
+  (let* ((trimmed (%trim line))
+         (semi (position #\; trimmed))
+         (hex (if semi (subseq trimmed 0 semi) trimmed)))
+    (cond
+      ((or (zerop (length hex))
+           (not (every (lambda (character) (digit-char-p character 16)) hex)))
+       (values nil :malformed))
+      (t
+       (let ((size 0))
+         (loop for character across hex
+               do
+           (let ((digit (digit-char-p character 16)))
+             ;; Check before multiplication so SIZE never grows past LIMIT.
+             (when (> size (floor (- limit digit) 16))
+               (return (values nil :too-large)))
+             (setf size (+ (* size 16) digit)))
+               finally (return (values size nil))))))))
 
-(defun aref-safe (buf i) (if (< i (fill-pointer buf)) (aref buf i) -1))
+(defun %chunk-body-copy (p)
+  (let ((body (hp-chunk-body p)))
+    (subseq body 0 (fill-pointer body))))
+
+(defun %step-chunked (p)
+  "Incrementally decode one bounded chunked body in linear time."
+  (loop
+    (let* ((buf (hp-buf p))
+           (end (fill-pointer buf)))
+      (ecase (hp-chunk-state p)
+        (:size
+         (let ((crlf (%find-crlf buf (hp-chunk-scan-start p) end)))
+           (cond
+             ((null crlf)
+              (setf (hp-chunk-scan-start p) (max 0 (1- end)))
+              (return
+                (if (> end (hp-max-header p))
+                    (values :error '(400 . "Bad Request"))
+                    (values :need-more nil))))
+             ((> (+ crlf 2) (hp-max-header p))
+              (return (values :error '(400 . "Bad Request"))))
+             (t
+              (multiple-value-bind (size failure)
+                  (%parse-bounded-chunk-size
+                   (%octets->string buf 0 crlf)
+                   (- (hp-max-body p) (fill-pointer (hp-chunk-body p))))
+                (case failure
+                  (:malformed
+                   (return (values :error '(400 . "Bad Request"))))
+                  (:too-large
+                   (return (values :error '(413 . "Payload Too Large")))))
+                (unless (%chunk-add-framing p (+ crlf 2))
+                  (return (values :error '(400 . "Bad Request"))))
+                (%discard-buffer-prefix p (+ crlf 2))
+                (setf (hp-chunk-size p) size
+                      (hp-chunk-scan-start p) 0
+                      (hp-chunk-state p) (if (zerop size) :trailers :data)))))))
+        (:data
+         (let ((size (hp-chunk-size p)))
+           (when (< end (+ size 2))
+             (return (values :need-more nil)))
+           (unless (and (= (aref buf size) +cr+)
+                        (= (aref buf (1+ size)) +lf+))
+             (return (values :error '(400 . "Bad Request"))))
+           (unless (%chunk-add-framing p 2)
+             (return (values :error '(400 . "Bad Request"))))
+           (%chunk-body-append p buf size)
+           (%discard-buffer-prefix p (+ size 2))
+           (setf (hp-chunk-size p) nil
+                 (hp-chunk-state p) :size
+                 (hp-chunk-scan-start p) 0)))
+        (:trailers
+         (cond
+           ;; Empty trailer section: the CRLF directly follows the zero-size line.
+           ((and (>= end 2) (= (aref buf 0) +cr+) (= (aref buf 1) +lf+))
+            (unless (%chunk-add-framing p 2)
+              (return (values :error '(400 . "Bad Request"))))
+            (return (%emit p (%chunk-body-copy p) 2)))
+           (t
+            (let ((trailer-end
+                    (%find-crlfcrlf buf
+                                    (hp-chunk-trailer-scan-start p))))
+              (cond
+                (trailer-end
+                 (let ((section-length (+ trailer-end 4)))
+                   (when (> section-length (hp-max-header p))
+                     (return (values :error
+                                     '(431 . "Request Header Fields Too Large"))))
+                   (unless (%chunk-add-framing p section-length)
+                     (return (values :error '(400 . "Bad Request"))))
+                   (return (%emit p (%chunk-body-copy p) section-length))))
+                (t
+                 (setf (hp-chunk-trailer-scan-start p)
+                       (max 0 (- end 3)))
+                 (return
+                   (if (> end (hp-max-header p))
+                       (values :error
+                               '(431 . "Request Header Fields Too Large"))
+                       (values :need-more nil)))))))))))))
+
+(defun %preflight-chunk-framing-feed (p octets)
+  "Return an HTTP error when OCTETS would cross an incomplete framing bound.
+The check runs before `%hp-append`, so a single oversized feed is never retained."
+  (let* ((retained (fill-pointer (hp-buf p)))
+         (total (+ retained (length octets)))
+         (limit (hp-max-header p)))
+    (case (hp-chunk-state p)
+      (:size
+       (when (and (> total limit)
+                  (null (%find-crlf-across-feed
+                         p octets (hp-chunk-scan-start p) limit)))
+         '(400 . "Bad Request")))
+      (:trailers
+       (when (and (> total limit)
+                  ;; The empty trailer section is one CRLF, not CRLFCRLF.
+                  (not (eql 0 (%find-crlf-across-feed p octets 0 2)))
+                  (null (%find-crlfcrlf-across-feed-from
+                         p octets (hp-chunk-trailer-scan-start p) limit)))
+         '(431 . "Request Header Fields Too Large"))))))
 
 (defun parser-feed (p octets)
   "Append OCTETS and advance. Returns (values EVENT DATA): :need-more / :request req /
-:error (code . reason)."
-  (%hp-append p octets)
-  (ecase (hp-phase p)
-    (:headers (%step-headers p))
-    (:body (%step-body p))))
+:error (code . reason). Oversized feeds are ingested at parser-state boundaries so
+header, chunk-size, and trailer limits are enforced before retaining later bytes."
+  (let ((start 0)
+        (end (length octets)))
+    (loop
+      with event
+      with data
+      do
+         (let* ((incoming (%octet-view octets start end))
+                (remaining (- end start)))
+           (ecase (hp-phase p)
+             (:headers
+              (let* ((old (fill-pointer (hp-buf p)))
+                     (total (+ old remaining))
+                     (limit (hp-max-header p))
+                     (terminator
+                       (and (> total limit)
+                            (%find-crlfcrlf-across-feed p incoming limit))))
+                (when (and (> total limit) (null terminator))
+                  (return-from parser-feed
+                    (values :error '(431 . "Request Header Fields Too Large"))))
+                (if terminator
+                    ;; Parse the bounded head first. The remaining bytes may begin
+                    ;; chunk framing and must pass that state's pre-append check.
+                    (let ((count (max 0 (- (+ terminator 4) old))))
+                      (%hp-append p octets :start start :end (+ start count))
+                      (incf start count))
+                    (progn
+                      (%hp-append p octets :start start :end end)
+                      (setf start end)))
+                (multiple-value-setq (event data) (%step-headers p))))
+             (:body
+              (if (not (hp-chunked p))
+                  (progn
+                    (%hp-append p octets :start start :end end)
+                    (setf start end)
+                    (multiple-value-setq (event data) (%step-body p)))
+                  (let* ((old (fill-pointer (hp-buf p)))
+                         (total (+ old remaining))
+                         (limit (hp-max-header p))
+                         (error (%preflight-chunk-framing-feed p incoming)))
+                    (when error
+                      (return-from parser-feed (values :error error)))
+                    (case (hp-chunk-state p)
+                      (:size
+                       (let ((line-end
+                               (and (> total limit)
+                                    (%find-crlf-across-feed
+                                     p incoming (hp-chunk-scan-start p) limit))))
+                         (if line-end
+                             (let ((count (max 0 (- (+ line-end 2) old))))
+                               (%hp-append p octets :start start
+                                           :end (+ start count))
+                               (incf start count))
+                             (progn
+                               (%hp-append p octets :start start :end end)
+                               (setf start end)))))
+                      (:data
+                       ;; Do not retain bytes belonging to the next framing state
+                       ;; until the current data terminator has been consumed.
+                       (let* ((required (+ (hp-chunk-size p) 2))
+                              (count (min remaining (max 0 (- required old)))))
+                         (%hp-append p octets :start start :end (+ start count))
+                         (incf start count)))
+                      (:trailers
+                       (let* ((empty-end
+                                (and (> total limit)
+                                     (eql 0 (%find-crlf-across-feed
+                                             p incoming 0 2))
+                                     2))
+                              (section
+                                (and (> total limit) (null empty-end)
+                                     (%find-crlfcrlf-across-feed-from
+                                      p incoming
+                                      (hp-chunk-trailer-scan-start p) limit)))
+                              (section-end (or empty-end
+                                               (and section (+ section 4)))))
+                         (if section-end
+                             (let ((count (max 0 (- section-end old))))
+                               (%hp-append p octets :start start
+                                           :end (+ start count))
+                               (incf start count))
+                             (progn
+                               (%hp-append p octets :start start :end end)
+                               (setf start end))))))
+                    (multiple-value-setq (event data) (%step-body p)))))))
+         (cond
+           ;; A bounded state boundary was consumed; apply the next state's
+           ;; preflight to the unretained suffix in this same socket read.
+           ((and (eq event :need-more) (< start end)))
+           ;; Preserve pipelined bytes after emitting one message. They are parsed
+           ;; by the caller's next feed, matching the existing one-event contract.
+           ((and (member event '(:request :response)) (< start end))
+            (%hp-append p octets :start start :end end)
+            (return (values event data)))
+           (t
+            (return (values event data)))))))

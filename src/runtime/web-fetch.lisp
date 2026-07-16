@@ -18,27 +18,29 @@ an AbortSignal (e.g. AbortSignal.timeout(ms)).")
   "The URL string from a fetch input: a string, a URL (href/toString), or a Request (url)."
   (cond
     ((eng:js-string-p input) (eng:to-string input))
+    ((js-request-p input) (eng:to-string (eng:js-get input "url")))
     ((eng:js-object-p input)
-     (let ((href (eng:js-get input "href")) (url (eng:js-get input "url")))
-       (cond ((eng:js-string-p href) (eng:to-string href))
-             ((eng:js-string-p url) (eng:to-string url))
-             (t (eng:to-string input)))))
+     (let ((href (eng:js-get input "href")))
+       (if (eng:js-string-p href) (eng:to-string href) (eng:to-string input))))
     (t (eng:to-string input))))
 
 (defun %fetch-normalize (input init)
   "Return a plist (:url :method :headers alist :body octets :signal :redirect) from
 INPUT + INIT (INIT overrides). A Request INPUT contributes method/headers/body."
-  (let* ((req-input (and (eng:js-object-p input) (eng:js-string-p (eng:js-get input "url"))
-                         (not (eng:js-string-p (eng:js-get input "href"))) input))
+  (let* ((req-input (and (js-request-p input) input))
          (io (and (eng:js-object-p init) init))
          (method (let ((m (or (and io (eng:js-get init "method"))
                               (and req-input (eng:js-get req-input "method")))))
                    (if (and m (eng:js-string-p m)) (string-upcase (eng:to-string m)) "GET")))
-         (headers (append (when req-input (%headers-alist (eng:js-get req-input "headers")))
-                          (when (and io (not (eng:js-undefined-p (eng:js-get init "headers"))))
-                            (%coerce-headers-init (eng:js-get init "headers")))))
+         (init-headers (and io (eng:js-get init "headers")))
+         (headers
+           (cond ((and io (not (eng:js-undefined-p init-headers)))
+                  (%coerce-headers-init init-headers))
+                 (req-input
+                  (%headers-raw-alist (%request-headers-object req-input)))
+                 (t '())))
          (body-val (cond ((and io (not (eng:js-undefined-p (eng:js-get init "body")))) (eng:js-get init "body"))
-                         (req-input (obj-hidden req-input "%body%"))
+                         (req-input (%request-body-value req-input))
                          (t nil)))
          (signal (and io (let ((s (eng:js-get init "signal"))) (and (eng:js-object-p s) s))))
          (redirect (if (and io (eng:js-string-p (eng:js-get init "redirect")))
@@ -46,14 +48,14 @@ INPUT + INIT (INIT overrides). A Request INPUT contributes method/headers/body."
     (list :url (%fetch-url-of input) :method method :headers headers
           :body (if body-val (%body->octets body-val) nil) :signal signal :redirect redirect)))
 
-(defun %build-fetch-response (g resp final-url)
+(defun %build-fetch-response (resp final-url)
   (let ((u8 (eng:u8-from-octets (net:hres-body resp)))
-        (hdrs (eng:new-object)) (init (eng:new-object)))
-    (dolist (h (net:hres-headers resp)) (eng:data-prop hdrs (car h) (cdr h)))
+        (init (eng:new-object)))
     (eng:data-prop init "status" (coerce (net:hres-status resp) 'double-float))
     (eng:data-prop init "statusText" (or (net:hres-reason resp) ""))
-    (eng:data-prop init "headers" hdrs)
-    (let ((r (eng:js-construct (eng:js-get g "Response") (list u8 init))))
+    ;; Construct from ordered pairs so repeated Set-Cookie fields survive fetch.
+    (eng:data-prop init "headers" (%new-headers (net:hres-headers resp)))
+    (let ((r (%new-response u8 init)))
       (eng:data-prop r "url" final-url)
       r)))
 
@@ -151,10 +153,10 @@ $SSL_CERT_FILE / the system bundle (net's %system-ca-file). Certs always fail cl
                                     (setf (getf info2 :method) "GET" (getf info2 :body) nil
                                           (getf info2 :headers) (%strip-body-headers (getf info :headers))))
                                   (%do-fetch g info2 resolve reject (1+ hops)))
-                                (eng:js-call resolve eng:+undefined+ (list (%build-fetch-response g resp url-str)))))))
+                                (eng:js-call resolve eng:+undefined+ (list (%build-fetch-response resp url-str)))))))
                      ((and (%redirect-p st) (string= (getf info :redirect) "error"))
                       (eng:js-call reject eng:+undefined+ (list (%fetch-error g "TypeError" "fetch: unexpected redirect"))))
-                     (t (eng:js-call resolve eng:+undefined+ (list (%build-fetch-response g resp url-str)))))))
+                     (t (eng:js-call resolve eng:+undefined+ (list (%build-fetch-response resp url-str)))))))
                (on-err (code)
                  (if (string= code "abort")
                      (eng:js-call reject eng:+undefined+ (list (%abort-reason g signal)))

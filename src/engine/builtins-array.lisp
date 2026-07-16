@@ -34,7 +34,7 @@
     (dotimes (i len acc)
       (when (%ahas source i)
         (let ((e (%aget source i)))
-          (if (and (> depth 0) (js-array-p e))
+          (if (and (> depth 0) (is-array e))
               (setf acc (%array-flatten acc e (1- depth)))
               (push e acc)))))))
 
@@ -150,7 +150,7 @@
                          (dotimes (i len)
                            (when (%ahas o i)
                              (let ((v (js-call f that (list (%aget o i) (coerce i 'double-float) o))))
-                               (if (js-array-p v) (setf acc (%array-flatten acc v 0)) (push v acc)))))
+                               (if (is-array v) (setf acc (%array-flatten acc v 0)) (push v acc)))))
                          (new-array (nreverse acc))))))
     (install-method ac "from" 1
       (lambda (this args) (declare (ignore this))

@@ -7,39 +7,37 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **33 - Terminal string width and ANSI utilities**  (IN PROGRESS)
+## Current phase: **32 - Cookies and CookieMap**  (IN PROGRESS)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/7
-**Current implementation unit:** convert `text.string-width` from `No` to the third evidence-backed
-compatibility-ledger `Yes` through the public `Clun.stringWidth` API.
+**Canonical issue:** https://github.com/theesfeld/clun/issues/6
+**Current implementation unit:** convert `web.cookies` from `No` to the fourth evidence-backed
+compatibility-ledger `Yes` through `Clun.Cookie`, `Clun.CookieMap`, and automatic request/response
+integration.
 **SemVer impact:** `minor`
-**Release target:** `0.1.0-dev.10` / `v0.1.0-dev.10`
-**Entry boundary:** Phase 35 / issue #9 published the second ledger `Yes` as immutable dev.9 at
-`5d3da6f49898cf93fba7cc24534655278964f35d`. Reconciliation commit
-`848c453f18356b4561c4ffac8abceec594962c91` passed exact CI, Documentation, and Pages; live `clun.sh`
-shows both published `Yes` rows and an isolated hosted dev.9 install is verified. Phase 33 dependencies 10
-and 27 are complete. Phase 26 remains after Phase 82.
-**Current scope:** reconcile the published dev.10 release, deploy its generated Pages snapshot, verify the
-hosted installer, and hand the active compatibility ledger to Phase 32 / issue #6. The release contains the
-complete pure-Common-Lisp linear UTF-16 scanner, byte-pinned Unicode 17 width/grapheme/emoji data, bounded
-ANSI CSI/OSC handling, exact JavaScript coercion/options/descriptors, and shipped public/corpus/stress
-fixtures. Phase 33 remains active only through publication reconciliation.
+**Release target:** `0.1.0-dev.11` / `v0.1.0-dev.11`
+**Entry boundary:** Phase 33 / issue #7 published the third ledger `Yes` as immutable dev.10 at
+`3e169ed25f8818621fd383678b313dfd0af71323`. Reconciliation commit
+`6585ace428934801ae2e2a3ebb132d38e0cd9ad5` passed CI, Documentation, and Pages; live `clun.sh`
+and an isolated hosted dev.10 install are verified. Phase 32 dependencies 17 and 27 are complete.
+Phase 26 remains after Phase 82.
+**Current scope:** review and publish the complete Cookie/CookieMap implementation, ordered Headers and
+Set-Cookie transport, request cookie snapshots, response integration, bounded incremental HTTP parsing,
+and supporting Proxy internal methods. The release must promote the ledger only after all four native
+GitHub runners pass the exact candidate and the hosted dev.11 installer is verified.
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
 easiest to hardest among dependency-ready rows. Core engine/runtime/network/tooling changes are expected.
 Every conversion requires a legitimate canonical issue, accepted design, full declared behavior, executable
-four-target evidence, synchronized public surfaces, and the correct SemVer transition. The audited next queue
-is cookies, CSS color, password/hash, Glob, then YAML; exact canonical ledger IDs are frozen in `PLAN.md`.
+four-target evidence, synchronized public surfaces, and the correct SemVer transition. The active parallel
+queue is Cookies, Glob, CSS Color, and YAML; exact canonical ledger IDs are frozen in `PLAN.md`.
 
-**Current checkpoint:** final merge `3e169ed25f8818621fd383678b313dfd0af71323` passed exact-master CI
-`29528660414`, Documentation `29528660264`, and four-target Compatibility `29528660285`; aggregate receipt
-job `87724779349` passed. Release run `29529147937` passed all four native builders and publication job
-`87728475946`. Annotated tag object `5a9241758727be5bd3deca6afc0281b014b71b77` peels exactly to the merge.
-Immutable prerelease `355330530` contains exactly four native archives plus `checksums.txt`; fresh downloads
-verified every archive hash, all four `VERSION` files as `0.1.0-dev.10`, and the Linux x64 binary as
-`clun 0.1.0-dev.10`. The published ledger is **3 Yes / 6 Partial / 21 No**. Pending: merge this evidence-only
-reconciliation, pass exact CI/Documentation/Pages, verify live `clun.sh` bytes and an isolated hosted dev.10
-install, then close issue #7 and activate Phase 32 without reopening Phase 26.
+**Current checkpoint:** production and two independent reviews are complete. `make compat
+FEATURE=web.cookies` passes four shipped-binary evidence records plus the static core trace; the focused
+incremental parser set passes 3,165 assertions; `make build`, Cookie/Headers/fetch/server/security fixtures,
+Proxy fixtures, and purity (**708 files / 0 violations**) pass. The local broad suite reaches unrelated
+pre-existing `/tmp` assumptions because this sandbox has no `/tmp`; the four-target GitHub acceptance run
+owns the release receipt. The candidate ledger is **4 Yes / 6 Partial / 20 No**, while the published live
+ledger remains **3 Yes / 6 Partial / 21 No** until dev.11 is immutable and Pages is reconciled.
 
 **M5 entry boundary:** immutable dev.4 diagnostic set **56 total / 0 pass / 56 fail / 0 skip / 0 crash**:
 **43 m5-owned** (32 intrinsic/prototype, 7 parser, 4 raw delegation), **12 m11** direct-eval/`with`

@@ -103,6 +103,130 @@ until the server closes, loop-stop, and return the response as a latin-1 string.
        (true (search "/one" resp))
        (true (search "/two" resp))))))
 
+(define-test net/server-cookie-fields-and-duplicate-request-cookie
+  (serve-and
+   (lambda (g request loop)
+     (declare (ignore loop))
+     (let* ((cookies (eng:js-get request "cookies"))
+            (headers (eng:js-get request "headers"))
+            (request-cookie
+              (eng:js-call (eng:js-get headers "get") headers (list "cookie")))
+            (init (eng:new-object))
+            (response-headers
+              (eng:new-array
+               (list (eng:new-array (list "set-cookie" "manual=1"))
+                     (eng:new-array (list "set-cookie" "manual2=2"))))))
+       (eng:js-call (eng:js-get cookies "set") cookies (list "auto" "3"))
+       (eng:data-prop init "headers" response-headers)
+       (%resp g request-cookie init)))
+   (lambda (loop port g server)
+     (declare (ignore g server))
+     (let* ((response
+              (client-request
+               loop port
+               (req (crlf "GET / HTTP/1.1" "Cookie: a=1" "Cookie: b=2"
+                          "Connection: close"))))
+            (manual (search "Set-Cookie: manual=1" response))
+            (manual2 (search "Set-Cookie: manual2=2" response))
+            (automatic (search "Set-Cookie: auto=3; Path=/; SameSite=Lax"
+                               response)))
+       (true (search "a=1; b=2" response))
+       (true manual)
+       (true manual2)
+       (true automatic)
+       (true (< manual manual2 automatic))))))
+
+(define-test net/server-pipeline-preserves-async-request-order
+  (serve-and
+   (lambda (g request loop)
+     (let ((url (eng:to-string (eng:js-get request "url"))))
+       (if (string= url "/slow")
+           (eng:js-construct
+            (eng:js-get g "Promise")
+            (list
+             (eng:make-native-function
+              "" 2
+              (lambda (this args)
+                (declare (ignore this))
+                (let ((resolve (eng:arg args 0)))
+                  (lp:set-timer
+                   loop 20
+                   (lambda ()
+                     (eng:js-call resolve eng:+undefined+
+                                  (list (%resp g "first"))))))
+                eng:+undefined+))))
+           (%resp g "second"))))
+   (lambda (loop port g server)
+     (declare (ignore g server))
+     (let* ((response
+              (client-request
+               loop port
+               (req (concatenate
+                     'string
+                     (crlf "GET /slow HTTP/1.1" "Host: x")
+                     (crlf "GET /fast HTTP/1.1" "Host: x"
+                           "Connection: close")))))
+            (first (search "first" response))
+            (second (search "second" response)))
+       (true first)
+       (true second)
+       (true (< first second))))))
+
+(define-test net/server-connection-close-latches-final-request
+  (let ((dispatch-count 0))
+    (serve-and
+     (lambda (g request loop)
+       (incf dispatch-count)
+       (let ((url (eng:to-string (eng:js-get request "url"))))
+         (eng:js-construct
+          (eng:js-get g "Promise")
+          (list
+           (eng:make-native-function
+            "" 2
+            (lambda (this args)
+              (declare (ignore this))
+              (let ((resolve (eng:arg args 0)))
+                (lp:set-timer
+                 loop 20
+                 (lambda ()
+                   (eng:js-call resolve eng:+undefined+
+                                (list (%resp g url))))))
+              eng:+undefined+))))))
+     (lambda (loop port g server)
+       (declare (ignore g server))
+       (let ((response
+               (make-array 0 :element-type '(unsigned-byte 8)
+                             :adjustable t :fill-pointer 0)))
+         (net:tcp-connect
+          loop "127.0.0.1" port
+          :on-connect
+          (lambda (connection)
+            (net:tcp-write
+             connection
+             (req (crlf "GET /final HTTP/1.1" "Host: x"
+                        "Connection: close")))
+            (lp:set-timer
+             loop 1
+             (lambda ()
+               (net:tcp-write
+                connection
+                (req (crlf "GET /must-not-dispatch HTTP/1.1" "Host: x"))))))
+          :on-data
+          (lambda (connection data)
+            (declare (ignore connection))
+            (loop for byte across data do (vector-push-extend byte response)))
+          :on-close
+          (lambda (connection code)
+            (declare (ignore connection code))
+            (lp:loop-stop loop)))
+         (lp:set-timer loop 4000 (lambda () (lp:loop-stop loop)))
+         (lp:run-loop loop)
+         (let ((wire (sb-ext:octets-to-string response
+                                              :external-format :latin-1)))
+           (is = 1 dispatch-count)
+           (true (search "/final" wire))
+           (false (search "/must-not-dispatch" wire))))))))
+
 (define-test net/server-graceful-stop
   (serve-and
    (lambda (g req loop) (declare (ignore req loop)) (%resp g "ok"))

@@ -45,6 +45,14 @@ target, e.g. `/json?x=1` — take the part before any query/fragment)."
                 (eng:data-prop h "content-encoding" "gzip")
                 (eng:data-prop h "content-type" "text/plain")
                 (eng:data-prop init "headers" h) init)))
+      ((string= path "/set-cookies")
+       (%resp g "cookies"
+              (let ((init (eng:new-object))
+                    (pairs (eng:new-array
+                            (list (eng:new-array (list "set-cookie" "a=1"))
+                                  (eng:new-array (list "set-cookie" "b=2"))))))
+                (eng:data-prop init "headers" pairs)
+                init)))
       (t (%resp g (format nil "echo ~a" path))))))
 
 (defun %init-status (g status)
@@ -59,7 +67,9 @@ target, e.g. `/json?x=1` — take the part before any query/fragment)."
   ;; chaining .then in Lisp; text()'s promise is awaited here.
   "globalThis.__fetchInfo = (url, opts) => fetch(url, opts).then(async r => ({
      status: r.status, statusText: r.statusText, ok: r.ok, url: r.url,
-     ct: r.headers.get('content-type') || '', body: await r.text() }));")
+     ct: r.headers.get('content-type') || '',
+     setCookies: JSON.stringify(r.headers.getSetCookie()),
+     body: await r.text() }));")
 
 (defmacro with-fetch-server ((g port) &body body)
   "Start Clun.serve (routing via %fetch-route) on 127.0.0.1:0; bind G + PORT and install
@@ -140,6 +150,12 @@ __fetchInfo; run BODY (which drives fetches via FETCH-INFO); tear the realm down
       (is eq :fulfilled kind)
       (is = 200 (info-num info "status"))
       (is string= "gzip-decoded-body" (info-str info "body")))))    ; auto-gunzipped
+
+(define-test net/fetch-preserves-set-cookie-fields
+  (with-fetch-server (g port)
+    (multiple-value-bind (kind info) (fetch-info g eng:*realm* port "/set-cookies")
+      (is eq :fulfilled kind)
+      (is string= "[\"a=1\",\"b=2\"]" (info-str info "setCookies")))))
 
 (define-test net/fetch-abort
   (with-fetch-server (g port)
