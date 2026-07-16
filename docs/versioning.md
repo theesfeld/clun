@@ -56,9 +56,12 @@ The annotated tag peels to `db56bee7540bfc84c5e730d2ab23a886c65dd160`, whose exa
 Documentation, and four-target Compatibility workflows passed before release run `29515697679` built and
 published the four native archives plus `checksums.txt`. The evidence-only ledger reconciliation retains
 dev.8 and creates no tag; Pages and hosted-installer success are recorded only after their own live gates.
-Phase 35 targets `0.1.0-dev.9` / `v0.1.0-dev.9` for the backward-compatible public
-`Clun.CSRF` API. It remains an unpublished candidate until the complete Phase 35 gate, four-target
-Compatibility receipts, immutable assets, Pages deployment, and hosted-installer verification pass.
+Phase 35 adds the second public compatibility-ledger `Yes`, the backward-compatible `Clun.CSRF` API,
+published as immutable prerelease `0.1.0-dev.9` / `v0.1.0-dev.9`; the ASDF core remains `0.1.0`.
+The annotated tag peels to `5d3da6f49898cf93fba7cc24534655278964f35d`, whose exact-master CI,
+Documentation, and four-target Compatibility workflows passed before release run `29522601664` built and
+published the four native archives plus `checksums.txt`. This evidence-only reconciliation retains dev.9
+and creates no tag; Pages and hosted-installer success are recorded only after their live gates pass.
 
 ## Canonical record
 
