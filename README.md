@@ -12,7 +12,7 @@ Clun does not claim blanket speed parity with Bun.
 > [`v0.1.0-dev.4`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.4) for Linux and macOS
 > on x64 and arm64. All four native archives, their checksums, Pages, and the hosted shell installer
 > are verified. [Phase 25b milestone 5](https://github.com/theesfeld/clun/issues/57), synchronous
-> generators and `yield*`, is current and unstarted; the phase remains open at 88.79%.
+> generators and `yield*`, is in implementation and validation; the phase remains open at 88.79%.
 > Clun executes its scoped JS/TS surface, but it is not a drop-in Node.js or Bun replacement.
 > The issue is the canonical live record, `PLAN.md` is the technical contract, and `STATE.md` is
 > the local resume checklist.
