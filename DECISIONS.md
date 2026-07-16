@@ -2286,3 +2286,27 @@ m4 and +2,408 from Phase-25b entry. Exact coverage is 88.950041%, 296 passes rem
 This is backward-compatible functionality in the existing `0.1.0` train, so the impact is `minor` and the
 local release candidate is `0.1.0-dev.5` under immutable target tag `v0.1.0-dev.5`. Publication, assets,
 Pages, and hosted-installer evidence remain unclaimed until their remote gates complete; m6 stays queued.
+
+### 2026-07-16 - Verified dev.5 publication completes m5 and hands Phase 25b to m6
+
+Implementation commit `f814751b1afc30a58abea43d41ef3194b8dfe36c` passed CI `29476921973` and
+Documentation `29476922006`. Annotated tag object `d24ec46602aee277f7226d0ae344f4a93964b604`
+names `v0.1.0-dev.5` and targets that exact implementation commit. Release run `29477285549` attempt 2
+passed linux-x64, linux-arm64, darwin-x64, and darwin-arm64 after attempt 1's linux-arm64 builder failed on
+an external APT network error. The release published all four native archives plus `checksums.txt`, and an
+independent download verified these archive SHA-256 values:
+
+- darwin-arm64: `5e92df28e3f50690d13235f78b51dca6080a90b4d313197e02f8a35a730660b1`
+- darwin-x64: `76f7f6719aa46abaf6d6bc8556be4ce50d6742d1d628b0766d7ca7c9a0d09fc8`
+- linux-arm64: `befd73397fe749638f8d2e7cba67927220e0e4bffd29acc5f40231e539c6bbbd`
+- linux-x64: `a1dbff991b9a2d9bdaf0be865f12ac96d004f3c029870ab23dd9d7c0330a3705`
+
+Pages run `29476921956` completed after the release and deployed the dev.5 candidate-status page plus the
+release-gated installer. An isolated `curl -fsSL https://clun.sh/install | sh` installation reported
+`clun 0.1.0-dev.5`. This handoff changes publication evidence and current-milestone status only; it does not
+change source, installer target, artifacts, behavior, capabilities, or compatibility claims. Its SemVer
+impact is therefore `none`, dev.5 remains current, and no tag is created. The handoff commit's own Pages run
+must deploy the published-status page and be recorded in issue #57 before m6 implementation begins. M5 is
+complete. M6 async generators and async iteration are current and queued; its future release impact and
+target will be determined from the bounded completed work and recorded in issue #57 before implementation.
+Phase 25b remains open at 25,051 / 28,163 = 88.950041%, 296 passes below its fixed target.

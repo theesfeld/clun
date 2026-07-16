@@ -114,7 +114,11 @@ to milestone 5 is evidence-only with impact `none`, so it retains the dev.4 sour
 Phase 25b milestone 5 adds backward-compatible same-realm synchronous generator functions, dynamic
 `GeneratorFunction` construction, per-function generator prototypes, and `yield*` delegation with
 iterator-result identity and specified close/error precedence. Cross-realm generator semantics remain
-outside this milestone. Its impact is `minor`; the release candidate is intended to publish
-`0.1.0-dev.5` under tag `v0.1.0-dev.5` within the existing `0.1.0` train, so the ASDF core remains
-`0.1.0`. Until the master checks, immutable tag, native assets, checksums, Pages deployment, and hosted
-installer have been verified, dev.4 remains the last published release and milestone 6 remains queued.
+outside this milestone. Its impact is `minor`; it is published as `0.1.0-dev.5` under tag `v0.1.0-dev.5`,
+an immutable annotated tag within the existing `0.1.0` train, so the ASDF core remains `0.1.0`. Master CI
+and documentation, all four native archives and checksums, and the release-gated hosted installer are
+verified. The post-publication handoff to milestone 6 is evidence-only with impact `none`, so source and
+installer remain dev.5 and no tag is created. Its published-status page must pass Pages and be recorded in
+the canonical issue before milestone 6 implementation begins. Milestone 6 is current; its release impact and
+target must be determined from its completed scope and recorded in the canonical issue before implementation
+begins.

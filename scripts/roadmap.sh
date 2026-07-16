@@ -830,9 +830,10 @@ EOF
       'Milestone-5 publication evidence:' \
       'published [`v0.1.0-dev.5`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.5) as a prerelease.' \
       'Assets: `clun-linux-x64.tar.gz`, `clun-linux-arm64.tar.gz`, `clun-darwin-x64.tar.gz`, `clun-darwin-arm64.tar.gz`, and `checksums.txt`;' \
-      'deployed the matching site and installer after release assets existed.' \
+      'deployed the dev.5 candidate-status page plus the release-gated installer after release assets existed.' \
       'installed binary reported `clun 0.1.0-dev.5`.' \
-      '**Last published release:** `0.1.0-dev.5` / `v0.1.0-dev.5`; all four native archives, checksums, Pages, and hosted installer are verified.'; do
+      '**Post-publication handoff disposition:** impact `none`; source and release remain `0.1.0-dev.5`, no tag is created, and the handoff changes status evidence only.' \
+      '**Last published release:** `0.1.0-dev.5` / `v0.1.0-dev.5`; all four native archives, checksums, the release-gated Pages installer, and hosted installer are verified.'; do
       grep -Fq "$expected_text" "$body" ||
         fail "Phase 25b issue #$issue_number is missing m5 publication evidence: $expected_text"
     done

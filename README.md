@@ -8,13 +8,13 @@ surface, one gated capability at a time. Performance targets are workload-specif
 Clun does not claim blanket speed parity with Bun.
 
 > **Status: pre-alpha, under active construction.** Phase 25 performance work is complete.
-> [Phase 25b milestone 5](https://github.com/theesfeld/clun/issues/57) is a locally verified
-> `0.1.0-dev.5` release candidate (SemVer impact: `minor`) for same-realm synchronous generators
-> and `yield*`; the phase remains open at 88.95%. The `v0.1.0-dev.5` tag, native assets, Pages
-> deployment, and hosted-installer verification are not published yet. The last published release
-> remains [`v0.1.0-dev.4`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.4), whose four
-> native archives, checksums, Pages deployment, and hosted installer are verified. Milestone 6 stays
-> queued until the complete dev.5 publication lifecycle is verified.
+> Milestone 5 shipped as [`v0.1.0-dev.5`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.5)
+> (SemVer impact: `minor`) with same-realm synchronous generators and `yield*`; the phase remains
+> open at 88.95%. Implementation commit `f814751b1afc30a58abea43d41ef3194b8dfe36c`, CI run
+> `29476921973`, Documentation run `29476922006`, and Release run `29477285549` attempt 2 (all four
+> native builders, assets, and checksums) are verified. The release-gated installer from Pages run
+> `29476921956` is also verified. [Phase 25b milestone 6](https://github.com/theesfeld/clun/issues/57), covering async
+> generators and async iteration, is now current and has not been implemented yet.
 > Clun executes its scoped JS/TS surface, but it is not a drop-in Node.js or Bun replacement.
 > The issue is the canonical live record, `PLAN.md` is the technical contract, and `STATE.md` is
 > the local resume checklist.
@@ -56,7 +56,7 @@ interoperability gap.
 - `clun test` with hooks, modifiers, filters, async tests, timeouts, and about 22 matchers.
 - `clun install`, `add`, `remove`, and package scripts with a deterministic lockfile and cache.
 
-The checked-in curated test262 pass list contains 25,051 tests. Phase 25b milestone 5's release-candidate
+The checked-in curated test262 pass list contains 25,051 tests. Phase 25b milestone 5's published
 40,654-row execution ledger measures 25,051 passes and 3,112 gaps across 28,163 eligible tests
 (88.95%), with 12,491 skips and zero crashes; the 25,347-pass target requires 296 additional live
 passes to reach 90%. The pass list gained 43 tests from milestone 4 and 2,408 from the Phase 25b entry.
@@ -136,8 +136,9 @@ sets between this README and the landing page; descriptive prose still requires 
 workflows are read-only and fail closed if the canonical issues, README, or site have drifted.
 
 Release versions follow the actual SemVer impact recorded in the canonical issue, not the number of
-pushes. The current source version is `0.1.0-dev.5`; it is a release candidate, while dev.4 remains
-the latest published release. [The versioning contract](docs/versioning.md)
+pushes. The current source version is `0.1.0-dev.5`; it is also the
+[latest published release](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.5).
+[The versioning contract](docs/versioning.md)
 defines prerelease sequencing, synchronized surfaces, immutable tags, assets, and installer evidence.
 [Live release and milestone status](https://github.com/theesfeld/clun/issues/57) remains on the canonical
 issue so this README never substitutes a stale publication claim for verified assets.

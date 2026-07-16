@@ -5,22 +5,23 @@ Update before every commit and keep it consistent with PLAN.md, DECISIONS.md, RE
 
 ---
 
-## Current phase: **25b — Conformance push to >= 90%**  (IN PROGRESS — m1 through m4 PUBLISHED; m5 LOCALLY COMPLETE; dev.5 RELEASE PENDING)
+## Current phase: **25b — Conformance push to >= 90%**  (IN PROGRESS — m1 through m5 PUBLISHED; m6 CURRENT)
 
 **Canonical issue:** https://github.com/theesfeld/clun/issues/57
-**Current Phase 25b milestone:** `m5`
-**Current completed unit:** m5 implementation, independent review, and all local acceptance gates complete;
-dev.5 tag, release assets, Pages, checksums, and hosted-installer verification pending
-**Current milestone scope:** m5 synchronous generators and `yield*`; implementation, review, and local
-acceptance complete; dev.5 publication is current
+**Current Phase 25b milestone:** `m6`
+**Current completed unit:** m5 synchronous generators and `yield*`, published as `0.1.0-dev.5` /
+`v0.1.0-dev.5`; release assets and the hosted installer are verified, and the published-status page source
+is synchronized in the post-publication handoff
+**Current milestone scope:** m6 async generators and async iteration; current and queued behind verification
+of the handoff commit's own Pages deployment
 
 **M5 entry boundary:** immutable dev.4 diagnostic set **56 total / 0 pass / 56 fail / 0 skip / 0 crash**:
 **43 m5-owned** (32 intrinsic/prototype, 7 parser, 4 raw delegation), **12 m11** direct-eval/`with`
 controls, and **1 Phase-37** control. The unrelated mixed-feature async-iteration row remains m6. No
-denominator or skip change. The release-bearing unit is SemVer **minor**, selecting
+denominator or skip change. The release-bearing unit was SemVer **minor** and published as
 `0.1.0-dev.5` / `v0.1.0-dev.5`. The tracked fail-closed exit gate is **43 m5 pass / 12 m11 fail /
-1 Phase-37 fail / 0 skip / 0 timeout / 0 crash**. M5 has zero owned residual; m6 remains queued until
-the dev.5 release, assets, Pages, and hosted installer are verified.
+1 Phase-37 fail / 0 skip / 0 timeout / 0 crash**. M5 has zero owned residual. Its post-publication
+evidence handoff is SemVer **none**, retains dev.5, and makes m6 current.
 
 **Phase 25 COMPLETE** (Performance pass; deps: all engine phases ✓; milestoned). Final default-tier
 best-of-nine results vs the frozen Phase-24 baseline are richards **6.68×**, deltablue **3.85×**, and splay
@@ -201,8 +202,8 @@ native archives plus `checksums.txt`, and an independent download verified every
 SemVer **minor**; this evidence-only handoff is **none**, so the source and installer remain
 `0.1.0-dev.4`. Issue #57 remains open because **88.797358% < 90%**; m5 is now current.
 
-**Phase 25b milestone 5 LOCALLY COMPLETE — synchronous generators and `yield*`; dev.5 publication
-pending.** Clun now exposes the same-realm `%GeneratorFunction%` constructor/prototype graph, dynamic
+**Phase 25b milestone 5 DONE — synchronous generators and `yield*`; dev.5 publication verified.**
+Clun now exposes the same-realm `%GeneratorFunction%` constructor/prototype graph, dynamic
 generator construction with `new.target`, semantic-kind-driven generator method prototypes, contextual
 `yield` grammar, legal newlines after the delegation star, and exact incomplete iterator-result forwarding
 for synchronous `yield*`. Delegated `throw`/`return` use `GetMethod` and correct close precedence.
@@ -225,9 +226,26 @@ The final 40,654-row default/eager ledgers are byte-identical: **25,051 pass / 3
 
 The parse gate is **23,713 total / 17,699 pass / 976 fail / 5,038 skip / 0 crash**, with all **17,512**
 frozen parser passes holding. `make test-lisp` passes **3,187 / 0**. The completed behavior is SemVer
-**minor** within the existing `0.1.0` train, selecting source candidate `0.1.0-dev.5` and immutable target
-tag `v0.1.0-dev.5`. No tag, dev.5 release assets, Pages deployment, or hosted-installer result is claimed
-until the publication lifecycle completes.
+**minor** within the existing `0.1.0` train and is published as source version `0.1.0-dev.5` under
+immutable annotated tag `v0.1.0-dev.5`.
+
+Implementation commit `f814751b1afc30a58abea43d41ef3194b8dfe36c` passed CI **29476921973** and
+Documentation **29476922006**. Tag object `d24ec46602aee277f7226d0ae344f4a93964b604` targets that exact
+commit. Release run **29477285549** attempt 2 passed all four native builders after attempt 1's
+linux-arm64 APT network failure; the release contains all four archives plus `checksums.txt`. Independent
+verification matched these archive SHA-256 values:
+
+- darwin-arm64: `5e92df28e3f50690d13235f78b51dca6080a90b4d313197e02f8a35a730660b1`
+- darwin-x64: `76f7f6719aa46abaf6d6bc8556be4ce50d6742d1d628b0766d7ca7c9a0d09fc8`
+- linux-arm64: `befd73397fe749638f8d2e7cba67927220e0e4bffd29acc5f40231e539c6bbbd`
+- linux-x64: `a1dbff991b9a2d9bdaf0be865f12ac96d004f3c029870ab23dd9d7c0330a3705`
+
+Pages **29476921956** completed after the release and deployed the dev.5 candidate-status page plus the
+release-gated installer. An isolated `curl -fsSL https://clun.sh/install | sh` installation reported
+`clun 0.1.0-dev.5`. This handoff changes verified evidence and current-milestone status only, so its SemVer
+impact is **none**, source remains dev.5, and no tag is created. The handoff commit's own Pages run must be
+verified in issue #57 before m6 implementation begins. The issue remains open because
+**88.950041% < 90%**.
 
 **Milestone 1 DONE — "measure first":** the benchmark suite + the frozen Phase-24 baseline + the design doc
 (no engine change). `bench/{richards,deltablue,splay}.js` — the Octane trio ported to clun (self-contained,
@@ -424,10 +442,10 @@ richards **539.3/444.6 ms**, deltablue **764.5/694.6 ms**, splay **283.9/249.7 m
 out of the saved image (~125 MiB final vs 512–632 MiB before). Independent adversarial review findings are
 resolved: eager conformance now requires fallback=0 and the compare harness pins trace=0.
 
-**Next action:** publish the locally green Phase 25b milestone 5 candidate as immutable
-`v0.1.0-dev.5`, verify all four archives plus checksums, Pages, and the hosted installer, then record the
-evidence-only handoff to m6. Do not begin m6, repeat m5 implementation, or change the fixed denominator/
-skip set before that lifecycle is verified.
+**Next action:** push this evidence-only handoff, verify its required checks and Pages deployment, and record
+that deployment in issue #57. Then execute Phase 25b milestone 6 from its canonical issue and PLAN contract:
+refresh its bounded async-generator/async-iteration entry evidence and implement the measured scope. Do not
+republish or repeat m5, and do not change the fixed denominator or skip set.
 
 **G3 scope concern — RESOLVED (2026-07-14, operator-approved split):** the >=90% curated-test262 target is
 split out of Phase 25 into a new **Phase 25b — Conformance push to >=90%** (PLAN §5). Phase 25 is now closed

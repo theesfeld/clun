@@ -1,7 +1,6 @@
 # Phase 25b - Conformance Push to 90%
 
-Status: **milestones 1 through 4 complete and published; milestone 5 is locally complete and awaiting
-dev.5 publication.**
+Status: **milestones 1 through 5 complete and published; milestone 6 is current and queued for execution.**
 Phase 25 is complete, so the dependency is satisfied. Milestone 4 delivered the function, class,
 parameter, arguments-object, and `super` wave specified in section 6.3 while leaving diagnosed
 generator, species, global-environment, operator, primitive, and Phase-37 residuals visible for
@@ -748,12 +747,11 @@ monotonic pass-list regeneration from the proven ledger, deterministic bucket ar
 purity, TLS and crypto, public claims, roadmap/live issue, installer/release, SemVer, shell/workflow,
 and responsive-site gates. No denominator or skip rule changes.
 
-This is backward-compatible functionality within the existing `0.1.0` minor train. Because dev.4 is
-already immutable and published, the release-bearing unit selects source/release
-`0.1.0-dev.5` and tag `v0.1.0-dev.5`. The synchronized candidate records dev.5 source behavior while
-retaining dev.4 as the last published release until the new tag, assets, Pages, and installer pass.
+This is backward-compatible functionality within the existing `0.1.0` minor train. Because dev.4 was
+already immutable and published, the release-bearing unit selected source/release
+`0.1.0-dev.5` and tag `v0.1.0-dev.5`. Publication is verified below.
 
-#### 6.4.4 Local completion evidence
+#### 6.4.4 Completion and publication evidence
 
 The tracked `tests/conformance/phase-25b-m5.tsv` manifest and `make phase-25b-m5-check` make the exact
 entry boundary reproducible after global gap regeneration. The final gate reports **43 m5 pass / 12 m11
@@ -773,4 +771,25 @@ fallback. Eligible remains 28,163; the exact rate is 88.950041% (public 88.95%),
 25,347 target. The pass list grows monotonically by 43 to 25,051; residual ownership is 2,227 Phase-25b
 and 885 Phase-37; canonical ledger digest `C104919DBAF109E4` binds the regenerated artifacts. Parse
 conformance is 17,699 pass / 976 fail / 5,038 skip / 0 crash with all 17,512 frozen passes holding, and the
-Common Lisp suite is 3,187 / 0. These are local candidate results; publication evidence remains unclaimed.
+Common Lisp suite is 3,187 / 0.
+
+Implementation commit `f814751b1afc30a58abea43d41ef3194b8dfe36c` passed CI `29476921973` and
+Documentation `29476922006`. Annotated tag object `d24ec46602aee277f7226d0ae344f4a93964b604`
+names `v0.1.0-dev.5` and targets that exact commit. Release run `29477285549` attempt 2 passed linux-x64,
+linux-arm64, darwin-x64, and darwin-arm64 after attempt 1's linux-arm64 APT network failure. The published
+archives independently match `checksums.txt`:
+
+| Archive | SHA-256 |
+|---|---|
+| `clun-darwin-arm64.tar.gz` | `5e92df28e3f50690d13235f78b51dca6080a90b4d313197e02f8a35a730660b1` |
+| `clun-darwin-x64.tar.gz` | `76f7f6719aa46abaf6d6bc8556be4ce50d6742d1d628b0766d7ca7c9a0d09fc8` |
+| `clun-linux-arm64.tar.gz` | `befd73397fe749638f8d2e7cba67927220e0e4bffd29acc5f40231e539c6bbbd` |
+| `clun-linux-x64.tar.gz` | `a1dbff991b9a2d9bdaf0be865f12ac96d004f3c029870ab23dd9d7c0330a3705` |
+
+Pages run `29476921956` completed after the release and deployed the dev.5 candidate-status page plus the
+release-gated installer. An isolated execution of `curl -fsSL https://clun.sh/install | sh` installed a
+binary reporting `clun 0.1.0-dev.5`. The post-publication handoff changes evidence and milestone status only,
+so its SemVer impact is `none`, source remains dev.5, and no tag is created. The handoff commit's own Pages
+run must deploy the published-status page and be recorded in issue #57 before m6 implementation begins.
+Phase 25b remains open at 88.950041%, 296 passes short of its fixed target; m6 async generators and async
+iteration are current and queued behind that deployment verification.
