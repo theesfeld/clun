@@ -111,10 +111,10 @@ web.cookies	darwin-arm64	unsupported	-	Capability is not implemented.
 web.cookies	darwin-x64	unsupported	-	Capability is not implemented.
 web.cookies	linux-arm64	unsupported	-	Capability is not implemented.
 web.cookies	linux-x64	unsupported	-	Capability is not implemented.
-web.csrf	darwin-arm64	unsupported	-	Capability is not implemented.
-web.csrf	darwin-x64	unsupported	-	Capability is not implemented.
-web.csrf	linux-arm64	unsupported	-	Capability is not implemented.
-web.csrf	linux-x64	unsupported	-	Capability is not implemented.
+web.csrf	darwin-arm64	supported	ev.web.csrf.cross-process.v1,ev.web.csrf.public.v1	The complete public surface executes through the shipped binary.
+web.csrf	darwin-x64	supported	ev.web.csrf.cross-process.v1,ev.web.csrf.public.v1	The complete public surface executes through the shipped binary.
+web.csrf	linux-arm64	supported	ev.web.csrf.cross-process.v1,ev.web.csrf.public.v1	The complete public surface executes through the shipped binary.
+web.csrf	linux-x64	supported	ev.web.csrf.cross-process.v1,ev.web.csrf.public.v1	The complete public surface executes through the shipped binary.
 web.css-color	darwin-arm64	unsupported	-	Capability is not implemented.
 web.css-color	darwin-x64	unsupported	-	Capability is not implemented.
 web.css-color	linux-arm64	unsupported	-	Capability is not implemented.

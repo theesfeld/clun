@@ -1,0 +1,30 @@
+api object generate,verify generate 1 verify 1
+descriptors true true true true true true true true false
+namespace true true false true
+callable true TypeError TypeError
+matrix true 88,86,128,108,107,160,128,128,192,88,86,128,88,86,128,128,128,192
+bun-vectors true
+aliases true
+default-secret true true true false true
+session true false false false
+decoding true true true true false false
+options true true true true
+encoding-abrupt true
+getter-order expiresIn,sessionId,encoding,algorithm secret,sessionId,maxAge,encoding,algorithm true
+abrupt true expiresIn
+replacement-utf8 true
+replacement-vector true
+wall-clock-expiry false false
+input-caps RangeError|ERR_OUT_OF_RANGE|secret exceeds the 1048576 code-unit or byte limit RangeError|ERR_OUT_OF_RANGE|secret exceeds the 1048576 code-unit or byte limit RangeError|ERR_OUT_OF_RANGE|sessionId exceeds the 1048576 code-unit or byte limit
+error-generate-required TypeError|ERR_INVALID_ARG_TYPE|Secret is required
+error-generate-type TypeError|ERR_INVALID_ARG_TYPE|Secret must be a non-empty string
+error-verify-missing TypeError|ERR_INVALID_ARG_TYPE|Missing required token parameter
+error-verify-token TypeError|ERR_INVALID_ARG_TYPE|Token is required
+error-secret-type TypeError|ERR_INVALID_ARG_TYPE|The "secret" property must be of type string, got number
+error-session-empty TypeError|ERR_INVALID_ARG_TYPE|sessionId must be a non-empty string
+error-algorithm TypeError|ERR_INVALID_ARG_TYPE|The "algorithm" argument must be of type string. Received null
+error-algorithm-object TypeError|ERR_INVALID_ARG_TYPE|The "algorithm" argument must be of type string. Received an instance of Object
+error-encoding TypeError|ERR_INVALID_ARG_TYPE|Invalid format: must be 'base64', 'base64url', or 'hex'
+error-number-type TypeError|ERR_INVALID_ARG_TYPE|The "expiresIn" argument must be of type number. Received null
+error-number-object TypeError|ERR_INVALID_ARG_TYPE|The "expiresIn" argument must be of type number. Received an instance of Object
+error-number-value TypeError|ERR_INVALID_ARG_TYPE|expiresIn must be an integer between 0 and 9007199254740991

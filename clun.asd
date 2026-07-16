@@ -16,7 +16,7 @@
                ;; the vendored TLS 1.3 stack (ironclad + the Phase-19 closure come with it).
                ;; flexi-streams (in pure-tls's closure) gives an in-memory octet input stream for
                ;; the Phase-22 bounded gzip inflate (chipz decompressing stream).
-               "cl-ppcre" "chipz" "pure-tls" "flexi-streams")
+               "cl-ppcre" "chipz" "pure-tls" "flexi-streams" "ironclad")
   :serial t
   :components ((:module "src"
                 :serial t
@@ -29,6 +29,11 @@
                                            (:file "fs")
                                            (:file "json")
                                            (:file "platform")))
+                             ;; Security substrate (Phase 35): engine-free CSRF token
+                             ;; encoding/authentication over vendored crypto primitives.
+                             (:module "security"
+                              :serial t
+                              :components ((:file "csrf")))
                              ;; the Node resolver is pure substrate too (depends only
                              ;; on clun.sys, no engine — §3.6) and loads before the
                              ;; engine, whose loader hooks + CJS require both call it.
@@ -148,6 +153,7 @@
                                            (:file "process")
                                            (:file "spawn")     ; Clun.spawnSync (Phase 24) — before clun-global
                                            (:file "clun-semver"); Clun.semver (Phase 29) — before clun-global
+                                           (:file "clun-csrf")  ; Clun.CSRF (Phase 35) — before clun-global
                                            (:file "clun-global")
                                            (:file "abort")     ; AbortController/AbortSignal (Phase 14)
                                            (:file "globals")   ; structuredClone, crypto (Phase 12)
@@ -202,6 +208,9 @@
                                            (:module "sys"
                                             :serial t
                                             :components ((:file "sys-tests")))
+                                           (:module "security"
+                                            :serial t
+                                            :components ((:file "csrf-tests")))
                                            (:module "resolver"
                                             :serial t
                                             :components ((:file "resolver-tests")))

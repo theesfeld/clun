@@ -9,10 +9,10 @@ targets are workload-specific and published;
 Clun does not claim blanket speed parity with Bun.
 
 <!-- clun-generated:release:begin -->
-> **Status: pre-alpha, under active construction.** [Phase 29](https://github.com/theesfeld/clun/issues/3) is in progress.
-> Its release-bearing target is `0.1.0-dev.8` / `v0.1.0-dev.8` (SemVer impact: `minor`).
-> The verified release boundary is `v0.1.0-dev.8`, with four native archives and checksums.
-> Release-gated Pages and hosted-installer results are tracked in the canonical issue.
+> **Status: pre-alpha, under active construction.** [Phase 35](https://github.com/theesfeld/clun/issues/9) is in progress.
+> Its release-bearing target is `0.1.0-dev.9` / `v0.1.0-dev.9` (SemVer impact: `minor`).
+> The verified release boundary is `v0.1.0-dev.8`, with four native archives, checksums, Pages,
+> and hosted-installer evidence.
 > Phase 26 remains deferred until after Phase 82 and will
 > be rewritten for the repository state that exists then.
 > Clun executes its scoped JS/TS surface, but it is not a drop-in Node.js or Bun replacement.
@@ -123,7 +123,7 @@ July 16, 2026. Engineering references are separately pinned to Bun commit `c1076
 | Glob API | No | [Phase 30](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-30) |
 | Semver API | Yes: `Clun.semver` satisfies and order | [Phase 29](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-29) |
 | CSS color conversion | No | [Phase 34](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-34) |
-| CSRF API | No | [Phase 35](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-35) |
+| CSRF API | Yes: `Clun.CSRF` generate and verify | [Phase 35](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-35) |
 <!-- clun-generated:compatibility:end -->
 
 ### Beyond the 30-row matrix
@@ -148,9 +148,10 @@ workflows are read-only and fail closed if the canonical issues, README, or site
 
 <!-- clun-generated:release-summary:begin -->
 Release versions follow the actual SemVer impact recorded in the canonical issue, not the number of pushes.
-The current source version and latest published prerelease are [`0.1.0-dev.8`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.8).
+The current source is the `0.1.0-dev.9` release candidate; the immutable tag and assets are not published yet.
+The last published prerelease remains [`v0.1.0-dev.8`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.8).
 [The versioning contract](docs/versioning.md) defines prerelease sequencing, synchronized surfaces, immutable tags, assets, and installer evidence.
-[Phase 29 issue #3](https://github.com/theesfeld/clun/issues/3) is the canonical live release record.
+[Phase 35 issue #9](https://github.com/theesfeld/clun/issues/9) is the canonical live release record.
 <!-- clun-generated:release-summary:end -->
 
 ## The purity contract
@@ -190,7 +191,7 @@ vendored under `vendor/` and located via `scripts/registry.lisp`.
 make build     # compile everything, save build/clun (save-lisp-and-die)
 make test      # run the CL suites and JS/TS fixture harnesses
 make purity    # fail on any CFFI/foreign-code token
-./build/clun --version   # => clun 0.1.0-dev.8
+./build/clun --version   # => clun 0.1.0-dev.9
 ```
 
 A fresh clone builds with `make build` alone: ASDF compiles the vendored closure and `src/` into
