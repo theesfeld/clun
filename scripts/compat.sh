@@ -332,6 +332,7 @@ run_fixture() {
       fail "$evidence_id stderr mismatch"
     }
   elif [ -s "$stderr" ]; then
+    cat "$stderr" >&2 || :
     fail "$evidence_id wrote unexpected stderr"
   fi
   printf '  (pass) %s\n' "$evidence_id"
