@@ -98,6 +98,8 @@ Normal JavaScript coercion failures, including a throwing user-defined `toString
 original JavaScript exception. Build metadata does not affect precedence.
 The narrow `=` option does not enable loose numeric identifiers or partial versions; those remain
 documented correctness improvements over the pinned Bun binary and are executable matrix cases.
+The shared strict grammar already accepts one optional `v` prefix. Only the installer-internal loose
+mode accepts repeated `v`, `=`, or whitespace prefixes.
 
 `src/runtime/clun-global.lisp` attaches one bridge object as `Clun.semver` when a runtime realm is
 installed. Matching the pinned Bun namespace descriptor, the `semver` property itself is enumerable,
