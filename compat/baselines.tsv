@@ -1,0 +1,5 @@
+baseline_id	runtime	version	channel	revision	tag	checked_on	purpose	source_url	license
+bun-engineering-c1076ce95e	Bun	1.4.0-dev	engineering-source	c1076ce95effb909bfe9f596919b5dba5567d550	-	2026-07-16	Forward types, docs, source, and test inventory only	https://github.com/oven-sh/bun/tree/c1076ce95effb909bfe9f596919b5dba5567d550	MIT
+bun-stable-1.3.14	Bun	1.3.14	stable-executable	0d9b296af33f2b851fcbf4df3e9ec89751734ba4	bun-v1.3.14	2026-07-16	Public comparison and stable executable behavior	https://github.com/oven-sh/bun/tree/0d9b296af33f2b851fcbf4df3e9ec89751734ba4	MIT
+deno-stable-2.9.3	Deno	2.9.3	comparison-release	f39575ecd50602a5b42b1ba8e93849460de9fcf4	v2.9.3	2026-07-16	Public comparison snapshot	https://github.com/denoland/deno/tree/f39575ecd50602a5b42b1ba8e93849460de9fcf4	MIT
+node-current-26.5.0	Node.js	26.5.0	comparison-release	bebd1b8d92bf4cc917844d6335ed1ecf9c2a75fb	v26.5.0	2026-07-16	Public comparison snapshot	https://github.com/nodejs/node/tree/bebd1b8d92bf4cc917844d6335ed1ecf9c2a75fb	MIT

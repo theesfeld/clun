@@ -1,20 +1,40 @@
 # STATE
 
-Local resume checklist, subordinate to the canonical live GitHub issue for the active phase.
-Update before every commit and keep it consistent with PLAN.md, DECISIONS.md, README, and the site.
+**Derived resume cache** — not process constitution.
+**Wins on conflict:** `~/.config/agents/AGENTS.md`, then the canonical GitHub Issue.
+Ship path: topic branch → PR → squash-merge into `master` (not direct push).
+Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **25b — Conformance push to >= 90%**  (IN PROGRESS — m1 through m6 PUBLISHED; HANDOFF PAGES PENDING)
+## Current phase: **27 — Compatibility evidence ledger and release-doc automation**  (IN PROGRESS)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/57
-**Current Phase 25b milestone:** `m6`
-**Current completed unit:** m6 async generators and async iteration, published as `0.1.0-dev.6` /
-`v0.1.0-dev.6`; exact candidate, CI, Documentation, release assets and checksums, Pages, and hosted installer
-are verified
-**Current milestone scope:** Phase 25b runtime and release work is complete. Only this evidence-only handoff
-commit's own Pages verification remains before issue #57 closes and Phase 27 begins. Phase 26 is deferred
-until after Phase 82 and will be re-baselined for the system state at that time
+**Canonical issue:** https://github.com/theesfeld/clun/issues/1
+**Current implementation unit:** canonical compatibility schema, validator, executable evidence runner,
+deterministic README/site/release-note generation, and four-platform compatibility workflow
+**SemVer impact:** `minor`
+**Release target:** `0.1.0-dev.7` / `v0.1.0-dev.7`
+**Entry boundary:** Phase 25b is closed after verified `0.1.0-dev.6` publication and the handoff commit's
+CI, Documentation, and Pages deployment. Phase 27 depends directly on Phase 25b. Phase 26 is blocked behind
+Phase 82 and will be re-baselined from the system and release train that exist when it becomes current.
+**Current scope:** implement the structured 30-row compatibility ledger, pin separate Bun 1.3.14 stable and
+`c1076ce95e` engineering evidence, reject unsupported claims mechanically, generate public compatibility and
+version surfaces byte-deterministically, and run the same evidence on Linux/macOS x64/arm64. Do not rerun
+Phase 25b or Phase 26 heavyweight gates as a substitute for this implementation.
+
+**Current checkpoint:** the local dev.7 implementation and adversarial review are complete pending exact-
+candidate publication. The ledger validates at **0 Yes / 6 Partial / 24 No**; all **240** pinned Bun, Node.js,
+and Deno repository paths and all four Bun stable assets were independently checked; generated README/site/
+release notes are byte-idempotent; and the shipped binary passes **6 executable** compatibility records while
+**2 static** Lisp-suite records remain explicitly trace-only. The full acceptance run is green at **3,234 Lisp
+assertions**, **42 TypeScript strip/error fixtures**, **74 JS/TS runtime fixtures**, and purity **694 files / 0
+violations**. Compatibility tooling passes two pristine checks, three forward-render cases, and **30 deliberate
+drift rejections**; public claims, live roadmap, ShellCheck, actionlint, and responsive Playwright are green.
+Receipt v2 binds the candidate, native binary, ledger, fixtures, canonical outcomes, all 30 feature IDs, and
+pass/fail/trace counts without claiming Bun execution. GitHub native release immutability is enabled, and active
+no-bypass ruleset `19048471` protects every `v*` tag from update or deletion while allowing initial creation.
+Pending: candidate commit/range check, exact-SHA `master` workflows, immutable tag/assets, published-state
+reconciliation, Pages, hosted installer, and canonical issue closeout.
 
 **M5 entry boundary:** immutable dev.4 diagnostic set **56 total / 0 pass / 56 fail / 0 skip / 0 crash**:
 **43 m5-owned** (32 intrinsic/prototype, 7 parser, 4 raw delegation), **12 m11** direct-eval/`with`
@@ -42,7 +62,7 @@ best-of-nine results vs the frozen Phase-24 baseline are richards **6.68×**, de
 user bodies but reached only **4.24× / 694.6 ms** in diagnostic eager mode, so its preapproved off-ramp
 closed G2 on the 2-of-3 + geomean basis and canceled background-tier m3/m4. G1 holds: the complete 40,654-file
 off/eager classification ledgers are byte-identical, all 22,643 frozen passes remain, and crashes/fallback
-are zero. The former G3 is the separate **Phase 25b** (deps: 25), now active.
+are zero. The former G3 is the separate **Phase 25b** (deps: 25), now complete; Phase 27 is current.
 
 **Phase 25b milestone 1 DONE — authoritative failure inventory and costed order; no engine change.** A fresh
 40,654-file execution run at source revision `9c46a3d63c058ec85df1a70c19340f7cbb1c5fd9` measured **22,677
@@ -313,8 +333,9 @@ as a prerelease. Fresh downloads matched `checksums.txt` for every archive:
 Pages **29488866091** succeeded for the exact candidate after the release assets existed. An isolated
 `curl -fsSL https://clun.sh/install | sh` installation reported `clun 0.1.0-dev.6`. Runtime and release
 scope is complete. This evidence-only handoff has SemVer impact **none**: source and installer remain dev.6,
-and no tag is created. Only the handoff commit's own Pages verification remains before issue #57 closes and
-Phase 27 begins; Phase 26 remains deferred until after Phase 82.
+and no tag is created. Handoff commit `b638e5f515892c351caf9763f8d358d1757b92fd` passed CI
+**29494344244**, Documentation **29494344246**, and Pages **29494344301**. Issue #57 is closed; Phase 27 is
+current, and Phase 26 remains deferred until after Phase 82.
 
 **Milestone 1 DONE — "measure first":** the benchmark suite + the frozen Phase-24 baseline + the design doc
 (no engine change). `bench/{richards,deltablue,splay}.js` — the Octane trio ported to clun (self-contained,
@@ -511,10 +532,10 @@ richards **539.3/444.6 ms**, deltablue **764.5/694.6 ms**, splay **283.9/249.7 m
 out of the saved image (~125 MiB final vs 512–632 MiB before). Independent adversarial review findings are
 resolved: eager conformance now requires fallback=0 and the compare harness pins trace=0.
 
-**Next action:** commit and push this evidence-only dev.6 publication handoff, then verify the handoff
-commit's own Pages deployment and record it in issue #57. Close Phase 25b only after that exact deployment;
-then begin Phase 27. Phase 26 remains deferred until after Phase 82 and must be re-baselined at entry. Do not
-create a new tag or change the dev.6 source or installer target for this handoff.
+**Prior handoff action — COMPLETE:** dev.6 publication and the evidence-only handoff are verified; issue #57
+is closed. Phase 27 now owns the compatibility ledger, generated public claims, executable evidence, and
+four-platform compatibility workflow under `0.1.0-dev.7`. Phase 26 remains deferred until after Phase 82 and
+must be re-baselined at entry.
 
 **G3 scope concern — RESOLVED (2026-07-14, operator-approved split):** the >=90% curated-test262 target is
 split out of Phase 25 into a new **Phase 25b — Conformance push to >=90%** (PLAN §5). Phase 25 is now closed
@@ -1197,7 +1218,8 @@ helper; NaN-safe `js-zero-p`/`js-same-value(-zero)`; see DECISIONS 2026-07-10).
 
 **Next action:** Begin Phase 05 (Event loop / async substrate, deps 01 ✓ — independent of the engine
 track). NOTE Phase 04 deferred: RegExp-taking String overloads (match/replace/split with regexp) →
-Phase 10; full UCD casing/normalize → later; TZif local time → Phase 26; Proxy → later; typed arrays
+Phase 10; full UCD casing/normalize → later; TZif local time → unassigned pending the Phase 26 entry
+rebaseline; Proxy → later; typed arrays
 → later. Phase 03 deferrals still open (`with`, tagged templates, full class super, mapped sloppy
 `arguments`, global-scope TDZ); generators/async are Phase 06.
 

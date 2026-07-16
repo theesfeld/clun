@@ -534,6 +534,10 @@ a {
   text-underline-offset: 3px;
 }
 
+.status-band {
+  background: var(--paper-bright);
+}
+
 .proof-band {
   padding: 100px 0;
   background: var(--charcoal);
@@ -1691,6 +1695,7 @@ a {
 
   .hero-facts {
     width: calc(100% + 30px);
+    margin-left: -15px;
   }
 
   .hero-facts div {
@@ -2010,23 +2015,87 @@ a {
 }
 
 @media (max-width: 382px) {
+  .hero-inner {
+    padding-top: 8px;
+  }
+
+  .hero-mark-wrap {
+    width: 78px;
+    height: 78px;
+    margin-bottom: 8px;
+  }
+
+  .hero-mark-wrap::before {
+    width: 76px;
+    height: 66px;
+  }
+
+  .hero-mark-wrap::after {
+    width: 72px;
+    height: 68px;
+  }
+
+  .hero-mark {
+    width: 68px;
+    height: 68px;
+  }
+
+  .hero-lines::after {
+    top: 90px;
+  }
+
+  .hero .eyebrow {
+    margin-bottom: 6px;
+    font-size: 10px;
+    line-height: 1.4;
+  }
+
+  .hero h1 {
+    font-size: 28px;
+    line-height: 1.05;
+  }
+
+  .hero-copy {
+    margin: 8px auto 12px;
+    font-size: 13px;
+    line-height: 1.4;
+  }
+
+  .installer {
+    margin-bottom: 12px;
+  }
+
+  .installer-head {
+    min-height: 58px;
+    padding: 8px 10px;
+  }
+
+  .installer h2 {
+    font-size: 17px;
+  }
+
   .command-row {
-    grid-template-columns: auto minmax(0, 1fr);
-    align-items: start;
-    padding-block: 13px;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    padding-block: 8px;
   }
 
   .command-row code {
-    overflow: visible;
-    line-height: 1.45;
-    overflow-wrap: anywhere;
-    text-overflow: clip;
-    white-space: normal;
+    overflow: hidden;
+    line-height: normal;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .command-row .copy-button {
-    width: 100%;
-    grid-column: 1 / -1;
+    width: auto;
+    min-width: 54px;
+    grid-column: auto;
+  }
+
+  .installer-note {
+    padding: 6px 10px;
+    font-size: 9px;
   }
 }
 

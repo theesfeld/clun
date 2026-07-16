@@ -1,7 +1,7 @@
 # Clun — repository overlay
 
-**Inherits:** `~/.config/agents/AGENTS.md` (sole process constitution for all owned work).  
-This file is **project facts only** — language, paths, gates, and the `phase` shortcut.  
+**Inherits:** `~/.config/agents/AGENTS.md` (sole process constitution for all owned work).
+This file is **project facts only** — language, paths, gates, and the `phase` shortcut.
 It does **not** redefine process. On conflict, the user standard wins. **No legacy process standards.**
 
 | Fact | Value |
@@ -29,7 +29,8 @@ When the user message is exactly `phase` or `phase NN`:
 4. **Release** only if release-bearing: tag merge SHA per `docs/versioning.md`, verify assets + installer, evidence on Issue.
 5. **Sync** Issue, README, `site/`, and derived `STATE.md`/`PLAN.md` in the same unit. Continue to the next unblocked milestone/phase without waiting for another `phase` message (unless a new phase needs survey).
 
-Do not ask the user to paste a long phase prompt. Spawn subagents for bounded work; primary owns merge gates.
+Do not ask the user to paste a long phase prompt. Always spawn multiple subagents for bounded work, use
+maximum reasoning effort, and keep merge gates under primary-agent ownership.
 
 ---
 

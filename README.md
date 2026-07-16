@@ -3,24 +3,21 @@
 **Bun, rewritten in pure Common Lisp.** Clun is a JavaScript/TypeScript runtime and toolkit —
 including a from-scratch ECMAScript engine — implemented in **pure Common Lisp** with zero CFFI
 and zero foreign libraries. v0.1 is deliberately scoped: correctness and purity take priority over
-breadth. After v0.1, the roadmap targets evidence-backed parity with Bun's purity-compatible
-surface, one gated capability at a time. Performance targets are workload-specific and published;
+breadth. The active prerelease roadmap targets evidence-backed parity with Bun's purity-compatible
+surface, one gated capability at a time, before a final re-baselined hardening phase. Performance
+targets are workload-specific and published;
 Clun does not claim blanket speed parity with Bun.
 
-> **Status: pre-alpha, under active construction.** Phase 25 performance work is complete.
-> [Phase 25b milestone 6](https://github.com/theesfeld/clun/issues/57) shipped as
-> [`v0.1.0-dev.6`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.6) (SemVer impact:
-> `minor`) with async generators and async iteration. Its off-mode execution ledger reaches
-> 90.40%, so Phase 25b's 90% target is met. Implementation commit
-> `4d2b714c1a459264ca9e77f5f25979bb41b50c76`, CI run `29488866153`, Documentation run
-> `29488866083`, Release run `29489277258`, all four native archives and checksums, Pages run
-> `29488866091`, and the hosted installer are verified. Phase 25b's runtime and release scope is
-> complete; only this evidence-only handoff commit's own Pages verification remains before issue
-> #57 closes and Phase 27 begins. Phase 26 is deferred until after Phase 82 and will be re-baselined
-> for the system state at that time.
+<!-- clun-generated:release:begin -->
+> **Status: pre-alpha, under active construction.** [Phase 27](https://github.com/theesfeld/clun/issues/1) is in progress.
+> Its release-bearing target is `0.1.0-dev.7` / `v0.1.0-dev.7` (SemVer impact: `minor`).
+> The verified release boundary is `v0.1.0-dev.6`, with four native archives, checksums, Pages,
+> and hosted-installer evidence. Phase 26 remains deferred until after Phase 82 and will
+> be rewritten for the repository state that exists then.
 > Clun executes its scoped JS/TS surface, but it is not a drop-in Node.js or Bun replacement.
-> The issue is the canonical live record, `PLAN.md` is the technical contract, and `STATE.md` is
+> The canonical issue is the live source of truth; `PLAN.md` is the technical contract and `STATE.md` is
 > the local resume checklist.
+<!-- clun-generated:release:end -->
 
 ## Install
 
@@ -31,8 +28,9 @@ curl -fsSL https://clun.sh/install | sh
 ```
 
 The installer detects x86-64 or arm64, verifies the release SHA-256 checksum, and installs under
-`~/.clun`. The release workflow builds and tests native archives on Linux and macOS 13+ for both
-architectures. Windows is not supported.
+`~/.clun`. The release workflow builds and tests native archives on Ubuntu and macOS 15 runners for
+both architectures. macOS archives target macOS 13.0 or newer, but are runtime-tested on macOS 15.
+Windows is not supported.
 
 Clun is still pre-alpha. In particular, `clun install` is verified against the hermetic registry
 fixture, but the default public npm registry currently hits a TLS `protocol_version`
@@ -85,35 +83,34 @@ Bun or Node.js; `docs/benchmarks.md` reports only reproducible Clun-versus-Clun 
 
 ## Compatibility roadmap
 
+<!-- clun-generated:compatibility:begin -->
 The current column describes pre-alpha behavior as tested today. A linked phase is a planned acceptance
-gate, not a claim that the capability already exists. A roadmap item becomes complete only with its
-specified conformance, stress, platform, and benchmark evidence; `PLAN.md` is the authoritative
-gate definition.
+gate, not a claim that the capability already exists. Every row below is generated from the canonical
+compatibility ledger; `make docs-check` rejects hand-edited status, evidence, owner, or baseline drift.
 
-The landing-page comparison snapshot uses Bun 1.3.14, Node.js 26.5.0, and Deno 2.9.3, checked
-July 16, 2026. The engineering roadmap separately audits Bun source commit `c1076ce95e`
-(`1.4.0-dev`) so newer upstream work is not missed.
+The public comparison snapshot uses Bun 1.3.14, Node.js 26.5.0, and Deno 2.9.3, checked
+July 16, 2026. Engineering references are separately pinned to Bun commit `c1076ce95e` (`1.4.0-dev`).
 
 | Capability | Current pre-alpha state | Evidence-backed target |
 |---|---|---|
 | Node.js compatibility | Partial: selected globals and module subsets | Phases [42](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-42), [43](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-43), [44](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-44), [45](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-45), [46](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-46), [47](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-47) |
 | Web Standard APIs | Partial: buffered fetch and a scoped Web API surface | [Phase 38](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-38) |
-| Native addons | No: excluded by the current purity contract | [Phase 48 architecture gate](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-48) |
+| Native addons | No: excluded by the current purity contract | [Phase 48](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-48) |
 | TypeScript | Partial: erasable syntax stripping only | [Phase 39](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-39) |
-| JSX | No: outside the v0.1 scope | [Phase 40](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-40) |
+| JSX | No: not included in the v0.1 scope | [Phase 40](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-40) |
 | Module loader plugins | No: fixed loader surface | [Phase 41](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-41) |
 | SQL database drivers | No | Phases [55](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-55), [56](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-56), [57](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-57) |
 | S3 cloud storage | No | [Phase 53](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-53) |
 | Redis client | No | [Phase 54](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-54) |
 | WebSocket server | No: no WebSocket implementation | [Phase 51](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-51) |
 | HTTP server | Partial: HTTP/1.1 with buffered bodies | [Phase 49](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-49) |
-| HTTP router | No: routing belongs in the handler | [Phase 50](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-50) |
-| Single-file executables | No: Clun ships a runtime executable | Phases [52](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-52), [77](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-77) |
+| HTTP router | No: supply one in the handler | [Phase 50](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-50) |
+| Single-file executables | No: Clun ships a runtime executable only | Phases [52](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-52), [77](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-77) |
 | YAML | No | [Phase 31](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-31) |
 | Cookies API | No | [Phase 32](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-32) |
-| Encrypted secrets storage | No | [Phase 58 architecture gate](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-58) |
+| Encrypted secrets storage | No | [Phase 58](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-58) |
 | npm package management | Partial: fixture-tested; public npm is blocked by TLS interop | Phases [28](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-28), [59](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-59), [60](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-60), [61](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-61) |
-| Bundler | No: outside the v0.1 scope | Phases [62](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-62), [63](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-63), [64](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-64), [77](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-77) |
+| Bundler | No: not included in the v0.1 scope | Phases [62](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-62), [63](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-63), [64](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-64), [77](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-77) |
 | Cross-platform shell API | No: spawn and package scripts only | [Phase 65](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-65) |
 | Jest-compatible test runner | Partial: 22 matchers; no snapshots, coverage, mocks, or concurrency | [Phase 66](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-66) |
 | Hot reloading | No | [Phase 67](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-67) |
@@ -126,6 +123,7 @@ July 16, 2026. The engineering roadmap separately audits Bun source commit `c107
 | Semver API | No: installer-internal only | [Phase 29](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-29) |
 | CSS color conversion | No | [Phase 34](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-34) |
 | CSRF API | No | [Phase 35](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-35) |
+<!-- clun-generated:compatibility:end -->
 
 ### Beyond the 30-row matrix
 
@@ -147,13 +145,13 @@ sets between this README and the landing page; descriptive prose still requires 
 `scripts/roadmap.sh sync` for a deliberate live-issue reconciliation before pushing. Publication
 workflows are read-only and fail closed if the canonical issues, README, or site have drifted.
 
-Release versions follow the actual SemVer impact recorded in the canonical issue, not the number of
-pushes. The current source version is `0.1.0-dev.6`; it is also the
-[latest published prerelease](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.6).
-[The versioning contract](docs/versioning.md)
-defines prerelease sequencing, synchronized surfaces, immutable tags, assets, and installer evidence.
-[Live release and milestone status](https://github.com/theesfeld/clun/issues/57) remains on the canonical
-issue so this README never substitutes a stale publication claim for verified assets.
+<!-- clun-generated:release-summary:begin -->
+Release versions follow the actual SemVer impact recorded in the canonical issue, not the number of pushes.
+The current source is the `0.1.0-dev.7` release candidate; the immutable tag and assets are not published yet.
+The last published prerelease remains [`v0.1.0-dev.6`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.6).
+[The versioning contract](docs/versioning.md) defines prerelease sequencing, synchronized surfaces, immutable tags, assets, and installer evidence.
+[Phase 27 issue #1](https://github.com/theesfeld/clun/issues/1) is the canonical live release record.
+<!-- clun-generated:release-summary:end -->
 
 ## The purity contract
 
@@ -192,7 +190,7 @@ vendored under `vendor/` and located via `scripts/registry.lisp`.
 make build     # compile everything, save build/clun (save-lisp-and-die)
 make test      # run the CL suites and JS/TS fixture harnesses
 make purity    # fail on any CFFI/foreign-code token
-./build/clun --version   # => clun 0.1.0-dev.6
+./build/clun --version   # => clun 0.1.0-dev.7
 ```
 
 A fresh clone builds with `make build` alone: ASDF compiles the vendored closure and `src/` into

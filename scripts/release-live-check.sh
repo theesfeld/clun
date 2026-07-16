@@ -7,6 +7,7 @@ version_file=${CLUN_RELEASE_VERSION_FILE:-$repo_root/src/version.lisp}
 gh_bin=${CLUN_GH_BIN:-gh}
 wait_seconds=${CLUN_RELEASE_WAIT_SECONDS:-0}
 poll_seconds=${CLUN_RELEASE_POLL_SECONDS:-30}
+expected_sha=${CLUN_RELEASE_EXPECTED_SHA:-${GITHUB_SHA:-}}
 
 fail() {
   printf 'release-live-check: %s\n' "$*" >&2
@@ -19,6 +20,10 @@ esac
 case $poll_seconds in
   ''|*[!0-9]*|0) fail "CLUN_RELEASE_POLL_SECONDS must be a positive integer" ;;
 esac
+if [ -n "$expected_sha" ]; then
+  printf '%s\n' "$expected_sha" | LC_ALL=C grep -Eq '^[0-9a-f]{40}$' ||
+    fail "CLUN_RELEASE_EXPECTED_SHA must be a full commit SHA"
+fi
 
 [ -f "$version_file" ] || fail "version file does not exist: $version_file"
 versions=$(sed -n 's/^(defparameter \*clun-version\* "\([^"]*\)".*/\1/p' "$version_file")
@@ -68,8 +73,8 @@ inspect_release() {
   : >"$query_error"
   if ! "$gh_bin" release view "$tag" \
     --repo "$repo" \
-    --json isDraft,isPrerelease,assets \
-    --jq '(if .isDraft then "draft" else "published" end) + "\t" + (.isPrerelease | tostring), (.assets[] | [.name, .state, (.size | tostring)] | @tsv)' \
+    --json isDraft,isImmutable,isPrerelease,assets \
+    --jq '(if .isDraft then "draft" else "published" end) + "\t" + (.isPrerelease | tostring) + "\t" + (.isImmutable | tostring), (.assets[] | [.name, .state, (.size | tostring)] | @tsv)' \
     >"$snapshot" 2>"$query_error"; then
     detail=$(sed -n '1p' "$query_error")
     if [ -n "$detail" ]; then
@@ -80,7 +85,7 @@ inspect_release() {
     return 1
   fi
 
-  IFS="$(printf '\t')" read -r release_state release_prerelease release_extra < "$snapshot"
+  IFS="$(printf '\t')" read -r release_state release_prerelease release_immutable release_extra < "$snapshot"
   [ -z "$release_extra" ] || {
     pending_reason="GitHub returned an invalid release status response"
     return 2
@@ -103,6 +108,17 @@ inspect_release() {
       return 2
       ;;
   esac
+  case $release_immutable in
+    true) ;;
+    false)
+      pending_reason="release is published but GitHub does not report it as immutable"
+      return 2
+      ;;
+    *)
+      pending_reason="GitHub returned an invalid immutable-release status"
+      return 2
+      ;;
+  esac
   version_without_build=${version%%+*}
   case $version_without_build in
     *-*) expected_prerelease=true ;;
@@ -111,6 +127,22 @@ inspect_release() {
   if [ "$release_prerelease" != "$expected_prerelease" ]; then
     pending_reason="release prerelease status is $release_prerelease; expected $expected_prerelease for $version"
     return 1
+  fi
+
+  if [ -n "$expected_sha" ]; then
+    if ! actual_sha=$("$gh_bin" api "repos/$repo/commits/$tag" --jq .sha 2>"$query_error"); then
+      detail=$(sed -n '1p' "$query_error")
+      pending_reason="tag commit query unavailable: ${detail:-unknown GitHub error}"
+      return 1
+    fi
+    printf '%s\n' "$actual_sha" | LC_ALL=C grep -Eq '^[0-9a-f]{40}$' || {
+      pending_reason="GitHub returned an invalid commit for $tag"
+      return 2
+    }
+    if [ "$actual_sha" != "$expected_sha" ]; then
+      pending_reason="tag $tag peels to $actual_sha; expected $expected_sha"
+      return 2
+    fi
   fi
 
   missing=
@@ -146,8 +178,8 @@ attempt=1
 
 while :; do
   if inspect_release; then
-    printf 'release-live-check: %s is published with all required assets in %s\n' \
-      "$tag" "$repo"
+    printf 'release-live-check: %s is published with all required assets%s in %s\n' \
+      "$tag" "${expected_sha:+ at $expected_sha}" "$repo"
     exit 0
   else
     inspect_status=$?

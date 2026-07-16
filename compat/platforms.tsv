@@ -1,0 +1,121 @@
+feature_id	target	support_state	evidence_ids	note
+cloud.s3	darwin-arm64	unsupported	-	Capability is not implemented.
+cloud.s3	darwin-x64	unsupported	-	Capability is not implemented.
+cloud.s3	linux-arm64	unsupported	-	Capability is not implemented.
+cloud.s3	linux-x64	unsupported	-	Capability is not implemented.
+data.yaml	darwin-arm64	unsupported	-	Capability is not implemented.
+data.yaml	darwin-x64	unsupported	-	Capability is not implemented.
+data.yaml	linux-arm64	unsupported	-	Capability is not implemented.
+data.yaml	linux-x64	unsupported	-	Capability is not implemented.
+database.redis	darwin-arm64	unsupported	-	Capability is not implemented.
+database.redis	darwin-x64	unsupported	-	Capability is not implemented.
+database.redis	linux-arm64	unsupported	-	Capability is not implemented.
+database.redis	linux-x64	unsupported	-	Capability is not implemented.
+database.sql-drivers	darwin-arm64	unsupported	-	Capability is not implemented.
+database.sql-drivers	darwin-x64	unsupported	-	Capability is not implemented.
+database.sql-drivers	linux-arm64	unsupported	-	Capability is not implemented.
+database.sql-drivers	linux-x64	unsupported	-	Capability is not implemented.
+filesystem.glob	darwin-arm64	unsupported	-	Capability is not implemented.
+filesystem.glob	darwin-x64	unsupported	-	Capability is not implemented.
+filesystem.glob	linux-arm64	unsupported	-	Capability is not implemented.
+filesystem.glob	linux-x64	unsupported	-	Capability is not implemented.
+language.jsx	darwin-arm64	unsupported	-	Capability is not implemented.
+language.jsx	darwin-x64	unsupported	-	Capability is not implemented.
+language.jsx	linux-arm64	unsupported	-	Capability is not implemented.
+language.jsx	linux-x64	unsupported	-	Capability is not implemented.
+language.typescript	darwin-arm64	unverified	ev.language.typescript.annotations.v1	Registered evidence is target-scoped; the feature remains incomplete.
+language.typescript	darwin-x64	unverified	ev.language.typescript.annotations.v1	Registered evidence is target-scoped; the feature remains incomplete.
+language.typescript	linux-arm64	unverified	ev.language.typescript.annotations.v1	Registered evidence is target-scoped; the feature remains incomplete.
+language.typescript	linux-x64	unverified	ev.language.typescript.annotations.v1	Registered evidence is target-scoped; the feature remains incomplete.
+package-manager.monorepo	darwin-arm64	unsupported	-	Capability is not implemented.
+package-manager.monorepo	darwin-x64	unsupported	-	Capability is not implemented.
+package-manager.monorepo	linux-arm64	unsupported	-	Capability is not implemented.
+package-manager.monorepo	linux-x64	unsupported	-	Capability is not implemented.
+package-manager.npm	darwin-arm64	unverified	ev.package-manager.npm.hermetic-install.v1	Registered evidence is target-scoped; the feature remains incomplete.
+package-manager.npm	darwin-x64	unverified	ev.package-manager.npm.hermetic-install.v1	Registered evidence is target-scoped; the feature remains incomplete.
+package-manager.npm	linux-arm64	unverified	ev.package-manager.npm.hermetic-install.v1	Registered evidence is target-scoped; the feature remains incomplete.
+package-manager.npm	linux-x64	unverified	ev.package-manager.npm.hermetic-install.v1	Registered evidence is target-scoped; the feature remains incomplete.
+runtime.loader-plugins	darwin-arm64	unsupported	-	Capability is not implemented.
+runtime.loader-plugins	darwin-x64	unsupported	-	Capability is not implemented.
+runtime.loader-plugins	linux-arm64	unsupported	-	Capability is not implemented.
+runtime.loader-plugins	linux-x64	unsupported	-	Capability is not implemented.
+runtime.native-addons	darwin-arm64	unsupported	-	Capability is excluded by the current purity contract.
+runtime.native-addons	darwin-x64	unsupported	-	Capability is excluded by the current purity contract.
+runtime.native-addons	linux-arm64	unsupported	-	Capability is excluded by the current purity contract.
+runtime.native-addons	linux-x64	unsupported	-	Capability is excluded by the current purity contract.
+runtime.node-compatibility	darwin-arm64	unverified	ev.runtime.node-compatibility.modules.v1	Registered evidence is target-scoped; the feature remains incomplete.
+runtime.node-compatibility	darwin-x64	unverified	ev.runtime.node-compatibility.modules.v1	Registered evidence is target-scoped; the feature remains incomplete.
+runtime.node-compatibility	linux-arm64	unverified	ev.runtime.node-compatibility.modules.v1	Registered evidence is target-scoped; the feature remains incomplete.
+runtime.node-compatibility	linux-x64	unverified	ev.runtime.node-compatibility.modules.v1	Registered evidence is target-scoped; the feature remains incomplete.
+runtime.web-standard-apis	darwin-arm64	unverified	ev.runtime.web-standard-apis.basic.v1,ev.runtime.web-standard-apis.fetch-suite.v1	Registered executable evidence is target-scoped; static suite evidence is trace-only.
+runtime.web-standard-apis	darwin-x64	unverified	ev.runtime.web-standard-apis.basic.v1,ev.runtime.web-standard-apis.fetch-suite.v1	Registered executable evidence is target-scoped; static suite evidence is trace-only.
+runtime.web-standard-apis	linux-arm64	unverified	ev.runtime.web-standard-apis.basic.v1,ev.runtime.web-standard-apis.fetch-suite.v1	Registered executable evidence is target-scoped; static suite evidence is trace-only.
+runtime.web-standard-apis	linux-x64	unverified	ev.runtime.web-standard-apis.basic.v1,ev.runtime.web-standard-apis.fetch-suite.v1	Registered executable evidence is target-scoped; static suite evidence is trace-only.
+security.encrypted-secrets	darwin-arm64	unsupported	-	Capability is not implemented.
+security.encrypted-secrets	darwin-x64	unsupported	-	Capability is not implemented.
+security.encrypted-secrets	linux-arm64	unsupported	-	Capability is not implemented.
+security.encrypted-secrets	linux-x64	unsupported	-	Capability is not implemented.
+security.password-hashing	darwin-arm64	unsupported	-	Capability is not implemented.
+security.password-hashing	darwin-x64	unsupported	-	Capability is not implemented.
+security.password-hashing	linux-arm64	unsupported	-	Capability is not implemented.
+security.password-hashing	linux-x64	unsupported	-	Capability is not implemented.
+server.http	darwin-arm64	unverified	ev.server.http.binary-e2e.v1,ev.server.http.server-suite.v1	Registered executable evidence is target-scoped; static suite evidence is trace-only.
+server.http	darwin-x64	unverified	ev.server.http.binary-e2e.v1,ev.server.http.server-suite.v1	Registered executable evidence is target-scoped; static suite evidence is trace-only.
+server.http	linux-arm64	unverified	ev.server.http.binary-e2e.v1,ev.server.http.server-suite.v1	Registered executable evidence is target-scoped; static suite evidence is trace-only.
+server.http	linux-x64	unverified	ev.server.http.binary-e2e.v1,ev.server.http.server-suite.v1	Registered executable evidence is target-scoped; static suite evidence is trace-only.
+server.router	darwin-arm64	unsupported	-	Capability is not implemented.
+server.router	darwin-x64	unsupported	-	Capability is not implemented.
+server.router	linux-arm64	unsupported	-	Capability is not implemented.
+server.router	linux-x64	unsupported	-	Capability is not implemented.
+server.websocket	darwin-arm64	unsupported	-	Capability is not implemented.
+server.websocket	darwin-x64	unsupported	-	Capability is not implemented.
+server.websocket	linux-arm64	unsupported	-	Capability is not implemented.
+server.websocket	linux-x64	unsupported	-	Capability is not implemented.
+text.string-width	darwin-arm64	unsupported	-	Capability is not implemented.
+text.string-width	darwin-x64	unsupported	-	Capability is not implemented.
+text.string-width	linux-arm64	unsupported	-	Capability is not implemented.
+text.string-width	linux-x64	unsupported	-	Capability is not implemented.
+tooling.bundler	darwin-arm64	unsupported	-	Capability is not implemented.
+tooling.bundler	darwin-x64	unsupported	-	Capability is not implemented.
+tooling.bundler	linux-arm64	unsupported	-	Capability is not implemented.
+tooling.bundler	linux-x64	unsupported	-	Capability is not implemented.
+tooling.formatter-linter	darwin-arm64	unsupported	-	Capability is not implemented.
+tooling.formatter-linter	darwin-x64	unsupported	-	Capability is not implemented.
+tooling.formatter-linter	linux-arm64	unsupported	-	Capability is not implemented.
+tooling.formatter-linter	linux-x64	unsupported	-	Capability is not implemented.
+tooling.frontend-dev-server	darwin-arm64	unsupported	-	Capability is not implemented.
+tooling.frontend-dev-server	darwin-x64	unsupported	-	Capability is not implemented.
+tooling.frontend-dev-server	linux-arm64	unsupported	-	Capability is not implemented.
+tooling.frontend-dev-server	linux-x64	unsupported	-	Capability is not implemented.
+tooling.hot-reload	darwin-arm64	unsupported	-	Capability is not implemented.
+tooling.hot-reload	darwin-x64	unsupported	-	Capability is not implemented.
+tooling.hot-reload	linux-arm64	unsupported	-	Capability is not implemented.
+tooling.hot-reload	linux-x64	unsupported	-	Capability is not implemented.
+tooling.shell	darwin-arm64	unsupported	-	Capability is not implemented.
+tooling.shell	darwin-x64	unsupported	-	Capability is not implemented.
+tooling.shell	linux-arm64	unsupported	-	Capability is not implemented.
+tooling.shell	linux-x64	unsupported	-	Capability is not implemented.
+tooling.single-file-executables	darwin-arm64	unsupported	-	Capability is not implemented.
+tooling.single-file-executables	darwin-x64	unsupported	-	Capability is not implemented.
+tooling.single-file-executables	linux-arm64	unsupported	-	Capability is not implemented.
+tooling.single-file-executables	linux-x64	unsupported	-	Capability is not implemented.
+tooling.test-runner	darwin-arm64	unverified	ev.tooling.test-runner.matchers.v1	Registered evidence is target-scoped; the feature remains incomplete.
+tooling.test-runner	darwin-x64	unverified	ev.tooling.test-runner.matchers.v1	Registered evidence is target-scoped; the feature remains incomplete.
+tooling.test-runner	linux-arm64	unverified	ev.tooling.test-runner.matchers.v1	Registered evidence is target-scoped; the feature remains incomplete.
+tooling.test-runner	linux-x64	unverified	ev.tooling.test-runner.matchers.v1	Registered evidence is target-scoped; the feature remains incomplete.
+utility.semver	darwin-arm64	unsupported	-	Capability is not implemented.
+utility.semver	darwin-x64	unsupported	-	Capability is not implemented.
+utility.semver	linux-arm64	unsupported	-	Capability is not implemented.
+utility.semver	linux-x64	unsupported	-	Capability is not implemented.
+web.cookies	darwin-arm64	unsupported	-	Capability is not implemented.
+web.cookies	darwin-x64	unsupported	-	Capability is not implemented.
+web.cookies	linux-arm64	unsupported	-	Capability is not implemented.
+web.cookies	linux-x64	unsupported	-	Capability is not implemented.
+web.csrf	darwin-arm64	unsupported	-	Capability is not implemented.
+web.csrf	darwin-x64	unsupported	-	Capability is not implemented.
+web.csrf	linux-arm64	unsupported	-	Capability is not implemented.
+web.csrf	linux-x64	unsupported	-	Capability is not implemented.
+web.css-color	darwin-arm64	unsupported	-	Capability is not implemented.
+web.css-color	darwin-x64	unsupported	-	Capability is not implemented.
+web.css-color	linux-arm64	unsupported	-	Capability is not implemented.
+web.css-color	linux-x64	unsupported	-	Capability is not implemented.

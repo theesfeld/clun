@@ -11,6 +11,7 @@ README="$ROOT/README.md"
 SITE="$ROOT/site"
 VERSION_FILE="$ROOT/src/version.lisp"
 STATE_FILE="$ROOT/STATE.md"
+RELEASE_LEDGER="$ROOT/compat/release.tsv"
 EXECUTION_REPORT="$ROOT/docs/conformance/test262-execution.md"
 BUN_PIN=c1076ce95e
 BUN_VERSION=1.4.0-dev
@@ -25,6 +26,7 @@ PHASE26_TITLE='Phase 26: Hardening, docs, release'
 PHASE26_LABEL='phase-26'
 PHASE26_MARKER='<!-- clun-canonical-phase:26 -->'
 PHASE26_HEADER='# Canonical status'
+PHASE26_PLAN_ANCHOR='phase-26--final-hardening-docs-and-release--deferred-to-the-end-deps-82--all-prior-phases'
 SEMVER_IDENTIFIER='(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)'
 SEMVER_PATTERN="^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(-${SEMVER_IDENTIFIER}(\\.${SEMVER_IDENTIFIER})*)?(\\+[0-9A-Za-z-]+(\\.[0-9A-Za-z-]+)*)?$"
 
@@ -48,10 +50,10 @@ verify_assigned_release_disposition() {
   body=$1
   phase=$2
   issue_number=$3
-  impact=$(sed -n 's/^\*\*SemVer impact:\*\*[[:space:]]*`\([^`]*\)`$/\1/p' "$body")
-  rationale=$(sed -n 's/^\*\*SemVer rationale:\*\*[[:space:]]*`\([^`]*\)`$/\1/p' "$body")
-  release_version=$(sed -n 's/^\*\*Release version:\*\*[[:space:]]*`\([^`]*\)`$/\1/p' "$body")
-  release_tag=$(sed -n 's/^\*\*Release tag:\*\*[[:space:]]*`\([^`]*\)`$/\1/p' "$body")
+  impact=$(sed -n 's/^\*\*SemVer impact:\*\*[[:space:]]*`\([^`]*\)`[[:space:]]*$/\1/p' "$body")
+  rationale=$(sed -n 's/^\*\*SemVer rationale:\*\*[[:space:]]*`\([^`]*\)`[[:space:]]*$/\1/p' "$body")
+  release_version=$(sed -n 's/^\*\*Release version:\*\*[[:space:]]*`\([^`]*\)`[[:space:]]*$/\1/p' "$body")
+  release_tag=$(sed -n 's/^\*\*Release tag:\*\*[[:space:]]*`\([^`]*\)`[[:space:]]*$/\1/p' "$body")
   case "$impact" in
     major|minor|patch|none) ;;
     *) fail "active Phase $phase issue #$issue_number has invalid SemVer impact: $impact" ;;
@@ -543,6 +545,13 @@ fetch_issue_body() (
   gh issue view "$issue_number" --repo "$repo" --json body --template '{{.body}}' > "$output"
 )
 
+fetch_issue_comments() (
+  repo=$1
+  issue_number=$2
+  output=$3
+  gh api --paginate "repos/$repo/issues/$issue_number/comments?per_page=100" --jq '.[].body' > "$output"
+)
+
 cached_issue_title() (
   issue_cache=$1
   issue_number=$2
@@ -678,37 +687,54 @@ verify_phase25b_reference() (
   repo=$1
   issue_cache=$2
   scratch=$3
-  readme_ref=$(extract_phase25b_public_ref "$README" "$repo") ||
-    fail "README.md must link the current Phase 25b issue beside one milestone marker"
-  site_ref=$(extract_phase25b_public_ref "$SITE/index.html" "$repo") ||
-    fail "site/index.html must link the current Phase 25b issue beside one milestone marker"
-  [ "$readme_ref" = "$site_ref" ] ||
-    fail "README and site point to different Phase 25b issue or milestone records"
-
-  IFS="$TAB" read -r issue_number milestone extra <<EOF
-$readme_ref
-EOF
-  [ -z "$extra" ] && [ -n "$issue_number" ] && [ -n "$milestone" ] ||
-    fail "could not parse the public Phase 25b reference"
-
   canonical_issue=$(find_issue "$issue_cache" 25b phase-25b)
   [ -n "$canonical_issue" ] || fail "no canonical phase-25b issue found"
-  [ "$canonical_issue" = "$issue_number" ] ||
-    fail "public Phase 25b link points to #$issue_number, canonical label/title identify #$canonical_issue"
+  issue_number=$canonical_issue
   issue_state=$(cached_issue_state "$issue_cache" "$issue_number") ||
     fail "could not read state for Phase 25b issue #$issue_number"
-  [ "$issue_state" = open ] ||
-    fail "Phase 25b issue #$issue_number must remain open until the 90% phase gate is complete"
 
   body="$scratch/phase-25b-body.md"
+  comments="$scratch/phase-25b-comments.md"
   fetch_issue_body "$repo" "$issue_number" "$body"
-  [ "$(grep -F -x -c '**Phase status:** `in-progress`' "$body" 2>/dev/null || :)" -eq 1 ] ||
-    fail "Phase 25b issue #$issue_number must record Phase status in-progress"
+  fetch_issue_comments "$repo" "$issue_number" "$comments"
+
+  if [ "$issue_state" = open ]; then
+    readme_ref=$(extract_phase25b_public_ref "$README" "$repo") ||
+      fail "README.md must link the current Phase 25b issue beside one milestone marker"
+    site_ref=$(extract_phase25b_public_ref "$SITE/index.html" "$repo") ||
+      fail "site/index.html must link the current Phase 25b issue beside one milestone marker"
+    [ "$readme_ref" = "$site_ref" ] ||
+      fail "README and site point to different Phase 25b issue or milestone records"
+
+    IFS="$TAB" read -r public_issue milestone extra <<EOF
+$readme_ref
+EOF
+    [ -z "$extra" ] && [ -n "$public_issue" ] && [ -n "$milestone" ] ||
+      fail "could not parse the public Phase 25b reference"
+    [ "$public_issue" = "$issue_number" ] ||
+      fail "public Phase 25b link points to #$public_issue, canonical label/title identify #$issue_number"
+  else
+    milestone=$(sed -n 's/^## Current milestone: m\([0-9][0-9]*\)$/\1/p' "$body")
+    milestone_count=$(printf '%s\n' "$milestone" |
+      awk 'NF { count++ } END { print count + 0 }')
+    [ "$milestone_count" -eq 1 ] ||
+      fail "closed Phase 25b issue #$issue_number must contain exactly one parseable current milestone heading"
+  fi
+
+  phase_status_count=$(grep -E -x -c '\*\*Phase status:\*\* `(in-progress|complete)`' \
+    "$body" 2>/dev/null || :)
+  [ "$phase_status_count" -eq 1 ] ||
+    fail "Phase 25b issue #$issue_number must record exactly one in-progress or complete Phase status"
+  phase_status=$(sed -n 's/^\*\*Phase status:\*\* `\([^`]*\)`$/\1/p' "$body")
+  case "$issue_state:$phase_status" in
+    open:in-progress|closed:complete) ;;
+    *) fail "Phase 25b issue #$issue_number state $issue_state disagrees with Phase status $phase_status" ;;
+  esac
   current_count=$(grep -E -x -c '## Current milestone: m[0-9]+' "$body" 2>/dev/null || :)
   [ "$current_count" -eq 1 ] ||
     fail "Phase 25b issue #$issue_number must contain exactly one current milestone heading"
   grep -F -x "## Current milestone: m$milestone" "$body" >/dev/null 2>&1 ||
-    fail "public Phase 25b milestone $milestone disagrees with issue #$issue_number"
+    fail "Phase 25b milestone $milestone disagrees with issue #$issue_number"
 
   source_versions=$(sed -n 's/^(defparameter \*clun-version\* "\([^"]*\)".*/\1/p' "$VERSION_FILE")
   source_version_count=$(printf '%s\n' "$source_versions" |
@@ -716,6 +742,10 @@ EOF
   [ "$source_version_count" -eq 1 ] ||
     fail "src/version.lisp must contain exactly one release version"
   source_version=$(printf '%s\n' "$source_versions" | sed -n '1p')
+  phase_release_version=$source_version
+  if [ "$issue_state" = closed ]; then
+    phase_release_version=0.1.0-dev.6
+  fi
   impact_line="**SemVer impact:** \`minor\`"
   impact_field_count=$(grep -E -c '^\*\*SemVer impact:\*\*' "$body" 2>/dev/null || :)
   [ "$impact_field_count" -eq 1 ] ||
@@ -733,14 +763,14 @@ EOF
       fail "Phase 25b issue #$issue_number must contain a nonempty SemVer rationale" ;;
   esac
 
-  release_line=$(printf "**Release version:** \`%s\`" "$source_version")
+  release_line=$(printf "**Release version:** \`%s\`" "$phase_release_version")
   release_field_count=$(grep -E -c '^\*\*Release version:\*\*' "$body" 2>/dev/null || :)
   [ "$release_field_count" -eq 1 ] ||
     fail "Phase 25b issue #$issue_number must contain exactly one release version field"
   [ "$(grep -F -x -c "$release_line" "$body" 2>/dev/null || :)" -eq 1 ] ||
     fail "Phase 25b issue #$issue_number must contain exactly: $release_line"
 
-  tag_line=$(printf "**Release tag:** \`v%s\`" "$source_version")
+  tag_line=$(printf "**Release tag:** \`v%s\`" "$phase_release_version")
   tag_field_count=$(grep -E -c '^\*\*Release tag:\*\*' "$body" 2>/dev/null || :)
   [ "$tag_field_count" -eq 1 ] ||
     fail "Phase 25b issue #$issue_number must contain exactly one release tag field"
@@ -816,6 +846,8 @@ EOF
 
   m6_candidate='This is local candidate evidence only. No dev.6 tag, release assets, Pages deployment, or hosted-installer result is claimed yet; dev.5 remains the last published release.'
   if grep -Fq "$m6_candidate" "$body"; then
+    [ "$issue_state" = open ] ||
+      fail "closed Phase 25b issue #$issue_number still contains candidate-only dev.6 evidence"
     for expected_text in \
       'Milestone-6 local release-candidate result:' \
       'Focused fail-closed m6 gate: 509 total = 407 m6 pass / 7 m11 fail / 95 Phase-37 fail / 0 skip / 0 timeout / 0 crash; m6 has no owned residual.' \
@@ -864,6 +896,26 @@ EOF
     done
   fi
 
+  handoff_marker='Post-publication handoff verified. Commit `b638e5f515892c351caf9763f8d358d1757b92fd` passed [Documentation 29494344246](https://github.com/theesfeld/clun/actions/runs/29494344246) and [Pages 29494344301](https://github.com/theesfeld/clun/actions/runs/29494344301).'
+  handoff_complete=0
+  if grep -Fq "$handoff_marker" "$comments"; then
+    handoff_complete=1
+  fi
+  if [ "$issue_state" = open ]; then
+    [ "$handoff_complete" -eq 0 ] ||
+      fail "Phase 25b issue #$issue_number must be closed after completed dev.6 publication and handoff"
+  else
+    [ "$handoff_complete" -eq 1 ] ||
+      fail "closed Phase 25b issue #$issue_number is missing the exact dev.6 handoff workflow evidence"
+    for expected_text in \
+      'The hosted page reports `v0.1.0-dev.6` as published, contains no release-candidate marker, points to Phase 27, and records Phase 26 deferred until after Phase 82.' \
+      'Phase 25b met 25,461 / 28,163 = 90.405852%, preserved the fixed denominator/pass-list contract, and has complete release/assets/installer evidence.' \
+      'Closing as completed; Phase 27 continues in #1.'; do
+      grep -Fq "$expected_text" "$comments" ||
+        fail "closed Phase 25b issue #$issue_number is missing handoff evidence: $expected_text"
+    done
+  fi
+
   m5_candidate='This is local candidate evidence only. No dev.5 tag, release assets, Pages deployment, or hosted-installer result is claimed yet; dev.4 remains the last published release.'
   if grep -Fq "$m5_candidate" "$body"; then
     for expected_text in \
@@ -890,14 +942,16 @@ EOF
   fi
 
   canonical_url="https://github.com/$repo/issues/$issue_number"
-  [ "$(grep -F -x -c "**Canonical issue:** $canonical_url" "$STATE_FILE" 2>/dev/null || :)" -eq 1 ] ||
-    fail "STATE.md must name the exact canonical Phase 25b issue URL"
-  state_milestone_line=$(printf '**Current Phase 25b milestone:** `m%s`' "$milestone")
-  [ "$(grep -F -x -c "$state_milestone_line" "$STATE_FILE" 2>/dev/null || :)" -eq 1 ] ||
-    fail "STATE.md current Phase 25b milestone disagrees with issue #$issue_number"
+  if [ "$issue_state" = open ]; then
+    [ "$(grep -F -x -c "**Canonical issue:** $canonical_url" "$STATE_FILE" 2>/dev/null || :)" -eq 1 ] ||
+      fail "STATE.md must name the exact canonical Phase 25b issue URL"
+    state_milestone_line=$(printf '**Current Phase 25b milestone:** `m%s`' "$milestone")
+    [ "$(grep -F -x -c "$state_milestone_line" "$STATE_FILE" 2>/dev/null || :)" -eq 1 ] ||
+      fail "STATE.md current Phase 25b milestone disagrees with issue #$issue_number"
+  fi
 
-  printf 'roadmap: Phase 25b public marker matches canonical issue #%s (m%s, v%s)\n' \
-    "$issue_number" "$milestone" "$source_version"
+  printf 'roadmap: Phase 25b public marker matches canonical %s issue #%s (m%s, v%s)\n' \
+    "$issue_state" "$issue_number" "$milestone" "$phase_release_version"
 )
 
 verify_phase26_issue() (
@@ -932,8 +986,7 @@ verify_phase26_issue() (
   phase_lines=$(grep -E -n '^### Phase 26([^0-9]|$)' "$PLAN" 2>/dev/null || :)
   phase_count=$(printf '%s\n' "$phase_lines" | awk 'NF { count++ } END { print count + 0 }')
   [ "$phase_count" -eq 1 ] || fail "PLAN.md must contain exactly one Phase 26 heading"
-  phase_line=$(printf '%s\n' "$phase_lines" | cut -d: -f1)
-  plan_reference="**Technical contract:** [PLAN.md Phase 26](https://github.com/$repo/blob/master/PLAN.md#L$phase_line)"
+  plan_reference="**Technical contract:** [PLAN.md Phase 26](https://github.com/$repo/blob/master/PLAN.md#$PHASE26_PLAN_ANCHOR)"
   reference_count=$(grep -F -x -c "$plan_reference" "$body" 2>/dev/null || :)
   [ "$reference_count" -eq 1 ] ||
     fail "Phase 26 issue #$issue_number must contain the exact master PLAN.md Phase 26 link"
@@ -956,6 +1009,13 @@ verify_live_roadmap() {
 
   issue_cache="$verify_dir/issues.tsv"
   fetch_issue_cache "$repo" "$issue_cache"
+  verify_phase25b_reference "$repo" "$issue_cache" "$verify_dir"
+  active_phase=$(awk -F "$TAB" 'NR == 2 { print $8 }' "$RELEASE_LEDGER")
+  active_issue=$(awk -F "$TAB" 'NR == 2 { print $9 }' "$RELEASE_LEDGER")
+  case "$active_phase:$active_issue" in
+    *[!0-9:]*|:*|*:|*::* ) fail "compat/release.tsv has an invalid active phase/issue" ;;
+  esac
+  active_seen=0
   verified=0
   while IFS="$TAB" read -r phase slug title track extra; do
     [ "$phase" = phase ] && continue
@@ -987,13 +1047,22 @@ verify_live_roadmap() {
     cmp -s "$expected_contract" "$actual_contract" ||
       fail "Phase $phase issue #$issue_number technical contract differs from PLAN.md/docs/roadmap.tsv"
     verify_generated_live_sections "$body" "$phase" "$issue_number" "$issue_state"
+    if [ "$phase" = "$active_phase" ]; then
+      [ "$issue_number" = "$active_issue" ] ||
+        fail "active release points to issue #$active_issue, but Phase $phase canonical issue is #$issue_number"
+      [ "$issue_state" = open ] || fail "active Phase $phase issue #$issue_number must remain open"
+      grep -F -x '**Phase status:** `in-progress`' "$body" >/dev/null 2>&1 ||
+        fail "active Phase $phase issue #$issue_number must record Phase status in-progress"
+      active_seen=$((active_seen + 1))
+    fi
     verified=$((verified + 1))
   done < "$ROADMAP"
 
   [ "$verified" -eq "$PHASE_COUNT" ] ||
     fail "expected to verify $PHASE_COUNT live roadmap issues, verified $verified"
+  [ "$active_seen" -eq 1 ] ||
+    fail "active release phase $active_phase is not represented exactly once in the live roadmap"
   verify_phase26_issue "$repo" "$issue_cache" "$verify_dir"
-  verify_phase25b_reference "$repo" "$issue_cache" "$verify_dir"
   printf 'roadmap: verified %s generated phase issues, Phase 26, and exact live contracts in %s\n' \
     "$verified" "$repo"
 

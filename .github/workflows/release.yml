@@ -17,6 +17,7 @@ jobs:
     name: Verify published claims
     runs-on: ubuntu-24.04
     permissions:
+      actions: read
       contents: read
       issues: read
     steps:
@@ -33,6 +34,24 @@ jobs:
           tagged_commit="$(git rev-list -n 1 "$GITHUB_REF_NAME")"
           git fetch --no-tags origin master
           git merge-base --is-ancestor "$tagged_commit" origin/master
+          master_runs="$RUNNER_TEMP/exact-master-runs.json"
+          gh api \
+            "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$tagged_commit&event=push&per_page=100" \
+            > "$master_runs"
+          for workflow in CI Documentation Compatibility; do
+            jq -e --arg workflow "$workflow" --arg sha "$tagged_commit" '
+              .workflow_runs | any(
+                .name == $workflow and
+                .head_sha == $sha and
+                .head_branch == "master" and
+                .status == "completed" and
+                .conclusion == "success"
+              )
+            ' "$master_runs" >/dev/null || {
+              echo "$workflow has no successful exact-SHA master run for $tagged_commit" >&2
+              exit 1
+            }
+          done
           release_json="$RUNNER_TEMP/existing-release.json"
           release_error="$RUNNER_TEMP/existing-release.error"
           if gh api \
@@ -143,6 +162,11 @@ jobs:
 
       - name: Build
         run: make build
+
+      - name: Run compatibility evidence
+        env:
+          CLUN_COMPAT_TARGET: ${{ matrix.target }}
+        run: sh scripts/compat.sh run all
 
       - name: Smoke test
         run: |
@@ -346,5 +370,14 @@ jobs:
             --verify-tag \
             "${release_flags[@]}" \
             --generate-notes \
+            --notes-file docs/releases/current.md \
             --title "Clun $GITHUB_REF_NAME" \
             dist/clun-*.tar.gz dist/checksums.txt
+
+          test "$(gh release view "$GITHUB_REF_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --json isImmutable \
+            --jq .isImmutable)" = true || {
+            echo "published release $GITHUB_REF_NAME is not immutable" >&2
+            exit 1
+          }

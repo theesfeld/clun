@@ -3,7 +3,7 @@
 set -eu
 
 repo=${CLUN_GITHUB_REPO:-theesfeld/clun}
-requested_version=${CLUN_VERSION:-v0.1.0-dev.6}
+requested_version=${CLUN_VERSION:-v0.1.0-dev.7}
 install_root=${CLUN_INSTALL:-"$HOME/.clun"}
 no_modify_path=${CLUN_NO_MODIFY_PATH:-0}
 
@@ -92,14 +92,10 @@ esac
 target="$os-$arch"
 asset="clun-$target.tar.gz"
 
-if [ "$requested_version" != latest ] && ! is_release_tag "$requested_version"; then
-  fail "CLUN_VERSION must be 'latest' or v-prefixed strict SemVer"
-fi
+is_release_tag "$requested_version" || fail "CLUN_VERSION must be v-prefixed strict SemVer"
 
 if [ -n "${CLUN_DOWNLOAD_BASE:-}" ]; then
   download_base=${CLUN_DOWNLOAD_BASE%/}
-elif [ "$requested_version" = latest ]; then
-  download_base="https://github.com/$repo/releases/latest/download"
 else
   download_base="https://github.com/$repo/releases/download/$requested_version"
 fi
@@ -158,7 +154,7 @@ version_line_count=$(awk 'END { print NR + 0 }' "$package_dir/VERSION")
 [ "$version_line_count" -eq 1 ] || fail "release archive contains an invalid VERSION file"
 release_version=$(sed -n '1{s/\r$//;p;}' "$package_dir/VERSION")
 is_semver "$release_version" || fail "release archive version is not strict SemVer"
-if [ -z "${CLUN_DOWNLOAD_BASE:-}" ] && [ "$requested_version" != latest ]; then
+if [ -z "${CLUN_DOWNLOAD_BASE:-}" ]; then
   expected_release_version=${requested_version#v}
   [ "$release_version" = "$expected_release_version" ] ||
     fail "release archive version $release_version does not match requested tag $requested_version"

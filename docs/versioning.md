@@ -6,7 +6,7 @@ completed unit of work, not the number of commits or pushes.
 
 ## Impact classification
 
-Classify the completed unit before it is pushed:
+Classify the completed unit before it is merged:
 
 - `major`: an incompatible change to a public interface or documented behavior;
 - `minor`: backward-compatible public functionality;
@@ -38,12 +38,15 @@ resource does not exist with a 404 response:
 0.1.0-dev.4
 0.1.0-dev.5
 0.1.0-dev.6
+0.1.0-dev.7
 ```
 
 Phase 25b is the compatibility program for the planned `0.1.0` release. Its first behavioral
 milestone is `0.1.0-dev.1`; later Phase 25b release-bearing milestones advance the `dev.N`
 sequence. Phase 26 is deferred until after Phase 82; its final version and tag are assigned from the
 then-current release train and actual completed impact rather than the former `0.1.0` assumption.
+Phase 27 continues the selected train with the compatibility evidence and generated-release tooling
+unit recorded as `0.1.0-dev.7` / `v0.1.0-dev.7`.
 
 ## Canonical record
 
@@ -61,16 +64,17 @@ has explicitly been split into its own issue.
 
 ## Synchronized surfaces
 
-For a release-bearing unit, all of these must agree before the commit is pushed:
+For a release-bearing unit, all of these must agree before the PR is merged:
 
 - `src/version.lisp` full SemVer;
 - `clun.asd` SemVer core;
 - version assertions in the test suite;
 - `site/install` default tag;
+- `compat/release.tsv` publication state and exact tagged commit once published;
 - `README.md` and `site/index.html` release claims;
 - generated conformance evidence and the canonical issue.
 
-Before every push, run
+Before every release-bearing merge, run
 `BASE_SHA=<comparison-base> HEAD_SHA=<candidate-head> make version-transition-check`, with the two
 commits bounding exactly the completed unit being published. The checker compares the base and
 candidate source versions, changed-path impact, and canonical issue disposition, and rejects reuse
@@ -78,23 +82,36 @@ of a version already published by a local tag, remote tag, or GitHub release. In
 defaults to `GITHUB_SHA`, but `BASE_SHA` is required.
 
 Run `make public-claims-check` and `make roadmap-verify-live` to enforce the remaining local and live
-portions of this contract. The Pages workflow must also confirm that the matching GitHub release and
-all five required assets exist before deploying an installer that targets the version.
+portions of this contract. A candidate Pages run validates claims but does not deploy. Once the ledger is
+published, Pages must confirm that the matching tag peels to the recorded release commit and that all five
+required assets exist before deploying an installer that targets the version.
 
 ## Publication order
 
+Process constitution: `~/.config/agents/AGENTS.md` (branch → PR → squash-merge into `master`).
+Do not land release-bearing work by pushing a feature commit straight to `origin/master`.
+
 1. Complete the bounded milestone and every required test, conformance, review, and public-claim
-   gate.
-2. Push the green commit to `origin/master` and wait for required branch checks. The release-dependent
-   Pages job may remain pending while it waits for the tag assets and must not itself be a branch-protection
-   prerequisite for creating that tag.
-3. Create a new immutable annotated `v<version>` tag on that exact commit and push it. Never move or
-   reuse a tag.
-4. Wait for the release workflow to publish all four native archives and `checksums.txt`.
-5. Wait for the Pages workflow to verify that release and deploy the matching site/installer.
-6. Verify checksums and run `https://clun.sh/install` against the published release on a supported
+   gate on a **topic branch**.
+2. Open a PR into `master`. Wait for exact-commit CI, Documentation, and Compatibility workflows on
+   the PR head (and again on the merge commit as required). Candidate Pages runs validate without
+   deploying and are not a tag prerequisite. Squash-merge only when gates are green.
+3. Create a new immutable annotated `v<version>` tag on the **merge commit** on `master` and push it.
+   Never move or reuse a tag. The release workflow independently requires those three successful
+   exact-SHA master runs. Repository-level GitHub release immutability is enabled; `gh release create`
+   creates a draft, attaches every asset, and publishes only after upload. Publication locks the
+   release assets and associated tag. Active no-bypass ruleset `19048471` separately permits initial
+   `refs/tags/v*` creation but rejects every update, non-fast-forward move, and deletion, including
+   during the build-to-publication window.
+4. Wait for the release workflow to publish all four native archives and `checksums.txt`, and require GitHub
+   to report the resulting release as immutable.
+5. Change the release ledger from `candidate`/`pending` to `published` plus the exact tagged commit, regenerate
+   README/site/release notes, record this evidence-only transition, and land it via PR (or a follow-up
+   PR) without changing the version.
+6. Wait for Pages to verify that exact tag commit and its assets, then deploy the matching site/installer.
+7. Verify checksums and run `https://clun.sh/install` against the published release on a supported
    system.
-7. Record commit, workflow, tag, assets, checksum, installer, and Pages evidence in the canonical
+8. Record commit, workflow, tag, assets, checksum, installer, and Pages evidence in the canonical
    issue.
 
 Phase 25b milestone 3 added backward-compatible shared iterator-record operations, lazy
@@ -153,5 +170,13 @@ downloads matched `checksums.txt`: darwin-arm64
 `243dfc96bd5a163707c982bfe61d6054a784fe9bbd52bb72b6436d4ba9774935`. Pages `29488866091` succeeded
 for the exact candidate, and an isolated hosted installation reported `clun 0.1.0-dev.6`. The
 post-publication handoff has impact `none`; source and installer remain dev.6 and no new tag is created.
-Only this handoff commit's own Pages verification remains before Phase 25b closes and Phase 27 begins.
+The handoff commit's CI, Documentation, and Pages runs passed; issue #57 is closed and Phase 27 is current.
 Phase 26 is deferred until after Phase 82 and will be re-baselined at entry.
+
+Phase 27 adds backward-compatible project tooling: a canonical compatibility/evidence ledger, stable feature
+IDs and ownership, shipped-binary evidence commands, deterministic README/site/release-note generation,
+immutable benchmark manifests, and a four-platform compatibility workflow. Its impact is `minor` because
+these are new supported developer and release interfaces within the selected
+`0.1.0` prerelease train. The synchronized candidate is `0.1.0-dev.7` / `v0.1.0-dev.7`; the ASDF core
+remains `0.1.0`, and `v0.1.0-dev.6` remains the latest published prerelease until the dev.7 release gate
+finishes.

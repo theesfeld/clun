@@ -19,11 +19,13 @@
     <a class="skip-link" href="#main">Skip to content</a>
 
     <div class="announcement">
-      <a href="https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.6">
-        <span>Available now</span>
-        v0.1.0-dev.6 for Linux and macOS
-        <span aria-hidden="true">-&gt;</span>
-      </a>
+<!-- clun-generated:release:begin -->
+<a href="https://github.com/theesfeld/clun/issues/1">
+  <span>In development</span>
+  v0.1.0-dev.7 / Phase 27
+  <span aria-hidden="true">-&gt;</span>
+</a>
+<!-- clun-generated:release:end -->
     </div>
 
     <header class="site-header">
@@ -53,8 +55,10 @@
           <div class="hero-mark-wrap">
             <img class="hero-mark" src="assets/clun.jpg" alt="Clun mascot wearing a Lisp helmet" width="250" height="250">
           </div>
-          <p class="eyebrow"><span class="status-dot" aria-hidden="true"></span> v0.1.0-dev.6 / pre-alpha</p>
-          <h1>Clun is JavaScript tooling,<br>rewritten in pure Common Lisp.</h1>
+<!-- clun-generated:version:begin -->
+<p class="eyebrow"><span class="status-dot" aria-hidden="true"></span> v0.1.0-dev.7 release candidate / pre-alpha</p>
+<!-- clun-generated:version:end -->
+          <h1>Clun is JavaScript tooling,<br> rewritten in pure Common Lisp.</h1>
           <p class="hero-copy">
             A from-scratch JavaScript engine with TypeScript stripping, a package manager,
             test runner, HTTP server, and runtime APIs. v0.1 puts correctness and purity first;
@@ -64,7 +68,7 @@
           <div class="installer" aria-labelledby="install-title">
             <div class="installer-head">
               <div>
-                <span class="installer-kicker">Linux + macOS 13+ / x64 + arm64</span>
+                <span class="installer-kicker">Linux + macOS / x64 + arm64</span>
                 <h2 id="install-title">Install Clun</h2>
               </div>
               <a href="install">View shell script</a>
@@ -81,6 +85,11 @@
             </p>
           </div>
 
+        </div>
+      </section>
+
+      <section class="status-band section-band" aria-label="Project status and verification evidence">
+        <div class="shell status-shell">
           <dl class="hero-facts" tabindex="0" role="region" aria-label="Project facts">
             <div><dt>Implementation</dt><dd>Pure Common Lisp</dd></div>
             <div><dt>Curated test262 pass list</dt><dd>25,461 pass</dd></div>
@@ -104,10 +113,11 @@
             <a href="https://github.com/theesfeld/clun/issues/57">Phase 25b milestone 6</a> is published
             as <a href="https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.6">v0.1.0-dev.6</a>.
             CI, Documentation, all four native archives and checksums, the exact-candidate Pages deployment,
-            and the hosted installer are verified. Phase 25b's runtime and release scope is complete; only
-            this evidence-only handoff commit's own Pages verification remains before issue #57 closes and
-            Phase 27 begins. Phase 26 is deferred until after Phase 82 and will be re-baselined for the
-            system state at that time.
+            and the hosted installer are verified. Phase 25b and its handoff are closed.
+<!-- clun-generated:phase-status:begin -->
+Phase 27 is active: <a href="https://github.com/theesfeld/clun/issues/1">Compatibility evidence ledger and release-doc automation in issue #1</a>.
+Phase 26 remains deferred until after Phase 82 and will be re-baselined for the system state at that time.
+<!-- clun-generated:phase-status:end -->
             The issue is the canonical live record; <a href="https://github.com/theesfeld/clun/blob/master/PLAN.md">PLAN</a>
             is the technical contract, and <a href="https://github.com/theesfeld/clun/blob/master/STATE.md">STATE</a>
             is the local resume checklist.
@@ -330,270 +340,272 @@ Clun.write(file, <span class="tok-str">"hello from Clun\n"</span>)
               <h2>The gaps stay in the table.</h2>
             </div>
             <p>
-              This follows the stable Bun 1.3.14 runtime feature matrix and adds Clun. It is a
-              current capability snapshot, not a speed comparison; Clun cells reflect the
-              repository's current tested scope. The engineering roadmap separately audits Bun
-              source commit <code>c1076ce95e</code> (<code>1.4.0-dev</code>) for newer upstream work.
-              Linked phase labels are planned acceptance gates, not capabilities available today.
+<!-- clun-generated:compatibility-intro:begin -->
+This follows the stable Bun 1.3.14 runtime feature matrix and adds Clun. It is a
+current capability snapshot, not a speed comparison; Clun cells reflect the
+repository's current tested scope. The engineering roadmap separately audits Bun
+source commit <code>c1076ce95e</code> (<code>1.4.0-dev</code>) for newer upstream work.
+Linked phase labels are planned acceptance gates, not capabilities available today.
+<!-- clun-generated:compatibility-intro:end -->
             </p>
           </div>
 
           <div class="table-wrap" tabindex="0" role="region" aria-label="Clun, Bun, Node.js, and Deno capability comparison table">
-            <table class="compat-table">
-              <thead>
-                <tr>
-                  <th scope="col">Capability</th>
-                  <th scope="col" class="clun-col"><a href="https://github.com/theesfeld/clun">Clun</a><span>0.1.0-dev.6 / pre-alpha</span></th>
-                  <th scope="col"><a href="https://bun.sh/">Bun</a><span>1.3.14 / toolkit</span></th>
-                  <th scope="col"><a href="https://nodejs.org/">Node.js</a><span>26.5.0 / current</span></th>
-                  <th scope="col"><a href="https://deno.com/">Deno</a><span>2.9.3 / runtime</span></th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr class="compare-group">
-                  <th scope="rowgroup" colspan="5"><strong>Built-in core features</strong><span>Essential runtime capabilities</span></th>
-                </tr>
-                <tr>
-                  <th scope="row"><strong>Node.js compatibility</strong><span>Run code written for Node.js</span></th>
-                  <td class="clun-col"><b class="state partial">Partial</b> selected globals and module subsets<span class="phase-links" data-roadmap-phase="47"><span>Phases</span> <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-42">42</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-43">43</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-44">44</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-45">45</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-46">46</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-47">47</a></span></td>
-                  <td><b class="state partial">Partial</b> broad compatibility; still an active goal</td>
-                  <td><b class="state yes">Yes</b> reference runtime</td>
-                  <td><b class="state partial">Partial</b> targets Node.js 26 compatibility</td>
-                </tr>
-                <tr>
-                  <th scope="row"><strong>Web Standard APIs</strong><span><code>fetch</code>, URL, events, headers, and related APIs</span></th>
-                  <td class="clun-col"><b class="state partial">Partial</b> buffered fetch and a scoped Web API surface<a class="phase-link" data-roadmap-phase="38" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-38">Phase 38</a></td>
-                  <td><b class="state yes">Yes</b> broad WebCore-backed surface</td>
-                  <td><b class="state yes">Yes</b> broad standards surface</td>
-                  <td><b class="state yes">Yes</b> standards-first runtime surface</td>
-                </tr>
-                <tr>
-                  <th scope="row"><strong>Native addons</strong><span>N-API, FFI, or native C/C++ modules</span></th>
-                  <td class="clun-col"><b class="state no">No</b> excluded by the current purity contract<a class="phase-link" data-roadmap-phase="48" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-48">Phase 48</a></td>
-                  <td><b class="state yes">Yes</b> FFI, N-API, and partial V8 C++ API</td>
-                  <td><b class="state yes">Yes</b> stable Node-API</td>
-                  <td><b class="state yes">Yes</b> Node-API and FFI</td>
-                </tr>
-                <tr>
-                  <th scope="row"><strong>TypeScript</strong><span>Execute TypeScript without a separate build</span></th>
-                  <td class="clun-col"><b class="state partial">Partial</b> erasable syntax stripping only<a class="phase-link" data-roadmap-phase="39" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-39">Phase 39</a></td>
-                  <td><b class="state yes">Yes</b> first-class transpilation</td>
-                  <td><b class="state partial">Partial</b> erasable syntax stripping</td>
-                  <td><b class="state yes">Yes</b> execution and type checking</td>
-                </tr>
-                <tr>
-                  <th scope="row"><strong>JSX</strong><span>Execute JSX without external transformation</span></th>
-                  <td class="clun-col"><b class="state no">No</b> not included in the v0.1 scope<a class="phase-link" data-roadmap-phase="40" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-40">Phase 40</a></td>
-                  <td><b class="state yes">Yes</b> built in</td>
-                  <td><b class="state no">No</b> requires a transformer</td>
-                  <td><b class="state yes">Yes</b> built in</td>
-                </tr>
-                <tr>
-                  <th scope="row"><strong>Module loader plugins</strong><span>Custom import and require loaders</span></th>
-                  <td class="clun-col"><b class="state no">No</b> fixed loader surface<a class="phase-link" data-roadmap-phase="41" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-41">Phase 41</a></td>
-                  <td><b class="state yes">Yes</b> <code>Bun.plugin</code></td>
-                  <td><b class="state partial">Partial</b> server-side loader APIs</td>
-                  <td><b class="state yes">Yes</b> synchronous <code>node:module</code> hooks</td>
-                </tr>
-              </tbody>
-              <tbody>
-                <tr class="compare-group">
-                  <th scope="rowgroup" colspan="5"><strong>Built-in APIs</strong><span>Performance and native APIs intended for application code</span></th>
-                </tr>
-                <tr>
-                  <th scope="row"><strong>SQL database drivers</strong><span>PostgreSQL, MySQL, and SQLite</span></th>
-                  <td class="clun-col"><b class="state no">No</b><span class="phase-links" data-roadmap-phase="57"><span>Phases</span> <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-55">55</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-56">56</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-57">57</a></span></td>
-                  <td><b class="state yes">Yes</b> unified built-in API</td>
-                  <td><b class="state partial">Partial</b> built-in SQLite through <code>node:sqlite</code></td>
-                  <td><b class="state partial">Partial</b> SQLite through <code>node:sqlite</code></td>
-                </tr>
-                <tr>
-                  <th scope="row"><strong>S3 cloud storage</strong><span>First-party S3-compatible client</span></th>
-                  <td class="clun-col"><b class="state no">No</b><a class="phase-link" data-roadmap-phase="53" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-53">Phase 53</a></td>
-                  <td><b class="state yes">Yes</b> <code>Bun.s3</code></td>
-                  <td><b class="state no">No</b> use ecosystem packages</td>
-                  <td><b class="state no">No</b> use ecosystem packages</td>
-                </tr>
-                <tr>
-                  <th scope="row"><strong>Redis client</strong><span>First-party Redis API</span></th>
-                  <td class="clun-col"><b class="state no">No</b><a class="phase-link" data-roadmap-phase="54" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-54">Phase 54</a></td>
-                  <td><b class="state yes">Yes</b> built in with Pub/Sub</td>
-                  <td><b class="state no">No</b> use ecosystem packages</td>
-                  <td><b class="state no">No</b> use ecosystem packages</td>
-                </tr>
-                <tr>
-                  <th scope="row"><strong>WebSocket server</strong><span>First-party server with connection handling and Pub/Sub</span></th>
-                  <td class="clun-col"><b class="state no">No</b> no WebSocket implementation<a class="phase-link" data-roadmap-phase="51" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-51">Phase 51</a></td>
-                  <td><b class="state yes">Yes</b> through <code>Bun.serve</code></td>
-                  <td><b class="state no">No</b> client API only</td>
-                  <td><b class="state partial">Partial</b> server API without built-in Pub/Sub</td>
-                </tr>
-                <tr>
-                  <th scope="row"><strong>HTTP server</strong><span>First-party server API</span></th>
-                  <td class="clun-col"><b class="state partial">Partial</b> HTTP/1.1 with buffered bodies<a class="phase-link" data-roadmap-phase="49" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-49">Phase 49</a></td>
-                  <td><b class="state yes">Yes</b> <code>Bun.serve</code></td>
-                  <td><b class="state yes">Yes</b> <code>node:http</code> and <code>node:http2</code></td>
-                  <td><b class="state yes">Yes</b> <code>Deno.serve</code></td>
-                </tr>
-                <tr>
-                  <th scope="row"><strong>HTTP router</strong><span>Dynamic routes in the first-party server</span></th>
-                  <td class="clun-col"><b class="state no">No</b> supply one in the handler<a class="phase-link" data-roadmap-phase="50" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-50">Phase 50</a></td>
-                  <td><b class="state yes">Yes</b> routes in <code>Bun.serve</code></td>
-                  <td><b class="state no">No</b> use a framework</td>
-                  <td><b class="state no">No</b> use a framework</td>
-                </tr>
-                <tr>
-                  <th scope="row"><strong>Single-file executables</strong><span>Compile an application into a distributable executable</span></th>
-                  <td class="clun-col"><b class="state no">No</b> Clun ships a runtime executable only<span class="phase-links" data-roadmap-phase="77"><span>Phases</span> <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-52">52</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-77">77</a></span></td>
-                  <td><b class="state yes">Yes</b> cross-compilation and code signing</td>
-                  <td><b class="state partial">Partial</b> multi-step SEA workflow</td>
-                  <td><b class="state yes">Yes</b> <code>deno compile</code> with assets and cross-compilation</td>
-                </tr>
-                <tr>
-                  <th scope="row"><strong>YAML</strong><span>Built-in parsing or module imports</span></th>
-                  <td class="clun-col"><b class="state no">No</b><a class="phase-link" data-roadmap-phase="31" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-31">Phase 31</a></td>
-                  <td><b class="state yes">Yes</b> API and file imports</td>
-                  <td><b class="state no">No</b></td>
-                  <td><b class="state no">No</b> use the standard library</td>
-                </tr>
-                <tr>
-                  <th scope="row"><strong>Cookies API</strong><span>Map-like request cookie handling</span></th>
-                  <td class="clun-col"><b class="state no">No</b><a class="phase-link" data-roadmap-phase="32" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-32">Phase 32</a></td>
-                  <td><b class="state yes">Yes</b> request cookie map</td>
-                  <td><b class="state no">No</b></td>
-                  <td><b class="state no">No</b> use the standard library</td>
-                </tr>
-                <tr>
-                  <th scope="row"><strong>Encrypted secrets storage</strong><span>Operating-system keychain integration</span></th>
-                  <td class="clun-col"><b class="state no">No</b><a class="phase-link" data-roadmap-phase="58" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-58">Phase 58</a></td>
-                  <td><b class="state yes">Yes</b> <code>Bun.secrets</code></td>
-                  <td><b class="state no">No</b></td>
-                  <td><b class="state no">No</b></td>
-                </tr>
-              </tbody>
-              <tbody>
-                <tr class="compare-group">
-                  <th scope="rowgroup" colspan="5"><strong>Built-in tooling</strong><span>Developer workflow available from the primary command</span></th>
-                </tr>
-                <tr>
-                  <th scope="row"><strong>npm package management</strong><span>Install, manage, and publish npm-compatible dependencies</span></th>
-                  <td class="clun-col"><b class="state partial">Partial</b> fixture-tested; public npm is blocked by TLS interop<span class="phase-links" data-roadmap-phase="61"><span>Phases</span> <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-28">28</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-59">59</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-60">60</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-61">61</a></span></td>
-                  <td><b class="state yes">Yes</b> <code>bun install</code></td>
-                  <td><b class="state separate">Separate</b> npm ships with Node.js installers</td>
-                  <td><b class="state partial">Partial</b> installs npm projects; publishing is JSR-oriented</td>
-                </tr>
-                <tr>
-                  <th scope="row"><strong>Bundler</strong><span>Production frontend and server bundles</span></th>
-                  <td class="clun-col"><b class="state no">No</b> not included in the v0.1 scope<span class="phase-links" data-roadmap-phase="77"><span>Phases</span> <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-62">62</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-63">63</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-64">64</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-77">77</a></span></td>
-                  <td><b class="state yes">Yes</b> <code>Bun.build</code></td>
-                  <td><b class="state no">No</b> use ecosystem tooling</td>
-                  <td><b class="state partial">Partial</b> <code>deno bundle</code> is experimental</td>
-                </tr>
-                <tr>
-                  <th scope="row"><strong>Cross-platform shell API</strong><span>Shell scripting from application code</span></th>
-                  <td class="clun-col"><b class="state no">No</b> spawn and package scripts only<a class="phase-link" data-roadmap-phase="65" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-65">Phase 65</a></td>
-                  <td><b class="state yes">Yes</b> <code>Bun.$</code></td>
-                  <td><b class="state no">No</b></td>
-                  <td><b class="state partial">Partial</b> task shell built in; application API requires <code>dax</code></td>
-                </tr>
-                <tr>
-                  <th scope="row"><strong>Jest-compatible test runner</strong><span>Tests with familiar Jest-style APIs</span></th>
-                  <td class="clun-col"><b class="state partial">Partial</b> 22 matchers; no snapshots, coverage, mocks, or concurrency<a class="phase-link" data-roadmap-phase="66" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-66">Phase 66</a></td>
-                  <td><b class="state yes">Yes</b> <code>bun test</code></td>
-                  <td><b class="state no">No</b> <code>node:test</code> uses its own API</td>
-                  <td><b class="state no">No</b> <code>Deno.test</code> uses its own API</td>
-                </tr>
-                <tr>
-                  <th scope="row"><strong>Hot reloading</strong><span>Reload a server while preserving connections</span></th>
-                  <td class="clun-col"><b class="state no">No</b><a class="phase-link" data-roadmap-phase="67" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-67">Phase 67</a></td>
-                  <td><b class="state yes">Yes</b> <code>bun --hot</code></td>
-                  <td><b class="state no">No</b> watch mode restarts processes</td>
-                  <td><b class="state yes">Yes</b> <code>--watch-hmr</code> preserves state when supported</td>
-                </tr>
-                <tr>
-                  <th scope="row"><strong>Monorepo support</strong><span>Workspaces and filtered package commands</span></th>
-                  <td class="clun-col"><b class="state no">No</b> workspaces are unsupported<a class="phase-link" data-roadmap-phase="60" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-60">Phase 60</a></td>
-                  <td><b class="state yes">Yes</b> workspaces and filters</td>
-                  <td><b class="state separate">Separate</b> provided through npm workspaces</td>
-                  <td><b class="state yes">Yes</b> workspaces and concurrent tasks</td>
-                </tr>
-                <tr>
-                  <th scope="row"><strong>Frontend development server</strong><span>Serve and transform browser entry points</span></th>
-                  <td class="clun-col"><b class="state no">No</b><a class="phase-link" data-roadmap-phase="68" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-68">Phase 68</a></td>
-                  <td><b class="state yes">Yes</b> HTML entry points and HMR</td>
-                  <td><b class="state no">No</b></td>
-                  <td><b class="state no">No</b> use ecosystem tooling</td>
-                </tr>
-                <tr>
-                  <th scope="row"><strong>Formatter and linter</strong><span>First-party source formatting and linting</span></th>
-                  <td class="clun-col"><b class="state no">No</b><span class="phase-links" data-roadmap-phase="70"><span>Phases</span> <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-69">69</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-70">70</a></span></td>
-                  <td><b class="state no">No</b></td>
-                  <td><b class="state no">No</b> use ecosystem tooling</td>
-                  <td><b class="state yes">Yes</b> <code>deno fmt</code> and <code>deno lint</code></td>
-                </tr>
-              </tbody>
-              <tbody>
-                <tr class="compare-group">
-                  <th scope="rowgroup" colspan="5"><strong>Built-in utilities</strong><span>Convenience APIs exposed without installing another package</span></th>
-                </tr>
-                <tr>
-                  <th scope="row"><strong>Password and hashing APIs</strong><span>High-level password hashing and verification</span></th>
-                  <td class="clun-col"><b class="state no">No</b> randomness APIs only<a class="phase-link" data-roadmap-phase="36" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-36">Phase 36</a></td>
-                  <td><b class="state yes">Yes</b> <code>Bun.password</code> and <code>Bun.hash</code></td>
-                  <td><b class="state partial">Partial</b> WebCrypto and Argon2 KDF; no password helper</td>
-                  <td><b class="state partial">Partial</b> WebCrypto and Argon2 KDF; no password helper</td>
-                </tr>
-                <tr>
-                  <th scope="row"><strong>String width API</strong><span>Measure terminal display width</span></th>
-                  <td class="clun-col"><b class="state no">No</b><a class="phase-link" data-roadmap-phase="33" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-33">Phase 33</a></td>
-                  <td><b class="state yes">Yes</b> <code>Bun.stringWidth</code></td>
-                  <td><b class="state no">No</b></td>
-                  <td><b class="state no">No</b> use the standard library</td>
-                </tr>
-                <tr>
-                  <th scope="row"><strong>Glob API</strong><span>Match filesystem paths with glob patterns</span></th>
-                  <td class="clun-col"><b class="state no">No</b><a class="phase-link" data-roadmap-phase="30" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-30">Phase 30</a></td>
-                  <td><b class="state yes">Yes</b> <code>Bun.Glob</code></td>
-                  <td><b class="state yes">Yes</b> <code>fs.promises.glob</code></td>
-                  <td><b class="state yes">Yes</b> through <code>node:fs</code></td>
-                </tr>
-                <tr>
-                  <th scope="row"><strong>Semver API</strong><span>Compare and test semantic versions</span></th>
-                  <td class="clun-col"><b class="state no">No</b> installer-internal only<a class="phase-link" data-roadmap-phase="29" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-29">Phase 29</a></td>
-                  <td><b class="state yes">Yes</b> <code>Bun.semver</code></td>
-                  <td><b class="state no">No</b> use an ecosystem package</td>
-                  <td><b class="state no">No</b> use the standard library</td>
-                </tr>
-                <tr>
-                  <th scope="row"><strong>CSS color conversion</strong><span>Parse and convert CSS color formats</span></th>
-                  <td class="clun-col"><b class="state no">No</b><a class="phase-link" data-roadmap-phase="34" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-34">Phase 34</a></td>
-                  <td><b class="state yes">Yes</b> <code>Bun.color</code></td>
-                  <td><b class="state no">No</b></td>
-                  <td><b class="state no">No</b></td>
-                </tr>
-                <tr>
-                  <th scope="row"><strong>CSRF API</strong><span>Generate and verify CSRF tokens</span></th>
-                  <td class="clun-col"><b class="state no">No</b><a class="phase-link" data-roadmap-phase="35" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-35">Phase 35</a></td>
-                  <td><b class="state yes">Yes</b> <code>Bun.CSRF</code></td>
-                  <td><b class="state no">No</b></td>
-                  <td><b class="state no">No</b></td>
-                </tr>
-              </tbody>
-            </table>
+<!-- clun-generated:compatibility:begin -->
+<table class="compat-table">
+  <thead>
+    <tr>
+      <th scope="col">Capability</th>
+      <th scope="col" class="clun-col"><a href="https://github.com/theesfeld/clun">Clun</a><span>0.1.0-dev.7 candidate / pre-alpha</span></th>
+      <th scope="col"><a href="https://bun.sh/">Bun</a><span>1.3.14 / toolkit</span></th>
+      <th scope="col"><a href="https://nodejs.org/">Node.js</a><span>26.5.0 / current</span></th>
+      <th scope="col"><a href="https://deno.com/">Deno</a><span>2.9.3 / runtime</span></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr class="compare-group">
+      <th scope="rowgroup" colspan="5"><strong>Built-in core features</strong><span>Essential runtime capabilities</span></th>
+    </tr>
+    <tr data-compat-feature="runtime.node-compatibility">
+      <th scope="row"><strong>Node.js compatibility</strong><span>Run code written for Node.js</span></th>
+      <td class="clun-col"><b class="state partial">Partial</b> selected globals and module subsets<span class="phase-links" data-roadmap-phase="47"><span>Phases</span> <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-42">42</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-43">43</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-44">44</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-45">45</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-46">46</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-47">47</a></span></td>
+      <td><b class="state partial">Partial</b> broad compatibility; still an active goal</td>
+      <td><b class="state yes">Yes</b> reference runtime</td>
+      <td><b class="state partial">Partial</b> targets Node.js 26 compatibility</td>
+    </tr>
+    <tr data-compat-feature="runtime.web-standard-apis">
+      <th scope="row"><strong>Web Standard APIs</strong><span><code>fetch</code>, URL, events, headers, and related APIs</span></th>
+      <td class="clun-col"><b class="state partial">Partial</b> buffered fetch and a scoped Web API surface<a class="phase-link" data-roadmap-phase="38" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-38">Phase 38</a></td>
+      <td><b class="state yes">Yes</b> broad WebCore-backed surface</td>
+      <td><b class="state yes">Yes</b> broad standards surface</td>
+      <td><b class="state yes">Yes</b> standards-first runtime surface</td>
+    </tr>
+    <tr data-compat-feature="runtime.native-addons">
+      <th scope="row"><strong>Native addons</strong><span>N-API, FFI, or native C/C++ modules</span></th>
+      <td class="clun-col"><b class="state no">No</b> excluded by the current purity contract<a class="phase-link" data-roadmap-phase="48" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-48">Phase 48</a></td>
+      <td><b class="state yes">Yes</b> FFI, N-API, and partial V8 C++ API</td>
+      <td><b class="state yes">Yes</b> stable Node-API</td>
+      <td><b class="state yes">Yes</b> Node-API and FFI</td>
+    </tr>
+    <tr data-compat-feature="language.typescript">
+      <th scope="row"><strong>TypeScript</strong><span>Execute TypeScript without a separate build</span></th>
+      <td class="clun-col"><b class="state partial">Partial</b> erasable syntax stripping only<a class="phase-link" data-roadmap-phase="39" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-39">Phase 39</a></td>
+      <td><b class="state yes">Yes</b> first-class transpilation</td>
+      <td><b class="state partial">Partial</b> erasable syntax stripping</td>
+      <td><b class="state yes">Yes</b> execution and type checking</td>
+    </tr>
+    <tr data-compat-feature="language.jsx">
+      <th scope="row"><strong>JSX</strong><span>Execute JSX without external transformation</span></th>
+      <td class="clun-col"><b class="state no">No</b> not included in the v0.1 scope<a class="phase-link" data-roadmap-phase="40" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-40">Phase 40</a></td>
+      <td><b class="state yes">Yes</b> built in</td>
+      <td><b class="state no">No</b> requires a transformer</td>
+      <td><b class="state yes">Yes</b> built in</td>
+    </tr>
+    <tr data-compat-feature="runtime.loader-plugins">
+      <th scope="row"><strong>Module loader plugins</strong><span>Custom import and require loaders</span></th>
+      <td class="clun-col"><b class="state no">No</b> fixed loader surface<a class="phase-link" data-roadmap-phase="41" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-41">Phase 41</a></td>
+      <td><b class="state yes">Yes</b> <code>Bun.plugin</code></td>
+      <td><b class="state partial">Partial</b> server-side loader APIs</td>
+      <td><b class="state yes">Yes</b> synchronous <code>node:module</code> hooks</td>
+    </tr>
+  </tbody>
+  <tbody>
+    <tr class="compare-group">
+      <th scope="rowgroup" colspan="5"><strong>Built-in APIs</strong><span>Performance and native APIs intended for application code</span></th>
+    </tr>
+    <tr data-compat-feature="database.sql-drivers">
+      <th scope="row"><strong>SQL database drivers</strong><span>PostgreSQL, MySQL, and SQLite</span></th>
+      <td class="clun-col"><b class="state no">No</b><span class="phase-links" data-roadmap-phase="57"><span>Phases</span> <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-55">55</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-56">56</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-57">57</a></span></td>
+      <td><b class="state yes">Yes</b> unified built-in API</td>
+      <td><b class="state partial">Partial</b> built-in SQLite through <code>node:sqlite</code></td>
+      <td><b class="state partial">Partial</b> SQLite through <code>node:sqlite</code></td>
+    </tr>
+    <tr data-compat-feature="cloud.s3">
+      <th scope="row"><strong>S3 cloud storage</strong><span>First-party S3-compatible client</span></th>
+      <td class="clun-col"><b class="state no">No</b><a class="phase-link" data-roadmap-phase="53" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-53">Phase 53</a></td>
+      <td><b class="state yes">Yes</b> <code>Bun.s3</code></td>
+      <td><b class="state no">No</b> use ecosystem packages</td>
+      <td><b class="state no">No</b> use ecosystem packages</td>
+    </tr>
+    <tr data-compat-feature="database.redis">
+      <th scope="row"><strong>Redis client</strong><span>First-party Redis API</span></th>
+      <td class="clun-col"><b class="state no">No</b><a class="phase-link" data-roadmap-phase="54" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-54">Phase 54</a></td>
+      <td><b class="state yes">Yes</b> built in with Pub/Sub</td>
+      <td><b class="state no">No</b> use ecosystem packages</td>
+      <td><b class="state no">No</b> use ecosystem packages</td>
+    </tr>
+    <tr data-compat-feature="server.websocket">
+      <th scope="row"><strong>WebSocket server</strong><span>First-party server with connection handling and Pub/Sub</span></th>
+      <td class="clun-col"><b class="state no">No</b> no WebSocket implementation<a class="phase-link" data-roadmap-phase="51" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-51">Phase 51</a></td>
+      <td><b class="state yes">Yes</b> through <code>Bun.serve</code></td>
+      <td><b class="state no">No</b> client API only</td>
+      <td><b class="state partial">Partial</b> server API without built-in Pub/Sub</td>
+    </tr>
+    <tr data-compat-feature="server.http">
+      <th scope="row"><strong>HTTP server</strong><span>First-party server API</span></th>
+      <td class="clun-col"><b class="state partial">Partial</b> HTTP/1.1 with buffered bodies<a class="phase-link" data-roadmap-phase="49" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-49">Phase 49</a></td>
+      <td><b class="state yes">Yes</b> <code>Bun.serve</code></td>
+      <td><b class="state yes">Yes</b> <code>node:http</code> and <code>node:http2</code></td>
+      <td><b class="state yes">Yes</b> <code>Deno.serve</code></td>
+    </tr>
+    <tr data-compat-feature="server.router">
+      <th scope="row"><strong>HTTP router</strong><span>Dynamic routes in the first-party server</span></th>
+      <td class="clun-col"><b class="state no">No</b> supply one in the handler<a class="phase-link" data-roadmap-phase="50" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-50">Phase 50</a></td>
+      <td><b class="state yes">Yes</b> routes in <code>Bun.serve</code></td>
+      <td><b class="state no">No</b> use a framework</td>
+      <td><b class="state no">No</b> use a framework</td>
+    </tr>
+    <tr data-compat-feature="tooling.single-file-executables">
+      <th scope="row"><strong>Single-file executables</strong><span>Compile an application into a distributable executable</span></th>
+      <td class="clun-col"><b class="state no">No</b> Clun ships a runtime executable only<span class="phase-links" data-roadmap-phase="77"><span>Phases</span> <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-52">52</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-77">77</a></span></td>
+      <td><b class="state yes">Yes</b> cross-compilation and code signing</td>
+      <td><b class="state partial">Partial</b> multi-step SEA workflow</td>
+      <td><b class="state yes">Yes</b> <code>deno compile</code> with assets and cross-compilation</td>
+    </tr>
+    <tr data-compat-feature="data.yaml">
+      <th scope="row"><strong>YAML</strong><span>Built-in parsing or module imports</span></th>
+      <td class="clun-col"><b class="state no">No</b><a class="phase-link" data-roadmap-phase="31" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-31">Phase 31</a></td>
+      <td><b class="state yes">Yes</b> API and file imports</td>
+      <td><b class="state no">No</b></td>
+      <td><b class="state no">No</b> use the standard library</td>
+    </tr>
+    <tr data-compat-feature="web.cookies">
+      <th scope="row"><strong>Cookies API</strong><span>Map-like request cookie handling</span></th>
+      <td class="clun-col"><b class="state no">No</b><a class="phase-link" data-roadmap-phase="32" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-32">Phase 32</a></td>
+      <td><b class="state yes">Yes</b> request cookie map</td>
+      <td><b class="state no">No</b></td>
+      <td><b class="state no">No</b> use the standard library</td>
+    </tr>
+    <tr data-compat-feature="security.encrypted-secrets">
+      <th scope="row"><strong>Encrypted secrets storage</strong><span>Operating-system keychain integration</span></th>
+      <td class="clun-col"><b class="state no">No</b><a class="phase-link" data-roadmap-phase="58" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-58">Phase 58</a></td>
+      <td><b class="state yes">Yes</b> <code>Bun.secrets</code></td>
+      <td><b class="state no">No</b></td>
+      <td><b class="state no">No</b></td>
+    </tr>
+  </tbody>
+  <tbody>
+    <tr class="compare-group">
+      <th scope="rowgroup" colspan="5"><strong>Built-in tooling</strong><span>Developer workflow available from the primary command</span></th>
+    </tr>
+    <tr data-compat-feature="package-manager.npm">
+      <th scope="row"><strong>npm package management</strong><span>Install, manage, and publish npm-compatible dependencies</span></th>
+      <td class="clun-col"><b class="state partial">Partial</b> fixture-tested; public npm is blocked by TLS interop<span class="phase-links" data-roadmap-phase="61"><span>Phases</span> <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-28">28</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-59">59</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-60">60</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-61">61</a></span></td>
+      <td><b class="state yes">Yes</b> <code>bun install</code></td>
+      <td><b class="state separate">Separate</b> npm ships with Node.js installers</td>
+      <td><b class="state partial">Partial</b> installs npm projects; publishing is JSR-oriented</td>
+    </tr>
+    <tr data-compat-feature="tooling.bundler">
+      <th scope="row"><strong>Bundler</strong><span>Production frontend and server bundles</span></th>
+      <td class="clun-col"><b class="state no">No</b> not included in the v0.1 scope<span class="phase-links" data-roadmap-phase="77"><span>Phases</span> <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-62">62</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-63">63</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-64">64</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-77">77</a></span></td>
+      <td><b class="state yes">Yes</b> <code>Bun.build</code></td>
+      <td><b class="state no">No</b> use ecosystem tooling</td>
+      <td><b class="state partial">Partial</b> <code>deno bundle</code> is experimental</td>
+    </tr>
+    <tr data-compat-feature="tooling.shell">
+      <th scope="row"><strong>Cross-platform shell API</strong><span>Shell scripting from application code</span></th>
+      <td class="clun-col"><b class="state no">No</b> spawn and package scripts only<a class="phase-link" data-roadmap-phase="65" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-65">Phase 65</a></td>
+      <td><b class="state yes">Yes</b> <code>Bun.$</code></td>
+      <td><b class="state no">No</b></td>
+      <td><b class="state no">No</b> application API requires <code>dax</code></td>
+    </tr>
+    <tr data-compat-feature="tooling.test-runner">
+      <th scope="row"><strong>Jest-compatible test runner</strong><span>Tests with familiar Jest-style APIs</span></th>
+      <td class="clun-col"><b class="state partial">Partial</b> 22 matchers; no snapshots, coverage, mocks, or concurrency<a class="phase-link" data-roadmap-phase="66" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-66">Phase 66</a></td>
+      <td><b class="state yes">Yes</b> <code>bun test</code></td>
+      <td><b class="state no">No</b> <code>node:test</code> uses its own API</td>
+      <td><b class="state no">No</b> <code>Deno.test</code> uses its own API</td>
+    </tr>
+    <tr data-compat-feature="tooling.hot-reload">
+      <th scope="row"><strong>Hot reloading</strong><span>Reload a server while preserving connections</span></th>
+      <td class="clun-col"><b class="state no">No</b><a class="phase-link" data-roadmap-phase="67" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-67">Phase 67</a></td>
+      <td><b class="state yes">Yes</b> <code>bun --hot</code></td>
+      <td><b class="state no">No</b> watch mode restarts processes</td>
+      <td><b class="state yes">Yes</b> <code>--watch-hmr</code> preserves state when supported</td>
+    </tr>
+    <tr data-compat-feature="package-manager.monorepo">
+      <th scope="row"><strong>Monorepo support</strong><span>Workspaces and filtered package commands</span></th>
+      <td class="clun-col"><b class="state no">No</b> workspaces are unsupported<a class="phase-link" data-roadmap-phase="60" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-60">Phase 60</a></td>
+      <td><b class="state yes">Yes</b> workspaces and filters</td>
+      <td><b class="state separate">Separate</b> provided through npm workspaces</td>
+      <td><b class="state yes">Yes</b> workspaces and concurrent tasks</td>
+    </tr>
+    <tr data-compat-feature="tooling.frontend-dev-server">
+      <th scope="row"><strong>Frontend development server</strong><span>Serve and transform browser entry points</span></th>
+      <td class="clun-col"><b class="state no">No</b><a class="phase-link" data-roadmap-phase="68" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-68">Phase 68</a></td>
+      <td><b class="state yes">Yes</b> HTML entry points and HMR</td>
+      <td><b class="state no">No</b></td>
+      <td><b class="state no">No</b> use ecosystem tooling</td>
+    </tr>
+    <tr data-compat-feature="tooling.formatter-linter">
+      <th scope="row"><strong>Formatter and linter</strong><span>First-party source formatting and linting</span></th>
+      <td class="clun-col"><b class="state no">No</b><span class="phase-links" data-roadmap-phase="70"><span>Phases</span> <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-69">69</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-70">70</a></span></td>
+      <td><b class="state no">No</b></td>
+      <td><b class="state no">No</b> use ecosystem tooling</td>
+      <td><b class="state yes">Yes</b> <code>deno fmt</code> and <code>deno lint</code></td>
+    </tr>
+  </tbody>
+  <tbody>
+    <tr class="compare-group">
+      <th scope="rowgroup" colspan="5"><strong>Built-in utilities</strong><span>Convenience APIs exposed without installing another package</span></th>
+    </tr>
+    <tr data-compat-feature="security.password-hashing">
+      <th scope="row"><strong>Password and hashing APIs</strong><span>High-level password hashing and verification</span></th>
+      <td class="clun-col"><b class="state no">No</b> randomness APIs only<a class="phase-link" data-roadmap-phase="36" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-36">Phase 36</a></td>
+      <td><b class="state yes">Yes</b> <code>Bun.password</code> and <code>Bun.hash</code></td>
+      <td><b class="state partial">Partial</b> WebCrypto and Argon2 KDF; no password helper</td>
+      <td><b class="state partial">Partial</b> WebCrypto and Argon2 KDF; no password helper</td>
+    </tr>
+    <tr data-compat-feature="text.string-width">
+      <th scope="row"><strong>String width API</strong><span>Measure terminal display width</span></th>
+      <td class="clun-col"><b class="state no">No</b><a class="phase-link" data-roadmap-phase="33" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-33">Phase 33</a></td>
+      <td><b class="state yes">Yes</b> <code>Bun.stringWidth</code></td>
+      <td><b class="state no">No</b></td>
+      <td><b class="state no">No</b> use the standard library</td>
+    </tr>
+    <tr data-compat-feature="filesystem.glob">
+      <th scope="row"><strong>Glob API</strong><span>Match filesystem paths with glob patterns</span></th>
+      <td class="clun-col"><b class="state no">No</b><a class="phase-link" data-roadmap-phase="30" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-30">Phase 30</a></td>
+      <td><b class="state yes">Yes</b> <code>Bun.Glob</code></td>
+      <td><b class="state yes">Yes</b> <code>fs.promises.glob</code></td>
+      <td><b class="state yes">Yes</b> through <code>node:fs</code></td>
+    </tr>
+    <tr data-compat-feature="utility.semver">
+      <th scope="row"><strong>Semver API</strong><span>Compare and test semantic versions</span></th>
+      <td class="clun-col"><b class="state no">No</b> installer-internal only<a class="phase-link" data-roadmap-phase="29" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-29">Phase 29</a></td>
+      <td><b class="state yes">Yes</b> <code>Bun.semver</code></td>
+      <td><b class="state no">No</b> use an ecosystem package</td>
+      <td><b class="state no">No</b> use the standard library</td>
+    </tr>
+    <tr data-compat-feature="web.css-color">
+      <th scope="row"><strong>CSS color conversion</strong><span>Parse and convert CSS color formats</span></th>
+      <td class="clun-col"><b class="state no">No</b><a class="phase-link" data-roadmap-phase="34" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-34">Phase 34</a></td>
+      <td><b class="state yes">Yes</b> <code>Bun.color</code></td>
+      <td><b class="state no">No</b></td>
+      <td><b class="state no">No</b></td>
+    </tr>
+    <tr data-compat-feature="web.csrf">
+      <th scope="row"><strong>CSRF API</strong><span>Generate and verify CSRF tokens</span></th>
+      <td class="clun-col"><b class="state no">No</b><a class="phase-link" data-roadmap-phase="35" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-35">Phase 35</a></td>
+      <td><b class="state yes">Yes</b> <code>Bun.CSRF</code></td>
+      <td><b class="state no">No</b></td>
+      <td><b class="state no">No</b></td>
+    </tr>
+  </tbody>
+</table>
+<p class="source-note">
+  Snapshot checked July 16, 2026. Sources:
+  <a href="https://github.com/theesfeld/clun/blob/master/PLAN.md">Clun scope</a>,
+  <a href="https://github.com/oven-sh/bun/tree/0d9b296af33f2b851fcbf4df3e9ec89751734ba4">Bun 1.3.14</a>,
+  the roadmap's separate
+  <a href="https://github.com/oven-sh/bun/tree/c1076ce95effb909bfe9f596919b5dba5567d550">Bun source audit</a>,
+  <a href="https://github.com/nodejs/node/tree/bebd1b8d92bf4cc917844d6335ed1ecf9c2a75fb">Node.js 26.5.0</a>, and
+  <a href="https://github.com/denoland/deno/tree/f39575ecd50602a5b42b1ba8e93849460de9fcf4">Deno 2.9.3</a>.
+  npm appears as tooling, not as a runtime column. Clun has no same-host speed
+  comparison against these projects.
+</p>
+<!-- clun-generated:compatibility:end -->
           </div>
-          <p class="source-note">
-            Snapshot checked July 16, 2026. Sources:
-            <a href="https://github.com/theesfeld/clun/blob/master/PLAN.md">Clun scope</a>,
-            <a href="https://github.com/oven-sh/bun/releases/tag/bun-v1.3.14">Bun 1.3.14</a>,
-            the roadmap's separate
-            <a href="https://github.com/oven-sh/bun/tree/c1076ce95e">Bun source audit</a>,
-            <a href="https://github.com/nodejs/node/releases/tag/v26.5.0">Node.js 26.5.0</a>,
-            <a href="https://deno.com/blog/v2.9">Deno 2.9 features</a>, and the
-            <a href="https://github.com/denoland/deno/releases/tag/v2.9.3">Deno 2.9.3 release</a>.
-            npm appears as tooling, not as a runtime column. Clun has no same-host speed
-            comparison against these projects.
-          </p>
-
           <div class="beyond-matrix" aria-labelledby="beyond-matrix-title">
             <div class="beyond-matrix-heading">
               <p class="eyebrow">Beyond the matrix</p>
@@ -661,9 +673,11 @@ Clun.write(file, <span class="tok-str">"hello from Clun\n"</span>)
           <a class="brand" href="#top"><img src="assets/clun.jpg" alt="" width="40" height="40"><span>Clun</span></a>
           <p>Bun, rewritten in pure Common Lisp. Scoped, pre-alpha, and GPL-3.0-or-later.</p>
         </div>
-        <div><h2>Project</h2><a href="https://github.com/theesfeld/clun">Source</a><a href="https://github.com/theesfeld/clun/blob/master/README.md">README</a><a href="https://github.com/theesfeld/clun/issues/57">Current status</a></div>
-        <div><h2>Evidence</h2><a href="https://github.com/theesfeld/clun/blob/master/docs/benchmarks.md">Benchmarks</a><a href="https://github.com/theesfeld/clun/actions">CI</a><a href="https://github.com/theesfeld/clun/blob/master/LICENSE">License</a></div>
-        <div><h2>Install</h2><a href="install">Shell installer</a><a href="https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.6">v0.1.0-dev.6 release</a><a href="https://github.com/theesfeld/clun#building-from-source">Build from source</a></div>
+<!-- clun-generated:release-links:begin -->
+<div><h2>Project</h2><a href="https://github.com/theesfeld/clun">Source</a><a href="https://github.com/theesfeld/clun/blob/master/README.md">README</a><a href="https://github.com/theesfeld/clun/issues/1">Current status</a></div>
+<div><h2>Evidence</h2><a href="https://github.com/theesfeld/clun/blob/master/compat/README.md">Compatibility ledger</a><a href="https://github.com/theesfeld/clun/actions/workflows/compat.yml">Compatibility CI</a><a href="https://github.com/theesfeld/clun/blob/master/LICENSE">License</a></div>
+<div><h2>Install</h2><a href="install">Shell installer</a><a href="https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.6">v0.1.0-dev.6 release</a><a href="https://github.com/theesfeld/clun#building-from-source">Build from source</a></div>
+<!-- clun-generated:release-links:end -->
       </div>
       <div class="shell footer-bottom"><span>(c) 2026 TJ Theesfeld</span><span>clun.sh</span></div>
     </footer>

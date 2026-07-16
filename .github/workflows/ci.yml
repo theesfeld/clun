@@ -38,7 +38,7 @@ jobs:
             while IFS= read -r path; do
               case "$path" in
                 docs/conformance/test262-execution.md|scripts/public-claims-check.sh) runtime=true; break ;;
-                site/*|AGENTS.md|PHASE_PROMPT.md|README.md|PLAN.md|STATE.md|DECISIONS.md|docs/*|scripts/roadmap.sh|scripts/test-installer.sh|.github/workflows/ci.yml|.github/workflows/docs.yml|.github/workflows/pages.yml) ;;
+                site/*|compat/*|AGENTS.md|README.md|PLAN.md|STATE.md|DECISIONS.md|docs/*|scripts/compat.sh|scripts/compat-validate.awk|scripts/compat-render.awk|scripts/test-compat-tools.sh|scripts/roadmap.sh|scripts/test-installer.sh|.github/workflows/ci.yml|.github/workflows/compat.yml|.github/workflows/docs.yml|.github/workflows/pages.yml) ;;
                 *) runtime=true; break ;;
               esac
             done < "$RUNNER_TEMP/changed-files"
@@ -47,6 +47,9 @@ jobs:
 
       - name: Verify published claims and installer
         run: sh scripts/public-claims-check.sh
+
+      - name: Test compatibility ledger tooling
+        run: make test-compat-tools
 
       # Pin SBCL to the version the plan targets (PLAN.md host toolchain).
       - name: Install SBCL 2.6.4

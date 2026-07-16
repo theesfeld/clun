@@ -5,6 +5,7 @@ on:
     branches: [master]
     paths:
       - "site/**"
+      - "compat/release.tsv"
       - "src/version.lisp"
       - "scripts/release-live-check.sh"
       - "scripts/test-release-live-check.sh"
@@ -30,6 +31,29 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
+      - name: Read release publication state
+        id: release
+        shell: bash
+        run: |
+          set -euo pipefail
+          IFS=$'\t' read -r _id _version _asdf _installer _tag state _license _phase \
+            _issue _impact _previous _version_source _asdf_source _installer_source commit \
+            < <(tail -n +2 compat/release.tsv)
+          case "$state" in
+            candidate)
+              test "$commit" = pending
+              echo "candidate site validated without deployment"
+              ;;
+            published)
+              [[ "$commit" =~ ^[0-9a-f]{40}$ ]]
+              ;;
+            *)
+              echo "invalid release publication state: $state" >&2
+              exit 1
+              ;;
+          esac
+          echo "state=$state" >> "$GITHUB_OUTPUT"
+          echo "commit=$commit" >> "$GITHUB_OUTPUT"
       - name: Verify published claims and roadmap links
         run: sh scripts/public-claims-check.sh
       - name: Verify canonical live roadmap issues
@@ -40,22 +64,28 @@ jobs:
       - name: Test release publication gate
         run: make test-release-live-check
       - name: Wait for matching published release assets
+        if: steps.release.outputs.state == 'published'
         timeout-minutes: 125
         env:
           GH_TOKEN: ${{ github.token }}
           CLUN_RELEASE_REPO: ${{ github.repository }}
+          CLUN_RELEASE_EXPECTED_SHA: ${{ steps.release.outputs.commit }}
           CLUN_RELEASE_WAIT_SECONDS: "7200"
           CLUN_RELEASE_POLL_SECONDS: "30"
         run: sh scripts/release-live-check.sh
       - name: Reverify canonical issues immediately before deployment
+        if: steps.release.outputs.state == 'published'
         env:
           GH_TOKEN: ${{ github.token }}
           ROADMAP_REPO: ${{ github.repository }}
         run: make roadmap-verify-live
-      - uses: actions/configure-pages@v6
-      - uses: actions/upload-pages-artifact@v5
+      - if: steps.release.outputs.state == 'published'
+        uses: actions/configure-pages@v6
+      - if: steps.release.outputs.state == 'published'
+        uses: actions/upload-pages-artifact@v5
         with:
           path: site
       - name: Deploy to GitHub Pages
+        if: steps.release.outputs.state == 'published'
         id: deployment
         uses: actions/deploy-pages@v5
