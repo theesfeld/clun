@@ -536,6 +536,9 @@ grep -F 'Available now' "$case_root/site/index.html" >/dev/null 2>&1 ||
   fail 'published render did not expose the published release'
 grep -F 'latest published prerelease' "$case_root/README.md" >/dev/null 2>&1 ||
   fail 'published render did not expose the published release summary'
+grep -F 'Release-gated Pages and hosted-installer results are tracked in the canonical issue.' \
+  "$case_root/README.md" >/dev/null 2>&1 ||
+  fail 'published render claimed deployment evidence before the deployment gate'
 
 fresh_case refreshed-baselines
 refresh_baseline_row "$case_root/compat/baselines.tsv" bun-engineering-c1076ce95e \

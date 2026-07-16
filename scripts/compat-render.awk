@@ -256,8 +256,14 @@ END {
       verified_tag = release_tag
     else
       verified_tag = "v" previous_version
-    print "> The verified release boundary is `" verified_tag "`, with four native archives, checksums, Pages,"
-    print "> and hosted-installer evidence. Phase 26 remains deferred until after Phase 82 and will"
+    if (publication_state == "published") {
+      print "> The verified release boundary is `" verified_tag "`, with four native archives and checksums."
+      print "> Release-gated Pages and hosted-installer results are tracked in the canonical issue."
+    } else {
+      print "> The verified release boundary is `" verified_tag "`, with four native archives, checksums, Pages,"
+      print "> and hosted-installer evidence."
+    }
+    print "> Phase 26 remains deferred until after Phase 82 and will"
     print "> be rewritten for the repository state that exists then."
     print "> Clun executes its scoped JS/TS surface, but it is not a drop-in Node.js or Bun replacement."
     print "> The canonical issue is the live source of truth; `PLAN.md` is the technical contract and `STATE.md` is"
