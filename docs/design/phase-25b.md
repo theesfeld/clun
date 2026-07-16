@@ -1,9 +1,9 @@
 # Phase 25b - Conformance Push to 90%
 
-Status: **milestones 1, 2, and 3 complete; milestone 4 is next and has not started.** Phase 25 is
-complete, so the dependency is satisfied. Milestone 3 delivered the shared IteratorRecord and
-binding/destructuring wave specified in section 6.2 while leaving diagnosed function/class,
-species, global-environment, and Phase-37 residuals visible for their later owners.
+Status: **milestones 1, 2, and 3 complete; milestone 4 design and implementation are active.**
+Phase 25 is complete, so the dependency is satisfied. Milestone 3 delivered the shared
+IteratorRecord and binding/destructuring wave specified in section 6.2 while leaving diagnosed
+function/class, species, global-environment, and Phase-37 residuals visible for their later owners.
 
 ## 1. Scope and invariant
 
@@ -430,3 +430,180 @@ resource ownership is tracked separately rather than expanding this correction.
 Because the remote annotated dev.2 tag already establishes publication under the versioning
 contract, the correction uses the next prerelease suffix, dev.3; the dev.2 tag remains immutable and
 has no GitHub release or assets.
+
+### 6.3 Milestone 4 implementation design
+
+Milestone 4 owns functions, classes, parameters, `super`, and arguments. Its current frozen-origin
+credit slice is exactly 390 live Phase-25b failures from `exec-gaps.tsv`: 213
+`functions-arguments` rows and 177 `classes` rows. The original 394-row planning pool has already
+lost four rows to shared m3 work, so 394 is not reused as a current failure claim. Twelve current
+rows in the same two work buckets are Phase-37 controls and remain visible but are excluded from m4
+credit. A further 28 still-failing m3-origin controls were diagnosed after m3 as m4 dependencies:
+27 async function/arrow/method default-parameter rows and
+`expressions/object/method-definition/generator-super-prop-param.js`. The focused diagnostic
+workset is therefore 418 Phase-25b failures, while accounting remains disjoint under their frozen
+origin buckets.
+
+The failure inventory resolves to six shared semantic defects rather than path-specific gaps:
+
+1. Every `super-node` currently throws an emitter-time `SyntaxError`, and only explicit class
+   constructors receive a home object. This owns the complete `expressions/super` family and masks
+   subclass, object-method, accessor, static-method, arrow-capture, and derived-constructor behavior.
+2. User functions have one undifferentiated call/construct path. `jm-construct` always preallocates
+   `this`, so class calls, derived uninitialized `this`, `super()` binding, repeated/missing `super`,
+   and derived return override rules cannot be represented.
+3. Parameter, body-var, body-lexical, and named-function/class bindings share one compile-time scope
+   and runtime frame. Non-simple parameter scope, immutable inner names, and async parameter-rejection
+   timing are consequently wrong.
+4. Arguments are copied into an ordinary object. Sloppy simple-parameter mapping, duplicate-name
+   selection, descriptor-driven map detachment, deletion, and strict `callee`/`caller` poison pills
+   are absent.
+5. Bound functions are anonymous native wrappers that are always constructable and always length
+   zero. Function name/length/prototype inheritance, target validation, construction delegation,
+   and OrdinaryHasInstance delegation are missing.
+6. Function intrinsic metadata, method constructability/name assignment, AsyncFunction prototype
+   identity, and callable `toString`/restricted-property behavior are incomplete.
+
+The implementation uses the existing closure emitter, environment chain, and object internal-method
+protocol; it does not add a second evaluator or Test262 branches:
+
+1. Extend callable metadata with an explicit function kind and constructor kind. Ordinary functions
+   retain normal call/base construction. Methods, arrows, generators, and async functions are never
+   constructors. Base class constructors allocate before entry but reject ordinary calls. Derived
+   class constructors enter with `this` uninitialized; `super()` constructs the active function's
+   superclass with the current `new.target` and initializes `this` exactly once. An object return
+   wins, undefined returns the initialized `this`, and every other primitive return throws.
+2. Model the FunctionEnvironment state required by `this`, `new.target`, the active function, and
+   home object in reserved lexical slots. Arrows inherit those slots; nested ordinary functions do
+   not. Set the home object on every object-literal and class instance/static method and accessor.
+   Compile SuperProperty as `[[Get]]`/`[[Set]]` on the home object's prototype with the actual `this`
+   receiver. Compile SuperCall separately, preserving base/key/argument evaluation and abrupt order.
+3. For a non-simple parameter list, compile defaults against a parameter scope parented to the
+   closure environment, then execute body vars/functions and body lexicals in child frames. Simple
+   parameters keep the shared var environment required by web-compatible semantics. Named function
+   and class expressions receive a private immutable name environment. Async functions convert
+   parameter-initialization failure into rejection instead of throwing before the Promise exists.
+4. Add an arguments exotic behind the existing internal-method generics. Sloppy simple lists map
+   only supplied indices selected by the last duplicate parameter name to frame cells. `[[Get]]`,
+   `[[Set]]`, `[[GetOwnProperty]]`, `[[DefineOwnProperty]]`, and `[[Delete]]` keep mapped values in sync
+   and sever mappings when required. Strict and non-simple lists are unmapped; their own `callee`
+   uses the realm's shared `%ThrowTypeError%`, while `caller` is absent. Length and iterator
+   descriptors retain the standard attributes.
+5. Represent BoundFunction explicitly with target, bound `this`, and bound arguments. Validate the
+   target at bind time, derive `name` and `length` observably, inherit the target function object's
+   prototype, expose construction only when the target is a constructor, thread a distinct
+   `new.target`, and delegate OrdinaryHasInstance to the target.
+6. Centralize SetFunctionName for ordinary/computed/symbol method names and get/set prefixes. Correct
+   Function.prototype metadata, restricted properties, non-generic `toString`, class constructor and
+   prototype descriptors, extends validation, class evaluation order, and AsyncFunction constructor/
+   prototype identity. Generators remain with m5, async generators/iteration with m6, species with
+   m7, dynamic eval/`with` with m11, tagged templates with m13, AggregateError with m14, and private
+   fields, coalescing/integer-separator syntax, WeakRef, and proposal-only APIs with Phase 37 unless a
+   shared m4 operation is required by an owned row.
+
+Implementation proceeds in that order because each later layer needs the callable and environment
+state established before it. Focused Lisp regressions cover descriptors, method names and
+nonconstructability, bound call/construct/instanceof behavior, parameter/body closure visibility,
+mapped-arguments aliasing and detachment, strict poison accessors, super get/set/call evaluation
+order, class heritage/name environments, every derived return category, repeated/missing `super`,
+and async parameter rejection. The focused runner classifies all 418 owned diagnostic rows plus the
+12 visible Phase-37 controls after each coherent layer; it does not regenerate the monotonic pass
+list during implementation.
+
+Completion requires zero focused crashes, preservation of every frozen pass, a fresh full ledger,
+byte-identical off/eager classifications with zero eager fallback, parse conformance for parser or
+early-error changes, monotonic pass-list regeneration only from the proven final ledger, and fresh
+gap/report artifacts. The fixed denominator remains 28,163 and no skip rule changes. M4 adds
+backward-compatible language behavior inside the already selected `0.1.0` minor train. Because
+`v0.1.0-dev.3` is immutable and published, the release target is exactly `0.1.0-dev.4` under
+`v0.1.0-dev.4`.
+
+#### 6.3.1 Milestone 4 local completion evidence
+
+The implementation follows the shared-operation design rather than patching individual corpus rows.
+Callable objects now distinguish ordinary functions, methods, arrows, base classes, and derived
+classes, including callability, constructability, `new.target`, and derived `this` state. Reserved
+FunctionEnvironment slots carry the active function, home object, `this`, and `new.target`; parameter,
+body, and immutable name environments represent the required scope boundaries. Object and class
+methods share the same home-object and `super` operations. Class evaluation covers heritage
+validation, prototype wiring, default and explicit constructors, derived return overrides, and
+pre-/repeated-/missing-`super()` behavior.
+
+Arguments objects are a real object-model exotic. Simple sloppy lists map the last applicable
+duplicate parameter through descriptor-aware cells; writes, definitions, and deletes synchronize or
+detach the map as required. Strict and non-simple lists are unmapped, expose the poisoned `callee`
+accessor, and do not synthesize a `caller` property. Bound functions retain their target, bound this,
+and arguments, derive name and length, preserve target constructability, forward construction and
+`new.target`, and re-enter the normal `instanceof` operation so a target's custom `@@hasInstance`
+remains observable. Function, AsyncFunction, method, class, RegExp, and Symbol construction/metadata
+paths use the same callable and naming operations. Source-text retention covers functions, methods,
+accessors, static methods, classes, and dynamic async-family constructors without claiming the later
+generator feature waves.
+
+The final focused frozen workset contains 430 rows:
+
+| Diagnostic group | Pass | Fail | Skip | Crash |
+|---|---:|---:|---:|---:|
+| `functions-arguments` | 169 | 44 | 0 | 0 |
+| `classes` | 169 | 8 | 0 | 0 |
+| m3-origin binding dependencies | 28 | 0 | 0 | 0 |
+| Same-bucket Phase-37 controls | 0 | 12 | 0 | 0 |
+| **Total** | **366** | **64** | **0** | **0** |
+
+Conceptual diagnosis assigns those 64 failures to m7 species/constructor protocol (2), m11 direct
+eval/`with`/global environments (46), m13 tagged templates (1), m14 AggregateError subclassing (2),
+and Phase 37 (13), leaving **zero known m4-owned residuals**. The Phase-37 total includes the twelve
+same-bucket controls plus an untagged Proxy heritage row. That row retains its frozen diagnostic
+label but has an exact ownership override to Phase 37, so it is visible without being falsely
+credited to m4.
+
+Independent review and full-corpus regression diagnosis produced shared fixes, not exclusions:
+
+1. An own `"use strict"` directive with non-simple parameters is an early error, and parameter/function
+   names parsed before the directive are revalidated against strict binding-name rules.
+2. `delete super[key]` first resolves `this`, then evaluates the computed key without applying
+   `ToPropertyKey`, and finally throws `ReferenceError`.
+3. The Annex-B `Object.prototype.__proto__` setter throws when immutable `[[SetPrototypeOf]]` returns
+   false, while same-prototype requests remain successful.
+4. Bound OrdinaryHasInstance re-enters `InstanceofOperator`, preserving a target's custom
+   `@@hasInstance`; bound native-source fallback is valid anonymous NativeFunction syntax.
+5. Static-method source spans exclude the `static` prefix and intervening comments while retaining
+   `async`, `get`, `set`, and generator markers. Explicit class constructors stringify as the whole
+   class, AsyncGeneratorFunction retains its correct intrinsic/dynamic source, and
+   `Object.prototype` uses the immutable-prototype exotic.
+6. The final documentation review corrected the unmapped-arguments contract: `callee` is poisoned;
+   `caller` is absent rather than another poison accessor.
+7. Final adversarial review found the source backend omitted exact source text for nested block and
+   switch function declarations. Both eager-emitter call sites now pass the declaration source span,
+   and focused off/eager regressions cover both paths.
+
+Two apparent review findings were rejected after checking the normative behavior and Test262
+assertions. An implicit/default class constructor may use the accepted native-function source
+fallback. Generator and async-generator parameter initialization occurs synchronously at call time,
+not when `.next()` first resumes the body. Neither path was changed merely to satisfy a mistaken
+expectation.
+
+The final execution comparison is byte-identical between default and eager modes across all 40,654
+files, with zero crashes and zero eager fallback. Eager mode compiled 1,020,917 forms and classified
+54,315 as ineligible:
+
+| Classification | Count |
+|---|---:|
+| Pass | 25,008 |
+| Fail/gap | 3,155 |
+| Explicit skip | 12,491 |
+| Crash | 0 |
+
+Eligible remains 28,163. The exact rate is `25,008 / 28,163 = 88.797358%`, publicly truncated to
+88.79%; 339 passes remain to the fixed 25,347 target. The monotonic pass list contains 25,008 rows,
+up 504 from m3 and 2,365 from phase entry. The regenerated inventory assigns 2,270 gaps to Phase 25b
+and 885 to Phase 37 and has canonical digest `B77552A66955B6C3`.
+
+The parser gate is 23,713 total files: 17,688 live pass, 987 fail, 5,038 skip, and zero crash, with all
+17,512 frozen parser passes holding. `make test-lisp` passes 3,120 assertions with zero failures.
+These are local candidate results, not publication evidence. The full local acceptance stack, including
+the post-review 40,654-file off/eager comparison and four-viewport Playwright audit, is green. M4 remains
+current while publication gates run. The unit is SemVer minor within the existing train and targets
+`0.1.0-dev.4` / `v0.1.0-dev.4`; required master CI, tag, release assets/checksums, Pages, and hosted
+installer verification remain unclaimed. Phase 25b stays open because 88.797358% is below 90%, and m5
+becomes current only after m4 publication is verified.

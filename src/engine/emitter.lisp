@@ -9,6 +9,26 @@
 ;; Proclaim the specials here so compiling the integration seam is warning-free.
 (declaim (special *compile-tier-mode* *cs-ineligible-count*))
 
+(defvar *current-source-text* nil
+  "Source string associated with the AST currently being compiled.")
+
+(defun source-text-slice (start end)
+  (when (and *current-source-text* start end
+             (<= 0 start end (length *current-source-text*)))
+    (subseq *current-source-text* start end)))
+
+(defun node-source-text (node)
+  "Return NODE's exact source slice while compiling a parsed program."
+  (when node
+    (source-text-slice (node-start node) (node-end node))))
+
+(defun callable-source-node-text (node)
+  "Return the source text represented by NODE when it creates a callable."
+  (if (method-definition-p node)
+      (source-text-slice (or (method-definition-source-start node) (node-start node))
+                         (node-end node))
+      (node-source-text node)))
+
 ;;; --- compile-time context ---------------------------------------------------
 
 (defstruct (cscope (:conc-name cs-) (:constructor make-cscope (kind)))
@@ -16,6 +36,7 @@
   (count 0)
   (imports nil)                  ; name -> t for ESM import slots (deref via thunk, Phase 07)
   (immutable nil)                ; name -> t for initialized const bindings
+  (silent-immutable nil)         ; named-function self binding: silent write unless strict
   (uses-arguments nil)           ; T once `arguments` resolves to this function scope (Phase 25 m5)
   kind)                          ; :function :block
 
@@ -37,6 +58,11 @@
     (setf (cs-immutable scope) (make-hash-table :test 'equal)))
   (setf (gethash name (cs-immutable scope)) t))
 
+(defun cs-mark-silent-immutable (scope name)
+  (unless (cs-silent-immutable scope)
+    (setf (cs-silent-immutable scope) (make-hash-table :test 'equal)))
+  (setf (gethash name (cs-silent-immutable scope)) t))
+
 (defun resolved-import-p (comp depth name)
   "True iff NAME, resolved to :local at DEPTH in COMP, lands on an import slot.
 Because comp-resolve returns the INNERMOST binding, a shadowing local (in a closer
@@ -48,6 +74,11 @@ scope) makes this NIL automatically — the shadowing scope has no import mark."
 (defun resolved-immutable-p (comp depth name)
   (let* ((scope (nth depth (comp-scopes comp)))
          (bindings (and scope (cs-immutable scope))))
+    (and bindings (gethash name bindings))))
+
+(defun resolved-silent-immutable-p (comp depth name)
+  (let* ((scope (nth depth (comp-scopes comp)))
+         (bindings (and scope (cs-silent-immutable scope))))
     (and bindings (gethash name bindings))))
 
 (defvar *current-return-tag* nil
@@ -271,8 +302,48 @@ slot."
 (defun compile-this (comp)
   (multiple-value-bind (kind depth index) (comp-resolve comp "%this%")
     (if (eq kind :local)
-        (lambda (env) (frame-ref env depth index "this"))
+        (lambda (env) (get-this-binding (frame-ref env depth index "this")))
         (lambda (env) (declare (ignore env)) (realm-global *realm*)))))
+
+(defun super-member-p (node)
+  (and (member-expression-p node)
+       (super-node-p (member-expression-object node))))
+
+(defun compile-super-reference (comp node)
+  "Compile SuperProperty into a prepared (base, key, receiver) reference.
+The returned closure snapshots each observable component exactly once."
+  (multiple-value-bind (this-kind this-depth this-index) (comp-resolve comp "%this%")
+    (multiple-value-bind (fn-kind fn-depth fn-index) (comp-resolve comp "%active.function%")
+      (unless (and (eq this-kind :local) (eq fn-kind :local))
+        (error "super reference compiled without a method environment"))
+      (let ((property-fn (and (member-expression-computed node)
+                              (compile-node comp (member-expression-property node))))
+            (static-key (unless (member-expression-computed node)
+                          (identifier-name (member-expression-property node)))))
+        (lambda (env)
+          ;; GetThisBinding precedes the computed expression. GetSuperBase is
+          ;; then snapshotted before ToPropertyKey can mutate the home object.
+          (let* ((receiver (get-this-binding
+                            (frame-ref env this-depth this-index "this")))
+                 (property (if property-fn (funcall property-fn env) static-key))
+                 (active (frame-ref env fn-depth fn-index "active function"))
+                 (home (if (js-function-p active)
+                           (js-function-home-object active)
+                           +undefined+))
+                 (base (if (js-object-p home) (jm-get-prototype-of home) +null+)))
+            (unless (js-object-p base)
+              (throw-type-error "super base is null"))
+            (values base property receiver)))))))
+
+(defun super-reference-get (reference env)
+  (multiple-value-bind (base property receiver) (funcall reference env)
+    (jm-get base (to-property-key property) receiver)))
+
+(defun super-reference-set (reference env value strict)
+  (multiple-value-bind (base property receiver) (funcall reference env)
+    (unless (jm-set base (to-property-key property) value receiver)
+      (when strict (throw-type-error "cannot assign to super property")))
+    value))
 
 (defun compile-meta (comp node)
   (if (string= (meta-property-meta node) "import")
@@ -302,27 +373,44 @@ slot."
                     (lambda (env v) (declare (ignore env v))
                       (throw-type-error "Assignment to constant variable."))))
            ((eq kind :local)
-            (values (lambda (env) (frame-ref env depth index name))
-                    (if (resolved-immutable-p comp depth name)
-                        (lambda (env v)
-                          (declare (ignore v))
-                          (frame-ref env depth index name)
-                          (throw-type-error "Assignment to constant variable."))
-                        (lambda (env v) (frame-set env depth index v name)))))
+            (values
+             (lambda (env) (frame-ref env depth index name))
+             (cond
+               ((resolved-immutable-p comp depth name)
+                (lambda (env v)
+                  (declare (ignore v))
+                  (frame-ref env depth index name)
+                  (throw-type-error "Assignment to constant variable.")))
+               ((resolved-silent-immutable-p comp depth name)
+                (if (comp-strict comp)
+                    (lambda (env v)
+                      (declare (ignore v))
+                      (frame-ref env depth index name)
+                      (throw-type-error "Assignment to immutable function name."))
+                    (lambda (env v)
+                      (frame-ref env depth index name)
+                      v)))
+               (t (lambda (env v) (frame-set env depth index v name))))))
            (t (let ((strict (comp-strict comp)))
                 (values (lambda (env) (declare (ignore env)) (global-get name))
                         (lambda (env v) (declare (ignore env)) (global-set name v strict)))))))))
     (member-expression
-     (let ((obj-fn (compile-node comp (member-expression-object node))))
-       (if (member-expression-computed node)
-           (let ((prop-fn (compile-node comp (member-expression-property node))))
-             (values (lambda (env) (js-getv (funcall obj-fn env) (to-property-key (funcall prop-fn env))))
-                     (lambda (env v) (let ((o (funcall obj-fn env)))
-                                       (js-set (to-object o) (to-property-key (funcall prop-fn env)) v (comp-strict comp))))))
-           (let ((key (identifier-name (member-expression-property node)))
-                 (rcache (%make-ic)) (wcache (%make-ic)) (strict (comp-strict comp)))
-             (values (lambda (env) (%ic-read (funcall obj-fn env) key rcache))
-                     (lambda (env v) (%ic-write (funcall obj-fn env) key v wcache strict)))))))
+     (if (super-member-p node)
+         (let ((reference (compile-super-reference comp node))
+               (strict (comp-strict comp)))
+           (values (lambda (env) (super-reference-get reference env))
+                   (lambda (env value)
+                     (super-reference-set reference env value strict))))
+         (let ((obj-fn (compile-node comp (member-expression-object node))))
+           (if (member-expression-computed node)
+               (let ((prop-fn (compile-node comp (member-expression-property node))))
+                 (values (lambda (env) (js-getv (funcall obj-fn env) (to-property-key (funcall prop-fn env))))
+                         (lambda (env v) (let ((o (funcall obj-fn env)))
+                                           (js-set (to-object o) (to-property-key (funcall prop-fn env)) v (comp-strict comp))))))
+               (let ((key (identifier-name (member-expression-property node)))
+                     (rcache (%make-ic)) (wcache (%make-ic)) (strict (comp-strict comp)))
+                 (values (lambda (env) (%ic-read (funcall obj-fn env) key rcache))
+                         (lambda (env v) (%ic-write (funcall obj-fn env) key v wcache strict))))))))
     (t (values (lambda (env) (declare (ignore env)) (throw-reference-error "invalid reference"))
                (lambda (env v) (declare (ignore env v)) (throw-syntax-error "invalid assignment target"))))))
 
@@ -339,13 +427,16 @@ base and computed key exactly once, before evaluating a right-hand side."
 ;;; --- member / call / new ----------------------------------------------------
 
 (defun compile-member (comp node)
-  (let ((obj-fn (compile-node comp (member-expression-object node))))
-    (if (member-expression-computed node)
-        (let ((prop-fn (compile-node comp (member-expression-property node))))
-          (lambda (env) (js-getv (funcall obj-fn env) (to-property-key (funcall prop-fn env)))))
-        (let ((key (identifier-name (member-expression-property node)))
-              (cache (%make-ic)))                ; per-site monomorphic read inline cache
-          (lambda (env) (%ic-read (funcall obj-fn env) key cache))))))
+  (if (super-member-p node)
+      (let ((reference (compile-super-reference comp node)))
+        (lambda (env) (super-reference-get reference env)))
+      (let ((obj-fn (compile-node comp (member-expression-object node))))
+        (if (member-expression-computed node)
+            (let ((prop-fn (compile-node comp (member-expression-property node))))
+              (lambda (env) (js-getv (funcall obj-fn env) (to-property-key (funcall prop-fn env)))))
+            (let ((key (identifier-name (member-expression-property node)))
+                  (cache (%make-ic)))                ; per-site monomorphic read inline cache
+              (lambda (env) (%ic-read (funcall obj-fn env) key cache)))))))
 
 (defun compile-arguments-list (comp args)
   (let ((simple (notany #'spread-element-p args)))
@@ -366,7 +457,15 @@ base and computed key exactly once, before evaluating a right-hand side."
   (let ((callee (call-expression-callee node))
         (args-fn (compile-arguments-list comp (call-expression-arguments node))))
     (cond
+      ((super-node-p callee)
+       (compile-super-call comp args-fn))
       ;; method call: preserve `this`
+      ((super-member-p callee)
+       (let ((reference (compile-super-reference comp callee)))
+         (lambda (env)
+           (multiple-value-bind (base property receiver) (funcall reference env)
+             (let ((function (jm-get base (to-property-key property) receiver)))
+               (js-call function receiver (funcall args-fn env)))))))
       ((member-expression-p callee)
        (let ((obj-fn (compile-node comp (member-expression-object callee))))
          (if (member-expression-computed callee)
@@ -381,6 +480,23 @@ base and computed key exactly once, before evaluating a right-hand side."
       ;; direct eval is not supported (Phase 03) — treat `eval(...)` as an ordinary call
       (t (let ((fn (compile-node comp callee)))
            (lambda (env) (js-call (funcall fn env) +undefined+ (funcall args-fn env))))))))
+
+(defun compile-super-call (comp args-fn)
+  (multiple-value-bind (fn-kind fn-depth fn-index) (comp-resolve comp "%active.function%")
+    (multiple-value-bind (this-kind this-depth this-index) (comp-resolve comp "%this%")
+      (multiple-value-bind (nt-kind nt-depth nt-index) (comp-resolve comp "%new.target%")
+        (unless (and (eq fn-kind :local) (eq this-kind :local) (eq nt-kind :local))
+          (error "super() compiled without a derived constructor environment"))
+        (lambda (env)
+          (let* ((active (frame-ref env fn-depth fn-index "active function"))
+                 (super-constructor (jm-get-prototype-of active))
+                 (args (funcall args-fn env)))
+            (unless (constructor-p super-constructor)
+              (throw-type-error "superclass is not a constructor"))
+            (let* ((new-target (frame-ref env nt-depth nt-index "new.target"))
+                   (result (js-construct super-constructor args new-target))
+                   (binding (frame-ref env this-depth this-index "this")))
+              (bind-derived-this binding result))))))))
 
 (defun compile-new (comp node)
   (let ((callee-fn (compile-node comp (new-expression-callee node)))
@@ -411,45 +527,81 @@ base and computed key exactly once, before evaluating a right-hand side."
                    (t (error "bad unary op ~a" op)))))))))
 
 (defun compile-delete (comp arg)
-  (if (member-expression-p arg)
-      (let ((obj-fn (compile-node comp (member-expression-object arg)))
-            (strict (comp-strict comp)))
-        (if (member-expression-computed arg)
-            (let ((prop-fn (compile-node comp (member-expression-property arg))))
-              (lambda (env)
-                (let ((base (funcall obj-fn env))
-                      (property (funcall prop-fn env)))
-                  (js-boolean (js-delete (to-object base)
-                                         (to-property-key property)
-                                         strict)))))
-            (let ((key (identifier-name (member-expression-property arg))))
-              (lambda (env) (js-boolean (js-delete (to-object (funcall obj-fn env)) key strict))))))
-      (lambda (env) (declare (ignore env)) +true+)))    ; delete of a non-reference -> true
+  (cond
+    ((super-member-p arg)
+     ;; Evaluating a SuperProperty first resolves `this`, then evaluates a
+     ;; computed key. Delete rejects that reference before ToPropertyKey or any
+     ;; super-base coercion is performed.
+     (multiple-value-bind (this-kind this-depth this-index) (comp-resolve comp "%this%")
+       (unless (eq this-kind :local)
+         (error "super delete compiled without a method environment"))
+       (let ((property-fn (and (member-expression-computed arg)
+                               (compile-node comp (member-expression-property arg)))))
+         (lambda (env)
+           (get-this-binding (frame-ref env this-depth this-index "this"))
+           (when property-fn (funcall property-fn env))
+           (throw-reference-error "cannot delete a super property")))))
+    ((member-expression-p arg)
+     (let ((obj-fn (compile-node comp (member-expression-object arg)))
+           (strict (comp-strict comp)))
+       (if (member-expression-computed arg)
+           (let ((prop-fn (compile-node comp (member-expression-property arg))))
+             (lambda (env)
+               (let ((base (funcall obj-fn env))
+                     (property (funcall prop-fn env)))
+                 (js-boolean (js-delete (to-object base)
+                                        (to-property-key property)
+                                        strict)))))
+           (let ((key (identifier-name (member-expression-property arg))))
+             (lambda (env) (js-boolean (js-delete (to-object (funcall obj-fn env)) key strict)))))))
+    ((identifier-p arg)
+     ;; A resolved environment binding is not deletable. This covers the
+     ;; function-local `arguments` binding without changing global-property
+     ;; deletion, whose declaration records belong to the later global-env work.
+     (multiple-value-bind (kind depth index) (comp-resolve comp (identifier-name arg))
+       (declare (ignore depth index))
+       (let ((result (if (eq kind :local) +false+ +true+)))
+         (lambda (env) (declare (ignore env)) result))))
+    (t (lambda (env) (declare (ignore env)) +true+)))) ; non-reference -> true
 
 (defun compile-update (comp node)
   (let ((op (update-expression-operator node)) (prefix (update-expression-prefix node))
         (target (update-expression-argument node)))
     (let ((step (if (string= op "++") 1 -1)))
-      (if (member-expression-p target)
-          (multiple-value-bind (obj-fn computed key-part rcache wcache strict)
-              (compile-member-reference-parts comp target)
-            (lambda (env)
-              (let* ((o (funcall obj-fn env))
-                     (k (if computed (to-property-key (funcall key-part env)) key-part))
-                     (old (to-numeric (if computed (js-getv o k) (%ic-read o k rcache))))
-                     (new (if (integerp old) (+ old step)
-                              (with-js-floats (+ old (coerce step 'double-float))))))
-                (if computed (js-set (to-object o) k new strict)
-                    (%ic-write o k new wcache strict))
-                (if prefix new old))))
-          (multiple-value-bind (get set) (compile-reference comp target)
-            (lambda (env)
-              ;; ToNumeric so `let x=1n; x++` stays a BigInt (not a TypeError via to-number).
-              (let* ((old (to-numeric (funcall get env)))
-                     (new (if (integerp old) (+ old step)
-                              (with-js-floats (+ old (coerce step 'double-float))))))
-                (funcall set env new)
-                (if prefix new old))))))))
+      (cond
+        ((super-member-p target)
+         (let ((reference (compile-super-reference comp target))
+               (strict (comp-strict comp)))
+           (lambda (env)
+             (multiple-value-bind (base property receiver) (funcall reference env)
+               (let* ((key (to-property-key property))
+                      (old (to-numeric (jm-get base key receiver)))
+                      (new (if (integerp old) (+ old step)
+                               (with-js-floats (+ old (coerce step 'double-float))))))
+                 (unless (jm-set base key new receiver)
+                   (when strict (throw-type-error "cannot assign to super property")))
+                 (if prefix new old))))))
+        ((member-expression-p target)
+         (multiple-value-bind (obj-fn computed key-part rcache wcache strict)
+             (compile-member-reference-parts comp target)
+           (lambda (env)
+             (let* ((o (funcall obj-fn env))
+                    (k (if computed (to-property-key (funcall key-part env)) key-part))
+                    (old (to-numeric (if computed (js-getv o k) (%ic-read o k rcache))))
+                    (new (if (integerp old) (+ old step)
+                             (with-js-floats (+ old (coerce step 'double-float))))))
+               (if computed (js-set (to-object o) k new strict)
+                   (%ic-write o k new wcache strict))
+               (if prefix new old)))))
+        (t
+         (multiple-value-bind (get set) (compile-reference comp target)
+           (lambda (env)
+             ;; ToNumeric so `let x=1n; x++` stays a BigInt (not a TypeError via to-number).
+             (let* ((old (to-numeric (funcall get env)))
+                    (new (if (integerp old) (+ old step)
+                             (with-js-floats (+ old (coerce step 'double-float))))))
+               (funcall set env new)
+               (if prefix new old)))))))))
 
 (defun compile-binary (comp node)
   (let ((l (compile-node comp (binary-expression-left node)))
@@ -506,43 +658,69 @@ base and computed key exactly once, before evaluating a right-hand side."
 (defun compile-assignment (comp node)
   (let ((op (assignment-expression-operator node)) (target (assignment-expression-left node)))
     (if (string= op "=")
-        (if (or (array-pattern-p target) (object-pattern-p target))
-            (compile-destructuring-assignment comp target (assignment-expression-right node))
-            (let ((rhs (compile-named-value comp (assignment-expression-right node)
-                                            (and (identifier-p target) (identifier-name target)))))
-              (if (member-expression-p target)
-                  (multiple-value-bind (obj-fn computed key-part rcache wcache strict)
-                      (compile-member-reference-parts comp target)
-                    (declare (ignore rcache))
-                    (lambda (env)
-                      (let* ((o (funcall obj-fn env))
-                             (k (if computed (to-property-key (funcall key-part env)) key-part))
-                             (v (funcall rhs env)))
-                        (if computed (js-set (to-object o) k v strict)
-                            (%ic-write o k v wcache strict))
-                        v)))
-                  (multiple-value-bind (get set) (compile-reference comp target)
-                    (declare (ignore get))
-                    (lambda (env) (let ((v (funcall rhs env))) (funcall set env v) v))))))
+        (cond
+          ((or (array-pattern-p target) (object-pattern-p target))
+           (compile-destructuring-assignment comp target (assignment-expression-right node)))
+          ((super-member-p target)
+           (let ((reference (compile-super-reference comp target))
+                 (rhs (compile-node comp (assignment-expression-right node)))
+                 (strict (comp-strict comp)))
+             (lambda (env)
+               (multiple-value-bind (base property receiver) (funcall reference env)
+                 (let ((value (funcall rhs env)))
+                   (unless (jm-set base (to-property-key property) value receiver)
+                     (when strict (throw-type-error "cannot assign to super property")))
+                   value)))))
+          (t
+           (let ((rhs (compile-named-value comp (assignment-expression-right node)
+                                           (and (identifier-p target) (identifier-name target)))))
+             (if (member-expression-p target)
+                 (multiple-value-bind (obj-fn computed key-part rcache wcache strict)
+                     (compile-member-reference-parts comp target)
+                   (declare (ignore rcache))
+                   (lambda (env)
+                     (let* ((o (funcall obj-fn env))
+                            (k (if computed (to-property-key (funcall key-part env)) key-part))
+                            (v (funcall rhs env)))
+                       (if computed (js-set (to-object o) k v strict)
+                           (%ic-write o k v wcache strict))
+                       v)))
+                 (multiple-value-bind (get set) (compile-reference comp target)
+                   (declare (ignore get))
+                   (lambda (env) (let ((v (funcall rhs env))) (funcall set env v) v)))))))
         (let ((rhs (compile-node comp (assignment-expression-right node)))
               (binop (subseq op 0 (1- (length op)))))
-          (if (member-expression-p target)
-              (multiple-value-bind (obj-fn computed key-part rcache wcache strict)
-                  (compile-member-reference-parts comp target)
-                (lambda (env)
-                  (let* ((o (funcall obj-fn env))
-                         (k (if computed (to-property-key (funcall key-part env)) key-part))
-                         (a (if computed (js-getv o k) (%ic-read o k rcache)))
-                         (d (funcall rhs env))
-                         (v (apply-binop binop a d)))
-                    (if computed (js-set (to-object o) k v strict)
-                        (%ic-write o k v wcache strict))
-                    v)))
-              (multiple-value-bind (get set) (compile-reference comp target)
-                (lambda (env)
-                  (let* ((a (funcall get env)) (d (funcall rhs env))
-                         (v (apply-binop binop a d)))
-                    (funcall set env v) v))))))))
+          (cond
+            ((super-member-p target)
+             (let ((reference (compile-super-reference comp target))
+                   (strict (comp-strict comp)))
+               (lambda (env)
+                 (multiple-value-bind (base property receiver) (funcall reference env)
+                   (let* ((key (to-property-key property))
+                          (left (jm-get base key receiver))
+                          (right (funcall rhs env))
+                          (value (apply-binop binop left right)))
+                     (unless (jm-set base key value receiver)
+                       (when strict (throw-type-error "cannot assign to super property")))
+                     value)))))
+            ((member-expression-p target)
+             (multiple-value-bind (obj-fn computed key-part rcache wcache strict)
+                 (compile-member-reference-parts comp target)
+               (lambda (env)
+                 (let* ((o (funcall obj-fn env))
+                        (k (if computed (to-property-key (funcall key-part env)) key-part))
+                        (a (if computed (js-getv o k) (%ic-read o k rcache)))
+                        (d (funcall rhs env))
+                        (v (apply-binop binop a d)))
+                   (if computed (js-set (to-object o) k v strict)
+                       (%ic-write o k v wcache strict))
+                   v))))
+            (t
+             (multiple-value-bind (get set) (compile-reference comp target)
+               (lambda (env)
+                 (let* ((a (funcall get env)) (d (funcall rhs env))
+                        (v (apply-binop binop a d)))
+                   (funcall set env v) v)))))))))
 
 (defun apply-binop (op a d)
   (cond ((string= op "+") (js-add a d)) ((string= op "-") (js-sub a d))
@@ -579,6 +757,29 @@ base and computed key exactly once, before evaluating a right-hand side."
       (let ((o (new-object)))
         (dolist (p parts o) (funcall p env o))))))
 
+(defun set-callable-home-object (function home)
+  (when (js-function-p function)
+    (setf (js-function-home-object function) home))
+  function)
+
+(defun function-property-name (key)
+  (if (js-symbol-p key)
+      (let ((description (js-symbol-description key)))
+        (if (js-undefined-p description)
+            ""
+            (format nil "[~a]" description)))
+      key))
+
+(defun set-function-name (function key &optional prefix)
+  (let* ((base (function-property-name key))
+         (name (if prefix (format nil "~a ~a" prefix base) base)))
+    (cond ((js-function-p function) (setf (js-function-fname function) name))
+          ((js-native-function-p function) (setf (js-native-function-fname function) name))
+          ((js-bound-function-p function) (setf (js-bound-function-fname function) name)))
+    (obj-set-desc function "name"
+                  (data-pd name :writable nil :enumerable nil :configurable t))
+    function))
+
 (defun compile-object-property (comp prop)
   (cond
     ((spread-element-p prop)
@@ -596,19 +797,39 @@ base and computed key exactly once, before evaluating a right-hand side."
               (kind (property-kind prop)))
          (case kind
            ((:get :set)
-            (let ((fn-fn (compile-method comp (property-value prop))))
+            (let ((fn-fn (compile-method comp (property-value prop) :source-node prop)))
               (lambda (env o)
                 (let ((k (if computed (to-property-key (funcall key-fn env)) static-key))
                       (f (funcall fn-fn env)))
+                  (set-callable-home-object f o)
+                  (set-function-name f k (if (eq kind :get) "get" "set"))
                   (let ((existing (obj-own-desc o k)))
                     (jm-define-own-property o k
                       (if (eq kind :get)
                           (accessor-pd f (if (and existing (accessor-descriptor-p existing)) (pd-set existing) +undefined+))
                           (accessor-pd (if (and existing (accessor-descriptor-p existing)) (pd-get existing) +undefined+) f))))))))
-           (t (let ((val-fn (compile-node comp (property-value prop))))
-                (lambda (env o)
-                  (let ((k (if computed (to-property-key (funcall key-fn env)) static-key)))
-                    (create-data-property o k (funcall val-fn env)))))))))))
+           (t
+            (let* ((method-p (property-method prop))
+                   (anonymous-p (anon-fn-node-p (property-value prop)))
+                   (val-fn (if method-p
+                               (compile-method comp (property-value prop) :source-node prop)
+                               (compile-node comp (property-value prop)))))
+              (if (and (not computed) (not method-p) (not (property-shorthand prop))
+                       (string= static-key "__proto__"))
+                  (lambda (env o)
+                    (let ((value (funcall val-fn env)))
+                      (when (or (js-object-p value) (js-null-p value))
+                        (unless (jm-set-prototype-of o value)
+                          (throw-type-error "cannot set object literal prototype")))))
+                  (lambda (env o)
+                    (let* ((k (if computed (to-property-key (funcall key-fn env)) static-key))
+                           (value (funcall val-fn env)))
+                      (when method-p
+                        (set-callable-home-object value o)
+                        (set-function-name value k))
+                      (when (and anonymous-p (callable-p value))
+                        (set-function-name value k))
+                      (create-data-property o k value)))))))))))
 
 (defun property-key-string (key)
   (typecase key
@@ -742,16 +963,24 @@ base and computed key exactly once, before evaluating a right-hand side."
        (lambda (env)
          (lambda (value) (funcall set env value)))))
     (member-expression
-     (multiple-value-bind (obj-fn computed key-part rcache wcache strict)
-         (compile-member-reference-parts comp target)
-       (declare (ignore rcache))
-       (lambda (env)
-         (let ((object (funcall obj-fn env))
-               (key-value (if computed (funcall key-part env) key-part)))
-           (lambda (value)
-             (if computed
-                 (js-set (to-object object) (to-property-key key-value) value strict)
-                 (%ic-write object key-value value wcache strict)))))))
+     (if (super-member-p target)
+         (let ((reference (compile-super-reference comp target))
+               (strict (comp-strict comp)))
+           (lambda (env)
+             (multiple-value-bind (base property receiver) (funcall reference env)
+               (lambda (value)
+                 (unless (jm-set base (to-property-key property) value receiver)
+                   (when strict (throw-type-error "cannot assign to super property")))))))
+         (multiple-value-bind (obj-fn computed key-part rcache wcache strict)
+             (compile-member-reference-parts comp target)
+           (declare (ignore rcache))
+           (lambda (env)
+             (let ((object (funcall obj-fn env))
+                   (key-value (if computed (funcall key-part env) key-part)))
+               (lambda (value)
+                 (if computed
+                     (js-set (to-object object) (to-property-key key-value) value strict)
+                     (%ic-write object key-value value wcache strict))))))))
     (assignment-pattern
      (let ((inner (compile-prepared-assign-target comp (assignment-pattern-left target)))
            (default (compile-named-value comp (assignment-pattern-right target)
@@ -813,126 +1042,240 @@ base and computed key exactly once, before evaluating a right-hand side."
           return count
         finally (return (length params))))
 
-(defun compile-function-common (comp params body fname &key arrow method generator async)
+(defun binding-contains-expression-p (binding)
+  "Implement ContainsExpression for formal-parameter binding syntax."
+  (typecase binding
+    (assignment-pattern t)
+    (rest-element (binding-contains-expression-p (rest-element-argument binding)))
+    (array-pattern
+     (some (lambda (element)
+             (and element (binding-contains-expression-p element)))
+           (array-pattern-elements binding)))
+    (object-pattern
+     (some (lambda (property)
+             (typecase property
+               (rest-element
+                (binding-contains-expression-p (rest-element-argument property)))
+               (property
+                (or (property-computed property)
+                    (binding-contains-expression-p (property-value property))))
+               (t nil)))
+           (object-pattern-properties binding)))
+    (t nil)))
+
+(defun compile-function-common (comp params body fname &key arrow method generator async function-kind
+                                                       source-text)
   "Return (lambda (env) -> js-function). Sets up the function scope and body closure.
 GENERATOR/ASYNC bodies run in a coroutine (Phase 06): a hidden %coro% frame slot holds
 the live coroutine that yield/await suspend."
   (let* ((strict (or (comp-strict comp) (function-body-strict-p body)))
-         (scope (make-cscope :function))
+         (parameter-scope (make-cscope :function))
          (stmts (block-statement-body body))
-         (coro-p (or generator async)))  ; generator/async bodies run in a coroutine
+         (coro-p (or generator async))
+         (simple-params (every #'identifier-p params))
+         (has-parameter-expressions (some #'binding-contains-expression-p params))
+         (body-scope (when has-parameter-expressions (make-cscope :block)))
+         (runtime-body-scope (or body-scope parameter-scope)))
     ;; reserved bindings
-    (let ((this-idx (unless arrow (cs-declare scope "%this%")))
-          (nt-idx (unless arrow (cs-declare scope "%new.target%")))
-          (args-idx (unless arrow (cs-declare scope "arguments")))
-          (coro-idx (when coro-p (cs-declare scope "%coro%"))))
+    (let ((this-idx (unless arrow (cs-declare parameter-scope "%this%")))
+          (nt-idx (unless arrow (cs-declare parameter-scope "%new.target%")))
+          (active-fn-idx (unless arrow (cs-declare parameter-scope "%active.function%")))
+          (args-idx (unless arrow (cs-declare parameter-scope "arguments")))
+          (coro-idx (when coro-p (cs-declare parameter-scope "%coro%"))))
       ;; parameters
       (let ((param-binders '())
-            (simple-params (every #'identifier-p params))
             (param-indices '())
+            (mapped-parameters nil)
             (param-names (loop for parameter in params append (binding-bound-names parameter))))
-        ;; declare param names in the scope
+        ;; Parameter expressions resolve only through this scope and its outer
+        ;; environment. For a non-simple list, body declarations do not exist yet.
         (dolist (name param-names)
-          (pushnew (cs-declare scope name) param-indices))
+          (pushnew (cs-declare parameter-scope name) param-indices))
+        ;; Sloppy simple parameter lists alias supplied arguments to bindings.
+        ;; Walk right-to-left so only the last duplicate parameter remains mapped.
+        (when (and simple-params (not strict))
+          (let ((seen (make-hash-table :test 'equal))
+                (mapping (make-array (length params) :initial-element nil)))
+            (loop for parameter in (reverse params)
+                  for index downfrom (1- (length params))
+                  for name = (identifier-name parameter)
+                  unless (gethash name seen)
+                    do (setf (gethash name seen) t
+                             (aref mapping index)
+                             (cons (gethash name (cs-names parameter-scope)) name)))
+            (setf mapped-parameters mapping)))
         ;; hoisted vars / funcs / lexicals of the body
         (multiple-value-bind (vars funcs) (collect-var-names stmts)
-          (dolist (n vars) (cs-declare scope n))
-          (dolist (n funcs) (cs-declare scope n))
-          (dolist (n (collect-lexical-names stmts)) (cs-declare scope n))
-          (mark-immutable-lexicals scope stmts)
-          (let ((sub (make-comp)) (return-tag (gensym "RET")))
-            (setf (comp-scopes sub) (cons scope (comp-scopes comp))
-                  (comp-strict sub) strict)
+          (dolist (name vars) (cs-declare runtime-body-scope name))
+          (dolist (name funcs) (cs-declare runtime-body-scope name))
+          (dolist (name (collect-lexical-names stmts))
+            (cs-declare runtime-body-scope name))
+          (mark-immutable-lexicals runtime-body-scope stmts)
+          (let ((parameter-comp (make-comp))
+                (body-comp (make-comp))
+                (return-tag (gensym "RET")))
+            (setf (comp-scopes parameter-comp)
+                  (cons parameter-scope (comp-scopes comp))
+                  (comp-strict parameter-comp) strict
+                  (comp-module parameter-comp) (comp-module comp)
+                  (comp-scopes body-comp)
+                  (if body-scope
+                      (cons body-scope (comp-scopes parameter-comp))
+                      (comp-scopes parameter-comp))
+                  (comp-strict body-comp) strict
+                  (comp-module body-comp) (comp-module comp))
             ;; compile param binders + body with this function's return tag active
             (let ((*current-return-tag* return-tag))
-             (setf param-binders
-                  (loop for p in params for i from 0
-                        collect (if (rest-element-p p)
-                                    (cons :rest (compile-bind-target sub (rest-element-argument p)))
-                                    (cons i (compile-bind-target sub p)))))
-             (let* ((lexical-idxs (loop for n in (collect-lexical-names stmts)
-                                       collect (gethash n (cs-names scope))))
-                   (func-decls (collect-function-decls stmts))
-                   (func-compiled (loop for fd in func-decls
-                                        collect (cons (gethash (identifier-name (function-node-id fd)) (cs-names scope))
-                                                      (compile-function-common sub (function-node-params fd)
-                                                                               (function-node-body fd)
-                                                                               (identifier-name (function-node-id fd))
-                                                                               :generator (function-node-generator fd)
-                                                                               :async (function-node-async fd)))))
-                   ;; Phase-25 COMPILE tier: eager mode classifies every body and records a named
-                   ;; outcome. A coverable non-coroutine body invokes ONE cl:compiled native form;
-                   ;; rejection or any compile failure falls back to the unchanged closure emitter.
-                   (source-requested (eq *compile-tier-mode* :eager))
-                   (source-id (and source-requested (cs-function-id fname body)))
-                   (source-blockers (and source-requested
-                                         (if coro-p '("coroutine")
-                                             (cs-function-blockers params stmts))))
-                   (source-body
-                     (when source-requested
-                       (if source-blockers
-                           (progn (incf *cs-ineligible-count*)
-                                  (cs-note-status source-id :ineligible source-blockers)
-                                  nil)
-                           (cs-compile-body sub stmts return-tag source-id))))
-                   (body-fn (or source-body
-                                (compile-seq sub stmts)))
-                   ;; read AFTER the body is compiled: set iff `arguments` was referenced (m5)
-                   (needs-args (and (not arrow) (cs-uses-arguments scope)))
-                   (count (cs-count scope))
-                   (this-mode (cond (arrow :lexical) (strict :strict) (t :global))))
-              (declare (ignore method))
-              (lambda (defenv)
-                (labels ((setup-frame (this args new-target)
-                           (let ((frame (new-frame count defenv)))
-                             (dolist (parameter-index param-indices)
-                               (setf (svref (env-slots frame) parameter-index) +tdz+))
-                             (unless arrow
-                               (setf (svref (env-slots frame) this-idx) (coerce-this this this-mode)
-                                     (svref (env-slots frame) nt-idx) new-target)
-                               ;; build the `arguments` object ONLY if the body references it (m5):
-                               ;; skipping it for the common case avoids an object allocation per call.
-                               (when (and needs-args
-                                          (not (member "arguments" param-names :test #'string=)))
-                                 (setf (svref (env-slots frame) args-idx) (make-arguments-object args))))
-                             (dolist (li lexical-idxs) (setf (svref (env-slots frame) li) +tdz+))
-                             (bind-parameters param-binders args frame simple-params)
-                             (dolist (fc func-compiled)
-                               (setf (svref (env-slots frame) (car fc)) (funcall (cdr fc) frame)))
-                             frame))
-                         (run-body (frame) (catch return-tag (funcall body-fn frame) +undefined+)))
-                  (instantiate-function
-                   (cond
-                     ((and generator async)
-                      (lambda (fn this args new-target)
-                        (declare (ignore fn))
-                        (let ((frame (setup-frame this args new-target)))
-                          (let ((co (make-coroutine (lambda () (run-body frame)))))
-                            (setf (svref (env-slots frame) coro-idx) co)
-                            (make-async-generator co)))))
-                     (generator
-                      (lambda (fn this args new-target)
-                        (let ((frame (setup-frame this args new-target)))
-                          (let ((co (make-coroutine (lambda () (run-body frame)))))
-                            (setf (svref (env-slots frame) coro-idx) co)
-                            (make-generator fn co)))))
-                     (async
-                      (lambda (fn this args new-target)
-                        (declare (ignore fn))
-                        (let ((frame (setup-frame this args new-target)))
-                          (let ((co (make-coroutine (lambda () (run-body frame)))))
-                            (setf (svref (env-slots frame) coro-idx) co)
-                            (drive-async-function co)))))
-                     (t
-                      (lambda (fn this args new-target)
-                        (declare (ignore fn))
-                        (run-body (setup-frame this args new-target)))))
-                   defenv
-                   :fname fname :param-count (expected-argument-count params)
-                   :strict strict :this-mode this-mode
-                   :constructable (and (not arrow) (not coro-p))
-                   :kind (cond (generator :generator)
-                               ((or arrow method) :method) (t :normal)))))))))))))
+              (setf param-binders
+                    (loop for parameter in params
+                          for index from 0
+                          collect
+                          (if (rest-element-p parameter)
+                              (cons :rest
+                                    (compile-bind-target
+                                     parameter-comp (rest-element-argument parameter)))
+                              (cons index
+                                    (compile-bind-target parameter-comp parameter)))))
+              (let* ((lexical-idxs
+                       (loop for name in (collect-lexical-names stmts)
+                             collect (gethash name (cs-names runtime-body-scope))))
+                     (body-copy-pairs
+                       (when body-scope
+                         (loop for name in (remove-duplicates (append vars funcs)
+                                                              :test #'string=)
+                               for parameter-index = (gethash name (cs-names parameter-scope))
+                               when parameter-index
+                                 collect (cons (gethash name (cs-names body-scope))
+                                               parameter-index))))
+                     (func-decls (collect-function-decls stmts))
+                     (func-compiled
+                       (loop for declaration in func-decls
+                             for name = (identifier-name (function-node-id declaration))
+                             collect
+                             (cons (gethash name (cs-names runtime-body-scope))
+                                   (compile-function-common
+                                    body-comp
+                                    (function-node-params declaration)
+                                    (function-node-body declaration)
+                                    name
+                                    :generator (function-node-generator declaration)
+                                    :async (function-node-async declaration)
+                                    :source-text (node-source-text declaration)))))
+                     ;; Phase-25 COMPILE tier: eager mode classifies every body and records a named
+                     ;; outcome. A coverable non-coroutine body invokes ONE cl:compiled native form;
+                     ;; rejection or any compile failure falls back to the unchanged closure emitter.
+                     (source-requested (eq *compile-tier-mode* :eager))
+                     (source-id (and source-requested (cs-function-id fname body)))
+                     (source-blockers
+                       (and source-requested
+                            (if coro-p '("coroutine")
+                                (cs-function-blockers params stmts))))
+                     (source-body
+                       (when source-requested
+                         (if source-blockers
+                             (progn
+                               (incf *cs-ineligible-count*)
+                               (cs-note-status source-id :ineligible source-blockers)
+                               nil)
+                             (cs-compile-body body-comp stmts return-tag source-id))))
+                     (body-fn (or source-body (compile-seq body-comp stmts)))
+                     ;; Read after parameter and body compilation. A non-simple `var arguments`
+                     ;; needs the parameter-environment object copied into the body frame even
+                     ;; though body references resolve to the child binding.
+                     (needs-args
+                       (and (not arrow)
+                            (or (cs-uses-arguments parameter-scope)
+                                (and body-scope
+                                     (member "arguments" vars :test #'string=)))))
+                     (parameter-count (cs-count parameter-scope))
+                     (body-count (and body-scope (cs-count body-scope)))
+                     (this-mode (cond (arrow :lexical) (strict :strict) (t :global)))
+                     (resolved-function-kind
+                       (or function-kind
+                           (cond ((and generator async) :async-generator)
+                                 (generator :generator) (async :async) (arrow :arrow)
+                                 (method :method) (t :ordinary)))))
+                (lambda (defenv)
+                  (labels
+                      ((setup-frame (fn this args new-target)
+                         (let ((parameter-frame (new-frame parameter-count defenv)))
+                           (dolist (parameter-index param-indices)
+                             (setf (svref (env-slots parameter-frame) parameter-index) +tdz+))
+                           (unless arrow
+                             (setf (svref (env-slots parameter-frame) this-idx)
+                                   (coerce-this this this-mode)
+                                   (svref (env-slots parameter-frame) nt-idx) new-target
+                                   (svref (env-slots parameter-frame) active-fn-idx) fn)
+                             (when (and needs-args
+                                        (not (member "arguments" param-names :test #'string=)))
+                               (setf (svref (env-slots parameter-frame) args-idx)
+                                     (make-arguments-object
+                                      args fn parameter-frame
+                                      :mapped-parameters mapped-parameters))))
+                           (unless body-scope
+                             (dolist (lexical-index lexical-idxs)
+                               (setf (svref (env-slots parameter-frame) lexical-index) +tdz+)))
+                           (bind-parameters param-binders args parameter-frame simple-params)
+                           (let ((body-frame
+                                   (if body-scope
+                                       (new-frame body-count parameter-frame)
+                                       parameter-frame)))
+                             (when body-scope
+                               (dolist (lexical-index lexical-idxs)
+                                 (setf (svref (env-slots body-frame) lexical-index) +tdz+))
+                               (dolist (pair body-copy-pairs)
+                                 (setf (svref (env-slots body-frame) (car pair))
+                                       (frame-ref parameter-frame 0 (cdr pair) "parameter"))))
+                             (dolist (compiled func-compiled)
+                               (setf (svref (env-slots body-frame) (car compiled))
+                                     (funcall (cdr compiled) body-frame)))
+                             body-frame)))
+                       (function-frame (body-frame)
+                         (if body-scope (env-parent body-frame) body-frame))
+                       (run-body (frame)
+                         (catch return-tag (funcall body-fn frame) +undefined+)))
+                    (instantiate-function
+                     (cond
+                       ((and generator async)
+                        (lambda (fn this args new-target)
+                          (let ((frame (setup-frame fn this args new-target)))
+                            (let ((coroutine (make-coroutine (lambda () (run-body frame)))))
+                              (setf (svref (env-slots (function-frame frame)) coro-idx)
+                                    coroutine)
+                              (make-async-generator fn coroutine)))))
+                       (generator
+                        (lambda (fn this args new-target)
+                          (let ((frame (setup-frame fn this args new-target)))
+                            (let ((coroutine (make-coroutine (lambda () (run-body frame)))))
+                              (setf (svref (env-slots (function-frame frame)) coro-idx)
+                                    coroutine)
+                              (make-generator fn coroutine)))))
+                       (async
+                        (lambda (fn this args new-target)
+                          (start-async-function
+                           (lambda ()
+                             (let ((frame (setup-frame fn this args new-target)))
+                               (let ((coroutine
+                                       (make-coroutine (lambda () (run-body frame)))))
+                                 (setf (svref (env-slots (function-frame frame)) coro-idx)
+                                       coroutine)
+                                 coroutine))))))
+                       (t
+                        (lambda (fn this args new-target)
+                          (run-body (setup-frame fn this args new-target)))))
+                     defenv
+                     :fname fname :param-count (expected-argument-count params)
+                     :strict strict :this-mode this-mode
+                     :source-text source-text
+                     :constructable
+                     (or (member resolved-function-kind '(:base-class :derived-class))
+                         (and (not arrow) (not method) (not coro-p)))
+                     :function-kind resolved-function-kind
+                     :kind (cond ((or arrow method) :method)
+                                 ((and generator async) :async-generator)
+                                 (generator :generator)
+                                 (async :async)
+                                 (t :normal)))))))))))))
 
 (defun bind-parameters (binders args frame simple)
   (declare (ignore simple))
@@ -949,15 +1292,6 @@ the live coroutine that yield/await suspend."
              ((js-object-p this) this)
              (t (to-object this))))))
 
-(defun make-arguments-object (args)
-  (let ((o (js-make-object (intrinsic :object-prototype) :arguments)))
-    (loop for a in args for i from 0 do (create-data-property o (int->string i) a))
-    (obj-set-desc o "length" (data-pd (coerce (length args) 'double-float)
-                                      :writable t :enumerable nil :configurable t))
-    (obj-set-desc o (well-known :iterator)
-                  (obj-own-desc (intrinsic :array-prototype) "values"))
-    o))
-
 (defun collect-function-decls (stmts)
   (loop for s in stmts
         ;; unwrap `export function f(){}` / `export default function f(){}` (Phase 07)
@@ -971,20 +1305,45 @@ the live coroutine that yield/await suspend."
         collect node))
 
 (defun compile-function-expr (comp node)
-  (compile-function-common comp (function-node-params node) (function-node-body node)
-                           (if (function-node-id node) (identifier-name (function-node-id node)) "")
-                           :generator (function-node-generator node)
-                           :async (function-node-async node)))
+  (let ((id (function-node-id node)))
+    (if (null id)
+        (compile-function-common comp (function-node-params node) (function-node-body node) ""
+                                 :generator (function-node-generator node)
+                                 :async (function-node-async node)
+                                 :source-text (node-source-text node))
+        (let* ((name (identifier-name id))
+               (name-scope (make-cscope :block))
+               (name-index (cs-declare name-scope name))
+               (sub (make-comp)))
+          (cs-mark-silent-immutable name-scope name)
+          (setf (comp-scopes sub) (cons name-scope (comp-scopes comp))
+                (comp-strict sub) (comp-strict comp)
+                (comp-labels sub) (comp-labels comp)
+                (comp-loops sub) (comp-loops comp)
+                (comp-module sub) (comp-module comp))
+          (let ((factory
+                  (compile-function-common
+                   sub (function-node-params node) (function-node-body node) name
+                   :generator (function-node-generator node)
+                   :async (function-node-async node)
+                   :source-text (node-source-text node))))
+            (lambda (env)
+              (let* ((name-env (new-frame 1 env +tdz+))
+                     (function (funcall factory name-env)))
+                (frame-init name-env 0 name-index function)
+                function)))))))
 
 (defun compile-arrow (comp node &optional (name ""))
   (let ((body (arrow-function-body node)))
     (if (block-statement-p body)
         (compile-function-common comp (arrow-function-params node) body name :arrow t
-                                 :async (arrow-function-async node))
+                                 :async (arrow-function-async node)
+                                 :source-text (node-source-text node))
         ;; expression-bodied arrow: wrap the expression in a return
         (compile-function-common comp (arrow-function-params node)
                                  (make-block-statement :body (list (make-return-statement :argument body)))
-                                 name :arrow t :async (arrow-function-async node)))))
+                                 name :arrow t :async (arrow-function-async node)
+                                 :source-text (node-source-text node)))))
 
 (defun anon-fn-node-p (node)
   "An anonymous function/arrow/class expression eligible for NamedEvaluation."
@@ -1000,15 +1359,18 @@ the live coroutine that yield/await suspend."
     ((and (function-node-p node) (null (function-node-id node)))
      (compile-function-common comp (function-node-params node) (function-node-body node) name
                                :generator (function-node-generator node)
-                               :async (function-node-async node)))
+                               :async (function-node-async node)
+                               :source-text (node-source-text node)))
     ((and (class-node-p node) (null (class-node-id node)))
      (compile-class comp node name))
     (t (compile-node comp node))))
 
-(defun compile-method (comp fn-node)
+(defun compile-method (comp fn-node &key function-kind source-node)
   (compile-function-common comp (function-node-params fn-node) (function-node-body fn-node) "" :method t
                            :generator (function-node-generator fn-node)
-                           :async (function-node-async fn-node)))
+                           :async (function-node-async fn-node)
+                           :function-kind function-kind
+                           :source-text (callable-source-node-text (or source-node fn-node))))
 
 ;;; --- yield / await (Phase 06) ------------------------------------------------
 ;;; yield/await are plain calls into the coroutine primitive: they return a js-value
@@ -1103,7 +1465,8 @@ value to the outer driver and returning the inner iterator's final value."
                                                                                  (function-node-body fd)
                                                                                  (identifier-name (function-node-id fd))
                                                                                  :generator (function-node-generator fd)
-                                                                                 :async (function-node-async fd)))))
+                                                                                 :async (function-node-async fd)
+                                                                                 :source-text (node-source-text fd)))))
                      (body-fn (compile-seq sub stmts))
                      (count (cs-count scope)))
                 (lambda (env)
@@ -1394,7 +1757,8 @@ Runs inside the enclosing async function/generator's coroutine (%coro%)."
                                        sub (function-node-params fd) (function-node-body fd)
                                        (identifier-name (function-node-id fd))
                                        :generator (function-node-generator fd)
-                                       :async (function-node-async fd))))))
+                                       :async (function-node-async fd)
+                                       :source-text (node-source-text fd))))))
            (count (and scope (cs-count scope))))
       (labels ((run-cases (frame d)
                  (catch bt
@@ -1518,55 +1882,120 @@ Runs inside the enclosing async function/generator's coroutine (%coro%)."
   (declare (ignore node))
   (lambda (env) (declare (ignore env)) (throw-type-error "with statement is not supported yet")))
 
-;;; --- classes (basic: constructor + methods + extends) -----------------------
+;;; --- classes ---------------------------------------------------------------
 
 (defun compile-class (comp node &optional inferred-name)
-  (let* ((super-fn (and (class-node-super-class node) (compile-node comp (class-node-super-class node))))
-         (members (class-body-body (class-node-body node)))
-         (ctor-m (find :constructor members :key #'method-definition-kind))
-         (ctor-fn (and ctor-m (compile-method comp (method-definition-value ctor-m))))
-         (id (class-node-id node))
+  (let* ((id (class-node-id node))
          (class-name (if id (identifier-name id) (or inferred-name "")))
-         (methods (loop for m in members
-                        unless (eq (method-definition-kind m) :constructor)
-                        collect (list (method-definition-static m)
-                                      (method-definition-kind m)
-                                      (class-member-key-fn comp m)
-                                      (compile-method comp (method-definition-value m))))))
-    (lambda (env)
-      (let* ((super (and super-fn (funcall super-fn env)))
-             (super-proto (cond ((null super-fn) (intrinsic :object-prototype))
-                                ((js-null-p super) +null+)
-                                ((js-object-p super) (js-get super "prototype"))
-                                (t (throw-type-error "class extends value is not a constructor"))))
-             (proto (js-make-object super-proto))
-             (ctor (if ctor-fn (funcall ctor-fn env)
-                       (make-native-function class-name 0
-                         (lambda (this args)
-                           (when super (js-construct super args))
-                           this)
-                         ;; default ctor: a DERIVED class binds `this` to super()'s
-                         ;; return (new-target threaded so the instance gets this
-                         ;; class's prototype) — else builtin subclasses (Promise,
-                         ;; Error, …) lose their exotic/struct identity.
-                         :construct (lambda (args nt)
-                                      (if super
-                                          (js-construct super args nt)
-                                          (js-make-object proto)))))))
-        (when (js-function-p ctor)
-          (setf (js-function-home-object ctor) proto))
-        (obj-set-desc ctor "prototype" (data-pd proto :writable nil :enumerable nil :configurable nil))
-        (obj-set-desc proto "constructor" (data-pd ctor :writable t :enumerable nil :configurable t))
-        (when (js-object-p super) (jm-set-prototype-of ctor super))
-        (obj-set-desc ctor "name" (data-pd class-name :writable nil :enumerable nil :configurable t))
-        (dolist (m methods)
-          (destructuring-bind (static kind key-fn fn-fn) m
-            (let ((target (if static ctor proto)) (k (funcall key-fn env)) (f (funcall fn-fn env)))
-              (case kind
-                (:get (obj-set-desc target k (accessor-pd f (accessor-existing target k :set) :enumerable nil)))
-                (:set (obj-set-desc target k (accessor-pd (accessor-existing target k :get) f :enumerable nil)))
-                (t (obj-set-desc target k (data-pd f :writable t :enumerable nil :configurable t)))))))
-        ctor))))
+         (name-scope (and id (make-cscope :block)))
+         (name-index (and name-scope (cs-declare name-scope class-name)))
+         (class-comp (make-comp))
+         (super-node (class-node-super-class node))
+         (super-present-p (not (null super-node)))
+         (members (class-body-body (class-node-body node)))
+         (ctor-member (find :constructor members :key #'method-definition-kind)))
+    ;; A named class has a private immutable binding visible to heritage,
+    ;; computed keys, and method closures. It starts in TDZ and is initialized
+    ;; only after the constructor object exists.
+    (when name-scope (cs-mark-immutable name-scope class-name))
+    (setf (comp-scopes class-comp)
+          (if name-scope (cons name-scope (comp-scopes comp)) (comp-scopes comp))
+          (comp-strict class-comp) t
+          (comp-labels class-comp) (comp-labels comp)
+          (comp-loops class-comp) (comp-loops comp)
+          (comp-module class-comp) (comp-module comp))
+    (let* ((super-fn (and super-present-p (compile-node class-comp super-node)))
+           (ctor-fn
+             (and ctor-member
+                  (compile-method class-comp (method-definition-value ctor-member)
+                                  :source-node node
+                                  :function-kind (if super-present-p
+                                                     :derived-class
+                                                     :base-class))))
+           (methods
+             (loop for member in members
+                   unless (eq (method-definition-kind member) :constructor)
+                     collect
+                     (list (method-definition-static member)
+                           (method-definition-kind member)
+                           (class-member-key-fn class-comp member)
+                           (compile-method class-comp (method-definition-value member)
+                                           :source-node member)))))
+      (lambda (env)
+        (let* ((class-env (if name-scope (new-frame 1 env +tdz+) env))
+               (super (and super-fn (funcall super-fn class-env)))
+               (super-proto
+                 (cond
+                   ((not super-present-p) (intrinsic :object-prototype))
+                   ((js-null-p super) +null+)
+                   ((not (constructor-p super))
+                    (throw-type-error "class extends value is not a constructor"))
+                   (t
+                    (let ((prototype (js-get super "prototype")))
+                      (unless (or (js-object-p prototype) (js-null-p prototype))
+                        (throw-type-error "superclass prototype must be an object or null"))
+                      prototype))))
+               (proto (js-make-object super-proto))
+               (ctor
+                 (if ctor-fn
+                     (funcall ctor-fn class-env)
+                     (if super-present-p
+                         (make-native-function
+                          class-name 0
+                          (lambda (this args)
+                            (declare (ignore this args))
+                            (throw-type-error "class constructor cannot be invoked without 'new'"))
+                          :construct (lambda (args new-target)
+                                       (js-construct super args new-target))
+                          :function-kind :derived-class)
+                         (make-native-function
+                          class-name 0
+                          (lambda (this args)
+                            (declare (ignore this args))
+                            (throw-type-error "class constructor cannot be invoked without 'new'"))
+                          :construct (lambda (args new-target)
+                                       (declare (ignore args))
+                                       (js-make-object (nt-prototype new-target proto)))
+                          :function-kind :base-class)))))
+          (set-callable-home-object ctor proto)
+          (define-property-or-throw
+           ctor "prototype"
+           (data-pd proto :writable nil :enumerable nil :configurable nil))
+          (define-property-or-throw
+           proto "constructor"
+           (data-pd ctor :writable t :enumerable nil :configurable t))
+          (when (constructor-p super)
+            (unless (jm-set-prototype-of ctor super)
+              (throw-type-error "cannot set class constructor prototype")))
+          (set-function-name ctor class-name)
+          (when name-scope
+            (frame-init class-env 0 name-index ctor))
+          ;; Method definitions are observable and therefore remain sequential:
+          ;; compute the key, instantiate the closure, then define the property.
+          (dolist (method methods)
+            (destructuring-bind (static kind key-fn fn-fn) method
+              (let* ((target (if static ctor proto))
+                     (key (funcall key-fn class-env))
+                     (function (funcall fn-fn class-env)))
+                (set-callable-home-object function target)
+                (set-function-name function key
+                                   (case kind (:get "get") (:set "set")))
+                (case kind
+                  (:get
+                   (define-property-or-throw
+                    target key
+                    (accessor-pd function (accessor-existing target key :set)
+                                 :enumerable nil :configurable t)))
+                  (:set
+                   (define-property-or-throw
+                    target key
+                    (accessor-pd (accessor-existing target key :get) function
+                                 :enumerable nil :configurable t)))
+                  (t
+                   (define-property-or-throw
+                    target key
+                    (data-pd function :writable t :enumerable nil :configurable t)))))))
+          ctor)))))
 
 (defun accessor-existing (obj key which)
   (let ((d (obj-own-desc obj key)))

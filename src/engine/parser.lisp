@@ -18,7 +18,8 @@
   (allow-in t)
   (in-parameters nil)
   (labels nil)                 ; active enclosing label names (reset per function)
-  (allow-super nil)            ; super.x / super() allowed (inside a method)
+  (allow-super-property nil)   ; super.x / super[x] (inside a method or lexical arrow)
+  (allow-super-call nil)       ; super() (inside a derived constructor or lexical arrow)
   (source-type :script))
 
 (defmacro with-iteration (p &body body)
@@ -140,7 +141,7 @@ applies to its top-level relational chain, not to bracketed sub-expressions."
           (body (parse-statements-until p :eof t)))
       (unless (eq (cur-type p) :eof)
         (syntax-error p "unexpected ~a" (describe-cur p)))
-      (analyze (finish (make-program :body body :source-type source-type)
+      (analyze (finish (make-program :body body :source-type source-type :source source)
                        start (parser-prev-end p))))))
 
 (defun parse-directive-prologue (p)
@@ -379,7 +380,9 @@ expression is not a directive — we snapshot and rewind so the caller parses it
 
 (defun for-target (p init)
   "Normalize a for-in/of left side (a declaration or an assignment target)."
-  (if (variable-declaration-p init) init (expr-to-pattern p init)))
+  (if (variable-declaration-p init)
+      init
+      (check-assignment-target p (expr-to-pattern p init))))
 
 (defun check-for-binding (p init kind for-of)
   "Early errors for a for-in/of head (§14.7.5). KIND is :var/:let/:const or NIL."
@@ -532,7 +535,9 @@ expression is not a directive — we snapshot and rewind so the caller parses it
       (if (and (eq (cur-type p) :punct) (member (cur-val p) *assign-ops* :test #'string=))
           (let ((op (cur-val p)))
             (advance p)
-            (let ((target (if (string= op "=") (expr-to-pattern p left) (check-simple-target p left))))
+            (let ((target (if (string= op "=")
+                              (check-assignment-target p (expr-to-pattern p left))
+                              (check-simple-target p left))))
               (finish (make-assignment-expression :operator op :left target
                                                   :right (parse-assignment p))
                       start (parser-prev-end p))))
@@ -541,6 +546,28 @@ expression is not a directive — we snapshot and rewind so the caller parses it
 (defun check-simple-target (p node)
   (unless (or (identifier-p node) (member-expression-p node))
     (syntax-error p "invalid assignment target"))
+  (check-assignment-target p node))
+
+(defun check-assignment-target (p node)
+  "Apply strict-mode restrictions recursively to an assignment target or pattern."
+  (when (parser-strict p)
+    (labels ((walk (target)
+               (typecase target
+                 (identifier
+                  (when (member (identifier-name target) '("eval" "arguments") :test #'string=)
+                    (syntax-error p "'~a' cannot be assigned in strict mode"
+                                  (identifier-name target))))
+                 (member-expression nil)
+                 (assignment-pattern (walk (assignment-pattern-left target)))
+                 (rest-element (walk (rest-element-argument target)))
+                 (array-pattern (dolist (element (array-pattern-elements target))
+                                  (when element (walk element))))
+                 (object-pattern
+                  (dolist (property (object-pattern-properties target))
+                    (if (rest-element-p property)
+                        (walk property)
+                        (walk (property-value property))))))))
+      (walk node)))
   node)
 
 (defun parse-yield (p)
@@ -677,6 +704,10 @@ expression is not a directive — we snapshot and rewind so the caller parses it
         (finish (make-meta-property :meta "new" :property "target") start (parser-prev-end p))))
     (let ((callee (if (name? p "new") (parse-new p)
                       (parse-member-only p (parse-primary p) start))))
+      ;; SuperCall is a CallExpression grammar form, never a NewExpression callee.
+      ;; A SuperProperty remains valid here (`new super.Factory()`).
+      (when (super-node-p callee)
+        (syntax-error p "'new super()' is not valid"))
       (let ((args (if (punct? p "(") (parse-arguments p) '())))
         (finish (make-new-expression :callee callee :arguments args) start (parser-prev-end p))))))
 
@@ -770,11 +801,15 @@ expression is not a directive — we snapshot and rewind so the caller parses it
       ((string= name "this") (advance p)
        (finish (make-this-expression) start (parser-prev-end p)))
       ((string= name "super")
-       (unless (parser-allow-super p)
-         (syntax-error p "'super' is only allowed inside methods"))
        (advance p)
-       (unless (or (punct? p ".") (punct? p "[") (punct? p "("))
-         (syntax-error p "'super' must be followed by a member access or arguments"))
+       (cond
+         ((punct? p "(")
+          (unless (parser-allow-super-call p)
+            (syntax-error p "'super()' is only allowed inside derived constructors")))
+         ((or (punct? p ".") (punct? p "["))
+          (unless (parser-allow-super-property p)
+            (syntax-error p "super property access is only allowed inside methods")))
+         (t (syntax-error p "'super' must be followed by a member access or arguments")))
        (finish (make-super-node) start (parser-prev-end p)))
       ((string= name "null") (advance p)
        (finish (make-literal :value +null+ :kind :null) start (parser-prev-end p)))
@@ -973,13 +1008,24 @@ tagged templates allow them (TRV survives, TV = undefined)."
       (let ((old-y (parser-allow-yield p)) (old-a (parser-allow-await p))
             (old-f (parser-in-function p)) (old-i (parser-in-iteration p))
             (old-s (parser-in-switch p)) (old-strict (parser-strict p))
-            (old-labels (parser-labels p)) (old-super (parser-allow-super p)))
+            (old-labels (parser-labels p))
+            (old-super-property (parser-allow-super-property p))
+            (old-super-call (parser-allow-super-call p)))
         (setf (parser-allow-yield p) gen (parser-allow-await p) async
               (parser-in-function p) t (parser-in-iteration p) nil (parser-in-switch p) nil
-              (parser-labels p) nil (parser-allow-super p) nil)
+              (parser-labels p) nil
+              (parser-allow-super-property p) nil (parser-allow-super-call p) nil)
         (unwind-protect
              (let* ((params (parse-params p))
                     (body (parse-function-body p)))    ; may set strict via prologue
+               (when (and (function-body-has-use-strict-directive-p body)
+                          (not (simple-params-p params)))
+                 (syntax-error p "a 'use strict' directive is not allowed with non-simple parameters"))
+               (check-parameter-body-lexical-conflicts p params body)
+               (when (parser-strict p)
+                 (check-strict-parameter-names p params)
+                 (when id
+                   (check-strict-binding-name p (identifier-name id))))
                ;; params must be unique if strict, generator, async, or non-simple
                (when (or (parser-strict p) gen async (not (simple-params-p params)))
                  (check-unique-params p params))
@@ -989,28 +1035,39 @@ tagged templates allow them (TRV survives, TV = undefined)."
           (setf (parser-allow-yield p) old-y (parser-allow-await p) old-a
                 (parser-in-function p) old-f (parser-in-iteration p) old-i
                 (parser-in-switch p) old-s (parser-strict p) old-strict
-                (parser-labels p) old-labels (parser-allow-super p) old-super))))))
+                (parser-labels p) old-labels
+                (parser-allow-super-property p) old-super-property
+                (parser-allow-super-call p) old-super-call))))))
 
-(defun parse-method-tail (p async gen)
+(defun parse-method-tail (p async gen &key allow-super-call)
   "Parse `(params) { body }` for an object/class method with the given flags.
 Method parameters must always be unique."
   (let ((start (cur-start p))
         (old-y (parser-allow-yield p)) (old-a (parser-allow-await p))
         (old-f (parser-in-function p)) (old-i (parser-in-iteration p)) (old-s (parser-in-switch p))
         (old-strict (parser-strict p)) (old-labels (parser-labels p))
-        (old-super (parser-allow-super p)))
+        (old-super-property (parser-allow-super-property p))
+        (old-super-call (parser-allow-super-call p)))
     (setf (parser-allow-yield p) gen (parser-allow-await p) async
           (parser-in-function p) t (parser-in-iteration p) nil (parser-in-switch p) nil
-          (parser-labels p) nil (parser-allow-super p) t)  ; methods may use super
+          (parser-labels p) nil (parser-allow-super-property p) t
+          (parser-allow-super-call p) allow-super-call)
     (unwind-protect
          (let* ((params (parse-params p)) (body (parse-function-body p)))
+           (when (and (function-body-has-use-strict-directive-p body)
+                      (not (simple-params-p params)))
+             (syntax-error p "a 'use strict' directive is not allowed with non-simple parameters"))
+           (check-parameter-body-lexical-conflicts p params body)
+           (when (parser-strict p)
+             (check-strict-parameter-names p params))
            (check-unique-params p params)
            (finish (make-function-node :params params :body body :generator gen :async async)
                    start (parser-prev-end p)))
       (setf (parser-allow-yield p) old-y (parser-allow-await p) old-a
             (parser-in-function p) old-f (parser-in-iteration p) old-i (parser-in-switch p) old-s
             (parser-strict p) old-strict (parser-labels p) old-labels
-            (parser-allow-super p) old-super))))
+            (parser-allow-super-property p) old-super-property
+            (parser-allow-super-call p) old-super-call))))
 
 (defun parse-function-body (p)
   "Parse `{ ... }`. May set the parser's strict flag via a directive prologue; the
@@ -1020,6 +1077,13 @@ caller is responsible for restoring it (functions/methods/arrows do so)."
     (let ((body (parse-statements-until p "}" t)))
       (eat-punct p "}")
       (finish (make-block-statement :body body) start (parser-prev-end p)))))
+
+(defun function-body-has-use-strict-directive-p (body)
+  "True when BODY's own Directive Prologue contains a use-strict directive."
+  (loop for statement in (block-statement-body body)
+        while (and (expression-statement-p statement)
+                   (expression-statement-directive statement))
+        thereis (string= (expression-statement-directive statement) "use strict")))
 
 (defun parse-params (p)
   (eat-punct p "(")
@@ -1050,6 +1114,29 @@ caller is responsible for restoring it (functions/methods/arrows do so)."
         (when (gethash n seen) (syntax-error p "duplicate parameter name '~a'" n))
         (setf (gethash n seen) t)))))
 
+(defun check-parameter-body-lexical-conflicts (p params body)
+  "Reject a parameter name redeclared lexically at the top level of BODY."
+  (let ((parameter-names (make-hash-table :test 'equal)))
+    (dolist (parameter params)
+      (dolist (name (binding-bound-names parameter))
+        (setf (gethash name parameter-names) t)))
+    (dolist (statement (block-statement-body body))
+      (dolist (name (stmt-lexical-names statement))
+        (when (gethash name parameter-names)
+          (syntax-error p "parameter '~a' conflicts with a lexical body declaration" name))))))
+
+(defun check-strict-parameter-names (p params)
+  "Validate names whose illegality may only become known after a strict body directive."
+  (dolist (parameter params)
+    (dolist (name (binding-bound-names parameter))
+      (check-strict-binding-name p name))))
+
+(defun check-strict-binding-name (p name)
+  "Revalidate a BindingIdentifier parsed before a body established strict mode."
+  (when (or (member name '("eval" "arguments") :test #'string=)
+            (member name *strict-reserved* :test #'string=))
+    (syntax-error p "'~a' cannot be bound in strict mode" name)))
+
 (defun check-accessor-arity (p kind params)
   "Getter takes no params; setter takes exactly one non-rest param (§B / class)."
   (case kind
@@ -1071,7 +1158,7 @@ caller is responsible for restoring it (functions/methods/arrows do so)."
            (let ((members '()) (ctors 0))
              (loop until (punct? p "}")
                    do (if (punct? p ";") (advance p)
-                          (let ((m (parse-class-member p)))
+                          (let ((m (parse-class-member p (not (null super)))))
                             (when (eq (method-definition-kind m) :constructor)
                               (when (> (incf ctors) 1)
                                 (syntax-error p "a class may only have one constructor")))
@@ -1084,13 +1171,19 @@ caller is responsible for restoring it (functions/methods/arrows do so)."
                        start (parser-prev-end p)))))
       (setf (parser-strict p) old-strict))))
 
-(defun parse-class-member (p)
-  (let ((start (cur-start p)) (static nil) (async nil) (gen nil) (kind :method))
+(defun parse-class-member (p derived-p)
+  (let* ((start (cur-start p)) (source-start start)
+         (static nil) (async nil) (gen nil) (kind :method))
     (when (and (name? p "static")
                (let ((n (peek p)))
                  (not (and (eq (token-type n) :punct)
                            (member (token-value n) '("(" "=" ";" "}") :test #'string=)))))
-      (setf static t) (advance p))
+      (setf static t)
+      (advance p)
+      ;; `static` is not part of the function's source text. Starting at the
+      ;; next token also excludes comments and whitespace between the modifier
+      ;; and the method while retaining async/get/set/* prefixes.
+      (setf source-start (cur-start p)))
     (when (and (name? p "async")
                (let ((n (peek p)))
                  (not (or (token-nl-before n)
@@ -1106,14 +1199,17 @@ caller is responsible for restoring it (functions/methods/arrows do so)."
     (multiple-value-bind (key computed) (parse-property-key p)
       (unless (punct? p "(")
         (syntax-error p "class fields are not supported (ES2017 tier)"))
-      (let* ((fn (parse-method-tail p async gen))
-             ;; a computed key is never the real constructor/prototype name
+      (let* (;; a computed key is never the real constructor/prototype name
              (name (unless computed
                      (cond ((identifier-p key) (identifier-name key))
                            ((and (literal-p key) (eq (literal-kind key) :string)) (literal-value key))
                            (t nil))))
              (is-ctor (and (equal name "constructor") (not static)))
-             (is-proto (and (equal name "prototype") static)))
+             (is-proto (and (equal name "prototype") static))
+             (fn (parse-method-tail p async gen
+                                    :allow-super-call
+                                    (and derived-p is-ctor (not async) (not gen)
+                                         (eq kind :method)))))
         (check-accessor-arity p kind (function-node-params fn))
         (when is-ctor
           (when (or async gen (member kind '(:get :set)))
@@ -1124,7 +1220,8 @@ caller is responsible for restoring it (functions/methods/arrows do so)."
                                         :kind (cond ((member kind '(:get :set)) kind)
                                                     (is-ctor :constructor)
                                                     (t :method))
-                                        :static static :computed computed)
+                                        :static static :computed computed
+                                        :source-start source-start)
                 start (parser-prev-end p))))))
 
 ;;; --- arrow functions (cover-grammar) ---------------------------------------
@@ -1206,6 +1303,12 @@ seen the arrow is committed and body errors propagate."
     (unwind-protect
          (if (punct? p "{")
              (let ((body (parse-function-body p)))
+               (when (and (function-body-has-use-strict-directive-p body)
+                          (not (simple-params-p params)))
+                 (syntax-error p "a 'use strict' directive is not allowed with non-simple parameters"))
+               (check-parameter-body-lexical-conflicts p params body)
+               (when (parser-strict p)
+                 (check-strict-parameter-names p params))
                (finish (make-arrow-function :params params :body body :async async :expression nil)
                        start (parser-prev-end p)))
              (let ((body (parse-assignment p)))

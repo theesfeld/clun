@@ -94,12 +94,29 @@
 
 (define-test parser/context-early-errors
   (dolist (bad '("super.x;" "function f(){ super.x; }" "super();"
+                 "class C { constructor(){ super(); } }"
+                 "class C { constructor(){ (() => super())(); } }"
+                 "class C extends B { m(){ super(); } }"
+                 "class C extends B { static m(){ super(); } }"
+                 "class C extends B { ['constructor'](){ super(); } }"
+                 "class C extends B { constructor(){ function f(){ super(); } } }"
+                 "class C extends B { constructor(){ function f(){ super.x; } } }"
+                 "class C extends B { constructor(){ new super(); } }"
+                 "({ m(){ super(); } })"
+                 "({ m(){ return () => super(); } })"
                  "x: y: x: ;" "break foo;" "continue bar;"
                  "for (a + b in c);"))
     (false (parses? bad)))
   (dolist (ok '("class C { m(){ super.x; } }" "({ m(){ super.x; } })"
+                "class C { constructor(){ super.x; } static m(){ super.x; } }"
+                "class C extends B { constructor(x = super()){ } }"
                 "class C extends D { constructor(){ super(); } }"
+                "class C extends D { constructor(){ return () => super(); } }"
+                "class C extends D { constructor(){ return async () => super(); } }"
+                "class C extends D { constructor(){ return () => () => super(); } }"
+                "class C extends D { constructor(){ new super.Factory(); super(); } }"
                 "class C { m(){ return () => super.m(); } }"
+                "({ m(x = super.x){ return () => super.m(); } })"
                 "a: b: c: ;" "foo: for(;;) break foo;" "foo: { break foo; }"
                 "l: function f(){ l: ; }"))
     (true (parses? ok))))
@@ -138,3 +155,59 @@
   (false (parses? "'use strict'; 0755;"))
   (true (parses? "0755;"))                    ; legacy octal OK in sloppy
   (true (parses? "with (o) {}")))             ; with OK in sloppy
+
+(define-test parser/strict-function-header-errors
+  ;; An own use-strict directive is forbidden with a non-simple parameter list
+  ;; for every function grammar that accepts a Directive Prologue.
+  (dolist (bad '("function f(a=0){'use strict';}"
+                 "(function f(...args){'use strict';})"
+                 "async function f({value}){'use strict';}"
+                 "function* f([value]){'use strict';}"
+                 "(value=0)=>{'use strict';}"
+                 "async (...values)=>{'use strict';}"
+                 "({m(value=0){'use strict';}})"
+                 "({*m(...values){'use strict';}})"
+                 "class C {m({value}){'use strict';}}"
+                 "class C {static async m(value=0){'use strict';}}"))
+    (false (parses? bad)))
+  ;; A strict directive also retroactively restricts header bindings parsed in
+  ;; the surrounding sloppy lexical context.
+  (dolist (bad '("function eval(){'use strict';}"
+                 "(function arguments(){'use strict';})"
+                 "function implements(){'use strict';}"
+                 "function f(interface){'use strict';}"
+                 "function f({value: package}){'use strict';}"
+                 "protected=>{'use strict';}"
+                 "({m(public){'use strict';}})"
+                 "class C {m(private){}}"))
+    (false (parses? bad)))
+  ;; Inherited strictness alone does not trigger the non-simple/use-strict rule.
+  (dolist (ok '("'use strict'; function f(value=0){}"
+                "'use strict'; ({m({value}){return value;}})"
+                "class C {m(...values){return values.length;} public(){return 1;}}"))
+    (true (parses? ok))))
+
+(define-test parser/parameter-body-lexical-conflicts
+  (dolist (bad '("function f(value){let value;}"
+                 "(function ({value}){const value=1;})"
+                 "async function f(value){class value{}}"
+                 "function* f(value){let value;}"
+                 "async function* f(value){const value=1;}"
+                 "value=>{let value;}"
+                 "async ({value})=>{class value{}}"
+                 "({m(value){let value;}})"
+                 "({*m(value){const value=1;}})"
+                 "({async m(value){class value{}}})"
+                 "({set x(value){let value;}})"
+                 "class C{m(value){let value;}}"
+                 "class C{static async m(value){const value=1;}}"
+                 "class C{*m(value){class value{}}}"
+                 "class C{set x(value){let value;}}"))
+    (false (parses? bad)))
+  ;; Only declarations in the function body's own lexical scope conflict.
+  (dolist (ok '("function f(value){{let value;}}"
+                "value=>{if(true){const value=1;}}"
+                "({m(value){for(let value=0;value<1;value++){}return value;}})"
+                "class C{m(value){try{}catch(value){return value;}return value;}}"
+                "function f(value){var value;function value(){}}"))
+    (true (parses? ok))))

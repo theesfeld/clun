@@ -78,17 +78,17 @@ escapes. Empty pattern → \"(?:)\". Already-escaped pairs pass through verbatim
                 ((char= c (code-char #x2029)) (write-string "\\u2029" o) (incf i))
                 (t (write-char c o) (incf i)))))))))
 
-(defun regexp-from-compiled (rxc)
+(defun regexp-from-compiled (rxc &optional (prototype (intrinsic :regexp-prototype)))
   "A fresh js-regexp sharing RXC's immutable compiled data; lastIndex = 0."
-  (let ((re (%make-js-regexp :proto (intrinsic :regexp-prototype)
+  (let ((re (%make-js-regexp :proto prototype
                              :source (rxc-source rxc) :flags (rxc-flags rxc)
                              :scanner (rxc-scanner rxc) :name-alist (rxc-name-alist rxc)
                              :group-count (rxc-group-count rxc) :flag-bits (rxc-flag-bits rxc))))
     (obj-set-desc re "lastIndex" (data-pd 0d0 :writable t :enumerable nil :configurable nil))
     re))
 
-(defun make-regexp (pattern flags)
-  (regexp-from-compiled (compile-regexp-literal pattern flags)))
+(defun make-regexp (pattern flags &optional (prototype (intrinsic :regexp-prototype)))
+  (regexp-from-compiled (compile-regexp-literal pattern flags) prototype))
 
 ;;; --- exec -------------------------------------------------------------------
 
@@ -189,7 +189,9 @@ iff it is a js-regexp exotic object. (So re[Symbol.match]=false makes IsRegExp f
     (install-symbol-method rp (well-known :split) "[Symbol.split]" 2 #'regexp-@@split)
     ;; constructor
     (let ((ctor (make-constructor "RegExp" 2 (lambda (this args) (regexp-construct this args nil))
-                                  :construct-fn (lambda (args nt) (declare (ignore nt)) (regexp-construct nil args t))
+                                  :construct-fn (lambda (args nt)
+                                                  (regexp-construct
+                                                   nil args t (nt-prototype nt rp)))
                                   :prototype rp)))
       (setf (realm-intrinsic *realm* :regexp-constructor) ctor)
       (hidden-prop (realm-global *realm*) "RegExp" ctor))
@@ -210,7 +212,7 @@ iff it is a js-regexp exotic object. (So re[Symbol.match]=false makes IsRegExp f
   (obj-set-desc obj sym (data-pd (make-native-function name arity fn)
                                  :writable t :enumerable nil :configurable t)))
 
-(defun regexp-construct (this args newp)
+(defun regexp-construct (this args newp &optional (prototype (intrinsic :regexp-prototype)))
   "RegExp(pattern, flags): copy a RegExp arg / override flags / compile strings. NEWP is
 true for `new RegExp(...)`, nil for a plain `RegExp(...)` call."
   (declare (ignore this))
@@ -224,9 +226,11 @@ true for `new RegExp(...)`, nil for a plain `RegExp(...)` call."
        pattern)
       ((js-regexp-p pattern)
        (make-regexp (js-regexp-source pattern)
-                    (if (js-undefined-p flags) (js-regexp-flags pattern) (to-string flags))))
+                    (if (js-undefined-p flags) (js-regexp-flags pattern) (to-string flags))
+                    prototype))
       (t (make-regexp (if (js-undefined-p pattern) "" (to-string pattern))
-                      (if (js-undefined-p flags) "" (to-string flags)))))))
+                      (if (js-undefined-p flags) "" (to-string flags))
+                      prototype)))))
 
 ;;; --- @@ methods -------------------------------------------------------------
 

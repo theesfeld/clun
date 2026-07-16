@@ -17,6 +17,32 @@
     (false (eng:has-own-property o "p"))
     (true (eng:has-property o "p"))))
 
+(define-test objects/object-prototype-immutable-prototype
+  (is eq eng:+true+
+      (ev "(function(){try{Object.setPrototypeOf(Object.prototype,{})}
+             catch(e){return e instanceof TypeError&&Object.getPrototypeOf(Object.prototype)===null}
+             return false})()"))
+  (is eq eng:+true+
+      (ev "Reflect.setPrototypeOf(Object.prototype,{})===false&&
+           Object.getPrototypeOf(Object.prototype)===null"))
+  (is eq eng:+true+
+      (ev "Object.setPrototypeOf(Object.prototype,null)===Object.prototype&&
+           Reflect.setPrototypeOf(Object.prototype,null)===true"))
+  ;; The Annex B setter propagates a rejected [[SetPrototypeOf]] as TypeError.
+  (is eq eng:+true+
+      (ev "(function(){try{Object.prototype.__proto__={}}
+             catch(e){return e instanceof TypeError&&Object.getPrototypeOf(Object.prototype)===null}
+             return false})()"))
+  (is eq eng:+true+
+      (ev "(Object.prototype.__proto__=null)===null&&
+           Object.getPrototypeOf(Object.prototype)===null"))
+  ;; Only the realm's Object.prototype is exotic. An ordinary null-prototype
+  ;; object remains freely mutable through the same internal method.
+  (is eq eng:+true+
+      (ev "var o={__proto__:null},p={};
+           Object.getPrototypeOf(o)===null&&Reflect.setPrototypeOf(o,p)&&
+           Object.getPrototypeOf(o)===p")))
+
 (define-test objects/key-ordering
   ;; integer indices ascending, then strings in insertion order
   (let ((o (eng:js-make-object)))

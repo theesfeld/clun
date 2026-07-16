@@ -126,7 +126,7 @@
   (let ((*realm* (%make-realm)))
     (macrolet ((def (key val) `(setf (realm-intrinsic *realm* ,key) ,val)))
       ;; Object.prototype and Function.prototype are mutually referential.
-      (def :object-prototype (make-js-object :proto +null+))
+      (def :object-prototype (%make-js-immutable-prototype-object :proto +null+))
       (def :function-prototype
            (%make-native-function :fn (lambda (this args) (declare (ignore this args)) +undefined+)
                                   :proto (intrinsic :object-prototype) :fname "" :param-count 0))
@@ -134,6 +134,9 @@
       (install-conversion-hooks)
       (bootstrap-function-prototype)
       (bootstrap-object)
+      ;; %AsyncFunction% inherits from the Function constructor, so construct
+      ;; Function once as a realm intrinsic before the async intrinsic family.
+      (bootstrap-function-constructor)
       (bootstrap-array)
       (bootstrap-errors)
       (bootstrap-primitives)
@@ -179,6 +182,24 @@
 
 (defun bootstrap-function-prototype ()
   (let ((fp (intrinsic :function-prototype)))
+    ;; Function.prototype is itself a callable built-in created before the normal
+    ;; native-function helper can run. Finish its standard own surface here.
+    (obj-set-desc fp "length" (data-pd 0d0 :writable nil :enumerable nil :configurable t))
+    (obj-set-desc fp "name" (data-pd "" :writable nil :enumerable nil :configurable t))
+    (let ((thrower
+            (make-native-function "" 0
+              (lambda (this args)
+                (declare (ignore this args))
+                (throw-type-error "restricted function property")))))
+      ;; %ThrowTypeError% is shared by every restricted accessor in the realm.
+      ;; Its length is non-configurable and the function is not extensible.
+      (setf (pd-configurable (obj-own-desc thrower "length")) nil
+            (realm-intrinsic *realm* :throw-type-error) thrower)
+      (jm-prevent-extensions thrower)
+      (obj-set-desc fp "caller"
+                    (accessor-pd thrower thrower :enumerable nil :configurable t))
+      (obj-set-desc fp "arguments"
+                    (accessor-pd thrower thrower :enumerable nil :configurable t)))
     (install-method fp "call" 1
       (lambda (this args) (js-call this (arg args 0) (if args (rest args) '()))))
     (install-method fp "apply" 2
@@ -190,20 +211,15 @@
                          (t (throw-type-error "CreateListFromArrayLike called on non-object")))))))
     (install-method fp "bind" 1
       (lambda (this args)
-        (let* ((target this) (bound-this (arg args 0)) (bound-args (if args (rest args) '()))
-               (bound (make-native-function "bound" 0
-                        (lambda (call-this call-args) (declare (ignore call-this))
-                          (js-call target bound-this (append bound-args call-args))))))
-          ;; [[Construct]] (§10.4.1.2): if new-target is the bound fn itself, use the
-          ;; target as new-target; else thread it (so `class C extends bound {}` works).
-          (setf (js-native-function-construct-fn bound)
-                (lambda (cargs nt)
-                  (js-construct target (append bound-args cargs) (if (eq nt bound) target nt))))
-          bound)))
+        (make-bound-function this (arg args 0) (if args (rest args) '()))))
     (install-method fp "toString" 0
       (lambda (this args) (declare (ignore args))
-        (format nil "function ~a() { [native code] }"
-                (if (callable-p this) (function-name this) ""))))
+        (unless (callable-p this)
+          (throw-type-error "Function.prototype.toString called on incompatible receiver"))
+        (if (and (js-function-p this) (js-function-source-text this))
+            (js-function-source-text this)
+            (format nil "function ~a() { [native code] }"
+                    (native-function-property-name this)))))
     (obj-set-desc fp (well-known :has-instance)
                   (data-pd (make-native-function "[Symbol.hasInstance]" 1
                              (lambda (this args) (js-boolean (ordinary-has-instance this (arg args 0)))))
@@ -212,7 +228,46 @@
 (defun function-name (f)
   (cond ((js-function-p f) (js-function-fname f))
         ((js-native-function-p f) (js-native-function-fname f))
+        ((js-bound-function-p f) (js-bound-function-fname f))
         (t "")))
+
+(defun ascii-identifier-name-p (name)
+  "Recognize the conservative ASCII subset of ECMAScript IdentifierName."
+  (labels ((letter-p (char)
+             (or (char<= #\A char #\Z) (char<= #\a char #\z)))
+           (start-p (char)
+             (or (letter-p char) (char= char #\_) (char= char #\$)))
+           (part-p (char)
+             (or (start-p char) (char<= #\0 char #\9))))
+    (and (stringp name)
+         (plusp (length name))
+         (start-p (char name 0))
+         (loop for char across name always (part-p char)))))
+
+(defun native-symbol-property-name-p (name)
+  "Recognize the well-known-symbol spelling used by native built-ins."
+  (let ((length (and (stringp name) (length name))))
+    (and length (> length 9)
+         (string= name "[Symbol." :end1 8)
+         (char= (char name (1- length)) #\])
+         (ascii-identifier-name-p (subseq name 8 (1- length))))))
+
+(defun native-function-property-name (function)
+  "Return a NativeFunction-grammar property name, or the empty optional name.
+Internal callable names are not source text: bound names contain spaces and
+must not be interpolated into a syntactically invalid native representation."
+  (let ((name (function-name function)))
+    (labels ((property-name-p (candidate)
+               (or (ascii-identifier-name-p candidate)
+                   (native-symbol-property-name-p candidate))))
+      (cond
+        ((property-name-p name) name)
+        ((and (> (length name) 4)
+              (or (string= name "get " :end1 4)
+                  (string= name "set " :end1 4))
+              (property-name-p (subseq name 4)))
+         name)
+        (t "")))))
 
 (defun array-like->list (o)
   (let ((len (length-of-array-like o)))    ; ToLength: NaN-safe (never traps on `floor`)
@@ -227,6 +282,7 @@ itself, so this returns X.prototype = DEFAULT-PROTO — subclassing changes noth
 
 ;;; forward decls filled below
 (defun bootstrap-object () (%bootstrap-object))
+(defun bootstrap-function-constructor () (%bootstrap-function-constructor))
 (defun bootstrap-array () (%bootstrap-array))
 (defun bootstrap-errors () (%bootstrap-errors))
 (defun bootstrap-primitives () (%bootstrap-primitives))

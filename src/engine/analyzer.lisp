@@ -6,22 +6,6 @@
 
 (in-package :clun.engine)
 
-(defun stmt-lexical-names (s)
-  "Lexically-declared names introduced directly by statement S (let/const/class)."
-  (typecase s
-    (variable-declaration
-     (when (member (variable-declaration-kind s) '(:let :const))
-       (loop for d in (variable-declaration-declarations s)
-             append (binding-bound-names (variable-declarator-id d)))))
-    (class-node (when (and (class-node-declaration s) (class-node-id s))
-                  (list (identifier-name (class-node-id s)))))
-    (export-named-declaration (when (export-named-declaration-declaration s)
-                                (stmt-lexical-names (export-named-declaration-declaration s))))
-    ;; `export default class C {}` binds `C` lexically in the module (Phase 07);
-    ;; a named/anonymous default function is hoisted / anonymous, not lexical here.
-    (export-default-declaration (stmt-lexical-names (export-default-declaration-declaration s)))
-    (t nil)))
-
 (defun var-declared-names (stmts)
   "VarDeclaredNames of a StatementList: `var` names recursing through nested
 statements but NOT into function/arrow/class bodies (§ static semantics)."

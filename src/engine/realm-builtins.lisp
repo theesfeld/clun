@@ -425,10 +425,17 @@
     (install-method sp "toString" 0
       (lambda (this args) (declare (ignore args))
         (symbol-descriptive-string (this-symbol this))))
-    (let ((ctor (make-native-function "Symbol" 0
-                  (lambda (this args) (declare (ignore this))
-                    (%make-js-symbol :description (let ((d (arg args 0)))
-                                                    (if (js-undefined-p d) +undefined+ (to-string d))))))))
+    (let ((ctor (make-native-function
+                 "Symbol" 0
+                 (lambda (this args) (declare (ignore this))
+                   (%make-js-symbol :description (let ((d (arg args 0)))
+                                                   (if (js-undefined-p d) +undefined+ (to-string d)))))
+                 ;; Symbol has [[Construct]] for constructor inheritance, but the
+                 ;; operation always throws. This lets `class C extends Symbol {}`
+                 ;; be defined while preserving the `new Symbol()` TypeError.
+                 :construct (lambda (args new-target)
+                              (declare (ignore args new-target))
+                              (throw-type-error "Symbol is not a constructor")))))
       (obj-set-desc ctor "prototype" (data-pd sp :writable nil :enumerable nil :configurable nil))
       (dolist (entry `(("iterator" . ,(well-known :iterator))
                        ("hasInstance" . ,(well-known :has-instance))
@@ -455,7 +462,7 @@
       (obj-set-desc g "Infinity" (data-pd +js-infinity+ :writable nil :enumerable nil :configurable nil))
       (glob "globalThis" g)
       (glob "Object" (intrinsic :object-constructor))
-      (glob "Function" (make-function-constructor))
+      (glob "Function" (intrinsic :function-constructor))
       (glob "Array" (intrinsic :array-constructor))
       (glob "Boolean" (intrinsic :boolean-constructor))
       (glob "Number" (intrinsic :number-constructor))
@@ -493,6 +500,10 @@
           (let ((code (arg args 0))) (if (stringp code) (indirect-eval code) code)))))
     g))
 
+(defun %bootstrap-function-constructor ()
+  (setf (realm-intrinsic *realm* :function-constructor)
+        (make-function-constructor)))
+
 (defun make-function-constructor ()
   (make-constructor "Function" 1
     (lambda (this args) (declare (ignore this)) (%build-function args))
@@ -506,14 +517,51 @@
 (defun %build-function (args)
   "new Function(p1, …, pN, body): join params, wrap body, compile in global scope
 (§20.2.1.1). SyntaxError in either part propagates as a JS SyntaxError."
+  (indirect-eval (dynamic-function-source args "")))
+
+(defun dynamic-function-wrapper-source (params body prefix generator)
+  "Assemble the wrapper used to parse and instantiate a dynamic function."
+  (format nil "(~afunction~:[~;*~] anonymous(~a~%) {~%~a~%})"
+          prefix generator params body))
+
+(defun validate-dynamic-function-segments (params body prefix generator)
+  "Parse FormalParameters and FunctionBody as separate source-text segments.
+The final wrapper is parsed again for early errors that depend on both segments,
+but comments and other tokens must never bridge the parameter/body boundary."
+  (let ((async (plusp (length prefix))))
+    (flet ((segment-parser (source)
+             (let ((parser (make-parser source)))
+               (setf (parser-allow-yield parser) generator
+                     (parser-allow-await parser) async
+                     (parser-in-function parser) t)
+               parser))
+           (require-end (parser)
+             (unless (eq (cur-type parser) :eof)
+               (syntax-error parser "unexpected token after dynamic function segment"))))
+      ;; The synthetic delimiters belong to each independent parse goal. A
+      ;; segment that closes one early leaves trailing tokens and is rejected.
+      (let ((parser (segment-parser (format nil "(~a~%)" params))))
+        (parse-params parser)
+        (require-end parser))
+      (let ((parser (segment-parser (format nil "{~%~a~%}" body))))
+        (parse-function-body parser)
+        (require-end parser)))))
+
+(defun dynamic-function-source (args prefix &optional generator)
+  "Build the source text shared by Function and AsyncFunction constructors."
   (let* ((n (length args))
+         ;; CreateDynamicFunction performs parameter ToString operations from
+         ;; left to right before converting the body. Keep those observable
+         ;; conversions separate from source assembly.
+         (parameter-strings (if (<= n 1) '() (mapcar #'to-string (butlast args))))
          (body (if (zerop n) "" (to-string (car (last args)))))
-         (params (if (<= n 1) ""
-                     (with-output-to-string (o)
-                       (loop for a in (butlast args) for first = t then nil
-                             do (unless first (write-string "," o)) (write-string (to-string a) o)))))
-         (source (format nil "(function anonymous(~a~%) {~%~a~%})" params body)))
-    (indirect-eval source)))
+         (params (with-output-to-string (out)
+                   (loop for value in parameter-strings
+                         for first = t then nil
+                         do (unless first (write-char #\, out))
+                            (write-string value out)))))
+    (validate-dynamic-function-segments params body prefix generator)
+    (dynamic-function-wrapper-source params body prefix generator)))
 
 (defun js-parse-int (s radix)
   ;; RADIX is a raw JS value → ToInt32 (§19.2.5). Trim JS whitespace, not just ASCII.

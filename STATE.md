@@ -5,12 +5,12 @@ Update before every commit and keep it consistent with PLAN.md, DECISIONS.md, RE
 
 ---
 
-## Current phase: **25b — Conformance push to >= 90%**  (IN PROGRESS — m1, m2, and m3 DONE; dev.3 PUBLISHED; m4 QUEUED / NOT STARTED)
+## Current phase: **25b — Conformance push to >= 90%**  (IN PROGRESS — m1, m2, and m3 DONE; dev.3 PUBLISHED; m4 IMPLEMENTED LOCALLY / ACCEPTANCE IN PROGRESS)
 
 **Canonical issue:** https://github.com/theesfeld/clun/issues/57
 **Current Phase 25b milestone:** `m4`
-**Current completed unit:** m3 implementation plus verified dev.3 lifecycle/release correction
-**Current milestone scope:** m4 functions, classes, parameters, `super`, and arguments; implementation not started
+**Current completed unit:** m4 implementation plus final local conformance evidence; publication is pending
+**Current milestone scope:** m4 functions, classes, parameters, `super`, and arguments; local acceptance gates in progress
 
 **Phase 25 COMPLETE** (Performance pass; deps: all engine phases ✓; milestoned). Final default-tier
 best-of-nine results vs the frozen Phase-24 baseline are richards **6.68×**, deltablue **3.85×**, and splay
@@ -116,8 +116,8 @@ SemVer minor core. The immutable **`v0.1.0-dev.2`** tag passed master CI but its
 asset publication because the macOS zero-FD-delta result exposed an inverted Parachute `<=` assertion.
 Child issue **#60** tracked the deterministic loop-owned socket teardown/gate defect and is closed after
 verified **`v0.1.0-dev.3`** publication. Issue **#59** remains open for the Phase-26 Darwin soak evidence;
-the deterministic fix shipped in dev.3 and all four release builders passed. M4 is current, queued, and
-has not started.
+the deterministic fix shipped in dev.3 and all four release builders passed. At that publication handoff,
+m4 became the current queued milestone.
 
 **M3 implementation gates:** the `0.1.0-dev.2` build, **42/42** TypeScript-strip fixtures, **74/74** JS/TS
 fixtures, purity (**690 files / 0 violations**), public claims, roadmap/live-issue verification, SemVer
@@ -144,7 +144,50 @@ Commit `d93b2fce` passed CI **29453691070**, Documentation **29453691119**, and 
 including linux-x64, linux-arm64, darwin-x64, and darwin-arm64. The immutable annotated
 `v0.1.0-dev.3` release contains the four native archives plus `checksums.txt`; a fresh download verified
 all four checksums. Pages **29453691036** deployed the matching site and installer, and an isolated hosted
-linux-x64 install reported `clun 0.1.0-dev.3`. Issue #60 is closed. No m4 implementation has begun.
+linux-x64 install reported `clun 0.1.0-dev.3`. Issue #60 is closed. This was the verified handoff point
+before m4 implementation began.
+
+**Phase 25b milestone 4 IMPLEMENTED LOCALLY — function/class semantics and local acceptance complete;
+publication pending.** The implementation now has explicit callable and constructor kinds, FunctionEnvironment
+state, parameter/body/name environments, mapped and unmapped arguments exotic objects, bound functions,
+Function/AsyncFunction intrinsics, exact callable/class source text, class heritage and derived-construction
+rules, and object/class `super` call/property semantics. Related shared fixes preserve `new.target` through
+built-in construction, make `Object.prototype`'s immutable prototype behavior observable, and align RegExp,
+Symbol, method metadata, and strict early errors with the same operations. No Test262-specific execution
+branch or skip rule was added.
+
+The final frozen diagnostic workset is **430 files: 366 pass / 64 fail / 0 skip / 0 crash**. The owned rows
+are `functions-arguments` **169 pass / 44 fail**, `classes` **169 pass / 8 fail**, and the 28 m3-origin
+binding dependencies **28 pass / 0 fail**; all **12** visible same-bucket Phase-37 controls still fail.
+Conceptual residual attribution is **m7 2 / m11 46 / m13 1 / m14 2 / Phase 37 13 / m4 0**. The thirteenth
+Phase-37 row is the untagged Proxy heritage control, exact-overridden to Phase 37 even though its frozen
+slice label remains in the owned diagnostic input. The m13 row is tagged-template behavior. No residual
+was hidden or reassigned to make m4 appear complete.
+
+The final 40,654-file off/eager ledgers are byte-identical with zero eager fallback: **25,008 pass / 3,155
+fail / 12,491 skip / 0 crash**. Eager mode compiled **1,020,917** forms, classified **54,315** as ineligible,
+and fell back **0** times. Eligible remains **28,163**; exact rate = **88.797358%** (public **88.79%**),
+target = **25,347**, and remaining lift = **339**. Residual ownership is **2,270 Phase-25b / 885 Phase 37**.
+The monotonic pass list contains **25,008** entries, **+504** from m3 and **+2,365** from phase entry; the
+canonical artifact digest is `B77552A66955B6C3`.
+
+The parse gate is **23,713 total / 17,688 live pass / 987 fail / 5,038 skip / 0 crash**, with all **17,512**
+frozen parse passes holding. `make test-lisp` passes **3,120 / 0**. Independent adversarial review corrected
+strict-directive early errors and pre-directive strict-name revalidation; `delete super[key]` evaluation
+order; immutable-prototype Annex-B setter failure; bound `@@hasInstance` delegation; valid native bound
+function source; exact static/class/async-generator source spans; eager nested block/switch declaration
+source retention; and the design's unmapped-arguments `caller` description. Review also retracted two
+proposed changes after Test262/spec verification: implicit
+default class constructors may use an accepted native-function source, and generator parameter initialization
+correctly occurs when the generator is called rather than on first `.next()`.
+
+All local build/test/purity, parse/off/eager conformance, TLS/crypto, public-claims, roadmap, installer,
+SemVer, and four-viewport Playwright gates are green. M4 remains the current milestone while the publication
+lifecycle runs. Its SemVer
+impact is **minor** within the selected `0.1.0` train, with source/release version `0.1.0-dev.4` and immutable
+target tag `v0.1.0-dev.4`. Required master checks, the tag, four native archives plus checksums, Pages, and
+the hosted installer are not yet claimed. Issue #57 remains open because **88.797358% < 90%**; m5 becomes
+current only after m4 publication is verified.
 
 **Milestone 1 DONE — "measure first":** the benchmark suite + the frozen Phase-24 baseline + the design doc
 (no engine change). `bench/{richards,deltablue,splay}.js` — the Octane trio ported to clun (self-contained,

@@ -2140,3 +2140,88 @@ impact is `none`: source remains `0.1.0-dev.3` and no new tag is created. The cu
 moves to m4 to prevent future `phase` invocations from repeating m3 release acceptance. M4 remains
 unstarted in this revision; the next execution owns only functions, classes, parameters, `super`, and
 arguments.
+
+### 2026-07-15 - Phase 25b m4 uses explicit callable and FunctionEnvironment semantics
+
+Milestone 4 will not patch class and arguments paths independently. Clun's current single user-function
+call/construct path, single function frame, ordinary copied arguments object, and emitter-wide rejection
+of `super` are the shared causes. M4 therefore introduces explicit ordinary/method/base-class/
+derived-class callable kinds, FunctionEnvironment state for active function, home object, `this`, and
+`new.target`, split parameter/body environments for non-simple lists, and a mapped arguments exotic behind
+the existing object internal-method protocol. A real bound-function representation delegates call,
+construct, and OrdinaryHasInstance to its target instead of manufacturing an always-constructable native
+wrapper.
+
+The exact current frozen-origin slice is 390 Phase-25b failures (213 `functions-arguments`, 177 `classes`).
+Twenty-eight m3-origin failures are diagnosed m4 dependencies and join the focused workset without moving
+their frozen accounting origin; twelve same-bucket Phase-37 controls remain visible and cannot be claimed.
+No skip or denominator change is permitted. Dynamic eval/`with`, tagged templates, private fields,
+AggregateError, newer syntax, WeakRef, generators, and async-generator expansion remain with their later
+owners unless an owned m4 row requires only the shared operation being added here.
+
+This is backward-compatible functionality in the existing `0.1.0` minor train. The published dev.3 tag is
+immutable, so m4 selects bare version `0.1.0-dev.4` and tag `v0.1.0-dev.4`. Completion requires the 418-row
+owned diagnostic run, visible proposal controls, focused semantic regressions, parse conformance where
+early errors change, a full off/eager execution comparison, monotonic pass-list generation only after that
+proof, fresh artifacts, synchronized issue/README/site/version surfaces, and the normal release gate.
+
+### 2026-07-15 - Phase 25b m4 closes its owned semantic groups through shared runtime operations
+
+Milestone 4 implements one coherent callable/class model instead of corpus-specific branches. Callable
+metadata now distinguishes ordinary functions, methods, arrows, base classes, and derived classes;
+reserved FunctionEnvironment state carries the active function, home object, `this`, and `new.target`.
+Non-simple parameters, body bindings, and immutable function/class names use distinct environments.
+Mapped and unmapped arguments objects are object-model exotics, bound functions retain and delegate to
+their targets, and Function/AsyncFunction metadata and dynamic constructors use the same callable
+operations. Class evaluation, derived construction, `super()` and super-property access, exact source
+text, built-in `new.target`, RegExp construction, Symbol naming, and method home objects are implemented
+at their shared seams. The Test262 runner and skip policy are unchanged.
+
+The 430-row frozen diagnostic workset closes at 366 pass / 64 fail / 0 skip / 0 crash. Its Phase-25b
+inputs are `functions-arguments` 169/44, `classes` 169/8, and 28/0 m3-origin binding dependencies; the
+twelve visible same-bucket Phase-37 controls remain failures. Conceptual attribution is m7 2, m11 46,
+m13 1, m14 2, Phase 37 13, and m4 zero. The extra Phase-37 row is the untagged Proxy heritage control:
+its frozen diagnostic label remains unchanged, but an exact analyzer override corrects its canonical
+owner. The m13 residual is tagged-template behavior. This ownership correction neither hides the row nor
+changes the fixed denominator.
+
+### 2026-07-15 - Phase 25b m4 review findings are fixed at shared seams; two proposals are retracted
+
+Full-corpus diagnosis and independent adversarial review required these corrections: own `"use strict"`
+directives reject non-simple parameters and revalidate pre-directive strict binding names; deleting a
+computed super property resolves `this`, evaluates the key without `ToPropertyKey`, then throws
+`ReferenceError`; the Annex-B `__proto__` setter throws when immutable `[[SetPrototypeOf]]` returns false;
+bound OrdinaryHasInstance re-enters the ordinary `instanceof` operation so target `@@hasInstance` remains
+observable; and bound native source uses valid anonymous NativeFunction syntax. Exact source retention
+was also corrected for static methods, full explicit-class constructors, and AsyncGeneratorFunction. Final
+adversarial review then found that the eager source backend omitted those spans for nested block/switch
+function declarations; both source-emitter call sites now propagate the declaration span, with focused
+off/eager regressions. `Object.prototype` gained its required immutable-prototype exotic. Final documentation review corrected
+the unmapped-arguments description: only `callee` is poisoned and `caller` is absent.
+
+Two proposed changes were explicitly rejected after normative/Test262 verification. Implicit/default
+class constructors may use a native-function source fallback accepted by the conformance assertion.
+Generator and async-generator parameter initialization is synchronous when the generator function is
+called, not deferred until its first `.next()`. The implementation retains those correct behaviors.
+
+### 2026-07-15 - Phase 25b m4 local evidence selects dev.4 but does not claim publication
+
+The final 40,654-file default/eager ledgers are byte-identical at 25,008 pass, 3,155 fail, 12,491 skip,
+and zero crash. Eager mode compiled 1,020,917 forms, classified 54,315 as ineligible, and fell back zero
+times. Eligible remains 28,163; the exact rate is 88.797358% (public 88.79%), 339 passes remain to the
+25,347 target, and residual ownership is 2,270 Phase-25b plus 885 Phase-37 gaps. The monotonic pass list
+contains 25,008 entries, +504 from m3 and +2,365 from phase entry. Canonical artifact digest
+`B77552A66955B6C3` binds the regenerated inventory.
+
+The parser gate is 23,713 total / 17,688 live pass / 987 fail / 5,038 skip / zero crash, with all 17,512
+frozen parser passes holding. `make test-lisp` passes 3,120 assertions with zero failures. This
+backward-compatible functionality is SemVer minor within the existing `0.1.0` train and selects source
+version `0.1.0-dev.4` and immutable target tag `v0.1.0-dev.4`. These are local candidate results. Required
+master checks, tag, four native archives plus checksums, Pages, and hosted-installer verification remain
+unclaimed. Issue #57 remains open because 88.797358% is below 90%; m4 remains current through publication,
+and m5 becomes current only after that lifecycle is verified.
+
+After the final source-text fix, the complete 40,654-file comparison was rerun and retained the same counts,
+compiled/ineligible telemetry, zero fallback, and byte-identical classifications. The complete local
+build/test/purity, TLS/crypto, public-claims, roadmap, installer, release-live, SemVer, bucket, shell, and
+four-viewport Playwright acceptance stack is green; only remote publication evidence remains unclaimed.

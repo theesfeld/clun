@@ -791,7 +791,18 @@ EOF
     'built-ins/Object/seal/seal-proxy.js' \
     'built-ins/Object/seal/throws-when-false.js' \
     'Focused m3 slice: 1,497 total / 1,442 pass / 55 fail / 0 skip / 0 crash.' \
-    'Residual ownership: m4 28 / m7 4 / m11 19 / Phase 37 4.'; do
+    'Residual ownership: m4 28 / m7 4 / m11 19 / Phase 37 4.' \
+    'Focused m4 slice: 430 total / 366 pass / 64 fail / 0 skip / 0 crash.' \
+    '`functions-arguments`: 169 pass / 44 fail.' \
+    '`classes`: 169 pass / 8 fail.' \
+    'm3-origin binding dependencies: 28 pass / 0 fail.' \
+    'Same-bucket Phase-37 controls: 0 pass / 12 fail.' \
+    'Residual ownership: m7 2 / m11 46 / m13 1 / m14 2 / Phase 37 13 / m4 0.' \
+    'Pass-list gain from milestone 3: 504; gain from phase entry: 2,365.' \
+    'Canonical artifact digest: `B77552A66955B6C3`.' \
+    'Off/eager ledgers are byte-identical; eager compiled 1,020,917 forms, classified 54,315 as ineligible, and fell back 0 times.' \
+    'Parse gate: 23,713 total / 17,688 pass / 987 fail / 5,038 skip / 0 crash; all 17,512 frozen parser passes hold.' \
+    '`make test-lisp`: 3,120 pass / 0 fail.'; do
     grep -Fq "$expected_text" "$body" ||
       fail "Phase 25b issue #$issue_number is missing measured scope evidence: $expected_text"
   done

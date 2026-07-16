@@ -8,9 +8,11 @@ surface, one gated capability at a time. Performance targets are workload-specif
 Clun does not claim blanket speed parity with Bun.
 
 > **Status: pre-alpha, under active construction.** Phase 25 performance work is complete.
-> [Phase 25b milestone 4](https://github.com/theesfeld/clun/issues/57) is queued and has not started.
-> Milestone 3 completed its shared iterator and binding/destructuring correctness wave, and the
-> verified `v0.1.0-dev.3` release is published for Linux and macOS on x64 and arm64.
+> [Phase 25b milestone 4](https://github.com/theesfeld/clun/issues/57) implementation is complete,
+> with its verified local evidence summarized below. Its release target is `v0.1.0-dev.4` for Linux
+> and macOS on x64 and arm64; remaining remote acceptance, tag, asset, Pages, and hosted-installer evidence
+> stays tracked on the canonical issue. The preceding `v0.1.0-dev.3` publication remains verified
+> historical evidence.
 > Clun executes its scoped JS/TS surface, but it is not a drop-in Node.js or Bun replacement.
 > The issue is the canonical live record, `PLAN.md` is the technical contract, and `STATE.md` is
 > the local resume checklist.
@@ -42,17 +44,25 @@ interoperability gap.
   constructors, and Promise combinators, including iterator close on abrupt completion.
 - Parameter defaults, catch patterns, and the covered destructuring paths enforce temporal dead
   zones; `const` bindings reject assignment, and anonymous parameter defaults receive inferred names.
+- Functions and classes now distinguish calls from construction, implement derived `this` and
+  `super`, separate parameter/body/name environments, expose mapped and unmapped arguments objects,
+  delegate bound construction, and preserve source text for the covered callable forms.
 - Timers, promises, files, buffered HTTP serving, `fetch`, URL APIs, and process spawning.
 - `clun test` with hooks, modifiers, filters, async tests, timeouts, and about 22 matchers.
 - `clun install`, `add`, `remove`, and package scripts with a deterministic lockfile and cache.
 
-The checked-in curated test262 pass list contains 24,504 tests. Phase 25b milestone 3's fresh
-execution ledger measures 24,504 passes and 3,659 gaps across 28,163 eligible tests
-(87.00%), with 12,491 skips and zero crashes; reaching 90% requires 843 additional live passes.
-Its focused m3 slice contains 1,497 tests: 1,442 pass and 55 fail, with zero skips and zero crashes.
-The remaining controls belong to m4 (28), m7 (4), m11 (19), and Phase 37 (4); m3 has no owned
-residual. Cross-script global lexical visibility and broader direct-eval semantics remain explicit
-m11 work. The full gap inventory assigns 2,775 residuals to Phase 25b and 884 to Phase 37.
+The checked-in curated test262 pass list contains 25,008 tests. Phase 25b milestone 4's fresh
+40,654-row execution ledger measures 25,008 passes and 3,155 gaps across 28,163 eligible tests
+(88.79%), with 12,491 skips and zero crashes; the 25,347-pass target requires 339 additional live
+passes to reach 90%.
+Its focused m4 slice contains 430 tests: 366 pass and 64 fail, with zero skips and zero crashes.
+The workset contains 418 Phase-25b diagnostic rows and 12 same-bucket Phase-37 controls. The
+remaining controls belong to m4 (0), m7 (2), m11 (46), m13 (1), m14 (2), and Phase 37 (13);
+m4 has no owned residual. Cross-script global lexical visibility and broader direct-eval semantics
+remain explicit m11 work. The full gap inventory assigns 2,270 residuals to Phase 25b and 885 to Phase 37.
+The canonical execution ledger digest is `B77552A66955B6C3`. The parse gate classifies
+23,713 tests as 17,688 pass, 987 fail, 5,038 skip, and zero crash while retaining all 17,512 frozen
+passes; the Common Lisp suite passes 3,120 tests with zero failures.
 Phase 25's final
 default-tier measurements are 6.68x Richards, 3.85x DeltaBlue, and 5.36x Splay against the frozen
 Phase-24 Clun baseline, a 5.16x suite geomean. Clun has no measured cross-runtime benchmark against
@@ -122,7 +132,7 @@ sets between this README and the landing page; descriptive prose still requires 
 workflows are read-only and fail closed if the canonical issues, README, or site have drifted.
 
 Release versions follow the actual SemVer impact recorded in the canonical issue, not the number of
-pushes. The current source version is `0.1.0-dev.3`; [the versioning contract](docs/versioning.md)
+pushes. The current source version is `0.1.0-dev.4`; [the versioning contract](docs/versioning.md)
 defines prerelease sequencing, synchronized surfaces, immutable tags, assets, and installer evidence.
 [Live release and milestone status](https://github.com/theesfeld/clun/issues/57) remains on the canonical
 issue so this README never substitutes a stale publication claim for verified assets.
@@ -164,7 +174,7 @@ vendored under `vendor/` and located via `scripts/registry.lisp`.
 make build     # compile everything, save build/clun (save-lisp-and-die)
 make test      # run the CL suites and JS/TS fixture harnesses
 make purity    # fail on any CFFI/foreign-code token
-./build/clun --version   # => clun 0.1.0-dev.3
+./build/clun --version   # => clun 0.1.0-dev.4
 ```
 
 A fresh clone builds with `make build` alone: ASDF compiles the vendored closure and `src/` into

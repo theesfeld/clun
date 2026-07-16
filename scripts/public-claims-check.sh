@@ -169,9 +169,12 @@ report_delta=$(report_measure 'Current-pass delta from frozen baseline')
 report_target=$(report_measure '`ceil(90% * eligible)`')
 report_lift=$(report_measure 'Required pass lift')
 report_source_revision=$(report_provenance source-revision)
+report_digest=$(report_provenance classification-ledger-fnv-1a-64)
 
 printf '%s\n' "$report_source_revision" | grep -Eq '^(working-tree@)?[0-9a-f]{40}$' ||
   fail "test262 execution report has an invalid source revision: $report_source_revision"
+printf '%s\n' "$report_digest" | grep -Eq '^[0-9A-F]{16}$' ||
+  fail "test262 execution report has an invalid FNV-1a-64 digest: $report_digest"
 
 for value in "$report_total" "$report_pass" "$report_fail" "$report_skip" \
              "$report_crash" "$report_eligible" "$report_frozen" \
@@ -271,23 +274,36 @@ require_text docs/conformance/test262-execution.md \
 pretty_report_pass=$(format_count "$report_pass")
 pretty_report_fail=$(format_count "$report_fail")
 pretty_report_skip=$(format_count "$report_skip")
+pretty_report_total=$(format_count "$report_total")
 pretty_report_eligible=$(format_count "$report_eligible")
+pretty_report_target=$(format_count "$report_target")
 pretty_report_lift=$(format_count "$report_lift")
 pretty_phase25b_rows=$(format_count "$phase25b_rows")
 pretty_phase37_rows=$(format_count "$phase37_rows")
 
-focused_milestone=m3
-focused_total=1497
-focused_pass=1442
-focused_fail=55
+focused_milestone='m4'
+focused_total=430
+focused_pass=366
+focused_fail=64
 focused_skip=0
 focused_crash=0
-focused_m4=28
-focused_m7=4
-focused_m11=19
-focused_phase37=4
+focused_phase25b_rows=418
+focused_phase37_controls=12
+focused_m4=0
+focused_m7=2
+focused_m11=46
+focused_m13=1
+focused_m14=2
+focused_phase37=13
 pretty_focused_total=$(format_count "$focused_total")
 pretty_focused_pass=$(format_count "$focused_pass")
+
+[ "$focused_total" -eq $((focused_pass + focused_fail + focused_skip + focused_crash)) ] ||
+  fail "focused m4 classifications do not sum to the frozen total"
+[ "$focused_total" -eq $((focused_phase25b_rows + focused_phase37_controls)) ] ||
+  fail "focused m4 diagnostic and control rows do not sum to the frozen total"
+[ "$focused_fail" -eq $((focused_m4 + focused_m7 + focused_m11 + focused_m13 + focused_m14 + focused_phase37)) ] ||
+  fail "focused m4 conceptual residual owners do not sum to the failure count"
 
 benchmark_baseline=$(awk '/^\| Phase-24 baseline / { print; exit }' docs/benchmarks.md)
 benchmark_latest=$(awk '/^\| m[0-9][0-9]* / { latest = $0 } END { print latest }' docs/benchmarks.md)
@@ -586,6 +602,7 @@ require_text tests/lisp/smoke.lisp "(is string= \"$version\" clun::*clun-version
 require_text docs/versioning.md "Its impact is \`minor\`"
 require_text docs/versioning.md "\`$version\` under tag \`v$version\`"
 require_text README.md "$pretty_passes tests"
+require_text README.md "$pretty_report_total-row execution ledger"
 require_text README.md "$pretty_report_pass passes and $pretty_report_fail gaps across $pretty_report_eligible eligible tests"
 require_text README.md "($report_rate%), with $pretty_report_skip skips and zero crashes"
 require_text site/index.html "href=\"https://github.com/theesfeld/clun/releases/tag/v$version\""
@@ -593,15 +610,24 @@ require_text site/index.html "v$version for Linux and macOS"
 require_text site/index.html "</span> v$version / pre-alpha</p>"
 require_text site/index.html "<span>$version / pre-alpha</span>"
 require_text site/index.html "$pretty_passes pass"
-require_text site/index.html "Full run: $pretty_report_pass pass / $pretty_report_fail fail / $pretty_report_skip skip / $report_crash crash."
+require_text site/index.html "Full run: $pretty_report_total total = $pretty_report_pass pass / $pretty_report_fail fail / $pretty_report_skip skip / $report_crash crash."
+require_text site/index.html "Eligible: $pretty_report_eligible / target: $pretty_report_target pass / remaining lift: $pretty_report_lift."
 require_text README.md "focused $focused_milestone slice contains $pretty_focused_total tests: $pretty_focused_pass pass and $focused_fail fail, with zero skips and zero crashes"
-require_text README.md "remaining controls belong to m4 ($focused_m4), m7 ($focused_m7), m11 ($focused_m11), and Phase 37 ($focused_phase37)"
+require_text README.md "workset contains $focused_phase25b_rows Phase-25b diagnostic rows and $focused_phase37_controls same-bucket Phase-37 controls"
+require_text README.md "remaining controls belong to m4 ($focused_m4), m7 ($focused_m7), m11 ($focused_m11), m13 ($focused_m13), m14 ($focused_m14), and Phase 37 ($focused_phase37)"
 require_text README.md "full gap inventory assigns $pretty_phase25b_rows residuals to Phase 25b and $pretty_phase37_rows to Phase 37"
 require_text site/index.html "Focused $focused_milestone slice: $pretty_focused_total total / $pretty_focused_pass pass / $focused_fail fail / $focused_skip skip / $focused_crash crash."
-require_text site/index.html "Residual owners: m4 $focused_m4 / m7 $focused_m7 / m11 $focused_m11 / Phase 37 $focused_phase37. Remaining ownership:"
+require_text site/index.html "Workset: $focused_phase25b_rows Phase-25b diagnostic rows / $focused_phase37_controls same-bucket Phase-37 controls."
+require_text site/index.html "Residual owners: m4 $focused_m4 / m7 $focused_m7 / m11 $focused_m11 / m13 $focused_m13 / m14 $focused_m14 / Phase 37 $focused_phase37. Remaining ownership:"
 require_text site/index.html "$pretty_phase25b_rows Phase-25b / $pretty_phase37_rows Phase-37 gaps."
+require_text README.md "canonical execution ledger digest is \`$report_digest\`"
+require_text site/index.html "Ledger digest: <code>$report_digest</code>."
+require_text README.md "23,713 tests as 17,688 pass, 987 fail, 5,038 skip, and zero crash"
+require_text README.md "Common Lisp suite passes 3,120 tests with zero failures"
+require_text site/index.html "Parse gate: 23,713 total / 17,688 pass / 987 fail / 5,038 skip / 0 crash; all 17,512"
+require_text site/index.html "Common Lisp suite: 3,120 pass / 0 fail."
 if [ "$report_lift" -gt 0 ]; then
-  require_text README.md "reaching 90% requires $pretty_report_lift additional live passes"
+  require_text README.md "the $pretty_report_target-pass target requires $pretty_report_lift additional live"
   reject_text README.md "Phase 25b's 90% target is met"
   require_text site/index.html "<dt>Phase 25b progress</dt><dd>$report_rate% current</dd>"
   reject_text site/index.html "90% target met"

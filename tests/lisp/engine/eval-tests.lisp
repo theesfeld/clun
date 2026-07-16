@@ -156,6 +156,97 @@
   (is eql 1d0
       (ev "var hit=0;try{try{throw []}catch([x=x]){hit=2}}catch(e){hit=1};hit")))
 
+(define-test eval/non-simple-parameter-environments
+  (is string= "1,1"
+      (ev "function f(a=1,b=a){return a+','+b}f()"))
+  (is string= "ReferenceError"
+      (ev-error-name "function f(a=a){}f()"))
+  (is string= "ReferenceError"
+      (ev-error-name "var b=9;function f(a=b,b=2){}f()"))
+  (is string= "parameter:outer|body-var:body-function"
+      (ev "var outer='outer';function f(parameter='parameter',read=()=>parameter+':'+outer){var parameter='body-var';function outer(){return 'body-function'}return read()+'|'+parameter+':'+outer()}f()"))
+  (is string= "default,given"
+      (ev "function f(arguments='default'){return arguments}f()+','+f('given')"))
+  (is string= "true,body"
+      (ev "var arguments='outer';function f(read=()=>arguments){let arguments='body';var value=read();return (typeof value==='object'&&value.length===0)+','+arguments}f()")))
+
+(define-test eval/named-function-expression-environment
+  (is string= "true,outer"
+      (ev "var Named='outer';var fn=function Named(value=Named){Named='ignored';return value===fn&&Named===fn};[fn(),Named].join(',')"))
+  (is string= "TypeError,outer"
+      (ev "var Named='outer';var fn=function Named(){'use strict';Named=1};var error;try{fn()}catch(e){error=e.name}[error,Named].join(',')")))
+
+(define-test eval/non-simple-coroutine-and-method-environments
+  (let* ((realm (eng:make-realm))
+         (log
+           (eng:eval-source
+            "var body=0,log=[];async function f(value=(function(){throw 'boom'})()){body++}var promise=f();log.push(promise instanceof Promise);promise.catch(function(error){log.push(error+':'+body)});log"
+            :realm realm)))
+    (let ((eng:*realm* realm))
+      (is string= "true,boom:0" (eng:to-string log))))
+  (is eql 2d0
+      (ev "function* g(value=2){yield value}g().next().value"))
+  (is eql 3d0
+      (ev "class A{m(value){return value+1}}class B extends A{m(value=2){return super.m(value)}}new B().m()"))
+  (is eql 4d0
+      (ev "var base={m(value){return value+2}};var object={__proto__:base,m(value=2){return super.m(value)}};object.m()"))
+  (is eql 5d0
+      (ev "class A{constructor(value){this.value=value}}class B extends A{constructor(value=5){super(value)}}new B().value")))
+
+(define-test eval/function-environment-off-eager-parity
+  (dolist (case
+           (list
+            (cons "parameter/body split"
+                  "var outer='outer';function f(parameter='parameter',read=()=>parameter+':'+outer){var parameter='body-var';function outer(){return 'body-function'}return read()+'|'+parameter+':'+outer()}f()")
+            (cons "named-expression binding"
+                  "var Named='outer';var fn=function Named(value=Named){Named='ignored';return value===fn&&Named===fn};[fn(),Named].join(',')")))
+    (let ((off (let ((eng::*compile-tier-mode* :off)) (ev (cdr case))))
+          (eager (let ((eng::*compile-tier-mode* :eager)) (ev (cdr case)))))
+      (is equal off eager "off/eager parity for ~a" (car case)))))
+
+(define-test eval/function-final-regressions
+  (is string= "first,second,body"
+      (ev "var log=[];var first={toString(){log.push('first');return 'a'}},second={toString(){log.push('second');return 'b'}},body={toString(){log.push('body');return 'return a+b'}};Function(first,second,body);log.join(',')"))
+  (is string= "SyntaxError"
+      (ev-error-name "Function('eval','\"use strict\";')"))
+  (is string= "SyntaxError"
+      (ev-error-name "Function('arguments','\"use strict\";')"))
+  (dolist (source '("'use strict';eval=1"
+                    "'use strict';arguments=1"
+                    "'use strict';eval++"
+                    "'use strict';++arguments"
+                    "'use strict';[eval]=[1]"
+                    "'use strict';({value:arguments}={value:1})"))
+    (is string= "SyntaxError" (ev-error-name source)))
+  (is eq eng:+false+
+      (ev "Function.prototype[Symbol.hasInstance].call({}, {})"))
+  (is string= "TypeError"
+      (ev-error-name "({}) instanceof ({})"))
+  (is string= "true,TypeError"
+      (ev "function sloppy(){}function strict(){'use strict'}var error='none';try{strict.caller}catch(e){error=e.name}[sloppy.caller===undefined,error].join(',')"))
+  (is string= "function /* a */ f /* b */ ( /* c */ x /* d */ , /* e */ y /* f */ ) /* g */ { /* h */ ; /* i */ ; /* j */ }"
+      (ev "function /* a */ f /* b */ ( /* c */ x /* d */ , /* e */ y /* f */ ) /* g */ { /* h */ ; /* i */ ; /* j */ }f.toString()"))
+  (is string= "( /* a */ a /* b */ , /* c */ b /* d */ ) /* e */ => /* f */ { /* g */ ; /* h */ }"
+      (ev "var f=( /* a */ a /* b */ , /* c */ b /* d */ ) /* e */ => /* f */ { /* g */ ; /* h */ };f.toString()"))
+  (is string= "[ /* a */ \"f\" /* b */ ] /* c */ ( /* d */ ) /* e */ { /* f */ }"
+      (ev "var f={ [ /* a */ \"f\" /* b */ ] /* c */ ( /* d */ ) /* e */ { /* f */ } }.f;f.toString()"))
+  (is string= "f /* a */ ( /* b */ ) /* c */ { /* d */ }"
+      (ev "class F { f /* a */ ( /* b */ ) /* c */ { /* d */ } }F.prototype.f.toString()")))
+
+(define-test eval/dynamic-function-segment-boundaries
+  ;; FormalParameters and FunctionBody are distinct parse goals. An unterminated
+  ;; parameter comment cannot consume the wrapper boundary and close in the body.
+  (is string= "SyntaxError"
+      (ev-error-name "Function('/*','*/ ) {')"))
+  (is eql 7d0
+      (ev "Function('/* parameter */ value','/* body */ return value')(7)"))
+  ;; Keep the existing observable order: parameter conversions, body conversion,
+  ;; then newTarget.prototype. Abrupt conversion prevents later observations.
+  (is string= "parameter,body,prototype,true"
+      (ev "var log=[],parameter={toString(){log.push('parameter');return 'value'}},body={toString(){log.push('body');return 'return value'}};var NT=(function(){}).bind(null);Object.defineProperty(NT,'prototype',{get(){log.push('prototype');return Function.prototype}});var fn=Reflect.construct(Function,[parameter,body],NT);log.push(Object.getPrototypeOf(fn)===Function.prototype);log.join(',')"))
+  (is string= "parameter,true"
+      (ev "var marker={},log=[],parameter={toString(){log.push('parameter');throw marker}},body={toString(){log.push('body');return ''}};var NT=(function(){}).bind(null);Object.defineProperty(NT,'prototype',{get(){log.push('prototype');return Function.prototype}});try{Reflect.construct(Function,[parameter,body],NT)}catch(e){log.push(e===marker)}log.join(',')")))
+
 (define-test eval/lexical-assignment-semantics
   (is eql 1d0
       (ev "var hit=0;try{0,[x]=[]}catch(e){hit=e.name==='ReferenceError'?1:2};let x;hit"))
@@ -224,6 +315,99 @@
   (is eql 15d0 (ev "class C { add(a,b){ return a+b; } } new C().add(7,8)"))
   (is eql 7d0 (ev "class C { get x(){ return 7; } } new C().x"))
   (is eql 5d0 (ev "class A { m(){ return 5; } } class B extends A {} new B().m()")))
+
+(define-test eval/class-constructor-semantics
+  (is string= "TypeError" (ev-error-name "class C{};C()"))
+  (is string= "TypeError,TypeError,TypeError"
+      (ev "class C{m(){}get x(){}set x(v){}}var d=Object.getOwnPropertyDescriptor(C.prototype,'x'),r=[];for(var f of [C.prototype.m,d.get,d.set]){try{Reflect.construct(f,[]);r.push('no error')}catch(e){r.push(e.name)}}r.join(',')"))
+  (is eql 1d0
+      (ev "class C{constructor(){this.value=1;return 2}}new C().value"))
+  (is eql 2d0
+      (ev "class C{constructor(){return {value:2}}}new C().value"))
+  (is eql 3d0
+      (ev "class A{}class C extends A{constructor(){return {value:3}}}new C().value"))
+  (is string= "TypeError"
+      (ev-error-name "class A{}class C extends A{constructor(){return 1}}new C()"))
+  (is string= "ReferenceError"
+      (ev-error-name "class A{}class C extends A{constructor(){}}new C()"))
+  (is string= "ReferenceError"
+      (ev-error-name "class A{}class C extends A{constructor(){this.value=1;super()}}new C()"))
+  (is string= "ReferenceError"
+      (ev-error-name "class A{}class C extends A{constructor(){super();super()}}new C()"))
+  (is eq eng:+true+
+      (ev "var seen;class A{constructor(){seen=new.target}}class C extends A{}var value=new C();seen===C&&value instanceof C"))
+  (is eq eng:+true+
+      (ev "class A{constructor(){this.seen=new.target}}class C extends A{constructor(){super()}}function N(){}var value=Reflect.construct(C,[],N);value.seen===N&&Object.getPrototypeOf(value)===N.prototype")))
+
+(define-test eval/class-super-property-semantics
+  (is string= "4,b!,7,7,8,get:b|set:b:7|get:b|set:b:8"
+      (ev "var log=[];class A{get x(){log.push('get:'+this.tag);return this._x}set x(v){log.push('set:'+this.tag+':'+v);this._x=v}m(v){return this.tag+v}}class B extends A{read(){return super.x}call(v){return super.m(v)}write(v){super.x=v;return this._x}bump(){return super.x++}}var b=new B();b.tag='b';b._x=4;[b.read(),b.call('!'),b.write(7),b.bump(),b._x,log.join('|')].join(',')"))
+  (is string= "2,B,5,5,6"
+      (ev "class A{static get x(){return this._x}static set x(v){this._x=v}static m(){return this.tag}}class B extends A{static read(){return super.x}static call(){return super.m()}static write(v){super.x=v;return this._x}static bump(){return super.x++}}B.tag='B';B._x=2;[B.read(),B.call(),B.write(5),B.bump(),B._x].join(',')"))
+  (is eql 1d0
+      (ev "var oldBase={x:1},newBase={x:2};class A{}class B extends A{read(key){return super[key]}}Object.setPrototypeOf(B.prototype,oldBase);var key={toString(){Object.setPrototypeOf(B.prototype,newBase);return 'x'}};new B().read(key)")))
+
+(define-test eval/delete-super-semantics
+  (is string= "ReferenceError"
+      (ev-error-name "var object={m(){delete super.x}};object.m()"))
+  ;; A null super base is not coerced before delete rejects the SuperReference.
+  (is string= "ReferenceError"
+      (ev-error-name "class C{static m(){delete super.x}}Object.setPrototypeOf(C,null);C.m()"))
+  ;; GetThisBinding precedes the computed expression in a derived constructor.
+  (is string= "ReferenceError,false"
+      (ev "var ran=false;class C extends Object{constructor(){try{delete super[(ran=true,0)]}catch(error){return {name:error.name}}}}var value=new C();value.name+','+ran"))
+  ;; The key expression is evaluated, but delete rejects before ToPropertyKey.
+  (is string= "ReferenceError,1,0"
+      (ev "var evaluated=0,coerced=0,key={toString(){coerced++;return 'x'}},object={m(){try{delete super[(evaluated++,key)]}catch(error){return error.name+','+evaluated+','+coerced}}};object.m()"))
+  (is string= "TypeError"
+      (ev-error-name "var object={m(){delete super[(function(){throw new TypeError()})()]}};object.m()")))
+
+(define-test eval/class-name-and-heritage-semantics
+  (is string= "ReferenceError"
+      (ev-error-name "var D=Object;var C=class D extends D{}"))
+  (is string= "TypeError"
+      (ev-error-name "var C=class Inner{static mutate(){Inner=1}};C.mutate()"))
+  (is eq eng:+true+
+      (ev "var C=class Inner{static self(){return Inner}};C.self()===C&&typeof Inner==='undefined'"))
+  (is string= "TypeError" (ev-error-name "class C extends 1{}"))
+  (is string= "TypeError"
+      (ev-error-name "function F(){}F.prototype=1;class C extends F{}"))
+  (is eq eng:+true+
+      (ev "class C extends null{}Object.getPrototypeOf(C.prototype)===null"))
+  (is string= "TypeError"
+      (ev-error-name "class C{static ['prototype'](){}}")))
+
+(define-test eval/class-builtin-regressions
+  (is string= "argument,TypeError"
+      (ev "var log=[];class A{}class B extends A{constructor(){super(log.push('argument'))}}Object.setPrototypeOf(B,{});try{new B()}catch(e){log.push(e.name)}log.join(',')"))
+  (is string= "|get |set "
+      (ev "var method=Symbol(),accessor=Symbol();var object={[method](){},get [accessor](){},set [accessor](value){}};var descriptor=Object.getOwnPropertyDescriptor(object,accessor);[object[method].name,descriptor.get.name,descriptor.set.name].join('|')"))
+  (is string= "[method]|get [accessor]|set [accessor]"
+      (ev "var method=Symbol('method'),accessor=Symbol('accessor');var object={[method](){},get [accessor](){},set [accessor](value){}};var descriptor=Object.getOwnPropertyDescriptor(object,accessor);[object[method].name,descriptor.get.name,descriptor.set.name].join('|')"))
+  (is eq eng:+true+
+      (ev "class R extends RegExp{}var value=new R('a','g');Object.getPrototypeOf(value)===R.prototype&&value instanceof R&&value instanceof RegExp"))
+  (is string= "true,TypeError"
+      (ev "class C extends Symbol{}var error='none';try{new C()}catch(e){error=e.name}[(typeof C==='function'&&Object.getPrototypeOf(C)===Symbol),error].join(',')")))
+
+(define-test eval/class-source-span-regressions
+  (is string= "[ /* key */ \"f\" ] /* gap */(){ /* body */ }"
+      (ev "class C { static /* omitted */ [ /* key */ \"f\" ] /* gap */(){ /* body */ } }C.f.toString()"))
+  (is string= "async /* gap */ f /* args */(){ /* body */ }"
+      (ev "class C { static /* omitted */ async /* gap */ f /* args */(){ /* body */ } }C.f.toString()"))
+  (is string= "get /* gap */ f(){ /* body */ }"
+      (ev "class C { static /* omitted */ get /* gap */ f(){ /* body */ } }Object.getOwnPropertyDescriptor(C,'f').get.toString()"))
+  (is string= "set /* gap */ f(value){ /* body */ }"
+      (ev "class C { static /* omitted */ set /* gap */ f(value){ /* body */ } }Object.getOwnPropertyDescriptor(C,'f').set.toString()"))
+  (is string= "* /* gap */ f(){ /* body */ }"
+      (ev "class C { static /* omitted */ * /* gap */ f(){ /* body */ } }C.f.toString()"))
+  (is string= "class /* a */ C /* b */ extends /* c */ B /* d */ { /* e */ constructor /* f */(){ /* g */ } /* h */ m(){ /* i */ } }"
+      (ev "function B(){}class /* a */ C /* b */ extends /* c */ B /* d */ { /* e */ constructor /* f */(){ /* g */ } /* h */ m(){ /* i */ } }C.toString()"))
+  (is string= "class /* a */ Inner /* b */ { /* c */ constructor /* d */(){ /* e */ } /* f */ m(){ /* g */ } }"
+      (ev "var C=class /* a */ Inner /* b */ { /* c */ constructor /* d */(){ /* e */ } /* f */ m(){ /* g */ } };C.toString()")))
+
+(define-test eval/object-super-home-object
+  (is string= "true,1,o,4,4,5,15,o2"
+      (ev "var p1={get x(){return this._x},set x(v){this._x=v},m(){return this.tag}};var p2={get x(){return this._x+10},set x(v){this._x=v+10},m(){return this.tag+'2'}};var o={__proto__:p1,_x:1,tag:'o',read(){return super.x},call(){return super.m()},write(v){super.x=v;return this._x},bump(){return super.x++}};var first=[Object.getPrototypeOf(o)===p1,o.read(),o.call(),o.write(4),o.bump(),o._x];Object.setPrototypeOf(o,p2);first.concat([o.read(),o.call()]).join(',')")))
 
 (define-test eval/strict-vs-sloppy
   ;; sloppy: undeclared assignment creates a global; strict: throws

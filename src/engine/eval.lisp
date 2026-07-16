@@ -44,7 +44,8 @@
              (fn (funcall (compile-function-common comp (function-node-params fd)
                                                    (function-node-body fd) name
                                                    :generator (function-node-generator fd)
-                                                   :async (function-node-async fd))
+                                                   :async (function-node-async fd)
+                                                   :source-text (node-source-text fd))
                           lexical-env)))
         (js-set g name fn t)))
     (multiple-value-bind (vars funcs) (collect-var-names stmts)
@@ -54,6 +55,7 @@
 
 (defun run-program (program realm &key strict)
   (let ((*realm* realm)
+        (*current-source-text* (program-source program))
         (comp (make-comp)))
     (when (or strict (program-strict-p program)) (setf (comp-strict comp) t))
     (let* ((stmts (program-body program))
@@ -148,7 +150,8 @@ coroutines and destroys the loop (leak control). *realm* is bound around parsing
 (defun indirect-eval (source)
   "Indirect eval: parse SOURCE and run it in the CURRENT realm's global scope,
 returning the completion value (§19.2.1). *realm* is already bound by the caller."
-  (let ((program (parse-program source :source-type :script))
+  (let ((*current-source-text* source)
+        (program (parse-program source :source-type :script))
         (comp (make-comp)))
     (when (program-strict-p program) (setf (comp-strict comp) t))
     (let* ((stmts (program-body program))
@@ -168,6 +171,7 @@ returning the completion value (§19.2.1). *realm* is already bound by the calle
 ;;; convenience for the REPL/tests: evaluate an expression source, return the value
 (defun eval-source (source &key (realm (make-realm)) strict)
   (let* ((*realm* realm)
+         (*current-source-text* source)
          (program (parse-program source :source-type :script))
          (comp (make-comp)))
     (when (or strict (program-strict-p program)) (setf (comp-strict comp) t))

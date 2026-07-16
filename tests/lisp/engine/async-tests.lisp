@@ -116,6 +116,108 @@ object/array result reaches its prototype's toString only inside its realm)."
   (is string= "3" (evj "var o=[]; async function f(){ var a=await 1, b=await 2; o.push(a+b); } f(); o"))
   (is string= "1,2" (evj "var o=[]; (async()=>{ o.push(await 1); o.push(await 2); })(); o")))
 
+(define-test async/function-constructor-intrinsics
+  (let ((realm (eng:make-realm)))
+    (let* ((eng::*realm* realm)
+           (constructor (eng:intrinsic :async-function-constructor))
+           (prototype (eng:intrinsic :async-function-prototype))
+           (constructor-property (eng::jm-get-own-property prototype "constructor"))
+           (tag (eng::jm-get-own-property prototype (eng:well-known :to-string-tag))))
+      (is eq (eng:intrinsic :function-constructor)
+          (eng::jm-get-prototype-of constructor))
+      (is eq (eng:intrinsic :function-prototype)
+          (eng::jm-get-prototype-of prototype))
+      (false (eng:callable-p prototype))
+      (is string= "AsyncFunction" (eng:js-get constructor "name"))
+      (is eql 1d0 (eng:js-get constructor "length"))
+      (is eq constructor (eng::pd-value constructor-property))
+      (false (eng::pd-writable constructor-property))
+      (false (eng::pd-enumerable constructor-property))
+      (true (eng::pd-configurable constructor-property))
+      (is string= "AsyncFunction" (eng::pd-value tag))
+      (false (eng::pd-writable tag))
+      (false (eng::pd-enumerable tag))
+      (true (eng::pd-configurable tag)))))
+
+(define-test async/dynamic-function-constructor
+  (let ((realm (eng:make-realm)))
+    (let* ((eng::*realm* realm)
+           (constructor (eng:intrinsic :async-function-constructor))
+           (prototype (eng:intrinsic :async-function-prototype))
+           (function (eng:js-call constructor eng:+undefined+
+                                  (list "a" "b" "return await a + b"))))
+      (is eql 2d0 (eng:js-get function "length"))
+      (is eq prototype (eng::jm-get-prototype-of function))
+      (false (eng::constructor-p function))
+      (false (eng:has-own-property function "prototype"))
+      (let ((promise (eng:js-call function eng:+undefined+ (list 2d0 3d0))))
+        (eng:drive-jobs realm)
+        (is eq :fulfilled (eng:js-promise-pstate promise))
+        (is eql 5d0 (eng:js-promise-value promise))))))
+
+(define-test async/generator-function-constructor-intrinsics
+  (let ((realm (eng:make-realm)))
+    (let* ((eng::*realm* realm)
+           (constructor (eng:intrinsic :async-generator-function-constructor))
+           (prototype (eng:intrinsic :async-generator-function-prototype))
+           (generator-prototype (eng:intrinsic :async-generator-prototype))
+           (constructor-property (eng::jm-get-own-property prototype "constructor"))
+           (prototype-property (eng::jm-get-own-property prototype "prototype"))
+           (tag (eng::jm-get-own-property prototype (eng:well-known :to-string-tag))))
+      (true (eng::constructor-p constructor))
+      (false (eng:callable-p prototype))
+      (is eq (eng:intrinsic :function-constructor)
+          (eng::jm-get-prototype-of constructor))
+      (is eq (eng:intrinsic :function-prototype)
+          (eng::jm-get-prototype-of prototype))
+      (is string= "AsyncGeneratorFunction" (eng:js-get constructor "name"))
+      (is eql 1d0 (eng:js-get constructor "length"))
+      (is eq constructor (eng::pd-value constructor-property))
+      (false (eng::pd-writable constructor-property))
+      (false (eng::pd-enumerable constructor-property))
+      (true (eng::pd-configurable constructor-property))
+      (is eq generator-prototype (eng::pd-value prototype-property))
+      (false (eng::pd-writable prototype-property))
+      (false (eng::pd-enumerable prototype-property))
+      (true (eng::pd-configurable prototype-property))
+      (is string= "AsyncGeneratorFunction" (eng::pd-value tag))
+      (is eq prototype (eng:js-get generator-prototype "constructor")))))
+
+(define-test async/dynamic-generator-function-constructor
+  (is string= "AsyncGeneratorFunction,1,true,true,true,true,true,true"
+      (evj "async function* f(){};var C=f.constructor,g=C('x','yield await x');
+            var notConstructor=false;try{new g()}catch(e){notConstructor=e instanceof TypeError}
+            [C.name,C.length,Object.getPrototypeOf(f)===C.prototype,
+             Object.getPrototypeOf(C)===Function,
+             Object.getPrototypeOf(C.prototype)===Function.prototype,
+             Object.getPrototypeOf(g)===C.prototype,
+             Object.getPrototypeOf(g.prototype)===C.prototype.prototype,
+             notConstructor].join(',')"))
+  (is string= "async function* anonymous(a, /* a */ b, c /* b */ //
+) {
+/* c */ ; /* d */ //
+}"
+      (evj "async function* f(){};var C=f.constructor;
+            var g=C('a',' /* a */ b, c /* b */ //','/* c */ ; /* d */ //');
+            Function.prototype.toString.call(g)"))
+  (is string= "5,false"
+      (evj "var out=[];var C=(async function*(){}).constructor;
+            C('x','yield await x') (5).next().then(r=>out.push(r.value,r.done));out")))
+
+(define-test async/dynamic-constructor-segment-boundaries
+  (is string= "SyntaxError"
+      (ev-error-name "(async function(){}).constructor('/*','*/ ) {')"))
+  (is string= "7"
+      (evj "var out=[],C=(async function(){}).constructor;
+            C('/* parameter */ value','/* body */ return await value')(7)
+             .then(value=>out.push(value));out"))
+  (is string= "SyntaxError"
+      (ev-error-name "(async function*(){}).constructor('/*','*/ ) {')"))
+  (is string= "7"
+      (evj "var out=[],C=(async function*(){}).constructor;
+            C('/* parameter */ value','/* body */ yield await value')(7).next()
+             .then(result=>out.push(result.value));out")))
+
 (define-test async/rejection-handling
   (is string= "c:E" (evj "var o=[]; async function f(){ try { await Promise.reject('E'); } catch(e){ o.push('c:'+e); } } f(); o"))
   (is string= "caught:boom" (evj "var o=[]; async function f(){ throw 'boom'; } f().catch(e=>o.push('caught:'+e)); o")))

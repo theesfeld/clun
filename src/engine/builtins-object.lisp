@@ -87,7 +87,9 @@
        (make-native-function "set __proto__" 1
          (lambda (this args)
            (let ((o (require-object-coercible this)) (p (arg args 0)))
-             (when (and (js-object-p o) (or (js-object-p p) (js-null-p p))) (jm-set-prototype-of o p))
+             (when (and (js-object-p o) (or (js-object-p p) (js-null-p p)))
+               (unless (jm-set-prototype-of o p)
+                 (throw-type-error "cannot set prototype")))
              +undefined+)))
        :enumerable nil :configurable t))))
 

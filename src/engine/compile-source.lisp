@@ -261,6 +261,15 @@ source-emitted target; switches increment only the former."
                       ,value
                       (frame-ref env ,depth ,index ,name)
                       (throw-type-error "Assignment to constant variable.")))
+                  ((and (eq kind :local) (resolved-silent-immutable-p comp depth name))
+                   (if (comp-strict comp)
+                       `(progn
+                          ,value
+                          (frame-ref env ,depth ,index ,name)
+                          (throw-type-error "Assignment to immutable function name."))
+                       `(let ((value ,value))
+                          (frame-ref env ,depth ,index ,name)
+                          value)))
                   ((eq kind :local) `(frame-set env ,depth ,index ,value ,name))
                   (t `(global-set ,name ,value ,(comp-strict comp)))))))))
     (member-expression
@@ -351,7 +360,8 @@ result so a member base/key is evaluated exactly once before the operation."
                                         sub (function-node-params fd) (function-node-body fd)
                                         (identifier-name (function-node-id fd))
                                         :generator (function-node-generator fd)
-                                        :async (function-node-async fd)))))
+                                        :async (function-node-async fd)
+                                        :source-text (node-source-text fd)))))
                  (body (cs-seq sub stmts))
                  (count (cs-count scope)))
             `(let ((env (new-frame ,count env)))
@@ -462,7 +472,8 @@ result so a member base/key is evaluated exactly once before the operation."
                                        sub (function-node-params fd) (function-node-body fd)
                                        (identifier-name (function-node-id fd))
                                        :generator (function-node-generator fd)
-                                       :async (function-node-async fd))))))
+                                       :async (function-node-async fd)
+                                       :source-text (node-source-text fd))))))
            (count (and scope (cs-count scope)))
            (case-form
              `(catch ,(cs-const bt)
@@ -517,7 +528,9 @@ result so a member base/key is evaluated exactly once before the operation."
     (literal (cs-const (literal-value node)))
     (this-expression
      (multiple-value-bind (kind depth index) (comp-resolve comp "%this%")
-       (if (eq kind :local) `(frame-ref env ,depth ,index "this") `(realm-global *realm*))))
+       (if (eq kind :local)
+           `(get-this-binding (frame-ref env ,depth ,index "this"))
+           `(realm-global *realm*))))
     (meta-property
      (let ((name (if (string= (meta-property-meta node) "import") "%import.meta%" "%new.target%"))
            (display (if (string= (meta-property-meta node) "import") "import.meta" "new.target")))

@@ -79,7 +79,8 @@
     ;; explicitly Phase 37 work; ownership changes do not skip them or alter the denominator.
     "built-ins/Object/seal/seal-proxy.js"
     "built-ins/Object/seal/throws-when-false.js"
-    "statements/for-of/iterator-next-result-type.js"))
+    "statements/for-of/iterator-next-result-type.js"
+    "statements/class/subclass/builtin-objects/Proxy/no-prototype-throws.js"))
 
 (defparameter *top-count-limit* 25)
 
@@ -904,7 +905,7 @@ flags: [onlyStrict]~%---*/~%0;"))
                   "block metadata does not reinterpret the fixed runner ledger"))
   (require-test (= (length *phase-37-features*) 25)
                 "phase-37 feature manifest size")
-  (require-test (= (length *phase-37-paths*) 13)
+  (require-test (= (length *phase-37-paths*) 14)
                 "phase-37 path manifest size")
   (require-test
    (string= "phase-37"
@@ -915,6 +916,12 @@ flags: [onlyStrict]~%---*/~%0;"))
             (phase-owner-for "statements/for-of/iterator-next-result-type.js"
                              (make-metadata)))
    "untagged Proxy iterator path ownership")
+  (require-test
+   (string= "phase-37"
+            (phase-owner-for
+             "statements/class/subclass/builtin-objects/Proxy/no-prototype-throws.js"
+             (make-metadata)))
+   "untagged Proxy class path ownership")
   (require-test
    (string= "phase-25b"
             (phase-owner-for "statements/if/ordinary.js" (make-metadata)))

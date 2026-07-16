@@ -26,18 +26,28 @@ The result capability is a throwaway — the async driver only wants the handler
 
 ;;; --- async functions ---------------------------------------------------------
 
-(defun drive-async-function (co)
+(defun drive-async-function (co &optional (p (make-promise)))
   "Call an async function: run its body in CO up to the first await synchronously,
 return the result promise, and resume across awaits via microtasks."
-  (let ((p (make-promise)))
-    (labels ((%step (mode value)
-               (multiple-value-bind (kind v) (coroutine-resume co mode value)
-                 (ecase kind
-                   (:await (%resume-on-settle v #'%step))
-                   (:return (%resolve-promise p v))
-                   (:throw (%reject-promise p v))))))
-      (%step :next +undefined+))
-    p))
+  (labels ((%step (mode value)
+             (multiple-value-bind (kind v) (coroutine-resume co mode value)
+               (ecase kind
+                 (:await (%resume-on-settle v #'%step))
+                 (:return (%resolve-promise p v))
+                 (:throw (%reject-promise p v))))))
+    (%step :next +undefined+))
+  p)
+
+(defun start-async-function (coroutine-thunk)
+  "Create the result promise before parameter initialization and coroutine setup.
+Any JavaScript abrupt completion from that setup rejects the promise instead of
+escaping synchronously from the async call."
+  (let ((promise (make-promise)))
+    (handler-case
+        (drive-async-function (funcall coroutine-thunk) promise)
+      (js-condition (condition)
+        (%reject-promise promise (js-condition-value condition))))
+    promise))
 
 ;;; --- async generators --------------------------------------------------------
 ;;; A simplified AsyncGenerator: next/return/throw return promises. Serialized use
@@ -48,8 +58,13 @@ return the result promise, and resume across awaits via microtasks."
                                (:constructor %make-js-async-generator))
   coroutine (done nil))
 
-(defun make-async-generator (co)
-  (%make-js-async-generator :proto (intrinsic :async-generator-prototype) :coroutine co))
+(defun make-async-generator (fn co)
+  "Create an async generator using FN.prototype when it is an object."
+  (let ((prototype (let ((value (and (js-object-p fn) (js-get fn "prototype"))))
+                     (if (js-object-p value)
+                         value
+                         (intrinsic :async-generator-prototype)))))
+    (%make-js-async-generator :proto prototype :coroutine co)))
 
 (defun this-async-generator (this)
   (if (js-async-generator-p this) this
@@ -78,7 +93,80 @@ return the result promise, and resume across awaits via microtasks."
 
 ;;; --- bootstrap: %AsyncIteratorPrototype% + %AsyncGeneratorPrototype% ---------
 
+(defun build-async-function (args new-target)
+  "CreateDynamicFunction for the async kind in the current realm."
+  (let ((function (indirect-eval (dynamic-function-source args "async "))))
+    ;; The emitter also selects this metadata for ordinary async syntax. Keep the
+    ;; dynamic constructor explicit so its NewTarget-derived prototype is honored.
+    (setf (js-object-proto function)
+          (nt-prototype new-target (intrinsic :async-function-prototype))
+          (js-function-function-kind function) :async
+          (js-function-constructable function) nil)
+    function))
+
+(defun bootstrap-async-function ()
+  (let* ((prototype (js-make-object (intrinsic :function-prototype)))
+         (constructor nil))
+    (setf constructor
+          (make-native-function
+           "AsyncFunction" 1
+           (lambda (this args)
+             (declare (ignore this))
+             (build-async-function args constructor))
+           :construct (lambda (args new-target)
+                        (build-async-function args new-target))
+           :proto (intrinsic :function-constructor)))
+    (obj-set-desc constructor "prototype"
+                  (data-pd prototype :writable nil :enumerable nil :configurable nil))
+    (obj-set-desc prototype "constructor"
+                  (data-pd constructor :writable nil :enumerable nil :configurable t))
+    (obj-set-desc prototype (well-known :to-string-tag)
+                  (data-pd "AsyncFunction" :writable nil :enumerable nil :configurable t))
+    (setf (realm-intrinsic *realm* :async-function-prototype) prototype
+          (realm-intrinsic *realm* :async-function-constructor) constructor)))
+
+(defun build-async-generator-function (args new-target)
+  "CreateDynamicFunction for the async-generator kind in the current realm."
+  (let ((function
+          (indirect-eval (dynamic-function-source args "async " t))))
+    (setf (js-object-proto function)
+          (nt-prototype new-target (intrinsic :async-generator-function-prototype))
+          (js-function-function-kind function) :async-generator
+          (js-function-constructable function) nil)
+    function))
+
+(defun bootstrap-async-generator-function (async-generator-prototype)
+  "Install %AsyncGeneratorFunction% and its non-callable prototype object."
+  (let* ((prototype (js-make-object (intrinsic :function-prototype)))
+         (constructor nil))
+    (setf constructor
+          (make-native-function
+           "AsyncGeneratorFunction" 1
+           (lambda (this args)
+             (declare (ignore this))
+             (build-async-generator-function args constructor))
+           :construct (lambda (args new-target)
+                        (build-async-generator-function args new-target))
+           :proto (intrinsic :function-constructor)))
+    (obj-set-desc constructor "prototype"
+                  (data-pd prototype :writable nil :enumerable nil :configurable nil))
+    (obj-set-desc prototype "constructor"
+                  (data-pd constructor :writable nil :enumerable nil :configurable t))
+    (obj-set-desc prototype "prototype"
+                  (data-pd async-generator-prototype
+                           :writable nil :enumerable nil :configurable t))
+    (obj-set-desc prototype (well-known :to-string-tag)
+                  (data-pd "AsyncGeneratorFunction"
+                           :writable nil :enumerable nil :configurable t))
+    ;; %AsyncGeneratorPrototype%.constructor is the function-prototype object,
+    ;; not the dynamic constructor itself.
+    (obj-set-desc async-generator-prototype "constructor"
+                  (data-pd prototype :writable nil :enumerable nil :configurable t))
+    (setf (realm-intrinsic *realm* :async-generator-function-prototype) prototype
+          (realm-intrinsic *realm* :async-generator-function-constructor) constructor)))
+
 (defun %bootstrap-async ()
+  (bootstrap-async-function)
   ;; %AsyncIteratorPrototype% (§27.1.3): @@asyncIterator returns this
   (let ((aip (js-make-object (intrinsic :object-prototype))))
     (setf (realm-intrinsic *realm* :async-iterator-prototype) aip)
@@ -96,4 +184,5 @@ return the result promise, and resume across awaits via microtasks."
       (install-method agp "throw" 1
         (lambda (this args) (%async-gen-step (this-async-generator this) :throw (arg args 0))))
       (obj-set-desc agp (well-known :to-string-tag)
-                    (data-pd "AsyncGenerator" :writable nil :enumerable nil :configurable t)))))
+                    (data-pd "AsyncGenerator" :writable nil :enumerable nil :configurable t))
+      (bootstrap-async-generator-function agp))))

@@ -95,8 +95,9 @@ the AST boundary instead of pretending a parser-raised SyntaxError exercised eit
 
 (defparameter *ct-m2-cases*
   (list
-   (list "var, top-level lexical bindings, nested scope, and shadowing" "23:2:3"
-         "function f(x){ var a=x; let b=a+1; const c=b+1; { let b=20; const d=b+2; a+=d; } return a+':'+b+':'+c; } f(1);")
+   (list "var, lexical bindings, nested block functions, source text, and shadowing"
+         "23:2:3:function inner( a ){ return 1; }"
+         "function f(x){ var source=''; var a=x; let b=a+1; const c=b+1; { function inner( a ){ return 1; } source=inner.toString(); let b=20; const d=b+2; a+=d; } return a+':'+b+':'+c+':'+source; } f(1);")
    (list "nested lexical TDZ" "ReferenceError:string"
          "function f(){ try { { var ignored=x; let x=1; } } catch(e) { return e.name+':'+typeof e.message; } return 'miss'; } f();")
    (list "while, do-while, for-var, for-let, continue, and break" "19:8:9:6"
@@ -114,8 +115,9 @@ the AST boundary instead of pretending a parser-raised SyntaxError exercised eit
    (list "catch binding, optional catch binding, shadowing, and caught rethrow"
          "outer:inner:true:nobind:again!"
          "function f(){ let e='outer'; var a=''; try { throw 'inner'; } catch(e) { let x=e; a=x+':'+(e==='inner'); } var b=''; try { throw 7; } catch { b='nobind'; } try { try { throw 'again'; } catch(e) { throw e+'!'; } } catch(e) { b+=':'+e; } return e+':'+a+':'+b; } f();")
-   (list "switch match/default/fallthrough/break" "ab:b:dc:c:z"
-         "function sw(x){ var out=''; switch(x){ case 1:out+='a'; case 2:out+='b';break; default:out+='d'; case 3:out+='c';break; case 4:out+='z'; } return out; } sw(1)+':'+sw(2)+':'+sw(9)+':'+sw(3)+':'+sw(4);")
+   (list "switch match/default/fallthrough/break and nested function source text"
+         "afunction nested( b ){ return 2; }b:b:dc:c:z"
+         "function sw(x){ var out=''; switch(x){ case 1:function nested( b ){ return 2; }out+='a'+nested.toString(); case 2:out+='b';break; default:out+='d'; case 3:out+='c';break; case 4:out+='z'; } return out; } sw(1)+':'+sw(2)+':'+sw(9)+':'+sw(3)+':'+sw(4);")
    (list "switch preserves enclosing continue target" "0zxz3z"
          "function f(){ var out=''; for(var i=0;i<4;i++){ switch(i){ case 1:continue; case 2:out+='x';break; default:out+=i; } out+='z'; } return out; } f();")
    (list "switch cases share one lexical TDZ scope" "ReferenceError"
@@ -126,7 +128,7 @@ the AST boundary instead of pretending a parser-raised SyntaxError exercised eit
          "function f(){ let x=1; try { for(let x=x;false;){ } } catch(e){ return e.name; } return 'miss'; } f();")
    (list "member references evaluate base/key once before RHS" "okr|okr|ok:11:2"
          "function f(){ var log='',boxes=[{x:1},{x:2}],i=0; function base(){log+='o';return boxes[i++];} function key(){log+='k';return 'x';} function rhs(){log+='r';return 5;} base()[key()]=rhs(); i=0;log+='|';base()[key()]+=rhs(); i=0;log+='|';base()[key()]++; return log+':'+boxes[0].x+':'+boxes[1].x; } f();")
-   (list "arguments object reads, writes, and length" "3:3:5:2:x"
+   (list "arguments object reads, writes, and length" "3:5:5:2:x"
          "function f(a,b){ var before=arguments[0]; arguments[0]+=2; return before+':'+a+':'+arguments[0]+':'+arguments.length+':'+b; } f(3,'x');")
    (list "compound assignments and sequence value/order" "abc:3.25:4:4"
          "function f(){ var x=5,o={n:3},order=''; function rhs(v){ order+=v; return 2; } x+=rhs('a'); x*=rhs('b'); x-=1; x/=2; x%=5; x**=2; o.n<<=1; o.n|=1; o.n^=2; o.n&=7; o.n>>=1; o.n>>>=0; var y=(order+='c',x+=1,o.n+=2); return order+':'+x+':'+o.n+':'+y; } f();")

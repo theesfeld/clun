@@ -159,6 +159,7 @@ lexical name. Throws a JS SyntaxError (never a raw Lisp error)."
   "Compile MR's parsed ESM into a frame body + link metadata, stored on MR. The
 module scope is a function-like frame; imports are marked slots. Modules are strict."
   (let* ((program (mr-ast mr))
+         (*current-source-text* (program-source program))
          (stmts (program-body program))
          (scope (make-cscope :function))
          (comp (make-comp)))
@@ -194,7 +195,8 @@ module scope is a function-like frame; imports are marked slots. Modules are str
                                                    comp (function-node-params fd) (function-node-body fd)
                                                    (identifier-name (function-node-id fd))
                                                    :generator (function-node-generator fd)
-                                                   :async (function-node-async fd)))))
+                                                   :async (function-node-async fd)
+                                                   :source-text (node-source-text fd)))))
                (body-fn (compile-seq comp stmts)))
           (setf (mr-slot-count mr) (cs-count scope)
                 (mr-name->index mr) (cs-names scope)

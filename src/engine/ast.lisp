@@ -22,7 +22,7 @@
 
 
 ;;; Programs & identifiers
-(defnode program body (source-type :script))
+(defnode program body (source-type :script) source)
 (defnode identifier name)
 (defnode private-name name)
 (defnode literal value raw (kind :other))          ; kind: :null :boolean :number :string :regexp
@@ -47,7 +47,8 @@
 (defnode arrow-function params body (async nil) (expression nil))
 (defnode class-node id super-class body (declaration nil))
 (defnode class-body body)
-(defnode method-definition key value (kind :method) (static nil) (computed nil))
+(defnode method-definition key value (kind :method) (static nil) (computed nil)
+  source-start)
 
 ;;; Operators
 (defnode unary-expression operator argument (prefix t))
@@ -120,4 +121,23 @@ node types so the struct accessors are known at compile time (warning-free)."
                                      (binding-bound-names (property-value pr)))))
     (assignment-pattern (binding-bound-names (assignment-pattern-left node)))
     (rest-element (binding-bound-names (rest-element-argument node)))
+    (t nil)))
+
+(defun stmt-lexical-names (statement)
+  "Lexically-declared names introduced directly by STATEMENT.
+Nested statements and blocks intentionally contribute no names to this scope."
+  (typecase statement
+    (variable-declaration
+     (when (member (variable-declaration-kind statement) '(:let :const))
+       (loop for declaration in (variable-declaration-declarations statement)
+             append (binding-bound-names (variable-declarator-id declaration)))))
+    (class-node
+     (when (and (class-node-declaration statement) (class-node-id statement))
+       (list (identifier-name (class-node-id statement)))))
+    (export-named-declaration
+     (when (export-named-declaration-declaration statement)
+       (stmt-lexical-names (export-named-declaration-declaration statement))))
+    ;; `export default class C {}` binds C lexically; functions remain var-scoped.
+    (export-default-declaration
+     (stmt-lexical-names (export-default-declaration-declaration statement)))
     (t nil)))

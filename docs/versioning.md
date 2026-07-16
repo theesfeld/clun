@@ -35,6 +35,7 @@ resource does not exist with a 404 response:
 0.1.0-dev.1
 0.1.0-dev.2
 0.1.0-dev.3
+0.1.0-dev.4
 0.1.0
 ```
 
@@ -100,6 +101,11 @@ The original `v0.1.0-dev.2` tag failed its darwin-arm64 release gate before asse
 The deterministic issue-60 teardown correction was published as `0.1.0-dev.3` under tag `v0.1.0-dev.3`,
 as required by the immutable-tag rule; issue #59 retains the longer Darwin stress
 evidence for Phase 26. Dev.3 publication is verified across all four native builders, its five release
-assets and checksums, Pages, and the hosted installer. Issue #60 is closed; milestone 4 is the current
-queued milestone and remains unstarted. This post-publication status handoff is documentation-only with
-SemVer impact `none`, so the source version remains `0.1.0-dev.3` and no new tag is created.
+assets and checksums, Pages, and the hosted installer. Issue #60 is closed.
+
+Phase 25b milestone 4 adds backward-compatible function, class, parameter-environment, `super`,
+arguments-object, bound-function, and callable-metadata behavior. Its impact is `minor`. The
+release-bearing unit selects `0.1.0-dev.4` under tag `v0.1.0-dev.4` within the existing `0.1.0`
+train; the ASDF core therefore remains `0.1.0`. Source, installer, README, and site surfaces select
+the dev.4 candidate before publication. The canonical issue records the remaining master-check,
+immutable-tag, release-asset, checksum, Pages, and hosted-installer evidence as each gate completes.

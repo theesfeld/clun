@@ -198,6 +198,12 @@ cap is reached (caller then drops the object to dict-mode)."
 
 ;;; --- object creation --------------------------------------------------------
 
+(defstruct (js-immutable-prototype-object
+             (:include js-object)
+             (:constructor %make-js-immutable-prototype-object))
+  "An Immutable Prototype Exotic Object (§10.4.7). All internal methods except
+[[SetPrototypeOf]] remain ordinary.")
+
 (defun js-make-object (&optional (proto +null+) (class :object))
   (make-js-object :proto proto :class class))
 
@@ -228,6 +234,10 @@ cap is reached (caller then drops the object to dict-mode)."
                finally (return nil))
          nil)
         (t (setf (js-object-proto o) v) t)))
+(defmethod jm-set-prototype-of ((o js-immutable-prototype-object) v)
+  ;; SameValue with the current prototype succeeds; every actual mutation is
+  ;; rejected without changing ordinary extensibility or property semantics.
+  (eq v (js-object-proto o)))
 (defmethod jm-is-extensible ((o js-object)) (js-object-extensible o))
 (defmethod jm-prevent-extensions ((o js-object)) (setf (js-object-extensible o) nil) t)
 
@@ -581,26 +591,65 @@ Always returns the correct [[Get]] value."
   (strict nil)
   (this-mode :normal)          ; :normal :strict :lexical(arrow)
   (home-object +undefined+)    ; for super
+  (function-kind :ordinary)    ; :ordinary :method :arrow :generator :async :async-generator or class kind
   (constructable t)
+  source-text                  ; exact source slice for Function.prototype.toString
   (fname "")
   (param-count 0))
 
 (defstruct (js-native-function (:include js-object (class :function)) (:constructor %make-native-function))
   fn                           ; (lambda (this args) -> js-value)
   construct-fn                 ; (lambda (args new-target) -> js-object) or NIL
+  (function-kind :ordinary)
   (fname "")
   (param-count 0))
 
-(declaim (inline callable-p constructor-p))
-(defun callable-p (v) (or (js-function-p v) (js-native-function-p v)))
+;; Bound functions are their own callable kind. Keeping the target and bound
+;; state explicit is required for [[Construct]], OrdinaryHasInstance, and the
+;; absence of an own `prototype` property; a native closure cannot model those
+;; observables without leaking special cases throughout the engine.
+(defstruct (js-bound-function (:include js-object (class :function))
+                              (:constructor %make-bound-function))
+  target
+  (bound-this +undefined+)
+  (bound-args '())
+  (fname "")
+  (param-count 0))
+
+(declaim (inline callable-p))
+(defun callable-p (v)
+  (or (js-function-p v) (js-native-function-p v) (js-bound-function-p v)))
 (defun constructor-p (v)
   (cond ((js-function-p v) (js-function-constructable v))
         ((js-native-function-p v) (and (js-native-function-construct-fn v) t))
+        ((js-bound-function-p v) (constructor-p (js-bound-function-target v)))
         (t nil)))
 
 (defgeneric jm-call (f this args)
   (:documentation "[[Call]] — behavior installed in functions.lisp for each kind."))
 (defgeneric jm-construct (f args new-target))
+
+(defvar +uninitialized-this+ (make-symbol "UNINITIALIZED-THIS"))
+
+(defstruct (derived-this-binding (:constructor make-derived-this-binding ()))
+  (value +uninitialized-this+))
+
+(defun get-this-binding (binding)
+  "Return an ordinary this value or read a derived constructor's mutable binding."
+  (if (derived-this-binding-p binding)
+      (let ((value (derived-this-binding-value binding)))
+        (if (eq value +uninitialized-this+)
+            (throw-reference-error "must call super constructor before using 'this'")
+            value))
+      binding))
+
+(defun bind-derived-this (binding value)
+  "Initialize a derived constructor's this binding exactly once."
+  (unless (derived-this-binding-p binding)
+    (throw-reference-error "super() is only valid in a derived constructor"))
+  (unless (eq (derived-this-binding-value binding) +uninitialized-this+)
+    (throw-reference-error "super constructor may only be called once"))
+  (setf (derived-this-binding-value binding) value))
 
 (defun js-call (f this args)
   (unless (callable-p f) (throw-type-error "value is not a function"))

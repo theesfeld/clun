@@ -113,3 +113,44 @@
   (is string= "a b" (ev "decodeURIComponent('a%20b')"))
   (is eql 5d0 (ev "Reflect.apply(function(a,b){return a+b},null,[2,3])"))
   (is eq eng:+true+ (ev "Reflect.has({a:1},'a')")))
+
+(define-test builtins/function-callable-surface
+  ;; Function.prototype's foundational properties precede the installed methods.
+  (is string= "true,true,true"
+      (ev "var p=Object.getOwnPropertyNames(Function.prototype);var l=Object.getOwnPropertyDescriptor(Function.prototype,'length');var n=Object.getOwnPropertyDescriptor(Function.prototype,'name');[p.indexOf('name')===p.indexOf('length')+1,l.value===0&&!l.writable&&!l.enumerable&&l.configurable,n.value===''&&!n.writable&&!n.enumerable&&n.configurable].join(',')"))
+  (is string= "true,true,true"
+      (ev "var c=Object.getOwnPropertyDescriptor(Function.prototype,'caller');var a=Object.getOwnPropertyDescriptor(Function.prototype,'arguments');[c.get===c.set,c.get===a.get,c.get===a.set].join(',')"))
+  (true (ev-throws "Function.prototype.caller"))
+  (true (ev-throws "Function.prototype.toString.call({})"))
+
+  ;; Bound functions retain explicit target/this/argument state and metadata.
+  (is string= "7:2:3"
+      (ev "function f(a,b){return this.x+':'+a+':'+b};f.bind({x:7},2)(3)"))
+  (is string= "bound f,1,false,false,true"
+      (ev "function f(a,b){};var B=f.bind(null,1);var d=Object.getOwnPropertyDescriptor(B,'length');[B.name,B.length,d.writable,d.enumerable,d.configurable].join(',')"))
+  ;; The observable bound name is not a valid NativeFunction property name and
+  ;; therefore must not be copied into Function.prototype.toString's fallback.
+  (is string= "function () { [native code] }"
+      (ev "Function.prototype.toString.call(function f(){}.bind(null))"))
+  (is string= "function max() { [native code] }"
+      (ev "Function.prototype.toString.call(Math.max)"))
+  (is string= "function [Symbol.hasInstance]() { [native code] }"
+      (ev "Function.prototype.toString.call(Function.prototype[Symbol.hasInstance])"))
+  (is eq eng:+true+
+      (ev "function f(){};var p={};Object.setPrototypeOf(f,p);Object.getPrototypeOf(Function.prototype.bind.call(f,null))===p"))
+  (true (ev-throws "Function.prototype.bind.call({})"))
+  (is eq eng:+true+
+      (ev "(function(){var marker={};var f=function(){};Object.defineProperty(f,'name',{get:function(){throw marker}});try{f.bind(null);return false}catch(e){return e===marker}})()"))
+
+  ;; [[Construct]] and OrdinaryHasInstance delegate to a constructable target.
+  (is string= "7,true,true"
+      (ev "function C(x){this.x=x};var B=C.bind(null,7);var o=new B();[o.x,o instanceof C,o instanceof B].join(',')"))
+  ;; Bound-function OrdinaryHasInstance must re-enter InstanceofOperator for
+  ;; the target so a custom @@hasInstance wins over prototype-chain matching.
+  (is eq eng:+true+
+      (ev "function T(){};Object.defineProperty(T,Symbol.hasInstance,{value:function(){return true}});({}) instanceof T.bind(null)"))
+  (is eq eng:+false+
+      (ev "function F(){};var value=new F();Object.defineProperty(F,Symbol.hasInstance,{value:function(){return false}});value instanceof F.bind(null).bind(null)"))
+  (true (ev-throws "new ((()=>{}).bind(null))"))
+  (true (ev-throws "class M{m(){}};new ((new M()).m)()"))
+  (is eql 1d0 (ev "class C{constructor(){this.x=1}};new C().x")))

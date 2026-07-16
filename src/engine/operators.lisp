@@ -215,19 +215,28 @@ BigInt/Number compare EXACTLY (rationalize finite doubles so 2^53+1n vs a double
   (unless (js-object-p c) (throw-type-error "right-hand side of 'instanceof' is not an object"))
   (let ((has-inst (get-method c (gethash :has-instance *well-known-symbols*))))
     (if (js-undefined-p has-inst)
-        (ordinary-has-instance c v)
+        (progn
+          (unless (callable-p c)
+            (throw-type-error "right-hand side of 'instanceof' is not callable"))
+          (ordinary-has-instance c v))
         (js-truthy (js-call has-inst c (list v))))))
 
 (defun ordinary-has-instance (c o)
-  (unless (callable-p c) (throw-type-error "right-hand side of 'instanceof' is not callable"))
-  (if (not (js-object-p o))
-      nil
-      (let ((proto (js-get c "prototype")))
-        (unless (js-object-p proto) (throw-type-error "prototype is not an object"))
-        (loop for obj = (jm-get-prototype-of o) then (jm-get-prototype-of obj)
-              while (js-object-p obj)
-              when (eq obj proto) do (return t)
-              finally (return nil)))))
+  (cond
+    ((not (callable-p c)) nil)
+    ((js-bound-function-p c)
+     ;; Bound-function delegation uses InstanceofOperator, not a direct
+     ;; OrdinaryHasInstance recursion: the target's own @@hasInstance must be
+     ;; observed (and another bound target must delegate in the same way).
+     (js-instanceof o (js-bound-function-target c)))
+    ((not (js-object-p o)) nil)
+    (t
+     (let ((proto (js-get c "prototype")))
+       (unless (js-object-p proto) (throw-type-error "prototype is not an object"))
+       (loop for obj = (jm-get-prototype-of o) then (jm-get-prototype-of obj)
+             while (js-object-p obj)
+             when (eq obj proto) do (return t)
+             finally (return nil))))))
 
 (defun js-in (key obj)
   (unless (js-object-p obj) (throw-type-error "'in' operand is not an object"))
