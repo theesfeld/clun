@@ -449,7 +449,7 @@ parse_pass=17699
 parse_fail=976
 parse_skip=5038
 parse_crash=0
-lisp_pass=3234
+lisp_pass=3240
 lisp_fail=0
 lisp_skip=0
 [ "$parse_total" -eq $((parse_pass + parse_fail + parse_skip + parse_crash)) ] ||

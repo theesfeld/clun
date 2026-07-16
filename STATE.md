@@ -26,7 +26,7 @@ Phase 25b or Phase 26 heavyweight gates as a substitute for this implementation.
 candidate publication. The ledger validates at **0 Yes / 6 Partial / 24 No**; all **240** pinned Bun, Node.js,
 and Deno repository paths and all four Bun stable assets were independently checked; generated README/site/
 release notes are byte-idempotent; and the shipped binary passes **6 executable** compatibility records while
-**2 static** Lisp-suite records remain explicitly trace-only. The full acceptance run is green at **3,234 Lisp
+**2 static** Lisp-suite records remain explicitly trace-only. The full acceptance run is green at **3,240 Lisp
 assertions**, **42 TypeScript strip/error fixtures**, **74 JS/TS runtime fixtures**, and purity **694 files / 0
 violations**. Compatibility tooling passes two pristine checks, three forward-render cases, and **30 deliberate
 drift rejections**; public claims, live roadmap, ShellCheck, actionlint, and responsive Playwright are green.

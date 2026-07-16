@@ -2462,3 +2462,13 @@ a draft, uploads all assets, and only then publishes. Both the workflow and the 
 a published release unless GitHub reports `isImmutable: true`. Active repository ruleset `19048471` targets
 `refs/tags/v*` with no bypass actors or creation restriction: first creation remains possible, while update,
 non-fast-forward movement, and deletion are blocked throughout the pre-publication build window and afterward.
+
+### 2026-07-16 - Select-backed event loops report limits only when reached
+
+The Phase 27 four-target evidence run showed that official macOS SBCL builds can lack
+`SB-UNIX:UNIX-POLL`. Clun previously warned at every lazy event-loop creation, so even an already-fulfilled
+`Response.text().then(...)` program wrote socket-backend diagnostics to stderr. The capability probe is now
+silent. On a select-backed build, every registration instead rejects only an actual descriptor at or above
+that target SBCL's compiled `SB-UNIX:FD-SETSIZE`, with the resource, supported range, and remedies in the
+error. Ordinary Promise/CLI execution stays clean, while the real boundary fails before calling
+`add-fd-handler`; this includes the event loop's own self-pipe.

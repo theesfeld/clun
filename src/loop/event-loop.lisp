@@ -87,7 +87,7 @@ serve-event, so make-event-loop (possibly a different thread) must not register 
     (unwind-protect
          (progn
            (setf wake-handler
-                 (sb-sys:add-fd-handler
+                 (add-reactor-fd-handler
                   (clun.sys:self-pipe-read-fd sp) :input
                   (lambda (fd) (declare (ignore fd)) (clun.sys:self-pipe-drain sp))))
            (drain-microtasks loop)              ; honor pre-run work

@@ -75,7 +75,7 @@ The off/eager ledgers are byte-identical; eager mode compiled
 fallbacks. The parse gate classifies
 23,713 tests as 17,699 pass, 976 fail, 5,038 skip, and zero crash
 while retaining all 17,512 frozen passes.
-The Common Lisp suite passes 3,234 tests with zero failures and zero skips.
+The Common Lisp suite passes 3,240 tests with zero failures and zero skips.
 Phase 25's final
 default-tier measurements are 6.68x Richards, 3.85x DeltaBlue, and 5.36x Splay against the frozen
 Phase-24 Clun baseline, a 5.16x suite geomean. Clun has no measured cross-runtime benchmark against
