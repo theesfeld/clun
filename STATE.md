@@ -10,8 +10,8 @@ Update when work completes; keep consistent with the Issue, README, and site.
 ## Current phase: **27 — Compatibility evidence ledger and release-doc automation**  (IN PROGRESS)
 
 **Canonical issue:** https://github.com/theesfeld/clun/issues/1
-**Current implementation unit:** canonical compatibility schema, validator, executable evidence runner,
-deterministic README/site/release-note generation, and four-platform compatibility workflow
+**Current implementation unit:** published-ledger reconciliation, release-gated Pages deployment, hosted
+installer verification, and Phase 27 closeout
 **SemVer impact:** `minor`
 **Release target:** `0.1.0-dev.7` / `v0.1.0-dev.7`
 **Entry boundary:** Phase 25b is closed after verified `0.1.0-dev.6` publication and the handoff commit's
@@ -22,19 +22,23 @@ Phase 82 and will be re-baselined from the system and release train that exist w
 version surfaces byte-deterministically, and run the same evidence on Linux/macOS x64/arm64. Do not rerun
 Phase 25b or Phase 26 heavyweight gates as a substitute for this implementation.
 
-**Current checkpoint:** the local dev.7 implementation and adversarial review are complete pending exact-
-candidate publication. The ledger validates at **0 Yes / 6 Partial / 24 No**; all **240** pinned Bun, Node.js,
-and Deno repository paths and all four Bun stable assets were independently checked; generated README/site/
+**Current checkpoint:** the dev.7 implementation is squash-merged at
+`7144a33d383c1c3ff7942cd80a6bd2647e6d00f5`. Exact-commit CI, Documentation, all four native Compatibility
+jobs, and receipt verification passed. Release run `29506579486` published annotated tag `v0.1.0-dev.7`,
+which peels to that exact commit; GitHub reports the prerelease immutable, and its four native archives plus
+`checksums.txt` are uploaded and checksum-consistent. The ledger validates at **0 Yes / 6 Partial / 24 No**;
+all **240** pinned Bun, Node.js, and Deno repository paths and all four Bun stable assets were independently
+checked; generated README/site/
 release notes are byte-idempotent; and the shipped binary passes **6 executable** compatibility records while
 **2 static** Lisp-suite records remain explicitly trace-only. The full acceptance run is green at **3,240 Lisp
 assertions**, **42 TypeScript strip/error fixtures**, **74 JS/TS runtime fixtures**, and purity **694 files / 0
 violations**. Compatibility tooling passes two pristine checks, three forward-render cases, and **30 deliberate
 drift rejections**; public claims, live roadmap, ShellCheck, actionlint, and responsive Playwright are green.
-Receipt v2 binds the candidate, native binary, ledger, fixtures, canonical outcomes, all 30 feature IDs, and
-pass/fail/trace counts without claiming Bun execution. GitHub native release immutability is enabled, and active
-no-bypass ruleset `19048471` protects every `v*` tag from update or deletion while allowing initial creation.
-Pending: candidate commit/range check, exact-SHA `master` workflows, immutable tag/assets, published-state
-reconciliation, Pages, hosted installer, and canonical issue closeout.
+Receipt v2 binds the exact release commit, native binary, ledger, fixtures, canonical outcomes, all 30 feature
+IDs, and pass/fail/trace counts without claiming Bun execution. GitHub native release immutability is enabled,
+and active no-bypass ruleset `19048471` protects every `v*` tag from update or deletion while allowing initial creation.
+Pending: merge the no-version-bump published-state reconciliation, deploy the exact release-gated Pages site,
+verify the hosted installer, and close the synchronized canonical issue.
 
 **M5 entry boundary:** immutable dev.4 diagnostic set **56 total / 0 pass / 56 fail / 0 skip / 0 crash**:
 **43 m5-owned** (32 intrinsic/prototype, 7 parser, 4 raw delegation), **12 m11** direct-eval/`with`

@@ -177,6 +177,10 @@ Phase 27 adds backward-compatible project tooling: a canonical compatibility/evi
 IDs and ownership, shipped-binary evidence commands, deterministic README/site/release-note generation,
 immutable benchmark manifests, and a four-platform compatibility workflow. Its impact is `minor` because
 these are new supported developer and release interfaces within the selected
-`0.1.0` prerelease train. The synchronized candidate is `0.1.0-dev.7` / `v0.1.0-dev.7`; the ASDF core
-remains `0.1.0`, and `v0.1.0-dev.6` remains the latest published prerelease until the dev.7 release gate
-finishes.
+`0.1.0` prerelease train. Squash-merge commit
+`7144a33d383c1c3ff7942cd80a6bd2647e6d00f5` passed exact-commit CI, Documentation, four-target
+Compatibility, and receipt verification. Release run `29506579486` published annotated tag
+`v0.1.0-dev.7`, which peels to that commit, with four native archives plus `checksums.txt`; GitHub reports
+the prerelease immutable. The ASDF core remains `0.1.0`. The non-release-bearing publication handoff keeps
+`0.1.0-dev.7` unchanged and creates no new tag; release-gated Pages and hosted-installer verification are
+the remaining closeout evidence.
