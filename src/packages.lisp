@@ -54,6 +54,47 @@
   (:documentation "Unicode-pinned terminal column measurement for Clun.stringWidth.")
   (:export #:+unicode-width-version+ #:codepoint-width #:string-width))
 
+(defpackage :clun.cookies
+  (:use :cl)
+  (:documentation "Engine-free Cookie and Cookie header parsing/serialization core.")
+  (:export
+   ;; Conditions and validation boundaries.
+   #:cookie-error #:cookie-error-message
+   #:invalid-cookie-name #:invalid-cookie-path #:invalid-cookie-domain
+   #:invalid-cookie-string
+   #:validate-cookie-name #:validate-cookie-path #:validate-cookie-domain
+   #:validate-cookie-field-value
+   ;; Cookie state. Presence predicates distinguish an absent attribute from a
+   ;; present false/zero value without leaking runtime-specific sentinels.
+   #:cookie #:cookie-p #:make-cookie #:clone-cookie
+   #:cookie-name #:cookie-value #:cookie-domain #:cookie-domain-present-p
+   #:cookie-path #:cookie-expires-ms #:cookie-expires-present-p
+   #:cookie-max-age #:cookie-max-age-text #:cookie-max-age-present-p
+   #:cookie-secure-p #:cookie-http-only-p #:cookie-same-site
+   #:cookie-partitioned-p
+   #:update-cookie-value #:update-cookie-domain #:clear-cookie-domain
+   #:update-cookie-path #:update-cookie-expires #:clear-cookie-expires
+   #:update-cookie-max-age #:clear-cookie-max-age
+   #:update-cookie-secure #:update-cookie-http-only
+   #:update-cookie-same-site #:update-cookie-partitioned
+   #:normalize-same-site #:cookie-expired-p #:make-cookie-tombstone
+   ;; Wire formats.
+   #:parse-set-cookie #:serialize-cookie
+   #:parse-http-date #:format-http-date
+   #:percent-encode-value #:forgiving-percent-decode
+   #:cookie-pair #:cookie-pair-p #:make-cookie-pair
+   #:cookie-pair-name #:cookie-pair-value
+   #:parse-cookie-header #:parse-cookie-header-fields
+   ;; Ordered CookieMap state shared by the runtime and server lifecycle.
+   #:cookie-map-state #:cookie-map-state-p #:make-cookie-map-state
+   #:make-cookie-map-state-from-header
+   #:make-cookie-map-state-from-header-fields
+   #:cookie-map-add-original
+   #:cookie-map-get #:cookie-map-has #:cookie-map-size
+   #:cookie-map-set-cookie #:cookie-map-delete
+   #:cookie-map-entry-at #:cookie-map-response-fields
+   #:cookie-map-modification-count))
+
 ;; Defined before clun.engine so the engine's :lp local-nickname can target it.
 (defpackage :clun.loop
   (:use :cl)
@@ -120,7 +161,9 @@
    ;; evaluator / object kernel (Phase 03)
    #:make-realm #:run-source #:run-program #:eval-source #:*realm*
    #:js-make-object #:js-get #:js-set #:has-property #:has-own-property
-   #:create-data-property #:jm-get #:jm-own-property-keys #:callable-p
+   #:create-data-property #:jm-get #:jm-get-own-property #:jm-own-property-keys
+   #:callable-p #:get-method #:get-iterator-record #:iterator-step-value
+   #:call-with-iterator-close-on-abrupt
    #:js-call #:js-symbol-p #:js-array-p #:js-condition #:js-condition-value
    ;; inspector (Phase 08) — the one shared value renderer
    #:inspect-value #:*inspect-defaults*

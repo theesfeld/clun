@@ -751,15 +751,39 @@ conformance/security cases; serializer round-trips and alias identity/cycle case
 depth/size adversaries fail boundedly; import/cache/error fixtures match Bun;
 `make build`; `make test`; `make purity`; `make docs-check`.
 
-### Phase 32 — Cookies and CookieMap  *(deps: 17, 27)* ~2k LOC
+### Phase 32 — Cookies and CookieMap  *(deps: 17, 27)* ~5k LOC
 Objective: match Bun's Cookie/CookieMap API and automatic server request/response integration.
-Tasks: inventory `docs/runtime/cookies.mdx`, `packages/bun-types/serve.d.ts`, and HTTP cookie tests;
-implement strict Set-Cookie/Cookie parsing and serialization, attributes/prefix rules, mutation,
-iteration, expiry and multiple-header behavior; integrate request cookies with Phase-17 serving while
-preventing header injection and cross-request state reuse.
-**Gate:** `make compat FEATURE=web.cookies` passes the complete API/HTTP differential corpus, RFC edge
-fixtures, prefix/security cases, and concurrent-request isolation; `make build`; `make test`;
-`make purity`; `make docs-check` on all four supported targets.
+Tasks: freeze the stable executable plus engineering-pin Cookie/CookieMap contract in
+`docs/design/phase-32.md`; implement exact constructors, descriptors, overload/coercion order, parsing,
+serialization, attributes, mutation/coalescing, live iteration, expiry, JSON and error behavior; repair
+ordered duplicate Cookie/Set-Cookie transport, HTTP framing ambiguity and the missing canonical
+Request.prototype wiring; put the complete CookieMap state machine in the engine-independent core;
+implement signed-i64 decimal-prefix Max-Age parsing and JavaScript Number rounding, the exact
+header-global forgiving-percent scanner, and nonempty-only Domain emission; use branded runtime object
+subtypes/private slots for Headers, Response body, Cookie, CookieMap, iterators and server requests;
+accept only genuinely branded Response results; replace CR/LF stripping with validation before Headers
+storage and complete response serialization; expose cookies only through a dedicated server-request
+prototype inheriting the canonical Request.prototype; lazily snapshot the current request.headers Cookie
+view at first access, then keep header and map mutations independent; integrate that cached map with ordered
+pipelined responses and one-time, Response-nonmutating automatic output across synchronous, Promise,
+promised-error, default-error, HEAD, late-settlement and teardown paths; use cursor/index parsers and
+single builders so unbounded standalone input remains linear without proportional copied-token lists;
+prevent injection, pollution, prototype spoofing, observable state keys, unchecked Date/numeric overflow,
+unbounded auxiliary allocation and cross-request state reuse without inventing browser storage policy.
+**Gate:** `make compat FEATURE=web.cookies` passes the complete shipped-binary public API and raw-HTTP
+differential corpus, the recorded stable/engineering dispositions, descriptor/coercion/error fixtures,
+newTarget/zero-vs-undefined/USVString/Date-brand-range cases,
+private-slot/Reflect.ownKeys/Headers-store/Response-body/real-Response-only/borrowed-receiver/
+prototype-spoofing cases, canonical Request identity plus standalone-negative, server-subtype accessor,
+and pre-access/post-cache request.headers timing cases, constructed/parser/fetch/serve Headers views,
+conflicting Content-Length/Transfer-Encoding/Connection and one/split-feed limit cases,
+manual Set-Cookie/ordinary-header injection with no partial output, exact signed-i64 Max-Age/Number
+rounding, Domain nonempty omission, the complete malformed-percent/header-global switch matrix,
+RFC/date/malformed/security and N/2N/4N time-allocation/RSS bounds, distinct manual + automatic
+Set-Cookie wire ordering, ordered pipelines, shared-Response nonmutation, mutation cutoff,
+promised-error/default-500/HEAD/teardown lifecycle
+and concurrent-request isolation on all four supported targets; `make build`; `make test`;
+`make purity`; `make docs-check`; `make public-claims-check`; `make roadmap-check`.
 
 ### Phase 33 — Terminal string width and ANSI utilities  *(deps: 10, 27)* ~2.5k LOC + generated data
 Objective: meet `Bun.stringWidth` behavior with Unicode 17 and bounded ANSI handling.

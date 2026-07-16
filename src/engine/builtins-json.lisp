@@ -139,7 +139,7 @@
 (defun json-internalize (holder key reviver)
   (let ((val (js-get holder key)))
     (when (js-object-p val)
-      (if (js-array-p val)
+      (if (is-array val)
           (let ((len (length-of-array-like val)))
             (dotimes (i len)
               (let ((new (json-internalize val (princ-to-string i) reviver)))
@@ -210,7 +210,7 @@
       ((js-bigint-p value)                        ; §25.5.2.2 step 10: BigInt is not serializable
        (throw-type-error "Do not know how to serialize a BigInt"))
       ((and (js-object-p value) (not (callable-p value)))
-       (if (js-array-p value) (json-serialize-array w value) (json-serialize-object w value)))
+       (if (is-array value) (json-serialize-array w value) (json-serialize-object w value)))
       (t nil))))                                 ; undefined, function, symbol
 
 (defun json-check-cycle (w value)
@@ -263,7 +263,7 @@
     ;; replacer: function or array-of-keys
     (cond
       ((callable-p replacer) (setf (jw-replacer-fn w) replacer))
-      ((js-array-p replacer)
+      ((is-array replacer)
        (let ((seen '()) (list '()))
          (dotimes (i (length-of-array-like replacer))
            (let ((v (js-getv replacer (princ-to-string i))))

@@ -204,6 +204,19 @@ cap is reached (caller then drops the object to dict-mode)."
   "An Immutable Prototype Exotic Object (§10.4.7). All internal methods except
 [[SetPrototypeOf]] remain ordinary.")
 
+;; A Proxy is an exotic object whose observable state belongs to its target and
+;; handler, never to the inherited js-object storage slots.  CALLABLE-P and
+;; CONSTRUCTABLE-P are fixed at ProxyCreate time: revocation clears the target
+;; and handler but does not change `typeof` or IsConstructor.
+(defstruct (js-proxy
+             (:include js-object (class :proxy))
+             (:constructor %make-js-proxy))
+  (target +null+)
+  (handler +null+)
+  (revoked-p nil)
+  (callable-p nil)
+  (constructable-p nil))
+
 (defun js-make-object (&optional (proto +null+) (class :object))
   (make-js-object :proto proto :class class))
 
@@ -229,7 +242,10 @@ cap is reached (caller then drops the object to dict-mode)."
         ((not (js-object-extensible o)) nil)
         ;; cycle check
         ((loop for p = v then (js-object-proto p)
-               while (js-object-p p)
+               ;; OrdinarySetPrototypeOf stops when the chain reaches an
+               ;; exotic [[GetPrototypeOf]] method.  In particular it must not
+               ;; read a Proxy's inert inherited PROTO slot or invoke its trap.
+               while (and (js-object-p p) (not (js-proxy-p p)))
                when (eq p o) do (return t)
                finally (return nil))
          nil)
@@ -335,6 +351,9 @@ cap is reached (caller then drops the object to dict-mode)."
                                        :writable (defaulted (pd-writable desc) nil)
                                        :enumerable (defaulted (pd-enumerable desc) nil)
                                        :configurable (defaulted (pd-configurable desc) nil)))))
+          ;; Validation-only callers pass O = NIL.  A new property on an
+          ;; extensible target is compatible even though there is nothing to
+          ;; mutate in that mode.
           t)))
     (t
      (block validate
@@ -436,6 +455,7 @@ cap is reached (caller then drops the object to dict-mode)."
   ;; already-complete descriptor into a SECOND one. Only genuinely-new keys qualify (an existing key
   ;; may be non-configurable / an accessor, so it must take the full spec path).
   (if (and (eq (js-object-class o) :object)
+           (not (js-proxy-p o))
            (js-object-extensible o)
            (not (obj-own-desc o key)))
       (progn (obj-set-desc o key (data-pd value)) t)
@@ -505,7 +525,7 @@ cap is reached (caller then drops the object to dict-mode)."
   (shape nil) (slot 0 :type fixnum) (holder nil) (hshape nil))
 
 (defun %ic-read (obj key ic)
-  (if (js-object-p obj)
+  (if (and (js-object-p obj) (not (js-proxy-p obj)))
       (let* ((pt (js-object-props obj))
              (sh (and pt (ptable-shape pt))))
         (if (and sh (eq sh (ic-shape ic)))
@@ -536,7 +556,7 @@ Always returns the correct [[Get]] value."
                (t (jm-get obj key obj)))))                 ; own accessor: slow, do not cache
       (sh                                                   ; shaped receiver, no own KEY: try depth-1 proto
        (let ((proto (js-object-proto obj)))
-         (if (js-object-p proto)
+         (if (and (js-object-p proto) (not (js-proxy-p proto)))
              (let* ((pp (js-object-props proto))
                     (psh (and pp (ptable-shape pp)))
                     (ppos (and psh (ptable-pos pp key))))
@@ -560,7 +580,7 @@ Always returns the correct [[Get]] value."
 ;;; Sound: EQ shape ⟹ KEY is the own property at SLOT; the hit RE-CHECKS data + writable=t on the live
 ;;; descriptor (the shape encodes layout, not attributes); a plain assignment target is o == receiver.
 (defun %ic-write (obj key value ic strict)
-  (if (js-object-p obj)
+  (if (and (js-object-p obj) (not (js-proxy-p obj)))
       (let* ((pt (js-object-props obj))
              (sh (and pt (ptable-shape pt))))
         (if (and sh (eq sh (ic-shape ic)))
@@ -618,11 +638,13 @@ Always returns the correct [[Get]] value."
 
 (declaim (inline callable-p))
 (defun callable-p (v)
-  (or (js-function-p v) (js-native-function-p v) (js-bound-function-p v)))
+  (or (js-function-p v) (js-native-function-p v) (js-bound-function-p v)
+      (and (js-proxy-p v) (js-proxy-callable-p v))))
 (defun constructor-p (v)
   (cond ((js-function-p v) (js-function-constructable v))
         ((js-native-function-p v) (and (js-native-function-construct-fn v) t))
         ((js-bound-function-p v) (constructor-p (js-bound-function-target v)))
+        ((js-proxy-p v) (js-proxy-constructable-p v))
         (t nil)))
 
 (defgeneric jm-call (f this args)

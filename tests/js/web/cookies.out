@@ -1,0 +1,12 @@
+length,name,prototype,parse,from 2 false true false
+name,value,domain,path,expires,maxAge,secure,httpOnly,sameSite,partitioned,isExpired,toString,toJSON,serialize
+sid=hello%20world; Domain=example.com; Path=/; Secure; HttpOnly; SameSite=Strict true [object Cookie] 0
+0 false false
+TypeError:ERR_INVALID_THIS TypeError:ERR_ILLEGAL_CONSTRUCTOR
+1 true 3 a=1|a=2|empty=
+null changed sid=changed; Domain=example.com; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Secure; HttpOnly; SameSite=Strict|a=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax {"sid":"changed","empty":""}
+[object CookieMap] [object CookieMap Iterator] true 0
+a=1; b=2 x=1, y=2 x=1|y=2 x=1|y=2
+cookie:a=1; b=2|set-cookie:x=1|set-cookie:y=2
+TypeError:- TypeError:- a=1; b=2
+true status,statusText,ok,headers TypeError:- true false
