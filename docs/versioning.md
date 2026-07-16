@@ -63,11 +63,12 @@ The annotated tag peels to `5d3da6f49898cf93fba7cc24534655278964f35d`, whose exa
 Documentation, and four-target Compatibility workflows passed before release run `29522601664` built and
 published the four native archives plus `checksums.txt`. This evidence-only reconciliation retains dev.9
 and creates no tag; Pages and hosted-installer success are recorded only after their live gates pass.
-Phase 33 adds the third public compatibility-ledger `Yes`, the backward-compatible
-`Clun.stringWidth` API. Its SemVer impact is `minor`; the selected candidate is
-`0.1.0-dev.10` / `v0.1.0-dev.10`, and the ASDF core remains `0.1.0`. Publication requires the complete local gate,
-four-target Compatibility receipts, an immutable tagged release, generated Pages deployment, and hosted
-installer verification before the candidate is reconciled as published.
+Phase 33 adds the third public compatibility-ledger `Yes`, the backward-compatible `Clun.stringWidth` API,
+published as immutable prerelease `0.1.0-dev.10` / `v0.1.0-dev.10`; the ASDF core remains `0.1.0`.
+The annotated tag peels to `3e169ed25f8818621fd383678b313dfd0af71323`, whose exact-master CI,
+Documentation, and four-target Compatibility workflows passed before release run `29529147937` built and
+published the four native archives plus `checksums.txt`. This evidence-only reconciliation retains dev.10
+and creates no tag; Pages and hosted-installer success are recorded only after their live gates pass.
 
 ## Canonical record
 

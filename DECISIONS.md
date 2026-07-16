@@ -2616,3 +2616,18 @@ The pinned UTF-16 ASCII fast path also creates a width component before each ASC
 joins a leading `Prepend`; Clun reproduces the accumulator boundary without changing boundary conformance.
 Non-ASCII input retains the original first-codepoint and emoji-base semantics. The shipped corpus freezes
 these order-sensitive rules so they cannot regress into broad emoji or invented effective-base approximations.
+
+### 2026-07-16 - Phase 33 publishes the third compatibility Yes as dev.10
+
+The final Phase 33 merge `3e169ed25f8818621fd383678b313dfd0af71323` is the sole dev.10 release
+boundary. Exact-master CI `29528660414`, Documentation `29528660264`, and Compatibility `29528660285`
+passed; aggregate receipt job `87724779349` verified Linux and macOS, x64 and arm64. Annotated tag object
+`5a9241758727be5bd3deca6afc0281b014b71b77` peels exactly to that merge.
+
+Release run `29529147937` passed final-attempt builders `87728475879`, `87728476318`, `87728476499`, and
+`87728510583`, then publication job `87728475946` created immutable prerelease `355330530`. Its only payloads
+are `checksums.txt` and the four native archives. Independent downloads verified every checksum; all four
+archives record `0.1.0-dev.10`, and the Linux x64 binary reports `clun 0.1.0-dev.10`. The post-publication
+ledger reconciliation is evidence-only with impact `none`: source, ASDF core, installer default, and tag do
+not change. Pages and hosted-installer evidence remain pending until the reconciliation itself passes and
+deploys.
