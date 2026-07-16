@@ -2513,3 +2513,26 @@ integers are converted to JavaScript numbers. `Clun.semver` matches Bun's enumer
 non-configurable namespace descriptor, while `satisfies` and `order` are enumerable, writable, and
 configurable. Shipped-binary fixtures, not internal Lisp reachability, authorize the compatibility-ledger
 `Yes` claim.
+
+### 2026-07-16 - Phase 29 publishes dev.8 at the corrected release boundary
+
+The initial Phase 29 implementation merge `272da30ff3e968411b0f92a45a7fe95a9af81cb6` remains implementation
+provenance, but an accepted pre-publication parser-contract correction made
+`db56bee7540bfc84c5e730d2ab23a886c65dd160` the only release boundary. The complete dev.7-to-dev.8 unit is
+backward-compatible public functionality with canonical impact `minor`; the correction occurred before any
+dev.8 tag or release existed, so retaining `0.1.0-dev.8` complied with the unpublished-correction rule.
+
+Exact-master CI `29514944035`, Documentation `29514943956`, and Compatibility `29514944097` passed at the
+final commit. Compatibility ran on Linux and macOS, x64 and arm64, and receipt verifier job `87679767522`
+validated all four target receipts. Annotated tag object `a8814c4b5cbb1472d1c4f2193ad03846281657df`
+peels exactly to the final commit. Release run `29515697679` passed claims job `87680035474`, builders
+`87680187951`, `87680187631`, `87680187624`, and `87680187676`, and publish job `87681921789`.
+
+GitHub release `355221963` is non-draft, prerelease, and immutable. A fresh independent download contained
+exactly `checksums.txt` plus the four native archives, and every checksum verified: darwin-arm64
+`d9345ac5d198f5c1822531e5a94c44b1e9e0862601170a23267c7ec5f8e4bbfe`, darwin-x64
+`64b4426ec95075df5c7d168cb14241c72f06fe8222b089ba3d01fac9e5c7cc59`, linux-arm64
+`1ddd77c274e53c7dec6b1230979e324f5e2d951936cf7ef7a571f21d421e9113`, and linux-x64
+`8d7a63df462d49fe714ea706b6948e3940329ccb6984cbd89b1adf67fdfde67a`. The post-publication ledger,
+README, and landing-page reconciliation is evidence-only with impact `none`: source, installer default, and
+tag remain dev.8. Pages deployment and hosted-installer success remain unclaimed until their live gates pass.

@@ -50,7 +50,11 @@ Phase 27 continues the selected train with the compatibility evidence and genera
 unit recorded as `0.1.0-dev.7` / `v0.1.0-dev.7`.
 Phase 29 adds the first public compatibility-ledger `Yes`: the Bun-compatible two-method
 `Clun.semver` API over the existing shared installer engine. This backward-compatible public API is
-the `0.1.0-dev.8` / `v0.1.0-dev.8` release-bearing unit; the ASDF core remains `0.1.0`.
+published as immutable prerelease `0.1.0-dev.8` / `v0.1.0-dev.8`; the ASDF core remains `0.1.0`.
+The annotated tag peels to `db56bee7540bfc84c5e730d2ab23a886c65dd160`, whose exact-master CI,
+Documentation, and four-target Compatibility workflows passed before release run `29515697679` built and
+published the four native archives plus `checksums.txt`. The evidence-only ledger reconciliation retains
+dev.8 and creates no tag; Pages and hosted-installer success are recorded only after their own live gates.
 
 ## Canonical record
 

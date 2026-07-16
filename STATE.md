@@ -30,14 +30,19 @@ Every conversion requires a legitimate canonical issue, accepted design, full de
 four-target evidence, synchronized public surfaces, and the correct SemVer transition. Current post-SemVer
 cost order is CSRF, cookies, terminal string width, then CSS color, subject to each phase survey.
 
-**Current checkpoint:** issue #3 is active and records `minor`, `0.1.0-dev.8`, and `v0.1.0-dev.8`. The Phase
-29 design is independently accepted. The implementation exposes `Clun.semver` over the one shared strict
-engine, adds narrow optional-`=` normalization without enabling loose numeric/partial versions, and preserves
-JavaScript coercion/error identity at the boundary. The built binary passes the 48-case pinned Bun matrix,
-the public differential, and all 261 applicable strict node-semver assertions; the complete Lisp suite passes
-3,260 / 0 / 0. The candidate ledger now records the first `Yes` with all three executable evidence IDs on
-all four targets. Pending: complete the remaining full/purity/docs/version/review gates, obtain four native
-Compatibility receipts on the exact PR/merge commits, synchronize the live issue, and publish dev.8.
+**Current checkpoint:** issue #3 is active and records `minor`, `0.1.0-dev.8`, and `v0.1.0-dev.8`.
+The Phase 29 design and implementation are independently accepted. `Clun.semver` exposes the shared strict
+engine, including the narrow optional-`=` compatibility path, without enabling loose numeric or partial versions.
+The 48-case Bun matrix, public differential, all 261 applicable strict node-semver assertions, and the
+3,260 / 0 / 0 Lisp suite pass. Final release commit
+`db56bee7540bfc84c5e730d2ab23a886c65dd160` passed exact-master CI `29514944035`, Documentation
+`29514943956`, and four-target Compatibility `29514944097`; receipt verifier job `87679767522` passed.
+Annotated tag `v0.1.0-dev.8` peels to that commit. Release run `29515697679` passed all four native builders
+and published immutable prerelease `355221963` with exactly four archives and `checksums.txt`; a fresh
+download verified every checksum. This reconciliation binds the first ledger `Yes` and public surfaces to
+that release without changing the version. Pending: merge the evidence-only reconciliation, pass its exact
+CI/Documentation/Pages gates, verify live site bytes and the hosted installer, complete issue #3, and hand
+the active ledger to Phase 35 / issue #9.
 
 **M5 entry boundary:** immutable dev.4 diagnostic set **56 total / 0 pass / 56 fail / 0 skip / 0 crash**:
 **43 m5-owned** (32 intrinsic/prototype, 7 parser, 4 raw delegation), **12 m11** direct-eval/`with`
