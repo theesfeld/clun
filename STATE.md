@@ -34,9 +34,9 @@ release notes are byte-idempotent; and the shipped binary passes **6 executable*
 assertions**, **42 TypeScript strip/error fixtures**, **74 JS/TS runtime fixtures**, and purity **694 files / 0
 violations**. Compatibility tooling passes two pristine checks, three forward-render cases, and **30 deliberate
 drift rejections**; public claims, live roadmap, ShellCheck, actionlint, and responsive Playwright are green.
-Receipt v2 binds the candidate, native binary, ledger, fixtures, canonical outcomes, all 30 feature IDs, and
-pass/fail/trace counts without claiming Bun execution. GitHub native release immutability is enabled, and active
-no-bypass ruleset `19048471` protects every `v*` tag from update or deletion while allowing initial creation.
+Receipt v2 binds the exact release commit, native binary, ledger, fixtures, canonical outcomes, all 30 feature
+IDs, and pass/fail/trace counts without claiming Bun execution. GitHub native release immutability is enabled,
+and active no-bypass ruleset `19048471` protects every `v*` tag from update or deletion while allowing initial creation.
 Pending: merge the no-version-bump published-state reconciliation, deploy the exact release-gated Pages site,
 verify the hosted installer, and close the synchronized canonical issue.
 
