@@ -8,11 +8,13 @@ surface, one gated capability at a time. Performance targets are workload-specif
 Clun does not claim blanket speed parity with Bun.
 
 > **Status: pre-alpha, under active construction.** Phase 25 performance work is complete.
-> Phase 25b milestone 4 is published as
-> [`v0.1.0-dev.4`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.4) for Linux and macOS
-> on x64 and arm64. All four native archives, their checksums, Pages, and the hosted shell installer
-> are verified. [Phase 25b milestone 5](https://github.com/theesfeld/clun/issues/57), synchronous
-> generators and `yield*`, is in implementation and validation; the phase remains open at 88.79%.
+> [Phase 25b milestone 5](https://github.com/theesfeld/clun/issues/57) is a locally verified
+> `0.1.0-dev.5` release candidate (SemVer impact: `minor`) for same-realm synchronous generators
+> and `yield*`; the phase remains open at 88.95%. The `v0.1.0-dev.5` tag, native assets, Pages
+> deployment, and hosted-installer verification are not published yet. The last published release
+> remains [`v0.1.0-dev.4`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.4), whose four
+> native archives, checksums, Pages deployment, and hosted installer are verified. Milestone 6 stays
+> queued until the complete dev.5 publication lifecycle is verified.
 > Clun executes its scoped JS/TS surface, but it is not a drop-in Node.js or Bun replacement.
 > The issue is the canonical live record, `PLAN.md` is the technical contract, and `STATE.md` is
 > the local resume checklist.
@@ -47,22 +49,24 @@ interoperability gap.
 - Functions and classes now distinguish calls from construction, implement derived `this` and
   `super`, separate parameter/body/name environments, expose mapped and unmapped arguments objects,
   delegate bound construction, and preserve source text for the covered callable forms.
+- Same-realm synchronous generators support dynamic `GeneratorFunction` construction, per-function
+  prototypes, and `yield*` delegation with iterator-result identity and close/error precedence.
+  Cross-realm generator semantics remain outside the current milestone.
 - Timers, promises, files, buffered HTTP serving, `fetch`, URL APIs, and process spawning.
 - `clun test` with hooks, modifiers, filters, async tests, timeouts, and about 22 matchers.
 - `clun install`, `add`, `remove`, and package scripts with a deterministic lockfile and cache.
 
-The checked-in curated test262 pass list contains 25,008 tests. Phase 25b milestone 4's fresh
-40,654-row execution ledger measures 25,008 passes and 3,155 gaps across 28,163 eligible tests
-(88.79%), with 12,491 skips and zero crashes; the 25,347-pass target requires 339 additional live
-passes to reach 90%.
-Its focused m4 slice contains 430 tests: 366 pass and 64 fail, with zero skips and zero crashes.
-The workset contains 418 Phase-25b diagnostic rows and 12 same-bucket Phase-37 controls. The
-remaining controls belong to m4 (0), m7 (2), m11 (46), m13 (1), m14 (2), and Phase 37 (13);
-m4 has no owned residual. Cross-script global lexical visibility and broader direct-eval semantics
-remain explicit m11 work. The full gap inventory assigns 2,270 residuals to Phase 25b and 885 to Phase 37.
-The canonical execution ledger digest is `B77552A66955B6C3`. The parse gate classifies
-23,713 tests as 17,688 pass, 987 fail, 5,038 skip, and zero crash while retaining all 17,512 frozen
-passes; the Common Lisp suite passes 3,120 tests with zero failures.
+The checked-in curated test262 pass list contains 25,051 tests. Phase 25b milestone 5's release-candidate
+40,654-row execution ledger measures 25,051 passes and 3,112 gaps across 28,163 eligible tests
+(88.95%), with 12,491 skips and zero crashes; the 25,347-pass target requires 296 additional live
+passes to reach 90%. The pass list gained 43 tests from milestone 4 and 2,408 from the Phase 25b entry.
+Its focused m5 slice contains 56 tests: 43 pass and 13 fail, with zero skips, timeouts, and crashes.
+All 43 milestone-owned rows pass; the 13 deliberate controls remain assigned to m11 (12) and Phase 37
+(1), leaving m5 with no owned residual. Cross-script global lexical visibility and broader direct-eval
+semantics remain explicit m11 work. The full gap inventory assigns 2,227 residuals to Phase 25b and
+885 to Phase 37. The canonical execution ledger digest is `C104919DBAF109E4`. The parse gate classifies
+23,713 tests as 17,699 pass, 976 fail, 5,038 skip, and zero crash while retaining all 17,512 frozen
+passes; the Common Lisp suite passes 3,187 tests with zero failures.
 Phase 25's final
 default-tier measurements are 6.68x Richards, 3.85x DeltaBlue, and 5.36x Splay against the frozen
 Phase-24 Clun baseline, a 5.16x suite geomean. Clun has no measured cross-runtime benchmark against
@@ -132,7 +136,8 @@ sets between this README and the landing page; descriptive prose still requires 
 workflows are read-only and fail closed if the canonical issues, README, or site have drifted.
 
 Release versions follow the actual SemVer impact recorded in the canonical issue, not the number of
-pushes. The current source version is `0.1.0-dev.4`; [the versioning contract](docs/versioning.md)
+pushes. The current source version is `0.1.0-dev.5`; it is a release candidate, while dev.4 remains
+the latest published release. [The versioning contract](docs/versioning.md)
 defines prerelease sequencing, synchronized surfaces, immutable tags, assets, and installer evidence.
 [Live release and milestone status](https://github.com/theesfeld/clun/issues/57) remains on the canonical
 issue so this README never substitutes a stale publication claim for verified assets.
@@ -174,7 +179,7 @@ vendored under `vendor/` and located via `scripts/registry.lisp`.
 make build     # compile everything, save build/clun (save-lisp-and-die)
 make test      # run the CL suites and JS/TS fixture harnesses
 make purity    # fail on any CFFI/foreign-code token
-./build/clun --version   # => clun 0.1.0-dev.4
+./build/clun --version   # => clun 0.1.0-dev.5
 ```
 
 A fresh clone builds with `make build` alone: ASDF compiles the vendored closure and `src/` into

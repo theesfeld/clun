@@ -9,6 +9,11 @@
 (asdf:load-system :clun)
 (in-package :clun.engine)
 
+;; Focused conformance gates load the classifiers without running the full corpus.
+;; An ordinary `--load scripts/test262.lisp` retains the historical runner behavior.
+(defvar cl-user::*clun-test262-library* nil)
+(defvar cl-user::*clun-test262-distinguish-timeout* nil)
+
 ;; The conformance image is also the full-corpus COMPILE-tier differential gate.
 ;; Keep the default at :off, but make an explicit environment selection authoritative
 ;; so the shell harness can run identical corpora through both backends.
@@ -178,7 +183,8 @@ An `async`-flagged test passes iff $DONE printed AsyncTestComplete (and no Failu
                        (run-source full :realm realm
                                         :report-unhandled-rejections-p (not (null asyncp))))
                      (when runtime-negative (return :fail)))
-                 (sb-ext:timeout () (return :fail))
+                 (sb-ext:timeout ()
+                   (return (if cl-user::*clun-test262-distinguish-timeout* :tmo :fail)))
                  (js-condition (condition)
                    (unless (and runtime-negative
                                 (expected-runtime-error-p condition runtime-negative realm))
@@ -250,7 +256,8 @@ prefixed 'built-ins/' so both live in one exec pass-list without collision."
             for tt = (string-trim '(#\Space #\Return) line)
             unless (or (string= tt "") (char= (char tt 0) #\#)) collect tt))))
 
-(multiple-value-bind (pass fail skip crash total classifications) (run)
+(unless cl-user::*clun-test262-library*
+ (multiple-value-bind (pass fail skip crash total classifications) (run)
   (write-classifications classifications)
   (format t "~&=== test262 ~a phase — ~a files ===~%" (if *exec* "execution" "parse") total)
   (format t "pass ~a | fail(gap) ~a | skip(unsupported syntax) ~a | CRASH ~a~%"
@@ -310,4 +317,4 @@ prefixed 'built-ins/' so both live in one exec pass-list without collision."
            (progn (format t "conformance: OK (~a pass-list entries hold, 0 crashes)~%"
                           (length expected))
                   (sb-ext:exit :code 0))
-           (progn (format t "conformance: FAILED~%") (sb-ext:exit :code 1))))))))
+           (progn (format t "conformance: FAILED~%") (sb-ext:exit :code 1)))))))))

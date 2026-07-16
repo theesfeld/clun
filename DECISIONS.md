@@ -2240,3 +2240,49 @@ version, installer target, packaged artifacts, behavior, capabilities, or compat
 SemVer impact is `none` and dev.4 remains current. Milestone 4 is complete; milestone 5, synchronous
 generators and `yield*`, is current. Issue #57 stays open because 25,008 / 28,163 is 88.797358%, below
 the fixed 90% gate.
+
+### 2026-07-16 - Phase 25b m5 freezes 43 owned synchronous-generator gaps
+
+The immutable dev.4 inventory replaces m1's stale 108-row estimate. M5's frozen diagnostic boundary is
+56 failures: all 53 current `generators` rows plus three generator-specific binding dependencies. Exact
+conceptual ownership is 43 m5, 12 m11 direct-eval/`with` controls, and one Phase-37 `Math.sumPrecise`
+control. The unrelated mixed-feature async-iteration row remains exclusively m6. The two
+`GeneratorFunction` subclass rows are m5 because they directly specify the new intrinsic's required
+`new.target` behavior through the already-complete m4 class machinery; m5 does not expand m7's generic
+species/constructor protocol.
+
+M5 uses four shared implementation seams: a complete synchronous `%GeneratorFunction%` intrinsic graph,
+semantic-kind-driven generator method prototypes, precise contextual-yield parsing, and a distinct
+coroutine output for verbatim incomplete `yield*` iterator results. Delegated `throw`/`return` use
+`GetMethod` semantics and preserve missing-throw close precedence. Async generator queues/awaiting remain
+m6, and direct eval, `with`, and persistent global environments remain m11. No skip or denominator changes.
+
+The work adds backward-compatible functionality inside the selected `0.1.0` train, so its canonical
+SemVer impact is `minor`. Dev.4 is already published; m5 therefore selects exactly `0.1.0-dev.5` under
+immutable tag `v0.1.0-dev.5`. Public dev.5 behavior is not claimed until executable evidence is complete.
+
+### 2026-07-16 - Phase 25b m5 closes its owned generator slice and selects dev.5
+
+M5 implements one same-realm synchronous generator model: `%GeneratorFunction%` and its ordinary
+prototype object, semantic generator-function inheritance and method prototypes, contextual `yield`
+parsing, and a sync-only raw coroutine result kind for incomplete `yield*` results. Delegated methods use
+`GetMethod` and preserve missing-throw iterator-close precedence. The implementation does not absorb async
+queues/awaiting, cross-realm callable state, generic species, direct eval/`with`, or Phase-37 proposals.
+
+Adversarial review prevented four false completions. Async generators retain their prior value path instead
+of exposing the sync result object; module parsing continues to reserve `await`; `%GeneratorPrototype%`
+inherits the exact iterator method without an own property; and coroutine teardown handles an inner
+`return()` that re-yields. The exact 56-row boundary is now a tracked fail-closed manifest rather than an
+ignored scratch selection. It requires all 43 m5 rows to pass and all 13 later-owner controls to retain their
+declared failures, with no skip, timeout, or crash.
+
+Final local evidence is 43 m5 pass / 12 m11 fail / 1 Phase-37 fail. The 40,654-file default/eager ledgers are
+byte-identical at 25,051 pass, 3,112 fail, 12,491 skip, and zero crash; eager compiled 1,021,895 forms,
+classified 54,494 as ineligible, and fell back zero times. The 25,051-entry monotonic pass list is +43 from
+m4 and +2,408 from Phase-25b entry. Exact coverage is 88.950041%, 296 passes remain, residual ownership is
+2,227 Phase-25b plus 885 Phase-37, and digest `C104919DBAF109E4` binds the artifacts. Parse conformance is
+17,699/976/5,038/0 with all 17,512 frozen passes preserved; the Lisp suite is 3,187/0.
+
+This is backward-compatible functionality in the existing `0.1.0` train, so the impact is `minor` and the
+local release candidate is `0.1.0-dev.5` under immutable target tag `v0.1.0-dev.5`. Publication, assets,
+Pages, and hosted-installer evidence remain unclaimed until their remote gates complete; m6 stays queued.

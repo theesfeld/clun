@@ -36,6 +36,7 @@ resource does not exist with a 404 response:
 0.1.0-dev.2
 0.1.0-dev.3
 0.1.0-dev.4
+0.1.0-dev.5
 0.1.0
 ```
 
@@ -109,3 +110,11 @@ release-bearing unit selects `0.1.0-dev.4` under tag `v0.1.0-dev.4` within the e
 train; the ASDF core therefore remains `0.1.0`. The dev.4 master checks, annotated tag, all four native
 archives, checksums, Pages deployment, and hosted installer are verified. The post-publication handoff
 to milestone 5 is evidence-only with impact `none`, so it retains the dev.4 source and installer target.
+
+Phase 25b milestone 5 adds backward-compatible same-realm synchronous generator functions, dynamic
+`GeneratorFunction` construction, per-function generator prototypes, and `yield*` delegation with
+iterator-result identity and specified close/error precedence. Cross-realm generator semantics remain
+outside this milestone. Its impact is `minor`; the release candidate is intended to publish
+`0.1.0-dev.5` under tag `v0.1.0-dev.5` within the existing `0.1.0` train, so the ASDF core remains
+`0.1.0`. Until the master checks, immutable tag, native assets, checksums, Pages deployment, and hosted
+installer have been verified, dev.4 remains the last published release and milestone 6 remains queued.

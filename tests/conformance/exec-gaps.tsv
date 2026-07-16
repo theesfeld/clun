@@ -1,9 +1,9 @@
 # generator: scripts/test262-buckets.lisp
 # vendor-test262-commit: d1d583db95a521218f3eb8341a887fd63eda8ff1
-# source-revision: working-tree@924e508555a31bf32776803098afa430d8e51f58
-# classification-ledger: tmp-test/test262-exec-classifications.tsv
+# source-revision: working-tree@7c10d91e92413d9728c137265e9cb3922e65e884
+# classification-ledger: tmp-test/m5-final-classifications.tsv
 # frozen-passlist: tests/conformance/exec-passlist.txt
-# classification-ledger-fnv-1a-64: B77552A66955B6C3
+# classification-ledger-fnv-1a-64: C104919DBAF109E4
 path	owner	phase_owner	work_bucket	topic	features	flags	includes
 arguments-object/10.5-1-s.js	language:arguments-object	phase-25b	functions-arguments	language/arguments-object	-	onlyStrict	-
 arguments-object/10.5-7-b-1-s.js	language:arguments-object	phase-25b	functions-arguments	language/arguments-object	-	onlyStrict	-
@@ -738,31 +738,7 @@ built-ins/Error/prototype/stack/setter-receiver-is-other-prototype.js	builtin:Er
 built-ins/Error/prototype/stack/setter-receiver-is-prototype.js	builtin:Error	phase-37	primitive-builtins	built-ins/Error/prototype/stack	error-stack-accessor	-	-
 built-ins/Error/prototype/stack/setter-this-not-object.js	builtin:Error	phase-37	primitive-builtins	built-ins/Error/prototype/stack	error-stack-accessor	-	-
 built-ins/Error/prototype/stack/setter-via-assignment.js	builtin:Error	phase-37	primitive-builtins	built-ins/Error/prototype/stack	error-stack-accessor	-	propertyHelper.js,nativeErrors.js
-built-ins/Function/prototype/toString/GeneratorFunction.js	builtin:Function	phase-25b	generators	built-ins/Function/prototype/toString	generators	-	nativeFunctionMatcher.js
 built-ins/Function/prototype/toString/symbol-named-builtins.js	builtin:Function	phase-25b	functions-arguments	built-ins/Function/prototype/toString	-	-	nativeFunctionMatcher.js
-built-ins/GeneratorFunction/instance-construct-throws.js	builtin:GeneratorFunction	phase-25b	generators	built-ins/GeneratorFunction	generators	-	-
-built-ins/GeneratorFunction/instance-prototype.js	builtin:GeneratorFunction	phase-25b	generators	built-ins/GeneratorFunction	generators	-	propertyHelper.js
-built-ins/GeneratorFunction/instance-restricted-properties.js	builtin:GeneratorFunction	phase-25b	generators	built-ins/GeneratorFunction	generators	-	-
-built-ins/GeneratorFunction/instance-yield-expr-in-param.js	builtin:GeneratorFunction	phase-25b	generators	built-ins/GeneratorFunction	generators	-	-
-built-ins/GeneratorFunction/invoked-as-constructor-no-arguments.js	builtin:GeneratorFunction	phase-25b	generators	built-ins/GeneratorFunction	generators	-	-
-built-ins/GeneratorFunction/invoked-as-function-multiple-arguments.js	builtin:GeneratorFunction	phase-25b	generators	built-ins/GeneratorFunction	generators	-	-
-built-ins/GeneratorFunction/invoked-as-function-no-arguments.js	builtin:GeneratorFunction	phase-25b	generators	built-ins/GeneratorFunction	generators	-	-
-built-ins/GeneratorFunction/invoked-as-function-single-argument.js	builtin:GeneratorFunction	phase-25b	generators	built-ins/GeneratorFunction	generators	-	-
-built-ins/GeneratorFunction/name.js	builtin:GeneratorFunction	phase-25b	generators	built-ins/GeneratorFunction	generators	-	propertyHelper.js
-built-ins/GeneratorFunction/prototype/Symbol.toStringTag.js	builtin:GeneratorFunction	phase-25b	generators	built-ins/GeneratorFunction/prototype	generators,Symbol.toStringTag	-	propertyHelper.js
-built-ins/GeneratorFunction/prototype/constructor.js	builtin:GeneratorFunction	phase-25b	generators	built-ins/GeneratorFunction/prototype	generators	-	propertyHelper.js
-built-ins/GeneratorFunction/prototype/not-callable.js	builtin:GeneratorFunction	phase-25b	generators	built-ins/GeneratorFunction/prototype	generators	-	-
-built-ins/GeneratorFunction/prototype/prototype.js	builtin:GeneratorFunction	phase-25b	generators	built-ins/GeneratorFunction/prototype	generators	-	propertyHelper.js
-built-ins/GeneratorPrototype/constructor.js	builtin:GeneratorPrototype	phase-25b	generators	built-ins/GeneratorPrototype	generators	-	propertyHelper.js
-built-ins/GeneratorPrototype/next/length.js	builtin:GeneratorPrototype	phase-25b	generators	built-ins/GeneratorPrototype/next	generators	-	propertyHelper.js
-built-ins/GeneratorPrototype/next/name.js	builtin:GeneratorPrototype	phase-25b	generators	built-ins/GeneratorPrototype/next	generators	-	propertyHelper.js
-built-ins/GeneratorPrototype/next/property-descriptor.js	builtin:GeneratorPrototype	phase-25b	generators	built-ins/GeneratorPrototype/next	generators	-	propertyHelper.js
-built-ins/GeneratorPrototype/return/length.js	builtin:GeneratorPrototype	phase-25b	generators	built-ins/GeneratorPrototype/return	generators	-	propertyHelper.js
-built-ins/GeneratorPrototype/return/name.js	builtin:GeneratorPrototype	phase-25b	generators	built-ins/GeneratorPrototype/return	generators	-	propertyHelper.js
-built-ins/GeneratorPrototype/return/property-descriptor.js	builtin:GeneratorPrototype	phase-25b	generators	built-ins/GeneratorPrototype/return	generators	-	propertyHelper.js
-built-ins/GeneratorPrototype/throw/length.js	builtin:GeneratorPrototype	phase-25b	generators	built-ins/GeneratorPrototype/throw	generators	-	propertyHelper.js
-built-ins/GeneratorPrototype/throw/name.js	builtin:GeneratorPrototype	phase-25b	generators	built-ins/GeneratorPrototype/throw	generators	-	propertyHelper.js
-built-ins/GeneratorPrototype/throw/property-descriptor.js	builtin:GeneratorPrototype	phase-25b	generators	built-ins/GeneratorPrototype/throw	generators	-	propertyHelper.js
 built-ins/Infinity/S15.1.1.2_A3_T2.js	builtin:Infinity	phase-25b	primitive-builtins	built-ins/Infinity	-	noStrict	-
 built-ins/JSON/isRawJSON/basic.js	builtin:JSON	phase-37	primitive-builtins	built-ins/JSON/isRawJSON	json-parse-with-source	-	-
 built-ins/JSON/isRawJSON/builtin.js	builtin:JSON	phase-37	primitive-builtins	built-ins/JSON/isRawJSON	json-parse-with-source	-	-
@@ -970,7 +946,6 @@ built-ins/Object/prototype/__proto__/set-cycle-shadowed.js	builtin:Object	phase-
 built-ins/Object/prototype/hasOwnProperty/topropertykey_before_toobject.js	builtin:Object	phase-25b	objects	built-ins/Object/prototype/hasOwnProperty	Symbol.toPrimitive	-	-
 built-ins/Object/prototype/toLocaleString/primitive_this_value_getter.js	builtin:Object	phase-25b	objects	built-ins/Object/prototype/toLocaleString	-	onlyStrict	-
 built-ins/Object/prototype/toString/Object.prototype.toString.call-regexp.js	builtin:Object	phase-25b	objects	built-ins/Object/prototype/toString	-	-	-
-built-ins/Object/prototype/toString/symbol-tag-generators-builtin.js	builtin:Object	phase-25b	generators	built-ins/Object/prototype/toString	Symbol.toStringTag,Symbol.iterator,generators	-	-
 built-ins/Object/seal/seal-finalizationregistry.js	builtin:Object	phase-37	objects	built-ins/Object/seal	FinalizationRegistry	-	-
 built-ins/Object/seal/seal-proxy.js	builtin:Object	phase-37	objects	built-ins/Object/seal	-	-	-
 built-ins/Object/seal/seal-weakref.js	builtin:Object	phase-37	objects	built-ins/Object/seal	WeakRef	-	-
@@ -2529,15 +2504,11 @@ expressions/function/named-strict-error-reassign-fn-name-in-body-in-eval.js	lang
 expressions/function/scope-body-lex-distinct.js	language:expressions	phase-25b	functions-arguments	language/expressions/function	let	noStrict	-
 expressions/function/unscopables-with-in-nested-fn.js	language:expressions	phase-25b	functions-arguments	language/expressions/function	globalThis,Symbol.unscopables	generated,noStrict	-
 expressions/function/unscopables-with.js	language:expressions	phase-25b	functions-arguments	language/expressions/function	globalThis,Symbol.unscopables	generated,noStrict	-
-expressions/generators/default-proto.js	language:expressions	phase-25b	generators	language/expressions/generators	generators	-	-
 expressions/generators/eval-var-scope-syntax-err.js	language:expressions	phase-25b	binding-patterns	language/expressions/generators	default-parameters,generators	generated,noStrict	-
 expressions/generators/named-strict-error-reassign-fn-name-in-body-in-eval.js	language:expressions	phase-25b	generators	language/expressions/generators	generators	generated,onlyStrict	-
-expressions/generators/prototype-relation-to-function.js	language:expressions	phase-25b	generators	language/expressions/generators	generators	-	-
 expressions/generators/scope-body-lex-distinct.js	language:expressions	phase-25b	generators	language/expressions/generators	generators,let	noStrict	-
 expressions/generators/unscopables-with-in-nested-fn.js	language:expressions	phase-25b	generators	language/expressions/generators	globalThis,Symbol.unscopables,generators	generated,noStrict	-
 expressions/generators/unscopables-with.js	language:expressions	phase-25b	generators	language/expressions/generators	globalThis,Symbol.unscopables,generators	generated,noStrict	-
-expressions/generators/yield-as-function-expression-binding-identifier.js	language:expressions	phase-25b	generators	language/expressions/generators	generators	noStrict	-
-expressions/generators/yield-star-before-newline.js	language:expressions	phase-25b	generators	language/expressions/generators	generators	-	-
 expressions/in/S11.8.7_A1.js	language:expressions	phase-25b	other-runtime	language/expressions/in	-	-	-
 expressions/member-expression/computed-reference-null-or-undefined.js	language:expressions	phase-25b	other-runtime	language/expressions/member-expression	-	-	-
 expressions/modulus/S11.5.3_A4_T2.js	language:expressions	phase-25b	other-runtime	language/expressions/modulus	-	-	-
@@ -2592,10 +2563,7 @@ expressions/object/method-definition/async-gen-yield-star-next-then-returns-abru
 expressions/object/method-definition/async-gen-yield-star-sync-next.js	language:expressions	phase-25b	async-iteration	language/expressions/object	Symbol.iterator,async-iteration,Symbol.asyncIterator	generated,async	-
 expressions/object/method-definition/async-meth-eval-var-scope-syntax-err.js	language:expressions	phase-25b	binding-patterns	language/expressions/object	default-parameters,async-functions	generated,async,noStrict	-
 expressions/object/method-definition/gen-meth-eval-var-scope-syntax-err.js	language:expressions	phase-25b	binding-patterns	language/expressions/object	default-parameters,generators	generated,noStrict	-
-expressions/object/method-definition/generator-prototype-prop.js	language:expressions	phase-25b	generators	language/expressions/object	generators	-	propertyHelper.js
 expressions/object/method-definition/meth-eval-var-scope-syntax-err.js	language:expressions	phase-25b	binding-patterns	language/expressions/object	default-parameters	generated,noStrict	-
-expressions/object/method-definition/yield-as-function-expression-binding-identifier.js	language:expressions	phase-25b	generators	language/expressions/object	generators	noStrict	-
-expressions/object/method-definition/yield-star-before-newline.js	language:expressions	phase-25b	generators	language/expressions/object	generators	-	-
 expressions/object/prop-def-id-eval-error.js	language:expressions	phase-25b	objects	language/expressions/object	Symbol,Symbol.unscopables	noStrict	-
 expressions/object/scope-gen-meth-body-lex-distinct.js	language:expressions	phase-25b	generators	language/expressions/object	generators,let	noStrict	-
 expressions/object/scope-getter-body-lex-distinc.js	language:expressions	phase-25b	objects	language/expressions/object	let	noStrict	-
@@ -2669,10 +2637,6 @@ expressions/template-literal/tv-template-tail.js	language:expressions	phase-25b	
 expressions/template-literal/tv-utf16-escape-sequence.js	language:expressions	phase-25b	operators-references	language/expressions/template-literal	-	-	-
 expressions/template-literal/tv-zwnbsp.js	language:expressions	phase-25b	operators-references	language/expressions/template-literal	-	-	-
 expressions/yield/from-with.js	language:expressions	phase-25b	generators	language/expressions/yield	generators	noStrict	-
-expressions/yield/star-iterable.js	language:expressions	phase-25b	generators	language/expressions/yield	generators,Symbol.iterator	-	-
-expressions/yield/star-rhs-iter-nrml-res-done-no-value.js	language:expressions	phase-25b	generators	language/expressions/yield	generators,Symbol.iterator	-	-
-expressions/yield/star-rhs-iter-rtrn-res-done-no-value.js	language:expressions	phase-25b	generators	language/expressions/yield	generators,Symbol.iterator	-	-
-expressions/yield/star-rhs-iter-thrw-res-done-no-value.js	language:expressions	phase-25b	generators	language/expressions/yield	generators,Symbol.iterator	-	-
 function-code/10.4.3-1-17-s.js	language:function-code	phase-25b	functions-arguments	language/function-code	-	onlyStrict	-
 global-code/S10.4.1_A1_T1.js	language:global-code	phase-25b	other-runtime	language/global-code	-	noStrict	-
 global-code/decl-func.js	language:global-code	phase-25b	other-runtime	language/global-code	-	-	propertyHelper.js
@@ -2865,13 +2829,10 @@ statements/class/cpn-class-decl-accessors-computed-property-name-from-expression
 statements/class/cpn-class-decl-accessors-computed-property-name-from-integer-separators.js	language:statements	phase-37	classes	language/statements/class	computed-property-names	generated	-
 statements/class/cpn-class-decl-computed-property-name-from-expression-coalesce.js	language:statements	phase-37	classes	language/statements/class	computed-property-names	generated	-
 statements/class/cpn-class-decl-computed-property-name-from-integer-separators.js	language:statements	phase-37	classes	language/statements/class	computed-property-names	generated	-
-statements/class/definition/methods-gen-yield-star-before-newline.js	language:statements	phase-25b	generators	language/statements/class	generators	-	-
 statements/class/elements/private-class-field-on-nonextensible-objects.js	language:statements	phase-37	classes	language/statements/class	class,class-fields-private,class-fields-public,nonextensible-applies-to-private	onlyStrict	-
 statements/class/subclass-builtins/subclass-AggregateError.js	language:statements	phase-25b	classes	language/statements/class	AggregateError	generated	-
 statements/class/subclass-builtins/subclass-WeakRef.js	language:statements	phase-37	classes	language/statements/class	WeakRef	generated	-
 statements/class/subclass/builtin-objects/ArrayBuffer/regular-subclassing.js	language:statements	phase-25b	classes	language/statements/class	-	-	-
-statements/class/subclass/builtin-objects/GeneratorFunction/instance-prototype.js	language:statements	phase-25b	generators	language/statements/class	-	-	propertyHelper.js
-statements/class/subclass/builtin-objects/GeneratorFunction/regular-subclassing.js	language:statements	phase-25b	generators	language/statements/class	-	-	-
 statements/class/subclass/builtin-objects/Proxy/no-prototype-throws.js	language:statements	phase-37	classes	language/statements/class	-	-	-
 statements/class/subclass/private-class-field-on-nonextensible-return-override.js	language:statements	phase-37	classes	language/statements/class	class,class-fields-private,class-fields-public,nonextensible-applies-to-private	onlyStrict	-
 statements/do-while/S12.6.1_A3.js	language:statements	phase-25b	other-runtime	language/statements/do-while	-	-	-
@@ -2943,14 +2904,10 @@ statements/function/eval-var-scope-syntax-err.js	language:statements	phase-25b	b
 statements/function/scope-body-lex-distinct.js	language:statements	phase-25b	functions-arguments	language/statements/function	let	noStrict	-
 statements/function/unscopables-with-in-nested-fn.js	language:statements	phase-25b	functions-arguments	language/statements/function	globalThis,Symbol.unscopables	generated,noStrict	-
 statements/function/unscopables-with.js	language:statements	phase-25b	functions-arguments	language/statements/function	globalThis,Symbol.unscopables	generated,noStrict	-
-statements/generators/default-proto.js	language:statements	phase-25b	generators	language/statements/generators	generators	-	-
 statements/generators/eval-var-scope-syntax-err.js	language:statements	phase-25b	binding-patterns	language/statements/generators	default-parameters,generators	generated,noStrict	-
-statements/generators/prototype-relation-to-function.js	language:statements	phase-25b	generators	language/statements/generators	generators	-	-
 statements/generators/scope-body-lex-distinct.js	language:statements	phase-25b	generators	language/statements/generators	generators,let	noStrict	-
 statements/generators/unscopables-with-in-nested-fn.js	language:statements	phase-25b	generators	language/statements/generators	globalThis,Symbol.unscopables,generators	generated,noStrict	-
 statements/generators/unscopables-with.js	language:statements	phase-25b	generators	language/statements/generators	globalThis,Symbol.unscopables,generators	generated,noStrict	-
-statements/generators/yield-as-function-expression-binding-identifier.js	language:statements	phase-25b	generators	language/statements/generators	generators	noStrict	-
-statements/generators/yield-star-before-newline.js	language:statements	phase-25b	generators	language/statements/generators	generators	-	-
 statements/if/cptn-else-false-abrupt-empty.js	language:statements	phase-25b	other-runtime	language/statements/if	-	-	-
 statements/if/cptn-else-false-nrml.js	language:statements	phase-25b	other-runtime	language/statements/if	-	-	-
 statements/if/cptn-else-true-abrupt-empty.js	language:statements	phase-25b	other-runtime	language/statements/if	-	-	-

@@ -8,10 +8,10 @@ This is a deterministic analysis of the authoritative execution classification l
 |---|---|
 | generator | `scripts/test262-buckets.lisp` |
 | vendor-test262-commit | `d1d583db95a521218f3eb8341a887fd63eda8ff1` |
-| source-revision | `working-tree@924e508555a31bf32776803098afa430d8e51f58` |
-| classification-ledger | `tmp-test/test262-exec-classifications.tsv` |
+| source-revision | `working-tree@7c10d91e92413d9728c137265e9cb3922e65e884` |
+| classification-ledger | `tmp-test/m5-final-classifications.tsv` |
 | frozen-passlist | `tests/conformance/exec-passlist.txt` |
-| classification-ledger-fnv-1a-64 | `B77552A66955B6C3` |
+| classification-ledger-fnv-1a-64 | `C104919DBAF109E4` |
 
 The digest is FNV-1a-64 over the ledger's exact input bytes; it is not SHA.
 
@@ -20,22 +20,22 @@ The digest is FNV-1a-64 over the ledger's exact input bytes; it is not SHA.
 | Measure | Exact value |
 |---|---:|
 | Total | 40654 |
-| Pass | 25008 |
-| Fail | 3155 |
+| Pass | 25051 |
+| Fail | 3112 |
 | Skip | 12491 |
 | Crash | 0 |
 | Eligible (`pass + fail`) | 28163 |
-| Pass rate | 25008 / 28163 = 88.797358% |
-| Frozen baseline pass count | 25008 |
+| Pass rate | 25051 / 28163 = 88.950041% |
+| Frozen baseline pass count | 25051 |
 | Current-pass delta from frozen baseline | +0 |
 | `ceil(90% * eligible)` | 25347 |
-| Required pass lift | 339 |
+| Required pass lift | 296 |
 
 ## Phase-owner counts
 
 | Phase owner | Fail rows |
 |---|---:|
-| `phase-25b` | 2270 |
+| `phase-25b` | 2227 |
 | `phase-37` | 885 |
 
 Phase ownership is orthogonal to the implementation work buckets below.
@@ -48,7 +48,7 @@ Phase ownership is orthogonal to the implementation work buckets below.
 | 2 | `dynamic-scope-eval` | 315 |
 | 3 | `async-iteration` | 509 |
 | 4 | `async-generators` | 0 |
-| 5 | `generators` | 53 |
+| 5 | `generators` | 10 |
 | 6 | `classes` | 20 |
 | 7 | `binary-data` | 643 |
 | 8 | `regexp` | 224 |
@@ -62,21 +62,21 @@ Phase ownership is orthogonal to the implementation work buckets below.
 | 16 | `primitive-builtins` | 224 |
 | 17 | `other-runtime` | 148 |
 
-The work buckets are mutually exclusive, first-match wins, and their counts sum to 3155.
+The work buckets are mutually exclusive, first-match wins, and their counts sum to 3112.
 
 ## Top 25 owner counts
 
 | Count | Value |
 |---:|---|
-| 477 | `language:expressions` |
-| 440 | `language:statements` |
+| 466 | `language:expressions` |
+| 433 | `language:statements` |
 | 422 | `builtin:Array` |
 | 382 | `builtin:TypedArray` |
 | 204 | `builtin:RegExp` |
 | 183 | `language:eval-code` |
 | 156 | `builtin:Set` |
 | 129 | `builtin:DataView` |
-| 105 | `builtin:Object` |
+| 104 | `builtin:Object` |
 | 103 | `builtin:Promise` |
 | 65 | `builtin:TypedArrayConstructors` |
 | 63 | `builtin:Date` |
@@ -91,10 +91,10 @@ The work buckets are mutually exclusive, first-match wins, and their counts sum 
 | 18 | `language:global-code` |
 | 17 | `builtin:AsyncGeneratorPrototype` |
 | 15 | `builtin:Symbol` |
-| 13 | `builtin:GeneratorFunction` |
-| 10 | `builtin:GeneratorPrototype` |
+| 10 | `language:literals` |
+| 9 | `builtin:AsyncFromSyncIteratorPrototype` |
 
-Counts are sorted by count descending, then raw value ascending. Showing 25 of 42 distinct values.
+Counts are sorted by count descending, then raw value ascending. Showing 25 of 40 distinct values.
 
 ## Top 25 topic counts
 
@@ -103,12 +103,12 @@ Counts are sorted by count descending, then raw value ascending. Showing 25 of 4
 | 173 | `language/eval-code/direct` |
 | 142 | `language/statements/with` |
 | 105 | `language/expressions/async-generator` |
-| 103 | `language/statements/class` |
+| 100 | `language/statements/class` |
 | 96 | `language/expressions/class` |
 | 95 | `built-ins/Array/fromAsync` |
 | 78 | `language/expressions/compound-assignment` |
 | 59 | `built-ins/Object/hasOwn` |
-| 59 | `language/expressions/object` |
+| 56 | `language/expressions/object` |
 | 55 | `language/statements/async-generator` |
 | 47 | `built-ins/TypedArrayConstructors/internals` |
 | 44 | `built-ins/TypedArray/prototype/slice` |
@@ -126,7 +126,7 @@ Counts are sorted by count descending, then raw value ascending. Showing 25 of 4
 | 28 | `built-ins/TypedArray/prototype/map` |
 | 27 | `built-ins/RegExp` |
 
-Counts are sorted by count descending, then raw value ascending. Showing 25 of 332 distinct values.
+Counts are sorted by count descending, then raw value ascending. Showing 25 of 326 distinct values.
 
 ## Top 25 raw feature counts
 
@@ -134,8 +134,8 @@ Counts are sorted by count descending, then raw value ascending. Showing 25 of 3
 |---:|---|
 | 449 | `TypedArray` |
 | 418 | `async-iteration` |
-| 327 | `Symbol.iterator` |
 | 323 | `Symbol.asyncIterator` |
+| 322 | `Symbol.iterator` |
 | 203 | `BigInt` |
 | 188 | `Symbol.species` |
 | 151 | `set-methods` |
@@ -147,7 +147,6 @@ Counts are sorted by count descending, then raw value ascending. Showing 25 of 3
 | 63 | `align-detached-buffer-semantics-with-web-reality` |
 | 59 | `Object.hasOwn` |
 | 59 | `array-find-from-last` |
-| 55 | `generators` |
 | 51 | `Reflect.construct` |
 | 49 | `upsert` |
 | 44 | `immutable-arraybuffer` |
@@ -157,6 +156,7 @@ Counts are sorted by count descending, then raw value ascending. Showing 25 of 3
 | 31 | `Symbol.match` |
 | 31 | `WeakMap` |
 | 30 | `ArrayBuffer` |
+| 30 | `DataView` |
 
 Counts are sorted by count descending, then raw value ascending. Showing 25 of 83 distinct values.
 
@@ -167,7 +167,7 @@ Counts are sorted by count descending, then raw value ascending. Showing 25 of 8
 | 441 | `testTypedArray.js` |
 | 334 | `compareArray.js` |
 | 258 | `detachArrayBuffer.js` |
-| 234 | `propertyHelper.js` |
+| 217 | `propertyHelper.js` |
 | 148 | `asyncHelpers.js` |
 | 49 | `isConstructor.js` |
 | 19 | `nativeErrors.js` |
@@ -176,7 +176,7 @@ Counts are sorted by count descending, then raw value ascending. Showing 25 of 8
 | 3 | `compareIterator.js` |
 | 2 | `byteConversionValues.js` |
 | 2 | `decimalToHexString.js` |
-| 2 | `nativeFunctionMatcher.js` |
 | 2 | `proxyTrapsHelper.js` |
+| 1 | `nativeFunctionMatcher.js` |
 
 Counts are sorted by count descending, then raw value ascending. All 14 distinct values are shown.

@@ -129,11 +129,14 @@
                               (t :ordinary))))
          ;; An explicit :ASYNC function-kind is useful to callers that must retain
          ;; a separate syntactic kind (for example, an async method).
+         (generator-p (eq resolved-kind :generator))
          (async-p (eq resolved-kind :async))
          (async-generator-p (eq resolved-kind :async-generator))
-         (can-construct (and constructable (not async-p) (not async-generator-p)))
+         (can-construct (and constructable (not generator-p)
+                                           (not async-p) (not async-generator-p)))
          (f (%make-js-function
-             :proto (intrinsic (cond (async-generator-p :async-generator-function-prototype)
+             :proto (intrinsic (cond (generator-p :generator-function-prototype)
+                                     (async-generator-p :async-generator-function-prototype)
                                      (async-p :async-function-prototype)
                                      (t :function-prototype)))
              :compiled-body compiled-body :env env :fname fname :param-count param-count
@@ -155,8 +158,9 @@
        (let ((proto (js-make-object (intrinsic :object-prototype))))
          (obj-set-desc proto "constructor" (data-pd f :writable t :enumerable nil :configurable t))
          (obj-set-desc f "prototype" (data-pd proto :writable t :enumerable nil :configurable nil))))
-      ;; a generator function's .prototype inherits %GeneratorPrototype% (instances' proto)
-      ((eq kind :generator)
+      ;; Every synchronous generator callable, including a generator method,
+      ;; owns the prototype object used by its generator instances.
+      (generator-p
        (obj-set-desc f "prototype"
                      (data-pd (js-make-object (intrinsic :generator-prototype))
                               :writable t :enumerable nil :configurable nil)))

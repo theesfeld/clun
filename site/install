@@ -3,7 +3,7 @@
 set -eu
 
 repo=${CLUN_GITHUB_REPO:-theesfeld/clun}
-requested_version=${CLUN_VERSION:-v0.1.0-dev.4}
+requested_version=${CLUN_VERSION:-v0.1.0-dev.5}
 install_root=${CLUN_INSTALL:-"$HOME/.clun"}
 no_modify_path=${CLUN_NO_MODIFY_PATH:-0}
 

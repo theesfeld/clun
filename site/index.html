@@ -53,7 +53,7 @@
           <div class="hero-mark-wrap">
             <img class="hero-mark" src="assets/clun.jpg" alt="Clun mascot wearing a Lisp helmet" width="250" height="250">
           </div>
-          <p class="eyebrow"><span class="status-dot" aria-hidden="true"></span> v0.1.0-dev.4 / pre-alpha</p>
+          <p class="eyebrow"><span class="status-dot" aria-hidden="true"></span> v0.1.0-dev.5 release candidate / pre-alpha</p>
           <h1>Clun is JavaScript tooling,<br>rewritten in pure Common Lisp.</h1>
           <p class="hero-copy">
             A from-scratch JavaScript engine with TypeScript stripping, a package manager,
@@ -83,21 +83,23 @@
 
           <dl class="hero-facts" tabindex="0" role="region" aria-label="Project facts">
             <div><dt>Implementation</dt><dd>Pure Common Lisp</dd></div>
-            <div><dt>Curated test262 pass list</dt><dd>25,008 pass</dd></div>
-            <div><dt>Phase 25b progress</dt><dd>88.79% current</dd></div>
+            <div><dt>Curated test262 pass list</dt><dd>25,051 pass</dd></div>
+            <div><dt>Phase 25b progress</dt><dd>88.95% current</dd></div>
             <div><dt>License</dt><dd>GPL-3.0-or-later</dd></div>
           </dl>
           <p class="hero-phase">
-            Full run: 40,654 total = 25,008 pass / 3,155 fail / 12,491 skip / 0 crash.
-            Eligible: 28,163 / target: 25,347 pass / remaining lift: 339.
-            Focused m4 slice: 430 total / 366 pass / 64 fail / 0 skip / 0 crash.
-            Workset: 418 Phase-25b diagnostic rows / 12 same-bucket Phase-37 controls.
-            Residual owners: m4 0 / m7 2 / m11 46 / m13 1 / m14 2 / Phase 37 13. Remaining ownership:
-            2,270 Phase-25b / 885 Phase-37 gaps. Ledger digest: <code>B77552A66955B6C3</code>.
-            Parse gate: 23,713 total / 17,688 pass / 987 fail / 5,038 skip / 0 crash; all 17,512
-            frozen passes hold. Common Lisp suite: 3,120 pass / 0 fail.
-            <a href="https://github.com/theesfeld/clun/issues/57">Phase 25b milestone 5</a> is current
-            and in implementation and validation; milestone 4 is published as dev.4 with all native assets, Pages, and the installer verified.
+            Full run: 40,654 total = 25,051 pass / 3,112 fail / 12,491 skip / 0 crash.
+            Eligible: 28,163 / target: 25,347 pass / remaining lift: 296.
+            Pass-list gain: +43 from m4 / +2,408 from Phase 25b entry.
+            Focused m5 slice: 56 total / 43 pass / 13 fail / 0 skip / 0 timeout / 0 crash.
+            All 43 owned rows pass; controls: 12 m11 / 1 Phase 37; m5 residual: 0. Remaining ownership:
+            2,227 Phase-25b / 885 Phase-37 gaps. Ledger digest: <code>C104919DBAF109E4</code>.
+            Parse gate: 23,713 total / 17,699 pass / 976 fail / 5,038 skip / 0 crash; all 17,512
+            frozen passes hold. Common Lisp suite: 3,187 pass / 0 fail.
+            <a href="https://github.com/theesfeld/clun/issues/57">Phase 25b milestone 5</a> is a locally
+            verified dev.5 release candidate. Its tag, native assets, Pages deployment, and hosted-installer
+            verification are not published yet; dev.4 remains the last published release, and m6 stays queued
+            until the dev.5 lifecycle is verified.
             The issue is the canonical live record; <a href="https://github.com/theesfeld/clun/blob/master/PLAN.md">PLAN</a>
             is the technical contract, and <a href="https://github.com/theesfeld/clun/blob/master/STATE.md">STATE</a>
             is the local resume checklist.
@@ -214,6 +216,7 @@
                 <li>Lazy iterator protocol with abrupt-completion close behavior</li>
                 <li>Binding TDZ, <code>const</code>, and destructuring correctness</li>
                 <li>Function/class construction, <code>super</code>, and arguments objects</li>
+                <li>Same-realm dynamic <code>GeneratorFunction</code> and <code>yield*</code> delegation; cross-realm semantics remain excluded</li>
                 <li><code>Object.seal</code>, <code>Object.isSealed</code>, and legacy accessor hooks</li>
                 <li>ESM and CommonJS resolution</li>
                 <li>Timers, promises, files, fetch, and URL</li>
@@ -331,7 +334,7 @@ Clun.write(file, <span class="tok-str">"hello from Clun\n"</span>)
               <thead>
                 <tr>
                   <th scope="col">Capability</th>
-                  <th scope="col" class="clun-col"><a href="https://github.com/theesfeld/clun">Clun</a><span>0.1.0-dev.4 / pre-alpha</span></th>
+                  <th scope="col" class="clun-col"><a href="https://github.com/theesfeld/clun">Clun</a><span>0.1.0-dev.5 candidate / pre-alpha</span></th>
                   <th scope="col"><a href="https://bun.sh/">Bun</a><span>1.3.14 / toolkit</span></th>
                   <th scope="col"><a href="https://nodejs.org/">Node.js</a><span>26 / current</span></th>
                   <th scope="col"><a href="https://deno.com/">Deno</a><span>2.9.2 / runtime</span></th>

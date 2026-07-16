@@ -211,3 +211,40 @@
                 "class C{m(value){try{}catch(value){return value;}return value;}}"
                 "function f(value){var value;function value(){}}"))
     (true (parses? ok))))
+
+(define-test parser/generator-contextual-yield
+  ;; A line terminator is allowed after the delegation star in every generator
+  ;; form. It remains forbidden between `yield` and `*`.
+  (dolist (ok (list (format nil "function* g(){yield *~% source;}")
+                    (format nil "var g=function*(){yield *~% source;};")
+                    (format nil "var o={*g(){yield *~% source;}};")
+                    (format nil "class C{*g(){yield *~% source;}}")))
+    (true (parses? ok)))
+  (dolist (bad (list (format nil "function* g(){yield~% * source;}")
+                     (format nil "var g=function*(){yield~% * source;};")
+                     (format nil "var o={*g(){yield~% * source;}};")
+                     (format nil "class C{*g(){yield~% * source;}}")))
+    (false (parses? bad)))
+
+  ;; Ordinary function-expression names reset the enclosing generator's Yield
+  ;; context in sloppy code. Class bodies and explicit strict mode still reject
+  ;; the same binding, and generator-expression names remain reserved.
+  (dolist (ok '("function* g(){(function yield(){})}"
+                "var g=function*(){(function yield(){})};"
+                "var o={*g(){(function yield(){})}};"
+                "function* yield(){yield 1;}"
+                "async function f(){(function await(){})}"))
+    (true (parses? ok)))
+  (dolist (bad '("function* g(){'use strict';(function yield(){})}"
+                 "'use strict';function* g(){(function yield(){})}"
+                 "class C{*g(){(function yield(){})}}"
+                 "var g=function* yield(){};"
+                 "var g=function*(yield){};"
+                 "var o={*g(yield){}};"
+                 "class C{*g(yield){}}"
+                 "function* g(){function yield(){}}"
+                 "var f=async function await(){};"))
+    (false (parses? bad)))
+  ;; Module code keeps `await` reserved in a nested expression's name binding.
+  (true (parses? "(function await(){})"))
+  (false (parses? "(function await(){})" :module)))

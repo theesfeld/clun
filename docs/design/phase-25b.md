@@ -1,6 +1,7 @@
 # Phase 25b - Conformance Push to 90%
 
-Status: **milestones 1 through 4 complete and published; milestone 5 is current.**
+Status: **milestones 1 through 4 complete and published; milestone 5 is locally complete and awaiting
+dev.5 publication.**
 Phase 25 is complete, so the dependency is satisfied. Milestone 4 delivered the function, class,
 parameter, arguments-object, and `super` wave specified in section 6.3 while leaving diagnosed
 generator, species, global-environment, operator, primitive, and Phase-37 residuals visible for
@@ -621,3 +622,155 @@ landing page and `https://clun.sh/install` expose dev.4, and an isolated executi
 post-publication synchronization changes only evidence and milestone status, so its SemVer impact is
 `none`; source version, installer target, artifacts, behavior, and compatibility claims remain unchanged.
 Milestone 5 is current. Phase 25b stays open because 88.797358% is below the fixed 90% gate.
+
+### 6.4 Milestone 5 synchronous-generator design
+
+Milestone 5 starts from the immutable dev.4 execution inventory rather than the original 108-row
+planning estimate. Its frozen diagnostic set contains **56 failures: 0 pass / 56 fail / 0 skip /
+0 crash**. The set is the 53 current `generators` bucket rows plus three generator-specific
+binding-pattern dependencies. The single mixed `expressions/await/for-await-of-interleaved.js`
+row is intentionally absent because its primary work bucket and semantics are async iteration,
+owned by m6.
+
+Conceptual ownership is independent of the frozen origin bucket:
+
+| Owner and root cause | Rows | Milestone-5 disposition |
+|---|---:|---|
+| m5 synchronous `GeneratorFunction` intrinsic, dynamic construction, prototypes, and subclassing | 31 | pass |
+| m5 generator-method own `.prototype` | 1 | pass |
+| m5 contextual `yield` grammar and `yield *` newline handling | 7 | pass |
+| m5 raw `yield*` iterator-result forwarding | 4 | pass |
+| m11 direct eval, `with`, and global-environment semantics | 12 | retain as visible failures |
+| Phase 37 `Math.sumPrecise` iterable control | 1 | retain as a visible failure |
+| **Total** | **56** | **43 m5-owned / 13 controls** |
+
+The two `GeneratorFunction` subclass rows are m5-owned. They directly specify the required
+`GeneratorFunction` constructor and its `new.target`-derived function prototype; they use the class
+and derived-construction machinery already completed in m4 and do not require the generic species or
+constructor-result work assigned to m7. M5 does not expand that shared protocol beyond the new
+generator intrinsic.
+
+The 12 m11 controls are the three generator-specific `eval-var-scope-syntax-err` dependencies plus
+nine generator-origin rows covering direct-eval lexical conflicts, strict named-function mutation,
+`Symbol.unscopables`, and `with`. Clun's direct eval and dynamic scope remain intentionally incomplete
+until m11; these rows stay failures and are never converted to skips. The Phase-37 Math control also
+stays a failure in the fixed denominator.
+
+#### 6.4.1 Reference behavior and root causes
+
+The pinned Bun engineering tree remains `c1076ce95effb909bfe9f596919b5dba5567d550`, which pins its
+JavaScriptCore dependency at `c9ad5813fd23bd8b98b0738abc3d037ec716aa92` in
+`scripts/build/deps/webkit.ts`. Bun delegates runtime intrinsic and resumption semantics to
+JavaScriptCore, while Bun's Rust parser handles the syntax. The pinned JSC reference graph and resume
+behavior are defined by
+`Source/JavaScriptCore/runtime/GeneratorFunctionConstructor.cpp`,
+`GeneratorFunctionPrototype.cpp`, `GeneratorPrototype.cpp`, and `JSGlobalObject.cpp`, with generator
+resumption in `Source/JavaScriptCore/builtins/GeneratorPrototype.js` and compilation in
+`Source/JavaScriptCore/bytecompiler/BytecodeGenerator.cpp`. Bun's
+`src/js_parser/parse/mod.rs::parse_yield_expr` directly preserves the no-line-terminator rule before
+the delegation star while parsing the expression after it. Bun's `test/cli/run/syntax.test.ts`
+provides public runtime smoke for generator syntax, `yield`, `yield*`,
+try/finally, prototypes, for-of, dynamic functions, and generator methods. These references define
+observable behavior only; Clun implements it independently in GPL-3.0-or-later Common Lisp.
+
+The current failures reduce to four shared defects:
+
+1. `src/engine/async/generator.lisp` creates only `%GeneratorPrototype%`. It omits the callable and
+   constructable `%GeneratorFunction%` constructor, the ordinary non-callable
+   `%GeneratorFunction.prototype%`, their descriptors and tags, and
+   `%GeneratorPrototype%.constructor`. `instantiate-function` consequently gives synchronous
+   generator functions `%Function.prototype%`, so reflection, dynamic construction, default
+   prototypes, source text, and subclassing all observe the wrong graph.
+2. Generator methods have semantic function kind `:generator` but syntactic kind `:method`.
+   `instantiate-function` keys own `.prototype` creation from the latter, so object and class
+   generator methods incorrectly omit their required fresh prototype object.
+3. `parse-yield` applies ordinary-yield line-termination after consuming `*`, rejecting the legal
+   `yield *\n expression` form. `parse-function` also parses a nested ordinary function expression's
+   name under the enclosing generator's `Yield` context, rejecting sloppy `(function yield(){})`.
+4. `%yield-delegate` extracts `IteratorValue` from every incomplete inner result and
+   `%generator-step` synthesizes a new `{ value, done: false }` object. The language requires the
+   validated inner result object itself to be forwarded while incomplete, without normalizing its
+   `done` property or touching its `value` getter. Delegated `throw` and `return` also use raw
+   property reads instead of `GetMethod`, conflating missing and non-callable methods and risking
+   incorrect iterator-close precedence.
+
+#### 6.4.2 Implementation shape
+
+M5 adds one synchronous intrinsic family modeled on Clun's existing async-generator bootstrap, not a
+second evaluator. `%GeneratorFunction%` uses `dynamic-function-source` in generator mode for both
+call and construct, honors `new.target` through `nt-prototype`, and creates nonconstructable generator
+function instances. `%GeneratorFunction.prototype%` is an ordinary non-callable object inheriting
+`%Function.prototype%`; it exposes the exact non-writable `constructor`, `prototype`, and
+`@@toStringTag` descriptors. `%GeneratorPrototype%` inherits `%IteratorPrototype%` and points its
+`constructor` at `%GeneratorFunction.prototype%`. Synchronous generator declarations, expressions,
+and methods inherit the function-prototype intrinsic and receive fresh own `.prototype` objects
+inheriting `%GeneratorPrototype%`, while remaining nonconstructable.
+
+Parser changes are grammar-context changes only. After recognizing an unseparated `yield *`, the
+delegated AssignmentExpression is parsed even when its first token follows a line terminator. An
+ordinary script function expression name is parsed with `Yield` and `Await` disabled for that binding
+while module `Await` and strict reserved-word checks remain active; generator-expression names and
+generator parameters keep their existing rejection rules.
+
+Delegation gains a distinct coroutine output kind for an already-formed iterator result. Ordinary
+`yield` remains `:yield` and is wrapped once; incomplete `yield*` results use the new kind and are
+returned verbatim by the synchronous generator driver. Completion still reads `value` exactly once
+after `done` becomes true. `%GeneratorPrototype%` inherits the exact `@@iterator` method from
+`%IteratorPrototype%` without an observable own property. Delegated `throw` and `return` use the
+shared `get-method` operation:
+missing `throw` performs iterator close with a normal completion and throws the protocol `TypeError`
+only after that close succeeds; an abrupt `return` getter/call or non-object close result propagates
+instead. Non-callable methods throw immediately, and missing `return` propagates the outer return.
+The existing explicit-`undefined` first `next` argument is preserved because generator delegation
+intentionally calls inner `next` with one argument.
+
+The emitter selects the raw result kind only for synchronous generators; async delegation retains
+its existing value path. Async-generator delegation, awaiting, request queues, and async iteration
+remain m6 and receive no m5 compatibility credit.
+Cross-realm dynamic-generator construction also remains outside m5: Test262's `cross-realm` feature is
+still skipped until callable objects carry their defining realm explicitly.
+
+#### 6.4.3 Verification and release contract
+
+Focused Lisp regressions cover the complete intrinsic graph and descriptors, dynamic call/construct,
+source text, nonconstructable instances, `new.target` subclassing, declaration/expression/method
+prototype relationships, default-prototype fallback, contextual `yield` positives and negatives,
+all four newline forms, raw delegated result identity and access order for next/return/throw, missing
+and non-callable delegated methods, close precedence, and existing try/finally behavior. The exact
+56-row entry set is a tracked fail-closed gate; the complete frozen execution pass list runs
+in the final full-corpus comparison so formerly passing GeneratorFunction, GeneratorPrototype, and
+`yield*` behavior cannot regress.
+
+M5 acceptance requires all **43 owned rows** to pass with zero crash while all 13 later-owner controls
+remain visible and separately reported. Final verification then runs the complete parse corpus, fresh
+default/eager 40,654-file execution comparison with zero fallback, frozen-pass preservation,
+monotonic pass-list regeneration from the proven ledger, deterministic bucket artifacts, build/test/
+purity, TLS and crypto, public claims, roadmap/live issue, installer/release, SemVer, shell/workflow,
+and responsive-site gates. No denominator or skip rule changes.
+
+This is backward-compatible functionality within the existing `0.1.0` minor train. Because dev.4 is
+already immutable and published, the release-bearing unit selects source/release
+`0.1.0-dev.5` and tag `v0.1.0-dev.5`. The synchronized candidate records dev.5 source behavior while
+retaining dev.4 as the last published release until the new tag, assets, Pages, and installer pass.
+
+#### 6.4.4 Local completion evidence
+
+The tracked `tests/conformance/phase-25b-m5.tsv` manifest and `make phase-25b-m5-check` make the exact
+entry boundary reproducible after global gap regeneration. The final gate reports **43 m5 pass / 12 m11
+fail / 1 Phase-37 fail / 0 skip / 0 timeout / 0 crash**. All 31 intrinsic rows, the generator-method
+prototype row, seven grammar rows, and four delegation rows pass; no control changed classification.
+
+Independent review caught and corrected four shared-edge defects before evidence generation: raw delegated
+results are routed only to synchronous generators while async generators retain their value path; module
+code keeps `await` reserved in nested function-expression names; `%GeneratorPrototype%` inherits rather
+than owns `@@iterator`; and teardown boundedly resumes or terminates a delegated generator whose inner
+`return()` yields an incomplete result. Cross-realm dynamic construction remains an explicit skipped
+architecture dependency, not an m5 claim.
+
+The final off/eager execution ledgers are byte-identical across 40,654 files at **25,051 pass / 3,112 fail /
+12,491 skip / 0 crash**. Eager mode compiled 1,021,895 forms, marked 54,494 ineligible, and recorded zero
+fallback. Eligible remains 28,163; the exact rate is 88.950041% (public 88.95%), leaving 296 passes to the
+25,347 target. The pass list grows monotonically by 43 to 25,051; residual ownership is 2,227 Phase-25b
+and 885 Phase-37; canonical ledger digest `C104919DBAF109E4` binds the regenerated artifacts. Parse
+conformance is 17,699 pass / 976 fail / 5,038 skip / 0 crash with all 17,512 frozen passes holding, and the
+Common Lisp suite is 3,187 / 0. These are local candidate results; publication evidence remains unclaimed.

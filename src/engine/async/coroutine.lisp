@@ -14,7 +14,7 @@
   (resume-sem (sb-thread:make-semaphore))   ; driver posts, coroutine waits
   (yield-sem (sb-thread:make-semaphore))     ; coroutine posts, driver waits
   in-box                         ; (mode . value): mode in {:next :throw :return}
-  out-box                        ; (kind . value): kind in {:yield :return :throw}
+  out-box                        ; (kind . value): :yield, :yield-result, :await, :return, :throw
   body                           ; zero-arg thunk running the compiled function body
   (realm *realm*))
 
@@ -57,7 +57,8 @@ mask (both required — the thread runs outside the driver's dynamic extent)."
 
 (defun coroutine-resume (co mode value)
   "Drive CO with MODE (:next/:throw/:return) + VALUE from the driver (loop) thread.
-Returns (values kind result) where kind is :yield, :return, or :throw."
+Returns (values kind result); delegated yields use :YIELD-RESULT to preserve the
+validated inner iterator-result object instead of wrapping its value again."
   (ecase (coro-state co)
     ((:suspended-start :suspended-yield)
      (setf (coro-in-box co) (cons mode value)
@@ -98,10 +99,12 @@ point, :return unwinds through finally blocks."
       (:throw (throw-js-value v))
       (:return (throw *coroutine-return-tag* (cons :return v))))))
 
-(defun coroutine-suspend-raw (co value)
+(defun coroutine-suspend-raw (co value &optional (kind :yield))
   "Like COROUTINE-SUSPEND but returns the raw injected (mode . value) cons instead of
-acting on it — yield* must forward .throw/.return to the inner iterator itself."
-  (setf (coro-out-box co) (cons :yield value)
+acting on it. KIND is :YIELD for async delegation's value path or :YIELD-RESULT for
+a synchronous generator's validated iterator-result object."
+  (ecase kind (:yield) (:yield-result))
+  (setf (coro-out-box co) (cons kind value)
         (coro-state co) :suspended-yield)
   (sb-thread:signal-semaphore (coro-yield-sem co))
   (sb-thread:wait-on-semaphore (coro-resume-sem co))
@@ -109,18 +112,23 @@ acting on it — yield* must forward .throw/.return to the inner iterator itself
 
 (defun teardown-coroutines (realm)
   "Force-finish every live coroutine and join its thread. A suspended coroutine gets
-a bounded .return() (inject → unwind through finally); a runaway one (still :running
-because the runner's timeout unwound the driver mid-resume, e.g. an infinite loop) is
-terminated. All waits are bounded so a wedged test can never hang teardown."
+a bounded sequence of .return() injections so delegated iterators may yield from
+return; a runaway or repeatedly re-yielding coroutine is terminated. All waits are
+bounded so a wedged test can never hang teardown."
   (dolist (co (realm-coroutines realm))
     (let ((th (coro-thread co)))
       (when (and th (sb-thread:thread-alive-p th))
-        (cond
-          ((member (coro-state co) '(:suspended-start :suspended-yield))
-           (setf (coro-in-box co) (cons :return +undefined+))
-           (sb-thread:signal-semaphore (coro-resume-sem co))
-           (unless (sb-thread:wait-on-semaphore (coro-yield-sem co) :timeout 0.5)
-             (ignore-errors (sb-thread:terminate-thread th))))
-          (t (ignore-errors (sb-thread:terminate-thread th))))
-        (ignore-errors (sb-thread:join-thread th :timeout 1)))))
+        (loop repeat 8
+              while (and (sb-thread:thread-alive-p th)
+                         (member (coro-state co) '(:suspended-start :suspended-yield)))
+              do (setf (coro-in-box co) (cons :return +undefined+))
+                 (sb-thread:signal-semaphore (coro-resume-sem co))
+                 (unless (sb-thread:wait-on-semaphore (coro-yield-sem co) :timeout 0.5)
+                   (return)))
+        (unless (eq (coro-state co) :completed)
+          (ignore-errors (sb-thread:terminate-thread th)))
+        (ignore-errors (sb-thread:join-thread th :timeout 1))
+        (when (sb-thread:thread-alive-p th)
+          (ignore-errors (sb-thread:terminate-thread th))
+          (ignore-errors (sb-thread:join-thread th :timeout 1))))))
   (setf (realm-coroutines realm) '()))

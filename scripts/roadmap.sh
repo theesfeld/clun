@@ -802,10 +802,41 @@ EOF
     'Canonical artifact digest: `B77552A66955B6C3`.' \
     'Off/eager ledgers are byte-identical; eager compiled 1,020,917 forms, classified 54,315 as ineligible, and fell back 0 times.' \
     'Parse gate: 23,713 total / 17,688 pass / 987 fail / 5,038 skip / 0 crash; all 17,512 frozen parser passes hold.' \
-    '`make test-lisp`: 3,120 pass / 0 fail.'; do
+    '`make test-lisp`: 3,120 pass / 0 fail.' \
+    'Pass-list gain from milestone 4: 43; gain from phase entry: 2,408.' \
+    'Canonical artifact digest: `C104919DBAF109E4`.' \
+    'Full off/eager ledgers are byte-identical; eager compiled 1,021,895 forms, classified 54,494 as ineligible, fell back 0 times, and executed 0 interpreter fallbacks.' \
+    'Parse gate: 23,713 total / 17,699 pass / 976 fail / 5,038 skip / 0 crash; all 17,512 frozen parser passes hold.' \
+    '`make test-lisp`: 3,187 pass / 0 fail.' \
+    'Tracked fail-closed m5 gate: 56 total = 43 m5 pass / 12 m11 fail / 1 Phase-37 fail / 0 skip / 0 timeout / 0 crash; m5 has no owned residual.' \
+    'Independent review corrected the sync/async raw-result boundary, module `await` context, inherited `GeneratorPrototype@@iterator` identity, exact close receiver, and bounded delegate teardown after repeated incomplete `return()` results.'; do
     grep -Fq "$expected_text" "$body" ||
       fail "Phase 25b issue #$issue_number is missing measured scope evidence: $expected_text"
   done
+
+  m5_candidate='This is local candidate evidence only. No dev.5 tag, release assets, Pages deployment, or hosted-installer result is claimed yet; dev.4 remains the last published release.'
+  if grep -Fq "$m5_candidate" "$body"; then
+    for expected_text in \
+      'Milestone-5 local release-candidate result:' \
+      '**Last published release:** `0.1.0-dev.4` / `v0.1.0-dev.4`; all four native archives, checksums, Pages, and hosted installer are verified.'; do
+      grep -Fq "$expected_text" "$body" ||
+        fail "Phase 25b issue #$issue_number is missing m5 candidate evidence: $expected_text"
+    done
+    if grep -Fq 'Milestone-5 publication evidence:' "$body"; then
+      fail "Phase 25b issue #$issue_number mixes m5 candidate and publication evidence"
+    fi
+  else
+    for expected_text in \
+      'Milestone-5 publication evidence:' \
+      'published [`v0.1.0-dev.5`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.5) as a prerelease.' \
+      'Assets: `clun-linux-x64.tar.gz`, `clun-linux-arm64.tar.gz`, `clun-darwin-x64.tar.gz`, `clun-darwin-arm64.tar.gz`, and `checksums.txt`;' \
+      'deployed the matching site and installer after release assets existed.' \
+      'installed binary reported `clun 0.1.0-dev.5`.' \
+      '**Last published release:** `0.1.0-dev.5` / `v0.1.0-dev.5`; all four native archives, checksums, Pages, and hosted installer are verified.'; do
+      grep -Fq "$expected_text" "$body" ||
+        fail "Phase 25b issue #$issue_number is missing m5 publication evidence: $expected_text"
+    done
+  fi
 
   canonical_url="https://github.com/$repo/issues/$issue_number"
   [ "$(grep -F -x -c "**Canonical issue:** $canonical_url" "$STATE_FILE" 2>/dev/null || :)" -eq 1 ] ||

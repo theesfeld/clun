@@ -53,11 +53,160 @@ object/array result reaches its prototype's toString only inside its realm)."
             done=false;result=null;var second=g();second.next(2222);done=true;second.next(5555);
             [firstReceived,firstResult,received,result].join(',')")))
 
+(define-test gen/delegation-result-record-identity
+  ;; Incomplete iterator-result objects are yielded directly. Only `done` is read by
+  ;; delegation; `value` remains observable to the caller and is not read eagerly.
+  (is string= "true,true,true,1,1,1,0,0,0,true,true,2,3,2,true,4,done,true"
+      (evj "var doneGets=[0,0,0],valueGets=[0,0,0],results=[];
+            for(var i=0;i<3;i++)(function(index){
+              var result={};
+              Object.defineProperty(result,'done',{get:function(){doneGets[index]++;return false}});
+              Object.defineProperty(result,'value',{get:function(){valueGets[index]++;return index}});
+              results.push(result);
+            })(i);
+            var position=0,nextArgs=[],throwThis,returnThis,throwArg,returnArg;
+            var iterator={
+              next:function(value){nextArgs.push(value);return position<3?results[position++]:{done:true,value:'done'}},
+              throw:function(value){throwThis=this;throwArg=value;return results[position++]},
+              return:function(value){returnThis=this;returnArg=value;return results[position++]}
+            };
+            var iterable={[Symbol.iterator]:function(){return iterator}};
+            var outer=(function*(){return yield* iterable})();
+            var a=outer.next(99),b=outer.throw(2),c=outer.return(3),d=outer.next(4);
+            [a===results[0],b===results[1],c===results[2],
+             doneGets[0],doneGets[1],doneGets[2],valueGets[0],valueGets[1],valueGets[2],
+             throwThis===iterator,returnThis===iterator,throwArg,returnArg,
+             nextArgs.length,nextArgs[0]===undefined,nextArgs[1],d.value,d.done].join(',')")))
+
+(define-test gen/delegation-get-method-semantics
+  (is string= "7,true,true,true,true,1"
+      (evj "var missingReturn={next:function(){return {done:false}},return:null};
+            var a=(function*(){yield* {[Symbol.iterator]:function(){return missingReturn}}})();
+            a.next();var completion=a.return(7);
+            var badReturn={next:function(){return {done:false}},return:1};
+            var b=(function*(){yield* {[Symbol.iterator]:function(){return badReturn}}})();
+            b.next();var returnTypeError=false;try{b.return()}catch(e){returnTypeError=e instanceof TypeError}
+            var closeCount=0,missingThrow={next:function(){return {done:false}},throw:null,
+              return:function(){closeCount++;return {done:true}}};
+            var c=(function*(){yield* {[Symbol.iterator]:function(){return missingThrow}}})();
+            c.next();var missingThrowTypeError=false;try{c.throw()}catch(e){missingThrowTypeError=e instanceof TypeError}
+            var abruptThrow={next:function(){return {done:false}},throw:1,
+              return:function(){closeCount++;return {done:true}}};
+            var d=(function*(){yield* {[Symbol.iterator]:function(){return abruptThrow}}})();
+            d.next();var badThrowTypeError=false;try{d.throw()}catch(e){badThrowTypeError=e instanceof TypeError}
+            [completion.value,completion.done,returnTypeError,missingThrowTypeError,
+             badThrowTypeError,closeCount].join(',')")))
+
+(define-test gen/delegation-missing-throw-close-precedence
+  ;; IteratorClose receives a normal completion here: its getter/call/result errors
+  ;; take precedence, and the missing-throw TypeError is created only after success.
+  (is string= "true,true,true,true,true,true,0,3"
+      (evj "var callError={},getError={},calls=0,closeReceiver,argsLength;
+            function run(kind){
+              var iterator={next:function(){return {done:false}}};
+              if(kind==='success')iterator.return=function(){calls++;closeReceiver=this===iterator;argsLength=arguments.length;return {done:true}};
+              if(kind==='call-error')iterator.return=function(){calls++;throw callError};
+              if(kind==='primitive')iterator.return=function(){calls++;return 1};
+              if(kind==='get-error')Object.defineProperty(iterator,'return',{get:function(){throw getError}});
+              var outer=(function*(){yield* {[Symbol.iterator]:function(){return iterator}}})();
+              outer.next();try{outer.throw('outer')}catch(e){return e}
+            }
+            var noReturn=run('none'),success=run('success'),callFailure=run('call-error'),
+                getterFailure=run('get-error'),primitive=run('primitive');
+            [noReturn instanceof TypeError,success instanceof TypeError,callFailure===callError,
+             getterFailure===getError,primitive instanceof TypeError,closeReceiver,
+             argsLength,calls].join(',')")))
+
 (define-test gen/realm-and-floats-in-coroutine
   ;; the coroutine thread rebinds *realm* (globals resolve) and re-enters the float mask
   (is string= "3" (evj "var n=3; function* g(){ yield n; } g().next().value"))
   (is string= "Infinity" (evj "function* g(){ yield 1/0; } g().next().value"))
   (is string= "NaN" (evj "function* g(){ yield 0/0; } String(g().next().value)")))
+
+(define-test gen/function-constructor-intrinsics
+  (let ((realm (eng:make-realm)))
+    (let* ((eng::*realm* realm)
+           (constructor (eng:intrinsic :generator-function-constructor))
+           (prototype (eng:intrinsic :generator-function-prototype))
+           (generator-prototype (eng:intrinsic :generator-prototype))
+           (constructor-prototype
+             (eng::jm-get-own-property constructor "prototype"))
+           (constructor-property (eng::jm-get-own-property prototype "constructor"))
+           (prototype-property (eng::jm-get-own-property prototype "prototype"))
+           (generator-constructor
+             (eng::jm-get-own-property generator-prototype "constructor"))
+           (tag (eng::jm-get-own-property prototype (eng:well-known :to-string-tag))))
+      (true (eng::constructor-p constructor))
+      (false (eng:callable-p prototype))
+      (false (eq constructor (eng:intrinsic :function-constructor)))
+      (false (eq prototype (eng:intrinsic :function-prototype)))
+      (is eq (eng:intrinsic :function-constructor)
+          (eng::jm-get-prototype-of constructor))
+      (is eq (eng:intrinsic :function-prototype)
+          (eng::jm-get-prototype-of prototype))
+      (is string= "GeneratorFunction" (eng:js-get constructor "name"))
+      (is eql 1d0 (eng:js-get constructor "length"))
+      (is eq prototype (eng::pd-value constructor-prototype))
+      (false (eng::pd-writable constructor-prototype))
+      (false (eng::pd-enumerable constructor-prototype))
+      (false (eng::pd-configurable constructor-prototype))
+      (is eq constructor (eng::pd-value constructor-property))
+      (false (eng::pd-writable constructor-property))
+      (false (eng::pd-enumerable constructor-property))
+      (true (eng::pd-configurable constructor-property))
+      (is eq generator-prototype (eng::pd-value prototype-property))
+      (false (eng::pd-writable prototype-property))
+      (false (eng::pd-enumerable prototype-property))
+      (true (eng::pd-configurable prototype-property))
+      (is eq prototype (eng::pd-value generator-constructor))
+      (false (eng::pd-writable generator-constructor))
+      (false (eng::pd-enumerable generator-constructor))
+      (true (eng::pd-configurable generator-constructor))
+      (is string= "GeneratorFunction" (eng::pd-value tag))
+      (false (eng::pd-writable tag))
+      (false (eng::pd-enumerable tag))
+      (true (eng::pd-configurable tag))
+      (false (eng:has-own-property generator-prototype (eng:well-known :iterator)))
+      (is eq (eng:js-get (eng:intrinsic :iterator-prototype) (eng:well-known :iterator))
+          (eng:js-get generator-prototype (eng:well-known :iterator))))))
+
+(define-test gen/function-constructor-and-prototype-wiring
+  (is string= "GeneratorFunction,1,true,true,true,true,true,true,true"
+      (evj "function* f(){};var C=f.constructor,g=C('x','yield x;yield x*2');
+            var method={*m(){}}.m,notConstructor=false;
+            try{new g()}catch(e){notConstructor=e instanceof TypeError}
+            [C.name,C.length,Object.getPrototypeOf(f)===C.prototype,
+             Object.getPrototypeOf(C)===Function,
+             Object.getPrototypeOf(C.prototype)===Function.prototype,
+             Object.getPrototypeOf(g)===C.prototype,
+             Object.getPrototypeOf(g.prototype)===C.prototype.prototype,
+             Object.getPrototypeOf(method.prototype)===C.prototype.prototype,
+             notConstructor].join(',')"))
+  (is string= "3,6,true"
+      (evj "var C=(function*(){}).constructor,g=new C('x','yield x;yield x*2'),it=g(3);
+            [it.next().value,it.next().value,it.next().done].join(',')"))
+  (is string= "true,true,false,true"
+      (evj "var C=(function*(){}).constructor,method={*m(){}}.m;
+            var d=Object.getOwnPropertyDescriptor(method,'prototype'),notConstructor=false;
+            try{new method()}catch(e){notConstructor=e instanceof TypeError}
+            [Object.prototype.hasOwnProperty.call(method,'prototype'),d.writable,
+             d.enumerable,d.configurable===false&&notConstructor].join(',')"))
+  (is string= "true,4,8"
+      (evj "var C=(function*(){}).constructor;class G extends C{};
+            var g=new G('x','yield x;yield x*2'),it=g(4);
+            [Object.getPrototypeOf(g)===G.prototype,it.next().value,it.next().value].join(',')"))
+  (is string= "function* anonymous(a, /* a */ b, c /* b */ //
+) {
+/* c */ yield yield; /* d */ //
+}"
+      (evj "var C=(function*(){}).constructor;
+            var g=C('a',' /* a */ b, c /* b */ //','/* c */ yield yield; /* d */ //');
+            Function.prototype.toString.call(g)"))
+  ;; Keep the ordinary-function path independent of the generator intrinsics.
+  (is string= "true,false"
+      (evj "var f=function(){};var C=(function*(){}).constructor;
+            [Object.getPrototypeOf(f)===Function.prototype,
+             Object.getPrototypeOf(f)===C.prototype].join(',')")))
 
 ;;; --- promises (jobs drain before eval-source returns; callbacks fill an array) --
 
@@ -203,6 +352,41 @@ object/array result reaches its prototype's toString only inside its realm)."
   (is string= "5,false"
       (evj "var out=[];var C=(async function*(){}).constructor;
             C('x','yield await x') (5).next().then(r=>out.push(r.value,r.done));out")))
+
+(define-test async/generator-delegation-normalizes-sync-result
+  ;; Unlike synchronous yield*, AsyncGeneratorYield reads `value` and creates a
+  ;; fresh result object. An abrupt getter rejects the request instead of escaping.
+  (is string= "false,7,false,1"
+      (evj "var gets=0,result={done:false,get value(){gets++;return 7}};
+            var iterable={[Symbol.iterator]:function(){return {next:function(){return result}}}};
+            var out=[];(async function*(){yield* iterable})().next()
+              .then(function(value){out.push(value===result,value.value,value.done,gets)});out"))
+  (is string= "true"
+      (evj "var thrown={},result={done:false,get value(){throw thrown}};
+            var iterable={[Symbol.iterator]:function(){return {next:function(){return result}}}};
+            var out=[];(async function*(){yield* iterable})().next()
+              .then(function(){out.push(false)},function(error){out.push(error===thrown)});out")))
+
+(define-test gen/teardown-delegated-return-can-reyield
+  (let* ((realm (eng:make-realm))
+         (eng::*realm* realm)
+         (source
+           "var iterator={next:function(){return {done:false,value:1}},return:function(){return {done:false,value:2}}};
+            var outer=(function*(){yield* {[Symbol.iterator]:function(){return iterator}}})();
+            outer.next();")
+         (coroutine nil)
+         (thread nil))
+    (unwind-protect
+         (progn
+           (eng::run-program (eng:parse-program source) realm)
+           (setf coroutine
+                 (eng::js-generator-coroutine
+                  (eng:js-get (eng:realm-global realm) "outer"))
+                 thread (eng::coro-thread coroutine))
+           (true (sb-thread:thread-alive-p thread))
+           (eng::teardown-coroutines realm)
+           (false (sb-thread:thread-alive-p thread)))
+      (eng::teardown-coroutines realm))))
 
 (define-test async/dynamic-constructor-segment-boundaries
   (is string= "SyntaxError"

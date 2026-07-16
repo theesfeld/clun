@@ -575,9 +575,14 @@ expression is not a directive — we snapshot and rewind so the caller parses it
     (advance p)
     (let ((delegate nil) (arg nil))
       (when (and (punct? p "*") (not (nl-before-p p))) (advance p) (setf delegate t))
-      (unless (or (nl-before-p p) (punct? p ")") (punct? p "]") (punct? p "}")
-                  (punct? p ",") (punct? p ";") (punct? p ":") (eq (cur-type p) :eof))
-        (setf arg (parse-assignment p)))
+      (if delegate
+          ;; The no-LineTerminator restriction is between `yield` and `*`, not
+          ;; between `*` and its required AssignmentExpression.
+          (setf arg (parse-assignment p))
+          (unless (or (nl-before-p p) (punct? p ")") (punct? p "]") (punct? p "}")
+                      (punct? p ",") (punct? p ";") (punct? p ":")
+                      (eq (cur-type p) :eof))
+            (setf arg (parse-assignment p))))
       (when (and delegate (null arg)) (syntax-error p "yield* requires an argument"))
       (finish (make-yield-expression :argument arg :delegate delegate)
               start (parser-prev-end p)))))
@@ -1001,7 +1006,23 @@ tagged templates allow them (TRV survives, TV = undefined)."
     (let ((gen (when (punct? p "*") (advance p) t))
           (id nil))
       (when (name-tok? p)
-        (setf id (parse-binding-identifier p)))
+        (if declaration
+            ;; Declarations inherit the surrounding Yield/Await grammar
+            ;; parameters. In sloppy script code, `function* yield(){}` is
+            ;; consequently valid.
+            (setf id (parse-binding-identifier p))
+            ;; Function-expression names use the expression's own function
+            ;; kind. An ordinary expression resets both contexts, while a
+            ;; generator/async expression reserves its contextual keyword.
+            (let ((old-y (parser-allow-yield p))
+                  (old-a (parser-allow-await p)))
+              (setf (parser-allow-yield p) gen
+                    (parser-allow-await p)
+                    (or async (eq (parser-source-type p) :module)))
+              (unwind-protect
+                   (setf id (parse-binding-identifier p))
+                (setf (parser-allow-yield p) old-y
+                      (parser-allow-await p) old-a)))))
       ;; `export default function(){}` is an anonymous declaration (ALLOW-ANON).
       (when (and declaration (null id) (not allow-anon))
         (syntax-error p "function declaration requires a name"))

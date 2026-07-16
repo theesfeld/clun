@@ -9,13 +9,15 @@ CONFORMANCE_SOURCE_REVISION ?= $(shell sh scripts/conformance-source-revision.sh
 CONFORMANCE_GAPS           ?= tests/conformance/exec-gaps.tsv
 CONFORMANCE_REPORT         ?= docs/conformance/test262-execution.md
 CONFORMANCE_VERIFY_DIR     ?= tmp-test/conformance-buckets-verify
+PHASE_25B_M5_MANIFEST      ?= tests/conformance/phase-25b-m5.tsv
 
 .PHONY: all build test test-lisp test-js test-tls test-crypto registry-fixture purity bench \
 		bench-check compile-tier-ceiling test-installer test-release-live-check \
 		public-claims-check version-transition-check test-version-transition-check \
 		roadmap-check roadmap-sync \
 		roadmap-verify-live \
-		conformance-exec-compare conformance-buckets conformance-buckets-check \
+		conformance-exec-compare phase-25b-m5-check \
+		conformance-buckets conformance-buckets-check \
 		conformance-buckets-verify clean
 
 all: build
@@ -71,6 +73,12 @@ conformance:
 ## fresh realm, both modes; gates on 0 crashes + no exec-passlist regressions.
 conformance-exec:
 	CLUN_EXEC=1 $(SBCL) --dynamic-space-size 6144 $(SBCL_FLAGS) --load scripts/test262.lisp
+
+## phase-25b-m5-check -- require the frozen synchronous-generator slice to have
+## exactly 43 owned passes while its 12 m11 and one Phase-37 controls still fail.
+phase-25b-m5-check:
+	CLUN_PHASE_25B_M5_MANIFEST='$(PHASE_25B_M5_MANIFEST)' \
+		$(SBCL) --dynamic-space-size 6144 $(SBCL_FLAGS) --load scripts/phase-25b-m5.lisp
 
 ## conformance-exec-compare -- run the complete execution corpus with the COMPILE
 ## tier off and eager, then require byte-identical per-file classifications.

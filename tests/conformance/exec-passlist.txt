@@ -1,5 +1,5 @@
 # test262 execution-phase pass-list (PLAN.md §3.1). Sorted; only grows.
-# Regenerate: CLUN_GEN=1 CLUN_EXEC=1 make conformance. 25008 entries.
+# Regenerate: CLUN_GEN=1 CLUN_EXEC=1 make conformance. 25051 entries.
 arguments-object/10.5-7-b-2-s.js
 arguments-object/10.5-7-b-3-s.js
 arguments-object/10.5-7-b-4-s.js
@@ -4466,6 +4466,7 @@ built-ins/Function/prototype/property-order.js
 built-ins/Function/prototype/toString/AsyncFunction.js
 built-ins/Function/prototype/toString/AsyncGenerator.js
 built-ins/Function/prototype/toString/Function.js
+built-ins/Function/prototype/toString/GeneratorFunction.js
 built-ins/Function/prototype/toString/S15.3.4.2_A10.js
 built-ins/Function/prototype/toString/S15.3.4.2_A11.js
 built-ins/Function/prototype/toString/S15.3.4.2_A12.js
@@ -4527,20 +4528,37 @@ built-ins/Function/prototype/toString/setter-object.js
 built-ins/Function/prototype/toString/unicode.js
 built-ins/GeneratorFunction/extensibility.js
 built-ins/GeneratorFunction/has-instance.js
+built-ins/GeneratorFunction/instance-construct-throws.js
 built-ins/GeneratorFunction/instance-length.js
 built-ins/GeneratorFunction/instance-name.js
+built-ins/GeneratorFunction/instance-prototype.js
+built-ins/GeneratorFunction/instance-restricted-properties.js
+built-ins/GeneratorFunction/instance-yield-expr-in-param.js
+built-ins/GeneratorFunction/invoked-as-constructor-no-arguments.js
+built-ins/GeneratorFunction/invoked-as-function-multiple-arguments.js
+built-ins/GeneratorFunction/invoked-as-function-no-arguments.js
+built-ins/GeneratorFunction/invoked-as-function-single-argument.js
 built-ins/GeneratorFunction/is-a-constructor.js
 built-ins/GeneratorFunction/length.js
+built-ins/GeneratorFunction/name.js
+built-ins/GeneratorFunction/prototype/Symbol.toStringTag.js
+built-ins/GeneratorFunction/prototype/constructor.js
 built-ins/GeneratorFunction/prototype/extensibility.js
+built-ins/GeneratorFunction/prototype/not-callable.js
 built-ins/GeneratorFunction/prototype/prop-desc.js
+built-ins/GeneratorFunction/prototype/prototype.js
 built-ins/GeneratorPrototype/Symbol.toStringTag.js
+built-ins/GeneratorPrototype/constructor.js
 built-ins/GeneratorPrototype/next/consecutive-yields.js
 built-ins/GeneratorPrototype/next/context-method-invocation.js
 built-ins/GeneratorPrototype/next/from-state-executing.js
+built-ins/GeneratorPrototype/next/length.js
 built-ins/GeneratorPrototype/next/lone-return.js
 built-ins/GeneratorPrototype/next/lone-yield.js
+built-ins/GeneratorPrototype/next/name.js
 built-ins/GeneratorPrototype/next/no-control-flow.js
 built-ins/GeneratorPrototype/next/not-a-constructor.js
+built-ins/GeneratorPrototype/next/property-descriptor.js
 built-ins/GeneratorPrototype/next/result-prototype.js
 built-ins/GeneratorPrototype/next/return-yield-expr.js
 built-ins/GeneratorPrototype/next/this-val-not-generator.js
@@ -4548,7 +4566,10 @@ built-ins/GeneratorPrototype/next/this-val-not-object.js
 built-ins/GeneratorPrototype/return/from-state-completed.js
 built-ins/GeneratorPrototype/return/from-state-executing.js
 built-ins/GeneratorPrototype/return/from-state-suspended-start.js
+built-ins/GeneratorPrototype/return/length.js
+built-ins/GeneratorPrototype/return/name.js
 built-ins/GeneratorPrototype/return/not-a-constructor.js
+built-ins/GeneratorPrototype/return/property-descriptor.js
 built-ins/GeneratorPrototype/return/this-val-not-generator.js
 built-ins/GeneratorPrototype/return/this-val-not-object.js
 built-ins/GeneratorPrototype/return/try-catch-before-try.js
@@ -4568,7 +4589,10 @@ built-ins/GeneratorPrototype/return/try-finally-within-try.js
 built-ins/GeneratorPrototype/throw/from-state-completed.js
 built-ins/GeneratorPrototype/throw/from-state-executing.js
 built-ins/GeneratorPrototype/throw/from-state-suspended-start.js
+built-ins/GeneratorPrototype/throw/length.js
+built-ins/GeneratorPrototype/throw/name.js
 built-ins/GeneratorPrototype/throw/not-a-constructor.js
+built-ins/GeneratorPrototype/throw/property-descriptor.js
 built-ins/GeneratorPrototype/throw/this-val-not-generator.js
 built-ins/GeneratorPrototype/throw/this-val-not-object.js
 built-ins/GeneratorPrototype/throw/try-catch-before-try.js
@@ -8566,6 +8590,7 @@ built-ins/Object/prototype/toString/name.js
 built-ins/Object/prototype/toString/no-prototype-property.js
 built-ins/Object/prototype/toString/not-a-constructor.js
 built-ins/Object/prototype/toString/prop-desc.js
+built-ins/Object/prototype/toString/symbol-tag-generators-builtin.js
 built-ins/Object/prototype/toString/symbol-tag-non-str-bigint.js
 built-ins/Object/prototype/toString/symbol-tag-non-str-builtin.js
 built-ins/Object/prototype/toString/symbol-tag-non-str.js
@@ -17062,6 +17087,7 @@ expressions/function/scope-paramsbody-var-close.js
 expressions/function/scope-paramsbody-var-open.js
 expressions/generators/arguments-with-arguments-fn.js
 expressions/generators/arguments-with-arguments-lex.js
+expressions/generators/default-proto.js
 expressions/generators/dflt-params-abrupt.js
 expressions/generators/dflt-params-arg-val-not-undefined.js
 expressions/generators/dflt-params-arg-val-undefined.js
@@ -17265,6 +17291,7 @@ expressions/generators/params-trailing-comma-multiple.js
 expressions/generators/params-trailing-comma-single.js
 expressions/generators/prototype-own-properties.js
 expressions/generators/prototype-property-descriptor.js
+expressions/generators/prototype-relation-to-function.js
 expressions/generators/prototype-typeof.js
 expressions/generators/prototype-uniqueness.js
 expressions/generators/prototype-value.js
@@ -17278,6 +17305,7 @@ expressions/generators/scope-param-rest-elem-var-close.js
 expressions/generators/scope-param-rest-elem-var-open.js
 expressions/generators/scope-paramsbody-var-close.js
 expressions/generators/scope-paramsbody-var-open.js
+expressions/generators/yield-as-function-expression-binding-identifier.js
 expressions/generators/yield-as-identifier-in-nested-function.js
 expressions/generators/yield-as-literal-property-name.js
 expressions/generators/yield-as-property-name.js
@@ -17287,6 +17315,7 @@ expressions/generators/yield-identifier-non-strict.js
 expressions/generators/yield-newline.js
 expressions/generators/yield-spread-arr-multiple.js
 expressions/generators/yield-spread-arr-single.js
+expressions/generators/yield-star-before-newline.js
 expressions/greater-than-or-equal/S11.8.4_A1.js
 expressions/greater-than-or-equal/S11.8.4_A2.1_T1.js
 expressions/greater-than-or-equal/S11.8.4_A2.1_T2.js
@@ -18595,6 +18624,7 @@ expressions/object/method-definition/generator-prop-name-eval-error.js
 expressions/object/method-definition/generator-prop-name-yield-expr.js
 expressions/object/method-definition/generator-prop-name-yield-id.js
 expressions/object/method-definition/generator-property-desc.js
+expressions/object/method-definition/generator-prototype-prop.js
 expressions/object/method-definition/generator-prototype.js
 expressions/object/method-definition/generator-return.js
 expressions/object/method-definition/generator-super-prop-body.js
@@ -18633,6 +18663,7 @@ expressions/object/method-definition/params-dflt-meth-args-unmapped.js
 expressions/object/method-definition/params-dflt-meth-ref-arguments.js
 expressions/object/method-definition/yield-as-expression-with-rhs.js
 expressions/object/method-definition/yield-as-expression-without-rhs.js
+expressions/object/method-definition/yield-as-function-expression-binding-identifier.js
 expressions/object/method-definition/yield-as-generator-method-binding-identifier.js
 expressions/object/method-definition/yield-as-identifier-in-nested-function.js
 expressions/object/method-definition/yield-as-literal-property-name.js
@@ -18641,6 +18672,7 @@ expressions/object/method-definition/yield-as-statement.js
 expressions/object/method-definition/yield-as-yield-operand.js
 expressions/object/method-definition/yield-newline.js
 expressions/object/method-definition/yield-return.js
+expressions/object/method-definition/yield-star-before-newline.js
 expressions/object/method.js
 expressions/object/not-defined.js
 expressions/object/prop-def-id-get-error.js
@@ -19133,6 +19165,7 @@ expressions/yield/rhs-unresolvable.js
 expressions/yield/rhs-yield.js
 expressions/yield/star-array.js
 expressions/yield/star-in-rltn-expr.js
+expressions/yield/star-iterable.js
 expressions/yield/star-return-is-null.js
 expressions/yield/star-rhs-iter-get-call-err.js
 expressions/yield/star-rhs-iter-get-call-non-obj.js
@@ -19142,10 +19175,12 @@ expressions/yield/star-rhs-iter-nrml-next-call-non-obj.js
 expressions/yield/star-rhs-iter-nrml-next-get-err.js
 expressions/yield/star-rhs-iter-nrml-next-invoke.js
 expressions/yield/star-rhs-iter-nrml-res-done-err.js
+expressions/yield/star-rhs-iter-nrml-res-done-no-value.js
 expressions/yield/star-rhs-iter-nrml-res-value-err.js
 expressions/yield/star-rhs-iter-nrml-res-value-final.js
 expressions/yield/star-rhs-iter-rtrn-no-rtrn.js
 expressions/yield/star-rhs-iter-rtrn-res-done-err.js
+expressions/yield/star-rhs-iter-rtrn-res-done-no-value.js
 expressions/yield/star-rhs-iter-rtrn-res-value-err.js
 expressions/yield/star-rhs-iter-rtrn-res-value-final.js
 expressions/yield/star-rhs-iter-rtrn-rtrn-call-err.js
@@ -19153,6 +19188,7 @@ expressions/yield/star-rhs-iter-rtrn-rtrn-call-non-obj.js
 expressions/yield/star-rhs-iter-rtrn-rtrn-get-err.js
 expressions/yield/star-rhs-iter-rtrn-rtrn-invoke.js
 expressions/yield/star-rhs-iter-thrw-res-done-err.js
+expressions/yield/star-rhs-iter-thrw-res-done-no-value.js
 expressions/yield/star-rhs-iter-thrw-res-value-err.js
 expressions/yield/star-rhs-iter-thrw-res-value-final.js
 expressions/yield/star-rhs-iter-thrw-thrw-call-err.js
@@ -20303,6 +20339,7 @@ statements/class/definition/methods-gen-yield-as-property-name.js
 statements/class/definition/methods-gen-yield-as-statement.js
 statements/class/definition/methods-gen-yield-as-yield-operand.js
 statements/class/definition/methods-gen-yield-newline.js
+statements/class/definition/methods-gen-yield-star-before-newline.js
 statements/class/definition/methods-named-eval-arguments.js
 statements/class/definition/methods-restricted-properties.js
 statements/class/definition/methods.js
@@ -21537,6 +21574,8 @@ statements/class/subclass/builtin-objects/Function/regular-subclassing.js
 statements/class/subclass/builtin-objects/Function/super-must-be-called.js
 statements/class/subclass/builtin-objects/GeneratorFunction/instance-length.js
 statements/class/subclass/builtin-objects/GeneratorFunction/instance-name.js
+statements/class/subclass/builtin-objects/GeneratorFunction/instance-prototype.js
+statements/class/subclass/builtin-objects/GeneratorFunction/regular-subclassing.js
 statements/class/subclass/builtin-objects/GeneratorFunction/super-must-be-called.js
 statements/class/subclass/builtin-objects/Map/regular-subclassing.js
 statements/class/subclass/builtin-objects/Map/super-must-be-called.js
@@ -24165,6 +24204,7 @@ statements/generators/arguments-with-arguments-fn.js
 statements/generators/arguments-with-arguments-lex.js
 statements/generators/cptn-decl.js
 statements/generators/declaration.js
+statements/generators/default-proto.js
 statements/generators/dflt-params-abrupt.js
 statements/generators/dflt-params-arg-val-not-undefined.js
 statements/generators/dflt-params-arg-val-undefined.js
@@ -24358,6 +24398,7 @@ statements/generators/params-trailing-comma-multiple.js
 statements/generators/params-trailing-comma-single.js
 statements/generators/prototype-own-properties.js
 statements/generators/prototype-property-descriptor.js
+statements/generators/prototype-relation-to-function.js
 statements/generators/prototype-typeof.js
 statements/generators/prototype-uniqueness.js
 statements/generators/prototype-value.js
@@ -24369,6 +24410,7 @@ statements/generators/scope-param-rest-elem-var-close.js
 statements/generators/scope-param-rest-elem-var-open.js
 statements/generators/scope-paramsbody-var-close.js
 statements/generators/scope-paramsbody-var-open.js
+statements/generators/yield-as-function-expression-binding-identifier.js
 statements/generators/yield-as-generator-declaration-binding-identifier.js
 statements/generators/yield-as-identifier-in-nested-function.js
 statements/generators/yield-as-literal-property-name.js
@@ -24379,6 +24421,7 @@ statements/generators/yield-identifier-non-strict.js
 statements/generators/yield-newline.js
 statements/generators/yield-spread-arr-multiple.js
 statements/generators/yield-spread-arr-single.js
+statements/generators/yield-star-before-newline.js
 statements/if/S12.5_A1.1_T1.js
 statements/if/S12.5_A1.1_T2.js
 statements/if/S12.5_A1.2_T1.js

@@ -84,6 +84,9 @@ scope) makes this NIL automatically — the shadowing scope has no import mark."
 (defvar *current-return-tag* nil
   "The CL catch tag `return` throws to; bound while a function body is compiled.")
 
+(defvar *current-generator-kind* nil
+  "The enclosing generator kind (:SYNC or :ASYNC) while its body is compiled.")
+
 (defun cs-declare (scope name)
   (or (gethash name (cs-names scope))
       (setf (gethash name (cs-names scope)) (prog1 (cs-count scope) (incf (cs-count scope))))))
@@ -1125,7 +1128,10 @@ the live coroutine that yield/await suspend."
                   (comp-strict body-comp) strict
                   (comp-module body-comp) (comp-module comp))
             ;; compile param binders + body with this function's return tag active
-            (let ((*current-return-tag* return-tag))
+            (let ((*current-return-tag* return-tag)
+                  (*current-generator-kind*
+                    (cond ((and generator async) :async)
+                          (generator :sync))))
               (setf param-binders
                     (loop for parameter in params
                           for index from 0
@@ -1387,10 +1393,13 @@ the live coroutine that yield/await suspend."
 (defun compile-yield (comp node)
   (let ((arg-fn (and (yield-expression-argument node)
                      (compile-node comp (yield-expression-argument node))))
-        (coro-ref (compile-coro-ref comp)))
+        (coro-ref (compile-coro-ref comp))
+        (generator-kind *current-generator-kind*))
     (if (yield-expression-delegate node)
         (lambda (env)
-          (%yield-delegate (funcall coro-ref env) (get-iterator (funcall arg-fn env))))
+          (%yield-delegate (funcall coro-ref env)
+                           (get-iterator (funcall arg-fn env))
+                           generator-kind))
         (lambda (env)
           (coroutine-suspend (funcall coro-ref env) :yield
                              (if arg-fn (funcall arg-fn env) +undefined+))))))
@@ -1413,7 +1422,7 @@ then Await each yielded value (§27.1.4.1)."
         (return-from get-iterator (values (get-iterator-record obj sync-fn) async))))
     (values (get-iterator-record obj iter-fn) nil)))
 
-(defun %yield-delegate (co iter)
+(defun %yield-delegate (co iter generator-kind)
   "yield* (§15.5.5): forward next/throw/return to the inner iterator, yielding each
 value to the outer driver and returning the inner iterator's final value."
   (let ((sent (cons :next +undefined+)))
@@ -1424,20 +1433,31 @@ value to the outer driver and returning the inner iterator's final value."
                 (:next (iterator-next iter v))
                 (:throw
                  (let* ((iterator (iterator-record-iterator iter))
-                        (m (js-get iterator "throw")))
-                   (if (callable-p m) (js-call m iterator (list v))
-                       (progn (iterator-close iter) (throw-type-error "iterator has no throw method")))))
+                        (m (get-method iterator "throw")))
+                   (if (js-undefined-p m)
+                       (progn
+                         ;; The protocol TypeError is created only after IteratorClose
+                         ;; completes normally; a return getter/call/result error wins.
+                         (iterator-close iter)
+                         (throw-type-error "iterator has no throw method"))
+                       (js-call m iterator (list v)))))
                 (:return
                  (let* ((iterator (iterator-record-iterator iter))
-                        (m (js-get iterator "return")))
-                   (if (callable-p m) (js-call m iterator (list v))
-                       (throw *coroutine-return-tag* (cons :return v))))))))
+                        (m (get-method iterator "return")))
+                   (if (js-undefined-p m)
+                       (throw *coroutine-return-tag* (cons :return v))
+                       (js-call m iterator (list v))))))))
         (unless (js-object-p result) (throw-type-error "iterator result is not an object"))
         (when (iterator-complete iter result)
           (let ((rv (iterator-value iter result)))
             ;; a forwarded .return whose inner iterator finished completes the outer generator
             (if (eq mode :return) (throw *coroutine-return-tag* (cons :return rv)) (return rv))))
-        (setf sent (coroutine-suspend-raw co (iterator-value iter result)))))))
+        (setf sent
+              (if (eq generator-kind :async)
+                  ;; Preserve the existing async path. Full Await/queue semantics are m6.
+                  (coroutine-suspend-raw co (iterator-value iter result) :yield)
+                  ;; Sync yield* exposes this validated result object by identity.
+                  (coroutine-suspend-raw co result :yield-result)))))))
 
 ;;; --- statements -------------------------------------------------------------
 
