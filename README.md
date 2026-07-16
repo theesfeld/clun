@@ -8,11 +8,11 @@ surface, one gated capability at a time. Performance targets are workload-specif
 Clun does not claim blanket speed parity with Bun.
 
 > **Status: pre-alpha, under active construction.** Phase 25 performance work is complete.
-> [Phase 25b milestone 4](https://github.com/theesfeld/clun/issues/57) implementation is complete,
-> with its verified local evidence summarized below. Its release target is `v0.1.0-dev.4` for Linux
-> and macOS on x64 and arm64; remaining remote acceptance, tag, asset, Pages, and hosted-installer evidence
-> stays tracked on the canonical issue. The preceding `v0.1.0-dev.3` publication remains verified
-> historical evidence.
+> Phase 25b milestone 4 is published as
+> [`v0.1.0-dev.4`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.4) for Linux and macOS
+> on x64 and arm64. All four native archives, their checksums, Pages, and the hosted shell installer
+> are verified. [Phase 25b milestone 5](https://github.com/theesfeld/clun/issues/57), synchronous
+> generators and `yield*`, is current and unstarted; the phase remains open at 88.79%.
 > Clun executes its scoped JS/TS surface, but it is not a drop-in Node.js or Bun replacement.
 > The issue is the canonical live record, `PLAN.md` is the technical contract, and `STATE.md` is
 > the local resume checklist.

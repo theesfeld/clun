@@ -1,9 +1,10 @@
 # Phase 25b - Conformance Push to 90%
 
-Status: **milestones 1, 2, and 3 complete; milestone 4 design and implementation are active.**
-Phase 25 is complete, so the dependency is satisfied. Milestone 3 delivered the shared
-IteratorRecord and binding/destructuring wave specified in section 6.2 while leaving diagnosed
-function/class, species, global-environment, and Phase-37 residuals visible for their later owners.
+Status: **milestones 1 through 4 complete and published; milestone 5 is current.**
+Phase 25 is complete, so the dependency is satisfied. Milestone 4 delivered the function, class,
+parameter, arguments-object, and `super` wave specified in section 6.3 while leaving diagnosed
+generator, species, global-environment, operator, primitive, and Phase-37 residuals visible for
+their later owners.
 
 ## 1. Scope and invariant
 
@@ -393,8 +394,8 @@ assigns 2,775 failures to Phase 25b and 884 to Phase 37, and its canonical artif
 so its disposition remains SemVer minor. The original `v0.1.0-dev.2` tag passed master CI, but the
 darwin-arm64 release builder exposed an inverted FD-bound test before any release assets were
 published. The issue-59/60 correction was published as immutable prerelease `0.1.0-dev.3` without
-changing the m3 conformance evidence. Dev.3 is verified; milestone 4 is the current queued milestone
-and has not started.
+changing the m3 conformance evidence. At the verified dev.3 handoff, milestone 4 became the queued,
+unstarted milestone.
 
 #### 6.2.2 Release-gate and loop-ownership correction
 
@@ -433,12 +434,12 @@ has no GitHub release or assets.
 
 ### 6.3 Milestone 4 implementation design
 
-Milestone 4 owns functions, classes, parameters, `super`, and arguments. Its current frozen-origin
-credit slice is exactly 390 live Phase-25b failures from `exec-gaps.tsv`: 213
-`functions-arguments` rows and 177 `classes` rows. The original 394-row planning pool has already
-lost four rows to shared m3 work, so 394 is not reused as a current failure claim. Twelve current
-rows in the same two work buckets are Phase-37 controls and remain visible but are excluded from m4
-credit. A further 28 still-failing m3-origin controls were diagnosed after m3 as m4 dependencies:
+Milestone 4 owns functions, classes, parameters, `super`, and arguments. Its pre-implementation
+frozen-origin credit slice was exactly 390 live Phase-25b failures from `exec-gaps.tsv`: 213
+`functions-arguments` rows and 177 `classes` rows. The original 394-row planning pool had already
+lost four rows to shared m3 work, so 394 was not reused as a current failure claim. Twelve then-current
+rows in the same two work buckets were Phase-37 controls and remained visible but excluded from m4
+credit. A further 28 m3-origin controls still failing at that handoff were diagnosed as m4 dependencies:
 27 async function/arrow/method default-parameter rows and
 `expressions/object/method-definition/generator-super-prop-param.js`. The focused diagnostic
 workset is therefore 418 Phase-25b failures, while accounting remains disjoint under their frozen
@@ -515,7 +516,7 @@ byte-identical off/eager classifications with zero eager fallback, parse conform
 early-error changes, monotonic pass-list regeneration only from the proven final ledger, and fresh
 gap/report artifacts. The fixed denominator remains 28,163 and no skip rule changes. M4 adds
 backward-compatible language behavior inside the already selected `0.1.0` minor train. Because
-`v0.1.0-dev.3` is immutable and published, the release target is exactly `0.1.0-dev.4` under
+`v0.1.0-dev.3` was immutable and published, m4 selected exactly `0.1.0-dev.4` under
 `v0.1.0-dev.4`.
 
 #### 6.3.1 Milestone 4 local completion evidence
@@ -601,9 +602,22 @@ and 885 to Phase 37 and has canonical digest `B77552A66955B6C3`.
 
 The parser gate is 23,713 total files: 17,688 live pass, 987 fail, 5,038 skip, and zero crash, with all
 17,512 frozen parser passes holding. `make test-lisp` passes 3,120 assertions with zero failures.
-These are local candidate results, not publication evidence. The full local acceptance stack, including
-the post-review 40,654-file off/eager comparison and four-viewport Playwright audit, is green. M4 remains
-current while publication gates run. The unit is SemVer minor within the existing train and targets
-`0.1.0-dev.4` / `v0.1.0-dev.4`; required master CI, tag, release assets/checksums, Pages, and hosted
-installer verification remain unclaimed. Phase 25b stays open because 88.797358% is below 90%, and m5
-becomes current only after m4 publication is verified.
+These were the final local candidate results. The full local acceptance stack, including the post-review
+40,654-file off/eager comparison and four-viewport Playwright audit, was green before publication. The
+release-bearing unit is SemVer minor within the existing train and selected `0.1.0-dev.4` under
+`v0.1.0-dev.4`.
+
+#### 6.3.2 Milestone 4 publication evidence
+
+Candidate `486e0d8f15a0dca374b1e42bda7f5431a0cca31f` passed CI run `29471177997` and Documentation
+run `29471177983`. The annotated `v0.1.0-dev.4` tag then passed release run `29471399138`: linux-x64,
+linux-arm64, darwin-x64, and darwin-arm64 all built and verified, and the published prerelease contains
+the four native archives plus `checksums.txt`. A fresh independent download passed `sha256sum -c` for
+all four archives.
+
+Pages run `29471177985` waited for those matching assets and deployed the site and installer. The hosted
+landing page and `https://clun.sh/install` expose dev.4, and an isolated execution of
+`curl -fsSL https://clun.sh/install | sh` installed a binary reporting `clun 0.1.0-dev.4`. This
+post-publication synchronization changes only evidence and milestone status, so its SemVer impact is
+`none`; source version, installer target, artifacts, behavior, and compatibility claims remain unchanged.
+Milestone 5 is current. Phase 25b stays open because 88.797358% is below the fixed 90% gate.

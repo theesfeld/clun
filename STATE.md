@@ -5,12 +5,12 @@ Update before every commit and keep it consistent with PLAN.md, DECISIONS.md, RE
 
 ---
 
-## Current phase: **25b — Conformance push to >= 90%**  (IN PROGRESS — m1, m2, and m3 DONE; dev.3 PUBLISHED; m4 IMPLEMENTED LOCALLY / ACCEPTANCE IN PROGRESS)
+## Current phase: **25b — Conformance push to >= 90%**  (IN PROGRESS — m1 through m4 DONE; dev.4 PUBLISHED; m5 CURRENT)
 
 **Canonical issue:** https://github.com/theesfeld/clun/issues/57
-**Current Phase 25b milestone:** `m4`
-**Current completed unit:** m4 implementation plus final local conformance evidence; publication is pending
-**Current milestone scope:** m4 functions, classes, parameters, `super`, and arguments; local acceptance gates in progress
+**Current Phase 25b milestone:** `m5`
+**Current completed unit:** m4 implementation, release assets, Pages, checksums, and hosted installer verified
+**Current milestone scope:** m5 synchronous generators and `yield*`; design and implementation have not started
 
 **Phase 25 COMPLETE** (Performance pass; deps: all engine phases ✓; milestoned). Final default-tier
 best-of-nine results vs the frozen Phase-24 baseline are richards **6.68×**, deltablue **3.85×**, and splay
@@ -147,8 +147,8 @@ all four checksums. Pages **29453691036** deployed the matching site and install
 linux-x64 install reported `clun 0.1.0-dev.3`. Issue #60 is closed. This was the verified handoff point
 before m4 implementation began.
 
-**Phase 25b milestone 4 IMPLEMENTED LOCALLY — function/class semantics and local acceptance complete;
-publication pending.** The implementation now has explicit callable and constructor kinds, FunctionEnvironment
+**Phase 25b milestone 4 DONE — function/class semantics and dev.4 publication verified.** The implementation
+now has explicit callable and constructor kinds, FunctionEnvironment
 state, parameter/body/name environments, mapped and unmapped arguments exotic objects, bound functions,
 Function/AsyncFunction intrinsics, exact callable/class source text, class heritage and derived-construction
 rules, and object/class `super` call/property semantics. Related shared fixes preserve `new.target` through
@@ -182,12 +182,14 @@ default class constructors may use an accepted native-function source, and gener
 correctly occurs when the generator is called rather than on first `.next()`.
 
 All local build/test/purity, parse/off/eager conformance, TLS/crypto, public-claims, roadmap, installer,
-SemVer, and four-viewport Playwright gates are green. M4 remains the current milestone while the publication
-lifecycle runs. Its SemVer
-impact is **minor** within the selected `0.1.0` train, with source/release version `0.1.0-dev.4` and immutable
-target tag `v0.1.0-dev.4`. Required master checks, the tag, four native archives plus checksums, Pages, and
-the hosted installer are not yet claimed. Issue #57 remains open because **88.797358% < 90%**; m5 becomes
-current only after m4 publication is verified.
+SemVer, and four-viewport Playwright gates are green. Candidate `486e0d8f` passed CI
+**29471177997** and Documentation **29471177983**. Annotated tag `v0.1.0-dev.4` passed release run
+**29471399138** across linux-x64, linux-arm64, darwin-x64, and darwin-arm64; the release contains all four
+native archives plus `checksums.txt`, and an independent download verified every SHA-256. Pages run
+**29471177985** deployed the matching site and installer. An isolated
+`curl -fsSL https://clun.sh/install | sh` install reported `clun 0.1.0-dev.4`. M4's release-bearing unit was
+SemVer **minor**; this evidence-only handoff is **none**, so the source and installer remain
+`0.1.0-dev.4`. Issue #57 remains open because **88.797358% < 90%**; m5 is now current.
 
 **Milestone 1 DONE — "measure first":** the benchmark suite + the frozen Phase-24 baseline + the design doc
 (no engine change). `bench/{richards,deltablue,splay}.js` — the Octane trio ported to clun (self-contained,
@@ -384,10 +386,10 @@ richards **539.3/444.6 ms**, deltablue **764.5/694.6 ms**, splay **283.9/249.7 m
 out of the saved image (~125 MiB final vs 512–632 MiB before). Independent adversarial review findings are
 resolved: eager conformance now requires fallback=0 and the compare harness pins trace=0.
 
-**Next action:** execute Phase 25b milestone 4 only: the functions, classes, parameters, `super`, and
-arguments slice specified in `docs/design/phase-25b.md`. The immutable dev.3 release, all five assets,
-checksums, Pages, and hosted installer are verified. Do not rerun m3, begin m5, or change the fixed
-denominator/skip set. M4 has not started in this source revision.
+**Next action:** execute Phase 25b milestone 5 only: design, remeasure, and implement the synchronous
+generator and `yield*` slice from the current dev.4 ledger. Dev.4, all five release assets, checksums,
+Pages, and the hosted installer are verified. M5 has not started in this source revision. Do not repeat
+m4, begin m6, or change the fixed denominator/skip set.
 
 **G3 scope concern — RESOLVED (2026-07-14, operator-approved split):** the >=90% curated-test262 target is
 split out of Phase 25 into a new **Phase 25b — Conformance push to >=90%** (PLAN §5). Phase 25 is now closed

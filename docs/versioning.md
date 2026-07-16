@@ -106,6 +106,6 @@ assets and checksums, Pages, and the hosted installer. Issue #60 is closed.
 Phase 25b milestone 4 adds backward-compatible function, class, parameter-environment, `super`,
 arguments-object, bound-function, and callable-metadata behavior. Its impact is `minor`. The
 release-bearing unit selects `0.1.0-dev.4` under tag `v0.1.0-dev.4` within the existing `0.1.0`
-train; the ASDF core therefore remains `0.1.0`. Source, installer, README, and site surfaces select
-the dev.4 candidate before publication. The canonical issue records the remaining master-check,
-immutable-tag, release-asset, checksum, Pages, and hosted-installer evidence as each gate completes.
+train; the ASDF core therefore remains `0.1.0`. The dev.4 master checks, annotated tag, all four native
+archives, checksums, Pages deployment, and hosted installer are verified. The post-publication handoff
+to milestone 5 is evidence-only with impact `none`, so it retains the dev.4 source and installer target.

@@ -2225,3 +2225,18 @@ After the final source-text fix, the complete 40,654-file comparison was rerun a
 compiled/ineligible telemetry, zero fallback, and byte-identical classifications. The complete local
 build/test/purity, TLS/crypto, public-claims, roadmap, installer, release-live, SemVer, bucket, shell, and
 four-viewport Playwright acceptance stack is green; only remote publication evidence remains unclaimed.
+
+### 2026-07-16 - Verified dev.4 publication completes m4 and hands Phase 25b to m5
+
+Candidate `486e0d8f15a0dca374b1e42bda7f5431a0cca31f` passed CI `29471177997` and Documentation
+`29471177983`. Annotated tag `v0.1.0-dev.4` passed release run `29471399138` on linux-x64, linux-arm64,
+darwin-x64, and darwin-arm64. The release published the four native archives plus `checksums.txt`; a fresh
+download verified all four SHA-256 values. Pages `29471177985` deployed only after the matching assets
+existed, and an isolated `curl -fsSL https://clun.sh/install | sh` install reported
+`clun 0.1.0-dev.4`.
+
+This handoff changes publication evidence and current-milestone status only. It does not change the source
+version, installer target, packaged artifacts, behavior, capabilities, or compatibility claims, so its
+SemVer impact is `none` and dev.4 remains current. Milestone 4 is complete; milestone 5, synchronous
+generators and `yield*`, is current. Issue #57 stays open because 25,008 / 28,163 is 88.797358%, below
+the fixed 90% gate.
