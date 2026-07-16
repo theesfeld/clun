@@ -19,29 +19,27 @@ ledger `Yes` with a bounded, interoperable `Clun.CSRF` token implementation.
 `725cb998d3416ff4af3486c4cb8f18c5ea5d49a1` passed exact CI, Documentation, and Pages; live site bytes and
 an isolated hosted dev.8 install are verified. Phase 35 dependencies 19 and 27 are complete. Issue #3 remains
 open only until this candidate becomes the active ledger unit. Phase 26 remains after Phase 82.
-**Current scope:** finish review and publication of the implemented stable Bun 1.3.14 and engineering
-`c1076ce95e` generate/verify contract. The candidate now includes pure-CL SHA-512/256, bounded wire
-encoding/decoding, HMAC, expiry, session binding, default-secret lifetime, replacement-mode UTF-8, exact JS
-errors/descriptors, deterministic core tests, and shipped-binary fixtures. The compatibility claim remains a
-candidate until CI executes those fixtures through native `build/clun` binaries on Linux/macOS x64/arm64.
+**Current scope:** reconcile the published dev.9 release, deploy its generated Pages snapshot, verify the
+hosted installer, and hand the active compatibility ledger to Phase 33 / issue #7. The release contains the
+complete pure-CL SHA-512/256 and bounded `Clun.CSRF` implementation, and all four native targets have executed
+the registered shipped-binary evidence. Phase 35 remains active only through publication reconciliation.
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
 easiest to hardest among dependency-ready rows. Core engine/runtime/network/tooling changes are expected.
 Every conversion requires a legitimate canonical issue, accepted design, full declared behavior, executable
-four-target evidence, synchronized public surfaces, and the correct SemVer transition. Current post-SemVer
-cost order is CSRF, cookies, terminal string width, then CSS color, subject to each phase survey.
+four-target evidence, synchronized public surfaces, and the correct SemVer transition. Completed surveys put
+terminal string width next, followed by cookies, CSS color, and Glob; later rows remain cost-ordered as their
+dependencies and mandatory surveys become ready.
 
 **Current checkpoint:** issue #9 is active and records `minor`, `0.1.0-dev.9`, and `v0.1.0-dev.9`.
-Dependency/cost, pinned upstream, architecture, and accepted-design work is complete. The implemented local
-candidate passes its engine-free core suite **209/209**, the SHA-512/256/crypto suite **42/42**, the exact
-`make compat FEATURE=web.csrf` gate with **2 executable receipts passed / 2 static receipts traced**, purity
-at **698 files / 0 violations**, generated-doc byte identity, public claims, live-roadmap verification, and
-all **47/47** SemVer policy fixtures. The candidate ledger is therefore **2 Yes / 6 Partial / 22 No**.
-Independent implementation review is accepted and its fixed-vector, inherited-getter, coercion, wall-clock,
-input-cap, and exact-error findings are resolved. The local broad suite was attempted once but its legacy
-hard-coded `/tmp/clun-*` fixtures cannot run in this sandbox because `/tmp` does not exist; GitHub CI is the
-authoritative broad regression gate. PR checks and all four native target receipts remain before immutable
-dev.9 publication and active-ledger handoff.
+The final merge commit `5d3da6f49898cf93fba7cc24534655278964f35d` passed exact-master CI
+`29522573976`, Documentation `29522575206`, and four-target Compatibility `29522573677`; aggregate receipt
+job `87704268230` passed. Release run `29522601664` then passed all four native builders and publication job
+`87706437694`. Annotated tag `v0.1.0-dev.9` peels to the final merge. Immutable prerelease `355283403`
+contains exactly four native archives plus `checksums.txt`; a fresh download verified every archive hash and
+all four `VERSION` files as `0.1.0-dev.9`. The published ledger is **2 Yes / 6 Partial / 22 No**. Pending:
+merge this evidence-only reconciliation, pass its exact CI/Documentation/Pages gates, verify live `clun.sh`
+bytes and an isolated hosted dev.9 install, then activate Phase 33 without reopening Phase 26.
 
 **M5 entry boundary:** immutable dev.4 diagnostic set **56 total / 0 pass / 56 fail / 0 skip / 0 crash**:
 **43 m5-owned** (32 intrinsic/prototype, 7 parser, 4 raw delegation), **12 m11** direct-eval/`with`

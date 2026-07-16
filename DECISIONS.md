@@ -2566,3 +2566,18 @@ coercion fixtures, wall-clock expiry, both hostile string caps, and exact object
 focused core gate is **209/209** and the shipped-binary feature gate passes both executable receipts. The local
 broad suite remains environment-blocked only where legacy tests hard-code absent `/tmp/clun-*` directories;
 normal GitHub runners own that broad receipt.
+
+### 2026-07-16 - Phase 35 publishes the second compatibility Yes as dev.9
+
+The final Phase 35 merge `5d3da6f49898cf93fba7cc24534655278964f35d` is the sole dev.9 release
+boundary. Exact-master CI `29522573976`, Documentation `29522575206`, and Compatibility `29522573677`
+passed; aggregate receipt job `87704268230` verified Linux and macOS, x64 and arm64. Annotated tag object
+`d0fa718f9c00c6ff0835e0c8a15a65c92d6337f4` peels exactly to that merge.
+
+Release run `29522601664` passed builders `87704638665`, `87704638685`, `87704638739`, and
+`87704638807`, then publication job `87706437694` created immutable prerelease `355283403`. Its only
+payloads are `checksums.txt` and the four native archives. Independent downloads verified every checksum;
+the archives all record `0.1.0-dev.9`, and the Linux x64 binary reports `clun 0.1.0-dev.9`. The
+post-publication ledger reconciliation is evidence-only with impact `none`: source, ASDF core, installer
+default, and tag do not change. Pages and hosted-installer evidence remain pending until the reconciliation
+itself passes and deploys.
