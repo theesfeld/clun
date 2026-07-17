@@ -249,6 +249,16 @@ created. Non-recursive returns NIL (Node returns undefined there)."
 (defun read-symlink (path) (with-fs ("readlink" path) (sb-posix:readlink (native->pathname path))))
 (defun change-mode (path mode) (with-fs ("chmod" path) (sb-posix:chmod (native->pathname path) mode)))
 (defun truncate-file (path len) (with-fs ("truncate" path) (sb-posix:truncate (native->pathname path) len)))
+(defun touch-file (path &key no-create)
+  "Set PATH's access and modification times to now, creating an empty file unless NO-CREATE."
+  (cond
+    ((path-exists-p path)
+     (with-fs ("utime" path) (sb-posix:utime (native->pathname path)))
+     t)
+    (no-create nil)
+    (t
+     (write-file-octets path (make-array 0 :element-type '(unsigned-byte 8)))
+     t)))
 (defun make-temp-dir (prefix)
   "mkdtemp: PREFIX + 'XXXXXX' -> a created unique dir path (POSIX string)."
   (with-fs ("mkdtemp" prefix)

@@ -137,3 +137,40 @@
   (is equal '("" "") (clun.runtime::%shell-lines (format nil "~%")))
   (is equal (list (format nil "a~c" #\Return) "b")
       (clun.runtime::%shell-lines (format nil "a~c~%b" #\Return))))
+
+(define-test shell/cat-display-options
+  (flet ((transform (text &key number-all number-nonblank show-ends
+                                squeeze-blank show-tabs show-nonprinting)
+           (eng:utf8->code-units
+            (clun.runtime::%shell-cat-transform
+             (eng:code-units->utf8 text) number-all number-nonblank show-ends
+             squeeze-blank show-tabs show-nonprinting))))
+    (is equal (format nil "     1~ca~%     2~c~%     3~cb~%" #\Tab #\Tab #\Tab)
+        (transform (format nil "a~%~%b~%") :number-all t))
+    (is equal (format nil "a~%~%b~%")
+        (transform (format nil "a~%~%~%b~%") :squeeze-blank t))
+    (is equal (format nil "a^I$~%")
+        (transform (format nil "a~c~%" #\Tab) :show-tabs t :show-ends t))))
+
+(define-test shell/filesystem-builtins
+  (let* ((directory (clun.runtime::%shell-temp-directory))
+         (state (shell-test-state))
+         (empty (make-array 0 :element-type '(unsigned-byte 8))))
+    (unwind-protect
+         (progn
+           (setf (clun.runtime::shell-state-cwd state) directory)
+           (is = 0 (clun.runtime::shell-result-exit-code
+                    (clun.runtime::%shell-run-mkdir '("-p" "a/b") state)))
+           (true (sys:directory-p (sys:path-join directory "a/b")))
+           (is = 0 (clun.runtime::shell-result-exit-code
+                    (clun.runtime::%shell-run-touch '("one" "two") state)))
+           (true (sys:file-p (sys:path-join directory "one")))
+           (sys:write-file-octets (sys:path-join directory "one")
+                                  (eng:code-units->utf8 "alpha"))
+           (sys:write-file-octets (sys:path-join directory "two")
+                                  (eng:code-units->utf8 "beta"))
+           (let ((result (clun.runtime::%shell-run-cat '("one" "two") state empty)))
+             (is equal "alphabeta"
+                 (eng:utf8->code-units (clun.runtime::shell-result-stdout result)))
+             (is = 0 (clun.runtime::shell-result-exit-code result))))
+      (ignore-errors (sys:remove-recursive directory)))))

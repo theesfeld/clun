@@ -66,4 +66,24 @@ check(Clun.$`basename`, 1, "", "usage: basename string\n", "basename usage")
   .then(() => check(Clun.$`seq 1 0.00000001 2`, 0, "1\n", "", "seq tiny increment"))
   .then(() => check(Clun.$`seq -w -s, 8 2 12`, 0, "08,10,12,", "", "seq fixed width"))
   .then(() => check(Clun.$`seq -f %05.1f -s, 1 1 3`, 0, "001.0,002.0,003.0,", "", "seq format"))
-  .then(() => console.log("seq"));
+  .then(() => {
+    console.log("seq");
+    return check(Clun.$`rm -rf clun-shell-builtins.tmp`, 0, "", "", "filesystem setup");
+  })
+  .then(() => check(Clun.$`mkdir -p clun-shell-builtins.tmp/nested`, 0, "", "", "mkdir parents"))
+  .then(() => check(Clun.$`touch clun-shell-builtins.tmp/one clun-shell-builtins.tmp/two`, 0, "", "", "touch files"))
+  .then(() => check(Clun.$`printf alpha > clun-shell-builtins.tmp/one`, 0, "", "", "write first"))
+  .then(() => check(Clun.$`printf beta > clun-shell-builtins.tmp/two`, 0, "", "", "write second"))
+  .then(() => check(Clun.$`cat clun-shell-builtins.tmp/one clun-shell-builtins.tmp/two`, 0, "alphabeta", "", "cat files"))
+  .then(() => check(Clun.$`printf "a\n\nb\n" | cat -n`, 0, "     1\ta\n     2\t\n     3\tb\n", "", "cat stdin numbering"))
+  .then(() => check(Clun.$`printf "a\n\n\nb\n" | cat -s`, 0, "a\n\nb\n", "", "cat squeeze"))
+  .then(() => check(
+    Clun.$`cat clun-shell-builtins.tmp/one clun-shell-builtins.tmp/missing`,
+    1,
+    "alpha",
+    "cat: clun-shell-builtins.tmp/missing: No such file or directory\n",
+    "cat partial error",
+  ))
+  .then(() => check(Clun.$`touch -c clun-shell-builtins.tmp/not-created`, 0, "", "", "touch no-create"))
+  .then(() => check(Clun.$`rm -rf clun-shell-builtins.tmp`, 0, "", "", "filesystem cleanup"))
+  .then(() => console.log("filesystem-builtins"));
