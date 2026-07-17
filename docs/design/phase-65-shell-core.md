@@ -57,6 +57,9 @@ their contents cannot create operators, substitutions, redirects, globs, or extr
   chaining, text, JSON, bytes, array buffers, and lines. `lines()` is a lazy async iterator with JavaScript
   split boundaries, including a trailing empty line after a final newline. Results and failures carry stdout,
   stderr, exit code, and conversion methods.
+- Expose `new Clun.$.Shell()` as a callable shell tag with instance-local environment, cwd, and throw
+  defaults. Child configuration is isolated from the realm default tag in both directions, and calling the
+  class without `new` throws before creating an instance.
 - Give `Clun.$.ShellError` its own Error-derived constructor and prototype, including meaningful
   `instanceof` behavior.
 
@@ -65,7 +68,8 @@ their contents cannot create operators, substitutions, redirects, globs, or extr
 `tests/compat/tooling.shell/core.js` drives the shipped binary and freezes exact results for hostile scalar
 interpolation, array boundaries, a 1 MiB producer/consumer pipeline, logical operators, command substitution,
 cwd and environment, redirects, output/error objects, Promise chaining, helper methods, and job-local
-executable lookup. `tests/compat/tooling.shell/builtins.js` freezes exact application behavior for path,
+executable lookup. It also freezes callable `$.Shell` instances, constructor behavior, prototype identity,
+and bidirectional default isolation. `tests/compat/tooling.shell/builtins.js` freezes exact application behavior for path,
 echo, exit, sequence, binary cat, mkdir, touch, guarded recursive rm, and mv builtins. The mv fixture covers
 all six active scenarios in the pinned `commands/mv.test.ts`, plus usage, flags, and no-overwrite behavior.
 It also freezes ls directory, hidden, long, recursive, multi-file, partial-error, invalid-option, and broken-link

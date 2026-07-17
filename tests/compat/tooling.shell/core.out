@@ -12,3 +12,4 @@ helpers
 promise-chain
 path-lookup
 shell-promise-api
+shell-instance

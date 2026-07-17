@@ -119,5 +119,32 @@ Clun.$`printf "%s\n" ${hostile}`.text()
     }).then(last => {
       assert(last.done === true, "lines completion");
       console.log("shell-promise-api");
+      let bareCallError = "";
+      try {
+        Clun.$.Shell();
+      } catch (error) {
+        bareCallError = error.name + ": " + error.message;
+      }
+      assert(bareCallError === "TypeError: Class constructor Shell cannot be invoked without 'new'",
+        "Shell constructor requires new");
+      const child = new Clun.$.Shell();
+      assert(typeof child === "function", "Shell instance is a callable tag");
+      assert(child instanceof Clun.$.Shell, "Shell instance prototype");
+      child.env({ CLUN_SHELL_INSTANCE_VALUE: "child" });
+      return child`echo $CLUN_SHELL_INSTANCE_VALUE`.text().then(childText => {
+        assert(childText === "child\n", "child shell environment");
+        return Clun.$`echo $CLUN_SHELL_INSTANCE_VALUE`.text();
+      }).then(parentText => {
+        assert(parentText === "\n", "child environment must not alter parent");
+        Clun.$.env({ CLUN_SHELL_INSTANCE_VALUE: "parent" });
+        return child`echo $CLUN_SHELL_INSTANCE_VALUE`.text();
+      }).then(childText => {
+        assert(childText === "child\n", "parent environment must not alter child");
+        return Clun.$`echo $CLUN_SHELL_INSTANCE_VALUE`.text();
+      }).then(parentText => {
+        assert(parentText === "parent\n", "parent shell environment");
+        Clun.$.env();
+        console.log("shell-instance");
+      });
     });
   });
