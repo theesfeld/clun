@@ -13,7 +13,7 @@ PHASE_25B_M5_MANIFEST      ?= tests/conformance/phase-25b-m5.tsv
 PHASE_25B_M6_MANIFEST      ?= tests/conformance/phase-25b-m6.tsv
 FEATURE                    ?= all
 
-.PHONY: all build test test-lisp test-net test-cookie-resources test-glob test-js test-tls test-tls12 test-proxy test-dns test-crypto registry-fixture smoke-npm purity bench \
+.PHONY: all build test test-lisp test-net test-cookie-resources test-glob test-router test-js test-tls test-tls12 test-proxy test-dns test-crypto registry-fixture smoke-npm purity bench \
 		bench-check compile-tier-ceiling test-installer test-release-live-check \
 		public-claims-check version-transition-check test-version-transition-check \
 		compat compat-validate docs-generate docs-check test-compat-tools \
@@ -30,7 +30,9 @@ all: build
 ## Keeping those processes separate prevents cold-build compiler state from bloating the executable.
 build:
 	$(SBCL) $(SBCL_FLAGS) --load scripts/registry.lisp --eval '(asdf:compile-system :clun)'
-	$(SBCL) $(SBCL_FLAGS) --load scripts/build.lisp
+	# 4 GiB default dynamic space is required for the pinned static-route stress
+	# matrix (48 concurrent 4 MiB responses with body API copies) without OOM.
+	$(SBCL) --dynamic-space-size 4096 $(SBCL_FLAGS) --load scripts/build.lisp
 
 ## test — parachute CL suites + the tests/js + tests/ts harnesses (need the binary).
 test: test-lisp test-ts test-js
@@ -56,6 +58,13 @@ test-glob: build
 	CLUN_COMPAT_EXECUTABLE="$(CURDIR)/build/clun" sh tests/compat/filesystem.glob/adversarial.sh
 	CLUN_COMPAT_EXECUTABLE="$(CURDIR)/build/clun" sh tests/compat/filesystem.glob/stress.sh
 	sh scripts/glob-upstream-inventory-check.sh
+
+## test-router -- Phase 50 focused core, shipped HTTP/FileSystemRouter, and 100k-route bounds.
+test-router: build
+	$(SBCL) $(SBCL_FLAGS) --load scripts/test-router.lisp
+	CLUN_COMPAT_EXECUTABLE="$(CURDIR)/build/clun" sh tests/compat/server.router/run.sh
+	$(SBCL) --dynamic-space-size 4096 $(SBCL_FLAGS) --load scripts/test-router-resources.lisp
+	sh scripts/router-upstream-inventory-check.sh
 
 ## test-js — run the tests/js + tests/ts/runtime fixtures against build/clun.
 test-js: build

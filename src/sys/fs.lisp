@@ -191,6 +191,21 @@ pathname list. Filesystem failures remain FS-ERROR conditions."
   (with-fs ((if lstat "lstat" "stat") path)
     (%stat->fstat (funcall (if lstat #'sb-posix:lstat #'sb-posix:stat) (native->pathname path)))))
 
+(defun %stat-at-entry-path (platform logical-path fd name)
+  "Choose the native path used to classify NAME below an open directory.
+
+Linux exposes directory descriptors as traversable filesystem paths. Darwin's
+/dev/fd exists, but its directory descriptors cannot be traversed as
+/dev/fd/FD/NAME, so non-Linux hosts must use the logical joined path."
+  (let ((descriptor-root
+          (and (string= platform "linux")
+               (cond ((directory-p "/dev/fd") "/dev/fd")
+                     ((directory-p "/proc/self/fd") "/proc/self/fd")
+                     (t nil)))))
+    (if descriptor-root
+        (format nil "~a/~d/~a" descriptor-root fd name)
+        logical-path)))
+
 (defun stat-at* (directory name &key lstat)
   "Classify immediate NAME relative to DIRECTORY without an OS-sized path join.
 
@@ -204,14 +219,9 @@ or a process-global chdir. Errors retain the logical joined path."
       (unwind-protect
            (progn
              (setf fd (sb-posix:open (native->pathname directory) sb-posix:o-rdonly))
-             (let* ((descriptor-root
-                      (cond ((directory-p "/dev/fd") "/dev/fd")
-                            ((directory-p "/proc/self/fd") "/proc/self/fd")
-                            (t nil)))
-                    (entry-path
-                      (if descriptor-root
-                          (format nil "~a/~d/~a" descriptor-root fd name)
-                          logical-path)))
+             (let ((entry-path
+                     (%stat-at-entry-path
+                      (platform-name) logical-path fd name)))
                (%stat->fstat
                 (funcall (if lstat #'sb-posix:lstat #'sb-posix:stat)
                          (native->pathname entry-path)))))
@@ -221,6 +231,47 @@ or a process-global chdir. Errors retain the logical joined path."
 (defun fstat-dir-p (st) (= (logand (fstat-mode st) +s-ifmt+) +s-ifdir+))
 (defconstant +s-iflnk+ #o120000)
 (defun fstat-symlink-p (st) (= (logand (fstat-mode st) +s-ifmt+) +s-iflnk+))
+
+(defun %open-flag (name)
+  (let ((symbol (find-symbol name :sb-posix)))
+    (if (and symbol (boundp symbol)) (symbol-value symbol) 0)))
+
+(defun open-regular-file-stream (path &key (no-follow t))
+  "Open PATH once and return its byte stream plus descriptor-derived FSTAT.
+
+The descriptor is opened with O_NOFOLLOW where the host exposes it, then classified
+with fstat before it is wrapped as a stream.  Callers therefore read the exact regular
+file that was validated, even if the pathname is replaced concurrently.  The caller
+owns and must close the returned stream."
+  (let ((fd nil))
+    (handler-case
+        (let* ((flags (logior sb-posix:o-rdonly
+                              sb-posix:o-nonblock
+                              (%open-flag "O-CLOEXEC")
+                              (if no-follow (%open-flag "O-NOFOLLOW") 0))))
+          (setf fd (sb-posix:open (native->pathname path) flags))
+          (let ((stat (%stat->fstat (sb-posix:fstat fd))))
+            (unless (fstat-file-p stat)
+              (sb-posix:close fd)
+              (setf fd nil)
+              (let ((code (if (fstat-dir-p stat) "EISDIR" "EACCES")))
+                (error 'fs-error :code code :errno (%errno-of-name code)
+                                 :syscall "open" :path path)))
+            (let ((stream
+                    (sb-sys:make-fd-stream
+                     fd :input t :element-type '(unsigned-byte 8)
+                     :buffering :none :name path)))
+              (setf fd nil)
+              (values stream stat))))
+      (sb-posix:syscall-error (error)
+        (when fd (ignore-errors (sb-posix:close fd)))
+        (%raise-fs "open" path error))
+      (file-error ()
+        (when fd (ignore-errors (sb-posix:close fd)))
+        (%raise-fs-file "open" path))
+      (condition (error)
+        (when fd (ignore-errors (sb-posix:close fd)))
+        (error error)))))
 
 ;;; --- mutating ops ----------------------------------------------------------
 

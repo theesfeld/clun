@@ -1020,7 +1020,7 @@ Tasks: inventory serve route types/tests and FileSystemRouter source/docs; imple
 wildcard/method routes, precedence, decoded params and reload; implement safe static-file responses with
 range/conditional/cache headers and traversal/symlink defenses; implement filesystem route discovery,
 style matching, params, origin/assetPrefix and development refresh; share glob/path primitives.
-**Gate:** `make compat FEATURE=http-router` passes the complete pinned route/FileSystemRouter/static
+**Gate:** `make compat FEATURE=server.router` passes the complete pinned route/FileSystemRouter/static
 differential corpus; ambiguous precedence, percent-encoding, traversal, symlink escape, range and reload
 adversaries pass; a 100k-route synthetic table meets the design's lookup/memory bound; `make build`;
 `make test`; `make purity`; `make docs-check` on all supported targets.

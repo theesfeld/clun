@@ -78,7 +78,8 @@ object from `sb-ext:posix-environ` (**no live OS interceptor** — documented);
 `versions` (`.node`="22.11.0" pinned, `.clun`); `version`="v22.11.0"; `stdout`/`stderr`
 minimal writables (`.write`→bool, `.isTTY`, `.fd`); `hrtime([prev])`→`[s,ns]` +
 `hrtime.bigint` stub (microsecond resolution via `get-time-of-day`, documented);
-`memoryUsage()` (SBCL approximations via `dynamic-usage`); a minimal `'exit'`
+`memoryUsage()` (OS resident-set bytes plus SBCL `dynamic-usage` heap approximations);
+a minimal `'exit'`
 emitter (`on`/`emit` — only `'exit'` fires). `process.exit` throws a `process-exit`
 CL condition that unwinds past the loop-owning drive path; `main` catches it, fires
 `'exit'` once, `sb-ext:exit`s with `exitCode`.
@@ -136,7 +137,8 @@ first). Seed corpus: `console/`, `process/`, `eval/`, `errors/`.
 - `sb-posix:isatty` does NOT exist → `sb-unix:unix-isatty (fd)` (fd of a stream via
   `sb-sys:fd-stream-fd`). Quarantined in `src/sys/sbcl-compat.lisp`.
 - `hrtime` via `sb-ext:get-time-of-day` (µs wall; nanos end in 000 — documented).
-- `memoryUsage` via `sb-kernel:dynamic-usage` / `sb-ext:get-bytes-consed`.
+- `memoryUsage().rss` via `/proc/self/statm` on Linux and `getrusage` peak RSS on
+  Darwin; heap fields via `sb-kernel:dynamic-usage` / `sb-ext:get-bytes-consed`.
 - `sb-posix:getpid/getcwd/chdir`, `sb-ext:posix-environ/posix-getenv` all exist.
 - Node version pinned `22.11.0` ("Jod" LTS).
 

@@ -25,7 +25,8 @@ const server = Clun.serve({
   hostname: "127.0.0.1",
   port: 0,
   fetch: (request) => {
-    if (request.url === "/identity") {
+    const pathname = new URL(request.url).pathname;
+    if (pathname === "/identity") {
       const requestPrototype = Object.getPrototypeOf(request);
       const cookiesDescriptor = Object.getOwnPropertyDescriptor(requestPrototype, "cookies");
       let spoofRejected = false;
@@ -66,14 +67,14 @@ const server = Clun.serve({
       });
     }
 
-    if (request.url === "/fetch") {
+    if (pathname === "/fetch") {
       request.cookies.set("automatic", "3");
       return new Response("fetch-ok", {
         headers: [["set-cookie", "first=1"], ["set-cookie", "second=2"]],
       });
     }
 
-    if (request.url === "/snapshot-set") {
+    if (pathname === "/snapshot-set") {
       request.headers.set("cookie", "set-before=1");
       const cookies = request.cookies;
       const before = cookies.size === 1 && cookies.get("set-before") === "1";
@@ -84,7 +85,7 @@ const server = Clun.serve({
       return new Response(before && cached && independent ? "snapshot-set-ok" : "snapshot-set-fail");
     }
 
-    if (request.url === "/snapshot-delete") {
+    if (pathname === "/snapshot-delete") {
       request.headers.delete("cookie");
       const cookies = request.cookies;
       const before = cookies.size === 0;
@@ -95,46 +96,46 @@ const server = Clun.serve({
       return new Response(before && cached && independent ? "snapshot-delete-ok" : "snapshot-delete-fail");
     }
 
-    if (request.url === "/shared") {
+    if (pathname === "/shared") {
       request.cookies.set("per-request", "yes");
       return shared;
     }
 
-    if (request.url === "/shared-check") {
+    if (pathname === "/shared-check") {
       return new Response(shared.headers.getSetCookie().join("|"));
     }
 
-    if (request.url === "/late") {
+    if (pathname === "/late") {
       request.cookies.set("early", "yes");
       setTimeout(() => request.cookies.set("late", "no"), 10);
       return new Response("late-ok");
     }
 
-    if (request.url === "/async") {
+    if (pathname === "/async") {
       return Promise.resolve(new Response("async-ok"));
     }
 
-    if (request.url === "/throw") {
+    if (pathname === "/throw") {
       request.cookies.set("error-cookie", "kept");
       throw new Error("handler failure");
     }
 
-    if (request.url === "/reject") {
+    if (pathname === "/reject") {
       request.cookies.set("rejected-cookie", "kept");
       return Promise.reject(new Error("promised handler failure"));
     }
 
-    if (request.url === "/fake") {
+    if (pathname === "/fake") {
       return { status: 200, headers: new Headers(), body: "forged" };
     }
 
-    if (request.url === "/proxy-response") {
+    if (pathname === "/proxy-response") {
       proxyResponsePending = true;
       proxyResponseTrapCount = 0;
       return new Proxy(new Response("proxied-body"), hostileResponseHandler);
     }
 
-    if (request.url === "/head") {
+    if (pathname === "/head") {
       return new Response("head-body");
     }
 

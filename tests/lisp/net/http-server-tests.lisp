@@ -50,8 +50,8 @@ until the server closes, loop-stop, and return the response as a latin-1 string.
    (lambda (loop port g server) (declare (ignore g server))
      (let ((resp (client-request loop port (req (crlf "GET /abc HTTP/1.1" "Host: x" "Connection: close")))))
        (true (search "HTTP/1.1 200 OK" resp))
-       (true (search "hi GET /abc" resp))
-       (true (search "Content-Length: 11" resp))
+       (true (search "hi GET http://x/abc" resp))
+       (true (search "Content-Length: 19" resp))
        (true (search "Date: " resp))))))
 
 (define-test net/server-post-async-body
@@ -139,7 +139,8 @@ until the server closes, loop-stop, and return the response as a latin-1 string.
 (define-test net/server-pipeline-preserves-async-request-order
   (serve-and
    (lambda (g request loop)
-     (let ((url (eng:to-string (eng:js-get request "url"))))
+     (let ((url (clun.runtime::%request-target-path
+                 (eng:to-string (eng:js-get request "url")))))
        (if (string= url "/slow")
            (eng:js-construct
             (eng:js-get g "Promise")

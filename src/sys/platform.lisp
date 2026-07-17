@@ -76,8 +76,30 @@ nanosecond clock (Phase 08)."
 ;;; --- memory ----------------------------------------------------------------
 
 (defun heap-bytes-used ()
-  "Approximate live dynamic-space bytes (SBCL). Used for process.memoryUsage()."
+  "Approximate live dynamic-space bytes (SBCL)."
   (sb-kernel:dynamic-usage))
+
+(defun resident-set-bytes ()
+  "Current resident-set bytes on Linux, peak resident-set bytes on Darwin,
+and live heap bytes only when neither operating-system measurement is available."
+  (or
+   #+linux
+   (ignore-errors
+    (let ((*read-eval* nil))
+      (with-open-file (stream #P"/proc/self/statm" :if-does-not-exist nil)
+        (when stream
+          (read stream nil nil)
+          (let ((resident-pages (read stream nil nil)))
+            (and (integerp resident-pages)
+                 (* resident-pages (sb-posix:getpagesize))))))))
+   ;; Darwin exposes peak rather than current RSS through getrusage. It remains
+   ;; a real resident-set measurement and is preferable to reporting heap bytes.
+   #+darwin
+   (ignore-errors
+    (let ((peak-rss (nth 5 (multiple-value-list
+                            (sb-unix:unix-getrusage sb-unix:rusage_self)))))
+      (and (integerp peak-rss) peak-rss)))
+   (heap-bytes-used)))
 
 (defun bytes-consed ()
   (sb-ext:get-bytes-consed))

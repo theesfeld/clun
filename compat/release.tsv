@@ -1,2 +1,2 @@
 release_id	version	asdf_core	installer_default	tag	publication_state	license	active_phase	issue	semver_impact	previous_version	version_source	asdf_source	installer_source	release_commit
-clun-0.1.0-dev.16	0.1.0-dev.16	0.1.0	v0.1.0-dev.16	v0.1.0-dev.16	published	GPL-3.0-or-later	31	5	minor	0.1.0-dev.14	src/version.lisp	clun.asd	site/install	7c7377780413b98da1396f5d8e5d84611cf6cca3
+clun-0.1.0-dev.17	0.1.0-dev.17	0.1.0	v0.1.0-dev.17	v0.1.0-dev.17	published	GPL-3.0-or-later	50	24	minor	0.1.0-dev.16	src/version.lisp	clun.asd	site/install	909aafa090a21e247d22566361475f608bcaa7a8

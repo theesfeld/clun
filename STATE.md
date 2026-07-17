@@ -7,26 +7,27 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **31 - YAML API and module loading**  (PUBLICATION RECONCILIATION)
+## Current phase: **50 - Router, static files, and FileSystemRouter**  (PUBLISHED)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/5
+**Canonical issue:** https://github.com/theesfeld/clun/issues/24
 **Next phase issue:** https://github.com/theesfeld/clun/issues/11
 **Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/2,
 https://github.com/theesfeld/clun/issues/39, and https://github.com/theesfeld/clun/issues/40
-**Current implementation unit:** Phase 31 passes the complete exact pinned 402-case Bun-generated YAML
-corpus with zero failures. The published dev.16 release combines that eighth compatibility-ledger `Yes`
-with the reviewed 173-pass Phase 37 milestone-1 unit; Phase 37 remains explicitly incomplete.
+**Current implementation unit:** Phase 50 implements first-party routes, the legacy static alias,
+regular-file response streaming, server.fetch, and FileSystemRouter. Exact stable/engineering sources trace
+981 lexical sites to 254 tests, each assigned exactly once across 123 semantic contract rows: 118 executable
+and five explicit non-applicable. Final exact-head four-target receipts and two accepted adversarial reviews
+remain before the staged `server.router` Yes can merge and publish.
 **SemVer impact:** `minor`
-**Published release:** `0.1.0-dev.16` / `v0.1.0-dev.16`
-**Entry boundary:** The dev.16 recovery is merged and tagged at exact master
-`7c7377780413b98da1396f5d8e5d84611cf6cca3`. Exact-master CI `29560539473`, Documentation
-`29560539481`, Pages/publication validation `29560539500`, and four-target Compatibility plus receipt
-aggregation `29560539518` passed. The immutable `v0.1.0-dev.15` tag remains the failed pre-build
-attempt with no release or assets. Live `clun.sh` and its hosted installer still serve dev.14 until this
-reconciliation deploys. Phase 26 remains after Phase 82.
-**Next scope:** merge this publication reconciliation, wait for the exact-commit Pages deployment, verify
-the live page and hosted installer, add those receipts to closed-complete issue #5, and move the active
-release slot without interrupting the parallel compatibility implementation lanes.
+**Published release:** `0.1.0-dev.17` / `v0.1.0-dev.17`
+**Entry boundary:** immutable dev.17 tagged at exact master `909aafa090a21e247d22566361475f608bcaa7a8` with four native archives + checksums.
+**Entry boundary:** immutable dev.16 is published and reconciled at exact master
+`0212be64283549d03864fa7e01a793c1cee8ac33`. Phase 50 draft PR #85 targets `master`; exact `a36047e2`
+four-target compatibility receipts pass, and integrated contract-map head `dde7c3e4` makes every pinned test
+disposition executable or explicitly non-applicable. Fresh exact-head gates and reviews remain.
+Phase 26 remains after Phase 82.
+**Next scope:** run focused and four-target gates on the synchronized exact head, resolve two independent
+adversarial reviews, reconcile Issue #24 and PR #85, squash-merge to master, and release dev.17.
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
 easiest to hardest among dependency-ready rows. Core engine/runtime/network/tooling changes are expected.
@@ -64,7 +65,8 @@ well-formedness, `Error.isError`, and `Promise.withResolvers`, producing 173 mea
 its frozen inventory still has 708 residual failures and no full ledger row is claimed. Parallel durable
 checkpoints include transport request streaming plus origin-keyed HTTP pooling and shell parser/runtime,
 guarded filesystem builtins, bounded `yes`, and isolated pipeline state. Merged `master` is **8 Yes /
-6 Partial / 16 No** with the complete Phase 31 evidence attached.
+6 Partial / 16 No** with the complete Phase 31 evidence attached; draft PR #85 stages **9 Yes / 6 Partial /
+15 No** for dev.17.
 
 **M5 entry boundary:** immutable dev.4 diagnostic set **56 total / 0 pass / 56 fail / 0 skip / 0 crash**:
 **43 m5-owned** (32 intrinsic/prototype, 7 parser, 4 raw delegation), **12 m11** direct-eval/`with`
