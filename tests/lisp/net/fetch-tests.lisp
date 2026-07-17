@@ -14,10 +14,9 @@
                                   209 77 202 79 169 4 0 208 58 22 245 17 0 0 0)))
 
 (defun %fetch-route (g request)
-  "Route a request (a JS Request) to a Response by pathname (req.url is the origin-form
-target, e.g. `/json?x=1` — take the part before any query/fragment)."
+  "Route a request (a JS Request) by the pathname of its absolute URL."
   (let* ((url (eng:to-string (eng:js-get request "url")))
-         (path (subseq url 0 (or (position-if (lambda (c) (member c '(#\? #\#))) url) (length url)))))
+         (path (clun.runtime::%request-target-path url)))
     (cond
       ((string= path "/json")
        (eng:js-call (eng:js-get (eng:js-get g "Response") "json") (eng:js-get g "Response")

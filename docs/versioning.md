@@ -48,6 +48,7 @@ resource does not exist with a 404 response:
 0.1.0-dev.14
 0.1.0-dev.15
 0.1.0-dev.16
+0.1.0-dev.17
 ```
 
 Phase 25b is the compatibility program for the planned `0.1.0` release. Its first behavioral
@@ -103,6 +104,11 @@ the published installer remains dev.14. The dispatchable-gate recovery advances 
 `0.1.0-dev.16` / `v0.1.0-dev.16`; Issue #5 owns its behavior, target receipts, publication, and
 hosted-installer evidence. The same candidate includes Phase 37 milestone 1's reviewed modern built-ins,
 but Phase 37 and Issue #11 remain in progress and make no full language-parity claim.
+Phase 50 advances the prerelease train exactly once to the `0.1.0-dev.17` / `v0.1.0-dev.17`
+candidate. It adds backward-compatible first-party route/static/file/FileSystemRouter APIs and therefore
+retains SemVer impact `minor` within the selected `0.1.0` core. Issue #24 owns the exact pinned-source
+inventory, cross-target receipts, public Yes decision, merge, and publication evidence. Until those gates
+complete, the installer and immutable published boundary remain dev.16.
 
 ## Canonical record
 

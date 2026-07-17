@@ -188,6 +188,7 @@
                                            (:file "clun-password-hash") ; Clun.password/hash (Phase 36)
                                            (:file "clun-string-width") ; Clun.stringWidth (Phase 33) — before clun-global
                                            (:file "clun-glob") ; Clun.Glob (Phase 30) — before clun-global
+                                           (:file "clun-filesystem-router") ; Clun.FileSystemRouter (Phase 50)
                                            (:file "clun-color") ; Clun.color (Phase 34) — before clun-global
                                            (:file "clun-yaml") ; Clun.YAML (Phase 31) — before clun-global
                                            (:file "clun-global")
@@ -195,6 +196,7 @@
                                            (:file "globals")   ; structuredClone, crypto (Phase 12)
                                            (:file "web-http")  ; Headers/Request/Response (Phase 17)
                                            (:file "web-cookies") ; Clun.Cookie/CookieMap (Phase 32)
+                                           (:file "clun-router") ; Clun.serve route table (Phase 50)
                                            (:file "clun-serve"); Clun.serve HTTP server (Phase 17)
                                            (:file "web-url")   ; URL/URLSearchParams (Phase 18)
                                            (:file "web-fetch") ; fetch (Phase 18)
@@ -308,6 +310,7 @@
                                             :components ((:file "sockets-tests")
                                                          (:file "http-parser-tests")
                                                          (:file "http-server-tests")
+                                                         (:file "router-tests")
                                                          (:file "fetch-tests")
                                                          (:file "https-tests")))
                                            (:module "install"

@@ -16,6 +16,7 @@
     (eng:fixed-data-prop clun "semver" (make-clun-semver))
     (eng:nonconfigurable-data-prop clun "CSRF" (make-clun-csrf g))
     (install-clun-glob clun g realm)
+    (install-clun-file-system-router clun g realm)
     (eng:nonconfigurable-data-prop clun "password" (make-clun-password g))
     (eng:nonconfigurable-data-prop clun "hash" (make-clun-hash))
     (install-clun-string-width clun)
@@ -42,6 +43,11 @@
     (eng:install-method clun "nanoseconds" 0
       (lambda (this args) (declare (ignore this args))
         (coerce (clun.sys:monotonic-nanoseconds) 'double-float)))
+    (eng:install-method clun "gc" 1
+      (lambda (this args)
+        (declare (ignore this))
+        (sb-ext:gc :full (eq (eng:to-boolean (eng:arg args 0)) eng:+true+))
+        eng:+undefined+))
     (eng:install-method clun "which" 1
       (lambda (this args) (declare (ignore this)) (%which (eng:to-string (eng:arg args 0)))))
     (eng:install-method clun "fileURLToPath" 1
@@ -59,6 +65,14 @@
     clun))
 
 ;;; --- Clun.file / Clun.write (lazy file I/O; Bun-shaped, buffered) ------------
+
+(defstruct (js-clun-file
+            (:include eng:js-object (class :clun-file))
+            (:constructor %make-js-clun-file))
+  (path "" :type string)
+  (start 0 :type (integer 0 *))
+  end
+  (sliced-p nil))
 
 (defun %resolved-promise (g value)
   (eng:js-construct (eng:js-get g "Promise")
@@ -87,29 +101,76 @@
     (eng:js-set err "path" (clun.sys:fs-error-path e) nil)
     err))
 
-(defun %clun-file (g path)
-  "A lazy BunFile: text()/json()/arrayBuffer()/bytes()/exists() (Promises), name, size getter."
-  (let ((o (eng:new-object)))
+(defun %clun-file-size (file)
+  (let* ((stat (ignore-errors (clun.sys:stat* (js-clun-file-path file))))
+         (total (if (and stat (clun.sys:fstat-file-p stat))
+                    (clun.sys:fstat-size stat)
+                    0))
+         (start (min total (js-clun-file-start file)))
+         (end (min total (or (js-clun-file-end file) total))))
+    (max 0 (- end start))))
+
+(defun %clun-file-octets (file)
+  (let* ((octets (clun.sys:read-file-octets (js-clun-file-path file)))
+         (start (min (length octets) (js-clun-file-start file)))
+         (end (min (length octets)
+                   (or (js-clun-file-end file) (length octets)))))
+    (subseq octets start (max start end))))
+
+(defun %clun-file-slice-index (value size default)
+  (if (eng:js-undefined-p value)
+      default
+      (let ((number (eng:to-number value)))
+        (cond
+          ((eng:js-nan-p number) 0)
+          ((>= number size) size)
+          ((<= number (- size)) 0)
+          ((minusp number) (max 0 (+ size (truncate number))))
+          (t (truncate number))))))
+
+(defun %make-clun-file-object (g path &key (start 0) end sliced-p)
+  (let ((o (%make-js-clun-file :proto (eng:intrinsic :object-prototype)
+                               :path path :start start :end end
+                               :sliced-p sliced-p)))
     (eng:data-prop o "name" path)
     (eng:install-getter o "size"
       (lambda (this args) (declare (ignore this args))
-        (coerce (let ((st (ignore-errors (clun.sys:stat* path)))) (if st (clun.sys:fstat-size st) 0)) 'double-float)))
+        (coerce (%clun-file-size o) 'double-float)))
     (eng:install-method o "exists" 0
       (lambda (this args) (declare (ignore this args)) (%resolved-promise g (eng:js-boolean (clun.sys:file-p path)))))
     (eng:install-method o "text" 0
       (lambda (this args) (declare (ignore this args))
-        (%async (g) (clun.sys:read-file-string path))))
+        (%async (g) (eng:utf8->code-units (%clun-file-octets o)))))
     (eng:install-method o "bytes" 0
       (lambda (this args) (declare (ignore this args))
-        (%async (g) (%buffer-uint8 (clun.sys:read-file-octets path)))))
+        (%async (g) (%buffer-uint8 (%clun-file-octets o)))))
     (eng:install-method o "arrayBuffer" 0
       (lambda (this args) (declare (ignore this args))
-        (%async (g) (eng:js-get (%buffer-uint8 (clun.sys:read-file-octets path)) "buffer"))))
+        (%async (g) (eng:js-get (%buffer-uint8 (%clun-file-octets o)) "buffer"))))
     (eng:install-method o "json" 0
       (lambda (this args) (declare (ignore this args))
         (%async (g) (let ((json (eng:js-get g "JSON")))
-                      (eng:js-call (eng:js-get json "parse") json (list (clun.sys:read-file-string path)))))))
+                      (eng:js-call (eng:js-get json "parse") json
+                                   (list (eng:utf8->code-units
+                                          (%clun-file-octets o))))))))
+    (eng:install-method o "slice" 2
+      (lambda (this args)
+        (declare (ignore this))
+        (let* ((size (%clun-file-size o))
+               (relative-start
+                 (%clun-file-slice-index (eng:arg args 0) size 0))
+               (relative-end
+                 (%clun-file-slice-index (eng:arg args 1) size size))
+               (base (js-clun-file-start o)))
+          (%make-clun-file-object
+           g path :start (+ base relative-start)
+           :end (+ base (max relative-start relative-end))
+           :sliced-p t))))
     o))
+
+(defun %clun-file (g path)
+  "A lazy BunFile: text()/json()/arrayBuffer()/bytes()/exists()/slice(), name, and size."
+  (%make-clun-file-object g path))
 
 (defun %buffer-uint8 (octets)
   "A Uint8Array over a COPY of OCTETS (Clun.file returns Uint8Array, not Buffer)."
@@ -118,7 +179,9 @@
 (defun %clun-write (g dest data)
   "Write DATA (string / Buffer / Uint8Array / ArrayBuffer) to DEST (a path or a Clun.file)."
   (%async (g)
-    (let* ((path (if (eng:js-object-p dest) (eng:to-string (eng:js-get dest "name")) (eng:to-string dest)))
+    (let* ((path (if (js-clun-file-p dest)
+                     (js-clun-file-path dest)
+                     (eng:to-string dest)))
            (octets (cond ((eng:js-typed-array-p data)
                           (multiple-value-bind (v o l) (eng:ta-octets data) (subseq v o (+ o l))))
                          ((eng:js-array-buffer-p data)

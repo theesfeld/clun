@@ -28,7 +28,8 @@
            ;; Phase 08 — platform primitives for the runtime (process/console)
            #:stream-fd #:tty-p #:environ-alist #:getenv #:getpid
            #:current-directory #:change-directory #:machine-arch #:platform-name
-           #:monotonic-nanoseconds #:unix-milliseconds #:heap-bytes-used #:bytes-consed
+           #:monotonic-nanoseconds #:unix-milliseconds #:heap-bytes-used
+           #:resident-set-bytes #:bytes-consed
            ;; Phase 12 — OS info + CSPRNG bytes for node:os / crypto
            #:os-random-bytes #:hostname #:os-release #:os-type #:tmpdir #:homedir
            #:total-memory #:free-memory #:uptime-seconds #:cpu-count
@@ -38,6 +39,7 @@
            #:stat* #:stat-at* #:fstat #:fstat-dev #:fstat-ino #:fstat-mode #:fstat-nlink #:fstat-uid
            #:fstat-gid #:fstat-rdev #:fstat-size #:fstat-atime-ns #:fstat-mtime-ns #:fstat-ctime-ns
            #:fstat-file-p #:fstat-dir-p #:fstat-symlink-p
+           #:open-regular-file-stream
            #:make-directory #:remove-directory #:remove-file #:rename-path #:make-symlink
            #:read-symlink #:change-mode #:truncate-file #:make-temp-dir #:check-access
            #:remove-recursive #:read-file-octets #:write-file-octets #:copy-file*))
