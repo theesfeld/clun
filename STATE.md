@@ -48,14 +48,14 @@ guarded filesystem builtins, bounded `yes`, and isolated pipeline state. Merged 
 6 Partial / 16 No** with the complete Phase 31 evidence attached.
 
 **Parallel Phase 65 checkpoint:** Issue [#39](https://github.com/theesfeld/clun/issues/39) remains open on
-`feat/issue-39-shell-tagged-templates` at `a10f42b0ca3027458bb44d3d1b2c0b0cc8e65b8d` plus the current exact-coverage
-mapping unit. The production
+`feat/issue-39-shell-tagged-templates`, rebased onto published dev.16 master with the current exact-coverage
+mapping. The production
 `Clun.$` shell now includes inert interpolation, a pure-CL parser and evaluator, builtins, concurrent external
 pipelines, ordered descriptor redirects, callable isolated `Shell` instances, signed-64 conditional
 arithmetic, bounded nested brace expansion, and brace-plus-glob composition with protected interpolation.
 Assignment-only pipeline stages now forward stdin without leaking their environment.
 `make phase-65-shell-core-check` passes **195 / 0 / 0** plus
-**10/10** shipped `tooling.shell` evidence records; `make build`, `make purity` (**716 / 0**), and diff check
+**10/10** shipped `tooling.shell` evidence records; `make build`, `make purity` (**728 / 0**), and diff check
 pass. The exact stable and engineering Bun boundary is now frozen at **211 source/docs/types/test files** and
 **1,630 lexical test sites**: **381 covered / 1,217 pending / 32 upstream-inactive**. The checked-in coverage
 overlay binds every credited site to executable shipped-binary evidence and rejects stale or unknown IDs.
