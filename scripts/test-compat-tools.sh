@@ -383,7 +383,13 @@ move_release_to_test_phase() {
   # shellcheck disable=SC2016 # AWK field references must not expand in the shell.
   replace_file "$file" awk -F "$TAB" -v OFS="$TAB" \
     -v phase="$test_phase" -v issue="$test_issue" '
-    NR == 2 { $8 = phase; $9 = issue; changed = 1 }
+    NR == 2 {
+      $6 = "candidate"
+      $8 = phase
+      $9 = issue
+      $15 = "pending"
+      changed = 1
+    }
     { print }
     END { if (!changed) exit 3 }
   ' "$file"
@@ -560,9 +566,21 @@ grep -F 'Available now' "$case_root/site/index.html" >/dev/null 2>&1 ||
   fail 'published render did not expose the published release'
 grep -F 'latest published prerelease' "$case_root/README.md" >/dev/null 2>&1 ||
   fail 'published render did not expose the published release summary'
-grep -F 'Release-gated Pages and hosted-installer results are tracked in the canonical issue.' \
+grep -F "Phase $current_phase is complete:" "$case_root/site/index.html" >/dev/null 2>&1 ||
+  fail 'published render did not mark the landing-page phase complete'
+grep -F "[Phase $current_phase]" "$case_root/README.md" >/dev/null 2>&1 ||
+  fail 'published render lost the README phase link'
+grep -F 'is complete' "$case_root/README.md" >/dev/null 2>&1 ||
+  fail 'published render did not mark the README phase complete'
+grep -F '>Release record</a>' "$case_root/site/index.html" >/dev/null 2>&1 ||
+  fail 'published render did not label the canonical issue as the release record'
+grep -F 'Release-gated Pages and hosted-installer results are recorded in the canonical issue.' \
   "$case_root/README.md" >/dev/null 2>&1 ||
-  fail 'published render claimed deployment evidence before the deployment gate'
+  fail 'published render did not describe the completed deployment record'
+if grep -Fq "Phase $current_phase is active:" "$case_root/site/index.html" ||
+   grep -Fq "Phase $current_phase] is in progress" "$case_root/README.md"; then
+  fail 'published render retained candidate-phase language'
+fi
 
 fresh_case refreshed-baselines
 refresh_baseline_row "$case_root/compat/baselines.tsv" bun-engineering-c1076ce95e \
