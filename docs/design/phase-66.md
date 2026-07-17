@@ -335,3 +335,23 @@ errors, and cross-file isolation. Fake timers are therefore no longer a Phase 66
 maps, watch integration, real concurrent/parallel scheduling, exact 52-root counts, complete snapshot
 serialization, target receipts, serial/parallel agreement, and the quantitative RSS gate keep the row
 `Partial`.
+
+## Milestone 66.21 - Bun-specific snapshot value serialization
+
+Snapshots no longer reuse the console inspector. A dedicated, cycle-aware formatter now emits pinned Bun
+snapshot structure: string keys are quoted and sorted, non-empty arrays and objects are indented with trailing
+commas, class instances retain their constructor label, and Map/Set preserve insertion order with their
+snapshot-specific separators. Date, Error, Promise, RegExp, typed arrays, ArrayBuffer, DataView, boxed values,
+weak collections, functions, BigInt, Symbol, and Buffer each use their Bun snapshot representation.
+
+External snapshots add the Bun multiline boundary inside the template literal while inline comparison uses
+the normalized value directly. This keeps create/update output exact without introducing blank lines into
+inline matching. Existing property-matcher substitution still occurs at the owning structural path before
+ordinary value serialization.
+
+Exact shipped-binary evidence exercises 33 inline snapshots across six tests, including sorted nested
+containers, circular references, signed typed-array values, empty and populated collections, numeric edge
+values, and empty/populated Buffer output. The existing checked lifecycle also passes unchanged. Remaining
+descriptor/accessor and pathological string/Unicode cases, coverage/source maps, watch integration, real
+concurrent/parallel scheduling, exact 52-root counts, target receipts, serial/parallel agreement, and the 10k
+RSS gate keep the public row `Partial`.

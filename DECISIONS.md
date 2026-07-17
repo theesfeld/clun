@@ -3074,3 +3074,16 @@ Timeout ref/unref/refresh contract, advance Date and performance before callback
 before callbacks so `clearInterval` works from inside a callback, and restore the exact original functions on
 deactivation. A deterministic 100,000-callback ceiling turns accidental recursive or interval-only complete
 drains into a test failure instead of hanging the runner.
+
+### 2026-07-17 - Snapshot formatting is independent from console inspection
+
+Console output and stored test snapshots have different compatibility contracts. Snapshot serialization now
+owns its recursion, cycle tracking, key sorting, container layout, and built-in type labels instead of passing
+values through `inspect-value`. This prevents changes to interactive inspection depth or layout from silently
+rewriting snapshots and permits Bun-exact forms such as `Map { key => value }`, `Promise {}`, typed-array
+labels, and Buffer's `{ data, type }` representation.
+
+External and inline storage share the same value renderer but apply multiline boundaries at their respective
+storage edge: external template literals retain Bun's leading/trailing newline, while inline snapshots compare
+the dedented value and add source indentation only during an edit. Property matcher tokens remain a structural
+pre-pass and therefore cannot be replaced accidentally in unrelated equal-looking values.

@@ -81,6 +81,13 @@
               output)))
           (t (write-char character output)))))))
 
+(defun %snapshot-normalize-external-value (value)
+  (if (and (>= (length value) 2)
+           (char= (char value 0) #\Newline)
+           (char= (char value (1- (length value))) #\Newline))
+      (subseq value 1 (1- (length value)))
+      value))
+
 (defun %snapshot-load-external (state)
   (let ((path (ss-snapshot-path state)))
     (unless (sys:file-p path)
@@ -103,7 +110,8 @@
             (multiple-value-bind (old present-p) (gethash key (ss-values state))
               (declare (ignore old))
               (unless present-p (push key order)))
-            (setf (gethash key (ss-values state)) value))))
+            (setf (gethash key (ss-values state))
+                  (%snapshot-normalize-external-value value)))))
       ;; Keep orders reversed internally so PUSH appends new snapshots in execution
       ;; order and rendering needs only one non-destructive NREVERSE.
       (setf (ss-order state) order)))
@@ -177,32 +185,60 @@
        (or (eng:js-array-p value)
            (eq (eng:js-object-class value) :object))))
 
+(defun %snapshot-quote-string (value)
+  (with-output-to-string (output)
+    (write-char #\" output)
+    (loop for character across value do
+      (case character
+        (#\" (write-string "\\\"" output))
+        (#\\ (write-string "\\\\" output))
+        (#\Newline (write-char #\Newline output))
+        (#\Tab (write-string "\\t" output))
+        (#\Return (write-string "\\r" output))
+        (t (if (< (char-code character) #x20)
+               (format output "\\x~2,'0X" (char-code character))
+               (write-char character output)))))
+    (write-char #\" output)))
+
+(defun %snapshot-constructor-name (value)
+  (let ((constructor (and (eng:js-object-p value) (eng:js-get value "constructor"))))
+    (when (eng:callable-p constructor)
+      (let ((name (eng:js-get constructor "name")))
+        (and (stringp name) name)))))
+
+(defun %snapshot-sort-key (key)
+  (if (stringp key) key (%snapshot-format-key key)))
+
 (defun %snapshot-format-array (value properties matcher-label indent seen)
   (if (zerop (eng:array-length value))
       "[]"
       (with-output-to-string (output)
-        (write-string "[" output)
+        (write-char #\[ output)
         (write-char #\Newline output)
         (dotimes (index (eng:array-length value))
-          (multiple-value-bind (child-spec present-p)
-              (%snapshot-property-spec properties (princ-to-string index))
-            (write-string (%snapshot-indent (+ indent 2)) output)
-            (write-string
-             (%snapshot-format-matched
-              (eng:js-getv value (princ-to-string index))
-              (and present-p child-spec) matcher-label (+ indent 2) seen)
-             output)
-            (write-string "," output)
-            (write-char #\Newline output)))
+          (let ((key (princ-to-string index)))
+            (multiple-value-bind (child-spec present-p)
+                (%snapshot-property-spec properties key)
+              (write-string (%snapshot-indent (+ indent 2)) output)
+              (write-string
+               (%snapshot-format-matched
+                (eng:js-getv value key) (and present-p child-spec)
+                matcher-label (+ indent 2) seen)
+               output)
+              (write-char #\, output)
+              (write-char #\Newline output))))
         (write-string (%snapshot-indent indent) output)
-        (write-string "]" output))))
+        (write-char #\] output))))
 
-(defun %snapshot-format-object (value properties matcher-label indent seen)
-  (let ((keys (%snapshot-own-enumerable-keys value)))
+(defun %snapshot-format-object (value properties matcher-label indent seen
+                                &optional prefix)
+  (let ((keys (sort (copy-list (%snapshot-own-enumerable-keys value))
+                    #'string< :key #'%snapshot-sort-key)))
     (if (null keys)
-        "{}"
+        (format nil "~a{}" (or prefix ""))
         (with-output-to-string (output)
-          (write-string "{" output)
+          (write-string (or prefix "") output)
+          (write-char #\{ output)
           (write-char #\Newline output)
           (dolist (key keys)
             (multiple-value-bind (child-spec present-p)
@@ -215,10 +251,107 @@
                 (eng:js-getv value key) (and present-p child-spec)
                 matcher-label (+ indent 2) seen)
                output)
-              (write-string "," output)
+              (write-char #\, output)
               (write-char #\Newline output)))
           (write-string (%snapshot-indent indent) output)
-          (write-string "}" output)))))
+          (write-char #\} output)))))
+
+(defun %snapshot-iterator-values (value)
+  (let ((record (eng:get-iterator-record value)) (values '()))
+    (loop
+      (multiple-value-bind (item done-p) (eng:iterator-step-value record)
+        (when done-p (return (nreverse values)))
+        (push item values)))))
+
+(defun %snapshot-format-map (value matcher-label indent seen)
+  (let ((entries (%snapshot-iterator-values value)))
+    (if (null entries)
+        "Map {}"
+        (with-output-to-string (output)
+          (write-string "Map {" output)
+          (write-char #\Newline output)
+          (dolist (entry entries)
+            (write-string (%snapshot-indent (+ indent 2)) output)
+            (write-string (%snapshot-format-matched
+                           (eng:js-getv entry "0") nil matcher-label
+                           (+ indent 2) seen)
+                          output)
+            (write-string " => " output)
+            (write-string (%snapshot-format-matched
+                           (eng:js-getv entry "1") nil matcher-label
+                           (+ indent 2) seen)
+                          output)
+            (write-char #\, output)
+            (write-char #\Newline output))
+          (write-string (%snapshot-indent indent) output)
+          (write-char #\} output)))))
+
+(defun %snapshot-format-set (value matcher-label indent seen)
+  (let ((entries (%snapshot-iterator-values value)))
+    (if (null entries)
+        "Set {}"
+        (with-output-to-string (output)
+          (write-string "Set {" output)
+          (write-char #\Newline output)
+          (dolist (entry entries)
+            (write-string (%snapshot-indent (+ indent 2)) output)
+            (write-string (%snapshot-format-matched entry nil matcher-label
+                                                    (+ indent 2) seen)
+                          output)
+            (write-char #\, output)
+            (write-char #\Newline output))
+          (write-string (%snapshot-indent indent) output)
+          (write-char #\} output)))))
+
+(defun %snapshot-format-typed-array (value name matcher-label indent seen)
+  (let ((length (truncate (eng:to-number (eng:js-get value "length")))))
+    (if (zerop length)
+        (format nil "~a []" name)
+        (with-output-to-string (output)
+          (format output "~a [" name)
+          (write-char #\Newline output)
+          (dotimes (index length)
+            (write-string (%snapshot-indent (+ indent 2)) output)
+            (write-string
+             (%snapshot-format-matched
+              (eng:js-getv value (princ-to-string index)) nil matcher-label
+              (+ indent 2) seen)
+             output)
+            (write-char #\, output)
+            (write-char #\Newline output))
+          (write-string (%snapshot-indent indent) output)
+          (write-char #\] output)))))
+
+(defun %snapshot-format-buffer (value matcher-label indent seen)
+  (let ((length (truncate (eng:to-number (eng:js-get value "length")))))
+    (with-output-to-string (output)
+      (write-char #\{ output)
+      (write-char #\Newline output)
+      (write-string (%snapshot-indent (+ indent 2)) output)
+      (write-string "\"data\": " output)
+      (if (zerop length)
+          (write-string "[]" output)
+          (progn
+            (write-char #\[ output)
+            (write-char #\Newline output)
+            (dotimes (index length)
+              (write-string (%snapshot-indent (+ indent 4)) output)
+              (write-string
+               (%snapshot-format-matched
+                (eng:js-getv value (princ-to-string index)) nil matcher-label
+                (+ indent 4) seen)
+               output)
+              (write-char #\, output)
+              (write-char #\Newline output))
+            (write-string (%snapshot-indent (+ indent 2)) output)
+            (write-char #\] output)))
+      (write-char #\, output)
+      (write-char #\Newline output)
+      (write-string (%snapshot-indent (+ indent 2)) output)
+      (write-string "\"type\": \"Buffer\"," output)
+      (write-char #\Newline output)
+      (write-string (%snapshot-indent indent) output)
+      (write-char #\} output))))
 
 (defun %snapshot-format-matched (value properties matcher-label indent seen)
   (let ((token (and properties matcher-label (funcall matcher-label properties))))
@@ -234,14 +367,58 @@
                 (%snapshot-format-array value properties matcher-label indent seen)
                 (%snapshot-format-object value properties matcher-label indent seen))
          (remhash value seen)))
-      (t (eng:inspect-value value)))))
+      ((stringp value) (%snapshot-quote-string value))
+      ((not (eng:js-object-p value)) (eng:inspect-value value))
+      ((gethash value seen) "[Circular]")
+      (t
+       (setf (gethash value seen) t)
+       (unwind-protect
+            (let ((name (%snapshot-constructor-name value)))
+              (cond
+                ((eng:callable-p value) (eng:inspect-value value :depth 100))
+                ((eng:js-array-p value)
+                 (%snapshot-format-array value nil matcher-label indent seen))
+                ((eng:js-promise-p value) "Promise {}")
+                ((eq (eng:js-object-class value) :date)
+                 (eng:inspect-value value :depth 100))
+                ((eq (eng:js-object-class value) :error)
+                 (let ((message (eng:js-get value "message")))
+                   (if (and (stringp message) (plusp (length message)))
+                       (format nil "[Error: ~a]" message)
+                       "[Error]")))
+                ((and name (string= name "Map"))
+                 (%snapshot-format-map value matcher-label indent seen))
+                ((and name (string= name "Set"))
+                 (%snapshot-format-set value matcher-label indent seen))
+                ((and name
+                      (member name '("WeakMap" "WeakSet") :test #'string=))
+                 (format nil "~a {}" name))
+                ((and name
+                      (member name '("ArrayBuffer" "DataView") :test #'string=))
+                 (format nil "~a []" name))
+                ((and name (string= name "Buffer"))
+                 (%snapshot-format-buffer value matcher-label indent seen))
+                ((eq (eng:js-object-class value) :typed-array)
+                 (%snapshot-format-typed-array value name matcher-label indent seen))
+                ((and name
+                      (member name '("Number" "Boolean") :test #'string=))
+                 (format nil "~a {}" name))
+                ((and name (string= name "String"))
+                 (%snapshot-format-object value nil matcher-label indent seen
+                                          "String "))
+                ((and name (string= name "RegExp"))
+                 (eng:to-string value))
+                (t
+                 (%snapshot-format-object
+                  value nil matcher-label indent seen
+                  (and name (not (string= name "Object"))
+                       (concatenate 'string name " "))))))
+         (remhash value seen))))))
 
 (defun snapshot-format-value (value &optional property-matchers matcher-label)
   "Return a deterministic snapshot representation, substituting matcher tokens."
-  (if property-matchers
-      (%snapshot-format-matched value property-matchers matcher-label 0
-                                (make-hash-table :test #'eq))
-      (eng:inspect-value value)))
+  (%snapshot-format-matched value property-matchers matcher-label 0
+                            (make-hash-table :test #'eq)))
 
 (defun %snapshot-record-output (state key value)
   (multiple-value-bind (old present-p) (gethash key (ss-output-values state))
@@ -442,9 +619,14 @@
     (with-output-to-string (output)
       (write-string +snapshot-header+ output)
       (dolist (key order)
-        (format output "~%exports[`~a`] = `~a`;~%"
-                (%snapshot-template-escape key)
-                (%snapshot-template-escape (gethash key values)))))))
+        (let* ((value (gethash key values))
+               (external-value
+                 (if (find #\Newline value)
+                     (format nil "~%~a~%" value)
+                     value)))
+          (format output "~%exports[`~a`] = `~a`;~%"
+                  (%snapshot-template-escape key)
+                  (%snapshot-template-escape external-value)))))))
 
 (defun %snapshot-apply-inline-edits (state)
   (let ((text (ss-source-text state))

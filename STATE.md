@@ -1989,8 +1989,12 @@ Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-earl
   advancement, count/clear/state controls, custom wall time, `jest.now`, Date and performance coupling,
   ordered timeout/interval execution, handle refresh/ref state, strict errors, a 100k runaway bound, and
   automatic teardown. Exact shipped-binary evidence covers 10 tests and 58 assertions across three realms.
-- Ledger stays `Partial`. Remaining Phase 66 scope: Bun-exact snapshot serialization across every supported
-  value kind,
+- Milestone 66.21 replaces console inspection in snapshots with a dedicated Bun formatter. Thirty-three exact
+  inline receipts cover sorted nested containers, collections, dates, errors, promises, regexps, typed/binary
+  values, circular references, functions, wrappers, classes, weak collections, numeric edges, symbols, and
+  Buffer JSON shape while preserving lifecycle and asymmetric property-token behavior.
+- Ledger stays `Partial`. Remaining Phase 66 scope: Bun-exact serialization for the remaining exotic
+  descriptor and string edge cases,
   coverage/source maps, parallelism/concurrency,
   watch hooks, exact 52-root Bun/Clun counts, four-target receipts,
   serial/parallel agreement, and 10k RSS.
