@@ -37,7 +37,9 @@ their contents cannot create operators, substitutions, redirects, globs, or extr
   empty operand. Compound expressions are parsed and short-circuited internally rather than being mistaken
   for outer script operators. Equality and inequality use shell-pattern matching while retaining a
   per-character protection mask, so quoted/escaped metacharacters and ordinary template interpolations remain
-  literal while unquoted literal or variable-supplied patterns remain active.
+  literal while unquoted literal or variable-supplied patterns remain active. The same protection contract
+  applies to the unanchored `=~` regular-expression operator. Malformed evaluated regex operands return status
+  2, while a malformed operand in a short-circuited branch is not compiled.
 - Resolve external programs against the job's `PATH`, require executable permission, and use
   `sb-ext:run-program` directly. The implementation does not invoke `sh`, `bash`, or another command parser.
 - Spawn every command in an external-only pipeline before waiting. Intermediate streams are connected while
@@ -73,7 +75,7 @@ The conditional fixture freezes the active `shell-seq-condexpr.test.ts` empty-pa
 non-todo `bunshell.test.ts` unary/string cases, including both conditional pipeline positions. It additionally
 freezes the pinned GNU-bash-derived compound-expression cases for repeated negation, short-circuit operators,
 operator precedence, compact/spaced grouping, lexical string ordering, glob equality, quoted and escaped
-patterns, variable-supplied patterns, and inert template interpolation.
+patterns, variable-supplied patterns, regex matching and syntax failures, and inert template interpolation.
 `tests/lisp/runtime/shell-tests.lisp` separately
 owns parser and built-in behavior without an external process dependency.
 
