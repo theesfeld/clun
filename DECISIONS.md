@@ -3060,3 +3060,17 @@ It accepts the documented string and string-array forms, including multiline arr
 strings, and basic escapes, while rejecting malformed or duplicate declarations instead of guessing. An
 explicit context phase permits lifecycle registration during setup but rejects test/describe registration,
 matching the pinned Bun separation between preload configuration and test collection.
+
+### 2026-07-17 - Phase 66 fake time is realm-owned, not process-global
+
+The engine realm has one optional wall-clock value used by Date construction and `Date.now`; ordinary realms
+leave it `NIL` and continue reading the host clock. The test runner owns the corresponding virtual monotonic
+clock and ordered timer entries. This keeps fake time, callbacks, wrapper objects, and custom system time
+inside the file realm and makes teardown a complete isolation boundary without modifying the process clock or
+the shared event loop.
+
+Fake timeout and interval functions replace the realm globals only while activated. They retain the shipped
+Timeout ref/unref/refresh contract, advance Date and performance before callback dispatch, reschedule intervals
+before callbacks so `clearInterval` works from inside a callback, and restore the exact original functions on
+deactivation. A deterministic 100,000-callback ceiling turns accidental recursive or interval-only complete
+drains into a test failure instead of hanging the runner.

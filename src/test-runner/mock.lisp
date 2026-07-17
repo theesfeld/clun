@@ -279,6 +279,7 @@
     (funcall function record)))
 
 (defun restore-test-mocks (ctx)
+  (restore-fake-timers ctx)
   (%for-each-mock ctx (lambda (record)
                         (when (mock-spy-owner record) (%mock-restore record))
                         (remhash (mock-function record) *mock-records*)))
@@ -348,6 +349,7 @@
         (%for-each-mock ctx (lambda (record)
                               (when (mock-spy-owner record) (%mock-restore record))))
         eng:+undefined+))
+    (install-fake-timers realm ctx jest)
     (eng:hidden-prop global "mock" mock-fn)
     (eng:hidden-prop global "spyOn" spy-fn)
     (eng:hidden-prop global "jest" jest)

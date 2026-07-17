@@ -312,3 +312,26 @@ multiline and dotted-key bunfig forms, CLI aliases and config ordering, bail tea
 matrix. Setup/preload is therefore no longer a Phase 66 residual. Dynamic import, fake timers,
 coverage/source maps, watch integration, real concurrent/parallel scheduling, exact 52-root counts, target
 receipts, serial/parallel agreement, and the quantitative RSS gate remain open, so the row stays `Partial`.
+
+## Milestone 66.20 - realm-local fake timers
+
+The `jest` and `vi` objects now expose the complete pinned Bun fake-timer control family:
+`useFakeTimers`, `useRealTimers`, `advanceTimersToNextTimer`, `advanceTimersByTime`,
+`runOnlyPendingTimers`, `runAllTimers`, `getTimerCount`, `clearAllTimers`, and `isFakeTimers`.
+`jest.setSystemTime` and `jest.now` share the same realm clock. Activating fake time replaces only that
+realm's timeout and interval globals, preserves callback arguments and Timeout ref/refresh behavior, and
+restores the original functions at `useRealTimers` or unconditional file teardown.
+
+The virtual queue orders entries by deadline and registration sequence. Interval callbacks reschedule before
+dispatch so callback-side cancellation is observable; pending drains stop at the latest deadline present at
+entry, while complete drains include nested timers and reject a 100,000-callback runaway. Virtual monotonic
+time starts at zero, wall time starts at the host clock or an explicit Number/Date, and both `Date` construction
+and `Date.now` advance with `performance.now` without replacing the Date constructor.
+
+Exact shipped-binary evidence executes 10 tests and 58 assertions across three independently torn-down file
+realms. It covers every control, sorted and nested timeouts, repeated intervals, pending and complete drains,
+clearing, custom time, Date/performance callback observations, timer handles, argument forwarding, strict
+errors, and cross-file isolation. Fake timers are therefore no longer a Phase 66 residual. Coverage/source
+maps, watch integration, real concurrent/parallel scheduling, exact 52-root counts, complete snapshot
+serialization, target receipts, serial/parallel agreement, and the quantitative RSS gate keep the row
+`Partial`.

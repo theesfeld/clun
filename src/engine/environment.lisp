@@ -52,6 +52,7 @@
   (template-registry (make-hash-table :test 'eq))
                                  ; TemplateLiteral parse node -> frozen template object
   (module-mocks nil)             ; test-only lookup keys -> mocked module-record (Phase 66)
+  (clock-now-ms nil)             ; test-only wall-clock override; NIL uses the host clock
   (entry-module nil))            ; the graph's entry module (import.meta.main, Phase 07)
 
 (defun realm-module (realm path)

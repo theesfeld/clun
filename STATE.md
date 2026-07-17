@@ -1985,8 +1985,12 @@ Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-earl
   ordering, suite-wide beforeAll/afterAll, per-file beforeEach/afterEach placement, globals, custom matchers,
   module mocks, bail teardown, CLI aliases, strict configuration errors, and preload-phase registration
   guards. Exact-output and checked-script evidence exercise the shipped binary end to end.
+- Milestone 66.20 adds realm-local `jest`/`vi` fake timers: activate/restore, next/by-time/pending/all
+  advancement, count/clear/state controls, custom wall time, `jest.now`, Date and performance coupling,
+  ordered timeout/interval execution, handle refresh/ref state, strict errors, a 100k runaway bound, and
+  automatic teardown. Exact shipped-binary evidence covers 10 tests and 58 assertions across three realms.
 - Ledger stays `Partial`. Remaining Phase 66 scope: Bun-exact snapshot serialization across every supported
   value kind,
-  fake timers, coverage/source maps, parallelism/concurrency,
+  coverage/source maps, parallelism/concurrency,
   watch hooks, exact 52-root Bun/Clun counts, four-target receipts,
   serial/parallel agreement, and 10k RSS.

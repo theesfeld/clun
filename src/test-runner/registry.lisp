@@ -19,6 +19,7 @@
   (mocks '()) (invocation-order 0)
   (snapshot nil)
   (preloading nil)
+  (fake-timers nil)
   (custom-matchers (make-hash-table :test #'equal)))
 
 (defvar *active-test* nil "The test whose hooks/body are currently executing.")

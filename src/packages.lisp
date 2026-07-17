@@ -228,7 +228,7 @@
    #:inspect-value #:*inspect-defaults*
    ;; runtime hooks (Phase 08): completion capture for -p, error introspection,
    ;; realm accessors the runtime/CLI need
-   #:run-module-file #:run-module-source #:eval-source #:realm-global
+   #:run-module-file #:run-module-source #:eval-source #:realm-global #:realm-clock-now-ms
    #:register-module-mock
    #:teardown-realm #:run-callback-to-settlement #:drive-jobs #:current-loop
    #:promise-and-caps

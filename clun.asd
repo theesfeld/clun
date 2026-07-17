@@ -221,6 +221,7 @@
                               :serial t
                               :components ((:file "diff")
                                            (:file "registry")
+                                           (:file "fake-timers")
                                            (:file "mock")
                                            (:file "snapshot")
                                            (:file "expect")
