@@ -1013,8 +1013,13 @@ verify_live_roadmap() {
   verify_phase25b_reference "$repo" "$issue_cache" "$verify_dir"
   active_phase=$(awk -F "$TAB" 'NR == 2 { print $8 }' "$RELEASE_LEDGER")
   active_issue=$(awk -F "$TAB" 'NR == 2 { print $9 }' "$RELEASE_LEDGER")
+  publication_state=$(awk -F "$TAB" 'NR == 2 { print $6 }' "$RELEASE_LEDGER")
   case "$active_phase:$active_issue" in
     *[!0-9:]*|:*|*:|*::* ) fail "compat/release.tsv has an invalid active phase/issue" ;;
+  esac
+  case "$publication_state" in
+    candidate|published) ;;
+    *) fail "compat/release.tsv has an invalid publication state: $publication_state" ;;
   esac
   active_seen=0
   verified=0
@@ -1051,9 +1056,22 @@ verify_live_roadmap() {
     if [ "$phase" = "$active_phase" ]; then
       [ "$issue_number" = "$active_issue" ] ||
         fail "active release points to issue #$active_issue, but Phase $phase canonical issue is #$issue_number"
-      [ "$issue_state" = open ] || fail "active Phase $phase issue #$issue_number must remain open"
-      grep -F -x '**Phase status:** `in-progress`' "$body" >/dev/null 2>&1 ||
-        fail "active Phase $phase issue #$issue_number must record Phase status in-progress"
+      case "$publication_state:$issue_state" in
+        candidate:open)
+          grep -F -x '**Phase status:** `in-progress`' "$body" >/dev/null 2>&1 ||
+            fail "candidate Phase $phase issue #$issue_number must record Phase status in-progress"
+          ;;
+        published:closed)
+          grep -F -x '**Phase status:** `complete`' "$body" >/dev/null 2>&1 ||
+            fail "published Phase $phase issue #$issue_number must record Phase status complete"
+          ;;
+        candidate:*)
+          fail "candidate Phase $phase issue #$issue_number must remain open"
+          ;;
+        published:*)
+          fail "published Phase $phase issue #$issue_number must be closed"
+          ;;
+      esac
       active_seen=$((active_seen + 1))
     fi
     verified=$((verified + 1))

@@ -9,10 +9,10 @@ targets are workload-specific and published;
 Clun does not claim blanket speed parity with Bun.
 
 <!-- clun-generated:release:begin -->
-> **Status: pre-alpha, under active construction.** [Phase 36](https://github.com/theesfeld/clun/issues/10) is in progress.
-> Its release-bearing target is `0.1.0-dev.14` / `v0.1.0-dev.14` (SemVer impact: `minor`).
+> **Status: pre-alpha, under active construction.** [Phase 36](https://github.com/theesfeld/clun/issues/10) is complete.
+> It shipped as `0.1.0-dev.14` / `v0.1.0-dev.14` (SemVer impact: `minor`).
 > The verified release boundary is `v0.1.0-dev.14`, with four native archives and checksums.
-> Release-gated Pages and hosted-installer results are tracked in the canonical issue.
+> Release-gated Pages and hosted-installer results are recorded in the canonical issue.
 > Phase 26 remains deferred until after Phase 82 and will
 > be rewritten for the repository state that exists then.
 > Clun executes its scoped JS/TS surface, but it is not a drop-in Node.js or Bun replacement.

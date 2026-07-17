@@ -7,23 +7,25 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **36 - Password and hash APIs**  (IN PROGRESS)
+## Current phase: **36 - Password and hash APIs**  (COMPLETE)
 
 **Canonical issue:** https://github.com/theesfeld/clun/issues/10
-**Parallel continuation issue:** https://github.com/theesfeld/clun/issues/5
-**Current implementation unit:** reconcile the published immutable dev.14 release, deploy its exact Pages
-snapshot, prove the hosted installer, and close Phase 36. `security.password-hashing` is the seventh
-evidence-backed compatibility-ledger `Yes`; `data.yaml` remains honestly `Partial` in the published unit.
+**Next phase issue:** https://github.com/theesfeld/clun/issues/11
+**Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/5,
+https://github.com/theesfeld/clun/issues/2, https://github.com/theesfeld/clun/issues/39, and
+https://github.com/theesfeld/clun/issues/40
+**Current implementation unit:** published dev.14 is fully reconciled and Phase 36 is closed. The next atomic
+release-ledger transition will create the Phase 37/dev.15 candidate around its reviewed 173-pass milestone.
 **SemVer impact:** `minor`
-**Release target:** `0.1.0-dev.14` / `v0.1.0-dev.14`
-**Entry boundary:** Phase 34 Color is published in immutable dev.13 at exact commit
-`9663ac388bda16e986a9196880e6e43b634fa385`; its evidence-only publication reconciliation is merged
-at exact master `53a7bc9183f9b93f739356ba918dabe25c050b6a`. Exact-head CI, Documentation, and Pages passed; the live
-page and hosted installer serve dev.13; and issue #8 is closed complete. Phases 31 and 36 have completed
-prerequisites, and Phase 26 remains after Phase 82.
-**Current scope:** merge this evidence-only publication reconciliation, pass exact CI/Documentation/Pages,
-verify live `clun.sh` and an isolated hosted dev.14 install, close issue #10, and hand the release lane to
-Phase 37/dev.15 while the compatibility-Yes sprint continues in parallel.
+**Published release:** `0.1.0-dev.14` / `v0.1.0-dev.14`
+**Entry boundary:** Phase 36 is published in immutable dev.14 at exact commit
+`002292cbcad064a0da7c2879f9d03b44659a8f59`; release reconciliation is merged at exact master
+`f028dbfc596e81ce1fd56b845fade7b4c42adef5`. Exact-head CI, Documentation, and Pages passed; live
+`clun.sh` and its hosted installer serve dev.14; and issue #10 is closed complete. Phase 26 remains after
+Phase 82.
+**Next scope:** reapply the reviewed Phase 37 milestone-1 unit onto `f028dbfc`, pass its focused and monotonic
+conformance gates, and atomically synchronize the dev.15 candidate ledger, `STATE.md`, README, site, and
+issue #11 while the compatibility-Yes lanes advance independently.
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
 easiest to hardest among dependency-ready rows. Core engine/runtime/network/tooling changes are expected.
@@ -32,16 +34,13 @@ four-target evidence, synchronized public surfaces, and the correct SemVer trans
 queue is YAML, transport streaming, shell, test-runner parity, and the dependency-enabling modern ECMAScript
 wave; exact canonical ledger IDs are frozen in `PLAN.md`.
 
-**Current checkpoint:** PR #77 is squash-merged at exact master
-`002292cbcad064a0da7c2879f9d03b44659a8f59`. Exact-master CI `29553246365`, Documentation `29553246351`
-attempt 2, Pages candidate validation `29553246358` attempt 2, and four-target Compatibility plus aggregate
-receipts `29553246352` passed. Annotated tag `v0.1.0-dev.14` peels exactly to the merge. Release run
-`29553831642` passed the claims gate, all four native builders, compatibility evidence, full tests,
-cryptography, purity, packaging, packaged-binary and installer checks, and immutable publication. Release
-`RE_kwDOTYj8rs4VMAYn` contains exactly four nonempty native archives plus `checksums.txt`; the live-release
-check verifies the exact commit and assets, and an isolated released-asset install reports
-`clun 0.1.0-dev.14` at revision `002292cb`. The published snapshot is **7 Yes / 7 Partial / 16 No**.
-Pending: reconciliation merge, exact Pages deployment, hosted-installer proof, and issue #10 closure.
+**Current checkpoint:** Phase 37 milestone-1 source commit `21ec1152df42919cb027be2a3778eeb6d80c1615`
+and reviewed integration object `64ad11815a66311fa6c309b6d5584cd60c5c1592` add `Object.hasOwn`, array
+copy-by-change methods, String well-formedness, `Error.isError`, and `Promise.withResolvers`, producing 173
+measured execution-pass gains. The frozen Phase 37 inventory still has 708 residual failures; no full ledger
+row is claimed. Parallel durable checkpoints are YAML `b0a39263` at **246 / 402**, transport `0e00a513`
+with HTTP/HTTPS streaming plus clone/tee, and shell `35319dab` with its parser/runtime and guarded filesystem
+builtins. Published master remains **7 Yes / 7 Partial / 16 No** until a complete declared row gate passes.
 
 **M5 entry boundary:** immutable dev.4 diagnostic set **56 total / 0 pass / 56 fail / 0 skip / 0 crash**:
 **43 m5-owned** (32 intrinsic/prototype, 7 parser, 4 raw delegation), **12 m11** direct-eval/`with`
