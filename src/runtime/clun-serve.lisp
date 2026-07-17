@@ -291,9 +291,8 @@
                      (%request-header-value request "if-modified-since"))
                    (conditional-method-p
                      (member method '("GET" "HEAD") :test #'string=))
-                   (range-method-p (string= method "GET"))
                    (not-modified-p
-                     (and (= original-status 200) range-method-p
+                     (and (= original-status 200) conditional-method-p
                           (if if-none-match
                               (or (%if-none-match-wildcard-p if-none-match)
                                   (and etag-field

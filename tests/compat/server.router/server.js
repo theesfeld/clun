@@ -28,9 +28,12 @@ const routes = {
   "/file-slice": Clun.file(process.env.CLUN_ROUTER_FILE).slice(5, 10),
   "/file-empty": new Response(Clun.file(process.env.CLUN_ROUTER_EMPTY)),
   "/file-empty-400": new Response(Clun.file(process.env.CLUN_ROUTER_EMPTY), { status: 400 }),
+  "/dynamic-empty": () => new Response(Clun.file(process.env.CLUN_ROUTER_EMPTY)),
   "/file-binary": new Response(Clun.file(process.env.CLUN_ROUTER_BINARY)),
   "/file-json": new Response(Clun.file(process.env.CLUN_ROUTER_JSON)),
   "/file-unicode": new Response(Clun.file(process.env.CLUN_ROUTER_UNICODE)),
+  "/file-nested": new Response(Clun.file(process.env.CLUN_ROUTER_NESTED)),
+  "/file-special-name": new Response(Clun.file(process.env.CLUN_ROUTER_SPECIAL_NAME)),
   "/large-file": new Response(Clun.file(process.env.CLUN_ROUTER_LARGE)),
   "/file-custom": new Response(Clun.file(process.env.CLUN_ROUTER_FILE), {
     headers: { "x-file": "custom", "etag": '"file-custom"' },

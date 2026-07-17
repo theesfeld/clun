@@ -35,11 +35,16 @@ assert(router.routes["/escape"] === undefined, "directory symlink filtering");
 
 let match = router.match("/posts/hey");
 assert(match.name === "/posts/hey" && match.kind === "exact", "exact precedence");
-match = router.match("/posts/a%20b?hello=world&second=2");
-assert(match.name === "/posts/[id]" && match.params.id === "a b", "dynamic decoding");
-assert(match.pathname === "/posts/a b", "decoded pathname");
-assert(match.query.id === "a b" && match.query.hello === "world" && match.query.second === "2", "query and params");
-assert(match.src === "https://clun.sh/_next/static/posts/[id].tsx", "public source path");
+const stableMatch = router.match("/posts/" + "%61".repeat(64) + "?hello=world&second=2");
+assert(stableMatch.name === "/posts/[id]" && stableMatch.params.id === "a".repeat(64), "dynamic decoding");
+assert(stableMatch.pathname === "/posts/" + "a".repeat(64), "decoded pathname");
+assert(stableMatch.query.id === "a".repeat(64) && stableMatch.query.hello === "world" && stableMatch.query.second === "2", "query and params");
+assert(stableMatch.src === "https://clun.sh/_next/static/posts/[id].tsx", "public source path");
+
+const laterMatch = router.match("/posts/" + "%62".repeat(64));
+assert(laterMatch.params.id === "b".repeat(64), "later decoded match");
+assert(stableMatch.params.id === "a".repeat(64), "earlier params survive later match");
+assert(stableMatch.pathname === "/posts/" + "a".repeat(64), "earlier pathname survives later match");
 
 match = router.match("https://example.com/posts/%252e%252e%252fetc?x=1");
 assert(match.params.id === "%2e%2e%2fetc", "percent decoding exactly once");
@@ -61,8 +66,11 @@ for (const input of ["/posts", "/posts/", "/posts/index"]) {
   assert(router.match(input).name === "/posts", `nested index alias ${input}`);
 }
 assert(router.match("/not-present") === null, "missing route");
+assert(router.match("/postt/hey") === null, "equal-length static segment is compared exactly");
 assert(router.match("?").name === "/", "degenerate root query");
 assert(router.match("?foo=bar").query.foo === "bar", "degenerate root query value");
+assert(router.match("%PUBLIC_URL%").name === "/", "percent-decoded empty root path");
+assert(router.match("%PUBLIC_URL%?x=1").query.x === "1", "percent-decoded empty root query");
 
 const queryParts = [];
 for (let index = 0; index < 3000; index++) queryParts.push(`k${index}=v${index}`);

@@ -63,6 +63,10 @@ emit_sites() {
         disposition = "not-applicable"
         proof = "-"
         note = "pollable FIFO streaming is outside the regular-file router contract; Clun rejects special files fail-closed"
+      } else if (suite == "bun-serve-file" && baseline == "engineering" && NR >= 988) {
+        disposition = "not-applicable"
+        proof = "-"
+        note = "Clun parses the complete request body before dispatch and has no shared uWebSockets callback userdata lifetime"
       } else if (suite == "filesystem_router" && baseline == "engineering" && NR >= 755) {
         disposition = "not-applicable"
         proof = "-"

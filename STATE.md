@@ -7,7 +7,7 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **50 - Router, static files, and FileSystemRouter**  (M4 REVIEW)
+## Current phase: **50 - Router, static files, and FileSystemRouter**  (YES CANDIDATE REVIEW)
 
 **Canonical issue:** https://github.com/theesfeld/clun/issues/24
 **Next phase issue:** https://github.com/theesfeld/clun/issues/11
@@ -16,7 +16,7 @@ https://github.com/theesfeld/clun/issues/39, and https://github.com/theesfeld/cl
 **Current implementation unit:** Phase 50 implements first-party routes, the legacy static alias,
 regular-file response streaming, server.fetch, and FileSystemRouter. The exact stable/engineering Bun
 inventory accounts for 981 lexical sites; four-target receipts and final adversarial review remain before
-the public `server.router` row can change from No to Yes.
+the staged `server.router` Yes can merge and publish.
 **SemVer impact:** `minor`
 **Candidate release:** `0.1.0-dev.17` / `v0.1.0-dev.17`
 **Published release:** `0.1.0-dev.16` / `v0.1.0-dev.16`
@@ -24,8 +24,8 @@ the public `server.router` row can change from No to Yes.
 `0212be64283549d03864fa7e01a793c1cee8ac33`. Phase 50 draft PR #85 targets `master`; local `make
 test-router` passes with 981/981 pinned lexical sites accounted and 100,000-route resource bounds.
 Phase 26 remains after Phase 82.
-**Next scope:** pass four-target PR compatibility receipts, resolve final adversarial findings, synchronize
-the public ledger/README/site as one reviewed Yes promotion, squash-merge to master, and release dev.17.
+**Next scope:** pass four-target PR compatibility receipts, resolve final adversarial findings, verify the
+synchronized ledger/README/site/Issue candidate, squash-merge to master, and release dev.17.
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
 easiest to hardest among dependency-ready rows. Core engine/runtime/network/tooling changes are expected.
@@ -44,7 +44,8 @@ well-formedness, `Error.isError`, and `Promise.withResolvers`, producing 173 mea
 its frozen inventory still has 708 residual failures and no full ledger row is claimed. Parallel durable
 checkpoints include transport request streaming plus origin-keyed HTTP pooling and shell parser/runtime,
 guarded filesystem builtins, bounded `yes`, and isolated pipeline state. Merged `master` is **8 Yes /
-6 Partial / 16 No** with the complete Phase 31 evidence attached.
+6 Partial / 16 No** with the complete Phase 31 evidence attached; draft PR #85 stages **9 Yes / 6 Partial /
+15 No** for dev.17.
 
 **M5 entry boundary:** immutable dev.4 diagnostic set **56 total / 0 pass / 56 fail / 0 skip / 0 crash**:
 **43 m5-owned** (32 intrinsic/prototype, 7 parser, 4 raw delegation), **12 m11** direct-eval/`with`

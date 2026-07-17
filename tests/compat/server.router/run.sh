@@ -13,6 +13,9 @@ printf '0123456789ABCDEF' >"$scratch/file.txt"
 printf '\000\001\002\003\377\376\375' >"$scratch/binary.bin"
 printf '{"message":"test","number":42}\n' >"$scratch/data.json"
 printf 'Hello \344\270\226\347\225\214 \360\237\214\215 \303\251mojis' >"$scratch/unicode.txt"
+mkdir -p "$scratch/nested"
+printf 'nested-file' >"$scratch/nested/deep.txt"
+printf 'special-file' >"$scratch/special chars & file.txt"
 dd if=/dev/zero of="$scratch/large.bin" bs=1048576 count=16 2>/dev/null
 ln -s "$scratch/file.txt" "$scratch/file-link.txt"
 mkfifo "$scratch/file.fifo"
@@ -60,6 +63,8 @@ CLUN_ROUTER_EMPTY="$scratch/empty.txt" \
 CLUN_ROUTER_BINARY="$scratch/binary.bin" \
 CLUN_ROUTER_JSON="$scratch/data.json" \
 CLUN_ROUTER_UNICODE="$scratch/unicode.txt" \
+CLUN_ROUTER_NESTED="$scratch/nested/deep.txt" \
+CLUN_ROUTER_SPECIAL_NAME="$scratch/special chars & file.txt" \
 CLUN_ROUTER_LARGE="$scratch/large.bin" \
 CLUN_ROUTER_MISSING="$scratch/missing.txt" \
 CLUN_ROUTER_SYMLINK="$scratch/file-link.txt" \
@@ -224,6 +229,20 @@ if [ "$status" != 200 ] || [ -s "$scratch/empty-body" ] || \
   printf 'server.router: empty file was not a zero-byte 200 representation\n' >&2
   exit 1
 fi
+status=$(curl --silent --show-error --dump-header "$scratch/dynamic-empty-get-headers" \
+  --output "$scratch/dynamic-empty-get-body" --write-out '%{http_code}' "${url}dynamic-empty")
+if [ "$status" != 200 ] || [ -s "$scratch/dynamic-empty-get-body" ] || \
+    ! tr -d '\r' <"$scratch/dynamic-empty-get-headers" | grep -i -x 'content-length: 0' >/dev/null; then
+  printf 'server.router: dynamic empty file GET response mismatch\n' >&2
+  exit 1
+fi
+status=$(curl --silent --show-error --head --output "$scratch/dynamic-empty-head" \
+  --write-out '%{http_code}' "${url}dynamic-empty")
+if [ "$status" != 200 ] || \
+    ! tr -d '\r' <"$scratch/dynamic-empty-head" | grep -i -x 'content-length: 0' >/dev/null; then
+  printf 'server.router: dynamic empty file HEAD response mismatch\n' >&2
+  exit 1
+fi
 status=$(curl --silent --show-error --output "$scratch/empty-400-body" \
   --write-out '%{http_code}' "${url}file-empty-400")
 [ "$status" = 400 ] && [ ! -s "$scratch/empty-400-body" ] || {
@@ -232,8 +251,14 @@ status=$(curl --silent --show-error --output "$scratch/empty-400-body" \
 }
 curl --fail --silent --show-error --output "$scratch/binary-body" "${url}file-binary"
 cmp "$scratch/binary.bin" "$scratch/binary-body"
+curl --silent --show-error --head "${url}file-binary" >"$scratch/binary-head"
+tr -d '\r' <"$scratch/binary-head" | grep -i -x 'content-type: application/octet-stream' >/dev/null
 assert_body file-json '{"message":"test","number":42}'
+curl --silent --show-error --head "${url}file-json" >"$scratch/json-head"
+tr -d '\r' <"$scratch/json-head" | grep -i -x 'content-type: application/json;charset=utf-8' >/dev/null
 assert_body file-unicode 'Hello 世界 🌍 émojis'
+assert_body file-nested nested-file
+assert_body file-special-name special-file
 status=$(curl --silent --show-error --dump-header "$scratch/slice-headers" \
   --output "$scratch/slice-body" --write-out '%{http_code}' \
   -H 'Range: bytes=12-15' "${url}file-slice")
@@ -299,10 +324,48 @@ status=$(curl --silent --show-error --output "$scratch/file-ims" --write-out '%{
   printf 'server.router: file If-Modified-Since did not produce 304\n' >&2
   exit 1
 }
+status=$(curl --silent --show-error --head --output "$scratch/file-ims-head" --write-out '%{http_code}' \
+  -H 'If-Modified-Since: Thu, 31 Dec 2099 23:59:59 GMT' "${url}file")
+[ "$status" = 304 ] && ! tr -d '\r' <"$scratch/file-ims-head" | grep -i '^content-length:' >/dev/null || {
+  printf 'server.router: HEAD If-Modified-Since did not produce header-only 304\n' >&2
+  exit 1
+}
+status=$(curl --silent --show-error --output "$scratch/file-ims-past" --write-out '%{http_code}' \
+  -H 'If-Modified-Since: Tue, 01 Jan 1980 00:00:00 GMT' "${url}file")
+[ "$status" = 200 ] && [ "$(cat "$scratch/file-ims-past")" = '0123456789ABCDEF' ] || {
+  printf 'server.router: past If-Modified-Since incorrectly suppressed file\n' >&2
+  exit 1
+}
+status=$(curl --silent --show-error --dump-header "$scratch/file-ims-range-headers" \
+  --output "$scratch/file-ims-range" --write-out '%{http_code}' \
+  -H 'If-Modified-Since: Thu, 31 Dec 2099 23:59:59 GMT' -H 'Range: bytes=0-3' "${url}file")
+[ "$status" = 304 ] && [ ! -s "$scratch/file-ims-range" ] && \
+  ! tr -d '\r' <"$scratch/file-ims-range-headers" | grep -i '^content-range:' >/dev/null || {
+  printf 'server.router: If-Modified-Since did not take precedence over Range\n' >&2
+  exit 1
+}
+status=$(curl --silent --show-error --output "$scratch/file-post-ims" --write-out '%{http_code}' \
+  -X POST -H 'If-Modified-Since: Thu, 31 Dec 2099 23:59:59 GMT' "${url}dynamic-file")
+[ "$status" = 200 ] && [ "$(cat "$scratch/file-post-ims")" = '0123456789ABCDEF' ] || {
+  printf 'server.router: POST incorrectly applied If-Modified-Since\n' >&2
+  exit 1
+}
 status=$(curl --silent --show-error --output "$scratch/file-star" --write-out '%{http_code}' \
   -H 'If-None-Match: *' "${url}file")
 [ "$status" = 304 ] && [ ! -s "$scratch/file-star" ] || {
   printf 'server.router: file If-None-Match wildcard did not produce 304\n' >&2
+  exit 1
+}
+status=$(curl --silent --show-error --output "$scratch/file-star-ims" --write-out '%{http_code}' \
+  -H 'If-None-Match: *' -H 'If-Modified-Since: Tue, 01 Jan 1980 00:00:00 GMT' "${url}file")
+[ "$status" = 304 ] && [ ! -s "$scratch/file-star-ims" ] || {
+  printf 'server.router: If-None-Match wildcard lost precedence over date\n' >&2
+  exit 1
+}
+status=$(curl --silent --show-error --output "$scratch/file-post-star" --write-out '%{http_code}' \
+  -X POST -H 'If-None-Match: *' "${url}dynamic-file")
+[ "$status" = 200 ] && [ "$(cat "$scratch/file-post-star")" = '0123456789ABCDEF' ] || {
+  printf 'server.router: POST incorrectly applied If-None-Match\n' >&2
   exit 1
 }
 status=$(curl --silent --show-error --output "$scratch/file-precedence" --write-out '%{http_code}' \
@@ -316,6 +379,12 @@ status=$(curl --silent --show-error --output "$scratch/file-custom" --write-out 
   -H 'If-None-Match: "file-custom"' "${url}file-custom")
 [ "$status" = 304 ] && [ ! -s "$scratch/file-custom" ] || {
   printf 'server.router: custom file ETag did not produce 304\n' >&2
+  exit 1
+}
+status=$(curl --silent --show-error --output "$scratch/file-custom-miss" --write-out '%{http_code}' \
+  -H 'If-None-Match: "other"' "${url}file-custom")
+[ "$status" = 200 ] && [ "$(cat "$scratch/file-custom-miss")" = '0123456789ABCDEF' ] || {
+  printf 'server.router: nonmatching custom ETag suppressed the representation\n' >&2
   exit 1
 }
 status=$(curl --silent --show-error --output "$scratch/file-custom-last-modified" \
@@ -350,6 +419,22 @@ dynamic_content_range=$(curl --silent --show-error --dump-header "$scratch/dynam
   }
 
 curl --silent --show-error --output /dev/null "${url}large-file"
+pids=
+index=1
+while [ "$index" -le 16 ]; do
+  curl --fail --silent --show-error --output "$scratch/large-file-$index" "${url}large-file" &
+  pids="$pids $!"
+  index=$((index + 1))
+done
+for pid in $pids; do wait "$pid"; done
+index=1
+while [ "$index" -le 16 ]; do
+  [ "$(wc -c <"$scratch/large-file-$index" | tr -d ' ')" = 16777216 ] || {
+    printf 'server.router: concurrent large file response was truncated\n' >&2
+    exit 1
+  }
+  index=$((index + 1))
+done
 curl --silent --show-error --limit-rate 32768 --max-time 0.2 \
   --output /dev/null "${url}large-file" 2>/dev/null || true
 sleep 0.1
