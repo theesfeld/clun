@@ -149,37 +149,25 @@ Unlike READ-DIRECTORY, this preserves dangling symbolic links and does not
 classify links by following them. FUNCTION runs while SBCL owns the directory
 stream, so callers can cooperatively cancel without retaining a directory-sized
 pathname list. Filesystem failures remain FS-ERROR conditions."
-  (labels ((leaf-name (pathname)
-             (let* ((native (pathname->native pathname))
-                    (end (if (and (> (length native) 1)
-                                  (char= (char native (1- (length native))) #\/))
-                             (1- (length native))
-                             (length native)))
-                    (slash (position #\/ native :from-end t :end end)))
-               (subseq native (if slash (1+ slash) 0) end))))
-    (with-fs ("scandir" path)
-      (let ((fd nil))
-        (unwind-protect
-             (progn
-               ;; Mapping through the open descriptor keeps SBCL's callback
-               ;; pathname short. Mapping PATH directly can silently omit an
-               ;; immediate child when PATH/NAME crosses PATH_MAX, even though
-               ;; PATH itself is openable and readdir returned the name.
-               (setf fd (sb-posix:open (native->pathname path) sb-posix:o-rdonly))
-               (let ((directory-path
-                       (native->pathname
-                        (format nil "~a/~d/"
-                                (if (string= (platform-name) "darwin")
-                                    "/dev/fd" "/proc/self/fd")
-                                fd))))
-                 (sb-ext:map-directory
-                  (lambda (entry) (funcall function (leaf-name entry)))
-                  directory-path
-                  :files t
-                  :directories :as-files
-                  :classify-symlinks nil
-                  :errorp t)))
-          (when fd (ignore-errors (sb-posix:close fd)))))))
+  (with-fs ("scandir" path)
+    ;; SBCL's internal iterator reports opendir failures as generic file
+    ;; conditions. Probe through SB-POSIX first so errno survives the public
+    ;; filesystem boundary as ENOENT, EACCES, or ENOTDIR.
+    (let ((directory (sb-posix:opendir (native->pathname path))))
+      (unwind-protect nil
+        (sb-posix:closedir directory)))
+    ;; MAP-DIRECTORY classifies each PATH/NAME and can silently omit a leaf when
+    ;; that joined path crosses PATH_MAX. The native iterator returns readdir
+    ;; names directly, without following links or constructing the joined path.
+    ;; This also avoids /dev/fd directory aliases, which macOS does not expose as
+    ;; directories to SBCL even when the underlying descriptor names one.
+    (sb-impl::call-with-native-directory-iterator
+     (lambda (next)
+       (loop for name = (funcall next)
+             while name
+             do (funcall function name)))
+     path
+     t))
   nil)
 
 ;;; --- stat ------------------------------------------------------------------
