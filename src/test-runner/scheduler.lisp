@@ -29,13 +29,82 @@
     (or (null re)
         (eng:js-truthy (eng:js-call (eng:js-get re "test") re (list full-name))))))
 
+(defun %callback-uses-done-p (fn args)
+  (let ((arity (eng:js-get fn "length")))
+    (and (eng:js-number-p arity) (> (truncate arity) (length args)))))
+
+(defun %call-with-done (fn args)
+  "Invoke FN with ARGS and a trailing done callback, returning a completion Promise.
+When FN also returns a Promise, both that Promise and done() must complete."
+  (multiple-value-bind (promise resolve reject) (eng:promise-and-caps)
+    (let ((settled nil) (returned-known nil) (returned-promise-p nil)
+          (returned-state :pending) (returned-value eng:+undefined+)
+          (done-called nil) (done-error-p nil) (done-value eng:+undefined+))
+      (labels ((settle (reject-p value)
+                 (unless settled
+                   (setf settled t)
+                   (eng:js-call (if reject-p reject resolve) eng:+undefined+ (list value))))
+               (maybe-settle ()
+                 (when returned-known
+                   (cond
+                     (done-error-p (settle t done-value))
+                     ((eq returned-state :rejected) (settle t returned-value))
+                     ((and done-called
+                           (or (not returned-promise-p)
+                               (eq returned-state :fulfilled)))
+                      (settle nil eng:+undefined+))))))
+        (let* ((done
+                 (eng:make-native-function "done" 1
+                   (lambda (this done-args)
+                     (declare (ignore this))
+                     (unless done-called
+                       (setf done-called t
+                             done-value (eng:arg done-args 0)
+                             done-error-p (not (eng:js-nullish-p done-value)))
+                       (maybe-settle))
+                     eng:+undefined+)))
+               (returned (eng:js-call fn eng:+undefined+ (append args (list done)))))
+          (setf returned-known t
+                returned-promise-p (eng:js-promise-p returned))
+          ;; Bun waits for both an async callback's Promise and done(). Attach both
+          ;; reactions before deciding whether a synchronous done() completed the test.
+          (if returned-promise-p
+            (let ((on-fulfilled
+                    (eng:make-native-function "" 1
+                      (lambda (this values)
+                        (declare (ignore this))
+                        (setf returned-state :fulfilled
+                              returned-value (eng:arg values 0))
+                        (maybe-settle)
+                        eng:+undefined+)))
+                  (on-rejected
+                    (eng:make-native-function "" 1
+                      (lambda (this values)
+                        (declare (ignore this))
+                        (setf returned-state :rejected
+                              returned-value (eng:arg values 0))
+                        (maybe-settle)
+                        eng:+undefined+))))
+              (eng:js-call (eng:js-get returned "then") returned
+                           (list on-fulfilled on-rejected)))
+            (setf returned-state :fulfilled))
+          (maybe-settle)
+          promise)))))
+
+(defun %run-test-callback (fn args realm timeout)
+  (eng:run-callback-to-settlement
+   (lambda ()
+     (if (%callback-uses-done-p fn args)
+         (%call-with-done fn args)
+         (eng:js-call fn eng:+undefined+ args)))
+   realm :timeout-ms timeout))
+
 (defun %run-hooks (hooks realm timeout)
   "Run HOOKS (in registration order) to settlement; return NIL on success or the JS
-error value of the first that threw/rejected/timed-out."
+  error value of the first that threw/rejected/timed-out."
   (dolist (fn (reverse hooks) nil)
     (multiple-value-bind (kind val)
-        (eng:run-callback-to-settlement (let ((f fn)) (lambda () (eng:js-call f eng:+undefined+ '())))
-                                        realm :timeout-ms timeout)
+        (%run-test-callback fn '() realm timeout)
       (case kind
         (:rejected (return val))
         (:timeout (return (%assertion-error (format nil "hook timed out after ~ams" timeout))))))))
@@ -261,9 +330,7 @@ failure from framework failures that `test.failing` must not invert."
             (return-from body))))
       ;; the test body
       (multiple-value-bind (kind val)
-          (eng:run-callback-to-settlement
-           (let ((f (tt-fn test))) (lambda () (eng:js-call f eng:+undefined+ '())))
-           realm :timeout-ms timeout)
+          (%run-test-callback (tt-fn test) (tt-args test) realm timeout)
         (case kind
           (:timeout
            (setf ok nil

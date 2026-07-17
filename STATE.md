@@ -1939,7 +1939,9 @@ Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-earl
 - Milestone 66.4 adds per-test retry/repeat policies and global `--retry`, rerunning hooks and assertion
   contracts per attempt, retaining failed repetitions, honoring per-test zero, and rejecting both options
   together. Focused fixtures cover 14 tests, 12 passes, 2 deliberate failures, and 11 expectations.
+- Milestone 66.6 adds callback-style tests and hooks, including parameterized callback arity, callback error
+  propagation, dual async-Promise plus `done()` completion, post-`done()` rejection, and timeout boundaries.
+  Focused fixtures cover 12 tests, 9 passes, 3 deliberate boundary failures, and 6 expectations.
 - Ledger stays `Partial`. Remaining Phase 66 scope: snapshots/inline updates, module mocks, fake timers,
   coverage/source maps, asymmetric/custom matchers, parallelism/concurrency, setup/reporters/JUnit,
-  done callbacks, sharding/randomization/watch hooks, frozen complete
-  upstream manifest, four-target receipts, and 10k RSS.
+  sharding/randomization/watch hooks, frozen complete upstream manifest, four-target receipts, and 10k RSS.

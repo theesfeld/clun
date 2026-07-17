@@ -79,8 +79,8 @@ callback, and supports the same selection and conditional suite qualifiers. A to
 to every descendant: it is inert by default and, under `--todo`, runs hooks/tests while applying todo result
 inversion to each child. Name formatting covers `%s`, `%d`, `%i`, `%f`, `%j`, `%o`, `%p`, `%#`, and `%%`.
 
-This milestone does not yet claim the entire parameterization category. Done-callback injection remains an
-explicit residual together with concurrent/serial qualifier state.
+This milestone did not yet claim the entire parameterization category. Milestone 66.6 supplies callback
+injection for generated rows; concurrent/serial qualifier state remains explicit residual scope.
 
 ## Milestone 66.4 - retry and repeat policies
 
@@ -101,3 +101,17 @@ Array parameterization now expands `$property`, nested `$property.path`, and `$#
 rows. Primitive values use JavaScript string coercion while object values retain the runner's deterministic
 inspection format; `$$` emits a literal dollar sign. The expansion happens at registration while the bound
 table remains rooted by the host closure, matching the existing deterministic percent-directive path.
+
+## Milestone 66.6 - callback-style completion
+
+The runner detects callback-style tests by comparing the JavaScript function arity with the number of bound
+parameterized row arguments. It appends a native `done(error?)` function, uses a host Promise capability as
+the single scheduler completion value, and applies the same path to before/after hooks. A nullish callback
+argument fulfills; any other value rejects. Duplicate calls are inert after the first result.
+
+If the callback also returns a Promise, success requires both that Promise and `done()` to fulfill. A
+returned-Promise rejection fails even when `done()` ran first, which prevents an async throw after `done()`
+from becoming a false pass. A missing callback reaches the existing per-test timeout and remains a framework
+failure that `test.failing` cannot invert. Focused shipped-binary fixtures cover synchronous and delayed
+callbacks, all hook paths, callback errors, async rejection before and after `done()`, parameterized arity,
+dual completion, and timeout classification.

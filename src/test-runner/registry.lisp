@@ -11,7 +11,8 @@
   (mode :normal))                       ; :normal :skip :todo :only
 
 (defstruct (t-test (:conc-name tt-) (:predicate tt-p))
-  name fn parent (mode :normal) (failing nil) (timeout nil) (retry nil) (repeats nil))
+  name fn parent (args '()) (mode :normal) (failing nil)
+  (timeout nil) (retry nil) (repeats nil))
 
 (defstruct (test-context (:conc-name ctx-))
   root current (default-timeout 5000) (has-only nil) (expect-calls 0)
@@ -47,7 +48,7 @@
           (setf (ctx-current ctx) prev))))
     eng:+undefined+))
 
-(defun %register-test (ctx name fn mode opts &optional failing)
+(defun %register-test (ctx name fn mode opts &optional failing call-args)
   (when (and failing (not (eng:callable-p fn)))
     (eng:throw-type-error "test.failing expects a function as the second argument"))
   (let ((retry (%opt-count opts "retry"))
@@ -55,7 +56,8 @@
     (when (and retry repeats)
       (eng:throw-type-error "Cannot set both retry and repeats on a test"))
     (let ((tt (make-t-test :name name :fn (and (eng:callable-p fn) fn)
-                           :parent (ctx-current ctx) :mode mode :failing failing
+                           :parent (ctx-current ctx) :args (or call-args '())
+                           :mode mode :failing failing
                            :timeout (%opt-timeout opts) :retry retry :repeats repeats)))
       (push tt (td-children (ctx-current ctx)))
       (when (eq mode :only) (setf (ctx-has-only ctx) t))
@@ -174,13 +176,7 @@
                                        (eng:array-like->list row)
                                        (list row)))
                             (nm (%each-name tmpl rargs idx)))
-                       (%register-test
-                        ctx nm
-                        (%fn "" 0
-                          (lambda (tt2 aa2)
-                            (declare (ignore tt2 aa2))
-                            (eng:js-call fn eng:+undefined+ rargs)))
-                        mode opts failing))
+                       (%register-test ctx nm fn mode opts failing rargs))
                      (incf idx))
                    eng:+undefined+)))))
        (make-family (rows bound-p requested-mode requested-failing)

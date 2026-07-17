@@ -2926,3 +2926,12 @@ Dollar-path interpolation reads from the first row argument because non-array ob
 argument and tuple rows may intentionally place an object first. Nested paths use ordinary JavaScript
 property access at registration time, primitive values use JavaScript string coercion, and object values use
 the same deterministic inspector as `%p`. This keeps generated names stable without executing user callbacks.
+
+### 2026-07-17 - Phase 66 callback completion has one scheduler Promise
+
+Callback-style tests are detected from callable arity after accounting for bound parameterized row values.
+The runner appends a native `done(error?)` and returns a host-created completion Promise to the existing
+settlement/timeout path; hooks use the same mechanism. When a callback also returns a Promise, success waits
+for both that Promise and `done()`, while either error rejects. This preserves Bun's async-plus-callback
+ordering, catches a rejection after an early `done()`, and keeps missing callbacks under the ordinary timeout
+classification instead of introducing a second scheduler loop.

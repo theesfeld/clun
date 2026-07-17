@@ -229,6 +229,7 @@
    ;; realm accessors the runtime/CLI need
    #:run-module-file #:run-module-source #:eval-source #:realm-global
    #:teardown-realm #:run-callback-to-settlement #:drive-jobs #:current-loop
+   #:promise-and-caps
    #:js-promise-p #:js-promise-pstate #:js-promise-value #:to-string #:js-object-class
    #:make-native-function #:install-method #:install-getter #:install-accessor
    #:data-prop #:fixed-data-prop #:nonconfigurable-data-prop #:hidden-prop
