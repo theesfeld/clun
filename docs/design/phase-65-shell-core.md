@@ -79,10 +79,12 @@ types, fixtures, and upstream licenses. `upstream-files.tsv` binds every file to
 `shell-upstream-inventory-check.sh` verifies the boundary offline.
 
 `upstream-corpus.tsv` enumerates 1,630 lexical test sites from those exact snapshots. The initial conservative
-disposition is 1,598 pending and 32 explicitly inactive at the pinned revisions; existing Clun fixtures are
-not credited until their observable cases are mapped to exact rows. `shell-upstream-corpus-check.sh` rejects
-inventory drift or an unexplained disposition. Its `--yes` mode is the finite closure gate: it rejects any
-pending row and also requires supported evidence receipts on Linux/macOS x64/arm64.
+disposition was 1,598 pending and 32 explicitly inactive at the pinned revisions. The current executable
+mapping is 101 covered, 1,497 pending, and 32 upstream-inactive. `upstream-coverage.tsv` binds each credited
+inventory ID to a checked-in shipped-binary fixture; regeneration rejects duplicate, stale, or unknown IDs,
+and the corpus validator rejects missing evidence. `shell-upstream-corpus-check.sh` rejects inventory drift
+or an unexplained disposition. Its `--yes` mode is the finite closure gate: it rejects any pending row and
+also requires supported evidence receipts on Linux/macOS x64/arm64.
 
 `tests/compat/tooling.shell/core.js` drives the shipped binary and freezes exact results for hostile scalar
 interpolation, array boundaries, a 1 MiB producer/consumer pipeline, logical operators, command substitution,
@@ -99,6 +101,11 @@ an internal `yes | head` streaming case, and the explicit standalone unbounded-o
 fixture independently drains 1 MiB from that internal producer to prove behavior beyond pipe capacity.
 It also freezes active `pipeline_stack.test.ts` behavior for last-command status, `exit`, cwd and environment
 isolation, immediate `yes` sinks, and a 20-stage builtin pipeline.
+`tests/compat/tooling.shell/upstream-low-hanging.js` executes 101 exact stable and engineering inventory IDs
+through `build/clun`: every pinned site for basename, dirname, exit, true, false, bounded-buffer yes, and
+pathological command lookup, plus both revisions' brace helper cases and the engineering brace resource
+bound. The three engineering brace-plus-glob composition sites remain pending until their production
+expansion path is implemented.
 The conditional fixture freezes the active `shell-seq-condexpr.test.ts` empty-path regressions and the
 non-todo `bunshell.test.ts` unary/string cases, including both conditional pipeline positions. It additionally
 freezes the pinned GNU-bash-derived compound-expression cases for repeated negation, short-circuit operators,

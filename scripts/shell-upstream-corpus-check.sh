@@ -6,6 +6,7 @@ repo_root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
 case_dir=$repo_root/tests/compat/tooling.shell
 upstream=$case_dir/upstream
 manifest=$case_dir/upstream-corpus.tsv
+coverage=$case_dir/upstream-coverage.tsv
 TAB=$(printf '\t')
 
 emit_file() {
@@ -76,7 +77,7 @@ emit_file() {
   ' "$file"
 }
 
-generate() {
+generate_base() {
   printf 'inventory_id\tbaseline\texact_commit\tupstream_source\tsource_line\toccurrence\tsite_kind\tupstream_state\tclun_disposition\tevidence\towner\tnote\n'
   for baseline in engineering stable; do
     case $baseline in
@@ -89,6 +90,57 @@ generate() {
         emit_file "$baseline" "$commit" "$source"
       done
   done
+}
+
+generate() {
+  [ -f "$coverage" ] || {
+    printf 'shell upstream corpus: missing coverage overlay: %s\n' "$coverage" >&2
+    return 1
+  }
+  base=$(mktemp "${TMPDIR:-$repo_root/tmp-test}/clun-shell-corpus-base.XXXXXX")
+  generate_base > "$base"
+  status=0
+  awk -F "$TAB" -v OFS="$TAB" '
+    NR == FNR {
+      if (FNR == 1) {
+        if ($0 != "inventory_id\tclun_disposition\tevidence\tnote") {
+          print "shell upstream corpus: invalid coverage overlay header" > "/dev/stderr"
+          invalid = 1
+        }
+        next
+      }
+      if ($1 == "" || $2 != "covered" || $3 == "-" || $4 == "" || ($1 in disposition)) {
+        print "shell upstream corpus: invalid or duplicate coverage row: " $1 > "/dev/stderr"
+        invalid = 1
+        next
+      }
+      disposition[$1] = $2
+      evidence[$1] = $3
+      note[$1] = $4
+      next
+    }
+    FNR == 1 { print; next }
+    {
+      if ($1 in disposition) {
+        $9 = disposition[$1]
+        $10 = evidence[$1]
+        $12 = note[$1]
+        seen[$1] = 1
+      }
+      print
+    }
+    END {
+      for (id in disposition) {
+        if (!(id in seen)) {
+          print "shell upstream corpus: coverage ID is absent from frozen corpus: " id > "/dev/stderr"
+          invalid = 1
+        }
+      }
+      exit invalid
+    }
+  ' "$coverage" "$base" || status=$?
+  rm -f "$base"
+  return "$status"
 }
 
 count_baseline() {
