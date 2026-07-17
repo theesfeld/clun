@@ -1332,19 +1332,22 @@ getReader/read or mixin consumers do."
 
 (defun %body-stream-cancel-now (stream reason)
   (declare (ignore reason))
-  (unless (or (js-body-stream-closed-p stream)
-              (js-body-stream-errored-p stream))
-    (let ((cancel (js-body-stream-cancel stream)))
-      (setf (js-body-stream-cancel stream) nil
-            (js-body-stream-queue stream) nil
-            (js-body-stream-queue-tail stream) nil
-            (js-body-stream-queued-bytes stream) 0
-            (js-body-stream-closed-p stream) t
-            (js-body-stream-disturbed-p stream) t)
-      (loop for request = (%body-stream-pending-pop stream)
-            while request
-            do (%body-stream-resolve-read request nil t))
-      (%body-collector-finish stream)
+  ;; Cancel always disturbs the stream and drops residual chunks, including
+  ;; already-closed buffered Response bodies (string init enqueues then closes).
+  (let ((cancel (js-body-stream-cancel stream))
+        (was-open-p (not (or (js-body-stream-closed-p stream)
+                             (js-body-stream-errored-p stream)))))
+    (setf (js-body-stream-cancel stream) nil
+          (js-body-stream-queue stream) nil
+          (js-body-stream-queue-tail stream) nil
+          (js-body-stream-queued-bytes stream) 0
+          (js-body-stream-closed-p stream) t
+          (js-body-stream-disturbed-p stream) t)
+    (loop for request = (%body-stream-pending-pop stream)
+          while request
+          do (%body-stream-resolve-read request nil t))
+    (%body-collector-finish stream)
+    (when was-open-p
       (%body-stream-maybe-resume stream)
       (%body-stream-terminal stream)
       (when cancel (funcall cancel))))
