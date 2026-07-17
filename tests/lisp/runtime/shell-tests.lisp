@@ -199,3 +199,35 @@
            (is = 1 (clun.runtime::shell-result-exit-code
                     (clun.runtime::%shell-run-rm '("-rf" "/") state))))
       (ignore-errors (sys:remove-recursive directory)))))
+
+(define-test shell/mv-target-and-overwrite-semantics
+  (let* ((directory (clun.runtime::%shell-temp-directory))
+         (state (shell-test-state)))
+    (unwind-protect
+         (progn
+           (setf (clun.runtime::shell-state-cwd state) directory)
+           (sys:make-directory (sys:path-join directory "dest"))
+           (sys:write-file-octets (sys:path-join directory "one")
+                                  (eng:code-units->utf8 "one"))
+           (sys:write-file-octets (sys:path-join directory "two")
+                                  (eng:code-units->utf8 "two"))
+           (is = 0 (clun.runtime::shell-result-exit-code
+                    (clun.runtime::%shell-run-mv '("one" "two" "dest") state)))
+           (true (sys:file-p (sys:path-join directory "dest/one")))
+           (true (sys:file-p (sys:path-join directory "dest/two")))
+           (sys:write-file-octets (sys:path-join directory "source")
+                                  (eng:code-units->utf8 "source"))
+           (sys:write-file-octets (sys:path-join directory "target")
+                                  (eng:code-units->utf8 "target"))
+           (is = 0 (clun.runtime::shell-result-exit-code
+                    (clun.runtime::%shell-run-mv '("-n" "source" "target") state)))
+           (is equal "source" (eng:utf8->code-units
+                                (sys:read-file-octets (sys:path-join directory "source"))))
+           (is equal "target" (eng:utf8->code-units
+                                (sys:read-file-octets (sys:path-join directory "target"))))
+           (let ((result (clun.runtime::%shell-run-mv
+                          '("dest/one" "source" "missing") state)))
+             (is = 1 (clun.runtime::shell-result-exit-code result))
+             (is equal (format nil "mv: missing: No such file or directory~%")
+                 (eng:utf8->code-units (clun.runtime::shell-result-stderr result)))))
+      (ignore-errors (sys:remove-recursive directory)))))
