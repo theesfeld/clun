@@ -20,12 +20,15 @@ dd if=/dev/zero of="$scratch/large.bin" bs=1048576 count=16 2>/dev/null
 ln -s "$scratch/file.txt" "$scratch/file-link.txt"
 mkfifo "$scratch/file.fifo"
 mkdir -p "$scratch/pages/posts/wow" "$scratch/pages/optional" \
+  "$scratch/pages/precedence/[id]" "$scratch/pages/precedence/static" \
   "$scratch/pages/files" "$scratch/outside" "$scratch/invalid-pages" \
   "$scratch/empty-pages" "$scratch/stress-pages"
 for route in index posts posts/hey 'posts/[id]' 'posts/[...rest]' \
   'posts/wow/[[...id]]' 'optional/[[...parts]]'; do
   printf 'export default 1;\n' >"$scratch/pages/${route}.tsx"
 done
+printf 'export default 1;\n' >"$scratch/pages/precedence/[id]/tail.tsx"
+printf 'export default 2;\n' >"$scratch/pages/precedence/static/[id].tsx"
 index=0
 while [ "$index" -lt 65 ]; do
   printf 'export default %s;\n' "$index" >"$scratch/pages/files/a${index}.tsx"
@@ -110,8 +113,7 @@ tr -d '\r' <"$scratch/legacy-static-head" | grep -i -x 'content-length: 13' >/de
 curl --silent --show-error --dump-header "$scratch/static-headers-1" \
   --output "$scratch/static-body-1" "${url}static"
 etag=$(tr -d '\r' <"$scratch/static-headers-1" | awk '
-  BEGIN { IGNORECASE = 1 }
-  /^etag:/ { sub(/^[^:]*:[[:space:]]*/, ""); print; exit }
+  tolower($0) ~ /^etag:/ { sub(/^[^:]*:[[:space:]]*/, ""); print; exit }
 ')
 [ -n "$etag" ] && [ "$(cat "$scratch/static-body-1")" = static ] || {
   printf 'server.router: static response did not publish an ETag and body\n' >&2
@@ -120,8 +122,7 @@ etag=$(tr -d '\r' <"$scratch/static-headers-1" | awk '
 curl --silent --show-error --dump-header "$scratch/static-headers-2" \
   --output "$scratch/static-body-2" "${url}static"
 etag_again=$(tr -d '\r' <"$scratch/static-headers-2" | awk '
-  BEGIN { IGNORECASE = 1 }
-  /^etag:/ { sub(/^[^:]*:[[:space:]]*/, ""); print; exit }
+  tolower($0) ~ /^etag:/ { sub(/^[^:]*:[[:space:]]*/, ""); print; exit }
 ')
 [ "$etag_again" = "$etag" ] || {
   printf 'server.router: static response ETag changed between requests\n' >&2
@@ -214,8 +215,7 @@ file_headers=$(tr -d '\r' <"$scratch/file-headers")
 printf '%s\n' "$file_headers" | grep -i -x 'content-length: 16' >/dev/null
 printf '%s\n' "$file_headers" | grep -i -x 'content-type: text/plain;charset=utf-8' >/dev/null
 last_modified=$(printf '%s\n' "$file_headers" | awk '
-  BEGIN { IGNORECASE = 1 }
-  /^last-modified:/ { sub(/^[^:]*:[[:space:]]*/, ""); print; exit }
+  tolower($0) ~ /^last-modified:/ { sub(/^[^:]*:[[:space:]]*/, ""); print; exit }
 ')
 [ -n "$last_modified" ] || {
   printf 'server.router: file route omitted Last-Modified\n' >&2
@@ -279,8 +279,7 @@ assert_range() {
     -H "Range: $value" "${url}${path}")
   actual_body=$(cat "$scratch/range-body")
   actual_range=$(tr -d '\r' <"$scratch/range-headers" | awk '
-    BEGIN { IGNORECASE = 1 }
-    /^content-range:/ { sub(/^[^:]*:[[:space:]]*/, ""); print; exit }
+    tolower($0) ~ /^content-range:/ { sub(/^[^:]*:[[:space:]]*/, ""); print; exit }
   ')
   [ "$status" = "$expected_status" ] && [ "$actual_body" = "$expected_body" ] && \
     [ "$actual_range" = "$expected_range" ] || {
@@ -397,8 +396,7 @@ status=$(curl --silent --show-error --output "$scratch/file-custom-last-modified
 content_range=$(curl --silent --show-error --dump-header "$scratch/user-range-headers" \
   --output "$scratch/user-range-body" -H 'Range: bytes=2-5' "${url}file-content-range" && \
   tr -d '\r' <"$scratch/user-range-headers" | awk '
-    BEGIN { IGNORECASE = 1 }
-    /^content-range:/ { sub(/^[^:]*:[[:space:]]*/, ""); print; exit }
+    tolower($0) ~ /^content-range:/ { sub(/^[^:]*:[[:space:]]*/, ""); print; exit }
   ')
 [ "$content_range" = 'bytes 0-15/100' ] && \
   [ "$(cat "$scratch/user-range-body")" = '0123456789ABCDEF' ] || {
@@ -409,8 +407,7 @@ content_range=$(curl --silent --show-error --dump-header "$scratch/user-range-he
 dynamic_content_range=$(curl --silent --show-error --dump-header "$scratch/dynamic-user-range-headers" \
   --output "$scratch/dynamic-user-range-body" -H 'Range: bytes=2-5' \
   "${url}dynamic-content-range" && tr -d '\r' <"$scratch/dynamic-user-range-headers" | awk '
-    BEGIN { IGNORECASE = 1 }
-    /^content-range:/ { sub(/^[^:]*:[[:space:]]*/, ""); print; exit }
+    tolower($0) ~ /^content-range:/ { sub(/^[^:]*:[[:space:]]*/, ""); print; exit }
   ')
 [ "$dynamic_content_range" = 'bytes 0-15/100' ] && \
   [ "$(cat "$scratch/dynamic-user-range-body")" = '0123456789ABCDEF' ] || {

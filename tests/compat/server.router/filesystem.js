@@ -27,7 +27,7 @@ assert(router.style === "nextjs", "style getter");
 assert(router.origin === "https://clun.sh", "origin getter");
 assert(router.assetPrefix === "/_next/static/", "assetPrefix getter");
 assert(router.routes === router.routes, "routes getter must be cached between reloads");
-assert(Object.keys(router.routes).length === 72, "complete filtered inventory");
+assert(Object.keys(router.routes).length === 74, "complete filtered inventory");
 assert(router.routes["/"] === path.join(process.env.CLUN_ROUTER_PAGES, "index.tsx"), "root route");
 assert(router.routes["/files/a64"] === path.join(process.env.CLUN_ROUTER_PAGES, "files/a64.tsx"), "large inventory");
 assert(router.routes["/ignored"] === undefined, "extension filtering");
@@ -58,6 +58,9 @@ match = router.match("/optional/hey/there");
 assert(match.name === "/optional/[[...parts]]" && match.params.parts === "hey/there", "optional catch-all");
 match = router.match("/posts/wow/hey/there");
 assert(match.name === "/posts/[...rest]", "catch-all outranks optional catch-all");
+match = router.match("/precedence/static/tail");
+assert(match.name === "/precedence/static/[id]", "static segment wins at first ambiguous position");
+assert(match.params.id === "tail", "ambiguous precedence keeps winning route params");
 
 for (const input of ["/", "/index"]) {
   assert(router.match(input).name === "/", `root index alias ${input}`);

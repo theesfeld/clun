@@ -15,7 +15,6 @@
   relative-path
   (segments '())
   (kind :exact)
-  (exact-count 0 :type (integer 0 *))
   (extension-rank 0 :type (integer 0 *)))
 
 (defstruct (js-file-system-router
@@ -159,7 +158,6 @@
                   :optional-catch-all)
                  (specials :dynamic)
                  (t :exact))
-     :exact-count (count :exact segments :key #'car)
      :extension-rank extension-rank)))
 
 (defun %fsr-kind-rank (kind)
@@ -170,17 +168,35 @@
     (:optional-catch-all 1)))
 
 (defun %fsr-route-before-p (left right)
-  (let ((left-kind (%fsr-kind-rank (fsr-route-kind left)))
-        (right-kind (%fsr-kind-rank (fsr-route-kind right))))
-    (cond
-      ((/= left-kind right-kind) (> left-kind right-kind))
-      ((/= (fsr-route-exact-count left) (fsr-route-exact-count right))
-       (> (fsr-route-exact-count left) (fsr-route-exact-count right)))
-      ((/= (length (fsr-route-segments left))
-           (length (fsr-route-segments right)))
-       (> (length (fsr-route-segments left))
-          (length (fsr-route-segments right))))
-      (t (string< (fsr-route-name left) (fsr-route-name right))))))
+  (labels ((part-rank (part)
+             (%fsr-kind-rank (car part)))
+           (compare-parts (left-parts right-parts)
+             (cond
+               ((null left-parts) (if (null right-parts) 0 -1))
+               ((null right-parts) 1)
+               (t
+                (let* ((left-part (car left-parts))
+                       (right-part (car right-parts))
+                       (left-rank (part-rank left-part))
+                       (right-rank (part-rank right-part)))
+                  (cond
+                    ((> left-rank right-rank) -1)
+                    ((< left-rank right-rank) 1)
+                    ((and (eq (car left-part) :exact)
+                          (not (string= (cdr left-part) (cdr right-part))))
+                     (if (string< (cdr left-part) (cdr right-part)) -1 1))
+                    (t (compare-parts (cdr left-parts)
+                                      (cdr right-parts)))))))))
+    (let ((left-kind (%fsr-kind-rank (fsr-route-kind left)))
+          (right-kind (%fsr-kind-rank (fsr-route-kind right))))
+      (cond
+        ((/= left-kind right-kind) (> left-kind right-kind))
+        (t
+         (let ((order (compare-parts (fsr-route-segments left)
+                                     (fsr-route-segments right))))
+           (if (zerop order)
+               (string< (fsr-route-name left) (fsr-route-name right))
+               (minusp order))))))))
 
 (defun %fsr-entry-stat (directory name)
   (handler-case (sys:stat-at* directory name :lstat t)
