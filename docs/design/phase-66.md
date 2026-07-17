@@ -239,3 +239,20 @@ Checked shipped-binary evidence locks a pinned nested two-file order, both seed 
 replay, distinct-seed order divergence, summary output, and validation failure. Randomization is therefore
 no longer a Phase 66 residual. Sharding, watch integration, real concurrent/parallel scheduling, and the
 other published blockers remain open, so the compatibility row remains `Partial`.
+
+## Milestone 66.16 - dots and JUnit reporters
+
+The test CLI now accepts `--dots`, `--reporter=dot`, and `--reporter=dots`, collapsing successful, skipped,
+and todo results into a dot stream while retaining complete failure output and the ordinary summary. The
+pinned `--reporter=junit` contract requires `--reporter-outfile` and leaves console output unchanged. JUnit
+records retain file ownership, full test names, final-attempt assertion counts, pass/failure/skip/todo
+status, CI and commit properties, aggregate/per-file metrics, and hostname metadata.
+
+XML attribute content is escaped structurally, including hostile names, environment values, whitespace,
+and invalid XML control characters. Reports use deterministic zero timing because Clun's public reporter
+already omits unstable per-test timing, and they replace the target through the same sibling-temporary
+atomic write boundary as snapshots. Checked shipped-binary evidence covers both reporter aliases, exact
+console preservation, failure-path report creation, metrics, escaping, repeated overwrite, missing and
+unsupported options, and unwritable destinations. Built-in reporter/JUnit scope is complete; custom
+Inspector-protocol reporters remain outside this milestone, and the row remains `Partial` for the other
+published blockers.

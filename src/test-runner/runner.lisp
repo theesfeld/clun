@@ -7,13 +7,25 @@
 (defstruct (test-opts (:conc-name to-))
   (positionals '()) (name-pattern nil) (timeout 5000) (retry 0)
   (bail nil) (todo nil) (ci nil) (update-snapshots nil)
-  (randomize nil) (seed nil) (error-message nil))
+  (randomize nil) (seed nil) (reporter :console) (reporter-outfile nil)
+  (error-message nil))
 
 (defun %test-seed (value)
   (when (and value (plusp (length value)) (<= (length value) 10)
              (every #'digit-char-p value))
     (let ((seed (parse-integer value)))
       (and (<= seed #xffffffff) seed))))
+
+(defun %set-test-reporter (opts value)
+  (cond
+    ((string= value "junit") (setf (to-reporter opts) :junit))
+    ((member value '("dot" "dots") :test #'string=)
+     (setf (to-reporter opts) :dots))
+    (t
+     (setf (to-error-message opts)
+           (format nil
+                   "unsupported reporter format '~a'. Available options: 'junit', 'dots'"
+                   value)))))
 
 (defun %parse-test-args (argv)
   "ARGV = the tokens after `clun test`. Returns a test-opts."
@@ -31,6 +43,25 @@
           ((string= tok "--todo") (setf (to-todo o) t))
           ((string= tok "--ci") (setf (to-ci o) t))
           ((string= tok "--randomize") (setf (to-randomize o) t))
+          ((string= tok "--dots") (setf (to-reporter o) :dots))
+          ((string= tok "--reporter")
+           (let ((value (next)))
+             (if value
+                 (%set-test-reporter o value)
+                 (setf (to-error-message o) "--reporter requires a value"))))
+          ((and (>= (length tok) 11) (string= (subseq tok 0 11) "--reporter="))
+           (%set-test-reporter o (subseq tok 11)))
+          ((string= tok "--reporter-outfile")
+           (let ((value (next)))
+             (if (and value (plusp (length value)))
+                 (setf (to-reporter-outfile o) value)
+                 (setf (to-error-message o) "--reporter-outfile requires a value"))))
+          ((and (>= (length tok) 19)
+                (string= (subseq tok 0 19) "--reporter-outfile="))
+           (let ((value (subseq tok 19)))
+             (if (plusp (length value))
+                 (setf (to-reporter-outfile o) value)
+                 (setf (to-error-message o) "--reporter-outfile requires a value"))))
           ((string= tok "--seed")
            (let* ((value (next)) (seed (%test-seed value)))
              (if seed
@@ -55,6 +86,9 @@
           ((and (plusp (length tok)) (char= (char tok 0) #\-)) nil) ; ignore unknown flags
           (t (push tok (to-positionals o))))))
     (setf (to-positionals o) (nreverse (to-positionals o)))
+    (when (and (eq (to-reporter o) :junit) (null (to-reporter-outfile o)))
+      (setf (to-error-message o)
+            "--reporter=junit requires --reporter-outfile [file] to specify where to save the XML report"))
     o))
 
 (defun %fresh-test-seed ()
@@ -158,18 +192,39 @@ process exit code (1 on any failure, on zero tests, or on a 0-match -t filter)."
                       (%shuffle-test-files discovered (make-test-prng (to-seed opts)))
                       discovered))
            (stats (make-run-stats))
-           (report (make-reporter *standard-output*))
-           (expect-total 0))
+           (current-file nil)
+           (records '())
+           (report
+             (make-reporter
+              *standard-output* :mode (to-reporter opts)
+              :on-result
+              (lambda (status name detail assertions)
+                (push (make-test-report-record current-file status name detail assertions)
+                      records))))
+           (expect-total 0)
+           (report-error nil))
       (when (null files)
         (format *standard-output* "No test files found.~%")
         (return-from run-test-command 1))
       (dolist (f files)
         (when (st-bailed stats) (return))
+        (setf current-file f)
         (incf expect-total (%run-one-file f opts stats report cwd*)))
       (print-summary *standard-output* stats (length files) expect-total
                      (and (to-randomize opts) (to-seed opts)))
+      (when (eq (to-reporter opts) :junit)
+        (let ((outfile (to-reporter-outfile opts)))
+          (unless (sys:absolute-path-p outfile)
+            (setf outfile (sys:path-join cwd* outfile)))
+          (handler-case
+              (write-junit-report outfile (nreverse records))
+            (error (condition)
+              (setf report-error t)
+              (format *error-output* "clun test: failed to write JUnit report to ~a: ~a~%"
+                      outfile condition)))))
       (let ((total (+ (st-pass stats) (st-fail stats) (st-skip stats) (st-todo stats))))
-        (if (or (plusp (st-fail stats))
+        (if (or report-error
+                (plusp (st-fail stats))
                 (zerop total)
                 (and (to-name-pattern opts) (zerop (st-matched stats))))
             1 0)))))

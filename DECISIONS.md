@@ -3014,3 +3014,13 @@ then receives a fresh splitmix64-seeded xoshiro256++ state derived from `wyhash(
 wrapping, and nested describe scopes consume that state through forward Fisher-Yates with Lemire rejection.
 This preserves replay when later parallel workers change file assignment. An omitted seed comes from the
 vendored OS-backed PRNG; explicit seeds are decimal u32 values and invalid input is a command failure.
+
+### 2026-07-17 - Phase 66 reporters separate console rendering from result records
+
+One reporter closure remains responsible for deterministic console or dot output and also emits structured
+host-side result records. The runner attaches the owning file before execution, while the scheduler returns
+the representative attempt's assertion count with its semantic result. JUnit generation therefore does not
+parse console text and cannot lose file, status, or assertion ownership. XML reports intentionally use zero
+timing to preserve Clun's established deterministic-output contract, escape invalid attribute content, and
+commit through a sibling temporary file. JUnit is additive: selecting it never suppresses or reshapes the
+console reporter.

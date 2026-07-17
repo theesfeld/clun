@@ -337,30 +337,33 @@ with beforeAll/afterEach — Bun counts a failing afterAll)."
       ((not (%name-matches cfg full)) nil) ; filtered out by -t: no line, not counted
       (t
        (incf (st-matched stats))
-       (multiple-value-bind (ok detail failure-kind)
+       (multiple-value-bind (ok detail failure-kind assertions)
            (%execute-with-attempts test realm cfg todo-mode)
          (cond
            (todo-mode                     ; ran under --todo
             (if ok
-                (progn (funcall report :fail full "this test is marked as todo but passed")
+                (progn (funcall report :fail full "this test is marked as todo but passed"
+                                assertions)
                        (incf (st-fail stats)) (%maybe-bail stats cfg))
-                (progn (funcall report :todo full nil) (incf (st-todo stats)))))
+                (progn (funcall report :todo full nil assertions) (incf (st-todo stats)))))
            ((tt-failing test)
             (cond
               (ok
                (funcall report :fail full
-                        "^ this test is marked as failing but it passed. Remove `.failing` if tested behavior now works")
+                        "^ this test is marked as failing but it passed. Remove `.failing` if tested behavior now works"
+                        assertions)
                (incf (st-fail stats))
                (%maybe-bail stats cfg))
               ((eq failure-kind :body)
-               (funcall report :pass full nil)
+               (funcall report :pass full nil assertions)
                (incf (st-pass stats)))
               (t
-               (funcall report :fail full detail)
+               (funcall report :fail full detail assertions)
                (incf (st-fail stats))
                (%maybe-bail stats cfg))))
-           (ok (funcall report :pass full nil) (incf (st-pass stats)))
-           (t (funcall report :fail full detail) (incf (st-fail stats)) (%maybe-bail stats cfg))))))))
+           (ok (funcall report :pass full nil assertions) (incf (st-pass stats)))
+           (t (funcall report :fail full detail assertions) (incf (st-fail stats))
+              (%maybe-bail stats cfg))))))))
 
 (defun %maybe-bail (stats cfg)
   (when (and (cfg-bail cfg) (>= (st-fail stats) (cfg-bail cfg)))
@@ -379,25 +382,30 @@ the first semantic failure while still completing later attempts."
         (retry (if todo-mode 0 (or (tt-retry test) (cfg-retry cfg)))))
     (if repeats
         (let ((failed nil) (failed-ok nil) (failed-detail nil) (failed-kind nil)
-              (last-ok t) (last-detail nil) (last-kind nil))
+              (failed-assertions 0)
+              (last-ok t) (last-detail nil) (last-kind nil) (last-assertions 0))
           (dotimes (attempt (1+ repeats))
             (declare (ignore attempt))
-            (multiple-value-bind (ok detail failure-kind) (%execute test realm cfg)
-              (setf last-ok ok last-detail detail last-kind failure-kind)
+            (multiple-value-bind (ok detail failure-kind assertions) (%execute test realm cfg)
+              (setf last-ok ok last-detail detail last-kind failure-kind
+                    last-assertions assertions)
               (when (and (not failed)
                          (not (%attempt-passes-p test todo-mode ok failure-kind)))
                 (setf failed t failed-ok ok
-                      failed-detail detail failed-kind failure-kind))))
+                      failed-detail detail failed-kind failure-kind
+                      failed-assertions assertions))))
           (if failed
-              (values failed-ok failed-detail failed-kind)
-              (values last-ok last-detail last-kind)))
-        (let ((last-ok nil) (last-detail nil) (last-kind nil))
-          (dotimes (attempt (1+ retry) (values last-ok last-detail last-kind))
+              (values failed-ok failed-detail failed-kind failed-assertions)
+              (values last-ok last-detail last-kind last-assertions)))
+        (let ((last-ok nil) (last-detail nil) (last-kind nil) (last-assertions 0))
+          (dotimes (attempt (1+ retry)
+                           (values last-ok last-detail last-kind last-assertions))
             (declare (ignore attempt))
-            (multiple-value-bind (ok detail failure-kind) (%execute test realm cfg)
-              (setf last-ok ok last-detail detail last-kind failure-kind)
+            (multiple-value-bind (ok detail failure-kind assertions) (%execute test realm cfg)
+              (setf last-ok ok last-detail detail last-kind failure-kind
+                    last-assertions assertions)
               (when (%attempt-passes-p test todo-mode ok failure-kind)
-                (return (values ok detail failure-kind)))))))))
+                (return (values ok detail failure-kind assertions)))))))))
 
 (defun %execute (test realm cfg)
   "Run beforeEach chain → the body → afterEach chain.
@@ -447,4 +455,4 @@ failure from framework failures that `test.failing` must not invert."
     (let ((err (%run-hooks *test-finished-callbacks* realm timeout)))
       (when (and err ok)
         (setf ok nil detail (%err-detail err) failure-kind :hook)))
-    (values ok detail failure-kind)))
+    (values ok detail failure-kind *test-assertions*)))
