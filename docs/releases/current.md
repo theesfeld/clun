@@ -1,7 +1,7 @@
 <!-- clun-generated:release-notes:begin -->
 # Clun 0.1.0-dev.14
 
-Phase 31: YAML API and module loading.
+Phase 36: Password and hash APIs.
 
 - SemVer impact: `minor` within the selected `0.1.0` prerelease train.
 - Compatibility snapshot: 7 Yes / 7 Partial / 16 No across 30 generated rows.

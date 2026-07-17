@@ -9,7 +9,7 @@ targets are workload-specific and published;
 Clun does not claim blanket speed parity with Bun.
 
 <!-- clun-generated:release:begin -->
-> **Status: pre-alpha, under active construction.** [Phase 31](https://github.com/theesfeld/clun/issues/5) is in progress.
+> **Status: pre-alpha, under active construction.** [Phase 36](https://github.com/theesfeld/clun/issues/10) is in progress.
 > Its release-bearing target is `0.1.0-dev.14` / `v0.1.0-dev.14` (SemVer impact: `minor`).
 > The verified release boundary is `v0.1.0-dev.13`, with four native archives, checksums, Pages,
 > and hosted-installer evidence.
@@ -152,7 +152,7 @@ Release versions follow the actual SemVer impact recorded in the canonical issue
 The current source is the `0.1.0-dev.14` release candidate; the immutable tag and assets are not published yet.
 The last published prerelease remains [`v0.1.0-dev.13`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.13).
 [The versioning contract](docs/versioning.md) defines prerelease sequencing, synchronized surfaces, immutable tags, assets, and installer evidence.
-[Phase 31 issue #5](https://github.com/theesfeld/clun/issues/5) is the canonical live release record.
+[Phase 36 issue #10](https://github.com/theesfeld/clun/issues/10) is the canonical live release record.
 <!-- clun-generated:release-summary:end -->
 
 ## The purity contract

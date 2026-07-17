@@ -7,37 +7,39 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **31 - YAML API and module loading**  (IN PROGRESS)
+## Current phase: **36 - Password and hash APIs**  (IN PROGRESS)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/5
-**Co-release issue:** https://github.com/theesfeld/clun/issues/10
-**Current implementation unit:** retain `security.password-hashing` as the seventh evidence-backed
-compatibility-ledger `Yes`, while driving `data.yaml` from its measured 204 / 402 pinned Bun-generated
-parser baseline to a legitimate eighth `Yes` through production parser work and four-target evidence.
+**Canonical issue:** https://github.com/theesfeld/clun/issues/10
+**Parallel continuation issue:** https://github.com/theesfeld/clun/issues/5
+**Current implementation unit:** publish `security.password-hashing` as the seventh evidence-backed
+compatibility-ledger `Yes`. Keep `data.yaml` honestly `Partial` at its measured 204 / 402 pinned
+Bun-generated parser baseline while Phase 31 production work continues independently.
 **SemVer impact:** `minor`
 **Release target:** `0.1.0-dev.14` / `v0.1.0-dev.14`
-**Entry boundary:** Phase 34 Color and the architecture-stable CookieMap allocation gate are in PR #76 as
-the dev.13 candidate. Dev.14 cannot merge or tag before dev.13 is published, reconciled, and verified by the
-hosted installer. Phases 31 and 36 depend on completed prerequisite work; Phase 26 remains after Phase 82.
-**Current scope:** repair the 198 classified YAML parser failures without exclusions, pass the block-scalar,
-public API, module, security, and resource gates, then collect exact-master CI and all four native
-compatibility receipts. The coordinated YAML and password/hash candidate remains one backward-compatible
-minor release before Pages and hosted-installer reconciliation.
+**Entry boundary:** Phase 34 Color is published in immutable dev.13 at exact commit
+`9663ac388bda16e986a9196880e6e43b634fa385`; evidence-only publication reconciliation is in PR #78.
+Phases 31 and 36 have completed prerequisites, and Phase 26 remains after Phase 82.
+**Current scope:** land the honest dev.14 checkpoint with the complete password/hash surface and executable
+YAML baseline, collect exact-master CI and all four native compatibility receipts, publish the seventh Yes,
+then continue the 198 classified YAML parser failures on Phase 31's separate production branch.
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
 easiest to hardest among dependency-ready rows. Core engine/runtime/network/tooling changes are expected.
 Every conversion requires a legitimate canonical issue, accepted design, full declared behavior, executable
 four-target evidence, synchronized public surfaces, and the correct SemVer transition. The active parallel
-queue is YAML, password/hash, transport, and modern ECMAScript; exact canonical ledger IDs are
+queue is password/hash publication, YAML, transport streaming, shell, and test-runner parity; exact
+canonical ledger IDs are
 frozen in `PLAN.md`.
 
-**Current checkpoint:** the exact Bun-generated YAML suite at `c1076ce95e` freezes **402** executable cases.
-The shipped candidate passes **204** and fails **198**; a licensed byte-pinned source, deterministic Clun
-translation, case-level manifest, reproducible baseline gate, and deliberately red full-parity gate are
-tracked under `tests/compat/data.yaml/upstream/`. YAML is therefore `Partial`, while password/hash remains
-an independently implemented `Yes`. The source candidate is **7 Yes / 7 Partial / 16 No** and retains
-`0.1.0-dev.14` because the password/hash API is real backward-compatible functionality. Public release
-receipts, Pages, and hosted installation remain pending.
+**Current checkpoint:** PR #77 head `4182ccc1e3754f7d0f463cb59626845c86ba843c` implements the public
+password/hash APIs, exact hash vectors, bounded password formats and costs, worker-backed slow operations,
+and synchronous invalid-encoding admission. Focused password/YAML evidence passes **232 / 0 / 0**, crypto
+passes **42 / 0 / 0**, JS/TS passes **79 / 0**, and purity is **726 files / 0 violations**. The exact
+Bun-generated YAML suite at `c1076ce95e` freezes **402** executable cases: Clun passes **204** and fails
+**198**, recorded by a licensed byte-pinned source, deterministic translation, case manifest, green baseline
+gate, and deliberately red full-parity gate. The realm teardown regression is fixed and its focused gate
+passes **33 / 0**. YAML remains `Partial`; password/hash is `Yes`; the candidate is **7 Yes / 7 Partial /
+16 No**. Exact PR, merge, release, Pages, and hosted-installation receipts remain pending.
 
 **M5 entry boundary:** immutable dev.4 diagnostic set **56 total / 0 pass / 56 fail / 0 skip / 0 crash**:
 **43 m5-owned** (32 intrinsic/prototype, 7 parser, 4 raw delegation), **12 m11** direct-eval/`with`
