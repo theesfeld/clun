@@ -30,6 +30,7 @@
   units state g result error (started nil))
 
 (defparameter *shell-max-array-depth* 64)
+(defparameter *shell-max-seq-items* 1000000)
 (defparameter *shell-empty-octets*
   (make-array 0 :element-type '(unsigned-byte 8)))
 
@@ -519,7 +520,7 @@
 
 (defparameter *shell-builtins*
   '("echo" "pwd" "cd" "true" "false" ":" "export" "unset" "which" "exit"
-    "basename" "dirname"))
+    "basename" "dirname" "seq"))
 
 (defun %shell-relative-path (path state)
   (if (clun.sys:absolute-path-p path)
@@ -600,6 +601,209 @@
         (and value (= position (length argument)) (mod value 256)))
     (error () nil)))
 
+(defun %shell-seq-number (text)
+  (let ((number (eng:js-string->number text)))
+    (when (and (eng:js-number-p number) (eng:js-finite-p number))
+      (coerce number 'single-float))))
+
+(defun %shell-seq-number-string (number)
+  (eng:number->js-string (coerce number 'double-float)))
+
+(defun %shell-seq-pad (text width)
+  (let* ((negative (and (plusp (length text)) (char= (char text 0) #\-)))
+         (digits (if negative (subseq text 1) text))
+         (padding (max 0 (- width (length text)))))
+    (if (zerop padding)
+        text
+        (concatenate 'string (if negative "-" "")
+                     (make-string padding :initial-element #\0) digits))))
+
+(defun %shell-seq-printf (control number)
+  "Render NUMBER using seq's single printf-style floating conversion.
+Returns NIL for an invalid control string.  Literal %% escapes are supported;
+integer conversions are deliberately rejected because seq values are f32."
+  (let ((output (make-string-output-stream))
+        (index 0)
+        (conversion-seen nil))
+    (labels ((digit-p (character)
+               (and character (digit-char-p character)))
+             (read-digits ()
+               (let ((start index))
+                 (loop while (and (< index (length control))
+                                  (digit-p (char control index)))
+                       do (incf index))
+                 (and (> index start)
+                      (parse-integer control :start start :end index))))
+             (emit-conversion ()
+               (when conversion-seen (return-from %shell-seq-printf nil))
+               (setf conversion-seen t)
+               (let ((left nil) (plus nil) (space nil) (zero nil))
+                 (loop while (< index (length control))
+                       for flag = (char control index)
+                       while (find flag "-+ 0" :test #'char=)
+                       do (case flag
+                            (#\- (setf left t))
+                            (#\+ (setf plus t))
+                            (#\Space (setf space t))
+                            (#\0 (setf zero t)))
+                          (incf index))
+                 (let ((width (read-digits))
+                       (precision nil))
+                   (when (and (< index (length control))
+                              (char= (char control index) #\.))
+                     (incf index)
+                     (setf precision (read-digits))
+                     (unless precision (return-from %shell-seq-printf nil)))
+                   (when (>= index (length control))
+                     (return-from %shell-seq-printf nil))
+                   (let* ((conversion (char control index))
+                          (upper (upper-case-p conversion))
+                          (raw
+                            (case (char-downcase conversion)
+                              (#\f (format nil "~,vF" (or precision 6) number))
+                              (#\e (format nil "~,vE" (or precision 6) number))
+                              (#\g (if precision
+                                       (string-right-trim
+                                        '(#\Space) (format nil "~,vG" precision number))
+                                       (%shell-seq-number-string number)))
+                              (otherwise
+                               (return-from %shell-seq-printf nil))))
+                          (signed
+                            (if (or (minusp number)
+                                    (and (not plus) (not space)))
+                                raw
+                                (concatenate 'string (if plus "+" " ") raw)))
+                          (padding (max 0 (- (or width 0) (length signed))))
+                          (pad-character (if (and zero (not left)) #\0 #\Space))
+                          (formatted
+                            (cond
+                              ((zerop padding) signed)
+                              (left
+                               (concatenate 'string signed
+                                            (make-string padding
+                                                         :initial-element #\Space)))
+                              ((and (char= pad-character #\0)
+                                    (plusp (length signed))
+                                    (find (char signed 0) "+- " :test #'char=))
+                               (concatenate 'string (subseq signed 0 1)
+                                            (make-string padding
+                                                         :initial-element #\0)
+                                            (subseq signed 1)))
+                              (t
+                               (concatenate 'string
+                                            (make-string padding
+                                                         :initial-element pad-character)
+                                            signed)))))
+                     (incf index)
+                     (write-string (if upper (string-upcase formatted) formatted)
+                                   output))))))
+      (loop while (< index (length control)) do
+        (let ((character (char control index)))
+          (incf index)
+          (if (char/= character #\%)
+              (write-char character output)
+              (cond
+                ((and (< index (length control))
+                      (char= (char control index) #\%))
+                 (incf index)
+                 (write-char #\% output))
+                (t (emit-conversion))))))
+      (and conversion-seen (get-output-stream-string output)))))
+
+(defun %shell-run-seq (arguments)
+  (let ((args arguments) (positionals '()) (separator (string #\Newline))
+        (terminator "") (fixed-width nil) (format-control nil))
+    (labels ((requires-argument (option)
+               (return-from %shell-run-seq
+                 (%shell-result-from-strings
+                  "" (format nil "seq: option requires an argument -- ~a~%" option) 1)))
+             (take-option-value (option)
+               (unless args (requires-argument option))
+               (pop args)))
+      (loop while args do
+        (let ((argument (pop args)))
+          (cond
+            ((or (string= argument "-w") (string= argument "--fixed-width"))
+             (setf fixed-width t))
+            ((string= argument "-s")
+             (setf separator (take-option-value "s")))
+            ((and (> (length argument) 2)
+                  (string= argument "-s" :end1 2))
+             (setf separator (subseq argument 2)))
+            ((string= argument "--separator")
+             (setf separator (take-option-value "s")))
+            ((string= argument "-t")
+             (setf terminator (take-option-value "t")))
+            ((and (> (length argument) 2)
+                  (string= argument "-t" :end1 2))
+             (setf terminator (subseq argument 2)))
+            ((string= argument "--terminator")
+             (setf terminator (take-option-value "t")))
+            ((string= argument "-f")
+             (setf format-control (take-option-value "f")))
+            ((and (> (length argument) 2)
+                  (string= argument "-f" :end1 2))
+             (setf format-control (subseq argument 2)))
+            ((string= argument "--")
+             (dolist (remaining args) (push remaining positionals))
+             (setf args nil))
+            (t (push argument positionals)))))
+      (setf positionals (nreverse positionals))
+      (when (or (null positionals) (> (length positionals) 3))
+        (return-from %shell-run-seq
+          (%shell-result-from-strings
+           "" (format nil
+                      "usage: seq [-w] [-f format] [-s string] [-t string] [first [incr]] last~%")
+           1)))
+      (let ((numbers (mapcar #'%shell-seq-number positionals)))
+        (when (some #'null numbers)
+          (return-from %shell-run-seq
+            (%shell-result-from-strings "" (format nil "seq: invalid argument~%") 1)))
+        (let* ((first (if (= (length numbers) 1) 1.0f0 (first numbers)))
+               (last (car (last numbers)))
+               (increment (cond
+                            ((= (length numbers) 3) (second numbers))
+                            ((<= first last) 1.0f0)
+                            (t -1.0f0))))
+          (when (zerop increment)
+            (return-from %shell-run-seq
+              (%shell-result-from-strings "" (format nil "seq: zero increment~%") 1)))
+          (when (and (< first last) (minusp increment))
+            (return-from %shell-run-seq
+              (%shell-result-from-strings
+               "" (format nil "seq: needs positive increment~%") 1)))
+          (when (and (> first last) (plusp increment))
+            (return-from %shell-run-seq
+              (%shell-result-from-strings
+               "" (format nil "seq: needs negative decrement~%") 1)))
+          (let* ((first-text (%shell-seq-number-string first))
+                 (last-text (%shell-seq-number-string last))
+                 (width (max (length first-text) (length last-text)))
+                 (output (make-string-output-stream))
+                 (current first)
+                 (count 0))
+            (loop while (if (plusp increment) (<= current last) (>= current last)) do
+              (when (>= count *shell-max-seq-items*)
+                (return-from %shell-run-seq
+                  (%shell-result-from-strings
+                   "" (format nil "seq: output limit exceeded~%") 1)))
+              (let ((text (%shell-seq-number-string current)))
+                (when format-control
+                  (let ((formatted (%shell-seq-printf format-control current)))
+                    (unless formatted
+                      (return-from %shell-run-seq
+                        (%shell-result-from-strings
+                         "" (format nil "seq: invalid format string~%") 1)))
+                    (setf text formatted)))
+                (write-string (if fixed-width (%shell-seq-pad text width) text) output)
+                (write-string separator output))
+              (incf count)
+              (let ((next (+ current increment)))
+                (when (= next current) (return))
+                (setf current next)))
+            (write-string terminator output)
+            (%shell-result-from-strings (get-output-stream-string output) "" 0)))))))
+
 (defun %shell-run-builtin (argv state env)
   "Return RESULT and true when ARGV names a builtin."
   (let ((name (first argv)) (args (rest argv)))
@@ -621,6 +825,8 @@
                     (format nil "~{~a~%~}" (mapcar #'%shell-dirname args)) "" 0) t)
            (values (%shell-result-from-strings
                     "" (format nil "usage: dirname string~%") 1) t)))
+      ((string= name "seq")
+       (values (%shell-run-seq args) t))
       ((string= name "pwd")
        (values (%shell-result-from-strings
                 (concatenate 'string (shell-state-cwd state) (string #\Newline)) "" 0) t))

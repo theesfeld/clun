@@ -2,3 +2,4 @@ basename
 dirname
 echo
 exit
+seq

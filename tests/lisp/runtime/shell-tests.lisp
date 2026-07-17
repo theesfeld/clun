@@ -94,3 +94,37 @@
   (is = 0 (clun.runtime::%shell-parse-exit-code "0"))
   (is = 255 (clun.runtime::%shell-parse-exit-code "-1"))
   (false (clun.runtime::%shell-parse-exit-code "12x")))
+
+(define-test shell/seq-numeric-and-option-semantics
+  (flet ((run (&rest arguments)
+           (let ((result (clun.runtime::%shell-run-seq arguments)))
+             (values (eng:utf8->code-units
+                      (clun.runtime::shell-result-stdout result))
+                     (eng:utf8->code-units
+                      (clun.runtime::shell-result-stderr result))
+                     (clun.runtime::shell-result-exit-code result)))))
+    (multiple-value-bind (stdout stderr exit-code) (run "0" "5")
+      (is equal (format nil "0~%1~%2~%3~%4~%5~%") stdout)
+      (is equal "" stderr)
+      (is = 0 exit-code))
+    (multiple-value-bind (stdout stderr exit-code)
+        (run "-s." "-t," "5" "-2" "1")
+      (is equal "5.3.1.," stdout)
+      (is equal "" stderr)
+      (is = 0 exit-code))
+    (multiple-value-bind (stdout stderr exit-code) (run "4" "0" "7")
+      (is equal "" stdout)
+      (is equal (format nil "seq: zero increment~%") stderr)
+      (is = 1 exit-code))))
+
+(define-test shell/seq-formatting-and-f32-progress
+  (flet ((stdout (&rest arguments)
+           (eng:utf8->code-units
+            (clun.runtime::shell-result-stdout
+             (clun.runtime::%shell-run-seq arguments)))))
+    (is equal "001.0,002.0,003.0,"
+        (stdout "-f" "%05.1f" "-s," "1" "1" "3"))
+    (is equal "08,10,12," (stdout "-w" "-s," "8" "2" "12"))
+    (is equal (format nil "16777216~%")
+        (stdout "16777216" "16777218"))
+    (is equal (format nil "1~%") (stdout "1" "0.00000001" "2"))))

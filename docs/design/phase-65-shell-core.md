@@ -13,7 +13,10 @@ their contents cannot create operators, substitutions, redirects, globs, or extr
   operators, sequences, assignments, tilde expansion, and `Clun.Glob` expansion into an explicit AST.
 - Treat scalar interpolation as one inert argument and flatten array interpolation into inert arguments with
   a bounded nesting depth. Only an explicit `{ raw: source }` interpolation opts source text into grammar.
-- Execute `echo`, `pwd`, `cd`, `true`, `false`, `:`, `export`, `unset`, `which`, and `exit` internally.
+- Execute `echo`, `basename`, `dirname`, `seq`, `pwd`, `cd`, `true`, `false`, `:`, `export`, `unset`,
+  `which`, and `exit` internally. `seq` uses Bun-compatible f32 accumulation and non-advance termination,
+  bounds output to one million items, and additionally supports fixed-width and one floating printf
+  conversion without delegating formatting to an external command.
 - Resolve external programs against the job's `PATH`, require executable permission, and use
   `sb-ext:run-program` directly. The implementation does not invoke `sh`, `bash`, or another command parser.
 - Spawn every command in an external-only pipeline before waiting. Intermediate streams are connected while
@@ -28,8 +31,9 @@ their contents cannot create operators, substitutions, redirects, globs, or extr
 `tests/compat/tooling.shell/core.js` drives the shipped binary and freezes exact results for hostile scalar
 interpolation, array boundaries, a 1 MiB producer/consumer pipeline, logical operators, command substitution,
 cwd and environment, redirects, output/error objects, Promise chaining, helper methods, and job-local
-executable lookup. `tests/lisp/runtime/shell-tests.lisp` separately owns parser and built-in behavior without
-an external process dependency.
+executable lookup. `tests/compat/tooling.shell/builtins.js` freezes exact application behavior for path,
+echo, exit, and sequence builtins. `tests/lisp/runtime/shell-tests.lisp` separately owns parser and built-in
+behavior without an external process dependency.
 
 ```sh
 make phase-65-tagged-templates-check
