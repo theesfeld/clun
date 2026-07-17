@@ -3113,3 +3113,25 @@ binary for that commit). Clun counts come from `0.1.0-dev.19` single-file absolu
 `bun:test` ESM resolve, `bun` namespace imports, parser tier gaps, and upstream harness/host-spawn meta
 tests. Numeric coincidence of failing 0/1/0 roots is not treated as a closed residual. Ledger remains
 Partial; re-measure under a true `c1076ce95e` engineering binary when available.
+
+### 2026-07-17 - Phase 58 OS secrets remain No — constitutional
+
+Bun.secrets stores credentials in OS keychains (macOS Security.framework, Linux libsecret /
+Secret Service, Windows Credential Manager). Every Bun backend uses a native foreign boundary
+(`Security.framework`, `dlopen(libsecret)`, Win32 Credential Manager). Pure Common Lisp cannot
+deliver four-target OS-keychain parity without CFFI, subprocess disguise, or an operator-approved
+purity amendment.
+
+Spikes recorded in `docs/design/phase-58.md`:
+
+1. Darwin Keychain has no pure user-space protocol under the purity contract.
+2. Pure D-Bus Secret Service is theoretically possible on Linux only and does not clear the
+   four-target `Yes` gate.
+3. A pure-CL encrypted file vault is not OS keychain parity and must never be relabeled as such.
+4. No purity-contract amendment is requested or recorded.
+
+**Decision:** ledger row `security.encrypted-secrets` stays **No** with detail that OS keychain
+integration is excluded by the purity contract. Ship `Clun.secrets` with Bun-shaped
+`get` / `set` / `delete` argument validation and fail-closed `ERR_SECRETS_NOT_AVAILABLE` for every
+store operation. Do not claim `Yes` or `Partial`. Evidence is the design decision, Lisp suite, and
+shipped fixture under `make compat FEATURE=security.encrypted-secrets`.

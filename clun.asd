@@ -57,7 +57,8 @@
                               :serial t
                               :components ((:file "csrf")
                                            (:file "password")
-                                           (:file "noncrypto-hash")))
+                                           (:file "noncrypto-hash")
+                                           (:file "secrets")))
                              ;; Cookie parsing/serialization is engine-free so HTTP
                              ;; transport and runtime bindings share one contract.
                              (:module "http"
@@ -188,6 +189,7 @@
                                            (:file "clun-semver"); Clun.semver (Phase 29) — before clun-global
                                            (:file "clun-csrf")  ; Clun.CSRF (Phase 35) — before clun-global
                                            (:file "clun-password-hash") ; Clun.password/hash (Phase 36)
+                                           (:file "clun-secrets") ; Clun.secrets (Phase 58 constitutional)
                                            (:file "clun-string-width") ; Clun.stringWidth (Phase 33) — before clun-global
                                            (:file "clun-glob") ; Clun.Glob (Phase 30) — before clun-global
                                            (:file "clun-filesystem-router") ; Clun.FileSystemRouter (Phase 50)
@@ -257,7 +259,8 @@
                                            (:module "security"
                                             :serial t
                                             :components ((:file "csrf-tests")
-                                                         (:file "password-hash-tests")))
+                                                         (:file "password-hash-tests")
+                                                         (:file "secrets-tests")))
                                            (:module "http"
                                             :serial t
                                             :components ((:file "cookies-tests")))

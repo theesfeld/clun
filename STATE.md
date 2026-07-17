@@ -7,22 +7,24 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **37 - Modern ECMAScript gap wave**  (M2 CHECKPOINT)
+## Current phase: **58 - Operating-system secrets constitutional checkpoint**
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/11
-**Next phase issue:** https://github.com/theesfeld/clun/issues/11
+**Canonical issue:** https://github.com/theesfeld/clun/issues/32
+**Next phase issue:** https://github.com/theesfeld/clun/issues/32
 **Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/2,
-https://github.com/theesfeld/clun/issues/39, and https://github.com/theesfeld/clun/issues/40
-**Current implementation unit:** Phase 37 milestone 2 on draft PR #96 — pure-CL `Array.fromAsync`
-plus lexer/parser admission of nullish coalescing and numeric separators required by the frozen
-Test262 helpers. Converts 95 frozen `built-ins/Array/fromAsync` failures. No compatibility-table
-`Yes` is claimed; Phase 37 remains open with residual ownership after reclassification.
+https://github.com/theesfeld/clun/issues/11, and https://github.com/theesfeld/clun/issues/39
+**Current implementation unit:** Phase 58 OS-secrets constitutional checkpoint — pure Common Lisp
+cannot access macOS Keychain, libsecret, or Windows Credential Manager without CFFI. Decision is
+**No — constitutional**. Ship `Clun.secrets` with Bun-shaped validation and fail-closed
+`ERR_SECRETS_NOT_AVAILABLE`. Ledger row `security.encrypted-secrets` stays **No** (not Yes/Partial).
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
+**Candidate release:** `0.1.0-dev.23` / `v0.1.0-dev.23`
 **Published release:** `0.1.0-dev.18` / `v0.1.0-dev.18`
-**Entry boundary:** immutable `v0.1.0-dev.18` is tagged at exact master `b5ecdb5defeef8ddede72ef794e41f14fb423b86` with four native archives + checksums (release run 29596302229); installer defaults to that tag. Master source is `0.1.0-dev.19` after test-runner PR #88. Transport holds unpublished `0.1.0-dev.20`; this unit stages `0.1.0-dev.21` under the unpublished-intermediate prerelease gap policy (transition 19→21). Phase 26 remains after Phase 82.
-**Next scope:** keep Phase 37 open (no matrix Yes); green exact-head CI on the staged candidate; residual
-modern ECMAScript inventory continues after m2; pass-list reclassification is owned by the release unit.
+**Entry boundary:** immutable `v0.1.0-dev.18` is tagged and published; installer defaults to that tag.
+Master tip is `0.1.0-dev.21` (Phase 37 m2). Transport holds unpublished `0.1.0-dev.22`; this unit
+stages `0.1.0-dev.23` under the unpublished-intermediate prerelease gap policy. Phase 26 remains after Phase 82.
+**Next scope:** keep `security.encrypted-secrets` at No with tested fail-closed evidence; no purity
+amendment; no file-vault relabel as OS secrets.
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
 easiest to hardest among dependency-ready rows. Core engine/runtime/network/tooling changes are expected.
