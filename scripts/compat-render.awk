@@ -250,15 +250,20 @@ END {
     print "source commit <code>" html(substr(baseline_revision[engineering_bun_id], 1, 10)) "</code> (<code>" html(baseline_version[engineering_bun_id]) "</code>) for newer upstream work."
     print "Linked phase labels are planned acceptance gates, not capabilities available today."
   } else if (format == "readme-release") {
-    print "> **Status: pre-alpha, under active construction.** [Phase " active_phase "](https://github.com/theesfeld/clun/issues/" active_issue ") is in progress."
-    print "> Its release-bearing target is `" release_version "` / `" release_tag "` (SemVer impact: `" semver_impact "`)."
+    if (publication_state == "published") {
+      print "> **Status: pre-alpha, under active construction.** [Phase " active_phase "](https://github.com/theesfeld/clun/issues/" active_issue ") is complete."
+      print "> It shipped as `" release_version "` / `" release_tag "` (SemVer impact: `" semver_impact "`)."
+    } else {
+      print "> **Status: pre-alpha, under active construction.** [Phase " active_phase "](https://github.com/theesfeld/clun/issues/" active_issue ") is in progress."
+      print "> Its release-bearing target is `" release_version "` / `" release_tag "` (SemVer impact: `" semver_impact "`)."
+    }
     if (publication_state == "published")
       verified_tag = release_tag
     else
       verified_tag = "v" previous_version
     if (publication_state == "published") {
       print "> The verified release boundary is `" verified_tag "`, with four native archives and checksums."
-      print "> Release-gated Pages and hosted-installer results are tracked in the canonical issue."
+      print "> Release-gated Pages and hosted-installer results are recorded in the canonical issue."
     } else {
       print "> The verified release boundary is `" verified_tag "`, with four native archives, checksums, Pages,"
       print "> and hosted-installer evidence."
@@ -282,7 +287,10 @@ END {
   } else if (format == "site-version") {
     print "<p class=\"eyebrow\"><span class=\"status-dot\" aria-hidden=\"true\"></span> v" release_version (publication_state == "published" ? " / pre-alpha" : " release candidate / pre-alpha") "</p>"
   } else if (format == "site-phase-status") {
-    print "Phase " active_phase " is active: <a href=\"https://github.com/theesfeld/clun/issues/" active_issue "\">" html(roadmap_title[active_phase]) " in issue #" active_issue "</a>."
+    if (publication_state == "published")
+      print "Phase " active_phase " is complete: <a href=\"https://github.com/theesfeld/clun/issues/" active_issue "\">" html(roadmap_title[active_phase]) " release record in issue #" active_issue "</a>."
+    else
+      print "Phase " active_phase " is active: <a href=\"https://github.com/theesfeld/clun/issues/" active_issue "\">" html(roadmap_title[active_phase]) " in issue #" active_issue "</a>."
     print "Phase 26 remains deferred until after Phase 82 and will be re-baselined for the system state at that time."
   } else if (format == "readme-release-summary") {
     print "Release versions follow the actual SemVer impact recorded in the canonical issue, not the number of pushes."
@@ -295,7 +303,7 @@ END {
     print "[The versioning contract](docs/versioning.md) defines prerelease sequencing, synchronized surfaces, immutable tags, assets, and installer evidence."
     print "[Phase " active_phase " issue #" active_issue "](https://github.com/theesfeld/clun/issues/" active_issue ") is the canonical live release record."
   } else if (format == "site-release-links") {
-    print "<div><h2>Project</h2><a href=\"https://github.com/theesfeld/clun\">Source</a><a href=\"https://github.com/theesfeld/clun/blob/master/README.md\">README</a><a href=\"https://github.com/theesfeld/clun/issues/" active_issue "\">Current status</a></div>"
+    print "<div><h2>Project</h2><a href=\"https://github.com/theesfeld/clun\">Source</a><a href=\"https://github.com/theesfeld/clun/blob/master/README.md\">README</a><a href=\"https://github.com/theesfeld/clun/issues/" active_issue "\">" (publication_state == "published" ? "Release record" : "Current status") "</a></div>"
     print "<div><h2>Evidence</h2><a href=\"https://github.com/theesfeld/clun/blob/master/compat/README.md\">Compatibility ledger</a><a href=\"https://github.com/theesfeld/clun/actions/workflows/compat.yml\">Compatibility CI</a><a href=\"https://github.com/theesfeld/clun/blob/master/LICENSE\">License</a></div>"
     if (publication_state == "published")
       print "<div><h2>Install</h2><a href=\"install\">Shell installer</a><a href=\"https://github.com/theesfeld/clun/releases/tag/" release_tag "\">" release_tag " release</a><a href=\"https://github.com/theesfeld/clun#building-from-source\">Build from source</a></div>"
