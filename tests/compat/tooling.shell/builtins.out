@@ -5,3 +5,4 @@ exit
 seq
 filesystem-builtins
 rm
+mv

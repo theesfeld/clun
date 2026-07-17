@@ -110,8 +110,55 @@ check(Clun.$`basename`, 1, "", "usage: basename string\n", "basename usage")
   .then(() => check(Clun.$`rm -rf clun-shell-builtins.tmp/link`, 0, "", "", "rm symlink"))
   .then(() => check(Clun.$`cat clun-shell-builtins.tmp/victim/keep`, 0, "important", "", "rm does not follow symlink"))
   .then(() => check(Clun.$`rm -rf /`, 1, "", "rm: \"/\" may not be removed\n", "rm root guard"))
+  .then(() => check(Clun.$`mv`, 1, "", "usage: mv [-f | -i | -n] [-hv] source target\n       mv [-f | -i | -n] [-v] source ... directory\n", "mv usage"))
+  .then(() => check(Clun.$`mv --help`, 1, "", "mv: illegal option -- -\n", "mv illegal option"))
+  .then(() => check(Clun.$`mkdir -p clun-shell-builtins.tmp/move/dest`, 0, "", "", "mv setup"))
+  .then(() => check(Clun.$`printf moved > clun-shell-builtins.tmp/move/a`, 0, "", "", "mv file setup"))
+  .then(() => check(
+    Clun.$`mv -v clun-shell-builtins.tmp/move/a clun-shell-builtins.tmp/move/b`,
+    0,
+    "clun-shell-builtins.tmp/move/a -> clun-shell-builtins.tmp/move/b\n",
+    "",
+    "mv file to file",
+  ))
+  .then(() => check(Clun.$`cat clun-shell-builtins.tmp/move/b`, 0, "moved", "", "mv file result"))
+  .then(() => check(Clun.$`printf one > clun-shell-builtins.tmp/move/one`, 0, "", "", "mv multi first"))
+  .then(() => check(Clun.$`printf two > clun-shell-builtins.tmp/move/two`, 0, "", "", "mv multi second"))
+  .then(() => check(
+    Clun.$`mv clun-shell-builtins.tmp/move/one clun-shell-builtins.tmp/move/two clun-shell-builtins.tmp/move/dest`,
+    0,
+    "",
+    "",
+    "mv multiple into directory",
+  ))
+  .then(() => check(Clun.$`cat clun-shell-builtins.tmp/move/dest/one clun-shell-builtins.tmp/move/dest/two`, 0, "onetwo", "", "mv multiple results"))
+  .then(() => check(Clun.$`printf preserve > clun-shell-builtins.tmp/move/dest/no-overwrite`, 0, "", "", "mv no-overwrite target"))
+  .then(() => check(Clun.$`printf replacement > clun-shell-builtins.tmp/move/no-overwrite`, 0, "", "", "mv no-overwrite source"))
+  .then(() => check(Clun.$`mv -n clun-shell-builtins.tmp/move/no-overwrite clun-shell-builtins.tmp/move/dest`, 0, "", "", "mv no-overwrite"))
+  .then(() => check(Clun.$`cat clun-shell-builtins.tmp/move/dest/no-overwrite clun-shell-builtins.tmp/move/no-overwrite`, 0, "preservereplacement", "", "mv no-overwrite results"))
+  .then(() => check(
+    Clun.$`mv clun-shell-builtins.tmp/move/b clun-shell-builtins.tmp/move/no-overwrite clun-shell-builtins.tmp/move/missing`,
+    1,
+    "",
+    "mv: clun-shell-builtins.tmp/move/missing: No such file or directory\n",
+    "mv missing multiple target",
+  ))
+  .then(() => check(Clun.$`mkdir -p clun-shell-builtins.tmp/move/tree/sub clun-shell-builtins.tmp/move/outer`, 0, "", "", "mv directory setup"))
+  .then(() => check(Clun.$`printf nested > clun-shell-builtins.tmp/move/tree/sub/file`, 0, "", "", "mv directory file"))
+  .then(() => check(Clun.$`mv clun-shell-builtins.tmp/move/tree clun-shell-builtins.tmp/move/outer`, 0, "", "", "mv directory into directory"))
+  .then(() => check(Clun.$`cat clun-shell-builtins.tmp/move/outer/tree/sub/file`, 0, "nested", "", "mv directory result"))
+  .then(() => check(Clun.$`mkdir clun-shell-builtins.tmp/move/dir-fail`, 0, "", "", "mv directory failure setup"))
+  .then(() => check(Clun.$`touch clun-shell-builtins.tmp/move/file-target`, 0, "", "", "mv file target setup"))
+  .then(() => check(
+    Clun.$`mv clun-shell-builtins.tmp/move/dir-fail/ clun-shell-builtins.tmp/move/file-target`,
+    20,
+    "",
+    "mv: clun-shell-builtins.tmp/move/file-target: Not a directory\n",
+    "mv directory onto file",
+  ))
   .then(() => check(Clun.$`rm -rf clun-shell-builtins.tmp`, 0, "", "", "filesystem cleanup"))
   .then(() => {
     console.log("filesystem-builtins");
     console.log("rm");
+    console.log("mv");
   });

@@ -521,7 +521,7 @@
 
 (defparameter *shell-builtins*
   '("echo" "pwd" "cd" "true" "false" ":" "export" "unset" "which" "exit"
-    "basename" "dirname" "seq" "cat" "mkdir" "touch" "rm"))
+    "basename" "dirname" "seq" "cat" "mkdir" "touch" "rm" "mv"))
 
 (defun %shell-relative-path (path state)
   (if (clun.sys:absolute-path-p path)
@@ -1206,6 +1206,107 @@ integer conversions are deliberately rejected because seq values are f32."
         (%shell-result-from-strings (get-output-stream-string stdout)
                                     (get-output-stream-string stderr) exit-code)))))
 
+(defparameter *shell-mv-usage*
+  (format nil
+          "usage: mv [-f | -i | -n] [-hv] source target~%       mv [-f | -i | -n] [-v] source ... directory~%"))
+
+(defun %shell-path-stat (path &key lstat)
+  "Return STAT, PRESENT-P, and a non-ENOENT filesystem condition."
+  (handler-case
+      (values (clun.sys:stat* path :lstat lstat) t nil)
+    (clun.sys:fs-error (condition)
+      (if (string= (clun.sys:fs-error-code condition) "ENOENT")
+          (values nil nil nil)
+          (values nil nil condition)))))
+
+(defun %shell-run-mv (arguments state)
+  (let ((args arguments) (paths nil)
+        (no-dereference nil) (no-overwrite nil) (verbose nil))
+    (labels ((usage ()
+               (return-from %shell-run-mv
+                 (%shell-result-from-strings "" *shell-mv-usage* 1)))
+             (illegal ()
+               (return-from %shell-run-mv
+                 (%shell-result-from-strings
+                  "" (format nil "mv: illegal option -- -~%") 1))))
+      ;; Bun stops option parsing at the first pathname. A bare `--` is an
+      ;; illegal option in its frozen builtin rather than an option terminator.
+      (loop while args do
+        (let ((argument (first args)))
+          (if (or (zerop (length argument))
+                  (not (char= (char argument 0) #\-)))
+              (progn (setf paths args) (return))
+              (progn
+                (pop args)
+                (loop for option across (subseq argument 1) do
+                  (case option
+                    (#\f (setf no-overwrite nil))
+                    (#\h (setf no-dereference t))
+                    ;; Interactive input is not surfaced by the frozen Bun
+                    ;; implementation; its last-option-wins overwrite state is.
+                    (#\i (setf no-overwrite nil))
+                    (#\n (setf no-overwrite t))
+                    (#\v (setf verbose t))
+                    (otherwise (illegal))))))))
+      (unless (and paths (rest paths)) (usage))
+      (let* ((sources (butlast paths))
+             (target-display (car (last paths)))
+             (target (%shell-relative-path target-display state))
+             (stdout (make-string-output-stream)))
+        (multiple-value-bind (target-stat target-present target-error)
+            (%shell-path-stat target :lstat no-dereference)
+          (when target-error
+            (return-from %shell-run-mv
+              (%shell-result-from-strings
+               "" (%shell-fs-error-string "mv" target-display target-error) 1)))
+          (let ((target-directory (and target-present
+                                       (clun.sys:fstat-dir-p target-stat))))
+            (when (and (> (length sources) 1) (not target-directory))
+              (return-from %shell-run-mv
+                (%shell-result-from-strings
+                 "" (if target-present
+                        (format nil "mv: ~a is not a directory~%" target-display)
+                        (%shell-builtin-error-string
+                         "mv" target-display "No such file or directory"))
+                 1)))
+            (dolist (source-display sources)
+              (let* ((source (%shell-relative-path source-display state))
+                     (destination-display
+                       (if target-directory
+                           (clun.sys:path-join target-display
+                                               (%shell-basename source-display))
+                           target-display))
+                     (destination
+                       (if target-directory
+                           (clun.sys:path-join target (%shell-basename source-display))
+                           target)))
+                (multiple-value-bind (ignored destination-present destination-error)
+                    (%shell-path-stat destination :lstat t)
+                  (declare (ignore ignored))
+                  (when destination-error
+                    (return-from %shell-run-mv
+                      (%shell-result-from-strings
+                       (get-output-stream-string stdout)
+                       (%shell-fs-error-string "mv" destination-display destination-error)
+                       1)))
+                  (unless (and no-overwrite destination-present)
+                    (handler-case
+                        (progn
+                          (clun.sys:rename-path source destination)
+                          (when verbose
+                            (format stdout "~a -> ~a~%" source-display destination-display)))
+                      (clun.sys:fs-error (condition)
+                        (let* ((code (clun.sys:fs-error-code condition))
+                               (display (if (string= code "ENOTDIR")
+                                            destination-display source-display))
+                               (exit-code (clun.sys:fs-error-errno condition)))
+                          (return-from %shell-run-mv
+                            (%shell-result-from-strings
+                             (get-output-stream-string stdout)
+                             (%shell-fs-error-string "mv" display condition)
+                             (if (plusp exit-code) exit-code 1))))))))))
+            (%shell-result-from-strings (get-output-stream-string stdout) "" 0)))))))
+
 (defun %shell-run-builtin (argv state env stdin)
   "Return RESULT and true when ARGV names a builtin."
   (let ((name (first argv)) (args (rest argv)))
@@ -1237,6 +1338,8 @@ integer conversions are deliberately rejected because seq values are f32."
        (values (%shell-run-touch args state) t))
       ((string= name "rm")
        (values (%shell-run-rm args state) t))
+      ((string= name "mv")
+       (values (%shell-run-mv args state) t))
       ((string= name "pwd")
        (values (%shell-result-from-strings
                 (concatenate 'string (shell-state-cwd state) (string #\Newline)) "" 0) t))
