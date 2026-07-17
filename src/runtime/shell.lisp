@@ -24,7 +24,7 @@
 (defstruct shell-if-branch condition body)
 (defstruct shell-if-form (branches '()) alternative)
 (defstruct shell-command
-  (words '()) (assignments '()) (redirections '()) group if-form negated)
+  (words '()) (assignments '()) (redirections '()) group brace-group if-form negated)
 (defstruct shell-pipeline (commands '()) (merge-stderr '()))
 (defstruct shell-script (pipelines '()) (operators '()))
 (defstruct shell-result
@@ -465,6 +465,7 @@
                (when suffix
                  (let ((parsed (%shell-parse-command suffix)))
                    (when (or (shell-command-group parsed)
+                             (shell-command-brace-group parsed)
                              (shell-command-if-form parsed)
                              (shell-command-words parsed)
                              (shell-command-assignments parsed)
@@ -501,6 +502,7 @@
                (when suffix
                  (let ((parsed (%shell-parse-command suffix)))
                    (when (or (shell-command-group parsed)
+                             (shell-command-brace-group parsed)
                              (shell-command-if-form parsed)
                              (shell-command-words parsed)
                              (shell-command-assignments parsed)
@@ -510,6 +512,45 @@
         (when (null inner) (%shell-syntax "empty subshell group"))
         (return-from %shell-parse-command
           (make-shell-command :group (%shell-parse-tokens inner)
+                              :redirections redirections)))))
+  (when (and tokens
+             (string= (or (%shell-static-token-word (first tokens)) "") "{"))
+    (let ((depth 0) (control-depth 0) (at-command-start t) (close nil))
+      (loop for token in tokens
+            for index from 0
+            for command-start = at-command-start
+            for word = (and command-start (%shell-static-token-word token))
+            do (cond
+                 ((and word (string= word "{"))
+                  (incf depth)
+                  (setf at-command-start t))
+                 ((and word (string= word "}"))
+                  (decf depth)
+                  (when (minusp depth) (%shell-syntax "unexpected }"))
+                  (if (zerop depth)
+                      (progn (setf close index) (loop-finish))
+                      (setf at-command-start nil)))
+                 (t
+                  (multiple-value-setq (control-depth at-command-start)
+                    (%shell-control-state-after-token
+                     token control-depth at-command-start)))))
+      (unless close (%shell-syntax "unterminated brace group"))
+      (let* ((inner (subseq tokens 1 close))
+             (suffix (nthcdr (1+ close) tokens))
+             (redirections
+               (when suffix
+                 (let ((parsed (%shell-parse-command suffix)))
+                   (when (or (shell-command-group parsed)
+                             (shell-command-brace-group parsed)
+                             (shell-command-if-form parsed)
+                             (shell-command-words parsed)
+                             (shell-command-assignments parsed)
+                             (shell-command-negated parsed))
+                     (%shell-syntax "unexpected token after brace group"))
+                   (shell-command-redirections parsed)))))
+        (when (null inner) (%shell-syntax "empty brace group"))
+        (return-from %shell-parse-command
+          (make-shell-command :brace-group (%shell-parse-tokens inner)
                               :redirections redirections)))))
   (let ((words '()) (assignments '()) (redirections '()) (command-seen nil)
         (negated nil) (index 0))
@@ -554,30 +595,44 @@
 
 (defun %shell-split-pipeline-tokens (tokens)
   (let ((groups '()) (merge-stderr '()) (current '())
-        (depth 0) (control-depth 0) (at-command-start t))
+        (depth 0) (brace-depth 0) (control-depth 0) (at-command-start t))
     (dolist (token tokens)
-      (when (eq (shell-token-kind token) :operator)
+      (let* ((command-start at-command-start)
+             (word (and command-start (%shell-static-token-word token)))
+             (brace-open-p (and word (string= word "{")))
+             (brace-close-p (and word (string= word "}"))))
         (cond
-          ((string= (shell-token-value token) "(") (incf depth))
-          ((string= (shell-token-value token) ")")
-           (decf depth)
-           (when (minusp depth) (%shell-syntax "unexpected )")))))
-      (multiple-value-setq (control-depth at-command-start)
-        (%shell-control-state-after-token token control-depth at-command-start))
-      (if (and (zerop depth)
-               (zerop control-depth)
-               (eq (shell-token-kind token) :operator)
-               (member (shell-token-value token) '("|" "|&")
-                       :test #'string=))
-          (progn
-            (when (null current)
-              (%shell-syntax "empty command before ~a"
-                             (shell-token-value token)))
-            (push (nreverse current) groups)
-            (push (string= (shell-token-value token) "|&") merge-stderr)
-            (setf current '()))
-          (push token current)))
+          (brace-open-p
+           (incf brace-depth))
+          (brace-close-p
+           (decf brace-depth)
+           (when (minusp brace-depth) (%shell-syntax "unexpected }"))))
+        (when (eq (shell-token-kind token) :operator)
+          (cond
+            ((string= (shell-token-value token) "(") (incf depth))
+            ((string= (shell-token-value token) ")")
+             (decf depth)
+             (when (minusp depth) (%shell-syntax "unexpected )")))))
+        (multiple-value-setq (control-depth at-command-start)
+          (%shell-control-state-after-token token control-depth at-command-start))
+        (when brace-open-p
+          (setf at-command-start t))
+        (if (and (zerop depth)
+                 (zerop brace-depth)
+                 (zerop control-depth)
+                 (eq (shell-token-kind token) :operator)
+                 (member (shell-token-value token) '("|" "|&")
+                         :test #'string=))
+            (progn
+              (when (null current)
+                (%shell-syntax "empty command before ~a"
+                               (shell-token-value token)))
+              (push (nreverse current) groups)
+              (push (string= (shell-token-value token) "|&") merge-stderr)
+              (setf current '()))
+            (push token current))))
     (unless (zerop depth) (%shell-syntax "unterminated subshell group"))
+    (unless (zerop brace-depth) (%shell-syntax "unterminated brace group"))
     (unless (zerop control-depth) (%shell-syntax "unterminated if"))
     (when (null current) (%shell-syntax "empty command after pipeline operator"))
     (values (nreverse (cons (nreverse current) groups))
@@ -599,7 +654,7 @@
 
 (defun %shell-parse-tokens (tokens)
   (let ((pipelines '()) (operators '()) (current '())
-        (in-condition nil) (depth 0) (control-depth 0)
+        (in-condition nil) (depth 0) (brace-depth 0) (control-depth 0)
         (at-command-start t))
     (labels ((flush (operator)
                (when current
@@ -607,7 +662,9 @@
                  (setf current '())
                  (when operator (push operator operators)))))
       (dolist (token tokens)
-        (let ((word (%shell-static-token-word token)))
+        (let* ((word (%shell-static-token-word token))
+               (command-start at-command-start)
+               (reserved-word (and command-start word)))
           (multiple-value-setq (control-depth at-command-start)
             (%shell-control-state-after-token token control-depth at-command-start))
           (cond
@@ -622,6 +679,14 @@
                   (member (shell-token-value token) '("&&" "||" "<" ">" "(" ")")
                           :test #'string=))
              (push (%shell-operator-word-token (shell-token-value token)) current))
+            ((and (not in-condition) reserved-word (string= reserved-word "{"))
+             (incf brace-depth)
+             (setf at-command-start t)
+             (push token current))
+            ((and (not in-condition) reserved-word (string= reserved-word "}"))
+             (decf brace-depth)
+             (when (minusp brace-depth) (%shell-syntax "unexpected }"))
+             (push token current))
             ((and (not in-condition)
                   (eq (shell-token-kind token) :operator)
                   (string= (shell-token-value token) "("))
@@ -635,6 +700,7 @@
              (push token current))
             ((and (not in-condition)
                   (zerop depth)
+                  (zerop brace-depth)
                   (zerop control-depth)
                   (eq (shell-token-kind token) :operator)
                   (member (shell-token-value token) '(";" "&&" "||") :test #'string=))
@@ -643,6 +709,7 @@
                           (t :sequence))))
             (t (push token current)))))
       (unless (zerop depth) (%shell-syntax "unterminated subshell group"))
+      (unless (zerop brace-depth) (%shell-syntax "unterminated brace group"))
       (unless (zerop control-depth) (%shell-syntax "unterminated if"))
       (flush nil))
     ;; A trailing separator records one extra operator; it has no right-hand side.
@@ -3122,6 +3189,12 @@ integer conversions are deliberately rejected because seq values are f32."
            (%shell-apply-output-redirections
             (%shell-execute-script (shell-command-group command) sub-state g input)
             output-redirections state g))))
+      ((shell-command-brace-group command)
+       (multiple-value-bind (input output-redirections)
+           (%shell-command-redirections command state g stdin)
+         (%shell-apply-output-redirections
+          (%shell-execute-script (shell-command-brace-group command) state g input)
+          output-redirections state g)))
       ((null (shell-command-words command))
         (progn
           (setf (shell-state-env state) env)

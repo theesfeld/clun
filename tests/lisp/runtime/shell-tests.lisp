@@ -106,6 +106,12 @@
         clun.runtime::shell-syntax-error)
   (fail (clun.runtime::%shell-parse (shell-test-units "()"))
         clun.runtime::shell-syntax-error)
+  (fail (clun.runtime::%shell-parse (shell-test-units "{ echo no"))
+        clun.runtime::shell-syntax-error)
+  (fail (clun.runtime::%shell-parse (shell-test-units "{ echo no }"))
+        clun.runtime::shell-syntax-error)
+  (fail (clun.runtime::%shell-parse (shell-test-units "}"))
+        clun.runtime::shell-syntax-error)
   (fail (clun.runtime::%shell-parse (shell-test-units "if true; echo no; fi"))
         clun.runtime::shell-syntax-error)
   (fail (clun.runtime::%shell-parse (shell-test-units "if true; then echo no"))
@@ -286,6 +292,36 @@
       (shell-test-output "(false || echo recovered); (exit 7); echo outside")
     (is equal (format nil "recovered~%outside~%") output)
     (is = 0 exit-code)))
+
+(define-test shell/brace-groups-run-in-current-state
+  (multiple-value-bind (output exit-code)
+      (shell-test-output
+       "A=outer; { A=inner; echo $A; }; echo $A")
+    (is equal (format nil "inner~%inner~%") output)
+    (is = 0 exit-code))
+  (multiple-value-bind (output exit-code)
+      (shell-test-output
+       "{ { echo nested; }; echo outer; } | cat")
+    (is equal (format nil "nested~%outer~%") output)
+    (is = 0 exit-code))
+  (multiple-value-bind (output exit-code)
+      (shell-test-output "echo {a,b}; echo }")
+    (is equal (format nil "a b~%}~%") output)
+    (is = 0 exit-code))
+  (let* ((directory (clun.runtime::%shell-temp-directory))
+         (state (shell-test-state)))
+    (unwind-protect
+         (progn
+           (setf (clun.runtime::shell-state-cwd state) directory)
+           (let ((result (clun.runtime::%shell-execute-units
+                          (shell-test-units
+                           "{ echo one; echo two; } > grouped; { cat; } < grouped")
+                          state nil)))
+             (is equal (format nil "one~%two~%")
+                 (eng:utf8->code-units
+                  (clun.runtime::shell-result-stdout result)))
+             (is = 0 (clun.runtime::shell-result-exit-code result))))
+      (ignore-errors (sys:remove-recursive directory)))))
 
 (define-test shell/if-elif-else-compound-command
   (multiple-value-bind (output exit-code)

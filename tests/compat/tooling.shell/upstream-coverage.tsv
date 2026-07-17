@@ -1113,3 +1113,39 @@ stable.test_js_bun_shell_bunshell_test_ts.L1329.1.builder-test	covered	tests/com
 stable.test_js_bun_shell_bunshell_test_ts.L1339.1.builder-test	covered	tests/compat/tooling.shell/upstream-deno-task.js	exact pinned Deno-task observable behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L1348.1.builder-test	covered	tests/compat/tooling.shell/upstream-deno-task.js	exact pinned Deno-task observable behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L1351.1.test-call	covered	tests/compat/tooling.shell/upstream-deno-task.js	exact pinned Deno-task observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2567.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned grouping behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2573.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned grouping behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2574.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned grouping behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2575.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned grouping behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2590.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned grouping behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2603.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned grouping behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2617.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned grouping behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2632.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned grouping behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2642.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned grouping behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2652.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned grouping behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2661.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned grouping behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2686.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned grouping behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2703.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned grouping behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2722.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned grouping behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2740.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned brace-group behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2749.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned brace-group behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2757.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned brace-group behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2777.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned brace-group behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L2352.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned grouping behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L2358.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned grouping behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L2359.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned grouping behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L2360.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned grouping behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L2375.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned grouping behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L2388.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned grouping behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L2402.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned grouping behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L2417.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned grouping behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L2427.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned grouping behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L2437.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned grouping behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L2446.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned grouping behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L2471.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned grouping behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L2488.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned grouping behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L2507.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned grouping behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L2525.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned brace-group behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L2534.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned brace-group behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L2542.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned brace-group behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L2562.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned brace-group behavior executes through the shipped binary
