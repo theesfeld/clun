@@ -1,7 +1,7 @@
 <!-- clun-generated:release-notes:begin -->
-# Clun 0.1.0-dev.21
+# Clun 0.1.0-dev.22
 
-Phase 65: Cross-platform shell API.
+Phase 65: Cross-platform shell API (inventory burn-down on transport master).
 
 - SemVer impact: `patch` within the selected `0.1.0` prerelease train.
 - Compatibility snapshot: 9 Yes / 7 Partial / 14 No across 30 generated rows.
@@ -14,14 +14,21 @@ The canonical evidence and current limitations are in `compat/`; `make compat-va
 
 ## Highlights
 
-- Unpublished correction of master `0.1.0-dev.21` (no new prerelease slot): pure-CL unmatched
-  pathname globs fail in command position with `clun: no matches found: <pattern>` (exit 1);
-  assignment position keeps the literal pattern; multi-match assignment values join with a space.
+- Unpublished correction of master `0.1.0-dev.22` (Phase 28 transport #95; no new
+  prerelease slot): pure-CL unmatched pathname globs fail in command position with
+  `clun: no matches found: <pattern>` (exit 1); assignment position keeps the literal
+  pattern; multi-match assignment values join with a space.
 - Inventory burn-down after merge with master residual closes: **1,286 covered / 312 pending /
   32 upstream-inactive**. Closes 35 pending sites across language, glob, and `pwd | cd | pwd`
   pipeline isolation fixtures (plus #102 permission-sensitive `ls` closes already on master).
 - Does **not** claim `tooling.shell` Yes. Residual parser, lifecycle, and background rows remain
   pending under Issue #39.
-- Slot map: published base `v0.1.0-dev.18`; master source remains `0.1.0-dev.21` (also hosts
-  Phase 51 WebSocket M0 fail-closed checkpoint). This unit retains that candidate as an
-  unpublished correction. Hosted installer remains on published dev.18 until a later unit publishes.
+- Absorbs master through Phase 28 transport foundation (Issue #2 / PR #95): pure-CL TLS 1.2
+  registry transport, DNS/Happy Eyeballs, streaming Fetch, HTTP pooling, proxy/CONNECT.
+  Public `runtime.web-standard-apis` and `package-manager.npm` remain honest `Partial`.
+- Slot map: published base `v0.1.0-dev.18`; master source `0.1.0-dev.22` after #95. This unit
+  retains that candidate as an unpublished patch correction (does **not** steal m3=`0.1.0-dev.23`).
+  Hosted installer remains on published dev.18 until a later unit publishes.
+
+The release candidate stages honest Partial shell inventory work without promoting any matrix
+row to `Yes`.

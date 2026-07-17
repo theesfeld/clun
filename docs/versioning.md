@@ -53,6 +53,7 @@ resource does not exist with a 404 response:
 0.1.0-dev.19
 0.1.0-dev.20
 0.1.0-dev.21
+0.1.0-dev.22
 ```
 
 Phase 25b is the compatibility program for the planned `0.1.0` release. Its first behavioral
@@ -112,7 +113,7 @@ Phase 50 stages `0.1.0-dev.17` / `v0.1.0-dev.17` under Issue #24 (router PR #85)
 master. Phase 65 stages `0.1.0-dev.18` / `v0.1.0-dev.18` under Issue #39 (shell PR #86; published).
 Phase 66 stages `0.1.0-dev.19` / `v0.1.0-dev.19` under Issue #40 (test-runner PR #88 on master).
 Phase 28 stages `0.1.0-dev.20` / `v0.1.0-dev.20` under Issue #2. Phase 37 milestone 2 stages
-`0.1.0-dev.21` / `v0.1.0-dev.21` under Issue #11 (PR #96). Phase 65 inventory burn-down under Issue #39 (PR #111) is an unpublished correction of the same `0.1.0-dev.21` / `v0.1.0-dev.21` candidate (unmatched-glob failure policy; `tooling.shell` remains Partial; no new prerelease slot); its SemVer impact is `patch` because it fixes Bun-matching glob failure and assignment multi-match join without new public APIs. Version-transition allows multi-step
+`0.1.0-dev.21` / `v0.1.0-dev.21` under Issue #11 (PR #96). Version-transition allows multi-step
 prerelease advances only while every skipped intermediate remains unpublished, so parallel drafts
 may allocate later slots without claiming each other's tags. Phase 37 m2 adds backward-compatible
 `Array.fromAsync` and supporting lexer/parser admissions and therefore its SemVer impact is `minor`
@@ -122,6 +123,8 @@ Phase 51 M0 (WebSocket constitutional checkpoint, Issue #25 / PR #107) retains u
 `0.1.0-dev.21` / `v0.1.0-dev.21` as a release-bearing correction: fail-closed `Clun.serve` refusal of
 WebSocket options/APIs with SemVer impact is `minor`; ledger `server.websocket` remains No and no new
 prerelease slot is allocated.
+
+Phase 28 stages `0.1.0-dev.22` / `v0.1.0-dev.22` under Issue #2 (transport PR #95) as the exact next prerelease on top of master `0.1.0-dev.21` (slot `dev.20` remains unused/unpublished). Phase 28 adds backward-compatible pure-CL TLS 1.2 registry transport, DNS and Happy Eyeballs, streaming Fetch, HTTP pooling, and proxy/CONNECT support and therefore its SemVer impact is `minor` within the selected `0.1.0` core. Until Phase 28 gates complete, `runtime.web-standard-apis` and `package-manager.npm` remain Partial and are not claimed as Yes. Phase 65 inventory burn-down under Issue #39 (PR #111) is an unpublished correction of master `0.1.0-dev.22` / `v0.1.0-dev.22` after transport #95 lands (unmatched-glob failure policy; `tooling.shell` remains Partial; no new prerelease slot and no theft of m3=`0.1.0-dev.23`); its SemVer impact is `patch` because it fixes Bun-matching glob failure and assignment multi-match join without new public APIs.
 
 ## Canonical record
 
