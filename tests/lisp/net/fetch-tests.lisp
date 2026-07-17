@@ -305,6 +305,114 @@ then the final chunk after 75ms.  __tailSent exposes whether fetch waited for EO
       (is string= "TypeError" (eng:to-string (eng:js-get value "second")))
       (is eq eng:+true+ (eng:js-get value "used")))))
 
+(define-test net/fetch-response-clone-tees-delayed-body
+  (with-delayed-fetch-server (g port)
+    (multiple-value-bind (kind value)
+        (eng:run-callback-to-settlement
+         (lambda ()
+           (jseval
+            eng:*realm*
+            (format nil
+                    "(async () => {
+                       const response = await fetch('http://127.0.0.1:~d/clone');
+                       const clone = response.clone();
+                       const tailAtClone = globalThis.__tailSent;
+                       const originalBody = await response.text();
+                       const clonedBody = await clone.text();
+                       let cloneAfterUse = '';
+                       try { response.clone(); } catch (error) { cloneAfterUse = error.name; }
+                       return { tailAtClone, originalBody, clonedBody, cloneAfterUse,
+                                originalUsed: response.bodyUsed, cloneUsed: clone.bodyUsed };
+                     })()"
+                    port)))
+         eng:*realm* :timeout-ms 4000)
+      (is eq :fulfilled kind)
+      (is eq eng:+false+ (eng:js-get value "tailAtClone"))
+      (is string= "hello world" (eng:to-string (eng:js-get value "originalBody")))
+      (is string= "hello world" (eng:to-string (eng:js-get value "clonedBody")))
+      (is string= "TypeError" (eng:to-string (eng:js-get value "cloneAfterUse")))
+      (is eq eng:+true+ (eng:js-get value "originalUsed"))
+      (is eq eng:+true+ (eng:js-get value "cloneUsed")))))
+
+(define-test net/response-clone-and-readable-stream-tee
+  (let ((realm (eng:make-realm)))
+    (rt:install-runtime realm :argv '(:script "[test]" :rest nil) :cwd "/tmp")
+    (unwind-protect
+         (let ((eng:*realm* realm))
+           (multiple-value-bind (kind value)
+               (eng:run-callback-to-settlement
+                (lambda ()
+                  (jseval
+                   realm
+                   "(async () => {
+                      const response = new Response('abc', {
+                        status: 201, statusText: 'Made', headers: { 'x-copy': 'original' }
+                      });
+                      const heldBody = response.body;
+                      const clone = response.clone();
+                      clone.headers.set('x-copy', 'clone');
+                      const original = await response.text();
+                      const copied = await clone.text();
+
+                      const teeResponse = new Response('xy');
+                      const source = teeResponse.body;
+                      const branches = source.tee();
+                      const left = branches[0].getReader();
+                      const right = branches[1].getReader();
+                      const leftChunk = await left.read();
+                      const rightChunk = await right.read();
+                      return {
+                        original, copied, status: clone.status,
+                        originalHeader: response.headers.get('x-copy'),
+                        cloneHeader: clone.headers.get('x-copy'),
+                        heldLocked: heldBody.locked, sourceLocked: source.locked,
+                        leftFirst: leftChunk.value[0], rightSecond: rightChunk.value[1]
+                      };
+                    })()"))
+                realm :timeout-ms 4000)
+             (is eq :fulfilled kind)
+             (is string= "abc" (eng:to-string (eng:js-get value "original")))
+             (is string= "abc" (eng:to-string (eng:js-get value "copied")))
+             (is = 201 (truncate (eng:js-get value "status")))
+             (is string= "original" (eng:to-string (eng:js-get value "originalHeader")))
+             (is string= "clone" (eng:to-string (eng:js-get value "cloneHeader")))
+             (is eq eng:+true+ (eng:js-get value "heldLocked"))
+             (is eq eng:+true+ (eng:js-get value "sourceLocked"))
+             (is = (char-code #\x) (truncate (eng:js-get value "leftFirst")))
+             (is = (char-code #\y) (truncate (eng:js-get value "rightSecond")))))
+      (eng:teardown-realm realm))))
+
+(define-test net/response-tee-shares-backpressure-and-cancellation
+  (let ((realm (eng:make-realm))
+        (pauses 0)
+        (resumes 0)
+        (cancels 0))
+    (rt:install-runtime realm :argv '(:script "[test]" :rest nil) :cwd "/tmp")
+    (unwind-protect
+         (let* ((eng:*realm* realm)
+                (source
+                  (rt::%new-body-stream
+                   :cancel (lambda () (incf cancels))
+                   :pause (lambda () (incf pauses))
+                   :resume (lambda () (incf resumes))))
+                (chunk
+                  (make-array 4 :element-type '(unsigned-byte 8)
+                              :initial-contents '(1 2 3 4))))
+           (multiple-value-bind (first second)
+               (rt::%body-stream-tee source :high-water 8 :low-water 3)
+             (rt::%body-stream-enqueue source chunk)
+             (rt::%body-stream-enqueue source chunk)
+             (is = 1 pauses)
+             (loop repeat 2 do (rt::%body-stream-queue-pop first))
+             (rt::%body-stream-maybe-resume first)
+             (is = 0 resumes)
+             (rt::%body-stream-cancel-now second eng:+undefined+)
+             (is = 1 resumes)
+             (is = 0 cancels)
+             (rt::%body-stream-cancel-now first eng:+undefined+)
+             (is = 1 cancels)))
+      (eng:teardown-realm realm))))
+
 (define-test net/fetch-abort-after-headers-errors-body-with-reason
   (with-delayed-fetch-server (g port)
     (multiple-value-bind (kind value)

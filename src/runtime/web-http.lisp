@@ -59,7 +59,8 @@
   (backpressured-p nil)
   (high-water (* 1024 1024) :type (integer 1 *))
   (low-water (* 512 1024) :type (integer 0 *))
-  terminal-callback)
+  terminal-callback
+  tee-targets)
 
 (defstruct (js-body-reader
             (:include eng:js-object (class :readable-stream-reader))
@@ -74,6 +75,14 @@
   (buffer (make-array (* 64 1024) :element-type '(unsigned-byte 8)
                                    :adjustable t :fill-pointer 0))
   resolve reject transform)
+
+(defstruct (body-tee (:constructor %make-body-tee))
+  source
+  first
+  second
+  (first-active-p t)
+  (second-active-p t)
+  (transport-paused-p nil))
 
 (defstruct (web-http-realm-state
             (:constructor %make-web-http-realm-state))
@@ -710,34 +719,41 @@ Headers, Request, Response, and cookie state never use this mechanism."
   (when (and (not (js-body-stream-closed-p stream))
              (not (js-body-stream-errored-p stream))
              (plusp (length chunk)))
-    (cond
-      ((js-body-stream-collector stream)
-       (handler-case
-           (%body-collector-append (js-body-stream-collector stream) chunk)
-         (error (condition)
-           (%body-stream-error
-            stream (%body-stream-error-object (princ-to-string condition))))))
-      ((js-body-stream-pending stream)
-       (%body-stream-resolve-read
-        (%body-stream-pending-pop stream) chunk nil))
-      (t
-       (%body-stream-queue-push stream chunk)
-       (when (and (not (js-body-stream-backpressured-p stream))
-                  (>= (js-body-stream-queued-bytes stream)
-                      (js-body-stream-high-water stream)))
-         (setf (js-body-stream-backpressured-p stream) t)
-         (let ((pause (js-body-stream-pause stream)))
-           (when pause (funcall pause)))))))
+    (if (js-body-stream-tee-targets stream)
+        (dolist (target (js-body-stream-tee-targets stream))
+          (%body-stream-enqueue target chunk))
+        (cond
+          ((js-body-stream-collector stream)
+           (handler-case
+               (%body-collector-append (js-body-stream-collector stream) chunk)
+             (error (condition)
+               (%body-stream-error
+                stream (%body-stream-error-object (princ-to-string condition))))))
+          ((js-body-stream-pending stream)
+           (%body-stream-resolve-read
+            (%body-stream-pending-pop stream) chunk nil))
+          (t
+           (%body-stream-queue-push stream chunk)
+           (when (and (not (js-body-stream-backpressured-p stream))
+                      (>= (js-body-stream-queued-bytes stream)
+                          (js-body-stream-high-water stream)))
+             (setf (js-body-stream-backpressured-p stream) t)
+             (let ((pause (js-body-stream-pause stream)))
+               (when pause (funcall pause))))))))
   stream)
 
 (defun %body-stream-close (stream)
   (unless (or (js-body-stream-closed-p stream)
               (js-body-stream-errored-p stream))
     (setf (js-body-stream-closed-p stream) t)
-    (loop for request = (%body-stream-pending-pop stream)
-          while request
-          do (%body-stream-resolve-read request nil t))
-    (%body-collector-finish stream)
+    (if (js-body-stream-tee-targets stream)
+        (dolist (target (js-body-stream-tee-targets stream))
+          (%body-stream-close target))
+        (progn
+          (loop for request = (%body-stream-pending-pop stream)
+                while request
+                do (%body-stream-resolve-read request nil t))
+          (%body-collector-finish stream)))
     (%body-stream-terminal stream))
   stream)
 
@@ -749,10 +765,14 @@ Headers, Request, Response, and cookie state never use this mechanism."
           (js-body-stream-queue stream) nil
           (js-body-stream-queue-tail stream) nil
           (js-body-stream-queued-bytes stream) 0)
-    (loop for request = (%body-stream-pending-pop stream)
-          while request
-          do (%body-stream-reject-read request reason))
-    (%body-collector-reject stream reason)
+    (if (js-body-stream-tee-targets stream)
+        (dolist (target (js-body-stream-tee-targets stream))
+          (%body-stream-error target reason))
+        (progn
+          (loop for request = (%body-stream-pending-pop stream)
+                while request
+                do (%body-stream-reject-read request reason))
+          (%body-collector-reject stream reason)))
     (%body-stream-maybe-resume stream)
     (%body-stream-terminal stream))
   stream)
@@ -819,6 +839,44 @@ Headers, Request, Response, and cookie state never use this mechanism."
     (setf (js-body-reader-released-p reader) t
           (js-body-stream-locked-p (js-body-reader-stream reader)) nil))
   eng:+undefined+)
+
+(defun %body-tee-active-p (tee)
+  (or (body-tee-first-active-p tee)
+      (body-tee-second-active-p tee)))
+
+(defun %body-tee-sync-backpressure (tee)
+  (let* ((source (body-tee-source tee))
+         (blocked-p
+           (or (and (body-tee-first-active-p tee)
+                    (js-body-stream-backpressured-p (body-tee-first tee)))
+               (and (body-tee-second-active-p tee)
+                    (js-body-stream-backpressured-p (body-tee-second tee))))))
+    (cond
+      ((and blocked-p (not (body-tee-transport-paused-p tee)))
+       (setf (body-tee-transport-paused-p tee) t
+             (js-body-stream-backpressured-p source) t)
+       (let ((pause (js-body-stream-pause source)))
+         (when pause (funcall pause))))
+      ((and (not blocked-p) (body-tee-transport-paused-p tee))
+       (setf (body-tee-transport-paused-p tee) nil
+             (js-body-stream-backpressured-p source) nil)
+       (let ((resume (js-body-stream-resume source)))
+         (when resume (funcall resume))))))
+  tee)
+
+(defun %body-tee-cancel-branch (tee branch)
+  (cond
+    ((eq branch (body-tee-first tee))
+     (setf (body-tee-first-active-p tee) nil))
+    ((eq branch (body-tee-second tee))
+     (setf (body-tee-second-active-p tee) nil)))
+  (if (%body-tee-active-p tee)
+      (%body-tee-sync-backpressure tee)
+      (progn
+        (setf (body-tee-transport-paused-p tee) nil
+              (js-body-stream-backpressured-p (body-tee-source tee)) nil)
+        (%body-stream-cancel-now (body-tee-source tee) eng:+undefined+)))
+  (values))
 
 (defun %body-stream-reader (stream)
   (when (js-body-stream-locked-p stream)
@@ -917,6 +975,16 @@ Headers, Request, Response, and cookie state never use this mechanism."
              (%body-stream-cancel-now this (eng:arg args 0))
              (%resolved-promise
               (eng:realm-global eng:*realm*) eng:+undefined+)))))
+    (eng:install-method
+     stream "tee" 0
+     (lambda (this args)
+       (declare (ignore args))
+       (multiple-value-bind (first second)
+           (%body-stream-tee
+            (if (js-body-stream-p this)
+                this
+                (eng:throw-type-error "Illegal invocation")))
+         (eng:new-array (list first second)))))
     (let ((iterator-function
             (eng:make-native-function
              "values" 0
@@ -930,6 +998,44 @@ Headers, Request, Response, and cookie state never use this mechanism."
       (eng:create-data-property stream (eng:well-known :async-iterator)
                                 iterator-function))
     stream))
+
+(defun %body-stream-tee
+    (source &key (high-water net:*max-body-bytes*)
+                 (low-water (floor net:*max-body-bytes* 2)))
+  "Lock SOURCE and return two bounded branches fed by its current and future bytes."
+  (when (js-body-stream-locked-p source)
+    (eng:throw-type-error "ReadableStream is locked"))
+  (let* ((first (%new-body-stream :high-water high-water :low-water low-water))
+         (second (%new-body-stream :high-water high-water :low-water low-water))
+         (tee
+           (%make-body-tee
+            :source source :first first :second second
+            :transport-paused-p (js-body-stream-backpressured-p source))))
+    (%body-stream-bind-transport
+     first
+     :cancel (lambda () (%body-tee-cancel-branch tee first))
+     :pause (lambda () (%body-tee-sync-backpressure tee))
+     :resume (lambda () (%body-tee-sync-backpressure tee)))
+    (%body-stream-bind-transport
+     second
+     :cancel (lambda () (%body-tee-cancel-branch tee second))
+     :pause (lambda () (%body-tee-sync-backpressure tee))
+     :resume (lambda () (%body-tee-sync-backpressure tee)))
+    (setf (js-body-stream-locked-p source) t
+          (js-body-stream-tee-targets source) (list first second))
+    (loop for chunk = (%body-stream-queue-pop source)
+          while chunk
+          do (%body-stream-enqueue first chunk)
+             (%body-stream-enqueue second chunk))
+    (cond
+      ((js-body-stream-errored-p source)
+       (%body-stream-error first (js-body-stream-error source))
+       (%body-stream-error second (js-body-stream-error source)))
+      ((js-body-stream-closed-p source)
+       (%body-stream-close first)
+       (%body-stream-close second))
+      (t (%body-tee-sync-backpressure tee)))
+    (values first second)))
 
 (defun %body-stream-bind-transport
     (stream &key cancel pause resume terminal-callback)
@@ -1015,6 +1121,30 @@ Headers, Request, Response, and cookie state never use this mechanism."
 (defun %response-stream (response)
   (js-response-body-stream (%require-response response)))
 
+(defun %clone-response (value)
+  (let* ((response (%require-response value))
+         (stream (js-response-body-stream response)))
+    (when (or (js-body-stream-disturbed-p stream)
+              (js-body-stream-locked-p stream))
+      (eng:throw-type-error "Body has already been consumed"))
+    (multiple-value-bind (first second) (%body-stream-tee stream)
+      (setf (js-response-body-stream response) first)
+      (let ((clone
+              (%make-js-response
+               :proto (web-http-realm-state-response-prototype (%http-state))
+               :body (js-response-body response)
+               :body-stream second
+               :body-null-p (js-response-body-null-p response))))
+        (eng:data-prop clone "status" (eng:js-get response "status"))
+        (eng:data-prop clone "statusText" (eng:js-get response "statusText"))
+        (eng:data-prop clone "ok" (eng:js-get response "ok"))
+        (eng:data-prop clone "headers"
+                       (%new-headers (eng:js-get response "headers")))
+        (let ((url (eng:js-get response "url")))
+          (unless (eng:js-undefined-p url)
+            (eng:data-prop clone "url" url)))
+        clone))))
+
 (defun %install-response-body-method
     (prototype name transform)
   (%install-prototype-method
@@ -1055,6 +1185,11 @@ Headers, Request, Response, and cookie state never use this mechanism."
      (eng:js-boolean
       (js-body-stream-disturbed-p (%response-stream this))))
    nil)
+  (%install-prototype-method
+   prototype "clone" 0
+   (lambda (this args)
+     (declare (ignore args))
+     (%clone-response this)))
   prototype)
 
 (defun %init-response (object body init &key body-stream body-null-p)
