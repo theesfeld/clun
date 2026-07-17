@@ -49,15 +49,26 @@
          (floating-point-overflow ()
            (if (minusp value) +js-neg-infinity+ +js-infinity+)))))))
 
-(defun yaml-key->string (node)
+(defun yaml-key->string (node &optional (seen (make-hash-table :test 'eq)) sequence-element-p)
   (case (clun.yaml:yaml-node-kind node)
     (:string (clun.yaml:yaml-node-value node))
-    (:null "null")
+    (:null (if sequence-element-p "" "null"))
     (:boolean (if (clun.yaml:yaml-node-value node) "true" "false"))
     (:number
      (let ((value (yaml-number->js (clun.yaml:yaml-node-value node))))
        (number->js-string value)))
-    (:sequence "")
+    (:sequence
+     (if (gethash node seen)
+         ""
+         (unwind-protect
+              (progn
+                (setf (gethash node seen) t)
+                (with-output-to-string (output)
+                  (loop for child across (clun.yaml:yaml-node-value node)
+                        for first = t then nil
+                        unless first do (write-char #\, output)
+                        do (write-string (yaml-key->string child seen t) output))))
+           (remhash node seen))))
     (:mapping "[object Object]")
     (otherwise "")))
 
