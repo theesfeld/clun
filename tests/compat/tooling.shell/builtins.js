@@ -195,10 +195,52 @@ check(Clun.$`basename`, 1, "", "usage: basename string\n", "basename usage")
     "ls: clun-shell-builtins.tmp/list/broken: No such file or directory\n",
     "ls broken link",
   ))
+  .then(() => check(Clun.$`cp`, 1, "", "usage: cp [-R [-H | -L | -P]] [-fi | -n] [-aclpsvXx] source_file target_file\n       cp [-R [-H | -L | -P]] [-fi | -n] [-aclpsvXx] source_file ... target_directory\n", "cp usage"))
+  .then(() => check(Clun.$`cp -f a b`, 1, "", "cp: unsupported option, please open a GitHub issue -- -f\n", "cp unsupported"))
+  .then(() => check(Clun.$`mkdir -p clun-shell-builtins.tmp/copy/dest clun-shell-builtins.tmp/copy/tree/sub`, 0, "", "", "cp setup"))
+  .then(() => check(Clun.$`printf payload > clun-shell-builtins.tmp/copy/source`, 0, "", "", "cp source"))
+  .then(() => Clun.$`cp -v clun-shell-builtins.tmp/copy/source clun-shell-builtins.tmp/copy/result`.quiet().nothrow().then(result => {
+    assert(result.exitCode === 0, "cp verbose exit code");
+    assert(stderr(result) === "", "cp verbose stderr");
+    const paths = result.text().trim().split(" -> ");
+    assert(paths.length === 2, "cp verbose separator");
+    assert(paths[0].endsWith("/clun-shell-builtins.tmp/copy/source"), "cp verbose source");
+    assert(paths[1].endsWith("/clun-shell-builtins.tmp/copy/result"), "cp verbose destination");
+  }))
+  .then(() => check(Clun.$`cat clun-shell-builtins.tmp/copy/result`, 0, "payload", "", "cp file result"))
+  .then(() => check(Clun.$`cp clun-shell-builtins.tmp/copy/source clun-shell-builtins.tmp/copy/dest`, 0, "", "", "cp file into directory"))
+  .then(() => check(Clun.$`cat clun-shell-builtins.tmp/copy/dest/source`, 0, "payload", "", "cp directory target result"))
+  .then(() => check(
+    Clun.$`cp clun-shell-builtins.tmp/copy/source clun-shell-builtins.tmp/copy/missing/`,
+    1,
+    "",
+    "cp: clun-shell-builtins.tmp/copy/missing/ is not a directory\n",
+    "cp trailing missing directory",
+  ))
+  .then(() => check(Clun.$`printf second > clun-shell-builtins.tmp/copy/second`, 0, "", "", "cp second source"))
+  .then(() => check(Clun.$`cp clun-shell-builtins.tmp/copy/source clun-shell-builtins.tmp/copy/second clun-shell-builtins.tmp/copy/dest`, 0, "", "", "cp multiple files"))
+  .then(() => check(Clun.$`cat clun-shell-builtins.tmp/copy/dest/source clun-shell-builtins.tmp/copy/dest/second`, 0, "payloadsecond", "", "cp multiple results"))
+  .then(() => check(
+    Clun.$`cp clun-shell-builtins.tmp/copy/source clun-shell-builtins.tmp/copy/source`,
+    1,
+    "",
+    "cp: clun-shell-builtins.tmp/copy/source and clun-shell-builtins.tmp/copy/source are identical (not copied)\n",
+    "cp identical",
+  ))
+  .then(() => check(Clun.$`printf nested > clun-shell-builtins.tmp/copy/tree/sub/file`, 0, "", "", "cp recursive file"))
+  .then(() => check(Clun.$`cp -R clun-shell-builtins.tmp/copy/tree clun-shell-builtins.tmp/copy/tree-copy`, 0, "", "", "cp recursive"))
+  .then(() => check(Clun.$`cat clun-shell-builtins.tmp/copy/tree-copy/sub/file`, 0, "nested", "", "cp recursive result"))
+  .then(() => check(Clun.$`printf preserve > clun-shell-builtins.tmp/copy/preserved`, 0, "", "", "cp no-overwrite target"))
+  .then(() => check(Clun.$`cp -n clun-shell-builtins.tmp/copy/source clun-shell-builtins.tmp/copy/preserved`, 0, "", "", "cp no-overwrite"))
+  .then(() => check(Clun.$`cat clun-shell-builtins.tmp/copy/preserved`, 0, "preserve", "", "cp no-overwrite result"))
+  .then(() => check(Clun.$`ln -s source clun-shell-builtins.tmp/copy/source-link`, 0, "", "", "cp symlink setup"))
+  .then(() => check(Clun.$`cp clun-shell-builtins.tmp/copy/source-link clun-shell-builtins.tmp/copy/copied-link`, 0, "", "", "cp symlink"))
+  .then(() => check(Clun.$`readlink clun-shell-builtins.tmp/copy/copied-link`, 0, "source\n", "", "cp symlink preserved"))
   .then(() => check(Clun.$`rm -rf clun-shell-builtins.tmp`, 0, "", "", "filesystem cleanup"))
   .then(() => {
     console.log("filesystem-builtins");
     console.log("rm");
     console.log("mv");
     console.log("ls");
+    console.log("cp");
   });

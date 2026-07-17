@@ -7,3 +7,4 @@ filesystem-builtins
 rm
 mv
 ls
+cp
