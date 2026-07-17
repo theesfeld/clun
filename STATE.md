@@ -15,36 +15,30 @@ compatibility-ledger `Yes` through the complete `Clun.color` parse, conversion, 
 terminal-palette surface.
 **SemVer impact:** `minor`
 **Release target:** `0.1.0-dev.13` / `v0.1.0-dev.13`
-**Entry boundary:** Phase 30 and its fifth ledger `Yes`, `Clun.Glob`, are merged at exact master
-`ba20edbbb05a7c84b58ec555347b7f3cb858610a`. Exact-master CI, Documentation, Compatibility, and
-candidate Pages passed. Immutable dev.12 release run `29549077422` then exposed architecture-sensitive
-single-sample CookieMap allocation accounting on both arm64 builders, so no release or assets were
-published and the tag will not be moved or reused. The last published prerelease remains dev.10. Phase 34
-depends only on completed Phase 27, and Phase 26 remains after Phase 82.
-**Current scope:** publish the accepted Glob and Color implementations together as dev.13 with the
-architecture-stable aggregate allocation gate, collect exact-master CI plus all four native compatibility
-receipts, then reconcile Pages and verify the hosted installer before handing the release lane to Phase 31
-YAML.
+**Entry boundary:** Phase 30 and its fifth ledger `Yes`, `Clun.Glob`, plus Phase 34's sixth `Yes`,
+`Clun.color`, are merged at exact master `9663ac388bda16e986a9196880e6e43b634fa385`. Immutable dev.13 is
+published with four native archives and checksums. Phase 34 depends only on completed Phase 27, and Phase 26
+remains after Phase 82.
+**Current scope:** land this evidence-only dev.13 publication reconciliation, deploy the matching Pages
+snapshot, verify the hosted installer, close issue #8 with final receipts, and hand the release lane to
+Phase 31 YAML without reopening Phase 26.
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
 easiest to hardest among dependency-ready rows. Core engine/runtime/network/tooling changes are expected.
 Every conversion requires a legitimate canonical issue, accepted design, full declared behavior, executable
 four-target evidence, synchronized public surfaces, and the correct SemVer transition. The active parallel
-queue is CSS Color, YAML, password/hash, transport, and modern ECMAScript; exact canonical ledger IDs are
-frozen in `PLAN.md`.
+queue is YAML, password/hash, transport streaming, shell, and test-runner parity; exact canonical ledger IDs
+are frozen in `PLAN.md`.
 
-**Current checkpoint:** integrated production commits `6b58ad73` and `7ac12aca` (from reviewed source
-commits `01ab1f9c` and `a0183dfc`) implement every selected input and
-output space, strict grammar and bounds, color conversion and gamut mapping, exact CSS/hex/number/object/
-tuple/ANSI serialization, observable option access, and runtime wiring. The focused suite passes
-**8,638 / 0 / 0**. Exact Bun 1.3.14 differentials pass **5,392 ordinary vectors**, **5,392 missing-alpha
-vectors**, and all **256 alpha values**; registered shipped-binary corpus/public/stress evidence and the
-structured differential trace pass. Build, purity (**718 files / 0 violations**), compatibility validation,
-roadmap, docs, public claims, and diff check pass on the implementation branch. The stacked source candidate
-is **6 Yes / 6 Partial / 18 No**. Commit `9b074e11` replaces the allocator-region-sensitive single
-construction sample with eight-construction aggregate accounting after warming every checked size; its
-focused resource gate passes **13 / 13** locally without weakening the unchanged 2.75x linearity threshold.
-Public release receipts, Pages, and hosted installation remain pending.
+**Current checkpoint:** final merge `9663ac388bda16e986a9196880e6e43b634fa385` passed exact-master CI
+`29551135814`, Documentation `29551135846` attempt 2, candidate Pages `29551135852` attempt 2, and
+four-target Compatibility `29551135845`. Release run `29551551915` passed the claims gate, all four native
+builders, packaged-binary and installer checks, and publication. Annotated immutable tag `v0.1.0-dev.13`
+peels exactly to the merge. Immutable prerelease `355455654` contains exactly four native archives plus
+`checksums.txt`; the release-live check verifies the exact commit and all required nonempty assets. The
+published ledger is **6 Yes / 6 Partial / 18 No**. Pending: merge this evidence-only reconciliation, pass
+exact CI/Documentation/Pages, verify live `clun.sh` bytes and an isolated hosted dev.13 install, then close
+issue #8 and activate Phase 31.
 
 **M5 entry boundary:** immutable dev.4 diagnostic set **56 total / 0 pass / 56 fail / 0 skip / 0 crash**:
 **43 m5-owned** (32 intrinsic/prototype, 7 parser, 4 raw delegation), **12 m11** direct-eval/`with`
