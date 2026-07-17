@@ -161,6 +161,16 @@ if tr -d '\r' <"$scratch/static-bytes-head" | grep -i '^content-type:' >/dev/nul
 fi
 assert_body shared-a shared-static
 assert_body shared-b shared-static
+for blob_path in static-blob-a static-blob-b; do
+  assert_body "$blob_path" '<h1>hi</h1>'
+  curl --silent --show-error --head "${url}${blob_path}" >"$scratch/$blob_path-head"
+  tr -d '\r' <"$scratch/$blob_path-head" | \
+    grep -i -x 'content-type: text/html;charset=utf-8' >/dev/null
+done
+assert_body static-blob-touched touched
+curl --silent --show-error --head "${url}static-blob-touched" >"$scratch/static-blob-touched-head"
+tr -d '\r' <"$scratch/static-blob-touched-head" | \
+  grep -i -x 'content-type: text/html;charset=utf-8' >/dev/null
 
 status=$(curl --silent --show-error --dump-header "$scratch/redirect-headers" \
   --output "$scratch/redirect-body" --write-out '%{http_code}' "${url}redirect")
@@ -589,6 +599,11 @@ assert_body reload-method reload-fallback POST
 assert_body reload-control/static reloaded:static
 assert_body after after
 assert_body shared-a shared-static
+assert_body static-blob-a '<h1>hi</h1>'
+assert_body static-blob-touched touched
+curl --silent --show-error --head "${url}static-blob-a" >"$scratch/static-blob-reload-head"
+tr -d '\r' <"$scratch/static-blob-reload-head" | \
+  grep -i -x 'content-type: text/html;charset=utf-8' >/dev/null
 status=$(curl --silent --show-error --output "$scratch/missing" --write-out '%{http_code}' \
   "${url}missing")
 [ "$status" = 404 ] && [ "$(cat "$scratch/missing")" = 'Not Found' ] || {

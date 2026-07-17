@@ -37,6 +37,12 @@
             (:constructor %make-js-response))
   body)
 
+(defstruct (js-blob
+            (:include eng:js-object (class :blob))
+            (:constructor %make-js-blob))
+  (bytes (make-array 0 :element-type '(unsigned-byte 8)) :type vector)
+  (type "" :type string))
+
 (defstruct (web-http-realm-state
             (:constructor %make-web-http-realm-state))
   headers-constructor
@@ -45,6 +51,8 @@
   request-constructor
   request-prototype
   server-request-prototype
+  blob-constructor
+  blob-prototype
   response-constructor
   response-prototype)
 
@@ -562,6 +570,114 @@ Headers, Request, Response, and cookie state never use this mechanism."
 (defun %server-request-prototype ()
   (web-http-realm-state-server-request-prototype (%http-state)))
 
+;;; --- Blob -------------------------------------------------------------------
+
+(defun %require-blob (value)
+  (if (js-blob-p value)
+      value
+      (eng:throw-type-error "Illegal invocation")))
+
+(defun %blob-part-octets (part)
+  (cond
+    ((js-blob-p part) (copy-seq (js-blob-bytes part)))
+    ((eng:js-typed-array-p part)
+     (multiple-value-bind (vector offset length) (eng:ta-octets part)
+       (subseq vector offset (+ offset length))))
+    ((eng:js-array-buffer-p part)
+     (copy-seq (eng:js-array-buffer-bytes part)))
+    (t (eng:code-units->utf8 (eng:to-string part)))))
+
+(defun %blob-parts-octets (parts)
+  (cond
+    ((eng:js-undefined-p parts)
+     (make-array 0 :element-type '(unsigned-byte 8)))
+    ((not (eng:js-array-p parts))
+     (eng:throw-type-error "Blob parts must be an Array"))
+    (t
+     (let ((chunks '())
+           (size 0))
+       (dotimes (index (eng:array-length parts))
+         (let ((chunk (%blob-part-octets
+                       (eng:js-getv parts (princ-to-string index)))))
+           (incf size (length chunk))
+           (push chunk chunks)))
+       (let ((bytes (make-array size :element-type '(unsigned-byte 8)))
+             (offset 0))
+         (dolist (chunk (nreverse chunks) bytes)
+           (replace bytes chunk :start1 offset)
+           (incf offset (length chunk))))))))
+
+(defun %blob-type-option (options)
+  (if (eng:js-object-p options)
+      (let ((value (eng:js-get options "type")))
+        (if (eng:js-undefined-p value)
+            ""
+            (let ((type (eng:to-string value)))
+              (if (every (lambda (character)
+                           (<= #x20 (char-code character) #x7e))
+                         type)
+                  (string-downcase type)
+                  ""))))
+      ""))
+
+(defun %new-blob (parts options)
+  (%make-js-blob
+   :proto (web-http-realm-state-blob-prototype (%http-state))
+   :bytes (%blob-parts-octets parts)
+   :type (%blob-type-option options)))
+
+(defun %blob-response-content-type (blob)
+  (let ((type (js-blob-type blob)))
+    (cond
+      ((zerop (length type)) nil)
+      ((and (>= (length type) 5)
+            (string= "text/" type :end2 5)
+            (null (search "charset=" type :test #'char-equal)))
+       (concatenate 'string type ";charset=utf-8"))
+      (t type))))
+
+(defun %install-blob-prototype (prototype)
+  (%define-accessor
+   prototype "size"
+   (lambda (this args)
+     (declare (ignore args))
+     (coerce (length (js-blob-bytes (%require-blob this))) 'double-float))
+   nil)
+  (%define-accessor
+   prototype "type"
+   (lambda (this args)
+     (declare (ignore args))
+     (js-blob-type (%require-blob this)))
+   nil)
+  (let ((global (eng:realm-global eng:*realm*)))
+    (%install-prototype-method
+     prototype "text" 0
+     (lambda (this args)
+       (declare (ignore args))
+       (%resolved-promise
+        global (%body-text-decode
+                (copy-seq (js-blob-bytes (%require-blob this)))))))
+    (%install-prototype-method
+     prototype "bytes" 0
+     (lambda (this args)
+       (declare (ignore args))
+       (%resolved-promise
+        global (eng:u8-from-octets
+                (copy-seq (js-blob-bytes (%require-blob this)))))))
+    (%install-prototype-method
+     prototype "arrayBuffer" 0
+     (lambda (this args)
+       (declare (ignore args))
+       (%resolved-promise
+        global
+        (eng:js-get
+         (eng:u8-from-octets
+          (copy-seq (js-blob-bytes (%require-blob this))))
+         "buffer")))))
+  (%define-data prototype (eng:well-known :to-string-tag) "Blob"
+                :writable nil :enumerable nil :configurable t)
+  prototype)
+
 ;;; --- Response ---------------------------------------------------------------
 
 (defun %status-text (code)
@@ -594,6 +710,8 @@ Headers, Request, Response, and cookie state never use this mechanism."
        (subseq vector offset (+ offset length))))
     ((eng:js-array-buffer-p body)
      (copy-seq (eng:js-array-buffer-bytes body)))
+    ((js-blob-p body)
+     (copy-seq (js-blob-bytes body)))
     ((js-clun-file-p body)
      (handler-case
          (%clun-file-octets body)
@@ -633,6 +751,11 @@ but an ordinary object is never promoted into the Response brand."
                (%status-text status)))
          (headers-init (and init-object-p (eng:js-get init "headers")))
          (headers (%new-headers headers-init)))
+    (when (and (js-blob-p body)
+               (null (%header-values headers "content-type")))
+      (let ((content-type (%blob-response-content-type body)))
+        (when content-type
+          (%headers-set headers "content-type" content-type))))
     (setf (js-response-body response) body)
     (eng:data-prop response "status" (coerce status 'double-float))
     (eng:data-prop response "statusText" status-text)
@@ -690,6 +813,20 @@ but an ordinary object is never promoted into the Response brand."
                (%make-client-request
                 method url (%coerce-headers-init headers-init)
                 (%body->octets body)))))))
+    (%set-constructor-prototype constructor prototype)
+    constructor))
+
+(defun %make-blob-constructor (prototype)
+  (let ((constructor
+          (eng:make-native-function
+           "Blob" 0
+           (lambda (this args)
+             (declare (ignore this args))
+             (eng:throw-type-error "Blob requires 'new'"))
+           :construct
+           (lambda (args new-target)
+             (declare (ignore new-target))
+             (%new-blob (eng:arg args 0) (eng:arg args 1))))))
     (%set-constructor-prototype constructor prototype)
     constructor))
 
@@ -753,6 +890,7 @@ but an ordinary object is never promoted into the Response brand."
                (request-prototype (eng:new-object))
                (server-request-prototype
                  (eng:js-make-object request-prototype))
+               (blob-prototype (eng:new-object))
                (response-prototype (eng:new-object))
                (state
                  (%make-web-http-realm-state
@@ -760,17 +898,21 @@ but an ordinary object is never promoted into the Response brand."
                   :headers-iterator-prototype headers-iterator-prototype
                   :request-prototype request-prototype
                   :server-request-prototype server-request-prototype
+                  :blob-prototype blob-prototype
                   :response-prototype response-prototype)))
           ;; Install state before helpers allocate branded instances.
           (setf (gethash realm *web-http-realm-states*) state)
           (%install-headers-prototype headers-prototype)
           (%install-headers-iterator-prototype headers-iterator-prototype)
           (%install-request-prototype request-prototype)
+          (%install-blob-prototype blob-prototype)
           (%install-response-prototype response-prototype)
           (setf (web-http-realm-state-headers-constructor state)
                 (%make-headers-constructor headers-prototype)
                 (web-http-realm-state-request-constructor state)
                 (%make-request-constructor request-prototype)
+                (web-http-realm-state-blob-constructor state)
+                (%make-blob-constructor blob-prototype)
                 (web-http-realm-state-response-constructor state)
                 (%make-response-constructor response-prototype))
           state))
@@ -779,6 +921,8 @@ but an ordinary object is never promoted into the Response brand."
                        (web-http-realm-state-headers-constructor state))
       (eng:hidden-prop global "Request"
                        (web-http-realm-state-request-constructor state))
+      (eng:hidden-prop global "Blob"
+                       (web-http-realm-state-blob-constructor state))
       (eng:hidden-prop global "Response"
                        (web-http-realm-state-response-constructor state)))
     realm))

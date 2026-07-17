@@ -1,5 +1,12 @@
 let server;
 const sharedStatic = new Response("shared-static");
+const sharedBlob = new Blob(["<h1>hi</h1>"], { type: "TEXT/HTML" });
+const sharedBlobResponse = new Response(sharedBlob);
+const touchedBlobResponse = new Response(new Blob(["touched"], { type: "text/html" }));
+touchedBlobResponse.headers;
+if (sharedBlob.size !== 11 || sharedBlob.type !== "text/html") {
+  throw new Error("Blob metadata mismatch");
+}
 const largeStatic = new Uint8Array(4 * 1024 * 1024);
 
 function reloadRoutes(extraRoutes = {}) {
@@ -47,6 +54,8 @@ function reloadControl(request) {
         static: {
           "/after": new Response("after"),
           "/shared-a": sharedStatic,
+          "/static-blob-a": sharedBlobResponse,
+          "/static-blob-touched": touchedBlobResponse,
         },
       });
       break;
@@ -71,6 +80,9 @@ const routes = {
   }),
   "/static-json": Response.json({ a: 1 }),
   "/static-bytes": new Response(new Uint8Array([1, 2, 3])),
+  "/static-blob-a": sharedBlobResponse,
+  "/static-blob-b": sharedBlobResponse,
+  "/static-blob-touched": touchedBlobResponse,
   "/static-big": new Response(largeStatic),
   "/shared-a": sharedStatic,
   "/shared-b": sharedStatic,
