@@ -13,7 +13,9 @@
   (let ((result (clun.runtime::%shell-execute-units
                  (shell-test-units source) (shell-test-state env) nil)))
     (values (eng:utf8->code-units (clun.runtime::shell-result-stdout result))
-            (clun.runtime::shell-result-exit-code result))))
+            (clun.runtime::shell-result-exit-code result)
+            (eng:utf8->code-units
+             (clun.runtime::shell-result-stderr result)))))
 
 (define-test shell/lexer-preserves-ordinary-letters
   (let ((tokens (clun.runtime::%shell-lex
@@ -79,6 +81,20 @@
     (is equal '("a" "b")
         (clun.runtime::%shell-word-values unquoted-word state nil))))
 
+(define-test shell/compound-word-field-boundaries
+  (multiple-value-bind (output exit-code)
+      (shell-test-output "echo pre$(echo one two)post")
+    (is equal (format nil "preone twopost~%") output)
+    (is = 0 exit-code))
+  (multiple-value-bind (output exit-code)
+      (shell-test-output "VALUE='one two'; echo pre${VALUE}post")
+    (is equal (format nil "preone twopost~%") output)
+    (is = 0 exit-code))
+  (multiple-value-bind (output exit-code)
+      (shell-test-output "EMPTY=; echo pre${EMPTY}post; echo $EMPTY")
+    (is equal (format nil "prepost~%~%") output)
+    (is = 0 exit-code)))
+
 (define-test shell/malformed-pipeline-is-rejected
   (fail (clun.runtime::%shell-parse (shell-test-units "echo ok |"))
         clun.runtime::shell-syntax-error)
@@ -96,6 +112,33 @@
         clun.runtime::shell-syntax-error)
   (fail (clun.runtime::%shell-parse (shell-test-units "if true; then; fi"))
         clun.runtime::shell-syntax-error))
+
+(define-test shell/merged-output-pipeline
+  (let* ((script (clun.runtime::%shell-parse
+                  (shell-test-units "ls missing |& cat | cat")))
+         (pipeline (first (clun.runtime::shell-script-pipelines script))))
+    (is equal '(t nil) (clun.runtime::shell-pipeline-merge-stderr pipeline)))
+  (multiple-value-bind (output exit-code error-output)
+      (shell-test-output "ls missing |& cat")
+    (is equal (format nil "ls: missing: No such file or directory~%") output)
+    (is = 0 exit-code)
+    (is equal "" error-output))
+  (multiple-value-bind (output exit-code error-output)
+      (shell-test-output "ls missing | cat")
+    (is equal "" output)
+    (is = 0 exit-code)
+    (is equal (format nil "ls: missing: No such file or directory~%")
+        error-output)))
+
+(define-test shell/missing-pipeline-stage-preserves-last-status
+  (multiple-value-bind (output exit-code error-output)
+      (shell-test-output
+       "clun-missing-pipeline-command | /usr/bin/env printf 'after\\n'")
+    (is equal (format nil "after~%") output)
+    (is = 0 exit-code)
+    (is equal
+        (format nil "clun: command not found: clun-missing-pipeline-command~%")
+        error-output)))
 
 (define-test shell/path-builtins
   (is equal "basename.test.ts"
@@ -414,6 +457,13 @@
              (is eq nil (sys:path-exists-p
                          (sys:path-join directory "must-not-exist")))))
       (ignore-errors (sys:remove-recursive directory)))))
+
+(define-test shell/ambiguous-redirect-is-a-command-status
+  (multiple-value-bind (output exit-code error-output)
+      (shell-test-output "EMPTY=; echo value > $EMPTY")
+    (is equal "" output)
+    (is = 1 exit-code)
+    (is equal (format nil "clun: ambiguous redirect~%") error-output)))
 
 (define-test shell/synchronous-redirection-write-errors-are-statuses
   (when (sys:path-exists-p "/dev/full")

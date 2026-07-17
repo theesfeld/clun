@@ -69,10 +69,13 @@ Nested interpolation arrays now support the pinned 100-level boundary, escaped n
 empty substitutions retain their command status, and a single interpolated newline is not doubled by `echo`.
 Conditional string matching now supports bounded positive extended globs with nesting and alternation,
 `shopt -s extglob` executes internally, and per-job or per-shell `cwd()` changes keep `$PWD` synchronized.
-`make phase-65-shell-core-check` passes **250 / 0 / 0** plus
-**17/17** shipped `tooling.shell` evidence records; `make build`, `make purity` (**728 / 0**), and diff check
+Pipeline edges now distinguish `|` from merged stdout/stderr `|&`; missing literal producers retain ordinary
+command diagnostics and last-stage status. Compound-word expansion attaches prefixes to the first split field
+and suffixes to the last, while empty-variable redirects return status `1` instead of escaping as job errors.
+`make phase-65-shell-core-check` passes **269 / 0 / 0** plus
+**18/18** shipped `tooling.shell` evidence records; `make build`, `make purity` (**728 / 0**), and diff check
 pass. The exact stable and engineering Bun boundary is now frozen at **211 source/docs/types/test files** and
-**1,630 lexical test sites**: **958 covered / 640 pending / 32 upstream-inactive**. The checked-in coverage
+**1,630 lexical test sites**: **1,114 covered / 484 pending / 32 upstream-inactive**. The checked-in coverage
 overlay binds every credited site to executable shipped-binary evidence and rejects stale or unknown IDs.
 The row is honestly **Partial**, not `Yes`: remaining language/API/lifecycle cases, four permission-sensitive
 `ls` sites, 1,000-job stress, and Linux/macOS x64/arm64 receipts are still open.
