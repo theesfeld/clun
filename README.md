@@ -61,16 +61,17 @@ interoperability gap.
 - `clun test` with hooks, modifiers, filters, async tests, timeouts, and about 22 matchers.
 - `clun install`, `add`, `remove`, and package scripts with a deterministic lockfile and cache.
 
-The checked-in curated test262 pass list contains 25,461 tests. Phase 25b milestone 6's published
-40,654-row off-mode execution ledger measures 25,461 passes and 2,702 gaps across 28,163 eligible tests
-(90.40%), with 12,491 skips and zero crashes. Phase 25b's 90% target is met: the 25,347-pass target has
-zero remaining lift. The pass list gained 410 tests from milestone 5 and 2,818 from the Phase 25b entry.
+The checked-in curated test262 pass list contains 25,474 tests. The current
+40,654-row off-mode execution ledger measures 25,474 passes and 2,689 gaps across 28,163 eligible tests
+(90.45%), with 12,491 skips and zero crashes. Phase 25b's 90% target is met: the 25,347-pass target has
+zero remaining lift. The pass list gained 423 tests from milestone 5 and 2,831 from the Phase 25b entry.
 Its focused m6 slice contains 509 tests: 407 pass and 102 fail, with zero skips, timeouts, and crashes.
 All 407 milestone-owned rows pass; the 102 deliberate controls remain assigned to m11 (7) and Phase 37
 (95), leaving m6 with no owned residual. Three additional `Promise.prototype.finally` rows passed
 incidentally: `species-constructor.js`, `subclass-reject-count.js`, and `subclass-resolve-count.js`.
-The full gap inventory assigns 1,817 residuals to Phase 25b and 885 to Phase 37.
-The canonical execution ledger digest is `A742D885346DA23C`.
+Phase 32's supporting Proxy infrastructure adds 13 newly frozen passes without making a blanket Proxy
+compatibility claim. The full gap inventory assigns 1,808 residuals to Phase 25b and 881 to Phase 37.
+The canonical execution ledger digest is `51F51CA8B22FAB6D`.
 The off/eager ledgers are byte-identical; eager mode compiled
 1,030,545 forms, classified 56,018 as ineligible, fell back zero times, and executed zero interpreter
 fallbacks. The parse gate classifies

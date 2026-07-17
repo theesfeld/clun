@@ -2631,3 +2631,17 @@ archives record `0.1.0-dev.10`, and the Linux x64 binary reports `clun 0.1.0-dev
 ledger reconciliation is evidence-only with impact `none`: source, ASDF core, installer default, and tag do
 not change. Pages and hosted-installer evidence remain pending until the reconciliation itself passes and
 deploys.
+
+### 2026-07-16 - Phase 32 Proxy support adds 13 measured execution passes
+
+Cookies and ordered HTTP integration require Proxy internal methods, so Phase 32 added the bounded engine
+support exercised by those public surfaces. This does not create a blanket ECMAScript Proxy compatibility
+claim: the compatibility ledger changes only `web.cookies`, and unmeasured Proxy behavior remains outside
+the release claim.
+
+The exact Phase 32 master candidate completed a fresh 40,654-file Test262 execution at **25,474 pass /
+2,689 fail / 12,491 skip / 0 crash**. All 25,461 previously frozen passes remain and 13 newly passing rows
+are added monotonically. Digest `51F51CA8B22FAB6D` binds the fresh classification ledger; the regenerated
+pass list, residual-gap snapshot, execution report, README, and site carry the same counts. Dev.11 remains
+unpublished until that correction passes exact-master CI, so retaining `0.1.0-dev.11` is the documented
+unpublished-candidate correction rather than version reuse.
