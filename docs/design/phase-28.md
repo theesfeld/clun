@@ -40,6 +40,13 @@ candidate sockets are nonblocking only during the race; the winner returns to
 blocking mode before pure-tls owns the stream. One connect deadline covers the
 entire candidate race, and abort closes every in-flight candidate or the winner.
 
+Fetch owns one abort listener for the complete redirect operation rather than one
+listener per hop. Terminal fulfillment, rejection, timeout, and abort detach that
+exact listener and cancel the current DNS/connect/TLS resource exactly once. Abort
+rejections preserve the signal's supplied JavaScript reason, including primitive
+values. HTTPS work uses the cancellable worker API; cancellation closes the active
+transport and clears its timeout before publishing the terminal callback.
+
 ### 2.2 TLS interoperability
 
 `https-request` keeps the existing vendored pure-tls TLS 1.3 client as the
@@ -120,6 +127,10 @@ malformed compression/bounds/transaction rejection, exact rcode mapping,
 family interleaving, network-free literal handling, a hermetic UDP A/AAAA
 resolver round trip, and an IPv6-to-IPv4 connection fallback against a local
 listener.
+
+The fetch integration suite covers pre-aborted signals, primitive abort reasons,
+and a multi-hop redirect that installs and removes exactly one listener without
+leaving it attached after settlement.
 
 `make test-tls12` runs that focused suite, then starts an OpenSSL TLS 1.2-only server with
 `ECDHE-RSA-AES128-GCM-SHA256` and forces `rsa_pkcs1_sha256`. It proves a trusted

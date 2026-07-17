@@ -71,6 +71,21 @@ target, e.g. `/json?x=1` — take the part before any query/fragment)."
      setCookies: JSON.stringify(r.headers.getSetCookie()),
      body: await r.text() }));")
 
+(defparameter +fetch-signal-probe-src+
+  "globalThis.__fetchSignalProbe = (url) => {
+     let added = 0, removed = 0, listener = null;
+     const signal = { aborted: false, reason: undefined };
+     signal.addEventListener = (type, fn) => {
+       if (type === 'abort') { added++; listener = fn; }
+     };
+     signal.removeEventListener = (type, fn) => {
+       if (type === 'abort' && fn === listener) { removed++; listener = null; }
+     };
+     return fetch(url, { signal }).then(async r => ({
+       body: await r.text(), added, removed, attached: listener !== null
+     }));
+   };")
+
 (defmacro with-fetch-server ((g port) &body body)
   "Start Clun.serve (routing via %fetch-route) on 127.0.0.1:0; bind G + PORT and install
 __fetchInfo; run BODY (which drives fetches via FETCH-INFO); tear the realm down."
@@ -90,6 +105,7 @@ __fetchInfo; run BODY (which drives fetches via FETCH-INFO); tear the realm down
                   (,port (truncate (eng:js-get ,server "port"))))
              (declare (ignorable ,port))
              (eng:run-program (eng:parse-program +fetch-info-src+) ,realm)
+             (eng:run-program (eng:parse-program +fetch-signal-probe-src+) ,realm)
              (unwind-protect (progn ,@body)
                (eng:teardown-realm ,realm))))))))
 
@@ -164,6 +180,30 @@ __fetchInfo; run BODY (which drives fetches via FETCH-INFO); tear the realm down
         (fetch-info g eng:*realm* port "/text" "{signal: AbortSignal.abort()}")
       (is eq :rejected kind)
       (is string= "AbortError" (eng:to-string (eng:js-get value "name"))))))
+
+(define-test net/fetch-abort-preserves-primitive-reason
+  (with-fetch-server (g port)
+    (multiple-value-bind (kind value)
+        (fetch-info g eng:*realm* port "/text"
+                    "{signal: AbortSignal.abort('custom-stop')}")
+      (is eq :rejected kind)
+      (is string= "custom-stop" (eng:to-string value)))))
+
+(define-test net/fetch-redirects-own-one-abort-listener
+  (with-fetch-server (g port)
+    (multiple-value-bind (kind value)
+        (eng:run-callback-to-settlement
+         (lambda ()
+           (eng:js-call
+            (eng:js-get g "__fetchSignalProbe") eng:+undefined+
+            (list (format nil "http://127.0.0.1:~d/redir2" port))))
+         eng:*realm* :timeout-ms 8000)
+      (is eq :fulfilled kind)
+      (true (search "\"hi\":\"there\""
+                    (eng:to-string (eng:js-get value "body"))))
+      (is = 1 (truncate (eng:js-get value "added")))
+      (is = 1 (truncate (eng:js-get value "removed")))
+      (is eq eng:+false+ (eng:js-get value "attached")))))
 
 (define-test net/response-nonutf8-body-no-crash
   ;; [5] a Response over invalid UTF-8 decodes leniently (U+FFFD), never a raw Lisp
