@@ -331,8 +331,10 @@
   (when (zerop (tls-stream-buffer-remaining stream))
     (handler-case
         (tls-stream-fill-buffer stream)
-      (tls-connection-closed ()
-        (return-from stream-read-byte :eof))))
+      (tls-connection-closed (condition)
+        (if (tls-connection-closed-clean-p condition)
+            (return-from stream-read-byte :eof)
+            (error condition)))))
   ;; Read from buffer
   (if (plusp (tls-stream-buffer-remaining stream))
       (prog1 (aref (tls-stream-input-buffer stream)
@@ -360,8 +362,10 @@
                    (return-from stream-read-sequence pos))
                  (handler-case
                      (tls-stream-fill-buffer stream)
-                   (tls-connection-closed ()
-                     (return-from stream-read-sequence pos))))
+                   (tls-connection-closed (condition)
+                     (if (tls-connection-closed-clean-p condition)
+                         (return-from stream-read-sequence pos)
+                         (error condition)))))
                ;; Copy from buffer
                (let* ((remaining (tls-stream-buffer-remaining stream))
                       (to-copy (min remaining (- end pos))))

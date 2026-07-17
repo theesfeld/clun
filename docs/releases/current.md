@@ -1,7 +1,7 @@
 <!-- clun-generated:release-notes:begin -->
-# Clun 0.1.0-dev.21
+# Clun 0.1.0-dev.22
 
-Phase 51: WebSocket and Pub/Sub.
+Phase 28: TLS, DNS, streaming transport, and public npm.
 
 - SemVer impact: `minor` within the selected `0.1.0` prerelease train.
 - Compatibility snapshot: 9 Yes / 7 Partial / 14 No across 30 generated rows.
@@ -14,16 +14,18 @@ The canonical evidence and current limitations are in `compat/`; `make compat-va
 
 ## Highlights
 
-- Phase 51 M0 constitutional checkpoint: pure Common Lisp WebSocket is **feasible**
-  (RFC 6455 + Bun-shaped Pub/Sub on existing reactor/HTTP/Ironclad/Chipz paths) — not a
-  purity block. Design notebook: `docs/design/phase-51.md`.
-- Ships package `clun.websocket` types scaffold and fail-closed `Clun.serve` refusal of
-  `websocket` options plus `upgrade` / `publish` / `subscriberCount` with clear Phase 51
-  TypeErrors. No silent half-shim.
-- Compatibility ledger `server.websocket` remains **No** until Autobahn-style and
-  Bun-differential four-target evidence exist. Matrix counts unchanged (9 Yes / 7 Partial / 14 No).
-- Version retention: master source remains unpublished `0.1.0-dev.21`; this unit does **not**
-  allocate a new prerelease slot. Published boundary remains `v0.1.0-dev.18`.
+- Stages Phase 28 transport foundation (Issue #2 / PR #95): pure-CL TLS 1.2 registry
+  transport, DNS and Happy Eyeballs, streaming Fetch with clone/tee, plain HTTP pooling,
+  origin-keyed pure-tls HTTPS idle pooling, and HTTP proxy / HTTPS CONNECT support.
+- Absorbs master through `0.1.0-dev.21` (Phase 37 m2, node:url residual, TypeScript
+  declare-enum strip, one-chunk Response/Request.body ReadableStream consumers, bun:test
+  module resolve) while keeping the candidate at `0.1.0-dev.22` (no 23+ slot theft).
+- Public `runtime.web-standard-apis` and `package-manager.npm` remain honest `Partial`
+  (not Yes). Residual gaps: HTTPS proxy endpoints, broader pool/race stress, large-transfer
+  and portability gates, full Streams (BYOB/Transform/Writable).
+- Slot map: published installer boundary `v0.1.0-dev.18`; master source `0.1.0-dev.21`;
+  Phase 28 candidate `0.1.0-dev.22` under unpublished-intermediate prerelease gap policy
+  (`previous_version` remains the published boundary).
 
-This candidate is release-bearing fail-closed edge behavior only. It does **not** promote
-`server.websocket` to Partial or Yes.
+The release candidate stages honest Partial transport work without promoting any matrix
+row to `Yes`.

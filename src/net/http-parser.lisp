@@ -14,7 +14,10 @@
   method target version headers body keep-alive)
 
 (defstruct (http-response (:conc-name hres-))
-  status reason version headers body keep-alive)
+  status reason version headers body keep-alive
+  ;; True only for a non-2xx response from an HTTPS proxy's CONNECT request.
+  ;; Fetch exposes this response but must not apply origin redirect handling.
+  (proxy-response-p nil))
 
 (defstruct (http-parser (:conc-name hp-))
   (buf (make-array 4096 :element-type '(unsigned-byte 8) :adjustable t :fill-pointer 0))
@@ -604,3 +607,315 @@ header, chunk-size, and trailer limits are enforced before retaining later bytes
             (return (values event data)))
            (t
             (return (values event data)))))))
+
+;;; --- response streaming ----------------------------------------------------
+
+(defstruct (http-response-stream-parser
+            (:conc-name hrs-)
+            (:constructor %make-http-response-stream-parser))
+  (buf (make-array 4096 :element-type '(unsigned-byte 8)
+                        :adjustable t :fill-pointer 0))
+  (phase :headers)                       ; headers/fixed/until-close/chunk-*/done/error
+  (max-header *max-header-bytes*)
+  (max-body *max-body-bytes*)
+  (max-framing *max-header-bytes*)
+  (head-request-p nil)
+  status reason version headers keep-alive
+  (remaining 0 :type (integer 0 *))
+  (body-bytes 0 :type (integer 0 *))
+  (framing-bytes 0 :type (integer 0 *))
+  (terminal-p nil)
+  (reusable-p t))
+
+(defun make-http-response-stream-parser
+    (&key (max-header *max-header-bytes*)
+          (max-body *max-body-bytes*)
+          (max-framing max-header)
+          (head-request-p nil))
+  "Create a bounded response-only parser that emits headers and body chunks.
+
+RESPONSE-STREAM-FEED returns a list of (KIND . VALUE) events. KIND is :HEADERS,
+:DATA, :COMPLETE, or :ERROR. Unlike MAKE-HTTP-RESPONSE-PARSER, this parser never
+retains decoded body bytes after emitting them."
+  (%make-http-response-stream-parser
+   :max-header max-header :max-body max-body :max-framing max-framing
+   :head-request-p head-request-p))
+
+(defun %hrs-clear-buffer (parser)
+  (setf (fill-pointer (hrs-buf parser)) 0))
+
+(defun %hrs-buffer-push (parser byte)
+  (let* ((buffer (hrs-buf parser))
+         (length (fill-pointer buffer)))
+    (when (= length (array-total-size buffer))
+      (adjust-array buffer (* 2 (max 1 length)) :fill-pointer length))
+    (vector-push byte buffer)
+    buffer))
+
+(defun %hrs-buffer-ends-with-p (parser bytes)
+  (let* ((buffer (hrs-buf parser))
+         (end (fill-pointer buffer))
+         (count (length bytes)))
+    (and (>= end count)
+         (loop for index below count
+               always (= (aref buffer (+ (- end count) index))
+                         (aref bytes index))))))
+
+(defparameter +http-crlf+
+  (make-array 2 :element-type '(unsigned-byte 8)
+                :initial-contents (list +cr+ +lf+)))
+
+(defparameter +http-head-end+
+  (make-array 4 :element-type '(unsigned-byte 8)
+                :initial-contents (list +cr+ +lf+ +cr+ +lf+)))
+
+(defun %hrs-framing-add (parser count)
+  (let ((next (+ (hrs-framing-bytes parser) count)))
+    (when (<= next (hrs-max-framing parser))
+      (setf (hrs-framing-bytes parser) next)
+      t)))
+
+(defun %hrs-parse-head (parser)
+  "Parse and frame the complete header block in PARSER.
+Returns (values response-head error-pair)."
+  (let* ((buffer (hrs-buf parser))
+         (length (fill-pointer buffer))
+         (header-end (- length 4))
+         (line-end (%find-crlf buffer 0 (+ header-end 2))))
+    (unless line-end
+      (return-from %hrs-parse-head
+        (values nil '(400 . "Bad Response"))))
+    (multiple-value-bind (version status reason)
+        (%parse-status-line (%octets->string buffer 0 line-end))
+      (unless version
+        (return-from %hrs-parse-head
+          (values nil '(400 . "Bad Response"))))
+      (multiple-value-bind (headers valid-p)
+          (%parse-headers buffer (+ line-end 2) header-end)
+        (unless valid-p
+          (return-from %hrs-parse-head
+            (values nil '(400 . "Bad Response"))))
+        (let* ((transfer-values (%header-values headers "transfer-encoding"))
+               (length-values (%header-values headers "content-length"))
+               (length-members (%comma-members length-values))
+               (lengths (mapcar #'%safe-parse-int length-members))
+               (no-body-p (or (hrs-head-request-p parser)
+                              (member status '(204 304)))))
+          (cond
+            ((and transfer-values length-values)
+             (return-from %hrs-parse-head
+               (values nil '(400 . "Bad Response"))))
+            ((and transfer-values
+                  (or (/= (length transfer-values) 1)
+                      (not (string-equal
+                            (%trim (first transfer-values)) "chunked"))))
+             (return-from %hrs-parse-head
+               (values nil '(400 . "Bad Response"))))
+            ((and length-values
+                  (or (some #'null lengths)
+                      (not (every (lambda (number)
+                                    (= number (first lengths)))
+                                  (rest lengths)))))
+             (return-from %hrs-parse-head
+               (values nil '(400 . "Bad Response")))))
+          (setf (hrs-status parser) status
+                (hrs-reason parser) reason
+                (hrs-version parser) version
+                (hrs-headers parser) headers
+                (hrs-keep-alive parser) (%keep-alive-p version headers))
+          (cond
+            ;; Informational responses do not settle Fetch. Reset for the final
+            ;; response, which may already follow in the same socket read.
+            ((< status 200)
+             (setf (hrs-phase parser) :headers
+                   (hrs-remaining parser) 0))
+            (no-body-p
+             (setf (hrs-phase parser) :fixed
+                   (hrs-remaining parser) 0))
+            (transfer-values
+             (setf (hrs-phase parser) :chunk-size))
+            (length-values
+             (let ((content-length (first lengths)))
+               (when (> content-length (hrs-max-body parser))
+                 (return-from %hrs-parse-head
+                   (values nil '(413 . "Payload Too Large"))))
+               (setf (hrs-phase parser) :fixed
+                     (hrs-remaining parser) content-length)))
+            (t
+             (setf (hrs-phase parser) :until-close
+                   (hrs-reusable-p parser) nil)))
+          (%hrs-clear-buffer parser)
+          (values
+           (make-http-response
+            :status status :reason reason :version version
+            :headers headers
+            :body (make-array 0 :element-type '(unsigned-byte 8))
+            :keep-alive (hrs-keep-alive parser))
+           nil))))))
+
+(defun %hrs-error (parser code reason)
+  (setf (hrs-phase parser) :error
+        (hrs-terminal-p parser) t
+        (hrs-reusable-p parser) nil)
+  (%hrs-clear-buffer parser)
+  (cons :error (cons code reason)))
+
+(defun %hrs-complete (parser)
+  (setf (hrs-phase parser) :done
+        (hrs-terminal-p parser) t)
+  (%hrs-clear-buffer parser)
+  (cons :complete nil))
+
+(defun response-stream-feed (parser octets)
+  "Consume OCTETS and return ordered (:HEADERS/:DATA/:COMPLETE/:ERROR) events.
+At most the bounded header or chunk-framing state is retained between calls."
+  (when (hrs-terminal-p parser)
+    (return-from response-stream-feed nil))
+  (let ((events '())
+        (index 0)
+        (end (length octets)))
+    (labels ((emit (kind value)
+               (push (cons kind value) events))
+             (fail (code reason)
+               (push (%hrs-error parser code reason) events)))
+      (loop while (and (< index end) (not (hrs-terminal-p parser))) do
+        (case (hrs-phase parser)
+          (:headers
+           (%hrs-buffer-push parser (aref octets index))
+           (incf index)
+           (cond
+             ((> (fill-pointer (hrs-buf parser)) (hrs-max-header parser))
+              (fail 431 "Response Header Fields Too Large"))
+             ((%hrs-buffer-ends-with-p parser +http-head-end+)
+              (multiple-value-bind (head error) (%hrs-parse-head parser)
+                (if error
+                    (fail (car error) (cdr error))
+                    (unless (< (hrs-status parser) 200)
+                      (emit :headers head)
+                      (when (and (eq (hrs-phase parser) :fixed)
+                                 (zerop (hrs-remaining parser)))
+                        (push (%hrs-complete parser) events))))))))
+          (:fixed
+           (let ((count (min (hrs-remaining parser) (- end index))))
+             (when (plusp count)
+               (let ((next (+ (hrs-body-bytes parser) count)))
+                 (when (> next (hrs-max-body parser))
+                   (fail 413 "Payload Too Large"))
+                 (unless (hrs-terminal-p parser)
+                   (emit :data (subseq octets index (+ index count)))
+                   (setf (hrs-body-bytes parser) next)
+                   (decf (hrs-remaining parser) count)
+                   (incf index count))))
+             (when (and (not (hrs-terminal-p parser))
+                        (zerop (hrs-remaining parser)))
+               (push (%hrs-complete parser) events))))
+          (:until-close
+           (let ((count (- end index)))
+             (when (plusp count)
+               (let ((next (+ (hrs-body-bytes parser) count)))
+                 (if (> next (hrs-max-body parser))
+                     (fail 413 "Payload Too Large")
+                     (progn
+                       (emit :data (subseq octets index end))
+                       (setf (hrs-body-bytes parser) next
+                             index end)))))))
+          (:chunk-size
+           (%hrs-buffer-push parser (aref octets index))
+           (incf index)
+           (let ((line-length (fill-pointer (hrs-buf parser))))
+             (cond
+               ((or (> line-length (hrs-max-header parser))
+                    (> (+ (hrs-framing-bytes parser) line-length)
+                       (hrs-max-framing parser)))
+                (fail 400 "Bad Response"))
+               ((%hrs-buffer-ends-with-p parser +http-crlf+)
+                (multiple-value-bind (size failure)
+                    (%parse-bounded-chunk-size
+                     (%octets->string (hrs-buf parser) 0 (- line-length 2))
+                     (- (hrs-max-body parser) (hrs-body-bytes parser)))
+                  (cond
+                    ((eq failure :too-large)
+                     (fail 413 "Payload Too Large"))
+                    (failure
+                     (fail 400 "Bad Response"))
+                    ((not (%hrs-framing-add parser line-length))
+                     (fail 400 "Bad Response"))
+                    (t
+                     (%hrs-clear-buffer parser)
+                     (setf (hrs-remaining parser) size
+                           (hrs-phase parser)
+                           (if (zerop size) :chunk-trailers :chunk-data)))))))))
+          (:chunk-data
+           (let ((count (min (hrs-remaining parser) (- end index))))
+             (when (plusp count)
+               (emit :data (subseq octets index (+ index count)))
+               (incf (hrs-body-bytes parser) count)
+               (decf (hrs-remaining parser) count)
+               (incf index count))
+             (when (zerop (hrs-remaining parser))
+               (%hrs-clear-buffer parser)
+               (setf (hrs-phase parser) :chunk-data-crlf))))
+          (:chunk-data-crlf
+           (%hrs-buffer-push parser (aref octets index))
+           (incf index)
+           (let ((length (fill-pointer (hrs-buf parser))))
+             (cond
+               ((and (= length 1)
+                     (/= (aref (hrs-buf parser) 0) +cr+))
+                (fail 400 "Bad Response"))
+               ((= length 2)
+                (if (and (= (aref (hrs-buf parser) 0) +cr+)
+                         (= (aref (hrs-buf parser) 1) +lf+)
+                         (%hrs-framing-add parser 2))
+                    (progn
+                      (%hrs-clear-buffer parser)
+                      (setf (hrs-phase parser) :chunk-size))
+                    (fail 400 "Bad Response"))))))
+          (:chunk-trailers
+           (%hrs-buffer-push parser (aref octets index))
+           (incf index)
+           (let ((length (fill-pointer (hrs-buf parser))))
+             (cond
+               ((> length (hrs-max-header parser))
+                (fail 431 "Response Header Fields Too Large"))
+               ((> (+ (hrs-framing-bytes parser) length)
+                   (hrs-max-framing parser))
+                (fail 400 "Bad Response"))
+               ((or (and (= length 2)
+                         (%hrs-buffer-ends-with-p parser +http-crlf+))
+                    (%hrs-buffer-ends-with-p parser +http-head-end+))
+                (unless (%hrs-framing-add parser length)
+                  (fail 400 "Bad Response"))
+                (unless (hrs-terminal-p parser)
+                  ;; Validate non-empty trailers with the same header grammar.
+                  (when (> length 2)
+                    (multiple-value-bind (ignored valid-p)
+                        (%parse-headers (hrs-buf parser) 0 (- length 4))
+                      (declare (ignore ignored))
+                      (unless valid-p (fail 400 "Bad Response"))))
+                  (unless (hrs-terminal-p parser)
+                    (push (%hrs-complete parser) events)))))))
+          (otherwise
+           (setf index end))))
+      ;; A complete response followed by bytes in the same read cannot be safely
+      ;; returned to a sequential-request pool: Clun never pipelines requests.
+      (when (and (hrs-terminal-p parser) (< index end))
+        (setf (hrs-reusable-p parser) nil))
+      (nreverse events))))
+
+(defun response-stream-reusable-p (parser)
+  "True only after a cleanly framed response with no unread or trailing bytes."
+  (and (hrs-terminal-p parser)
+       (eq (hrs-phase parser) :done)
+       (hrs-reusable-p parser)
+       (hrs-keep-alive parser)))
+
+(defun response-stream-finish (parser)
+  "Finish PARSER at clean EOF and return terminal events.
+Only an EOF-framed response may complete here; every other incomplete state fails."
+  (cond
+    ((hrs-terminal-p parser) nil)
+    ((eq (hrs-phase parser) :until-close)
+     (list (%hrs-complete parser)))
+    (t
+     (list (%hrs-error parser 400 "Connection closed before complete response")))))

@@ -7,21 +7,16 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **51 - WebSocket and Pub/Sub**  (M0 CHECKPOINT)
+## Current phase: **28 - Transport Foundation**  (PARTIAL CHECKPOINT)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/25
-**Next phase issue:** https://github.com/theesfeld/clun/issues/25
-**Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/2,
-https://github.com/theesfeld/clun/issues/39, and https://github.com/theesfeld/clun/issues/40
-**Current implementation unit:** Phase 51 M0 constitutional checkpoint on PR #107 — pure-CL WebSocket
-is feasible (not a purity block); ships `clun.websocket` types scaffold and fail-closed `Clun.serve`
-refusal of `websocket` options / `upgrade` / `publish` / `subscriberCount`. Compatibility ledger
-`server.websocket` remains **No** (no Autobahn or Bun-differential Yes claim).
+**Canonical issue:** https://github.com/theesfeld/clun/issues/2
+**Parallel issues:** #24, #39, #40, #11
+**Current implementation unit:** Phase 28 transport foundation on draft PR #95 — pure-CL TLS 1.2, DNS/Happy Eyeballs, streaming Fetch, HTTP pooling, origin-keyed pure-tls HTTPS idle pooling, proxy/CONNECT. Public `runtime.web-standard-apis` and `package-manager.npm` remain `Partial` (not Yes). Master tip is `0.1.0-dev.21` after #96/#100/#101/#105/#103 (published shell `v0.1.0-dev.18`). This unit stages `0.1.0-dev.22`.
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
+**Candidate release:** `0.1.0-dev.22` / `v0.1.0-dev.22`
 **Published release:** `0.1.0-dev.18` / `v0.1.0-dev.18`
-**Entry boundary:** immutable `v0.1.0-dev.18` is tagged at exact master `b5ecdb5defeef8ddede72ef794e41f14fb423b86` with four native archives + checksums (release run 29596302229); installer defaults to that tag. Master source remains `0.1.0-dev.21` (unpublished); this unit **retains** `0.1.0-dev.21` as an unpublished release-bearing correction (no new prerelease slot). Phase 26 remains after Phase 82.
-**Next scope:** Autobahn-style framing fixtures and Bun-differential corpus before any Partial/Yes ledger move; keep fail-closed serve edges explicit until real upgrade path lands.
+**Entry boundary:** immutable `v0.1.0-dev.18` with four native archives + checksums; installer defaults to that tag. Draft PR #95 stages Partial transport as `0.1.0-dev.22`.
+**Next scope:** HTTPS proxy endpoints, broader pooling/stress breadth, 1 GiB/leak matrix, four-target receipts; TLS idle pool checkpoint landed; keep ledger Partial.
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
 easiest to hardest among dependency-ready rows. Core engine/runtime/network/tooling changes are expected.

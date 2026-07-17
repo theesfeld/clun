@@ -714,10 +714,11 @@ Tasks: design from Bun `src/http/`, `src/runtime/webcore/`, `src/install/`, `tes
 verification; add pure-CL A/AAAA resolution, Happy Eyeballs, pooling, streaming request/response bodies,
 backpressure, cancellation, proxy/timeout semantics, decompression limits, and registry.npmjs.org
 metadata+tarball support; retain hermetic TLS/DNS/registry peers and one explicitly logged live smoke.
-**Gate:** `make test-tls`; `make compat FEATURE=transport`; `make compat FEATURE=fetch`;
-`make compat FEATURE=public-npm`; `make build`; `make test`; `make purity`; `make docs-check`; opt-in
-`make smoke-npm` installs and executes a pinned package with SRI verified; transport gates pass on all
-four supported targets with zero fd/thread leaks and bounded-memory streaming of a 1 GiB synthetic body.
+**Gate:** `make test-tls`; `make test-proxy`; `make test-dns`;
+`make compat FEATURE=runtime.web-standard-apis`; `make compat FEATURE=package-manager.npm`;
+`make build`; `make test`; `make purity`; `make docs-check`; opt-in `make smoke-npm` installs and
+executes a pinned package with SRI verified; transport gates pass on all four supported targets with
+zero fd/thread leaks and bounded-memory streaming of a 1 GiB synthetic body.
 
 ### Phase 29 — Public semver API  *(deps: 21, 27)* ~1k LOC
 Objective: expose a Bun-compatible public semver API over the proven installer implementation.

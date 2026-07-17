@@ -85,10 +85,12 @@
                              (:module "net"
                               :serial t
                               :components ((:file "sockets")
+                                           (:file "dns")
                                            (:file "http-parser")
                                            (:file "http-client")
+                                           (:file "tls12-client")
                                            (:file "tls-client")
-                                           (:file "websocket"))) ; Phase 51 types + fail-closed
+                                           (:file "websocket"))) ; Phase 51
                              ;; install (Phase 21): pure-CL package-manager substrate.
                              ;; It has no engine dependency, so the public runtime can
                              ;; reuse the one SemVer implementation without a late bind.
@@ -202,6 +204,7 @@
                                            (:file "clun-router") ; Clun.serve route table (Phase 50)
                                            (:file "clun-serve"); Clun.serve HTTP server (Phase 17)
                                            (:file "web-url")   ; URL/URLSearchParams (Phase 18)
+                                           (:file "web-proxy") ; fetch proxy selection/auth/bypass (Phase 28)
                                            (:file "web-fetch") ; fetch (Phase 18)
                                            ;; node builtin modules (Phase 12): registry +
                                            ;; one file per module; each self-registers.
@@ -317,12 +320,14 @@
                                             :components ((:file "loop-tests")))
                                            (:module "net"
                                             :serial t
-                                            :components ((:file "sockets-tests")
+                                            :components ((:file "dns-tests")
+                                                         (:file "sockets-tests")
                                                          (:file "http-parser-tests")
                                                          (:file "http-server-tests")
                                                          (:file "router-tests")
-                                                         (:file "websocket-tests")
                                                          (:file "fetch-tests")
+                                                         (:file "tls12-tests")
+                                                         (:file "websocket-tests")
                                                          (:file "web-streams-tests")
                                                          (:file "https-tests")))
                                            (:module "install"
