@@ -22,6 +22,22 @@ parser/evaluator, builtins, substitutions, pipelines, control flow, and a finite
 **Entry boundary:** immutable `v0.1.0-dev.17` is tagged at exact master `909aafa090a21e247d22566361475f608bcaa7a8` with four native archives + checksums; installer defaults to that tag. Draft PR #86 is rebased onto master (including docs release reconcile #92) and stages Partial shell as `0.1.0-dev.18`. Phase 26 remains after Phase 82.
 **Next scope:** keep `tooling.shell` Partial until residual corpus, lifecycle/stress, and four-target
 receipts complete; green exact-head CI on the stacked/rebased candidate; then reassess Yes readiness.
+## Current phase: **66 - Jest-compatible test-runner parity**  (PARTIAL CHECKPOINT)
+
+**Canonical issue:** https://github.com/theesfeld/clun/issues/40
+**Next phase issue:** https://github.com/theesfeld/clun/issues/11
+**Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/2,
+https://github.com/theesfeld/clun/issues/24, and https://github.com/theesfeld/clun/issues/39
+**Current implementation unit:** Phase 66 Partial landing pad on draft PR #88 — mocks, snapshots, coverage,
+reporters, sharding, fake timers, and preloads. Ledger `tooling.test-runner` remains **Partial** (not Yes).
+Router owns `0.1.0-dev.17`; shell owns `0.1.0-dev.18`; this unit stages `0.1.0-dev.19` for release-bearing
+source under parallel unpublished-gap policy.
+**SemVer impact:** `minor`
+**Candidate release:** `0.1.0-dev.19` / `v0.1.0-dev.19`
+**Published release:** `0.1.0-dev.16` / `v0.1.0-dev.16`
+**Entry boundary:** immutable dev.16 is published at exact master `0212be64283549d03864fa7e01a793c1cee8ac33`.
+**Next scope:** green CI for Partial pad; 66.23 frozen 52-root baseline counts; concurrent/parallel; Yes only
+with full PLAN gate and four-target receipts.
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
 easiest to hardest among dependency-ready rows. Core engine/runtime/network/tooling changes are expected.
