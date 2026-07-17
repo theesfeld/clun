@@ -12,7 +12,10 @@ and return (values root entry-abs-path) where entry is the first file."
          (real (sys:realpath tmp))
          (root (if (and (plusp (length real)) (char= (char real (1- (length real))) #\/))
                    (subseq real 0 (1- (length real))) real)))
-    (dolist (f files) (rt-write (sys:path-join root (car f)) (cdr f)))
+    (dolist (f files)
+      (if (stringp (cdr f))
+          (rt-write (sys:path-join root (car f)) (cdr f))
+          (sys:write-file-octets (sys:path-join root (car f)) (cdr f))))
     (values root (sys:path-join root (caar files)))))
 
 (defun run-app (files)
@@ -113,6 +116,61 @@ string, or a THROW:<message> / ERR:<type> marker."
                             ("d.json" . "{\"answer\":42}"))))
   (is equal "1,2,3" (run-app '(("index.mjs" . "import a from './a.json'; globalThis.R = a.join(',');")
                                ("a.json" . "[1,2,3]")))))
+
+(define-test modules/yaml-module
+  (is equal "clun:3:true"
+      (run-app (list
+                (cons "index.mjs" "import doc,{name,items} from './data.yaml'; globalThis.R=name+':'+items.length+':'+(doc.items===items);")
+                (cons "data.yaml" (format nil "name: clun~%items: [1, 2, 3]~%")))))
+  (is equal "true:7"
+      (run-app (list
+                (cons "index.mjs" "import doc from './data.yml'; globalThis.R=(doc.first===doc.second)+':'+doc.first.n;")
+                (cons "data.yml" (format nil "first: &shared {n: 7}~%second: *shared~%")))))
+  (is equal "clun:2"
+      (run-app (list
+                (cons "index.mjs" "import value from './load.cjs'; globalThis.R=value;")
+                (cons "load.cjs" "const y=require('./data.yaml');module.exports=y.name+':'+y.items.length;")
+                (cons "data.yaml" (format nil "name: clun~%items: [a, b]~%")))))
+  (is equal "true"
+      (run-app (list
+                (cons "index.mjs" "import doc from './data.yaml';import same from './same.cjs';globalThis.R=doc===same;")
+                (cons "same.cjs" "module.exports=require('./data.yaml');")
+                (cons "data.yaml" (format nil "name: cached~%")))))
+  (multiple-value-bind (root path)
+      (build-app (list (cons "data.yaml" (format nil "broken: [~%"))))
+    (declare (ignore root))
+    (let ((realm (eng:make-realm)) (failed nil))
+      (let ((eng::*realm* realm))
+        (handler-case (eng::load-yaml-value path)
+          (eng:js-condition () (setf failed t)))
+        (rt-write path (format nil "ok: true~%"))
+        (true failed)
+        (is eq eng:+true+ (eng:js-get (eng::load-yaml-value path) "ok")))))
+  (let ((result
+          (run-app (list
+                    (cons "index.mjs" "import {missing} from './data.yaml'; globalThis.R=missing;")
+                    (cons "data.yaml" (format nil "present: true~%"))))))
+    (true (and (search "THROW:SyntaxError" result)
+               (search "does not provide an export named 'missing'" result))))
+  (is equal "default"
+      (run-app (list
+                (cons "index.mjs" "import * as ns from './data.yaml'; globalThis.R=Object.keys(ns).join(',');")
+                (cons "data.yaml" (format nil "- first~%- second~%")))))
+  (let ((result
+          (run-app (list
+                    (cons "index.mjs" "import {length} from './data.yaml'; globalThis.R=length;")
+                    (cons "data.yaml" (format nil "- first~%- second~%"))))))
+    (true (and (search "THROW:SyntaxError" result)
+               (search "does not provide an export named 'length'" result))))
+  (let ((result
+          (run-app
+           (list
+            (cons "index.mjs" "import doc from './data.yaml'; globalThis.R=doc;")
+            (cons "data.yaml"
+                  (make-array 1 :element-type '(unsigned-byte 8)
+                                :initial-element #xff))))))
+    (true (and (search "THROW:SyntaxError" result)
+               (search "invalid UTF-8 input" result)))))
 
 (define-test modules/import-meta
   (is equal "true" (run-app '(("index.mjs" . "globalThis.R = import.meta.main;"))))

@@ -75,6 +75,49 @@
   (is equal (format nil "true~%") (run-rt "console.log(Clun.deepEquals({a:1,b:[2]},{a:1,b:[2]}))"))
   (is equal (format nil "false~%") (run-rt "console.log(Clun.deepEquals({a:1},{a:2}))")))
 
+(define-test runtime/clun-yaml-surface
+  (is equal (format nil "parse,stringify parse 1 stringify 3 true true false~%")
+      (run-rt
+       "var d=Object.getOwnPropertyDescriptor(Clun,'YAML');console.log(Object.keys(Clun.YAML).join(','),Clun.YAML.parse.name,Clun.YAML.parse.length,Clun.YAML.stringify.name,Clun.YAML.stringify.length,d.writable,d.enumerable,d.configurable)"))
+  (is equal (format nil "clun true 3 3~%")
+      (run-rt
+       "var y=Clun.YAML.parse('name: clun\\nready: true\\nitems: [1, 2, 3]');console.log(y.name,y.ready,y.items[2],y.items.length)"))
+  (is equal (format nil "1~%")
+      (run-rt "console.log(Clun.YAML.parse('\\uFEFFa: 1').a)"))
+  (is equal (format nil "\"...\" true~%")
+      (run-rt
+       "var text=Clun.YAML.stringify('...');console.log(text,Clun.YAML.parse(text)==='...')"))
+  (is equal (format nil "true true true true~%")
+      (run-rt
+       "var values=['\\u2028','\\u2029','\\uFEFF',String.fromCharCode(127)];console.log(values.map(function(x){return Clun.YAML.parse(Clun.YAML.stringify(x))===x}).join(' '))"))
+  (is equal (format nil "true~%")
+      (run-rt
+       "var value='\\uD800';console.log(Clun.YAML.stringify(value)===value)"))
+  (is equal (format nil "true true true true~%")
+      (run-rt
+       "var emoji='\\uD83D\\uDE00',escaped=Clun.YAML.parse('\\\"\\\\uD83D\\\\uDE00\\\"');console.log(Clun.YAML.parse(Clun.YAML.stringify(emoji))===emoji,escaped===emoji,Clun.YAML.parse(Clun.YAML.stringify('\\u0080'))==='\\u0080',Clun.YAML.parse(Clun.YAML.stringify('\\uFFFF'))==='\\uFFFF')"))
+  (is equal (format nil "true 1 2~%")
+      (run-rt
+       "var y=Clun.YAML.parse('shared: &x {n: 1}\\ncopy: *x\\n---\\nn: 2');console.log(y[0].shared===y[0].copy,y[0].shared.n,y[1].n)"))
+  (is equal (format nil "true 7 true~%")
+      (run-rt
+       "var shared={n:7},text=Clun.YAML.stringify({a:shared,b:shared},null,2),y=Clun.YAML.parse(text);console.log(y.a===y.b,y.a.n,typeof text==='string')"))
+  (is equal (format nil "true true~%")
+      (run-rt
+       "var x={};x.self=x;var text=Clun.YAML.stringify(x,null,2),y=Clun.YAML.parse(text);console.log(y.self===y,text.indexOf('&root')>=0)"))
+  (is equal (format nil "true~%")
+      (run-rt
+       "var n=0,x={};Object.defineProperty(x,'value',{enumerable:true,get:function(){n++;return n===1?0:x}});try{Clun.YAML.stringify(x);console.log(false)}catch(e){console.log(e instanceof TypeError)}"))
+  (is equal (format nil "undefined true true true~%")
+      (run-rt
+       "function err(f){try{f();return false}catch(e){return e instanceof SyntaxError}};console.log(Clun.YAML.parse(),Clun.YAML.parse(null)===null,err(function(){Clun.YAML.parse('*missing')}),err(function(){Clun.YAML.parse(Buffer.from([255]))}))"))
+  (is equal (format nil "true true true true~%")
+      (run-rt
+       "function err(s){try{Clun.YAML.parse(s);return false}catch(e){return e instanceof SyntaxError}};var deep='['.repeat(258)+'0'+']'.repeat(258),docs=Array(1026).fill('---\\nnull').join('\\n'),safe=Clun.YAML.parse('__proto__: {polluted: true}');console.log(err('x: \\u0001'),err(deep),err(docs),Object.prototype.polluted===undefined&&Object.prototype.hasOwnProperty.call(safe,'__proto__'))"))
+  (is equal (format nil "true~%")
+      (run-rt
+       "try{Clun.YAML.stringify(String.fromCharCode(1).repeat(9*1024*1024));console.log(false)}catch(e){console.log(e instanceof RangeError)}")))
+
 (define-test runtime/clun-semver-satisfies
   (is equal (format nil "satisfies,order satisfies 2 order 2~%")
       (run-rt "console.log(Object.keys(Clun.semver).join(','),Clun.semver.satisfies.name,Clun.semver.satisfies.length,Clun.semver.order.name,Clun.semver.order.length)"))

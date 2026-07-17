@@ -46,6 +46,11 @@
                               :serial t
                               :components ((:file "named-colors")
                                            (:file "color")))
+                             ;; Phase 31 YAML graph parser: pure substrate shared by
+                             ;; Clun.YAML and the .yaml/.yml module loader.
+                             (:module "yaml"
+                              :serial t
+                              :components ((:file "yaml")))
                              ;; Security substrate (Phase 35): engine-free CSRF token
                              ;; encoding/authentication over vendored crypto primitives.
                              (:module "security"
@@ -156,6 +161,7 @@
                                            (:module "modules"
                                             :serial t
                                             :components ((:file "module-record")
+                                                         (:file "yaml")
                                                          (:file "module-compile")
                                                          (:file "require")
                                                          (:file "module-loader")))))
@@ -180,6 +186,7 @@
                                            (:file "clun-string-width") ; Clun.stringWidth (Phase 33) — before clun-global
                                            (:file "clun-glob") ; Clun.Glob (Phase 30) — before clun-global
                                            (:file "clun-color") ; Clun.color (Phase 34) — before clun-global
+                                           (:file "clun-yaml") ; Clun.YAML (Phase 31) — before clun-global
                                            (:file "clun-global")
                                            (:file "abort")     ; AbortController/AbortSignal (Phase 14)
                                            (:file "globals")   ; structuredClone, crypto (Phase 12)
@@ -251,6 +258,9 @@
                                            (:module "color"
                                             :serial t
                                             :components ((:file "color-tests")))
+                                           (:module "yaml"
+                                            :serial t
+                                            :components ((:file "yaml-tests")))
                                            (:module "resolver"
                                             :serial t
                                             :components ((:file "resolver-tests")))

@@ -117,6 +117,19 @@
            #:color->hsl #:color->lab #:format-css-color #:format-color-number
            #:ansi256-index #:ansi16-index))
 
+(defpackage :clun.yaml
+  (:use :cl)
+  (:documentation "Bounded engine-free YAML 1.2 graph parser for the runtime and module loader.")
+  (:export
+   #:parse-yaml #:yaml-error #:yaml-error-code #:yaml-error-reason
+   #:yaml-error-line #:yaml-error-column #:yaml-error-offset #:yaml-error-document
+   #:yaml-stream #:yaml-stream-p #:yaml-stream-documents
+   #:yaml-node #:yaml-node-p #:yaml-node-kind #:yaml-node-value #:yaml-node-anchor
+   #:yaml-node-tag #:yaml-node-line #:yaml-node-column #:yaml-node-offset #:yaml-node-style
+   #:yaml-pair #:yaml-pair-p #:yaml-pair-key #:yaml-pair-value #:yaml-pair-merge-p
+   #:+max-source-length+ #:+max-depth+ #:+max-documents+ #:+max-nodes+
+   #:+max-edges+ #:+max-anchors+ #:+max-aliases+ #:+max-scalar-length+))
+
 ;; Defined before clun.engine so the engine's :lp local-nickname can target it.
 (defpackage :clun.loop
   (:use :cl)

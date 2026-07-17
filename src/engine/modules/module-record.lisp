@@ -7,7 +7,7 @@
 
 (defstruct (module-record (:conc-name mr-))
   resolved-path                 ; truename string — the registry key
-  format                        ; :esm :cjs :json
+  format                        ; :esm :cjs :json :yaml
   (status :unlinked)            ; :unlinked :loading :linking :linked :evaluating :evaluated :errored
   source ast                    ; raw source + parsed program (ESM)
   environment                   ; the Option-A module frame (created at link, ESM)
@@ -21,6 +21,7 @@
   lexical-idxs func-compiled
   ;; CJS:
   cjs-exports                   ; the live module.exports js-object
+  (yaml-named-exports-p nil)    ; only a single top-level mapping exposes named exports
   ;; error capture (cycle re-throw):
   eval-error)
 
@@ -46,3 +47,4 @@
 (defun mr-esm-p (mr) (eq (mr-format mr) :esm))
 (defun mr-cjs-p (mr) (eq (mr-format mr) :cjs))
 (defun mr-json-p (mr) (eq (mr-format mr) :json))
+(defun mr-yaml-p (mr) (eq (mr-format mr) :yaml))

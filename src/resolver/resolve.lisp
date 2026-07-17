@@ -1,6 +1,6 @@
 ;;;; resolve.lisp — the Node module resolution algorithm (CommonJS + ESM merged),
 ;;;; pure over clun.sys (engine-free, §3.6). Entry point: RESOLVE. Returns
-;;;; (values absolute-path format), format in {:esm :cjs :json}. Mirrors Node's
+;;;; (values absolute-path format), format in {:esm :cjs :json :yaml}. Mirrors Node's
 ;;;; ESM_RESOLVE / CJS LOAD_* with `exports`/`imports` conditions + subpath
 ;;;; patterns + scoped packages + self-reference + symlink realpath.
 
@@ -10,7 +10,8 @@
   "Default `exports`/`imports` conditions for an ESM importer. The engine passes
 '(\"node\" \"require\") for a CJS require(). \"default\" always matches implicitly.")
 
-(defparameter *extensions* '(".js" ".json" ".mjs" ".cjs" ".ts" ".mts" ".cts" ".tsx" ".jsx")
+(defparameter *extensions* '(".js" ".json" ".mjs" ".cjs" ".ts" ".mts" ".cts" ".tsx" ".jsx"
+                             ".yaml" ".yml")
   "Extension-probing order for a file specifier (Bun-leniency: probes even for ESM
 imports, and includes TS extensions the Phase-09 transpiler loads). The exact path is
 tried before any of these.")
@@ -28,6 +29,7 @@ tried before any of these.")
           ((string= ext ".cjs") :cjs)
           ((string= ext ".cts") :cjs)          ; .cts is always CJS (TS)
           ((string= ext ".json") :json)
+          ((member ext '(".yaml" ".yml") :test #'string=) :yaml)
           ((member ext '(".js" ".jsx" ".ts" ".tsx") :test #'string=)
            (if (eq (package-type (sys:path-dirname path)) :module) :esm :cjs))
           (t ;; extensionless (e.g. a "main" with no suffix): fall back to type.
