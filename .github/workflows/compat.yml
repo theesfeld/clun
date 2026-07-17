@@ -36,8 +36,11 @@ on:
 permissions:
   contents: read
 
+# PR runs cancel superseded attempts for the same PR number.
+# Master (and other non-PR) runs group by SHA so a newer master push does not
+# cancel Compatibility for an earlier exact-master SHA needed for release tags.
 concurrency:
-  group: compatibility-${{ github.workflow }}-${{ github.ref }}
+  group: compatibility-${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: true
 
 jobs:
