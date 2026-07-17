@@ -14,18 +14,25 @@ Update when work completes; keep consistent with the Issue, README, and site.
 **Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/2,
 https://github.com/theesfeld/clun/issues/39, and https://github.com/theesfeld/clun/issues/40
 **Current implementation unit:** Phase 31 now passes the complete exact pinned 402-case Bun-generated YAML
-corpus with zero failures. The dev.15 candidate combines that eighth compatibility-ledger `Yes` with the
-reviewed 173-pass Phase 37 milestone-1 unit; Phase 37 remains explicitly incomplete.
+corpus with zero failures. The dev.16 recovery candidate combines that eighth compatibility-ledger `Yes`
+with the reviewed 173-pass Phase 37 milestone-1 unit; Phase 37 remains explicitly incomplete.
 **SemVer impact:** `minor`
 **Published release:** `0.1.0-dev.14` / `v0.1.0-dev.14`
-**Candidate release:** `0.1.0-dev.15` / `v0.1.0-dev.15`
+**Candidate release:** `0.1.0-dev.16` / `v0.1.0-dev.16`
 **Entry boundary:** Phase 36 is published in immutable dev.14 at exact commit
 `002292cbcad064a0da7c2879f9d03b44659a8f59`; release reconciliation is merged at exact master
 `f2fe6aa7ec255a98baabb73b865fdec66608c44d`. Exact-head CI, Documentation, Pages, and four-target
 Compatibility passed; live `clun.sh` and its hosted installer serve dev.14; and issue #10 is closed
 complete. Phase 26 remains after Phase 82.
-**Next scope:** finish every Phase 31 local gate, merge the dev.15 candidate through review, require exact-SHA
-master CI/Documentation/Compatibility, publish the immutable four-platform release, reconcile the release
+The immutable `v0.1.0-dev.15` tag peels to exact candidate commit
+`9ef93791c4b1fa3d3bcf5e8dc2f9b5cf1bd13073`, whose CI, explicitly dispatched Pages/public-claims, and
+four-target Compatibility gates passed. Its release run `29559913562` stopped before builds or assets
+because the path-filtered Documentation workflow had no exact-SHA master run at that commit. No dev.15
+GitHub release, asset, or installer was published; the tag is not reused. The dev.16 recovery makes
+Documentation explicitly dispatchable and advances the prerelease sequence once without changing the
+published dev.14 installer.
+**Next scope:** merge the dev.16 recovery through review, require exact-SHA master
+CI/Documentation/Compatibility/Pages, publish the immutable four-platform release, reconcile the release
 ledger, close issue #5 with receipts, and verify the live page and hosted installer before moving the active
 release slot.
 

@@ -47,6 +47,7 @@ resource does not exist with a 404 response:
 0.1.0-dev.13
 0.1.0-dev.14
 0.1.0-dev.15
+0.1.0-dev.16
 ```
 
 Phase 25b is the compatibility program for the planned `0.1.0` release. Its first behavioral
@@ -95,10 +96,13 @@ APIs. The password/hash surface is a backward-compatible public addition publish
 release receipts.
 Phase 31 completes bounded `Clun.YAML` parsing/stringification and YAML module loading at 402 / 402 cases in
 the exact pinned Bun-generated parser corpus, converting YAML to the eighth public compatibility-ledger
-`Yes`. The backward-compatible completed capability advances the prerelease train once to
-`0.1.0-dev.15` / `v0.1.0-dev.15`, with ASDF core `0.1.0`; Issue #5 owns its behavior, target receipts,
-publication, and hosted-installer evidence. The same candidate includes Phase 37 milestone 1's reviewed
-modern built-ins, but Phase 37 and Issue #11 remain in progress and make no full language-parity claim.
+`Yes`. The first backward-compatible candidate advanced the prerelease train to `0.1.0-dev.15` /
+`v0.1.0-dev.15`, with ASDF core `0.1.0`, but its release workflow stopped before builds or assets because
+the path-filtered Documentation workflow had no exact-SHA master run. That immutable tag is not reused and
+the published installer remains dev.14. The dispatchable-gate recovery advances exactly once to
+`0.1.0-dev.16` / `v0.1.0-dev.16`; Issue #5 owns its behavior, target receipts, publication, and
+hosted-installer evidence. The same candidate includes Phase 37 milestone 1's reviewed modern built-ins,
+but Phase 37 and Issue #11 remain in progress and make no full language-parity claim.
 
 ## Canonical record
 
