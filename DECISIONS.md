@@ -2894,3 +2894,11 @@ inherited spy properties, removes every host registry entry, and only then tears
 evidence proves 86 assertions across three isolated files. The ledger remains `Partial`: this milestone does
 not satisfy snapshots, module mocks, fake timers, coverage, asymmetric/custom matchers, retries, concurrency,
 reporters, sharding, the full pinned manifest, four-target receipts, or stress gates.
+
+### 2026-07-17 - Phase 66 expected failures invert only callback failures
+
+`test.failing` treats a callback throw or returned-Promise rejection as the expected result, while a callback
+that settles successfully fails with Bun's remove-`.failing` diagnostic. Timeouts, before/after hook errors,
+and assertion-count contract failures remain runner failures; allowing the modifier to hide those conditions
+would produce false positives and diverge from the pinned Bun fixtures. The same mode is available through
+`it.failing`, `failingIf`, and `.failing.each`, and missing callbacks are rejected during registration.

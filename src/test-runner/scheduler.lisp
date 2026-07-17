@@ -160,13 +160,27 @@ with beforeAll/afterEach — Bun counts a failing afterAll)."
       ((not (%name-matches cfg full)) nil) ; filtered out by -t: no line, not counted
       (t
        (incf (st-matched stats))
-       (multiple-value-bind (ok detail) (%execute test realm cfg)
+       (multiple-value-bind (ok detail failure-kind) (%execute test realm cfg)
          (cond
            ((eq mode :todo)               ; ran under --todo
             (if ok
                 (progn (funcall report :fail full "this test is marked as todo but passed")
                        (incf (st-fail stats)) (%maybe-bail stats cfg))
                 (progn (funcall report :todo full nil) (incf (st-todo stats)))))
+           ((eq mode :failing)
+            (cond
+              (ok
+               (funcall report :fail full
+                        "^ this test is marked as failing but it passed. Remove `.failing` if tested behavior now works")
+               (incf (st-fail stats))
+               (%maybe-bail stats cfg))
+              ((eq failure-kind :body)
+               (funcall report :pass full nil)
+               (incf (st-pass stats)))
+              (t
+               (funcall report :fail full detail)
+               (incf (st-fail stats))
+               (%maybe-bail stats cfg))))
            (ok (funcall report :pass full nil) (incf (st-pass stats)))
            (t (funcall report :fail full detail) (incf (st-fail stats)) (%maybe-bail stats cfg))))))))
 
@@ -175,33 +189,46 @@ with beforeAll/afterEach — Bun counts a failing afterAll)."
     (setf (st-bailed stats) t)))
 
 (defun %execute (test realm cfg)
-  "Run beforeEach chain → the body → afterEach chain. Returns (values ok detail)."
+  "Run beforeEach chain → the body → afterEach chain.
+Returns (values ok detail failure-kind); FAILURE-KIND distinguishes an expected body
+failure from framework failures that `test.failing` must not invert."
   (let ((*test-assertions* 0) (*expected-assertions* nil) (*has-assertions* nil)
         (timeout (or (tt-timeout test) (cfg-default-timeout cfg)))
-        (chain (%chain test)) (ok t) (detail nil))
+        (chain (%chain test)) (ok t) (detail nil) (failure-kind nil))
     ;; beforeEach outer→inner
     (block body
       (dolist (d chain)
         (let ((err (%run-hooks (td-before-each d) realm timeout)))
-          (when err (setf ok nil detail (%err-detail err)) (return-from body))))
+          (when err
+            (setf ok nil detail (%err-detail err) failure-kind :hook)
+            (return-from body))))
       ;; the test body
       (multiple-value-bind (kind val)
           (eng:run-callback-to-settlement
            (let ((f (tt-fn test))) (lambda () (eng:js-call f eng:+undefined+ '())))
            realm :timeout-ms timeout)
         (case kind
-          (:timeout (setf ok nil detail (format nil "this test timed out after ~ams" timeout)))
-          (:rejected (setf ok nil detail (%err-detail val)))
+          (:timeout
+           (setf ok nil
+                 detail (format nil "this test timed out after ~ams" timeout)
+                 failure-kind :timeout))
+          (:rejected
+           (setf ok nil detail (%err-detail val) failure-kind :body))
           (:fulfilled
            ;; assertion-count expectations
            (cond
              ((and *expected-assertions* (/= *test-assertions* *expected-assertions*))
-              (setf ok nil detail (format nil "expect.assertions(~a) — but ~a assertion(s) ran"
-                                          *expected-assertions* *test-assertions*)))
+              (setf ok nil
+                    detail (format nil "expect.assertions(~a) — but ~a assertion(s) ran"
+                                   *expected-assertions* *test-assertions*)
+                    failure-kind :assertion-contract))
              ((and *has-assertions* (zerop *test-assertions*))
-              (setf ok nil detail "expect.hasAssertions() — but no assertions ran")))))))
+              (setf ok nil
+                    detail "expect.hasAssertions() — but no assertions ran"
+                    failure-kind :assertion-contract)))))))
     ;; afterEach inner→outer (always runs)
     (dolist (d (reverse chain))
       (let ((err (%run-hooks (td-after-each d) realm timeout)))
-        (when (and err ok) (setf ok nil detail (%err-detail err)))))
-    (values ok detail)))
+        (when (and err ok)
+          (setf ok nil detail (%err-detail err) failure-kind :hook))))
+    (values ok detail failure-kind)))

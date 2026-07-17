@@ -51,3 +51,17 @@ Focused Lisp tests may supplement but cannot replace shipped-binary evidence.
 Completing this milestone does not authorize `Yes`. Module mocks, fake timers, snapshots, coverage,
 asymmetric/custom matchers, retries, true concurrency, setup/reporters/sharding/watch integration, the full
 pinned meta-corpus, four-target receipts, and stress/RSS gates remain required by issue #40.
+
+## Milestone 66.2 - expected-failure modifiers
+
+`test.failing` and its `it.failing` alias invert only failures produced by the test callback: a synchronous
+throw, an assertion thrown from the callback, or a rejected returned Promise counts as the expected failure.
+An unexpectedly successful callback is a failure with Bun's diagnostic telling the author to remove
+`.failing`. Framework failures remain failures and are never hidden by the modifier: timeouts, hook errors,
+and `expect.assertions` / `expect.hasAssertions` contract violations keep their normal failure result.
+
+`test.failingIf(condition)` selects expected-failure behavior when the condition is truthy and normal test
+behavior otherwise. `test.failing.each(table)` applies the same semantics independently to every generated
+row. Unlike `test.todo`, an expected-failure test requires a callable second argument and rejects an invalid
+registration immediately. Executable fixtures cover synchronous, asynchronous, conditional, parameterized,
+unexpected-pass, timeout, hook, and assertion-contract paths.
