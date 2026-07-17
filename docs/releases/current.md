@@ -1,9 +1,9 @@
 <!-- clun-generated:release-notes:begin -->
-# Clun 0.1.0-dev.21
+# Clun 0.1.0-dev.22
 
-Phase 37: Modern ECMAScript gap wave.
+Phase 65: Cross-platform shell API.
 
-- SemVer impact: `minor` within the selected `0.1.0` prerelease train.
+- SemVer impact: `patch` within the selected `0.1.0` prerelease train.
 - Compatibility snapshot: 9 Yes / 7 Partial / 14 No across 30 generated rows.
 - Public baseline: Bun 1.3.14; engineering baseline: Bun `c1076ce95e`.
 - Target release platforms: Linux and macOS, x64 and arm64.
@@ -14,17 +14,14 @@ The canonical evidence and current limitations are in `compat/`; `make compat-va
 
 ## Highlights
 
-- Stages Phase 37 milestone 2 as a bounded engine residual conversion: pure-CL
-  `Array.fromAsync` over Promise + async-iterator / AsyncFromSync / array-like paths.
-- Admits nullish coalescing (`??`) and numeric separators in the lexer/parser so frozen
-  Test262 helper observation controls parse (emitter already handled `??`).
-- Converts 95 frozen `built-ins/Array/fromAsync` failures; pass-list reclassification is not
-  claimed on this candidate. No compatibility-table `Yes` is claimed.
-- Slot map after published shell (`v0.1.0-dev.18`, #86/#98) and master test-runner (#88):
-  published base `0.1.0-dev.18`; master source is `0.1.0-dev.19`; transport holds unpublished
-  `0.1.0-dev.20`; this candidate allocates `0.1.0-dev.21` under the unpublished-intermediate
-  prerelease gap policy (transition `0.1.0-dev.19` → `0.1.0-dev.21`).
-
-The release candidate stages honest engine residual work without promoting any matrix row to `Yes`.
-Merge, publication, and Phase 37 closure remain blocked on remaining inventory residuals, pass-list
-integration, and final review.
+- Pure-CL shell fix: unmatched pathname globs fail in command position with
+  `clun: no matches found: <pattern>` (exit 1); assignment position keeps the literal
+  pattern; multi-match assignment values join with a space.
+- Inventory burn-down: **1,282 covered / 316 pending / 32 upstream-inactive** (was
+  1,247 / 351 / 32). Closes 35 pending sites across language, glob, and
+  `pwd | cd | pwd` pipeline isolation fixtures.
+- Does **not** claim `tooling.shell` Yes. Residual parser, lifecycle, background,
+  and permission-sensitive rows remain pending under Issue #39.
+- Slot map: published base `v0.1.0-dev.18`; master source after Phase 37 m2 is
+  `0.1.0-dev.21`; this unit stages `0.1.0-dev.22` (transition `0.1.0-dev.21` →
+  `0.1.0-dev.22`). Hosted installer remains on published dev.18 until release.

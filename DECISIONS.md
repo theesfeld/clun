@@ -3113,3 +3113,13 @@ binary for that commit). Clun counts come from `0.1.0-dev.19` single-file absolu
 `bun:test` ESM resolve, `bun` namespace imports, parser tier gaps, and upstream harness/host-spawn meta
 tests. Numeric coincidence of failing 0/1/0 roots is not treated as a closed residual. Ledger remains
 Partial; re-measure under a true `c1076ce95e` engineering binary when available.
+
+### 2026-07-17 - Phase 65 unmatched pathname globs fail outside assignment
+
+Command-position unmatched globs now fail with `clun: no matches found: <pattern>` and
+exit status 1, matching Bun Expansion.rs. Assignment position keeps the literal pattern, and
+multi-match assignment values join with a single space so later unquoted expansions re-split.
+Brace+glob composition still keeps every brace variant as a literal while appending pathname
+matches. Inventory disposition advances to **1,282 covered / 316 pending / 32 upstream-inactive**
+(35 sites closed this unit). SemVer impact is `patch` at `0.1.0-dev.22`; `tooling.shell` stays
+`Partial` (no Yes claim).

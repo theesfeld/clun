@@ -53,6 +53,7 @@ resource does not exist with a 404 response:
 0.1.0-dev.19
 0.1.0-dev.20
 0.1.0-dev.21
+0.1.0-dev.22
 ```
 
 Phase 25b is the compatibility program for the planned `0.1.0` release. Its first behavioral
@@ -112,12 +113,15 @@ Phase 50 stages `0.1.0-dev.17` / `v0.1.0-dev.17` under Issue #24 (router PR #85)
 master. Phase 65 stages `0.1.0-dev.18` / `v0.1.0-dev.18` under Issue #39 (shell PR #86; published).
 Phase 66 stages `0.1.0-dev.19` / `v0.1.0-dev.19` under Issue #40 (test-runner PR #88 on master).
 Phase 28 stages `0.1.0-dev.20` / `v0.1.0-dev.20` under Issue #2. Phase 37 milestone 2 stages
-`0.1.0-dev.21` / `v0.1.0-dev.21` under Issue #11 (PR #96). Version-transition allows multi-step
+`0.1.0-dev.21` / `v0.1.0-dev.21` under Issue #11 (PR #96). Phase 65 inventory burn-down stages
+`0.1.0-dev.22` / `v0.1.0-dev.22` under Issue #39 (unmatched-glob failure policy; `tooling.shell`
+remains Partial). Its impact is `patch` because the unit closes Bun-matching glob failure and
+assignment multi-match join bugs without new public APIs. Version-transition allows multi-step
 prerelease advances only while every skipped intermediate remains unpublished, so parallel drafts
 may allocate later slots without claiming each other's tags. Phase 37 m2 adds backward-compatible
 `Array.fromAsync` and supporting lexer/parser admissions and therefore its SemVer impact is `minor`
 within the selected `0.1.0` core. Until gates complete, the installer and immutable published
-boundary remain dev.18; Phase 37 remains open and makes no full language-parity or matrix Yes claim.
+boundary remain dev.18; Phase 37 and Phase 65 remain open and make no full language-parity or matrix Yes claim.
 
 ## Canonical record
 

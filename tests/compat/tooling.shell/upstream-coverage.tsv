@@ -1246,3 +1246,38 @@ stable.test_js_bun_shell_shell_seq_condexpr_test_ts.L21.1.test-call	covered	test
 stable.test_js_bun_shell_shell_seq_condexpr_test_ts.L38.1.test-call	covered	tests/compat/tooling.shell/upstream-seq.js	exact pinned non-finite seq and empty conditional behavior executes through the shipped binary
 stable.test_js_bun_shell_shell_seq_condexpr_test_ts.L55.1.test-call	covered	tests/compat/tooling.shell/upstream-seq.js	exact pinned non-finite seq and empty conditional behavior executes through the shipped binary
 stable.test_js_bun_shell_shell_seq_condexpr_test_ts.L71.1.test-call	covered	tests/compat/tooling.shell/upstream-seq.js	exact pinned non-finite seq and empty conditional behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L94.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L95.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L104.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L105.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L154.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L201.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L199.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L242.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L289.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L255.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L269.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L272.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L278.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L284.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L316.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L376.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L386.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L423.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L433.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L663.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned unmatched-glob and assignment nullglob policy executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L667.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned unmatched-glob and assignment nullglob policy executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L672.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned unmatched-glob and assignment nullglob policy executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L677.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned unmatched-glob and assignment nullglob policy executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L687.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned unmatched-glob and assignment nullglob policy executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L721.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned unmatched-glob and assignment nullglob policy executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L725.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned unmatched-glob and assignment nullglob policy executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L730.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned unmatched-glob and assignment nullglob policy executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L735.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned unmatched-glob and assignment nullglob policy executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L745.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned unmatched-glob and assignment nullglob policy executes through the shipped binary
+stable.test_js_bun_shell_pipeline_stack_test_ts.L93.1.builder-test	covered	tests/compat/tooling.shell/upstream-pipeline-stack.js	exact pinned pwd|cd|pwd pipeline isolation executes through the shipped binary
+engineering.test_js_bun_shell_pipeline_stack_test_ts.L93.1.builder-test	covered	tests/compat/tooling.shell/upstream-pipeline-stack.js	exact pinned pwd|cd|pwd pipeline isolation executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L319.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L325.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L331.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L246.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
