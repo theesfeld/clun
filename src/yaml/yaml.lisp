@@ -806,7 +806,7 @@
        (eq (yaml-node-style node) :plain)
        (null (yaml-node-tag node))))
 
-(defun mapping-key-string (node)
+(defun mapping-key-string (node &optional (seen (make-hash-table :test 'eq)))
   (case (yaml-node-kind node)
     (:string (yaml-node-value node))
     (:null "null")
@@ -819,11 +819,17 @@
          (:nan "NaN")
          (otherwise (princ-to-string value)))))
     (:sequence
-     (with-output-to-string (output)
-       (loop for item across (yaml-node-value node)
-             for first = t then nil
-             unless first do (write-char #\, output)
-             do (write-string (mapping-key-string item) output))))
+     (if (gethash node seen)
+         ""
+         (unwind-protect
+              (progn
+                (setf (gethash node seen) t)
+                (with-output-to-string (output)
+                  (loop for item across (yaml-node-value node)
+                        for first = t then nil
+                        unless first do (write-char #\, output)
+                        do (write-string (mapping-key-string item seen) output))))
+           (remhash node seen))))
     (:mapping "[object Object]")
     (otherwise "")))
 

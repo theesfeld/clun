@@ -111,7 +111,13 @@
     (is equal "new" (yaml:yaml-node-value (yaml-map-node root "dup")))
     (is = 4 (length (yaml:yaml-node-value root))))
   (let ((root (yaml-document (format nil "&root~%self: *root~%"))))
-    (true (eq root (yaml-map-node root "self")))))
+    (true (eq root (yaml-map-node root "self"))))
+  (let* ((root (yaml-document (format nil "? &key [*key]~%: value~%")))
+         (pair (aref (yaml:yaml-node-value root) 0))
+         (key (yaml:yaml-pair-key pair)))
+    (is eq :sequence (yaml:yaml-node-kind key))
+    (true (eq key (aref (yaml:yaml-node-value key) 0)))
+    (is equal "value" (yaml:yaml-node-value (yaml:yaml-pair-value pair)))))
 
 (define-test yaml/quoted-block-and-documents
   (let* ((root (yaml-document
