@@ -7,27 +7,24 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **50 - Router, static files, and FileSystemRouter**  (YES CANDIDATE REVIEW)
+## Current phase: **65 - Cross-platform shell API**  (PARTIAL CHECKPOINT)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/24
+**Canonical issue:** https://github.com/theesfeld/clun/issues/39
 **Next phase issue:** https://github.com/theesfeld/clun/issues/11
 **Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/2,
-https://github.com/theesfeld/clun/issues/39, and https://github.com/theesfeld/clun/issues/40
-**Current implementation unit:** Phase 50 implements first-party routes, the legacy static alias,
-regular-file response streaming, server.fetch, and FileSystemRouter. Exact stable/engineering sources trace
-981 lexical sites to 254 tests, each assigned exactly once across 123 semantic contract rows: 118 executable
-and five explicit non-applicable. Final exact-head four-target receipts and two accepted adversarial reviews
-remain before the staged `server.router` Yes can merge and publish.
+https://github.com/theesfeld/clun/issues/24, and https://github.com/theesfeld/clun/issues/40
+**Current implementation unit:** Phase 65 implements the pure-Common-Lisp `Clun.$` application shell with
+parser/evaluator, builtins, substitutions, pipelines, control flow, and a finite Bun-pinned corpus. Public
+`tooling.shell` remains `Partial` (1,247/1,630 pinned sites); `Yes` is not claimed. Router PR #85 owns
+`0.1.0-dev.17`; this unit stages `0.1.0-dev.18` after that allocation.
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.17` / `v0.1.0-dev.17`
+**Candidate release:** `0.1.0-dev.18` / `v0.1.0-dev.18`
 **Published release:** `0.1.0-dev.16` / `v0.1.0-dev.16`
 **Entry boundary:** immutable dev.16 is published and reconciled at exact master
-`0212be64283549d03864fa7e01a793c1cee8ac33`. Phase 50 draft PR #85 targets `master`; exact `a36047e2`
-four-target compatibility receipts pass, and integrated contract-map head `dde7c3e4` makes every pinned test
-disposition executable or explicitly non-applicable. Fresh exact-head gates and reviews remain.
-Phase 26 remains after Phase 82.
-**Next scope:** run focused and four-target gates on the synchronized exact head, resolve two independent
-adversarial reviews, reconcile Issue #24 and PR #85, squash-merge to master, and release dev.17.
+`0212be64283549d03864fa7e01a793c1cee8ac33`. Draft PR #86 stages the Phase 65 Partial checkpoint as
+`0.1.0-dev.18` after router owns `0.1.0-dev.17`. Phase 26 remains after Phase 82.
+**Next scope:** keep `tooling.shell` Partial until residual corpus, lifecycle/stress, and four-target
+receipts complete; green exact-head CI on the stacked/rebased candidate; then reassess Yes readiness.
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
 easiest to hardest among dependency-ready rows. Core engine/runtime/network/tooling changes are expected.
@@ -46,8 +43,7 @@ well-formedness, `Error.isError`, and `Promise.withResolvers`, producing 173 mea
 its frozen inventory still has 708 residual failures and no full ledger row is claimed. Parallel durable
 checkpoints include transport request streaming plus origin-keyed HTTP pooling and shell parser/runtime,
 guarded filesystem builtins, bounded `yes`, and isolated pipeline state. Merged `master` is **8 Yes /
-6 Partial / 16 No** with the complete Phase 31 evidence attached; draft PR #85 stages **9 Yes / 6 Partial /
-15 No** for dev.17.
+6 Partial / 16 No** with the complete Phase 31 evidence attached.
 
 **Parallel Phase 65 checkpoint:** Issue [#39](https://github.com/theesfeld/clun/issues/39) remains open on
 `feat/issue-39-shell-tagged-templates`, rebased onto published dev.16 master with the current exact-coverage
