@@ -2648,7 +2648,10 @@ integer conversions are deliberately rejected because seq values are f32."
     (if (null (shell-command-words command))
         (progn
           (setf (shell-state-env state) env)
-          (make-shell-result))
+          ;; Bun treats an assignment-only pipeline stage as an environment
+          ;; boundary that forwards the pipe unchanged. Outside a pipeline the
+          ;; input is empty, so a plain assignment remains silent.
+          (make-shell-result :stdout stdin))
         (let* ((condition-p (%shell-condition-command-p command))
                (condition-arguments
                  (when condition-p

@@ -2757,3 +2757,14 @@ pinned engineering behavior without executing a substitution twice or using a ho
 This closes the three engineering brace-plus-glob sites, including the interpolated-comma regression, while
 keeping all other corpus IDs pending until executable evidence exists. The shell row remains `Partial`; this
 is a SemVer-minor behavior increment within the already allocated `0.1.0-dev.18` Phase 65 release boundary.
+
+### 2026-07-16 - Phase 65 assignment-only pipeline stages are isolated byte-preserving boundaries
+
+An assignment-only command continues to update its command-local environment, but its result now forwards
+the incoming stdin bytes unchanged. Since ordinary standalone assignments receive an empty input, they remain
+silent and preserve their existing stateful behavior. Pipeline execution already copies state per stage, so
+the forwarded bytes do not create environment leakage into neighboring commands or the parent shell.
+
+This production change closes 74 exact stable and engineering assignment-pipeline sites through a shipped-
+binary fixture. The two parenthesized subshell sites remain pending rather than being mapped to an approximation.
+The shell row remains `Partial`; this is another SemVer-minor behavior increment within `0.1.0-dev.18`.

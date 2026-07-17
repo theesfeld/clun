@@ -175,6 +175,20 @@
              (false (clun.runtime::shell-state-terminated state))))
       (ignore-errors (sys:remove-recursive directory)))))
 
+(define-test shell/assignment-only-pipeline-stages-forward-input-and-isolate
+  (let* ((state (shell-test-state))
+         (result (clun.runtime::%shell-execute-units
+                  (shell-test-units
+                   "echo before | A=1 B=2 | cat; C=3 | echo after | D=4")
+                  state nil)))
+    (is equal (format nil "before~%after~%")
+        (eng:utf8->code-units (clun.runtime::shell-result-stdout result)))
+    (is = 0 (clun.runtime::shell-result-exit-code result))
+    (false (assoc "A" (clun.runtime::shell-state-env state) :test #'string=))
+    (false (assoc "B" (clun.runtime::shell-state-env state) :test #'string=))
+    (false (assoc "C" (clun.runtime::shell-state-env state) :test #'string=))
+    (false (assoc "D" (clun.runtime::shell-state-env state) :test #'string=))))
+
 (define-test shell/yes-to-immediate-builtin-sink
   (multiple-value-bind (output exit-code) (shell-test-output "yes | true")
     (is equal "" output)
