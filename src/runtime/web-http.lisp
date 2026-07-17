@@ -1315,29 +1315,65 @@ Headers, Request, Response, and cookie state never use this mechanism."
 (defun %response-stream (response)
   (js-response-body-stream (%require-response response)))
 
+(defun %materialize-deferred-file-body (response)
+  "Copy a deferred Clun.file body into RESPONSE's ReadableStream once.
+
+`new Response(Clun.file(...))` deliberately keeps the file plan lazy so construction
+never blocks on FIFO/special files. Server serialization uses the file handle directly;
+body consumers (text/bytes/blob/getReader) call this helper first."
+  (let ((body (js-response-body response))
+        (stream (js-response-body-stream response)))
+    (when (and (js-clun-file-p body)
+               stream
+               (not (js-body-stream-closed-p stream))
+               (not (js-body-stream-errored-p stream))
+               (null (js-body-stream-queue stream))
+               (null (js-body-stream-collector stream))
+               (null (js-body-stream-pending stream)))
+      (let ((octets
+              (handler-case (%clun-file-octets body)
+                (error ()
+                  (make-array 0 :element-type '(unsigned-byte 8))))))
+        (when (plusp (length octets))
+          (%body-stream-enqueue stream octets))
+        (%body-stream-close stream))))
+  response)
+
 (defun %clone-response (value)
   (let* ((response (%require-response value))
-         (stream (js-response-body-stream response)))
+         (stream (js-response-body-stream response))
+         (body (js-response-body response)))
     (when (or (js-body-stream-disturbed-p stream)
               (js-body-stream-locked-p stream))
       (eng:throw-type-error "Body has already been consumed"))
-    (multiple-value-bind (first second) (%body-stream-tee stream)
-      (setf (js-response-body-stream response) first)
-      (let ((clone
-              (%make-js-response
-               :proto (web-http-realm-state-response-prototype (%http-state))
-               :body (js-response-body response)
-               :body-stream second
-               :body-null-p (js-response-body-null-p response))))
-        (eng:data-prop clone "status" (eng:js-get response "status"))
-        (eng:data-prop clone "statusText" (eng:js-get response "statusText"))
-        (eng:data-prop clone "ok" (eng:js-get response "ok"))
-        (eng:data-prop clone "headers"
-                       (%new-headers (eng:js-get response "headers")))
-        (let ((url (eng:js-get response "url")))
-          (unless (eng:js-undefined-p url)
-            (eng:data-prop clone "url" url)))
-        clone))))
+    (flet ((copy-response-metadata (clone)
+             (eng:data-prop clone "status" (eng:js-get response "status"))
+             (eng:data-prop clone "statusText" (eng:js-get response "statusText"))
+             (eng:data-prop clone "ok" (eng:js-get response "ok"))
+             (eng:data-prop clone "headers"
+                            (%new-headers (eng:js-get response "headers")))
+             (let ((url (eng:js-get response "url")))
+               (unless (eng:js-undefined-p url)
+                 (eng:data-prop clone "url" url)))
+             clone))
+      (if (and (js-clun-file-p body)
+               (not (js-body-stream-closed-p stream))
+               (null (js-body-stream-queue stream)))
+          ;; Deferred file plans clone by reference without opening the path.
+          (copy-response-metadata
+           (%make-js-response
+            :proto (web-http-realm-state-response-prototype (%http-state))
+            :body body
+            :body-stream (%new-body-stream)
+            :body-null-p (js-response-body-null-p response)))
+          (multiple-value-bind (first second) (%body-stream-tee stream)
+            (setf (js-response-body-stream response) first)
+            (copy-response-metadata
+             (%make-js-response
+              :proto (web-http-realm-state-response-prototype (%http-state))
+              :body body
+              :body-stream second
+              :body-null-p (js-response-body-null-p response))))))))
 
 (defun %install-response-body-method
     (prototype name transform)
@@ -1345,7 +1381,9 @@ Headers, Request, Response, and cookie state never use this mechanism."
    prototype name 0
    (lambda (this args)
      (declare (ignore args))
-     (%body-stream-consume (%response-stream this) transform))))
+     (let ((response (%require-response this)))
+       (%materialize-deferred-file-body response)
+       (%body-stream-consume (js-response-body-stream response) transform)))))
 
 (defun %install-response-prototype (prototype)
   (let ((global (eng:realm-global eng:*realm*)))
@@ -1370,7 +1408,9 @@ Headers, Request, Response, and cookie state never use this mechanism."
      (let ((response (%require-response this)))
        (if (js-response-body-null-p response)
            eng:+null+
-           (js-response-body-stream response))))
+           (progn
+             (%materialize-deferred-file-body response)
+             (js-response-body-stream response)))))
    nil)
   (%define-accessor
    prototype "bodyUsed"
@@ -1385,6 +1425,7 @@ Headers, Request, Response, and cookie state never use this mechanism."
      (declare (ignore args))
      (let ((response (%require-response this))
            (type (%normalize-blob-type (%body-content-type this))))
+       (%materialize-deferred-file-body response)
        (%body-stream-consume
         (js-response-body-stream response)
         (lambda (octets)
@@ -1422,7 +1463,8 @@ but an ordinary object is never promoted into the Response brand."
                (%status-text status)))
          (headers-init (and init-object-p (eng:js-get init "headers")))
          (headers (%new-headers headers-init))
-         (stream (or body-stream (%new-body-stream))))
+         (stream (or body-stream (%new-body-stream)))
+         (deferred-file-p (and (not body-stream) (js-clun-file-p body))))
     (when (and (js-blob-p body)
                (null (%header-values headers "content-type")))
       (let ((content-type (%blob-response-content-type body)))
@@ -1435,7 +1477,9 @@ but an ordinary object is never promoted into the Response brand."
               body-null-p
               (or (null body) (eng:js-undefined-p body)
                   (eng:js-null-p body))))
-    (unless body-stream
+    ;; Clun.file bodies stay deferred so construction cannot hang on FIFO/special
+    ;; files. Serve freezes them through file-response-source; body methods materialize.
+    (unless (or body-stream deferred-file-p)
       (let ((octets (%body->octets body)))
         (when (plusp (length octets))
           (%body-stream-enqueue stream octets))
