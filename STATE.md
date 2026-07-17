@@ -11,9 +11,9 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 **Canonical issue:** https://github.com/theesfeld/clun/issues/10
 **Parallel continuation issue:** https://github.com/theesfeld/clun/issues/5
-**Current implementation unit:** publish `security.password-hashing` as the seventh evidence-backed
-compatibility-ledger `Yes`. Keep `data.yaml` honestly `Partial` at its measured 204 / 402 pinned
-Bun-generated parser baseline while Phase 31 production work continues independently.
+**Current implementation unit:** reconcile the published immutable dev.14 release, deploy its exact Pages
+snapshot, prove the hosted installer, and close Phase 36. `security.password-hashing` is the seventh
+evidence-backed compatibility-ledger `Yes`; `data.yaml` remains honestly `Partial` in the published unit.
 **SemVer impact:** `minor`
 **Release target:** `0.1.0-dev.14` / `v0.1.0-dev.14`
 **Entry boundary:** Phase 34 Color is published in immutable dev.13 at exact commit
@@ -21,27 +21,27 @@ Bun-generated parser baseline while Phase 31 production work continues independe
 at exact master `53a7bc9183f9b93f739356ba918dabe25c050b6a`. Exact-head CI, Documentation, and Pages passed; the live
 page and hosted installer serve dev.13; and issue #8 is closed complete. Phases 31 and 36 have completed
 prerequisites, and Phase 26 remains after Phase 82.
-**Current scope:** land the honest dev.14 checkpoint with the complete password/hash surface and executable
-YAML baseline, collect exact-master CI and all four native compatibility receipts, publish the seventh Yes,
-then continue the 198 classified YAML parser failures on Phase 31's separate production branch.
+**Current scope:** merge this evidence-only publication reconciliation, pass exact CI/Documentation/Pages,
+verify live `clun.sh` and an isolated hosted dev.14 install, close issue #10, and hand the release lane to
+Phase 37/dev.15 while the compatibility-Yes sprint continues in parallel.
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
 easiest to hardest among dependency-ready rows. Core engine/runtime/network/tooling changes are expected.
 Every conversion requires a legitimate canonical issue, accepted design, full declared behavior, executable
 four-target evidence, synchronized public surfaces, and the correct SemVer transition. The active parallel
-queue is password/hash publication, YAML, transport streaming, shell, and test-runner parity; exact
-canonical ledger IDs are
-frozen in `PLAN.md`.
+queue is YAML, transport streaming, shell, test-runner parity, and the dependency-enabling modern ECMAScript
+wave; exact canonical ledger IDs are frozen in `PLAN.md`.
 
-**Current checkpoint:** PR #77 pre-merge head `0f7ebaababf4bda86287097f24e06711d6414521` implements the public
-password/hash APIs, exact hash vectors, bounded password formats and costs, worker-backed slow operations,
-and synchronous invalid-encoding admission. Focused password/YAML evidence passes **232 / 0 / 0**, crypto
-passes **42 / 0 / 0**, JS/TS passes **79 / 0**, and purity is **726 files / 0 violations**. The exact
-Bun-generated YAML suite at `c1076ce95e` freezes **402** executable cases: Clun passes **204** and fails
-**198**, recorded by a licensed byte-pinned source, deterministic translation, case manifest, green baseline
-gate, and deliberately red full-parity gate. The realm teardown regression is fixed and its focused gate
-passes **33 / 0**. YAML remains `Partial`; password/hash is `Yes`; the candidate is **7 Yes / 7 Partial /
-16 No**. Exact PR, merge, release, Pages, and hosted-installation receipts remain pending.
+**Current checkpoint:** PR #77 is squash-merged at exact master
+`002292cbcad064a0da7c2879f9d03b44659a8f59`. Exact-master CI `29553246365`, Documentation `29553246351`
+attempt 2, Pages candidate validation `29553246358` attempt 2, and four-target Compatibility plus aggregate
+receipts `29553246352` passed. Annotated tag `v0.1.0-dev.14` peels exactly to the merge. Release run
+`29553831642` passed the claims gate, all four native builders, compatibility evidence, full tests,
+cryptography, purity, packaging, packaged-binary and installer checks, and immutable publication. Release
+`RE_kwDOTYj8rs4VMAYn` contains exactly four nonempty native archives plus `checksums.txt`; the live-release
+check verifies the exact commit and assets, and an isolated released-asset install reports
+`clun 0.1.0-dev.14` at revision `002292cb`. The published snapshot is **7 Yes / 7 Partial / 16 No**.
+Pending: reconciliation merge, exact Pages deployment, hosted-installer proof, and issue #10 closure.
 
 **M5 entry boundary:** immutable dev.4 diagnostic set **56 total / 0 pass / 56 fail / 0 skip / 0 crash**:
 **43 m5-owned** (32 intrinsic/prototype, 7 parser, 4 raw delegation), **12 m11** direct-eval/`with`
