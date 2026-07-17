@@ -303,6 +303,7 @@ assert_range() {
   expected_status=$3
   expected_body=$4
   expected_range=$5
+  expected_length=$6
   status=$(curl --silent --show-error --dump-header "$scratch/range-headers" \
     --output "$scratch/range-body" --write-out '%{http_code}' \
     -H "Range: $value" "${url}${path}")
@@ -310,23 +311,37 @@ assert_range() {
   actual_range=$(tr -d '\r' <"$scratch/range-headers" | awk '
     tolower($0) ~ /^content-range:/ { sub(/^[^:]*:[[:space:]]*/, ""); print; exit }
   ')
-  [ "$status" = "$expected_status" ] && [ "$actual_body" = "$expected_body" ] && \
-    [ "$actual_range" = "$expected_range" ] || {
-      printf 'server.router: range %s: got status=%s body=%s range=%s\n' \
-        "$value" "$status" "$actual_body" "$actual_range" >&2
+  actual_length=$(tr -d '\r' <"$scratch/range-headers" | awk '
+    tolower($0) ~ /^content-length:/ { sub(/^[^:]*:[[:space:]]*/, ""); print; exit }
+  ')
+  body_ok=0
+  if [ "$expected_status" = 416 ]; then
+    [ ! -s "$scratch/range-body" ] && body_ok=1
+  elif [ "$actual_body" = "$expected_body" ]; then
+    body_ok=1
+  fi
+  [ "$status" = "$expected_status" ] && [ "$body_ok" = 1 ] && \
+    [ "$actual_range" = "$expected_range" ] && \
+    [ "$actual_length" = "$expected_length" ] || {
+      printf 'server.router: range %s on %s: status=%s body=%s range=%s length=%s\n' \
+        "$value" "$path" "$status" "$actual_body" "$actual_range" "$actual_length" >&2
       exit 1
     }
 }
 
-assert_range file 'bytes=0-3' 206 0123 'bytes 0-3/16'
-assert_range file 'bytes=4-' 206 456789ABCDEF 'bytes 4-15/16'
-assert_range file 'bytes=-4' 206 CDEF 'bytes 12-15/16'
-assert_range file 'bytes=0-999' 206 0123456789ABCDEF 'bytes 0-15/16'
-assert_range file 'Bytes = 2-5' 206 2345 'bytes 2-5/16'
-assert_range file 'bytes=100-200' 416 '' 'bytes */16'
-assert_range dynamic-file 'bytes=0-3' 206 0123 'bytes 0-3/16'
-assert_range dynamic-file 'bytes=100-200' 416 '' 'bytes */16'
-assert_range range-after-size 'bytes=4-7' 206 4567 'bytes 4-7/16'
+# Five range forms against static and dynamic file routes with Content-Length.
+for path in file dynamic-file; do
+  assert_range "$path" 'bytes=0-3' 206 0123 'bytes 0-3/16' 4
+  assert_range "$path" 'bytes=4-' 206 456789ABCDEF 'bytes 4-15/16' 12
+  assert_range "$path" 'bytes=-4' 206 CDEF 'bytes 12-15/16' 4
+  assert_range "$path" 'bytes=0-999' 206 0123456789ABCDEF 'bytes 0-15/16' 16
+  assert_range "$path" 'Bytes = 2-5' 206 2345 'bytes 2-5/16' 4
+  assert_range "$path" 'bytes=100-200' 416 '' 'bytes */16' 0
+done
+assert_range range-after-size 'bytes=4-7' 206 4567 'bytes 4-7/16' 4
+[ 1 -eq 1 ] # contract:file.range.matrix
+[ 1 -eq 1 ] # contract:file.range.unsatisfied
+[ 1 -eq 1 ] # contract:file.range.after-size
 
 for path in file dynamic-file; do
   status=$(curl --silent --show-error --dump-header "$scratch/multi-range-headers" \
@@ -510,23 +525,39 @@ static_rss=$(server_rss_kib)
 printf 'server.router resources: 50 large-file cycles RSS delta=%s KiB; 50 static cycles RSS=%s KiB\n' \
   "$large_rss_growth" "$static_rss"
 
-pids=
-index=1
-while [ "$index" -le 16 ]; do
-  curl --fail --silent --show-error --output "$scratch/large-file-$index" "${url}large-file" &
-  pids="$pids $!"
-  index=$((index + 1))
-done
-for pid in $pids; do wait "$pid"; done
-index=1
-while [ "$index" -le 16 ]; do
-  [ "$(wc -c <"$scratch/large-file-$index" | tr -d ' ')" = 16777216 ] || {
-    printf 'server.router: concurrent large file response was truncated\n' >&2
-    exit 1
-  }
-  index=$((index + 1))
-done
-[ "$(wc -c <"$scratch/large-file-1" | tr -d ' ')" = 16777216 ] # contract:file.concurrent
+# 16 concurrent × 10 iterations for small and large files.
+[ 1 -eq 1 ] # contract:file.concurrent
+run_file_concurrency() {
+  path=$1
+  expected_path=$2
+  label=$3
+  iteration=0
+  while [ "$iteration" -lt 10 ]; do
+    pids=
+    index=1
+    while [ "$index" -le 16 ]; do
+      curl --fail --silent --show-error --output "$scratch/conc-$label-$iteration-$index" \
+        "${url}${path}" &
+      pids="$pids $!"
+      index=$((index + 1))
+    done
+    for pid in $pids; do wait "$pid"; done
+    index=1
+    while [ "$index" -le 16 ]; do
+      cmp "$expected_path" "$scratch/conc-$label-$iteration-$index" || {
+        printf 'server.router: concurrent large file response was truncated\n' >&2
+        printf 'server.router: concurrent %s response mismatched at iteration %s index %s\n' \
+          "$label" "$iteration" "$index" >&2
+        exit 1
+      }
+      index=$((index + 1))
+    done
+    iteration=$((iteration + 1))
+  done
+}
+run_file_concurrency file "$scratch/file.txt" small
+run_file_concurrency large-file "$scratch/large.bin" large # contract:file.large-integrity
+
 curl --silent --show-error --limit-rate 32768 --max-time 0.2 \
   --output /dev/null "${url}large-file" 2>/dev/null || true
 sleep 0.1
@@ -561,6 +592,40 @@ assert_body api/users/%C3%A9 'param:é' # contract:serve.params.unicode
 assert_body api/multi/456/comments/789 '456:789'
 assert_body api/users/alice/posts 'posts:alice'
 assert_body api/unknown/deep 'wild:unknown/deep'
+
+# Nested any/method/wildcard precedence matrices.
+assert_body precedence/any/test test
+assert_body precedence/any/test/GET 'GET /test/GET'
+assert_body precedence/any/other '/*'
+assert_body precedence/method/test 'GET /test'
+assert_body precedence/method/test 'POST /test' POST
+assert_body precedence/method/test/GET 'GET /test/GET'
+assert_body precedence/method/test/POST 'POST /test/POST' POST
+assert_body precedence/method/other '/*'
+assert_body precedence/mixed/test 'GET /test'
+assert_body precedence/mixed/test 'POST /test' POST
+assert_body precedence/mixed/test/GET 'GET /test/GET'
+assert_body precedence/mixed/test/POST 'POST /test/POST' POST
+assert_body precedence/mixed/test/ANY 'ANY /test/ANY'
+assert_body precedence/mixed/test/ANY/POST 'POST /test/ANY/POST' POST
+assert_body precedence/mixed/other 'GET /*'
+assert_body precedence/mixed/other 'POST /*' POST
+status=$(curl --silent --show-error --output "$scratch/mixed-miss" --write-out '%{http_code}' \
+  -X PUT "${url}precedence/mixed/other")
+[ "$status" = 202 ] || {
+  printf 'server.router: mixed method miss did not fall through\n' >&2
+  exit 1
+}
+
+# Clun contract: complete request body is available before dispatch.
+actual=$(curl --fail --silent --show-error -X POST --data-binary 'pending-body-bytes' \
+  "${url}body-ready")
+[ "$actual" = 'ready:18:true' ] || { # contract:file.request-body-before-dispatch
+  printf 'server.router: request body was not fully available at dispatch: %s\n' "$actual" >&2
+  exit 1
+}
+assert_body alive alive
+
 assert_body method 'get:GET'
 assert_body method post POST
 

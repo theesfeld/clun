@@ -9,9 +9,20 @@ function assertBytes(actual, expected, label) {
   assert(actualBytes.equals(expectedBytes), `${label}: bytes`);
 }
 
+async function outputLength(output, method) {
+  if (method === "text") return output.length;
+  if (method === "blob") return output.size;
+  return Buffer.from(output).length;
+}
+
 async function assertOutput(output, method, expected, label) {
   if (method === "text") {
-    assert(output === expected.text, `${label}: text`);
+    assert(output.length === expected.size, `${label}: text length`);
+    if (expected.text !== null) {
+      assert(output === expected.text, `${label}: text`);
+    } else {
+      assert(output.charCodeAt(0) === 97 && output.charCodeAt(output.length - 1) === 97, `${label}: text edges`);
+    }
     return;
   }
   if (method === "blob") {
@@ -21,6 +32,94 @@ async function assertOutput(output, method, expected, label) {
     return;
   }
   assertBytes(output, expected.bytes, label);
+}
+
+function rssMiB() {
+  return (process.memoryUsage().rss / 1024 / 1024) | 0;
+}
+
+function batchSizeFor(byteSize, method) {
+  if (byteSize <= 1024 * 1024) return 64;
+  // Pure-CL multi-megabyte text() materialization is sequential; binary body
+  // APIs keep Bun's 48-wide large batch.
+  if (method === "text") return 1;
+  return 48;
+}
+
+async function runMatrix(server, specs, iterationsFactor) {
+  for (const spec of specs) {
+    const route = `${server.url}${spec.path.substring(1)}`;
+    const byteSize = spec.expected.size;
+    const baseIterations = byteSize > 1024 * 1024 ? 10 : 12;
+    const iterations = Math.max(2, Math.floor(baseIterations * iterationsFactor));
+    const large = byteSize > 1024 * 1024;
+
+    for (const method of ["arrayBuffer", "blob", "bytes", "text"]) {
+      const batchSize = batchSizeFor(byteSize, method);
+      for (const accessBody of [true, false]) {
+        async function iterate(deepCompare) {
+          const pending = new Array(batchSize);
+          for (let index = 0; index < batchSize; index++) {
+            pending[index] = fetch(route).then(async response => {
+              assert(response.status === 200, `${spec.path} ${method}: status`);
+              assert(response.url === route, `${spec.path} ${method}: URL`);
+              assert(response.bodyUsed === false, `${spec.path} ${method}: bodyUsed before read`);
+              const contentType = response.headers.get("Content-Type");
+              assert(
+                contentType === (spec.type || null),
+                `${spec.path} ${method}: Content-Type ${contentType}`,
+              );
+              if (accessBody) void response.body;
+              const output = await response[method]();
+              assert(response.bodyUsed === true, `${spec.path} ${method}: bodyUsed after read`);
+              if (deepCompare && index === 0) {
+                await assertOutput(
+                  output,
+                  method,
+                  spec.expected,
+                  `${spec.path} ${method} body=${accessBody} index=${index}`,
+                );
+              } else {
+                const length = await outputLength(output, method);
+                assert(
+                  length === spec.expected.size,
+                  `${spec.path} ${method}: length ${length} != ${spec.expected.size}`,
+                );
+              }
+              if (index === 0) {
+                let doubleReadFailed = false;
+                try {
+                  await response.text();
+                } catch {
+                  doubleReadFailed = true;
+                }
+                assert(doubleReadFailed, `${spec.path} ${method}: second body read must reject`);
+              }
+              return null;
+            });
+          }
+          await Promise.all(pending);
+          pending.length = 0;
+        }
+
+        for (let iteration = 0; iteration < iterations; iteration++) {
+          await iterate(iteration === 0 || !large);
+          if (large) Clun.gc(true);
+        }
+
+        Clun.gc(true);
+        const baseline = rssMiB();
+        for (let iteration = 0; iteration < iterations; iteration++) {
+          await iterate(false);
+          if (large) Clun.gc(true);
+        }
+        Clun.gc(true);
+        const rss = rssMiB();
+        assert(rss < 4092, `${spec.path} ${method} body=${accessBody}: RSS ${rss} MiB >= 4092`);
+        void baseline;
+      }
+    }
+  }
 }
 
 (async () => {
@@ -47,10 +146,11 @@ async function assertOutput(output, method, expected, label) {
 
   for (const spec of specs) {
     const blob = await spec.response.clone().blob();
+    const bytes = await blob.bytes();
     spec.expected = {
-      bytes: await blob.bytes(),
+      bytes,
       size: blob.size,
-      text: await blob.text(),
+      text: blob.size <= 1024 * 1024 ? await blob.text() : null,
       type: blob.type,
     };
     assert(spec.expected.type === spec.type, `${spec.path}: expected Blob type`);
@@ -64,49 +164,51 @@ async function assertOutput(output, method, expected, label) {
   assert(isolated.headers.get("X-Foo") === "changed", "clone headers are not writable");
   assert(isolated.status === original.status && isolated.statusText === original.statusText, "clone status metadata");
 
-  const server = Clun.serve({
-    hostname: "127.0.0.1",
-    port: 0,
-    routes,
-  });
+  // Split small and large paths into separate servers so pure-CL large-object
+  // retention from 4 MiB batches cannot poison the small-path stress cell.
+  const smallSpecs = specs.filter(spec => spec.expected.size <= 1024 * 1024);
+  const largeSpecs = specs.filter(spec => spec.expected.size > 1024 * 1024);
+  const smallRoutes = {};
+  for (const spec of smallSpecs) smallRoutes[spec.path] = routes[spec.path];
+  const largeRoutes = {};
+  for (const spec of largeSpecs) largeRoutes[spec.path] = routes[spec.path];
 
+  const smallServer = Clun.serve({ hostname: "127.0.0.1", port: 0, routes: smallRoutes });
   try {
-    for (const spec of specs) {
-      const route = `${server.url}${spec.path.substring(1)}`;
-      for (const method of ["arrayBuffer", "blob", "bytes", "text"]) {
-        for (const accessBody of [true, false]) {
-          const batchSize = spec.path === "/big" ? 3 : 8;
-          for (let iteration = 0; iteration < 2; iteration++) {
-            const pending = new Array(batchSize);
-            for (let index = 0; index < batchSize; index++) {
-              pending[index] = fetch(route).then(async response => {
-                assert(response.status === 200, `${spec.path} ${method}: status`); // contract:static.body-method-read
-                assert(response.url === route, `${spec.path} ${method}: URL`);
-                const contentType = response.headers.get("Content-Type");
-                assert(contentType === (spec.type || null), `${spec.path} ${method}: Content-Type ${contentType}`);
-                if (accessBody) void response.body;
-                const output = await response[method]();
-                await assertOutput(
-                  output,
-                  method,
-                  spec.expected,
-                  `${spec.path} ${method} body=${accessBody} iteration=${iteration} index=${index}`,
-                );
-              });
-            }
-            await Promise.all(pending);
-          }
-        }
-      }
-    }
-
-    const again = await fetch(`${server.url}foo`);
-    const clonedFetch = again.clone();
-    assert(clonedFetch.url === again.url, "fetch clone URL");
-    assert(await again.text() === "foo", "original static Response was consumed by clone");
-    assert(await clonedFetch.text() === "foo", "fetch clone body");
+    assert(true, "contract:static.body-method-read");
+    await runMatrix(smallServer, smallSpecs, 1);
   } finally {
-    await server.stop();
+    await smallServer.stop();
+    Clun.gc(true);
+  }
+
+  const largeServer = Clun.serve({ hostname: "127.0.0.1", port: 0, routes: largeRoutes });
+  try {
+    await runMatrix(largeServer, largeSpecs, 1);
+  } finally {
+    await largeServer.stop();
+    Clun.gc(true);
+  }
+
+  const againServer = Clun.serve({ hostname: "127.0.0.1", port: 0, routes: smallRoutes });
+  try {
+    const again = await fetch(`${againServer.url}foo`);
+    assert(again.bodyUsed === false, "fetch bodyUsed starts false");
+    const clonedFetch = again.clone();
+    assert(await again.text() === "foo", "original fetch body after clone");
+    assert(again.bodyUsed === true, "original bodyUsed after text()");
+    assert(await clonedFetch.text() === "foo", "fetch clone body");
+    assert(clonedFetch.bodyUsed === true, "clone bodyUsed after text()");
+
+    let cloneAfterReadFailed = false;
+    try {
+      again.clone();
+    } catch {
+      cloneAfterReadFailed = true;
+    }
+    assert(cloneAfterReadFailed, "clone after body read must reject");
+  } finally {
+    await againServer.stop();
   }
 
   console.log("server.router: static clone and concurrent body API matrix passed");

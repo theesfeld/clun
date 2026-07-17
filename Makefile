@@ -30,7 +30,9 @@ all: build
 ## Keeping those processes separate prevents cold-build compiler state from bloating the executable.
 build:
 	$(SBCL) $(SBCL_FLAGS) --load scripts/registry.lisp --eval '(asdf:compile-system :clun)'
-	$(SBCL) $(SBCL_FLAGS) --load scripts/build.lisp
+	# 4 GiB default dynamic space is required for the pinned static-route stress
+	# matrix (48 concurrent 4 MiB responses with body API copies) without OOM.
+	$(SBCL) --dynamic-space-size 4096 $(SBCL_FLAGS) --load scripts/build.lisp
 
 ## test — parachute CL suites + the tests/js + tests/ts harnesses (need the binary).
 test: test-lisp test-ts test-js

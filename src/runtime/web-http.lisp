@@ -23,6 +23,7 @@
             (:constructor %make-js-request))
   (headers-alist '() :type list)
   (body #() :type vector)
+  (body-used-p nil)
   headers-object)
 
 (defstruct (js-server-request
@@ -35,7 +36,8 @@
 (defstruct (js-response
             (:include eng:js-object (class :response))
             (:constructor %make-js-response))
-  body)
+  body
+  (body-used-p nil))
 
 (defstruct (js-blob
             (:include eng:js-object (class :blob))
@@ -495,47 +497,91 @@ Headers, Request, Response, and cookie state never use this mechanism."
         (or (car (%header-values headers "content-type")) "")
         "")))
 
+(defun %body-used-p (value)
+  (cond
+    ((js-response-p value) (js-response-body-used-p value))
+    ((js-request-p value) (js-request-body-used-p value))
+    (t nil)))
+
+(defun %mark-body-used (value)
+  (cond
+    ((js-response-p value)
+     (setf (js-response-body-used-p value) t)
+     (setf (js-response-body value) eng:+null+))
+    ((js-request-p value)
+     (setf (js-request-body-used-p value) t)
+     (setf (js-request-body value)
+           (make-array 0 :element-type '(unsigned-byte 8)))))
+  value)
+
+(defun %consume-body-octets (value body-function)
+  "Return body octets once.  Subsequent mixin reads and clone after use reject."
+  (when (%body-used-p value)
+    (eng:throw-type-error "Body has already been used"))
+  (let ((octets (copy-seq (funcall body-function value))))
+    (%mark-body-used value)
+    octets))
+
 (defun %install-body-methods (prototype require-function body-function)
   (let ((global (eng:realm-global eng:*realm*)))
+    (%define-accessor
+     prototype "bodyUsed"
+     (lambda (this args) (declare (ignore args))
+       (funcall require-function this)
+       (eng:js-boolean (%body-used-p this)))
+     nil)
+    ;; Accessing .body does not consume buffered bodies (Fetch stream lock is
+    ;; separate); stress fixtures probe the getter without reading bytes.
+    (%define-accessor
+     prototype "body"
+     (lambda (this args) (declare (ignore args))
+       (funcall require-function this)
+       eng:+null+)
+     nil)
     (%install-prototype-method
      prototype "text" 0
      (lambda (this args) (declare (ignore args))
        (funcall require-function this)
        (%resolved-promise global
-                          (%body-text-decode (funcall body-function this)))))
+                          (%body-text-decode
+                           (%consume-body-octets this body-function)))))
     (%install-prototype-method
      prototype "blob" 0
      (lambda (this args) (declare (ignore args))
        (funcall require-function this)
-       (%resolved-promise
-        global
-        (%make-js-blob
-         :proto (web-http-realm-state-blob-prototype (%http-state))
-         :bytes (copy-seq (funcall body-function this))
-         :type (%normalize-blob-type (%body-content-type this))))))
+       (let ((octets (%consume-body-octets this body-function)))
+         (%resolved-promise
+          global
+          (%make-js-blob
+           :proto (web-http-realm-state-blob-prototype (%http-state))
+           :bytes octets
+           :type (%normalize-blob-type (%body-content-type this)))))))
     (%install-prototype-method
      prototype "bytes" 0
      (lambda (this args) (declare (ignore args))
        (funcall require-function this)
-       (%resolved-promise global
-                          (eng:u8-from-octets (funcall body-function this)))))
+       (%resolved-promise
+        global
+        (eng:u8-from-octets (%consume-body-octets this body-function)))))
     (%install-prototype-method
      prototype "arrayBuffer" 0
      (lambda (this args) (declare (ignore args))
        (funcall require-function this)
        (%resolved-promise
         global
-        (eng:js-get (eng:u8-from-octets (funcall body-function this)) "buffer"))))
+        (eng:js-get
+         (eng:u8-from-octets (%consume-body-octets this body-function))
+         "buffer"))))
     (%install-prototype-method
      prototype "json" 0
      (lambda (this args) (declare (ignore args))
        (funcall require-function this)
-       (let ((json (eng:js-get global "JSON")))
+       (let ((json (eng:js-get global "JSON"))
+             (octets (%consume-body-octets this body-function)))
          (%resolved-promise
           global
           (eng:js-call (eng:js-get json "parse") json
-                       (list (%body-text-decode
-                              (funcall body-function this))))))))))
+                       (list (%body-text-decode octets)))))))))
 
 (defun %install-request-prototype (prototype)
   (%install-body-methods prototype #'%require-request #'%req-body)
@@ -760,6 +806,8 @@ Headers, Request, Response, and cookie state never use this mechanism."
   (let* ((response (%require-response response))
          (init (eng:new-object))
          (url (eng:js-get response "url")))
+    (when (js-response-body-used-p response)
+      (eng:throw-type-error "Cannot clone a response with a used body"))
     (eng:data-prop init "status" (eng:js-get response "status"))
     (eng:data-prop init "statusText" (eng:js-get response "statusText"))
     (eng:data-prop init "headers" (eng:js-get response "headers"))

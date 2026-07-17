@@ -131,6 +131,45 @@ const routes = {
   "/api/multi/:postId/comments/:commentId": request =>
     new Response(`${request.params.postId}:${request.params.commentId}`),
   "/api/*": request => new Response(`wild:${request.params["*"]}`),
+  // Nested any/method/wildcard matrices (Bun serve.precedence.any/method/mixed).
+  "/precedence/any/test": () => new Response("test"),
+  "/precedence/any/test/GET": () => new Response("GET /test/GET"),
+  "/precedence/any/*": () => new Response("/*"),
+  "/precedence/method/test": {
+    GET: () => new Response("GET /test"),
+    POST: () => new Response("POST /test"),
+  },
+  "/precedence/method/test/POST": {
+    POST: () => new Response("POST /test/POST"),
+  },
+  "/precedence/method/test/GET": {
+    GET: () => new Response("GET /test/GET"),
+  },
+  "/precedence/method/*": () => new Response("/*"),
+  "/precedence/mixed/test": {
+    GET: () => new Response("GET /test"),
+    POST: () => new Response("POST /test"),
+  },
+  "/precedence/mixed/test/POST": {
+    POST: () => new Response("POST /test/POST"),
+  },
+  "/precedence/mixed/test/GET": {
+    GET: () => new Response("GET /test/GET"),
+  },
+  "/precedence/mixed/test/ANY": () => new Response("ANY /test/ANY"),
+  "/precedence/mixed/test/ANY/POST": {
+    POST: () => new Response("POST /test/ANY/POST"),
+  },
+  "/precedence/mixed/*": {
+    GET: () => new Response("GET /*"),
+    POST: () => new Response("POST /*"),
+  },
+  // Complete request body is available before dispatch (Clun contract).
+  "/body-ready": async request => {
+    const text = await request.text();
+    return new Response(`ready:${text.length}:${request.bodyUsed}`);
+  },
+  "/alive": () => new Response("alive"),
   "/method": {
     GET: request => new Response(`get:${request.method}`),
     POST: () => new Response("post"),
