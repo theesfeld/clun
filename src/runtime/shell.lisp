@@ -521,7 +521,8 @@
 
 (defparameter *shell-builtins*
   '("echo" "pwd" "cd" "true" "false" ":" "export" "unset" "which" "exit"
-    "basename" "dirname" "seq" "cat" "mkdir" "touch" "rm" "mv" "ls" "cp" "yes"))
+    "basename" "dirname" "seq" "cat" "mkdir" "touch" "rm" "mv" "ls" "cp" "yes"
+    "[["))
 
 (defun %shell-relative-path (path state)
   (if (clun.sys:absolute-path-p path)
@@ -1737,6 +1738,84 @@ integer conversions are deliberately rejected because seq values are f32."
     (%shell-fill-byte-target target pattern)
     (make-shell-result)))
 
+(defun %shell-condition-integer (value)
+  (handler-case
+      (multiple-value-bind (integer position)
+          (parse-integer value :junk-allowed t)
+        (and integer (= position (length value)) integer))
+    (error () nil)))
+
+(defun %shell-condition-stat (path &key lstat)
+  (and path (plusp (length path))
+       (ignore-errors (clun.sys:stat* path :lstat lstat))))
+
+(defun %shell-condition-path (value state)
+  (and (plusp (length value)) (%shell-relative-path value state)))
+
+(defun %shell-condition-unary-p (operator value state)
+  (let ((path (and (member operator '("-e" "-f" "-d" "-c" "-L")
+                           :test #'string=)
+                   (%shell-condition-path value state))))
+    (cond
+      ((string= operator "-n") (plusp (length value)))
+      ((string= operator "-z") (zerop (length value)))
+      ((string= operator "-e") (not (null (%shell-condition-stat path))))
+      ((string= operator "-f")
+       (let ((stat (%shell-condition-stat path)))
+         (and stat (clun.sys:fstat-file-p stat))))
+      ((string= operator "-d")
+       (let ((stat (%shell-condition-stat path)))
+         (and stat (clun.sys:fstat-dir-p stat))))
+      ((string= operator "-c")
+       (let ((stat (%shell-condition-stat path)))
+         (and stat (= (logand (clun.sys:fstat-mode stat) #o170000) #o020000))))
+      ((string= operator "-L")
+       (let ((stat (%shell-condition-stat path :lstat t)))
+         (and stat (clun.sys:fstat-symlink-p stat))))
+      (t nil))))
+
+(defun %shell-condition-binary-p (left operator right state)
+  (cond
+    ((member operator '("=" "==") :test #'string=) (string= left right))
+    ((string= operator "!=") (not (string= left right)))
+    ((string= operator "-ef")
+     (let ((left-stat (%shell-condition-stat (%shell-condition-path left state)))
+           (right-stat (%shell-condition-stat (%shell-condition-path right state))))
+       (and left-stat right-stat
+            (= (clun.sys:fstat-dev left-stat) (clun.sys:fstat-dev right-stat))
+            (= (clun.sys:fstat-ino left-stat) (clun.sys:fstat-ino right-stat)))))
+    ((member operator '("-eq" "-ne" "-lt" "-le" "-gt" "-ge")
+             :test #'string=)
+     (let ((left-number (%shell-condition-integer left))
+           (right-number (%shell-condition-integer right)))
+       (and left-number right-number
+            (cond
+              ((string= operator "-eq") (= left-number right-number))
+              ((string= operator "-ne") (/= left-number right-number))
+              ((string= operator "-lt") (< left-number right-number))
+              ((string= operator "-le") (<= left-number right-number))
+              ((string= operator "-gt") (> left-number right-number))
+              (t (>= left-number right-number))))))
+    (t nil)))
+
+(defun %shell-condition-p (terms state)
+  (cond
+    ((null terms) nil)
+    ((string= (first terms) "!") (not (%shell-condition-p (rest terms) state)))
+    ((= (length terms) 1) (plusp (length (first terms))))
+    ((= (length terms) 2)
+     (%shell-condition-unary-p (first terms) (second terms) state))
+    ((= (length terms) 3)
+     (%shell-condition-binary-p (first terms) (second terms) (third terms) state))
+    (t nil)))
+
+(defun %shell-run-condition (arguments state)
+  (if (and arguments (string= (car (last arguments)) "]]"))
+      (%shell-result-from-strings
+       "" "" (if (%shell-condition-p (butlast arguments) state) 0 1))
+      (%shell-result-from-strings
+       "" (format nil "clun: conditional expression: expected ]]~%") 2)))
+
 (defun %shell-run-builtin (argv state env stdin)
   "Return RESULT and true when ARGV names a builtin."
   (let ((name (first argv)) (args (rest argv)))
@@ -1778,6 +1857,8 @@ integer conversions are deliberately rejected because seq values are f32."
        ;; YES needs its bounded target and is dispatched by
        ;; %SHELL-EXECUTE-COMMAND before the ordinary builtin path.
        (values (%shell-run-yes args nil) t))
+      ((string= name "[[")
+       (values (%shell-run-condition args state) t))
       ((string= name "pwd")
        (values (%shell-result-from-strings
                 (concatenate 'string (shell-state-cwd state) (string #\Newline)) "" 0) t))
@@ -1960,6 +2041,43 @@ integer conversions are deliberately rejected because seq values are f32."
     (make-shell-result :stdout stdout :stderr stderr
                        :exit-code (shell-result-exit-code result))))
 
+(defun %shell-condition-fragment-string (fragment state g)
+  (case (shell-fragment-kind fragment)
+    (:literal (shell-fragment-value fragment))
+    (:interpolation
+     (format nil "~{~a~^ ~}"
+             (%shell-flatten-interpolation (shell-fragment-value fragment))))
+    (:variable
+     (%shell-env-get (shell-state-env state) (shell-fragment-value fragment) ""))
+    (:status (princ-to-string (shell-state-last-exit-code state)))
+    (:substitution
+     (let* ((sub-state (copy-shell-state state))
+            (result (%shell-execute-units
+                     (shell-fragment-value fragment) sub-state g)))
+       (setf (shell-state-last-exit-code state)
+             (shell-result-exit-code result))
+       (%shell-trim-command-output (%shell-string (shell-result-stdout result)))))
+    (otherwise "")))
+
+(defun %shell-condition-word-value (word state g)
+  (with-output-to-string (output)
+    (dolist (fragment (shell-word-fragments word))
+      (write-string (%shell-condition-fragment-string fragment state g) output))))
+
+(defun %shell-condition-command-p (command)
+  (let* ((word (first (shell-command-words command)))
+         (fragments (and word (shell-word-fragments word))))
+    (and (= (length fragments) 1)
+         (eq (shell-fragment-kind (first fragments)) :literal)
+         (string= (shell-fragment-value (first fragments)) "[["))))
+
+(defun %shell-command-argv (command state g)
+  (if (%shell-condition-command-p command)
+      (mapcar (lambda (word) (%shell-condition-word-value word state g))
+              (shell-command-words command))
+      (mapcan (lambda (word) (%shell-word-values word state g))
+              (shell-command-words command))))
+
 (defun %shell-execute-command (command state g stdin)
   (let ((env (%shell-env-copy (shell-state-env state))))
     (dolist (assignment (shell-command-assignments command))
@@ -1969,8 +2087,7 @@ integer conversions are deliberately rejected because seq values are f32."
         (progn
           (setf (shell-state-env state) env)
           (make-shell-result))
-        (let ((argv (mapcan (lambda (word) (%shell-word-values word state g))
-                            (shell-command-words command))))
+        (let ((argv (%shell-command-argv command state g)))
           (if (null argv)
               (make-shell-result)
               (multiple-value-bind (input output-redirections)
@@ -2181,7 +2298,7 @@ deadlock even when commands produce output larger than kernel pipe capacity."
 
 (defparameter *shell-no-stdin-builtins*
   '("echo" "pwd" "cd" "true" "false" ":" "export" "unset" "which" "exit"
-    "basename" "dirname" "seq" "mkdir" "touch" "rm" "mv" "ls" "cp"))
+    "basename" "dirname" "seq" "mkdir" "touch" "rm" "mv" "ls" "cp" "[["))
 
 (defun %shell-no-stdin-builtin-p (command)
   (let ((name (%shell-static-command-name command)))
