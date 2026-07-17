@@ -463,7 +463,8 @@ region is being erased by the caller)."
 (defun namespace-type-only-p (w)
   "Peek (non-destructive): is the namespace/module body at the current `{` purely
 type-only? It is runtime iff it contains, at brace-depth 1, a value leader
-(var/let/const/function/class) or an export/import that is NOT type-only."
+(var/let/const/function/class/enum) or an export/import that is NOT type-only.
+Bare `enum` is runtime (value object); `const enum` is already caught via `const`."
   (let ((save (w-i w)) (result t) (depth 0))
     (block scan
       (loop until (w-eof w)
@@ -471,7 +472,8 @@ type-only? It is runtime iff it contains, at brace-depth 1, a value leader
                  ((w-punct w "{") (incf depth) (w-adv w))
                  ((w-punct w "}") (decf depth) (w-adv w) (when (zerop depth) (return-from scan)))
                  ((and (= depth 1) (eq (w-cty w) :name) (not (eng:token-escaped (w-cur w)))
-                       (member (w-cv w) '("var" "let" "const" "function" "class") :test #'string=))
+                       (member (w-cv w) '("var" "let" "const" "function" "class" "enum")
+                               :test #'string=))
                   (setf result nil) (return-from scan))
                  ((and (= depth 1) (or (w-name w "export") (w-name w "import")))
                   (if (or (tname= (w-toks w) (1+ (w-i w)) "type")
@@ -495,14 +497,29 @@ where the body never emits runtime code), else error at the keyword."
         (ts-error kw "TypeScript namespace declaration is not supported in strip-only mode"
                   (w-path w)))))
 
-(defun scan-namespace-or-stmt (w &key ambient)
-  "For the `declare` branch: a nested namespace/module erases whole (ambient); any
-other declaration recurses through scan-statement."
-  (if (and (or (leader= w "namespace") (leader= w "module"))
-           (member (ttype (w-toks w) (1+ (w-i w))) '(:name :string)))
-      (scan-namespace w ambient)
-      (scan-statement w)))
+(defun scan-enum-ambient (w)
+  "Advance past an ambient `enum` / `const enum` body. Caller (declare branch)
+records the whole `declare …` erase span — no per-token erases here."
+  (when (and (leader= w "const") (tname= (w-toks w) (1+ (w-i w)) "enum"))
+    (w-adv w))                                 ; const
+  (w-adv w)                                    ; enum
+  (when (eq (w-cty w) :name) (w-adv w))        ; name
+  (when (w-punct w "{") (w-skip-balanced-nostrip w))
+  (when (w-punct w ";") (w-adv w)))
 
+(defun scan-namespace-or-stmt (w &key ambient)
+  "For the `declare` branch: nested namespace/module erases whole (ambient);
+ambient enum / const enum advances past the body for the outer erase; any other
+declaration recurses through scan-statement."
+  (cond
+    ((and (or (leader= w "namespace") (leader= w "module"))
+          (member (ttype (w-toks w) (1+ (w-i w))) '(:name :string)))
+     (scan-namespace w ambient))
+    ((and ambient
+          (or (leader= w "enum")
+              (and (leader= w "const") (tname= (w-toks w) (1+ (w-i w)) "enum"))))
+     (scan-enum-ambient w))
+    (t (scan-statement w))))
 ;;; --- import / export --------------------------------------------------------
 
 (defun scan-import (w)
@@ -654,6 +671,8 @@ depth 0 / EOF), without stripping."
     ((and (or (leader= w "namespace") (leader= w "module"))
           (member (ttype (w-toks w) (1+ (w-i w))) '(:name :string)))
      (scan-namespace w))
+    ;; Value `enum` / `const enum` need emit (Phase 39). Ambient forms under
+    ;; `declare` are handled by scan-namespace-or-stmt → scan-enum-ambient.
     ((or (leader= w "enum")
          (and (leader= w "const") (tname= (w-toks w) (1+ (w-i w)) "enum")))
      (w-err w "TypeScript enum is not supported in strip-only mode"))
