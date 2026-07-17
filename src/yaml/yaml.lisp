@@ -899,11 +899,16 @@
                       (scalar-node (fr-parser reader) "" line column offset)
                       (flow-parse-node reader (1+ depth) :key-p t))))
         (let* ((line-break (fr-skip-separation reader))
+               (key-line-break
+                 (or (position #\Newline (fr-text reader)
+                               :start key-start :end (fr-position reader))
+                     (position #\Return (fr-text reader)
+                               :start key-start :end (fr-position reader))))
                (colon-p (and (eql (fr-peek reader) #\:)
                              (or (not line-break)
                                  (flow-value-indicator-p reader)))))
-          (declare (ignore key-start))
-          (when (and (not explicit) colon-p line-break)
+          (when (and (not explicit) colon-p
+                     (or line-break key-line-break))
             (yaml-fail (fr-parser reader) :implicit-key
                        "an implicit flow-sequence key must stay on one line"
                        :line line :column column :offset offset))
@@ -1543,11 +1548,17 @@
         (t
          (if (block-plain-start-p rest)
              (let ((node
+                     (progn
+                       (when (block-mapping-colon rest)
+                         (yaml-fail parser :mapping-in-scalar
+                                    "mapping indicator is not allowed in a plain scalar value"
+                                    :line line :column rest-column
+                                    :offset rest-offset))
                      (scalar-node
                       parser
                       (gather-block-plain-lines
                        parser rest parent-indent allow-same-indent-plain)
-                      line rest-column rest-offset :tag tag :style :plain)))
+                      line rest-column rest-offset :tag tag :style :plain))))
                (register-anchor parser anchor node line column offset))
              (parse-inline-value
               parser
@@ -1600,8 +1611,18 @@
   (let* ((key-start (trim-left-index content 1))
          (key-text (subseq content key-start))
          (key (parse-explicit-entry-node
-               parser key-text mapping-indent line
-               (+ column key-start) (+ offset key-start) depth)))
+               parser
+               (progn
+                 (when (and (position #\Tab content :start 1 :end key-start)
+                            (or (sequence-indicator-p key-text)
+                                (block-mapping-colon key-text)))
+                   (yaml-fail parser :tab-indentation
+                              "tab cannot establish explicit-key indentation"
+                              :line line :column (+ column key-start)
+                              :offset (+ offset key-start)))
+                 key-text)
+               mapping-indent line (+ column key-start)
+               (+ offset key-start) depth)))
     (skip-ignorable-lines parser)
     (let ((value
             (if (and (< (yp-index parser) (length (yp-lines parser)))
@@ -1615,6 +1636,14 @@
                              (value-text (subseq current-content value-start))
                              (value-column (+ 1 current-indent value-start))
                              (value-offset (+ (sl-offset current) current-indent value-start)))
+                        (when (and (position #\Tab current-content
+                                             :start 1 :end value-start)
+                                   (or (sequence-indicator-p value-text)
+                                       (block-mapping-colon value-text)))
+                          (yaml-fail parser :tab-indentation
+                                     "tab cannot establish explicit-value indentation"
+                                     :line (sl-number current) :column value-column
+                                     :offset value-offset))
                         (parse-explicit-entry-node
                          parser value-text mapping-indent
                          (sl-number current) value-column value-offset depth))
@@ -1921,6 +1950,18 @@
         (setf inline-line (aref (yp-lines parser) (yp-index parser))
               inline-start (marker-rest inline-line "---"))
         (unless (zerop (length inline-start))
+          (multiple-value-bind (rest-index anchor tag)
+              (parse-node-properties
+               parser inline-start 0 (sl-number inline-line) 5
+               (+ (sl-offset inline-line) 4))
+            (declare (ignore tag))
+            (let ((rest (trim-ascii-space (subseq inline-start rest-index))))
+              (when (and anchor (plusp (length rest))
+                         (block-mapping-colon rest))
+                (yaml-fail parser :document-start-properties
+                           "an anchored block mapping cannot start on the document marker"
+                           :line (sl-number inline-line) :column 5
+                           :offset (+ (sl-offset inline-line) 4)))))
           ;; The line itself is consumed by gather-inline-lines.
           (return-from parse-one-document
             (parse-value-from-current parser inline-start 0

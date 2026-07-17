@@ -3,8 +3,9 @@
 (pass) collections
 (pass) instance + throw + not
 (pass) strict vs loose
+(pass) shared and cyclic values
 
- 5 pass
+ 6 pass
  0 fail
- 27 expect() calls
-Ran 5 tests across 1 file.
+ 29 expect() calls
+Ran 6 tests across 1 file.

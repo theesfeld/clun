@@ -53,28 +53,34 @@ the length property), or NIL when V has no numeric length."
     ((gethash a seen) (eq (gethash a seen) b))
     (t
      (setf (gethash a seen) b)
-     (let ((ca (eng:js-object-class a)) (cb (eng:js-object-class b)))
-       (cond
-         ((and (eq ca :date) (eq cb :date))
-          (= (%num (eng:js-call (eng:js-get a "getTime") a '()))
-             (%num (eng:js-call (eng:js-get b "getTime") b '()))))
-         ((and (eq ca :regexp) (eq cb :regexp))
-          (and (string= (eng:to-string (eng:js-get a "source")) (eng:to-string (eng:js-get b "source")))
-               (string= (eng:to-string (eng:js-get a "flags")) (eng:to-string (eng:js-get b "flags")))))
-         ((and (eng:js-array-p a) (eng:js-array-p b))
-          (let ((la (eng:array-length a)) (lb (eng:array-length b)))
-            (and (= la lb)
-                 (loop for i below la always
-                       (%le (eng:js-getv a (princ-to-string i)) (eng:js-getv b (princ-to-string i)) seen)))))
-         ((or (eng:js-array-p a) (eng:js-array-p b)) nil)
-         (t
-          ;; own enumerable string keys, ignoring keys whose value is undefined on both
-          (let* ((ka (%own-string-keys a)) (kb (%own-string-keys b))
-                 (keys (remove-duplicates (append ka kb) :test #'string=)))
-            (loop for k in keys
-                  for va = (eng:js-getv a k) for vb = (eng:js-getv b k)
-                  always (or (and (eng:js-undefined-p va) (eng:js-undefined-p vb))
-                             (%le va vb seen))))))))))
+     (unwind-protect
+          (let ((ca (eng:js-object-class a)) (cb (eng:js-object-class b)))
+            (cond
+              ((and (eq ca :date) (eq cb :date))
+               (= (%num (eng:js-call (eng:js-get a "getTime") a '()))
+                  (%num (eng:js-call (eng:js-get b "getTime") b '()))))
+              ((and (eq ca :regexp) (eq cb :regexp))
+               (and (string= (eng:to-string (eng:js-get a "source"))
+                             (eng:to-string (eng:js-get b "source")))
+                    (string= (eng:to-string (eng:js-get a "flags"))
+                             (eng:to-string (eng:js-get b "flags")))))
+              ((and (eng:js-array-p a) (eng:js-array-p b))
+               (let ((la (eng:array-length a)) (lb (eng:array-length b)))
+                 (and (= la lb)
+                      (loop for i below la always
+                            (%le (eng:js-getv a (princ-to-string i))
+                                 (eng:js-getv b (princ-to-string i)) seen)))))
+              ((or (eng:js-array-p a) (eng:js-array-p b)) nil)
+              (t
+               ;; own enumerable string keys, ignoring keys whose value is undefined on both
+               (let* ((ka (%own-string-keys a)) (kb (%own-string-keys b))
+                      (keys (remove-duplicates (append ka kb) :test #'string=)))
+                 (loop for k in keys
+                       for va = (eng:js-getv a k) for vb = (eng:js-getv b k)
+                       always (or (and (eng:js-undefined-p va)
+                                       (eng:js-undefined-p vb))
+                                  (%le va vb seen)))))))
+       (remhash a seen)))))
 
 (defun %match-object (actual expected)
   "Recursive subset: every own key of EXPECTED matches (loose) in ACTUAL."
