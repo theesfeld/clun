@@ -375,20 +375,50 @@
   (make-shell-pipeline
    :commands (mapcar #'%shell-parse-command (%shell-split-tokens tokens "|"))))
 
+(defun %shell-static-token-word (token)
+  (when (eq (shell-token-kind token) :word)
+    (let ((fragments (shell-word-fragments (shell-token-value token))))
+      (when (and (= (length fragments) 1)
+                 (eq (shell-fragment-kind (first fragments)) :literal)
+                 (not (shell-fragment-quoted (first fragments))))
+        (shell-fragment-value (first fragments))))))
+
+(defun %shell-operator-word-token (operator)
+  (make-shell-token
+   :kind :word
+   :value (make-shell-word
+           :fragments (list (make-shell-fragment
+                             :kind :literal :value operator :quoted nil)))))
+
 (defun %shell-parse (units)
-  (let ((tokens (%shell-lex units)) (pipelines '()) (operators '()) (current '()))
+  (let ((tokens (%shell-lex units)) (pipelines '()) (operators '()) (current '())
+        (in-condition nil))
     (labels ((flush (operator)
                (when current
                  (push (%shell-parse-pipeline (nreverse current)) pipelines)
                  (setf current '())
                  (when operator (push operator operators)))))
       (dolist (token tokens)
-        (if (and (eq (shell-token-kind token) :operator)
-                 (member (shell-token-value token) '(";" "&&" "||") :test #'string=))
-            (flush (cond ((string= (shell-token-value token) "&&") :and)
-                         ((string= (shell-token-value token) "||") :or)
-                         (t :sequence)))
-            (push token current)))
+        (let ((word (%shell-static-token-word token)))
+          (cond
+            ((and (not in-condition) word (string= word "[["))
+             (setf in-condition t)
+             (push token current))
+            ((and in-condition word (string= word "]]"))
+             (setf in-condition nil)
+             (push token current))
+            ((and in-condition
+                  (eq (shell-token-kind token) :operator)
+                  (member (shell-token-value token) '("&&" "||" "<" ">")
+                          :test #'string=))
+             (push (%shell-operator-word-token (shell-token-value token)) current))
+            ((and (not in-condition)
+                  (eq (shell-token-kind token) :operator)
+                  (member (shell-token-value token) '(";" "&&" "||") :test #'string=))
+             (flush (cond ((string= (shell-token-value token) "&&") :and)
+                          ((string= (shell-token-value token) "||") :or)
+                          (t :sequence))))
+            (t (push token current)))))
       (flush nil))
     ;; A trailing separator records one extra operator; it has no right-hand side.
     (when (>= (length operators) (length pipelines))
@@ -1778,6 +1808,8 @@ integer conversions are deliberately rejected because seq values are f32."
   (cond
     ((member operator '("=" "==") :test #'string=) (string= left right))
     ((string= operator "!=") (not (string= left right)))
+    ((string= operator "<") (string< left right))
+    ((string= operator ">") (string> left right))
     ((string= operator "-ef")
      (let ((left-stat (%shell-condition-stat (%shell-condition-path left state)))
            (right-stat (%shell-condition-stat (%shell-condition-path right state))))
@@ -1798,21 +1830,113 @@ integer conversions are deliberately rejected because seq values are f32."
               (t (>= left-number right-number))))))
     (t nil)))
 
+(defun %shell-condition-normalize-parentheses (terms)
+  "Split grouping parentheses attached to operands without splitting balanced pattern text."
+  (let ((output '()) (depth 0))
+    (dolist (term terms (nreverse output))
+      (let* ((length (length term))
+             (leading (loop for index below length
+                            while (char= (char term index) #\()
+                            count 1))
+             (body (subseq term leading)))
+        (dotimes (index leading)
+          (declare (ignore index))
+          (push "(" output)
+          (incf depth))
+        (let ((balance 0) (unmatched 0))
+          (loop for character across body do
+            (cond
+              ((char= character #\() (incf balance))
+              ((char= character #\))
+               (if (plusp balance) (decf balance) (incf unmatched)))))
+          (let* ((trailing (loop for index downfrom (1- (length body)) to 0
+                                 while (char= (char body index) #\))
+                                 count 1))
+                 (closings (min depth unmatched trailing))
+                 (value (subseq body 0 (- (length body) closings))))
+            (when (or (plusp (length value))
+                      (and (zerop leading) (zerop closings)))
+              (push value output))
+            (dotimes (index closings)
+              (declare (ignore index))
+              (push ")" output)
+              (decf depth))))))))
+
 (defun %shell-condition-p (terms state)
-  (cond
-    ((null terms) nil)
-    ((string= (first terms) "!") (not (%shell-condition-p (rest terms) state)))
-    ((= (length terms) 1) (plusp (length (first terms))))
-    ((= (length terms) 2)
-     (%shell-condition-unary-p (first terms) (second terms) state))
-    ((= (length terms) 3)
-     (%shell-condition-binary-p (first terms) (second terms) (third terms) state))
-    (t nil)))
+  (let* ((terms (coerce (%shell-condition-normalize-parentheses terms) 'vector))
+         (length (length terms))
+         (unary-operators '("-n" "-z" "-e" "-f" "-d" "-c" "-L"))
+         (binary-operators '("=" "==" "!=" "<" ">" "-ef"
+                             "-eq" "-ne" "-lt" "-le" "-gt" "-ge")))
+    (labels ((term (index) (and (< index length) (aref terms index)))
+             (invalid (index) (values nil index nil))
+             (parse-primary (index evaluate)
+               (let ((current (term index)))
+                 (cond
+                   ((null current) (invalid index))
+                   ((string= current "(")
+                    (multiple-value-bind (value next valid)
+                        (parse-or (1+ index) evaluate)
+                      (if (and valid (term next) (string= (term next) ")"))
+                          (values value (1+ next) t)
+                          (invalid next))))
+                   ((string= current ")") (invalid index))
+                   ((member current unary-operators :test #'string=)
+                    (let ((operand (term (1+ index))))
+                      (if (and operand (not (member operand '("&&" "||" ")")
+                                                   :test #'string=)))
+                          (values (and evaluate
+                                       (%shell-condition-unary-p current operand state))
+                                  (+ index 2) t)
+                          (invalid index))))
+                   ((and (term (1+ index))
+                         (member (term (1+ index)) binary-operators :test #'string=))
+                    (let ((right (term (+ index 2))))
+                      (if (and right (not (member right '("&&" "||" ")")
+                                                 :test #'string=)))
+                          (values (and evaluate
+                                       (%shell-condition-binary-p
+                                        current (term (1+ index)) right state))
+                                  (+ index 3) t)
+                          (invalid index))))
+                   (t (values (and evaluate (plusp (length current)))
+                              (1+ index) t)))))
+             (parse-not (index evaluate)
+               (if (and (term index) (string= (term index) "!"))
+                   (multiple-value-bind (value next valid)
+                       (parse-not (1+ index) evaluate)
+                     (values (and evaluate valid (not value)) next valid))
+                   (parse-primary index evaluate)))
+             (parse-and (index evaluate)
+               (multiple-value-bind (value next valid) (parse-not index evaluate)
+                 (loop while (and valid (term next) (string= (term next) "&&")) do
+                   (multiple-value-bind (right after right-valid)
+                       (parse-not (1+ next) (and evaluate value))
+                     (setf valid right-valid
+                           value (and evaluate value right)
+                           next after)))
+                 (values value next valid)))
+             (parse-or (index evaluate)
+               (multiple-value-bind (value next valid) (parse-and index evaluate)
+                 (loop while (and valid (term next) (string= (term next) "||")) do
+                   (multiple-value-bind (right after right-valid)
+                       (parse-and (1+ next) (and evaluate (not value)))
+                     (setf valid right-valid
+                           value (and evaluate (or value right))
+                           next after)))
+                 (values value next valid))))
+      (multiple-value-bind (value next valid) (parse-or 0 t)
+        (values (and valid (= next length) value)
+                (and valid (= next length)))))))
 
 (defun %shell-run-condition (arguments state)
   (if (and arguments (string= (car (last arguments)) "]]"))
-      (%shell-result-from-strings
-       "" "" (if (%shell-condition-p (butlast arguments) state) 0 1))
+      (multiple-value-bind (matches valid)
+          (%shell-condition-p (butlast arguments) state)
+        (if valid
+            (%shell-result-from-strings "" "" (if matches 0 1))
+            (%shell-result-from-strings
+             "" (format nil "clun: conditional expression: invalid expression~%") 2)))
       (%shell-result-from-strings
        "" (format nil "clun: conditional expression: expected ]]~%") 2)))
 
