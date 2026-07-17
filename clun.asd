@@ -321,6 +321,7 @@
                                                          (:file "http-server-tests")
                                                          (:file "router-tests")
                                                          (:file "fetch-tests")
+                                                         (:file "web-streams-tests")
                                                          (:file "https-tests")))
                                            (:module "install"
                                             :serial t
