@@ -55,7 +55,6 @@ and the branch must rebase onto the published train before it can land.
 0.1.0-dev.16
 0.1.0-dev.17
 0.1.0-dev.18
-0.1.0-dev.18
 ```
 
 Phase 25b is the compatibility program for the planned `0.1.0` release. Its first behavioral
