@@ -2782,3 +2782,10 @@ The shipped `echo` fixture binds all 41 active stable and engineering IDs to exa
 assertions. This includes the engineering trailing-newline regressions and prevents a general echo smoke test
 from being used as aggregate credit. The evidence-only closure changes the public count but not runtime
 behavior or the allocated `0.1.0-dev.18` boundary.
+
+### 2026-07-16 - Phase 65 credits the complete pinned cp cluster through hermetic binary evidence
+
+The shipped `cp` fixture binds all 32 stable and engineering IDs to independent filesystem outcomes and exact
+diagnostics. It covers overwrite, directory destinations, repeated sources, multi-source failures, same-file
+rejection, verbose paths, and recursive copies without relying on the host `cp`. This evidence-only closure
+changes the public count but not runtime behavior or the allocated `0.1.0-dev.18` boundary.
