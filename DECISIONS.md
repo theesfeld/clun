@@ -2729,3 +2729,19 @@ disposition by itself, and the existing version remains unchanged. Phase 65 and 
 until the public API, shell language, execution, portability, injection, backpressure, signal, and stress
 contracts pass. The exact 27-file tagged-template Test262 gate records 23 pass, the existing direct-eval
 lexical-environment failure, three policy skips, and zero timeout or crash without hiding those residuals.
+
+### 2026-07-16 - Phase 65 parses the application shell without a host shell
+
+`Clun.$` keeps ordinary template expressions as out-of-band lexer units and promotes only explicit raw
+objects into source grammar. This makes interpolation safety structural: a string containing `;`, `|`, `$()`,
+or glob metacharacters remains one argument instead of relying on reversible quoting. The parser produces a
+small shell AST and runs builtins in-process; external commands are resolved from the job environment and
+launched directly through SBCL's sanctioned subprocess API. Calling `sh -c` was rejected because it would
+make behavior host-dependent and turn parser escaping into the security boundary.
+
+External-only pipelines are started concurrently and connect adjacent process streams. Their final stdout
+and aggregate stderr use temporary files so the parent never blocks a child by delaying a terminal pipe
+drain. Pipelines containing stateful builtins currently use the bounded sequential executor and remain an
+explicit Phase 65 residual rather than being mislabeled as complete. The public API addition is a SemVer
+minor unit, but the compatibility row remains below `Yes` until the complete frozen corpus, signal/lifecycle,
+stress, and four-target gates pass.
