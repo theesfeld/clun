@@ -22,10 +22,10 @@ Clun does not claim blanket speed parity with Bun.
 
 Source is the `0.1.0-dev.23` Phase 37 milestone 3 candidate (ES2025 `Set.prototype` set-methods).
 No compatibility-table `Yes` is claimed. Published
-[`v0.1.0-dev.18`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.18) is the verified release
-boundary (shell PR #86). Master tip is `0.1.0-dev.22` after Phase 28 transport foundation (#95);
+[`v0.1.0-dev.21`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.21) is the verified release
+boundary. Master tip is `0.1.0-dev.22` after Phase 28 transport foundation (#95; unpublished);
 this unit stages `0.1.0-dev.23` as the next free prerelease under the unpublished-intermediate
-gap policy (transition 22→23). The hosted installer correctly remains on published dev.18 until
+gap policy (transition 22→23). The hosted installer correctly remains on published dev.21 until
 the candidate is merged, tagged, and released.
 
 ## Install

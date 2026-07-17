@@ -20,7 +20,7 @@ https://github.com/theesfeld/clun/issues/39, and https://github.com/theesfeld/cl
 **SemVer impact:** `minor`
 **Candidate release:** `0.1.0-dev.23` / `v0.1.0-dev.23`
 **Published release:** `0.1.0-dev.18` / `v0.1.0-dev.18`
-**Entry boundary:** immutable `v0.1.0-dev.18` is tagged at exact master `b5ecdb5defeef8ddede72ef794e41f14fb423b86` with four native archives + checksums (release run 29596302229); installer defaults to that tag. Master tip is `0.1.0-dev.22` after Phase 28 transport foundation (#95, merge `ba2e998b`). This unit stages `0.1.0-dev.23` as the next free prerelease under the unpublished-intermediate gap policy (transition 22→23). Phase 26 remains after Phase 82.
+**Entry boundary:** immutable `v0.1.0-dev.21` is the verified published release boundary with four native archives + checksums; installer defaults to that tag. Master tip is `0.1.0-dev.22` after Phase 28 transport foundation (#95, merge `ba2e998b`, unpublished). This unit stages `0.1.0-dev.23` as the next free prerelease under the unpublished-intermediate gap policy (transition 22→23; previous_version = published `0.1.0-dev.21`). Phase 26 remains after Phase 82.
 **Next scope:** keep Phase 37 open (no matrix Yes); green exact-head CI on the staged candidate; residual
 modern ECMAScript inventory continues after m3; pass-list reclassification is owned by the release unit.
 
