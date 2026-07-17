@@ -16,11 +16,11 @@ https://github.com/theesfeld/clun/issues/2, and https://github.com/theesfeld/clu
 policy, assignment multi-match join, and 35 closed pending corpus sites (1,282 covered / 316
 pending / 32 upstream-inactive). `tooling.shell` remains **Partial**; no Yes claim.
 **SemVer impact:** `patch`
-**Candidate release:** `0.1.0-dev.22` / `v0.1.0-dev.22`
+**Candidate release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
 **Published release:** `0.1.0-dev.18` / `v0.1.0-dev.18`
 **Entry boundary:** immutable `v0.1.0-dev.18` is tagged; installer defaults to that tag. Master
-source is `0.1.0-dev.21` after Phase 37 m2 (#96); this unit stages `0.1.0-dev.22` (transition
-21→22). Phase 26 remains after Phase 82.
+source is `0.1.0-dev.21` after Phase 37 m2 (#96). This unit is an **unpublished correction** of that
+candidate (release-bearing shell behavior fix; no new prerelease slot). Phase 26 remains after Phase 82.
 **Next scope:** residual parser/lifecycle/background/permission shell rows; keep Partial until
 four-target Yes gates.
 

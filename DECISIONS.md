@@ -3121,5 +3121,5 @@ exit status 1, matching Bun Expansion.rs. Assignment position keeps the literal 
 multi-match assignment values join with a single space so later unquoted expansions re-split.
 Brace+glob composition still keeps every brace variant as a literal while appending pathname
 matches. Inventory disposition advances to **1,282 covered / 316 pending / 32 upstream-inactive**
-(35 sites closed this unit). SemVer impact is `patch` at `0.1.0-dev.22`; `tooling.shell` stays
-`Partial` (no Yes claim).
+(35 sites closed this unit). SemVer impact is `patch` as an unpublished correction of master
+`0.1.0-dev.21` (no new prerelease slot); `tooling.shell` stays `Partial` (no Yes claim).
