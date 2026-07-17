@@ -15,11 +15,11 @@ Update when work completes; keep consistent with the Issue, README, and site.
 https://github.com/theesfeld/clun/issues/24, and https://github.com/theesfeld/clun/issues/39
 **Current implementation unit:** Phase 66 Partial landing pad on draft PR #88 — mocks, snapshots, coverage,
 reporters, sharding, fake timers, and preloads. Ledger `tooling.test-runner` remains **Partial** (not Yes).
-Shell Partial is on `master` as source `0.1.0-dev.18`; published boundary remains `v0.1.0-dev.17`; this unit stages `0.1.0-dev.19` for release-bearing source (transition 18→19).
+Shell Partial is published as `v0.1.0-dev.18` (merge `b5ecdb5defeef8ddede72ef794e41f14fb423b86`); installer defaults to that tag; this unit stages candidate `0.1.0-dev.19` (Phase 66 Partial).
 **SemVer impact:** `minor`
 **Candidate release:** `0.1.0-dev.19` / `v0.1.0-dev.19`
-**Published release:** `0.1.0-dev.17` / `v0.1.0-dev.17`
-**Entry boundary:** immutable `v0.1.0-dev.17` is published; shell Partial is on `master` as source `0.1.0-dev.18` (PR #86, tag pending). Installer defaults to `v0.1.0-dev.17`. This branch stages `0.1.0-dev.19` on draft PR #88.
+**Published release:** `0.1.0-dev.18` / `v0.1.0-dev.18`
+**Entry boundary:** immutable `v0.1.0-dev.18` is tagged at exact master `b5ecdb5defeef8ddede72ef794e41f14fb423b86` with four native archives + checksums (release run 29596302229). Installer defaults to that tag. Master source stages `0.1.0-dev.19` Phase 66 Partial (PR #88).
 **Next scope:** post-66.23 residual close (bun:test ESM resolve, concurrent/parallel, host-meta roots); Yes only
 with full PLAN gate and four-target receipts.
 
