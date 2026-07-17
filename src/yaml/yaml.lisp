@@ -61,6 +61,7 @@
   (document 0 :type fixnum)
   (anchors (make-hash-table :test 'equal))
   (tag-handles (make-hash-table :test 'equal))
+  (declared-tag-handles (make-hash-table :test 'equal))
   (nodes 0 :type fixnum)
   (edges 0 :type fixnum)
   (aliases 0 :type fixnum))
@@ -226,11 +227,10 @@
 
 (defun register-anchor (parser name node line column offset)
   (when name
-    (when (gethash name (yp-anchors parser))
-      (yaml-fail parser :duplicate-anchor
-                 (format nil "duplicate anchor '&~a'" name)
-                 :line line :column column :offset offset))
-    (when (>= (hash-table-count (yp-anchors parser)) +max-anchors+)
+    ;; A repeated name shadows the lookup for subsequent aliases; aliases
+    ;; already resolved to the earlier node retain that identity.
+    (when (and (not (gethash name (yp-anchors parser)))
+               (>= (hash-table-count (yp-anchors parser)) +max-anchors+))
       (yaml-fail parser :anchor-limit "YAML anchor limit exceeded"
                  :line line :column column :offset offset))
     (setf (gethash name (yp-anchors parser)) node
@@ -249,7 +249,7 @@
 
 (defun token-delimiter-p (character)
   (or (ascii-space-p character)
-      (member character '(#\[ #\] #\{ #\} #\, #\: #\#))))
+      (member character '(#\[ #\] #\{ #\} #\, #\#))))
 
 (defun property-token-end (string start)
   (loop for index from start below (length string)
@@ -287,10 +287,6 @@
                                        :line line :column (+ column position)
                                        :offset (+ offset position)))
                         (property-token-end text (1+ position)))))
-           (when (= end (1+ position))
-             (yaml-fail parser :invalid-tag "tag name is empty"
-                        :line line :column (+ column position)
-                        :offset (+ offset position)))
            (when (and (< (1+ position) (length text))
                       (char= (char text (1+ position)) #\<))
              (incf end))
@@ -299,32 +295,34 @@
         (otherwise (return))))
     (values position anchor tag)))
 
+(defun expand-tag (parser tag line column offset)
+  "Expand TAG through active %TAG handles; custom tags stay inert metadata."
+  (cond
+    ((null tag) nil)
+    ((string= tag "!") "tag:yaml.org,2002:str")
+    ((and (> (length tag) 3)
+          (string= tag "!<" :end1 2)
+          (char= (char tag (1- (length tag))) #\>))
+     (subseq tag 2 (1- (length tag))))
+    (t
+     (let* ((secondary (and (> (length tag) 1)
+                            (position #\! tag :start 1)))
+            (handle (if secondary (subseq tag 0 (1+ secondary)) "!"))
+            (suffix (subseq tag (length handle)))
+            (prefix (gethash handle (yp-tag-handles parser))))
+       (unless prefix
+         (yaml-fail parser :undefined-tag-handle
+                    (format nil "undefined YAML tag handle '~a'" handle)
+                    :line line :column column :offset offset))
+       (concatenate 'string prefix suffix)))))
+
 (defun canonical-tag (parser tag line column offset)
-  (when tag
-    (cond
-      ((member tag '("!!str" "!!int" "!!float" "!!bool" "!!null" "!!seq" "!!map")
-               :test #'string=)
-       tag)
-      ((and (> (length tag) 3)
-            (string= tag "!<" :end1 2)
-            (char= (char tag (1- (length tag))) #\>))
-       (let ((uri (subseq tag 2 (1- (length tag)))))
-         (if (and (>= (length uri) 18)
-                  (string= uri "tag:yaml.org,2002:" :end2 18))
-             (let ((short (concatenate 'string "!!" (subseq uri 18))))
-               (if (member short '("!!str" "!!int" "!!float" "!!bool" "!!null"
-                                   "!!seq" "!!map") :test #'string=)
-                   short
-                   (yaml-fail parser :unsupported-tag
-                              (format nil "unsupported YAML tag '~a'" tag)
-                              :line line :column column :offset offset)))
-             (yaml-fail parser :unsupported-tag
-                        (format nil "unsupported YAML tag '~a'" tag)
-                        :line line :column column :offset offset))))
-      (t
-       (yaml-fail parser :unsupported-tag
-                  (format nil "unsupported YAML tag '~a'" tag)
-                  :line line :column column :offset offset)))))
+  (let ((expanded (expand-tag parser tag line column offset)))
+    (if (and expanded
+             (>= (length expanded) 18)
+             (string= expanded "tag:yaml.org,2002:" :end1 18 :end2 18))
+        (concatenate 'string "!!" (subseq expanded 18))
+        expanded)))
 
 (defun decimal-digit-p (character)
   (and character (char<= #\0 character #\9)))
@@ -981,6 +979,80 @@
             (yaml-fail parser :scalar-limit "YAML scalar length limit exceeded"
                        :line (sl-number next) :column 1 :offset (sl-offset next))))))))
 
+(defun comment-only-line-p (line)
+  (let* ((text (sl-text line))
+         (start (trim-left-index text)))
+    (and (< start (length text)) (char= (char text start) #\#))))
+
+(defun gather-block-plain-lines (parser initial parent-indent allow-same-indent)
+  "Fold physical continuation lines for a block-context plain scalar."
+  (let* ((initial-line (aref (yp-lines parser) (yp-index parser)))
+         (parts (list initial))
+        (pending-empty-lines 0)
+        ;; A separated comment terminates a plain scalar. Keeping later lines
+        ;; outside the scalar also lets the document parser reject an illegal
+        ;; continuation after that comment.
+         (terminated-by-comment
+           (not (null (comment-start (sl-text initial-line))))))
+    (incf (yp-index parser))
+    (loop while (and (not terminated-by-comment)
+                     (< (yp-index parser) (length (yp-lines parser)))) do
+      (when (document-boundary-p parser) (return))
+      (let* ((next (aref (yp-lines parser) (yp-index parser)))
+             (indent (line-indentation parser next))
+             (content (line-content next indent)))
+        (cond
+          ((comment-only-line-p next) (return))
+          ((zerop (length content))
+           (incf pending-empty-lines)
+           (incf (yp-index parser)))
+          ((or (> indent parent-indent)
+               (and allow-same-indent (= indent parent-indent)))
+           (when (or (sequence-indicator-p content)
+                     (block-explicit-key-p content)
+                     (block-mapping-colon content))
+             (return))
+           (let ((comment (comment-start (sl-text next) indent)))
+             (push (if (plusp pending-empty-lines)
+                       (make-string pending-empty-lines :initial-element #\Newline)
+                       " ")
+                   parts)
+             (push content parts)
+             (setf terminated-by-comment (not (null comment))))
+           (setf pending-empty-lines 0)
+           (incf (yp-index parser)))
+          (t (return)))))
+    (when terminated-by-comment
+      (loop for index from (yp-index parser) below (length (yp-lines parser))
+            for next = (aref (yp-lines parser) index)
+            for indent = (line-indentation parser next)
+            for content = (line-content next indent)
+            unless (or (zerop (length content)) (comment-only-line-p next)) do
+              (cond
+                ((or (marker-line-p parser next "---")
+                     (marker-line-p parser next "..."))
+                 (return))
+                ((and (zerop indent) (char= (char content 0) #\%))
+                 (yaml-fail parser :directive-after-content
+                            "YAML directive requires an explicit prior document end"
+                            :line (sl-number next) :column 1 :offset (sl-offset next)))
+                ((and (or (> indent parent-indent)
+                          (and allow-same-indent (= indent parent-indent)))
+                      (not (sequence-indicator-p content))
+                      (not (block-explicit-key-p content))
+                      (not (block-mapping-colon content)))
+                 (yaml-fail parser :invalid-plain-continuation
+                            "plain scalar cannot continue after a comment"
+                            :line (sl-number next) :column (1+ indent)
+                            :offset (+ (sl-offset next) indent))))
+              (return)))
+    (let ((result (with-output-to-string (output)
+                    (dolist (part (nreverse parts))
+                      (write-string part output)))))
+      (when (> (length result) +max-scalar-length+)
+        (yaml-fail parser :scalar-limit "YAML scalar length limit exceeded"))
+      result)))
+
 (defun string-trailing-newline-count (string)
   (loop for index downfrom (1- (length string)) to 0
         while (char= (char string index) #\Newline)
@@ -1091,7 +1163,8 @@
       (let ((canonical (canonical-tag parser tag line column offset)))
         (case (yaml-node-kind node)
           ((:sequence :mapping)
-           (apply-collection-tag parser node canonical line column offset))
+           (setf (yaml-node-tag node) canonical)
+           node)
           (otherwise
            (let* ((text (case (yaml-node-kind node)
                           (:null "")
@@ -1122,7 +1195,8 @@
 (declaim (ftype (function (yaml-parser integer integer) yaml-node) parse-block-node))
 
 (defun parse-value-from-current (parser text parent-indent line column offset depth
-                                 &key allow-same-indent)
+                                 &key allow-same-indent allow-indentless-sequence
+                                   allow-same-indent-plain)
   "Parse TEXT from the current physical line and advance to its successor."
   (multiple-value-bind (rest-index anchor tag)
       (parse-node-properties parser text 0 line column offset)
@@ -1138,10 +1212,16 @@
                 (indent (and has-next
                              (line-indentation
                               parser (aref (yp-lines parser) (yp-index parser)))))
-                (has-child (and has-next
-                                (if allow-same-indent
-                                    (>= indent parent-indent)
-                                    (> indent parent-indent)))))
+                (has-child
+                  (and has-next
+                       (or (> indent parent-indent)
+                           (and allow-same-indent (>= indent parent-indent))
+                           (and allow-indentless-sequence
+                                (= indent parent-indent)
+                                (sequence-indicator-p
+                                 (line-content
+                                  (aref (yp-lines parser) (yp-index parser))
+                                  indent)))))))
            (cond
              ((and has-child anchor)
               ;; Register before descending so an anchored block collection may
@@ -1181,7 +1261,11 @@
                                              :literal :folded))))
            (register-anchor parser anchor node line column offset)))
         (t
-         (let* ((gathered (gather-inline-lines parser text line column offset))
+         (let* ((plain-p (not (member (char rest 0) '(#\" #\' #\[ #\{ #\*))))
+                (gathered (if plain-p
+                              (gather-block-plain-lines
+                               parser text parent-indent allow-same-indent-plain)
+                              (gather-inline-lines parser text line column offset)))
                 (node (parse-inline-value parser gathered line column offset)))
            node))))))
 
@@ -1225,7 +1309,8 @@
                              :first-column value-column :first-offset value-offset)
                             (parse-value-from-current
                              parser value-text mapping-indent
-                             (sl-number current) value-column value-offset depth)))
+                             (sl-number current) value-column value-offset depth
+                             :allow-indentless-sequence t)))
                       (scalar-node parser "" line column offset)))
                 (scalar-node parser "" line column offset))))
       (checked-edge parser line column offset)
@@ -1249,7 +1334,8 @@
                     (parse-inline-value parser key-text line column offset :key-p t)))
            (value (parse-value-from-current parser value-text mapping-indent
                                             line (+ column value-start)
-                                            (+ offset value-start) depth)))
+                                            (+ offset value-start) depth
+                                            :allow-indentless-sequence t)))
       (checked-edge parser line column offset)
       (vector-push-extend
        (make-yaml-pair :key key :value value :merge-p (merge-key-node-p key)
@@ -1371,11 +1457,13 @@
            (parse-block-mapping parser actual-indent depth))
           (t
            (parse-value-from-current parser content actual-indent
-                                     line-number column offset depth)))))))
+                                     line-number column offset depth
+                                     :allow-same-indent-plain t)))))))
 
 (defun reset-document-state (parser)
   (clrhash (yp-anchors parser))
   (clrhash (yp-tag-handles parser))
+  (clrhash (yp-declared-tag-handles parser))
   (setf (gethash "!!" (yp-tag-handles parser)) "tag:yaml.org,2002:"
         (gethash "!" (yp-tag-handles parser)) "!"))
 
@@ -1384,6 +1472,14 @@
          (content (line-content line indent)))
     (and (zerop indent) (plusp (length content))
          (char= (char content 0) #\%))))
+
+(defun yaml-version-token-p (text)
+  (let ((dot (position #\. text)))
+    (and dot
+         (plusp dot)
+         (< (1+ dot) (length text))
+         (all-digits-p text 0 dot)
+         (all-digits-p text (1+ dot)))))
 
 (defun parse-directive (parser line)
   (let* ((content (line-content line 0))
@@ -1395,8 +1491,11 @@
                       while (< start (length content)))))
     (cond
       ((and (= (length parts) 2) (string= (first parts) "%YAML"))
-       (unless (string= (second parts) "1.2")
-         (yaml-fail parser :unsupported-version "only YAML 1.2 is supported"
+       ;; Bun's reference parser accepts other syntactically valid YAML
+       ;; versions with a warning. Clun has no warning channel here, so it
+       ;; parses them with the same safe schema.
+       (unless (yaml-version-token-p (second parts))
+         (yaml-fail parser :invalid-directive "invalid YAML version directive"
                     :line (sl-number line) :column 1 :offset (sl-offset line)))
        (when (gethash "%YAML" (yp-tag-handles parser))
          (yaml-fail parser :duplicate-directive "duplicate %YAML directive"
@@ -1409,13 +1508,17 @@
                       (char= (char handle (1- (length handle))) #\!))
            (yaml-fail parser :invalid-directive "invalid %TAG handle"
                       :line (sl-number line) :column 1 :offset (sl-offset line)))
-         (when (gethash handle (yp-tag-handles parser))
+         (when (gethash handle (yp-declared-tag-handles parser))
            (yaml-fail parser :duplicate-directive "duplicate %TAG handle"
                       :line (sl-number line) :column 1 :offset (sl-offset line)))
-         (setf (gethash handle (yp-tag-handles parser)) prefix)))
-      (t
+         (setf (gethash handle (yp-declared-tag-handles parser)) t
+               (gethash handle (yp-tag-handles parser)) prefix)))
+      ((and parts (member (first parts) '("%YAML" "%TAG") :test #'string=))
        (yaml-fail parser :invalid-directive "invalid YAML directive"
-                  :line (sl-number line) :column 1 :offset (sl-offset line))))))
+                  :line (sl-number line) :column 1 :offset (sl-offset line)))
+      ;; Reserved directives are intentionally ignored, as required by the
+      ;; YAML grammar. Their arguments never execute or alter parser state.
+      (t nil))))
 
 (defun marker-rest (line marker)
   (let* ((text (sl-text line))
@@ -1450,7 +1553,9 @@
           (return-from parse-one-document
             (parse-value-from-current parser inline-start 0
                                       (sl-number inline-line) 5
-                                      (+ (sl-offset inline-line) 4) 0)))
+                                      (+ (sl-offset inline-line) 4) 0
+                                      :allow-same-indent t
+                                      :allow-same-indent-plain t)))
         (incf (yp-index parser)))
       (skip-ignorable-lines parser)
       (if (or (>= (yp-index parser) (length (yp-lines parser)))

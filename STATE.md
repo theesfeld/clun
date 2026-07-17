@@ -12,14 +12,14 @@ Update when work completes; keep consistent with the Issue, README, and site.
 **Canonical issue:** https://github.com/theesfeld/clun/issues/5
 **Co-release issue:** https://github.com/theesfeld/clun/issues/10
 **Current implementation unit:** retain `security.password-hashing` as the seventh evidence-backed
-compatibility-ledger `Yes`, while driving `data.yaml` from its measured 204 / 402 pinned Bun-generated
+compatibility-ledger `Yes`, while driving `data.yaml` from its measured 246 / 402 pinned Bun-generated
 parser baseline to a legitimate eighth `Yes` through production parser work and four-target evidence.
 **SemVer impact:** `minor`
 **Release target:** `0.1.0-dev.14` / `v0.1.0-dev.14`
 **Entry boundary:** Phase 34 Color and the architecture-stable CookieMap allocation gate are in PR #76 as
 the dev.13 candidate. Dev.14 cannot merge or tag before dev.13 is published, reconciled, and verified by the
 hosted installer. Phases 31 and 36 depend on completed prerequisite work; Phase 26 remains after Phase 82.
-**Current scope:** repair the 198 classified YAML parser failures without exclusions, pass the block-scalar,
+**Current scope:** repair the 156 classified YAML parser failures without exclusions, pass the block-scalar,
 public API, module, security, and resource gates, then collect exact-master CI and all four native
 compatibility receipts. The coordinated YAML and password/hash candidate remains one backward-compatible
 minor release before Pages and hosted-installer reconciliation.
@@ -32,7 +32,7 @@ queue is YAML, password/hash, transport, and modern ECMAScript; exact canonical 
 frozen in `PLAN.md`.
 
 **Current checkpoint:** the exact Bun-generated YAML suite at `c1076ce95e` freezes **402** executable cases.
-The shipped candidate passes **204** and fails **198**; a licensed byte-pinned source, deterministic Clun
+The shipped candidate passes **246** and fails **156**; a licensed byte-pinned source, deterministic Clun
 translation, case-level manifest, reproducible baseline gate, and deliberately red full-parity gate are
 tracked under `tests/compat/data.yaml/upstream/`. YAML is therefore `Partial`, while password/hash remains
 an independently implemented `Yes`. The source candidate is **7 Yes / 7 Partial / 16 No** and retains

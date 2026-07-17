@@ -100,16 +100,16 @@ boundary as other numeric YAML values; they do not become JavaScript BigInt.
 
 ### 3.2 Tags and directives
 
-`%YAML 1.2` and valid `%TAG` declarations are recognized at document boundaries. Standard short
+Syntactically valid `%YAML` versions and valid `%TAG` declarations are recognized at document boundaries. Standard short
 tags and their `tag:yaml.org,2002:` long forms act as Bun-compatible weak type hints. A compatible
 plain scalar resolves to the requested core kind; a quoted scalar or incompatible scalar remains a
 string, and collection shape wins over a mismatched core collection tag. Duplicate directives,
 malformed handles, invalid placement, or multiple tags on one node are syntax errors.
 
-An application-specific or otherwise unsupported tag is rejected. Clun never resolves a YAML tag
-to a Common Lisp class, function, pathname, reader form, package symbol, or arbitrary host object.
-This intentionally follows the Phase 31 security contract even where a pinned Bun parser treats an
-unknown tag as an untyped string.
+Application-specific, verbatim, and otherwise unknown tags remain inert node metadata and do not
+construct host values. Clun never resolves a YAML tag to a Common Lisp class, function, pathname,
+reader form, package symbol, or arbitrary host object. Repeated anchor names shadow lookup for
+subsequent aliases while aliases already resolved to the earlier node retain their identity.
 
 ### 3.3 Mapping and merge policy
 
@@ -305,7 +305,7 @@ The focused phase corpus has five layers:
 4. `tests/compat/data.yaml/` drives the shipped `build/clun` binary over a pinned differential
    corpus. Expected files are locally derived facts and do not contain copied Bun implementation.
 5. Security/stress fixtures cover alias storms, merge amplification, deep flow/block structures,
-   huge scalars, malformed escapes, invalid UTF-8, duplicate anchors, unresolved aliases, unsafe
+   huge scalars, malformed escapes, invalid UTF-8, anchor shadowing, unresolved aliases, unsafe
    tags, `__proto__`, cycles, and repeated parse failures with bounded memory.
 
 The YAML Test Suite slice used for conformance must be byte-pinned with its upstream license and a

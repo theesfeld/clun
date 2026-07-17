@@ -15,8 +15,8 @@ The canonical evidence and current limitations are in `compat/`; `make compat-va
 ## Highlights
 
 - Adds a bounded YAML parser and deterministic stringification through `Clun.YAML`; the candidate
-  currently passes 204 of 402 cases in the exact pinned Bun-generated parser corpus, so YAML remains
-  `Partial` until the remaining 198 cases and all release-target receipts pass.
+  currently passes 246 of 402 cases in the exact pinned Bun-generated parser corpus, so YAML remains
+  `Partial` until the remaining 156 cases and all release-target receipts pass.
 - Loads `.yaml` and `.yml` files through ESM and CommonJS with named exports and shared cache identity.
 - Adds `Clun.password` sync/async password hashing and verification plus the complete pinned `Clun.hash`
   family, with cost ceilings, cross-tool vectors, and off-thread slow work.

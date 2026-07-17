@@ -2715,3 +2715,15 @@ corpus, security/resource gates, and four-target receipts pass. The pinned sourc
 Clun translation, and case-level baseline are committed together; no case can be dropped or reclassified
 silently. The dev.14 SemVer target remains valid because Phase 36's password/hash APIs are independent real
 backward-compatible functionality.
+
+### 2026-07-17 - YAML parser semantics advance the complete corpus to 246 / 402
+
+Production parser work, without fixture exclusions or expectation changes, advances the exact pinned
+402-case corpus from **204 pass / 198 fail** to **246 pass / 156 fail**. The gain comes from YAML anchor
+shadowing, safe inert custom tags and `%TAG` expansion, syntactically valid directive handling, same-indent
+property and indentless-sequence ownership, and multiline block plain-scalar folding with correct comment
+termination. No previously passing pinned case regressed.
+
+The checked-in case-level receipt is updated in the same unit. `data.yaml` remains `Partial`; only a true
+402 / 402 result plus every declared API, module, security, resource, and four-target gate can promote it
+to `Yes`.
