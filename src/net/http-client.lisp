@@ -15,21 +15,6 @@
   "Hard cap for an HTTP response after content decoding.  This prevents a small
 gzip or deflate response from expanding beyond the parser's body budget.")
 
-(defun %dotted-quad-p (s)
-  (and (plusp (length s)) (every (lambda (c) (or (digit-char-p c) (char= c #\.))) s) (find #\. s)))
-
-(defun resolve-hostname (host)
-  "A hostname → a dotted-quad IPv4 string for make-inet-address. localhost + IP literals are
-direct; else blocking sb-bsd-sockets:get-host-by-name (v1 — no getaddrinfo; AAAA is post-v1)."
-  (cond
-    ((null host) "127.0.0.1")
-    ((string-equal host "localhost") "127.0.0.1")
-    ((%dotted-quad-p host) host)
-    (t (handler-case
-           (format nil "~{~d~^.~}"
-                   (coerce (sb-bsd-sockets:host-ent-address (sb-bsd-sockets:get-host-by-name host)) 'list))
-         (error () (error 'socket-open-error :code "ENOTFOUND" :op "getaddrinfo"))))))
-
 (defun %client-ascii-octets (s)
   (let ((v (make-array (length s) :element-type '(unsigned-byte 8))))
     (dotimes (i (length s) v) (setf (aref v i) (logand (char-code (char s i)) #xff)))))
@@ -106,9 +91,14 @@ ON-ERROR with a code string (parse error / timeout / abort / connection error). 
 a CANCEL thunk (abort in flight → ON-ERROR \"abort\"). HOST-HEADER (the origin authority
 for the Host: line) defaults to HOST when the caller does not pass a distinct value."
   (let ((parser (make-http-response-parser)) (conn nil) (done nil) (timer nil)
+        (dns-job nil) (connect-cancel nil)
         (hh (or host-header host)))
-    (labels ((cleanup () (setf done t) (when timer (lp:clear-timer timer))
-                       (when conn (tcp-close conn)))
+    (labels ((cleanup ()
+               (setf done t)
+               (when timer (lp:clear-timer timer))
+               (when dns-job (lp:cancel-worker-job dns-job))
+               (when connect-cancel (funcall connect-cancel))
+               (when conn (tcp-close conn)))
              (fail (code) (unless done (cleanup) (funcall on-error code)))
              (ok (resp)
                (unless done
@@ -117,20 +107,54 @@ for the Host: line) defaults to HOST when the caller does not pass a distinct va
                        (cleanup)
                        (funcall on-response decoded))
                    (http-content-decoding-error (condition)
-                     (fail (princ-to-string condition)))))))
-      (setf conn
-            (tcp-connect loop host port
-              :on-connect (lambda (c) (tcp-write c (%serialize-request method path hh headers body)))
-              :on-data (lambda (c data) (declare (ignore c))
-                         (multiple-value-bind (ev d) (parser-feed parser data)
-                           (case ev
-                             (:response (ok d))
-                             (:error (fail (format nil "HTTP parse error ~a" (car d)))))))
-              :on-close (lambda (c code) (declare (ignore c))
-                          (unless done
-                            (multiple-value-bind (ev d) (response-finish parser)  ; until-close body @ EOF
-                              (if (eq ev :response) (ok d) (fail (or code "connection closed"))))))
-              :on-error (lambda (c code) (declare (ignore c)) (fail code))))
+                     (fail (princ-to-string condition))))))
+             (start-connect (addresses)
+               (unless done
+                 (setf connect-cancel
+                       (tcp-connect-happy loop addresses port
+                         :on-connect
+                         (lambda (c)
+                           (setf conn c)
+                           (tcp-write c (%serialize-request method path hh headers body)))
+                         :on-data
+                         (lambda (c data)
+                           (declare (ignore c))
+                           (multiple-value-bind (event value) (parser-feed parser data)
+                             (case event
+                               (:response (ok value))
+                               (:error
+                                (fail (format nil "HTTP parse error ~a" (car value)))))))
+                         :on-close
+                         (lambda (c code)
+                           (declare (ignore c))
+                           (unless done
+                             (multiple-value-bind (event value) (response-finish parser)
+                               (if (eq event :response)
+                                   (ok value)
+                                   (fail (or code "connection closed"))))))
+                         :on-error
+                         (lambda (c code)
+                           (declare (ignore c))
+                           (fail code)))))))
+      ;; DNS is blocking protocol I/O, so it belongs on the fixed worker pool. The
+      ;; resolver returns an A/AAAA-interleaved candidate list consumed by the reactor
+      ;; race above. Cancellation prevents a late DNS completion from opening sockets.
+      (setf dns-job
+            (lp:worker-submit-cancellable
+             loop
+             (lambda (token)
+               (when (lp:worker-cancelled-p token)
+                 (error 'socket-open-error :code "ECANCELED" :op "resolve"))
+               (resolve-hostname-all host))
+             (lambda (result)
+               (unless done
+                 (case (first result)
+                   (:ok (start-connect (second result)))
+                   (:cancelled nil)
+                   (t (fail (if (and (second result)
+                                     (typep (second result) 'socket-open-error))
+                                (socket-open-error-code (second result))
+                                "ENOTFOUND"))))))))
       (when (and timeout (plusp timeout))
         (setf timer (lp:set-timer loop timeout (lambda () (fail "timeout")))))
       (lambda () (fail "abort")))))

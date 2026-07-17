@@ -85,15 +85,127 @@ for response completion."
                 (error "TLS peer closed without close_notify for an EOF-framed response"))
                (t (error "connection closed before a full response")))))))))
 
+(defun %dns-address-socket (address)
+  (make-instance (if (dns-address-ipv6-p address)
+                     'sb-bsd-sockets:inet6-socket
+                     'sb-bsd-sockets:inet-socket)
+                 :type :stream :protocol :tcp))
+
+(defun %dns-address-native (address)
+  (if (dns-address-ipv6-p address)
+      (sb-bsd-sockets:make-inet6-address (dns-address-text address))
+      (sb-bsd-sockets:make-inet-address (dns-address-text address))))
+
+(defun %connect-happy-blocking (addresses port socket-box timeout-ms)
+  "Connect a blocking-worker transport with the same staggered A/AAAA policy as the
+reactor client. Candidate sockets are nonblocking while raced and no helper thread is
+created. The winning socket is restored to blocking mode for pure-tls."
+  (let* ((candidates (coerce addresses 'vector))
+         (count (length candidates))
+         (next-index 0)
+         (attempts '())
+         (start-ms (%monotonic-ms))
+         (deadline (+ start-ms timeout-ms))
+         (next-start start-ms)
+         (last-code "ECONNREFUSED")
+         (cancel-lock (sb-thread:make-mutex :name "clun-happy-eyeballs-abort"))
+         (cancelled nil))
+    (labels ((close-socket (socket)
+               (ignore-errors (sb-bsd-sockets:socket-close socket :abort t)))
+             (close-all (&optional except)
+               (dolist (attempt attempts)
+                 (unless (eq (car attempt) except)
+                   (close-socket (car attempt)))))
+             (abort-all ()
+               (sb-thread:with-mutex (cancel-lock)
+                 (setf cancelled t)
+                 (close-all)))
+             (start-candidate ()
+               (when (< next-index count)
+                 (let* ((address (aref candidates next-index))
+                        (socket (%dns-address-socket address)))
+                   (incf next-index)
+                   (setf (sb-bsd-sockets:non-blocking-mode socket) t)
+                   (handler-case
+                       (progn
+                         (sb-bsd-sockets:socket-connect
+                          socket (%dns-address-native address) port)
+                         (push (cons socket :connected) attempts))
+                     (sb-bsd-sockets:operation-in-progress ()
+                       (push (cons socket :pending) attempts))
+                     (sb-bsd-sockets:socket-error (condition)
+                       (setf last-code (socket-error-code condition "ECONNREFUSED"))
+                       (close-socket socket))))))
+             (poll-winner ()
+               (dolist (attempt attempts)
+                 (let ((socket (car attempt)))
+                   (cond
+                     ((eq (cdr attempt) :connected) (return-from poll-winner socket))
+                     ((eq (cdr attempt) :pending)
+                      (handler-case
+                          (let ((errno (sb-bsd-sockets:sockopt-error socket)))
+                            (cond
+                              ((and (zerop errno)
+                                    (ignore-errors
+                                      (sb-bsd-sockets:socket-peername socket)))
+                               (setf (cdr attempt) :connected)
+                               (return-from poll-winner socket))
+                              ((not (zerop errno))
+                               (setf (cdr attempt) :failed
+                                     last-code "ECONNREFUSED")
+                               (close-socket socket))))
+                        (sb-bsd-sockets:socket-error (condition)
+                          (setf (cdr attempt) :failed
+                                last-code (socket-error-code condition "ECONNREFUSED"))
+                          (close-socket socket)))))))
+               nil)
+             (live-attempt-p ()
+               (find-if (lambda (attempt)
+                          (member (cdr attempt) '(:pending :connected)))
+                        attempts)))
+      (when socket-box (setf (car socket-box) #'abort-all))
+      (unwind-protect
+           (loop
+             (when cancelled
+               (error 'socket-open-error :code "ECANCELED" :op "connect"))
+             (let ((now (%monotonic-ms)))
+               (when (>= now deadline)
+                 (error 'socket-open-error :code "ETIMEDOUT" :op "connect"))
+               (when (and (< next-index count)
+                          (or (>= now next-start) (not (live-attempt-p))))
+                 (start-candidate)
+                 (setf next-start (+ now *happy-eyeballs-delay-ms*)))
+               (let ((winner (poll-winner)))
+                 (when winner
+                   (close-all winner)
+                   (setf (sb-bsd-sockets:non-blocking-mode winner) nil)
+                   (when socket-box
+                     (setf (car socket-box)
+                           (lambda ()
+                             (sb-thread:with-mutex (cancel-lock)
+                               (setf cancelled t)
+                               (close-socket winner)))))
+                   (return winner)))
+               (when (and (= next-index count) (not (live-attempt-p)))
+                 (error 'socket-open-error :code last-code :op "connect"))
+               (sleep 0.005)))
+        ;; On success the returned winner is removed from ATTEMPTS so cleanup leaves it open.
+        (when (and attempts
+                   (find-if (lambda (attempt) (eq (cdr attempt) :connected)) attempts))
+          (setf attempts
+                (remove-if (lambda (attempt) (eq (cdr attempt) :connected)) attempts)))
+        (close-all)))))
+
 (defun https-request (&key host port method path headers body host-header
-                           (ca-file (%system-ca-file)) (verify t) socket-box)
+                           (ca-file (%system-ca-file)) (verify t) socket-box
+                           (connect-timeout-ms 30000))
   "Issue one BLOCKING HTTPS request (run on a worker thread) and return the parsed + decoded
 http-response. Connects, does the pure-tls handshake + chain/hostname verification (unless
 VERIFY is NIL), sends the serialized request, reads the response to EOF, parses + gunzips it.
 Signals on connect / handshake / verification / parse failure — the caller maps the condition
 (see tls-error-message). If SOCKET-BOX (a cons) is supplied, its car is set to the socket so
 an abort can close it to unblock the blocking read."
-  (let ((ip (resolve-hostname host)) (sock nil) (raw nil) (tls nil)
+  (let ((addresses (resolve-hostname-all host)) (sock nil) (raw nil) (tls nil)
         (request (%serialize-request method path (or host-header host) headers body)))
     (labels ((close-transport ()
                (ignore-errors (when tls (close tls)))
@@ -101,21 +213,8 @@ an abort can close it to unblock the blocking read."
                (ignore-errors (when sock (sb-bsd-sockets:socket-close sock)))
                (setf tls nil raw nil sock nil))
              (connect-transport ()
-               (setf sock (make-instance 'sb-bsd-sockets:inet-socket
-                                         :type :stream :protocol :tcp))
-               ;; The thunk follows SOCK across a TLS-version retry, so abort always
-               ;; closes the currently active descriptor rather than the first one.
-               (when socket-box
-                 (setf (car socket-box)
-                       (lambda ()
-                         (ignore-errors
-                           (when sock (sb-bsd-sockets:socket-close sock))))))
-               (handler-case
-                   (sb-bsd-sockets:socket-connect
-                    sock (sb-bsd-sockets:make-inet-address ip) port)
-                 (sb-bsd-sockets:socket-error (error)
-                   (error 'socket-open-error
-                          :code (socket-error-code error "ECONNREFUSED") :op "connect")))
+               (setf sock (%connect-happy-blocking addresses port socket-box
+                                                   connect-timeout-ms))
                (setf raw (sb-bsd-sockets:socket-make-stream
                           sock :input t :output t :element-type '(unsigned-byte 8)))))
     (unwind-protect

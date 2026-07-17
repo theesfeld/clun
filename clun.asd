@@ -85,6 +85,7 @@
                              (:module "net"
                               :serial t
                               :components ((:file "sockets")
+                                           (:file "dns")
                                            (:file "http-parser")
                                            (:file "http-client")
                                            (:file "tls12-client")
@@ -306,7 +307,8 @@
                                             :components ((:file "loop-tests")))
                                            (:module "net"
                                             :serial t
-                                            :components ((:file "sockets-tests")
+                                            :components ((:file "dns-tests")
+                                                         (:file "sockets-tests")
                                                          (:file "http-parser-tests")
                                                          (:file "http-server-tests")
                                                          (:file "fetch-tests")

@@ -13,7 +13,7 @@ PHASE_25B_M5_MANIFEST      ?= tests/conformance/phase-25b-m5.tsv
 PHASE_25B_M6_MANIFEST      ?= tests/conformance/phase-25b-m6.tsv
 FEATURE                    ?= all
 
-.PHONY: all build test test-lisp test-cookie-resources test-glob test-js test-tls test-tls12 test-crypto registry-fixture smoke-npm purity bench \
+.PHONY: all build test test-lisp test-cookie-resources test-glob test-js test-tls test-tls12 test-dns test-crypto registry-fixture smoke-npm purity bench \
 		bench-check compile-tier-ceiling test-installer test-release-live-check \
 		public-claims-check version-transition-check test-version-transition-check \
 		compat compat-validate docs-generate docs-check test-compat-tools \
@@ -72,6 +72,10 @@ test-tls: test-tls12
 test-tls12:
 	$(SBCL) $(SBCL_FLAGS) --load scripts/run-tls12-tests.lisp
 	sh scripts/test-tls12-interop.sh
+
+## test-dns -- pure-CL DNS codec/resolver plus A/AAAA Happy Eyeballs behavior.
+test-dns:
+	$(SBCL) $(SBCL_FLAGS) --load scripts/run-dns-tests.lisp
 
 ## smoke-npm — opt-in live public-registry install + SRI + execution smoke (Phase 28).
 smoke-npm: build

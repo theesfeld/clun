@@ -2,19 +2,45 @@
 
 ## 1. Scope of this unit
 
-This unit removes the concrete TLS interoperability blocker that prevented Clun's
-package manager from using the public npm registry. It adds a pure Common Lisp
-TLS 1.2 fallback beneath the existing TLS 1.3 client, hardens response decoding,
-and provides both hermetic and live public-registry evidence.
+This unit removes two concrete transport blockers: TLS 1.2 interoperability with
+the public npm registry and blocking libc IPv4-only hostname resolution. It adds
+a pure Common Lisp TLS 1.2 fallback beneath the existing TLS 1.3 client, a
+bounded DNS A/AAAA resolver, dual-stack connection racing, hardened response
+decoding, and hermetic plus live public-registry evidence.
 
 This is an implementation slice of Phase 28, not completion of the phase. The
 canonical Phase 28 GitHub issue remains open. In particular, this unit does not
-claim the issue's DNS, Happy Eyeballs, connection pooling, streaming,
-backpressure, cancellation, proxy, timeout, 1 GiB transfer, or four-target
+claim the issue's connection pooling, streaming bodies, backpressure, complete
+cancellation/proxy/timeout matrix, 1 GiB transfer, leak/stress, or four-target
 acceptance requirements. It does not promote a compatibility-ledger row or a
 public landing-page claim.
 
 ## 2. Architecture
+
+### 2.1 DNS and address-family racing
+
+`dns.lisp` implements DNS directly over `sb-bsd-sockets`; production code does
+not call `gethostbyname`, `getaddrinfo`, or an external resolver process. It
+reads nameservers from `CLUN_RESOLV_CONF` or `/etc/resolv.conf`, sends bounded
+recursive A and AAAA queries, validates transaction IDs/questions/opcodes and
+section sizes, follows bounded compressed names and CNAME chains, and retries a
+truncated UDP response over length-framed DNS TCP. Successful answers enter a
+small TTL-bound cache. Literal IPv4, literal IPv6, and localhost avoid DNS I/O.
+
+Results are interleaved IPv6-first while retaining each family's answer order.
+Plain HTTP submits resolution to Clun's fixed worker pool and hands the candidates
+back to the reactor. `tcp-connect-happy` starts the first candidate immediately,
+staggers later candidates by the RFC 8305 250 ms recommendation, advances early
+when every live attempt fails, closes losing descriptors, and exposes only the
+winning handle. Cancellation and timer teardown are marshalled back to the
+owning reactor thread.
+
+HTTPS resolves and races candidates inside its existing blocking worker. Its
+candidate sockets are nonblocking only during the race; the winner returns to
+blocking mode before pure-tls owns the stream. One connect deadline covers the
+entire candidate race, and abort closes every in-flight candidate or the winner.
+
+### 2.2 TLS interoperability
 
 `https-request` keeps the existing vendored pure-tls TLS 1.3 client as the
 preferred path. `pure-tls:make-tls-client-stream` eagerly completes its
@@ -88,6 +114,13 @@ The focused deterministic Lisp suite covers:
 - authenticated EOF requirements; and
 - bounded, fail-closed content decoding.
 
+The DNS and connection suite additionally covers exact query encoding,
+compressed CNAME/A/AAAA parsing, canonical IPv6 rendering, truncation signaling,
+malformed compression/bounds/transaction rejection, exact rcode mapping,
+family interleaving, network-free literal handling, a hermetic UDP A/AAAA
+resolver round trip, and an IPv6-to-IPv4 connection fallback against a local
+listener.
+
 `make test-tls12` runs that focused suite, then starts an OpenSSL TLS 1.2-only server with
 `ECDHE-RSA-AES128-GCM-SHA256` and forces `rsa_pkcs1_sha256`. It proves a trusted
 HTTP round trip and a real wrong-host rejection using the same listener.
@@ -101,8 +134,6 @@ and executes the installed package with the shipped Clun binary.
 Before Phase 28 can close, the canonical issue still requires implementation and
 evidence for at least:
 
-- DNS A and AAAA resolution with an explicit policy;
-- dual-stack Happy Eyeballs connection racing;
 - reusable origin-keyed connection pooling;
 - streaming request and response bodies with bounded memory;
 - backpressure, cancellation, proxy, and timeout semantics;

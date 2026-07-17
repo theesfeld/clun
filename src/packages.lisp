@@ -272,11 +272,14 @@
   (:local-nicknames (:lp :clun.loop) (:sys :clun.sys))
   (:documentation "Sockets, HTTP parser/server/client, fetch, TLS integration.")
   (:export ;; Phase 16 — TCP handle layer on the reactor
-   #:tcp-listen #:tcp-connect #:tcp-write #:tcp-close #:tcp-shutdown
+   #:tcp-listen #:tcp-connect #:tcp-connect-happy #:tcp-write #:tcp-close #:tcp-shutdown
    #:tcp #:tcp-p #:tcp-state #:tcp-queued-bytes #:tcp-peer #:tcp-local
    #:tcp-on-data #:tcp-on-close #:tcp-on-error #:tcp-on-drain
    #:listener #:listener-p #:listener-port #:listener-close #:listener-address
    #:socket-error-code #:socket-open-error #:socket-open-error-code #:*default-read-size*
+   ;; Phase 28 -- bounded DNS + address-family racing
+   #:dns-error #:dns-error-message #:dns-address #:dns-address-text
+   #:dns-address-ipv6-p #:resolve-hostname-all #:resolve-hostname
    ;; Phase 17 — incremental HTTP/1.1 request parser
    #:make-http-parser #:parser-feed #:http-request #:http-request-p
    #:hr-method #:hr-target #:hr-version #:hr-headers #:hr-body #:hr-keep-alive

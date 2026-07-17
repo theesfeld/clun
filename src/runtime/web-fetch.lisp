@@ -125,13 +125,9 @@ $SSL_CERT_FILE / the system bundle (net's %system-ca-file). Certs always fail cl
            (host-header (if (ur-port record) (format nil "~a:~d" raw-host (ur-port record)) raw-host))
            (path (concatenate 'string (if (plusp (length (ur-path record))) (ur-path record) "/")
                               (if (ur-query record) (concatenate 'string "?" (ur-query record)) "")))
-           ;; http dials a pre-resolved dotted-quad (blocking DNS on the loop, v1); https
-           ;; resolves on the worker inside net:https-request (no loop-thread DNS).
-           (dial-host (if https raw-host
-                          (handler-case (net:resolve-hostname raw-host)
-                            (error () (return-from %do-fetch
-                                        (eng:js-call reject eng:+undefined+
-                                          (list (%fetch-error g "TypeError" "fetch: could not resolve host")))))))))
+           ;; Both transports resolve off the JS loop. Plain HTTP uses the DNS worker
+           ;; plus reactor Happy Eyeballs; HTTPS resolves inside its blocking worker.
+           (dial-host raw-host))
       ;; already-aborted?
       (when (and signal (eng:js-truthy (eng:js-get signal "aborted")))
         (return-from %do-fetch
