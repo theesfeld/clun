@@ -23,6 +23,9 @@ function rejects(job, label) {
   );
 }
 
+const braceGlobRoot = "clun-shell-upstream-brace-glob.tmp";
+const interpolatedCommaBranch = ",foo";
+
 check(Clun.$`basename`, 1, "", "usage: basename string\n", "basename usage")
   .then(() => check(Clun.$`basename js/bun/shell/commands/basename.test.ts`, 0,
     "basename.test.ts\n", "", "basename relative"))
@@ -90,6 +93,35 @@ check(Clun.$`basename`, 1, "", "usage: basename string\n", "basename usage")
     return rejects(Clun.$`${longCommand}`, "long command lookup")
       .then(() => rejects(Clun.$`PATH=${longCommand} slkdfjlsdkfj`, "long PATH lookup"));
   })
+  .then(() => check(Clun.$`rm -rf ${braceGlobRoot}`, 0, "", "", "brace glob cleanup before"))
+  .then(() => check(Clun.$`mkdir -p ${braceGlobRoot}/src ${braceGlobRoot}/lib`, 0,
+    "", "", "brace glob directories"))
+  .then(() => check(
+    Clun.$`touch ${braceGlobRoot}/src/app.ts ${braceGlobRoot}/src/util.tsx ${braceGlobRoot}/src/a.ts ${braceGlobRoot}/lib/b.ts ${braceGlobRoot}/x.ts ${braceGlobRoot}/x.,foo ${braceGlobRoot}/x.]foo`,
+    0, "", "", "brace glob files",
+  ))
+  .then(() => Clun.$`echo src/*.{ts,tsx}`.cwd(braceGlobRoot).text())
+  .then(output => {
+    const words = output.trim().split(" ");
+    assert(words.includes("src/app.ts"), "brace suffix glob ts match");
+    assert(words.includes("src/util.tsx"), "brace suffix glob tsx match");
+    assert(words.includes("src/*.ts"), "brace suffix literal ts variant");
+    assert(words.includes("src/*.tsx"), "brace suffix literal tsx variant");
+    return Clun.$`echo {src,lib}/*.ts`.cwd(braceGlobRoot).text();
+  })
+  .then(output => {
+    const words = output.trim().split(" ");
+    assert(words.includes("src/a.ts"), "brace prefix src glob match");
+    assert(words.includes("lib/b.ts"), "brace prefix lib glob match");
+    return Clun.$`echo *.{ts,${interpolatedCommaBranch}}`.cwd(braceGlobRoot).text();
+  })
+  .then(output => {
+    const words = output.trim().split(" ");
+    assert(words.includes("x.ts"), "interpolated brace ts match");
+    assert(words.includes("x.,foo"), "interpolated comma is one literal branch");
+    assert(!words.includes("x.]foo"), "interpolated comma does not create a branch");
+    return check(Clun.$`rm -rf ${braceGlobRoot}`, 0, "", "", "brace glob cleanup after");
+  })
   .then(() => {
     assert(Clun.$.braces("echo 123").join("|") === "echo 123", "brace no-op");
     assert(Clun.$.braces("echo {123,456}").join("|") === "echo 123|echo 456", "brace pair");
@@ -121,5 +153,5 @@ check(Clun.$`basename`, 1, "", "usage: basename string\n", "basename usage")
     }
     assert(errorMessage === "Too many braces in brace expansion", "brace input bound");
     assert(Clun.$.braces("echo {a,b}").join("|") === "echo a|echo b", "brace recovery");
-    console.log("upstream-low-hanging: 101 exact sites");
+    console.log("upstream-low-hanging: 104 exact sites");
   });

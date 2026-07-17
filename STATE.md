@@ -52,10 +52,11 @@ guarded filesystem builtins, bounded `yes`, and isolated pipeline state. Merged 
 mapping unit. The production
 `Clun.$` shell now includes inert interpolation, a pure-CL parser and evaluator, builtins, concurrent external
 pipelines, ordered descriptor redirects, callable isolated `Shell` instances, signed-64 conditional
-arithmetic, and bounded nested brace expansion. `make phase-65-shell-core-check` passes **185 / 0 / 0** plus
+arithmetic, bounded nested brace expansion, and brace-plus-glob composition with protected interpolation.
+`make phase-65-shell-core-check` passes **189 / 0 / 0** plus
 **4/4** shipped `tooling.shell` evidence records; `make build`, `make purity` (**716 / 0**), and diff check
 pass. The exact stable and engineering Bun boundary is now frozen at **211 source/docs/types/test files** and
-**1,630 lexical test sites**: **101 covered / 1,497 pending / 32 upstream-inactive**. The checked-in coverage
+**1,630 lexical test sites**: **104 covered / 1,494 pending / 32 upstream-inactive**. The checked-in coverage
 overlay binds every credited site to executable shipped-binary evidence and rejects stale or unknown IDs.
 The row is honestly **Partial**, not `Yes`: remaining language/API/lifecycle cases,
 1,000-job stress, and Linux/macOS x64/arm64 receipts are still open.

@@ -499,9 +499,24 @@
   (some (lambda (fragment)
           (and (eq (shell-fragment-kind fragment) :literal)
                (not (shell-fragment-quoted fragment))
-               (find-if (lambda (character) (find character "*?[{"))
+               (find-if (lambda (character) (find character "*?["))
                         (shell-fragment-value fragment))))
         (shell-word-fragments word)))
+
+(defun %shell-word-brace-p (word)
+  (some (lambda (fragment)
+          (and (eq (shell-fragment-kind fragment) :literal)
+               (not (shell-fragment-quoted fragment))
+               (find #\{ (shell-fragment-value fragment))))
+        (shell-word-fragments word)))
+
+(defun %shell-protect-pattern-value (value)
+  "Escape syntax-bearing characters supplied by a non-literal shell fragment."
+  (with-output-to-string (output)
+    (loop for character across value do
+      (when (find character "\\*?[]{}!,^-")
+        (write-char #\\ output))
+      (write-char character output))))
 
 (defun %shell-word-tilde-p (word)
   (let ((first (first (shell-word-fragments word))))
@@ -519,32 +534,69 @@
                   (subseq value 1)))
     (t value)))
 
-(defun %shell-expand-glob (value state)
+(defun %shell-glob-matches (value state)
   (handler-case
       (let* ((options (clun.glob:make-glob-scan-options
                        :cwd (shell-state-cwd state) :dot nil :only-files nil))
              (matches (clun.glob:scan-glob value options)))
-        (if (plusp (length matches)) (coerce matches 'list) (list value)))
-    (error () (list value))))
+        (and (plusp (length matches)) (coerce matches 'list)))
+    (error () nil)))
+
+(defun %shell-expand-glob (pattern fallback state)
+  (or (%shell-glob-matches pattern state) (list fallback)))
+
+(defun %shell-expand-brace-pattern (pattern fallback)
+  (let ((tokens (%shell-brace-tokenize pattern)))
+    (if (find :open tokens :key #'shell-brace-token-kind)
+        (%shell-brace-expand-parsed (%shell-brace-parse tokens))
+        (list fallback))))
 
 (defun %shell-word-values (word state g)
-  (let ((fields (list "")) (has-value nil))
+  (let ((fields (list "")) (patterns (list "")) (has-value nil))
     (dolist (fragment (shell-word-fragments word))
       (multiple-value-bind (values split-p) (%shell-fragment-values fragment state g)
         (declare (ignore split-p))
         (if values
-            (setf fields
-                  (loop for prefix in fields append
-                    (loop for value in values collect (concatenate 'string prefix value)))
-                  has-value t)
-            (setf fields nil))))
+            (let ((pattern-values
+                    (if (and (eq (shell-fragment-kind fragment) :literal)
+                             (not (shell-fragment-quoted fragment)))
+                        values
+                        (mapcar #'%shell-protect-pattern-value values))))
+              (setf fields
+                    (loop for prefix in fields append
+                      (loop for value in values
+                            collect (concatenate 'string prefix value)))
+                    patterns
+                    (loop for prefix in patterns append
+                      (loop for value in pattern-values
+                            collect (concatenate 'string prefix value)))
+                    has-value t))
+            (setf fields nil patterns nil))))
     (when (and (null fields)
                (some #'shell-fragment-quoted (shell-word-fragments word)))
-      (setf fields (list "")))
+      (setf fields (list "") patterns (list "")))
     (when (and fields (%shell-word-tilde-p word))
-      (setf fields (mapcar (lambda (value) (%shell-expand-tilde value state)) fields)))
-    (when (and fields (%shell-word-glob-p word))
-      (setf fields (mapcan (lambda (value) (%shell-expand-glob value state)) fields)))
+      (setf fields (mapcar (lambda (value) (%shell-expand-tilde value state)) fields)
+            patterns (mapcar (lambda (value) (%shell-expand-tilde value state)) patterns)))
+    (let ((brace-p (and fields (%shell-word-brace-p word)))
+          (glob-p (and fields (%shell-word-glob-p word))))
+      (when brace-p
+        (let ((literal-variants
+                (loop for value in fields
+                      for pattern in patterns
+                      append (%shell-expand-brace-pattern pattern value))))
+          (setf fields
+                (if glob-p
+                    (append literal-variants
+                            (mapcan (lambda (pattern)
+                                      (%shell-glob-matches pattern state))
+                                    patterns))
+                    literal-variants))))
+      (when (and glob-p (not brace-p))
+        (setf fields
+              (loop for value in fields
+                    for pattern in patterns
+                    append (%shell-expand-glob pattern value state)))))
     (if (or has-value (shell-word-fragments word)) fields nil)))
 
 (defun %shell-word-raw-target (word state g)
