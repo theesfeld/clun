@@ -37,6 +37,9 @@
 (defstruct (shell-condition-operand
             (:constructor %make-shell-condition-operand (value protected)))
   value protected)
+(defstruct shell-brace-token kind value)
+(defstruct shell-brace-atom kind value)
+(defstruct shell-brace-group (atoms '()))
 
 (defparameter *shell-max-array-depth* 64)
 (defparameter *shell-max-seq-items* 1000000)
@@ -3179,24 +3182,196 @@ deadlock even when commands produce output larger than kernel pipe capacity."
             (write-char character output))
           (write-char #\" output)))))
 
+(defconstant +shell-max-brace-groups+ 256)
+(defconstant +shell-max-brace-results+ 65536)
+
+(defun %shell-brace-tokenize (pattern)
+  (let ((tokens '()) (text (make-string-output-stream))
+        (depth 0) (groups 0) (index 0))
+    (labels ((flush-text ()
+               (let ((value (get-output-stream-string text)))
+                 (when (plusp (length value))
+                   (push (make-shell-brace-token :kind :text :value value) tokens))))
+             (emit (kind)
+               (flush-text)
+               (push (make-shell-brace-token :kind kind) tokens)))
+      (loop while (< index (length pattern)) do
+        (let ((character (char pattern index)))
+          (cond
+            ((and (char= character #\\) (< (1+ index) (length pattern)))
+             (write-char (char pattern (1+ index)) text)
+             (incf index 2))
+            ((char= character #\{)
+             (incf groups)
+             (when (> groups +shell-max-brace-groups+)
+               (eng:throw-range-error "Too many braces in brace expansion"))
+             (incf depth)
+             (emit :open)
+             (incf index))
+            ((and (char= character #\}) (plusp depth))
+             (decf depth)
+             (emit :close)
+             (incf index))
+            ((and (char= character #\,) (plusp depth))
+             (emit :comma)
+             (incf index))
+            (t
+             (write-char character text)
+             (incf index)))))
+      (flush-text)
+      ;; An unmatched group is not an expansion. Returning one text token keeps
+      ;; the original spelling, including escapes, as Bun does for a no-op.
+      (when (plusp depth)
+        (setf tokens
+              (list (make-shell-brace-token :kind :text :value pattern))))
+      (nreverse
+       (cons (make-shell-brace-token :kind :eof) tokens)))))
+
+(defun %shell-brace-parse (tokens)
+  (let ((index 0) (length (length tokens)))
+    (labels ((kind ()
+               (shell-brace-token-kind (nth index tokens)))
+             (parse-group ()
+               (let ((atoms '()))
+                 (loop while (and (< index length)
+                                  (not (member (kind) '(:comma :close :eof))))
+                       do (case (kind)
+                            (:text
+                             (push (make-shell-brace-atom
+                                    :kind :text
+                                    :value (shell-brace-token-value
+                                            (nth index tokens)))
+                                   atoms)
+                             (incf index))
+                            (:open
+                             (incf index)
+                             (push (make-shell-brace-atom
+                                    :kind :expansion :value (parse-expansion))
+                                   atoms))))
+                 (make-shell-brace-group :atoms (nreverse atoms))))
+             (parse-expansion ()
+               (let ((variants '()))
+                 (loop
+                   (push (parse-group) variants)
+                   (case (kind)
+                     (:comma (incf index))
+                     (:close (incf index) (return))
+                     (:eof (return))))
+                 (nreverse variants))))
+      (parse-group))))
+
+(defun %shell-brace-expand-group (group)
+  (let ((results (list "")))
+    (dolist (atom (shell-brace-group-atoms group) results)
+      (let ((choices
+              (case (shell-brace-atom-kind atom)
+                (:text (list (shell-brace-atom-value atom)))
+                (:expansion
+                 (mapcan #'%shell-brace-expand-group
+                         (shell-brace-atom-value atom))))))
+        (let ((next '()) (count 0))
+          (dolist (prefix results)
+            (dolist (choice choices)
+              (incf count)
+              (when (> count +shell-max-brace-results+)
+                (eng:throw-range-error
+                 (format nil "Too many brace expansions (~d > ~d)"
+                         count +shell-max-brace-results+)))
+              (push (concatenate 'string prefix choice) next)))
+          (setf results (nreverse next)))))))
+
+(defun %shell-brace-expansion-count (group)
+  (let ((count 1))
+    (dolist (atom (shell-brace-group-atoms group) count)
+      (when (eq (shell-brace-atom-kind atom) :expansion)
+        (setf count
+              (* count
+                 (reduce #'+ (shell-brace-atom-value atom)
+                         :key #'%shell-brace-expansion-count
+                         :initial-value 0)))))))
+
+(defun %shell-brace-expand-parsed (group)
+  (let ((count (%shell-brace-expansion-count group)))
+    (when (> count +shell-max-brace-results+)
+      (eng:throw-range-error
+       (format nil "Too many brace expansions (~d > ~d)"
+               count +shell-max-brace-results+)))
+    (%shell-brace-expand-group group)))
+
+(defun %shell-json-quoted (value)
+  (with-output-to-string (output)
+    (write-char #\" output)
+    (loop for character across value
+          for code = (char-code character)
+          do (case character
+               (#\" (write-string "\\\"" output))
+               (#\\ (write-string "\\\\" output))
+               (#\Backspace (write-string "\\b" output))
+               (#\Page (write-string "\\f" output))
+               (#\Newline (write-string "\\n" output))
+               (#\Return (write-string "\\r" output))
+               (#\Tab (write-string "\\t" output))
+               (otherwise
+                (if (< code 32)
+                    (format output "\\u~4,'0x" code)
+                    (write-char character output)))))
+    (write-char #\" output)))
+
+(defun %shell-brace-tokens-json (tokens)
+  (with-output-to-string (output)
+    (write-char #\[ output)
+    (loop for token in tokens
+          for first = t then nil
+          unless first do (write-char #\, output)
+          do (case (shell-brace-token-kind token)
+               (:open (write-string "{\"open\":{\"idx\":0,\"end\":0}}" output))
+               (:comma (write-string "\"comma\"" output))
+               (:close (write-string "\"close\"" output))
+               (:eof (write-string "\"eof\"" output))
+               (:text
+                (format output "{\"text\":~a}"
+                        (%shell-json-quoted (shell-brace-token-value token)))))
+          finally (write-char #\] output))))
+
+(defun %shell-brace-atom-json (atom output)
+  (case (shell-brace-atom-kind atom)
+    (:text
+     (format output "{\"text\":~a}"
+             (%shell-json-quoted (shell-brace-atom-value atom))))
+    (:expansion
+     (write-string "{\"expansion\":{\"variants\":[" output)
+     (loop for group in (shell-brace-atom-value atom)
+           for first = t then nil
+           unless first do (write-char #\, output)
+           do (%shell-brace-group-json group output))
+     (write-string "]}}" output))))
+
+(defun %shell-brace-group-json (group output)
+  (let ((atoms (shell-brace-group-atoms group)))
+    (write-string "{\"bubble_up\":null,\"bubble_up_next\":null,\"atoms\":" output)
+    (if (= (length atoms) 1)
+        (progn
+          (write-string "{\"single\":" output)
+          (%shell-brace-atom-json (first atoms) output)
+          (write-string "}}" output))
+        (progn
+          (write-string "{\"many\":[" output)
+          (loop for atom in atoms
+                for first = t then nil
+                unless first do (write-char #\, output)
+                do (%shell-brace-atom-json atom output))
+          (write-string "]}}" output)))))
+
+(defun %shell-brace-ast-json (group)
+  (with-output-to-string (output)
+    (%shell-brace-group-json group output)))
+
 (defun %shell-brace-expand (pattern)
-  (let ((open (position #\{ pattern)))
-    (if (null open)
-        (list pattern)
-        (let ((close (position #\} pattern :start (1+ open))))
-          (if (null close)
-              (list pattern)
-              (let* ((prefix (subseq pattern 0 open))
-                     (body (subseq pattern (1+ open) close))
-                     (suffix (subseq pattern (1+ close)))
-                     (parts (loop with start = 0
-                                  for comma = (position #\, body :start start)
-                                  collect (subseq body start comma)
-                                  while comma do (setf start (1+ comma)))))
-                (mapcan (lambda (part)
-                          (%shell-brace-expand
-                           (concatenate 'string prefix part suffix)))
-                        parts)))))))
+  (let* ((tokens (%shell-brace-tokenize pattern))
+         (expansion-p (find :open tokens :key #'shell-brace-token-kind)))
+    (if expansion-p
+        (%shell-brace-expand-parsed (%shell-brace-parse tokens))
+        (list pattern))))
 
 (defun %shell-make-tag (g name initial-env initial-cwd initial-throws)
   "Create one callable shell tag with instance-local defaults."
@@ -3271,9 +3446,24 @@ deadlock even when commands produce output larger than kernel pipe capacity."
                g "$" (clun.sys:environ-alist) (clun.sys:current-directory) t))
     (eng:install-method tag "escape" 1
       (lambda (this args) (declare (ignore this)) (%shell-escape (eng:arg args 0))))
-    (eng:install-method tag "braces" 1
-      (lambda (this args) (declare (ignore this))
-        (eng:new-array (%shell-brace-expand (eng:to-string (eng:arg args 0))))))
+    (eng:install-method tag "braces" 2
+      (lambda (this args)
+        (declare (ignore this))
+        (let* ((pattern (eng:to-string (eng:arg args 0)))
+               (options (eng:arg args 1))
+               (tokens (%shell-brace-tokenize pattern)))
+          (cond
+            ((and (eng:js-object-p options)
+                  (eng:js-truthy (eng:js-get options "tokenize")))
+             (%shell-brace-tokens-json tokens))
+            ((and (eng:js-object-p options)
+                  (eng:js-truthy (eng:js-get options "parse")))
+             (%shell-brace-ast-json (%shell-brace-parse tokens)))
+            (t
+             (eng:new-array
+              (if (find :open tokens :key #'shell-brace-token-kind)
+                  (%shell-brace-expand-parsed (%shell-brace-parse tokens))
+                  (list pattern))))))))
     (let* ((shell-prototype (eng:new-object))
            (shell-constructor
              (eng:make-native-function
