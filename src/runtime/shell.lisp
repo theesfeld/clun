@@ -521,7 +521,7 @@
 
 (defparameter *shell-builtins*
   '("echo" "pwd" "cd" "true" "false" ":" "export" "unset" "which" "exit"
-    "basename" "dirname" "seq" "cat" "mkdir" "touch"))
+    "basename" "dirname" "seq" "cat" "mkdir" "touch" "rm"))
 
 (defun %shell-relative-path (path state)
   (if (clun.sys:absolute-path-p path)
@@ -1098,6 +1098,114 @@ integer conversions are deliberately rejected because seq values are f32."
               (setf exit-code 1))))
         (%shell-result-from-strings "" (get-output-stream-string stderr) exit-code)))))
 
+(defparameter *shell-rm-usage*
+  (format nil "usage: rm [-f | -i] [-dIPRrvWx] file ...~%       unlink [--] file~%"))
+
+(defun %shell-rm-entry (resolved display recursive remove-empty-dirs verbose output)
+  "Remove one lstat-classified entry. Directory output is postorder."
+  (let ((stat (clun.sys:stat* resolved :lstat t)))
+    (cond
+      ((clun.sys:fstat-dir-p stat)
+       (cond
+         (recursive
+          ;; MAP-DIRECTORY-ENTRIES retains dangling symlinks. Collect before
+          ;; mutating so the directory stream is not live during recursion.
+          (let ((entries '()))
+            (clun.sys:map-directory-entries
+             resolved (lambda (entry) (push entry entries)))
+            (dolist (entry (nreverse entries))
+              (%shell-rm-entry
+               (clun.sys:path-join resolved entry)
+               (clun.sys:path-join display entry)
+               t remove-empty-dirs verbose output)))
+          ;; Re-check the root entry after deleting children. If it was swapped
+          ;; while the traversal ran, never follow or remove the replacement.
+          (let ((after (clun.sys:stat* resolved :lstat t)))
+            (unless (and (clun.sys:fstat-dir-p after)
+                         (= (clun.sys:fstat-dev stat) (clun.sys:fstat-dev after))
+                         (= (clun.sys:fstat-ino stat) (clun.sys:fstat-ino after)))
+              (error 'clun.sys:fs-error
+                     :code "ELOOP" :errno 0 :syscall "rm" :path resolved)))
+          (clun.sys:remove-directory resolved))
+         (remove-empty-dirs
+          (clun.sys:remove-directory resolved))
+         (t
+          (error 'clun.sys:fs-error
+                 :code "EISDIR" :errno 0 :syscall "rm" :path resolved))))
+      (t (clun.sys:remove-file resolved)))
+    (when verbose (format output "~a~%" display))))
+
+(defun %shell-run-rm (arguments state)
+  (let ((args arguments) (paths '())
+        (force nil) (recursive nil) (verbose nil) (remove-empty-dirs nil))
+    (labels ((usage ()
+               (return-from %shell-run-rm
+                 (%shell-result-from-strings "" *shell-rm-usage* 1)))
+             (illegal (option)
+               (return-from %shell-run-rm
+                 (%shell-result-from-strings
+                  "" (format nil "rm: illegal option -- ~a~%" option) 1)))
+             (interactive ()
+               (return-from %shell-run-rm
+                 (%shell-result-from-strings
+                  "" (format nil "rm: \"-i\" is not supported yet") 1))))
+      (loop while args do
+        (let ((argument (pop args)))
+          (cond
+            ((string= argument "--")
+             (setf paths (append paths args) args nil))
+            ((or (string= argument "-")
+                 (not (and (> (length argument) 1)
+                           (char= (char argument 0) #\-))))
+             (setf paths (append paths (list argument) args) args nil))
+            ((member argument '("--recursive") :test #'string=)
+             (setf recursive t remove-empty-dirs t))
+            ((string= argument "--force") (setf force t))
+            ((string= argument "--verbose") (setf verbose t))
+            ((string= argument "--dir") (setf remove-empty-dirs t))
+            ((or (string= argument "--preserve-root")
+                 (string= argument "--no-preserve-root"))
+             ;; Clun's application shell never permits deletion of a filesystem
+             ;; root, even when compatibility syntax asks to disable the guard.
+             nil)
+            ((string= argument "--interactive=never") nil)
+            ((or (string= argument "--interactive=once")
+                 (string= argument "--interactive=always"))
+             (interactive))
+            ((and (> (length argument) 2)
+                  (string= argument "--" :end1 2))
+             (illegal "-"))
+            (t
+             (loop for option across (subseq argument 1) do
+               (case option
+                 (#\f (setf force t))
+                 ((#\r #\R) (setf recursive t remove-empty-dirs t))
+                 (#\v (setf verbose t))
+                 (#\d (setf remove-empty-dirs t))
+                 ((#\i #\I) (interactive))
+                 (otherwise (illegal (subseq argument 1)))))))))
+      (unless paths (usage))
+      (let ((stdout (make-string-output-stream))
+            (stderr (make-string-output-stream))
+            (exit-code 0))
+        (dolist (path paths)
+          (let ((resolved (%shell-relative-path path state)))
+            (cond
+              ((string= (clun.sys:normalize-path resolved) "/")
+               (format stderr "rm: \"~a\" may not be removed~%" resolved)
+               (setf exit-code 1))
+              (t
+               (handler-case
+                   (%shell-rm-entry resolved path recursive remove-empty-dirs
+                                    verbose stdout)
+                 (clun.sys:fs-error (condition)
+                   (unless (and force
+                                (string= (clun.sys:fs-error-code condition) "ENOENT"))
+                     (write-string (%shell-fs-error-string "rm" path condition) stderr)
+                     (setf exit-code 1))))))))
+        (%shell-result-from-strings (get-output-stream-string stdout)
+                                    (get-output-stream-string stderr) exit-code)))))
+
 (defun %shell-run-builtin (argv state env stdin)
   "Return RESULT and true when ARGV names a builtin."
   (let ((name (first argv)) (args (rest argv)))
@@ -1127,6 +1235,8 @@ integer conversions are deliberately rejected because seq values are f32."
        (values (%shell-run-mkdir args state) t))
       ((string= name "touch")
        (values (%shell-run-touch args state) t))
+      ((string= name "rm")
+       (values (%shell-run-rm args state) t))
       ((string= name "pwd")
        (values (%shell-result-from-strings
                 (concatenate 'string (shell-state-cwd state) (string #\Newline)) "" 0) t))

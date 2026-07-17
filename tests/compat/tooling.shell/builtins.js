@@ -85,5 +85,33 @@ check(Clun.$`basename`, 1, "", "usage: basename string\n", "basename usage")
     "cat partial error",
   ))
   .then(() => check(Clun.$`touch -c clun-shell-builtins.tmp/not-created`, 0, "", "", "touch no-create"))
+  .then(() => check(Clun.$`mkdir -p clun-shell-builtins.tmp/remove/a`, 0, "", "", "rm tree setup"))
+  .then(() => check(Clun.$`touch clun-shell-builtins.tmp/remove/a/file`, 0, "", "", "rm file setup"))
+  .then(() => check(
+    Clun.$`rm -rv clun-shell-builtins.tmp/remove`,
+    0,
+    "clun-shell-builtins.tmp/remove/a/file\nclun-shell-builtins.tmp/remove/a\nclun-shell-builtins.tmp/remove\n",
+    "",
+    "rm recursive verbose",
+  ))
+  .then(() => check(Clun.$`rm -f clun-shell-builtins.tmp/missing`, 0, "", "", "rm force missing"))
+  .then(() => check(
+    Clun.$`rm clun-shell-builtins.tmp/missing`,
+    1,
+    "",
+    "rm: clun-shell-builtins.tmp/missing: No such file or directory\n",
+    "rm missing",
+  ))
+  .then(() => check(Clun.$`mkdir clun-shell-builtins.tmp/empty`, 0, "", "", "rm empty setup"))
+  .then(() => check(Clun.$`rm -d clun-shell-builtins.tmp/empty`, 0, "", "", "rm empty directory"))
+  .then(() => check(Clun.$`mkdir -p clun-shell-builtins.tmp/victim`, 0, "", "", "rm symlink setup"))
+  .then(() => check(Clun.$`printf important > clun-shell-builtins.tmp/victim/keep`, 0, "", "", "rm victim setup"))
+  .then(() => check(Clun.$`ln -s victim clun-shell-builtins.tmp/link`, 0, "", "", "rm link setup"))
+  .then(() => check(Clun.$`rm -rf clun-shell-builtins.tmp/link`, 0, "", "", "rm symlink"))
+  .then(() => check(Clun.$`cat clun-shell-builtins.tmp/victim/keep`, 0, "important", "", "rm does not follow symlink"))
+  .then(() => check(Clun.$`rm -rf /`, 1, "", "rm: \"/\" may not be removed\n", "rm root guard"))
   .then(() => check(Clun.$`rm -rf clun-shell-builtins.tmp`, 0, "", "", "filesystem cleanup"))
-  .then(() => console.log("filesystem-builtins"));
+  .then(() => {
+    console.log("filesystem-builtins");
+    console.log("rm");
+  });

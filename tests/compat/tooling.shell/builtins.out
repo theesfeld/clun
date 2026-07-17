@@ -4,3 +4,4 @@ echo
 exit
 seq
 filesystem-builtins
+rm

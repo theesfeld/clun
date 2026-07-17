@@ -13,12 +13,13 @@ their contents cannot create operators, substitutions, redirects, globs, or extr
   operators, sequences, assignments, tilde expansion, and `Clun.Glob` expansion into an explicit AST.
 - Treat scalar interpolation as one inert argument and flatten array interpolation into inert arguments with
   a bounded nesting depth. Only an explicit `{ raw: source }` interpolation opts source text into grammar.
-- Execute `echo`, `basename`, `dirname`, `seq`, `cat`, `mkdir`, `touch`, `pwd`, `cd`, `true`, `false`,
+- Execute `echo`, `basename`, `dirname`, `seq`, `cat`, `mkdir`, `touch`, `rm`, `pwd`, `cd`, `true`, `false`,
   `:`, `export`, `unset`, `which`, and `exit` internally. `seq` uses Bun-compatible f32 accumulation and
   non-advance termination, bounds output to one million items, and additionally supports fixed-width and
   one floating printf conversion. The filesystem builtins provide bounded binary concatenation, stdin,
-  display/numbering controls, parents/verbose/octal-mode creation, and create-or-update timestamps. None of
-  these paths delegates to an external command.
+  display/numbering controls, parents/verbose/octal-mode creation, create-or-update timestamps, guarded
+  recursive deletion, symlink boundaries, force/verbose flags, and root preservation. None of these paths
+  delegates to an external command.
 - Resolve external programs against the job's `PATH`, require executable permission, and use
   `sb-ext:run-program` directly. The implementation does not invoke `sh`, `bash`, or another command parser.
 - Spawn every command in an external-only pipeline before waiting. Intermediate streams are connected while
@@ -36,7 +37,8 @@ their contents cannot create operators, substitutions, redirects, globs, or extr
 interpolation, array boundaries, a 1 MiB producer/consumer pipeline, logical operators, command substitution,
 cwd and environment, redirects, output/error objects, Promise chaining, helper methods, and job-local
 executable lookup. `tests/compat/tooling.shell/builtins.js` freezes exact application behavior for path,
-echo, exit, sequence, binary cat, mkdir, and touch builtins. `tests/lisp/runtime/shell-tests.lisp` separately
+echo, exit, sequence, binary cat, mkdir, touch, and guarded recursive rm builtins.
+`tests/lisp/runtime/shell-tests.lisp` separately
 owns parser and built-in behavior without an external process dependency.
 
 ```sh
@@ -51,4 +53,6 @@ This milestone is substantial application behavior, but it is not the complete f
 ledger must not report `Yes` until the pinned source inventory and full applicable corpus are mapped and pass,
 including remaining control/background forms and builtins, exact descriptor/coercion/error behavior, async
 line and blob surfaces, ordered descriptor redirects, signal/exit ordering, cancellation, 1,000-job child/fd
-and memory stress, and Linux/macOS x64/arm64 receipts. Those residuals remain owned by Issue #39.
+and memory stress, and Linux/macOS x64/arm64 receipts. Recursive `rm` still requires a portable
+descriptor-relative traversal before the directory-to-symlink replacement race can be considered closed on
+all release targets. Those residuals remain owned by Issue #39.

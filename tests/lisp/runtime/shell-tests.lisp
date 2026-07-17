@@ -174,3 +174,28 @@
                  (eng:utf8->code-units (clun.runtime::shell-result-stdout result)))
              (is = 0 (clun.runtime::shell-result-exit-code result))))
       (ignore-errors (sys:remove-recursive directory)))))
+
+(define-test shell/rm-recursive-and-symlink-boundary
+  (let* ((directory (clun.runtime::%shell-temp-directory))
+         (state (shell-test-state)))
+    (unwind-protect
+         (progn
+           (setf (clun.runtime::shell-state-cwd state) directory)
+           (sys:make-directory (sys:path-join directory "tree/a") :recursive t)
+           (sys:write-file-octets (sys:path-join directory "tree/a/file")
+                                  (eng:code-units->utf8 "payload"))
+           (let ((result (clun.runtime::%shell-run-rm '("-rv" "tree") state)))
+             (is = 0 (clun.runtime::shell-result-exit-code result))
+             (is equal (format nil "tree/a/file~%tree/a~%tree~%")
+                 (eng:utf8->code-units (clun.runtime::shell-result-stdout result))))
+           (false (sys:path-exists-p (sys:path-join directory "tree")))
+           (sys:make-directory (sys:path-join directory "victim"))
+           (sys:write-file-octets (sys:path-join directory "victim/keep")
+                                  (eng:code-units->utf8 "important"))
+           (sys:make-symlink "victim" (sys:path-join directory "link"))
+           (is = 0 (clun.runtime::shell-result-exit-code
+                    (clun.runtime::%shell-run-rm '("-rf" "link") state)))
+           (true (sys:file-p (sys:path-join directory "victim/keep")))
+           (is = 1 (clun.runtime::shell-result-exit-code
+                    (clun.runtime::%shell-run-rm '("-rf" "/") state))))
+      (ignore-errors (sys:remove-recursive directory)))))
