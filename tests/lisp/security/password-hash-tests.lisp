@@ -304,6 +304,23 @@
                           (make-array 4097 :element-type '(unsigned-byte 8)
                                            :initial-element 65)))))))
 
+(define-test security/password-encoded-hash-admission
+  (let ((valid (ph-ascii
+                "$2b$10$PsJ3/W82mzNJoP0rSblfvet2ab9jZg2aH7tIxr1B8uFLJwuWk/jTi")))
+    (true (clun.password:validate-encoded-password-hash valid))
+    (is eq :weak-parameters
+        (ph-error-kind
+         (lambda ()
+           (clun.password:validate-encoded-password-hash
+            (ph-ascii "$2b$03$PsJ3/W82mzNJoP0rSblfvet2ab9jZg2aH7tIxr1B8uFLJwuWk/jTi")))))
+    (is eq :unsupported-algorithm
+        (ph-error-kind
+         (lambda ()
+           (clun.password:validate-encoded-password-hash
+            (ph-ascii
+             "$argon2id$v=19$m=64,t=2,p=2$c29tZXNhbHQ$NQrDciL0Nsy1wJcvHr079rlYvyBxhBNi")
+            :argon2i))))))
+
 (define-test security/password-core-input-bounds
   (fail (clun.password:hash-password (ph-ascii ""))
         clun.password:password-error)
@@ -325,6 +342,13 @@
              globalThis.syncHash = Clun.password.hashSync('password', {algorithm:'bcrypt',cost:4});
              globalThis.syncOK = Clun.password.verifySync('password', syncHash);
              globalThis.tick = 0;
+             globalThis.asyncInvalidReturned = false;
+             try {
+               Clun.password.verify('password', '$2b$03$.....................................................');
+               globalThis.asyncInvalidReturned = true;
+             } catch (error) {
+               globalThis.asyncInvalidCode = error.code;
+             }
              setTimeout(()=>tick++,0);
              Clun.password.hash('password',{algorithm:'argon2id',memoryCost:8,timeCost:1})
                .then(h=>{globalThis.asyncOK=Clun.password.verifySync('password',h)});"
@@ -333,6 +357,9 @@
                  (global (eng:realm-global realm)))
              (is = #xd447b1ea40e6988b (eng:js-get global "hashVector"))
              (is eq eng:+true+ (eng:js-get global "syncOK"))
+             (is eq eng:+false+ (eng:js-get global "asyncInvalidReturned"))
+             (is string= "PASSWORD_WEAK_PARAMETERS"
+                 (eng:js-get global "asyncInvalidCode"))
              (is eq eng:+true+ (eng:js-get global "asyncOK"))
              ;; Timer progress while the password Promise is pending is the reactor canary.
              (is eql 1d0 (eng:js-get global "tick"))))

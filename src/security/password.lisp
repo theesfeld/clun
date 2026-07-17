@@ -522,6 +522,49 @@
         (%wipe salt)
         (%wipe expected)))))
 
+(defun validate-encoded-password-hash (encoded-hash &optional algorithm)
+  "Parse and validate ENCODED-HASH without running its password KDF.
+This is the synchronous admission boundary for asynchronous verification: bad
+encodings and hostile cost parameters are rejected before work is queued."
+  (let ((owned-hash (%bounded-octets encoded-hash "encoded hash"
+                                     +max-encoded-hash-bytes+)))
+    (unwind-protect
+         (if (zerop (length owned-hash))
+             nil
+             (let ((encoded (%ascii-string owned-hash)))
+               (cond
+                 ((or (and algorithm (member algorithm '(:argon2d :argon2i :argon2id)))
+                      (and (null algorithm)
+                           (or (%prefixp "$argon2d$" encoded)
+                               (%prefixp "$argon2i$" encoded)
+                               (%prefixp "$argon2id$" encoded))))
+                  (multiple-value-bind (parsed memory time parallelism salt expected)
+                      (%parse-argon encoded)
+                    (declare (ignore memory time parallelism))
+                    (unwind-protect
+                         (progn
+                           (when (and algorithm (not (eq parsed algorithm)))
+                             (%fail :unsupported-algorithm
+                                    "algorithm does not match encoded hash"))
+                           t)
+                      (%wipe salt)
+                      (%wipe expected))))
+                 ((or (eq algorithm :bcrypt)
+                      (and (null algorithm)
+                           (or (%prefixp "$2" encoded)
+                               (%prefixp "$bcrypt$" encoded))))
+                  (multiple-value-bind (cost salt expected)
+                      (if (%prefixp "$2" encoded)
+                          (%parse-bcrypt-mcf encoded)
+                          (%parse-bcrypt-phc encoded))
+                    (declare (ignore cost))
+                    (unwind-protect t
+                      (%wipe salt)
+                      (%wipe expected))))
+                 (t (%fail :unsupported-algorithm
+                           "cannot infer password algorithm")))))
+      (%wipe owned-hash))))
+
 (defun verify-password (password encoded-hash &optional algorithm)
   "Verify PASSWORD octets against PHC/MCF ENCODED-HASH octets.
 Returns NIL for a validly encoded mismatch and signals PASSWORD-ERROR for an

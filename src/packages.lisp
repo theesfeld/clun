@@ -54,7 +54,7 @@
   (:documentation "Bounded password hashing, PHC/MCF encoding, and verification.")
   (:export
    #:password-error #:password-error-kind #:password-error-detail
-   #:hash-password #:verify-password
+   #:hash-password #:verify-password #:validate-encoded-password-hash
    #:+default-argon-memory-cost+ #:+default-argon-time-cost+
    #:+max-password-bytes+ #:+max-encoded-hash-bytes+))
 

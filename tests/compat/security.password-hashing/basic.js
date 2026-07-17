@@ -126,6 +126,19 @@ console.log(
   }),
 );
 
+let asyncInvalidReturned = false;
+let asyncInvalidCode = "NO_THROW";
+try {
+  password.verify(
+    "password",
+    "$argon2id$v=16$m=8,t=1,p=1$c29tZXNhbHQ$AAAAAA",
+  );
+  asyncInvalidReturned = true;
+} catch (error) {
+  asyncInvalidCode = error.code;
+}
+console.log("async-verify-admission", asyncInvalidReturned, asyncInvalidCode);
+
 let tick = 0;
 setTimeout(function () { tick++; }, 0);
 password.hash("password", {

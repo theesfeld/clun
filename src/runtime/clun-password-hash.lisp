@@ -202,6 +202,15 @@
           (cleanup (lambda ()
                      (%password-wipe password)
                      (%password-wipe encoded))))
+      ;; Bun rejects malformed encodings synchronously even though successful
+      ;; verification is worker-backed and returns a Promise.
+      (unless synchronous-p
+        (handler-case
+            (clun.password:validate-encoded-password-hash encoded algorithm)
+          (error (condition)
+            (funcall cleanup)
+            (eng:throw-js-value
+             (%password-error-object condition "verification")))))
       (if synchronous-p
           (unwind-protect
                (%password-sync thunk "verification" converter)

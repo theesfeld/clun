@@ -7,5 +7,6 @@ password-defaults true true true true
 password-binary true true
 cross-tool true true false
 errors TypeError|undefined|unknown algorithm, expected one of: "bcrypt", "argon2id", "argon2d", "argon2i" (default is "argon2id") Error|PASSWORD_INVALID_ENCODING|Password verification failed with error "InvalidEncoding"
+async-verify-admission false PASSWORD_INVALID_ENCODING
 async-hash 1 true true
 async-verify true
