@@ -7,5 +7,6 @@
                     (:rslv :clun.resolver) (:rt :clun.runtime) (:cli :clun.cli)
                     (:net :clun.net) (:sv :clun.install) (:reg :clun.registry)
                     (:tb :clun.tarball) (:integ :clun.integrity) (:inst :clun.installer)
-                    (:csrf :clun.csrf) (:cookies :clun.cookies))
+                    (:csrf :clun.csrf) (:cookies :clun.cookies)
+                    (:glob :clun.glob))
   (:import-from :parachute #:define-test #:is #:isnt #:true #:false #:of-type #:fail))

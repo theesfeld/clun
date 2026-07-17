@@ -1316,10 +1316,26 @@ keeps the core useful without changing JavaScript string semantics."
 
 ;;; Ordered CookieMap state
 
+(defun %cookie-header-layout (value)
+  "Return the segment capacity and whether VALUE contains a percent escape."
+  (check-type value string)
+  (let ((capacity (if (plusp (length value)) 1 0))
+        (percent-mode-p nil))
+    (dotimes (index (length value))
+      (case (char value index)
+        (#\; (incf capacity))
+        (#\% (setf percent-mode-p t))))
+    (values capacity percent-mode-p)))
+
+(defun %make-cookie-map-state-with-capacity (original-capacity)
+  (check-type original-capacity (integer 0 *))
+  (%make-cookie-map-state
+   (make-array (max 4 original-capacity) :adjustable t :fill-pointer 0)
+   (make-array 4 :adjustable t :fill-pointer 0)))
+
 (defun make-cookie-map-state (&optional (pairs '()))
-  (let ((originals (make-array (max 4 (length pairs))
-                               :adjustable t :fill-pointer 0))
-        (modifications (make-array 4 :adjustable t :fill-pointer 0)))
+  (let* ((state (%make-cookie-map-state-with-capacity (length pairs)))
+         (originals (cookie-map-state-originals state)))
     (map nil (lambda (pair)
                (check-type pair cookie-pair)
                (vector-push-extend
@@ -1327,7 +1343,7 @@ keeps the core useful without changing JavaScript string semantics."
                                   (%copy-string (cookie-pair-value pair)))
                 originals))
          pairs)
-    (%make-cookie-map-state originals modifications)))
+    state))
 
 (defun %cookie-map-check (state)
   (check-type state cookie-map-state)
@@ -1350,27 +1366,30 @@ keeps the core useful without changing JavaScript string semantics."
 
 (defun make-cookie-map-state-from-header (value)
   "Parse one Cookie header directly into map state without a proportional pair list."
-  (check-type value string)
-  (let ((state (make-cookie-map-state)))
-    (%scan-cookie-header
-     value (not (null (find #\% value)))
-     (lambda (pair) (%cookie-map-push-original-pair state pair)))
-    state))
+  (multiple-value-bind (original-capacity percent-mode-p)
+      (%cookie-header-layout value)
+    (let ((state (%make-cookie-map-state-with-capacity original-capacity)))
+      (%scan-cookie-header
+       value percent-mode-p
+       (lambda (pair) (%cookie-map-push-original-pair state pair)))
+      state)))
 
 (defun make-cookie-map-state-from-header-fields (values)
   "Parse ordered duplicate Cookie fields directly with one global percent prepass."
   (check-type values list)
-  (let ((state (make-cookie-map-state))
-        (percent-mode-p
-          (not (null (find-if (lambda (value)
-                                (check-type value string)
-                                (find #\% value))
-                              values)))))
-    (dolist (value values state)
-      (check-type value string)
-      (%scan-cookie-header
-       value percent-mode-p
-       (lambda (pair) (%cookie-map-push-original-pair state pair))))))
+  (let ((original-capacity 0)
+        (percent-mode-p nil))
+    (dolist (value values)
+      (multiple-value-bind (field-capacity field-percent-mode-p)
+          (%cookie-header-layout value)
+        (incf original-capacity field-capacity)
+        (when field-percent-mode-p
+          (setf percent-mode-p t))))
+    (let ((state (%make-cookie-map-state-with-capacity original-capacity)))
+      (dolist (value values state)
+        (%scan-cookie-header
+         value percent-mode-p
+         (lambda (pair) (%cookie-map-push-original-pair state pair)))))))
 
 (defun %cookie-map-visible-modification-p (cookie)
   (plusp (length (cookie-value cookie))))

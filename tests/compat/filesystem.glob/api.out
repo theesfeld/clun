@@ -1,0 +1,16 @@
+constructor function Glob 0 length|name|prototype true true false false false false
+prototype match|scan|scanSync|constructor|Symbol(Symbol.toStringTag)
+method match match 1 false true true false
+method scan  1 false true true true
+method scanSync  1 false true true true
+instance [object Glob]  true true
+constructor-errors TypeError:Glob constructor cannot be invoked without 'new' Error:Glob.constructor: expected 1 arguments, got 0 Error:Glob.constructor: first argument is not a string Error:Glob.constructor: first argument is not a string
+boxed true string
+boxed-error true
+match true false Error:Glob.matchString: expected 1 arguments, got 0 Error:Glob.matchString: first argument is not a string TypeError:Glob method called on an incompatible receiver
+options onlyFiles|throwErrorOnBrokenSymlink|followSymlinks|absolute|cwd|dot [object Generator] true 0
+prototype-pollution 0
+option-errors Error:scanSync: expected first argument to be an object Error:scanSync: invalid `cwd`, not a string
+async-shape [object AsyncGenerator] true true next|return|throw|constructor|Symbol(Symbol.toStringTag)
+async-values 0
+async-return stopped true

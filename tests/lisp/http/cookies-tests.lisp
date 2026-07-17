@@ -672,6 +672,9 @@
         (cookie-map-measured-bytes
          (lambda () (cookies:make-cookie-map-state-from-header header-n)))
       (is = 1024 (cookies:cookie-map-size direct-state))
+      (is = 1024
+          (array-total-size
+           (cookies::cookie-map-state-originals direct-state)))
       (multiple-value-bind (legacy-bytes legacy-state)
           (cookie-map-measured-bytes
            (lambda ()
@@ -684,12 +687,18 @@
           (cookie-map-measured-bytes
            (lambda () (cookies:make-cookie-map-state-from-header header-2n)))
         (is = 2048 (cookies:cookie-map-size twice-state))
+        (is = 2048
+            (array-total-size
+             (cookies::cookie-map-state-originals twice-state)))
         (true (< twice-bytes (* 2.75d0 direct-bytes))
               "N to 2N direct allocation remains linear")
         (multiple-value-bind (four-times-bytes four-times-state)
             (cookie-map-measured-bytes
              (lambda () (cookies:make-cookie-map-state-from-header header-4n)))
           (is = 4096 (cookies:cookie-map-size four-times-state))
+          (is = 4096
+              (array-total-size
+               (cookies::cookie-map-state-originals four-times-state)))
           (true (< four-times-bytes (* 2.75d0 twice-bytes))
                 "2N to 4N direct allocation remains linear"))))
     (cookies:make-cookie-map-state-from-header header-n)

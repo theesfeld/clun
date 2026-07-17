@@ -1,0 +1,105 @@
+id	baseline	pattern	candidate	expected	note
+anchor-empty	stable-1.3.14			true	empty anchors empty
+anchor-nonempty	stable-1.3.14		x	false	empty rejects nonempty
+literal	stable-1.3.14	file.js	file.js	true	anchored literal
+literal-case	stable-1.3.14	file.js	File.js	false	case sensitive
+question	stable-1.3.14	a?c	abc	true	one scalar
+question-empty	stable-1.3.14	a?c	ac	false	exactly one
+question-slash	stable-1.3.14	a?c	a/c	false	separator excluded
+star-empty	stable-1.3.14	a*c	ac	true	zero characters
+star-many	stable-1.3.14	a*c	abbbc	true	many characters
+star-slash	stable-1.3.14	*	a/b	false	separator excluded
+triple-star	stable-1.3.14	***	a/b	false	not component globstar
+globstar	stable-1.3.14	**	a/b	true	complete component crosses slash
+globstar-zero	stable-1.3.14	src/**/*.ts	src/x.ts	true	zero directory segment
+globstar-many	stable-1.3.14	src/**/*.ts	src/a/b/x.ts	true	many directory segments
+globstar-trailing	stable-1.3.14	a/**	a/x/y	true	trailing globstar
+globstar-needs-slash	stable-1.3.14	a/**	a	false	preceding slash remains
+globstar-backtrack	stable-1.3.14	**/*abc*	a/b/xabcx	true	no early lock-in
+class-member	stable-1.3.14	[abc]	b	true	class member
+class-slash	stable-1.3.14	[a/]	/	true	classes may match separator
+class-negated	stable-1.3.14	[!abc]	z	true	bang negation
+class-caret	stable-1.3.14	[^abc]	b	false	caret negation
+class-range	stable-1.3.14	[a-z]	m	true	inclusive scalar range
+class-reversed	stable-1.3.14	[z-a]	z	false	reversed range empty
+class-first-close	stable-1.3.14	[]a]	]	true	first close is member
+class-left-hyphen	stable-1.3.14	[-a]	-	true	left edge literal
+class-right-hyphen	stable-1.3.14	[a-]	-	true	right edge literal
+class-escaped-close	stable-1.3.14	[\]]	]	true	escaped first member advances class parser
+brace-one	stable-1.3.14	{a}	a	true	single branch group
+brace-empty	stable-1.3.14	{}		true	empty branch
+brace-alternatives	stable-1.3.14	{a,b,c}	b	true	alternative
+brace-nested	stable-1.3.14	{a,{b,c}}	c	true	nested alternative
+brace-class-comma	engineering-c1076ce95e	{[a,b],x}	,	true	comma in class is not branch separator
+escape-star	stable-1.3.14	\*	*	true	escaped operator
+escape-bang	stable-1.3.14	\!a	!a	true	escaped leading bang
+negate	stable-1.3.14	!a	b	true	whole-pattern complement
+double-negate	stable-1.3.14	!!a	a	true	toggle twice
+extglob-literal	stable-1.3.14	@(a|b)	@(a|b)	true	extglob unsupported
+malformed-class	stable-1.3.14	[	[	false	constructor accepts but match fails
+malformed-empty-class	stable-1.3.14	[]	[]	false	unusable class
+malformed-brace	stable-1.3.14	{a	a	false	no comma means unusable
+malformed-brace-first	stable-1.3.14	{a,b	a	true	first branch survives
+malformed-brace-rest	stable-1.3.14	{a,b	b	false	remaining text ignored
+malformed-brace-completed-middle	stable-1.3.14	{a,b,c	b	true	every comma-completed branch survives
+malformed-brace-unfinished-tail	stable-1.3.14	{a,b,c	c	false	unfinished final branch is ignored
+malformed-brace-completed-empty	stable-1.3.14	{a,,		true	empty branch completed by the second comma survives
+malformed-brace-leading-empty-then-middle	stable-1.3.14	{,a,	a	true	later completed branch survives after an empty branch
+brace-scanner-first-close-validates-suffix	stable-1.3.14	{a,[]}\	a	false	brace discovery leaves bracket state at the first close and exposes the invalid trailing escape
+brace-unclosed-class-comma	engineering-c1076ce95e	{[,,		false	commas inside an unterminated class do not create brace branches
+branch-local-malformed-class	clun-correction	{a[],a,/[[	a/	false	an invalid class cannot consume delimiters or closing brackets from sibling branches
+brace-depth-suffix-validation	clun-correction	{a}{},	a	false	sequential nested brace state cannot suppress a literal suffix comma
+malformed-escape	stable-1.3.14	a\	a	false	trailing escape unusable
+direct-dot	stable-1.3.14	*	.hidden	true	direct match has no dot suppression
+raw-brace-globstar-segment	stable-1.3.14	{**}	segment	true	brace delimiter is not a raw component boundary
+raw-brace-globstar-no-slash	stable-1.3.14	{**}	a/b	false	brace-local double star remains segment syntax
+raw-brace-alt-segment	stable-1.3.14	{**,x}	segment	true	brace branch double star still matches one segment
+raw-brace-alt-no-slash	stable-1.3.14	{**,x}	a/b	false	brace branch double star does not cross slash
+raw-nested-brace-no-slash	stable-1.3.14	{{**}}	a/b	false	nested brace slices do not create component boundaries
+raw-brace-affix-no-slash	stable-1.3.14	pre{**}post	prea/bpost	false	brace-affixed stars remain segment syntax
+raw-brace-before-slash-one	stable-1.3.14	{**,foo}/bar	x/bar	true	brace branch star consumes one segment
+raw-brace-before-slash-many	stable-1.3.14	{**,foo}/bar	x/y/bar	false	outer slash does not complete brace-local globstar
+brace-first-branch-globstar-prefix	stable-1.3.14	{**/b,x}	b	true	brace branch start is a left boundary when a raw slash completes the component
+brace-later-branch-globstar-prefix	stable-1.3.14	{x,**/b}	b	true	every brace branch has its own left matcher boundary
+raw-brace-trailing-star-one	stable-1.3.14	{src/**,README.md}	src/a	true	branch trailing double star consumes one segment
+raw-brace-trailing-star-many	stable-1.3.14	{src/**,README.md}	src/a/b	false	branch delimiter prevents slash-crossing globstar
+raw-brace-trailing-literal	stable-1.3.14	{src/**,README.md}	README.md	true	sibling literal remains usable
+raw-escaped-left-slash-boundary	stable-1.3.14	a\/**	a/x/y	true	raw slash before stars is a boundary even when escaped
+raw-escaped-right-slash-one	stable-1.3.14	**\/a	x/a	true	escaped slash remains a literal after segment stars
+raw-escaped-right-slash-many	stable-1.3.14	**\/a	x/y/a	false	backslash before raw slash prevents right globstar boundary
+raw-escaped-right-affix-one	stable-1.3.14	a/**\/b	a/x/b	true	double star before escaped slash consumes one segment
+raw-escaped-right-affix-many	stable-1.3.14	a/**\/b	a/x/y/b	false	escaped right slash does not form component globstar
+negated-raw-double-star-slash	stable-1.3.14	!**	a/b	true	leading negation does not reclassify raw stars
+negated-raw-double-star-segment	stable-1.3.14	!**	segment	false	negated segment double star rejects matching segment
+double-negated-raw-double-star-slash	stable-1.3.14	!!**	a/b	false	even negation exposes segment rather than globstar behavior
+double-negated-raw-double-star-segment	stable-1.3.14	!!**	segment	true	even negation preserves matching segment
+negated-repeated-globstar	stable-1.3.14	!**/**	a	false	adjacent complete double-star components collapse before complement
+double-negated-repeated-globstar	stable-1.3.14	!!**/**	a	true	even negation exposes collapsed repeated globstar match
+negated-repeated-globstar-zero-segment	stable-1.3.14	!**/**/a	a	false	repeated globstar prefix can consume zero components
+negated-nonrepeated-control	stable-1.3.14	!**/a	a	true	a lone raw leading double-star remains segment-only after negation
+triple-negated-raw-double-star-slash	stable-1.3.14	!!!**	a/b	true	odd negation complements segment-only base
+negated-brace-double-star-slash	stable-1.3.14	!{**}	a/b	true	negated brace-local stars do not cross slash
+negated-brace-double-star-segment	stable-1.3.14	!{**}	segment	false	negated brace-local stars reject their segment match
+negated-later-globstar-match	stable-1.3.14	!a/**	a/x/y	false	later raw slash-delimited globstar remains active
+negated-later-globstar-miss	stable-1.3.14	!a/**	other	true	later globstar base miss is complemented
+double-negated-later-globstar	stable-1.3.14	!!a/**	a/x/y	true	even negation preserves later component globstar
+globstar-final-star-empty	stable-1.3.14	**/*		false	direct final single-star component must be nonempty
+globstar-final-star-root	stable-1.3.14	**/*	/	false	direct final single-star component cannot be empty after slash
+globstar-final-star-trailing	stable-1.3.14	**/*	a/	false	direct final single-star component rejects trailing slash
+globstar-final-star-segment	stable-1.3.14	**/*	a	true	direct final single-star component consumes a character
+globstar-final-star-absolute	stable-1.3.14	**/*	/a	true	globstar may consume leading slash before nonempty final component
+prefixed-globstar-final-star-trailing	stable-1.3.14	a/**/*	a/	false	prefixed direct final component must be nonempty
+prefixed-globstar-final-star-segment	stable-1.3.14	a/**/*	a/x	true	prefixed direct final component consumes a character
+repeated-globstar-final-star-empty	stable-1.3.14	**/**/*		false	last globstar plus direct star retains nonempty rule
+repeated-globstar-final-star-segment	stable-1.3.14	**/**/*	a	true	repeated globstars still reach a nonempty final component
+globstar-long-star-empty	stable-1.3.14	**/***		true	longer final star run keeps ordinary zero-length behavior
+globstar-brace-star-empty	stable-1.3.14	**/{*}		true	brace-local final star is outside direct nonempty rule
+globstar-star-trailing-slash	stable-1.3.14	**/*/	/	true	star followed by slash may remain empty
+globstar-two-stars-root	stable-1.3.14	**/*/*	/	true	nonterminal star components may remain empty
+globstar-separated-final-star-empty	stable-1.3.14	a/**/b/*	a/b/	true	literal component separates globstar from ordinary empty star
+globstar-empty-brace-empty	stable-1.3.14	**/{,}		true	empty brace branches are not direct final star syntax
+globstar-single-empty-brace	stable-1.3.14	**/{}		true	single empty brace branch remains matchable
+globstar-star-empty-alt	stable-1.3.14	**/{*,}		true	explicit empty sibling remains matchable
+brace-double-star-then-star-root	stable-1.3.14	{**}/*	/	true	brace-local segment stars and following star may both be empty
+negated-raw-double-star-slash-empty	stable-1.3.14	!**/*		true	negated raw segment pattern does not match empty candidate
+double-negated-raw-double-star-slash-root	stable-1.3.14	!!**/*	/	true	even negation exposes ordinary segment-star components

@@ -142,6 +142,34 @@ dirent whose low-level accessors are unsafe here and barred by the purity gate).
          (mapcar (lambda (f) (leaf (pathname->native f))) (uiop:directory-files dir))
          (mapcar (lambda (d) (leaf (pathname->native d))) (uiop:subdirectories dir)))))))
 
+(defun map-directory-entries (path function)
+  "Call FUNCTION once for each immediate entry name in PATH.
+
+Unlike READ-DIRECTORY, this preserves dangling symbolic links and does not
+classify links by following them. FUNCTION runs while SBCL owns the directory
+stream, so callers can cooperatively cancel without retaining a directory-sized
+pathname list. Filesystem failures remain FS-ERROR conditions."
+  (with-fs ("scandir" path)
+    ;; SBCL's internal iterator reports opendir failures as generic file
+    ;; conditions. Probe through SB-POSIX first so errno survives the public
+    ;; filesystem boundary as ENOENT, EACCES, or ENOTDIR.
+    (let ((directory (sb-posix:opendir (native->pathname path))))
+      (unwind-protect nil
+        (sb-posix:closedir directory)))
+    ;; MAP-DIRECTORY classifies each PATH/NAME and can silently omit a leaf when
+    ;; that joined path crosses PATH_MAX. The native iterator returns readdir
+    ;; names directly, without following links or constructing the joined path.
+    ;; This also avoids /dev/fd directory aliases, which macOS does not expose as
+    ;; directories to SBCL even when the underlying descriptor names one.
+    (sb-impl::call-with-native-directory-iterator
+     (lambda (next)
+       (loop for name = (funcall next)
+             while name
+             do (funcall function name)))
+     path
+     t))
+  nil)
+
 ;;; --- stat ------------------------------------------------------------------
 
 (defstruct (fstat (:conc-name fstat-))
@@ -162,6 +190,32 @@ dirent whose low-level accessors are unsafe here and barred by the purity gate).
   "stat (or lstat) PATH -> an fstat; signals fs-error on failure."
   (with-fs ((if lstat "lstat" "stat") path)
     (%stat->fstat (funcall (if lstat #'sb-posix:lstat #'sb-posix:stat) (native->pathname path)))))
+
+(defun stat-at* (directory name &key lstat)
+  "Classify immediate NAME relative to DIRECTORY without an OS-sized path join.
+
+The logical result path may exceed PATH_MAX while DIRECTORY is still openable.
+Linux exposes an open descriptor through a short filesystem path, which lets the
+existing SB-POSIX boundary classify that final entry without a native extension
+or a process-global chdir. Errors retain the logical joined path."
+  (let ((logical-path (path-join directory name))
+        (fd nil))
+    (with-fs ((if lstat "lstat" "stat") logical-path)
+      (unwind-protect
+           (progn
+             (setf fd (sb-posix:open (native->pathname directory) sb-posix:o-rdonly))
+             (let* ((descriptor-root
+                      (cond ((directory-p "/dev/fd") "/dev/fd")
+                            ((directory-p "/proc/self/fd") "/proc/self/fd")
+                            (t nil)))
+                    (entry-path
+                      (if descriptor-root
+                          (format nil "~a/~d/~a" descriptor-root fd name)
+                          logical-path)))
+               (%stat->fstat
+                (funcall (if lstat #'sb-posix:lstat #'sb-posix:stat)
+                         (native->pathname entry-path)))))
+        (when fd (ignore-errors (sb-posix:close fd)))))))
 
 (defun fstat-file-p (st) (= (logand (fstat-mode st) +s-ifmt+) +s-ifreg+))
 (defun fstat-dir-p (st) (= (logand (fstat-mode st) +s-ifmt+) +s-ifdir+))

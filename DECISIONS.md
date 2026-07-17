@@ -2645,3 +2645,19 @@ are added monotonically. Digest `51F51CA8B22FAB6D` binds the fresh classificatio
 pass list, residual-gap snapshot, execution report, README, and site carry the same counts. Dev.11 remains
 unpublished until that correction passes exact-master CI, so retaining `0.1.0-dev.11` is the documented
 unpublished-candidate correction rather than version reuse.
+
+### 2026-07-16 - Failed immutable dev.11 advances the combined release to dev.12
+
+Annotated tag `v0.1.0-dev.11` peels to exact master commit
+`7f443be629d66f5d11f3a81590de8160b6522ab0`. CI `29544491595`, Documentation
+`29544491606`, Compatibility `29544491568`, and candidate Pages `29544491570` passed for that commit.
+Release run `29544890706` then passed both x64 builders but failed the unchanged CookieMap N-to-2N
+allocation gate on both arm64 builders after all Cookie behavior evidence and the other 8,445 Lisp
+assertions passed. The publish job was skipped; no dev.11 GitHub release or assets exist.
+
+The tag cannot be moved, deleted, or reused. Production commit
+`1762cdd969e25591dbe33d05532aa978c53b435e` replaces repeated geometric growth with an allocation-free
+Cookie header layout prepass and exact backing capacity. The original 2.75x acceptance threshold remains;
+local repeated ratios improve from 2.38-2.48x to 2.197x. Because Phase 30 Glob is the next release-bearing
+compatibility unit, the correction and Glob ship together as `0.1.0-dev.12` / `v0.1.0-dev.12`. This is a
+new minor prerelease boundary, not a retry or mutation of dev.11.

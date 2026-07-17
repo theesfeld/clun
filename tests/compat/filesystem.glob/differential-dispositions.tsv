@@ -1,0 +1,5 @@
+family	observed_cases	stable_1_3_14	engineering_c1076ce95e	clun_disposition	fixture_ids	rationale
+brace-scanner-first-close	4	first unescaped close leaves scanner bracket state	same	match stable	brace-scanner-first-close-validates-suffix	brace discovery and class matching intentionally use separate closing rules
+brace-class-comma	41	comma may incorrectly create brace branches	comma remains a class member	adopt engineering	brace-class-comma|brace-unclosed-class-comma	prevents valid or malformed class text from manufacturing alternatives
+branch-local-malformed-class	2	class matching can consume sibling branch delimiters	same	clun correction	branch-local-malformed-class	compiled alternatives have explicit ownership boundaries and malformed siblings cannot capture each other
+brace-depth-suffix-leak	1	sequential nested branch state can suppress suffix punctuation	same	clun correction	brace-depth-suffix-validation	compiled alternatives leave no dynamic brace depth that can leak into following pattern text

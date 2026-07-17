@@ -729,15 +729,39 @@ range edges; keep one parser/range engine shared with install; add a public API 
 `build/clun`; `make test` passes the complete 15-file engine corpus; `make build`; `make purity`;
 `make docs-check`; no installer semver regression.
 
-### Phase 30 — Glob API  *(deps: 13, 27)* ~2.5k LOC
-Objective: deliver `Clun.Glob` with Bun-compatible matching and filesystem scanning.
-Tasks: inventory Bun `src/runtime/api/Glob`, glob types/docs/tests, and Node glob behavior; implement
-parser/automaton, braces/extglobs/classes/dotfiles/platform separators, match/scan/scanSync and async
-iteration; enforce path discipline, symlink-loop handling, deterministic traversal, cancellation, and
-bounded state growth; share matching with test discovery and package tooling where semantics coincide.
-**Gate:** `make compat FEATURE=filesystem.glob` passes the complete pinned pattern + filesystem fixture inventory
-against Bun on Linux and macOS; a million-entry synthetic tree remains bounded and cancellable;
-`make build`; `make test`; `make purity`; `make docs-check`.
+### Phase 30 — Glob API  *(deps: 13, 27)* ~3.5-4.5k implementation LOC + translated fixtures
+Objective: convert `filesystem.glob` to a four-target evidence-backed `Yes` with the complete
+`Clun.Glob` constructor plus `match`, `scan`, and `scanSync`; do not claim a `Bun` global, Node
+`fs.glob`, multiple patterns, excludes, extglobs, or Windows support.
+Tasks: execute the contract in `docs/design/phase-30.md` against stable Bun 1.3.14 and the pinned
+`c1076ce95e` engineering inventory; match constructor/prototype descriptors, String-only arguments,
+receiver brands, brand-gated boxed-String `ToString` hooks, primitive-only direct-cwd shorthand,
+fixed six-option getter order/defaults, direct shared intrinsic generator-result prototypes (without
+ordinary generators' blank function-specific layer), genuine Generator/AsyncGenerator results, and
+synchronous-versus-asynchronous error timing. Implement an
+immutable pure-CL matcher for `?`, `*`, component `**`, classes/ranges/negation, braces, escapes and
+leading whole-pattern negation; extglob tokens remain literal. Keep scan's observable raw-`/`
+component split distinct from direct match, including brace/class/escape slashes and a non-returned
+trailing-directory constraint. Adopt the engineering comma-in-class fix, ten-level active brace
+limit, 10,000-branch budget, wide malformed-brace handling, explicit-dot traversal, all-literal
+absolute-pattern fix, literal-symlink resolution, per-branch ancestor-cycle detection, cousin-link
+behavior, and path-length hardening. Add an incremental error-preserving directory accessor,
+iterative deterministic walker, duplicate suppression, native path limits, broken-link policy, and
+per-entry cancellation checkpoints. Add producer-backed native generator paths and cancellable
+fixed-pool job handles so 1,000 async scans create no per-scan coroutine threads; define and test
+pending `next`/`return`/`throw`, worker-completion, cancellation, and realm-teardown races without
+ordinary generator or worker regressions. Ship a row-owned stable/engineering corpus and inventory,
+hermetic real-tree fixtures, synthetic million-entry accessor, concurrency/leak/security adversaries,
+and SHA-pinned Bun oracle differentials; reuse the engine-free matcher internally only where existing
+discovery/package semantics are identical. Preserve canonical Issue #4 as `in-progress`, `minor`,
+and assigned to `0.1.0-dev.12` / `v0.1.0-dev.12`; synchronize its stale generated checklist before
+implementation continues.
+**Gate:** `make test-glob`; `make compat FEATURE=filesystem.glob`; pinned Bun oracle comparison passes
+on Linux/macOS x64/arm64 with no silent applicable skip; the 10,000-branch, deep-malformed-pattern,
+path-ceiling, symlink-cycle/cousin, 1,000-concurrent-scan, cancellation, leak, and million-entry bounds
+pass; `make build`; `make test`; `make purity`; `make docs-check`; `make public-claims-check`;
+`make roadmap-check`; `BASE_SHA=<phase-base> HEAD_SHA=<candidate> make version-transition-check` accepts
+the Issue #4 `minor` transition to `0.1.0-dev.12`; all four exact-candidate compatibility receipts pass.
 
 ### Phase 31 — YAML API and module loading  *(deps: 07, 27)* ~2.5k LOC
 Objective: support Bun-compatible YAML parsing, stringification, and YAML module imports without foreign code.

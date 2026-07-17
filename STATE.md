@@ -7,39 +7,43 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **32 - Cookies and CookieMap**  (IN PROGRESS)
+## Current phase: **30 - Glob API**  (IN PROGRESS)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/6
-**Current implementation unit:** convert `web.cookies` from `No` to the fourth evidence-backed
-compatibility-ledger `Yes` through `Clun.Cookie`, `Clun.CookieMap`, and automatic request/response
-integration.
+**Canonical issue:** https://github.com/theesfeld/clun/issues/4
+**Current implementation unit:** publish the arm64 CookieMap allocation correction and convert
+`filesystem.glob` from `No` to the fifth evidence-backed compatibility-ledger `Yes` through immutable
+`Clun.Glob` matching plus synchronous and asynchronous filesystem scanning.
 **SemVer impact:** `minor`
-**Release target:** `0.1.0-dev.11` / `v0.1.0-dev.11`
+**Release target:** `0.1.0-dev.12` / `v0.1.0-dev.12`
 **Entry boundary:** Phase 33 / issue #7 published the third ledger `Yes` as immutable dev.10 at
 `3e169ed25f8818621fd383678b313dfd0af71323`. Reconciliation commit
 `6585ace428934801ae2e2a3ebb132d38e0cd9ad5` passed CI, Documentation, and Pages; live `clun.sh`
-and an isolated hosted dev.10 install are verified. Phase 32 dependencies 17 and 27 are complete.
-Phase 26 remains after Phase 82.
-**Current scope:** review and publish the complete Cookie/CookieMap implementation, ordered Headers and
-Set-Cookie transport, request cookie snapshots, response integration, bounded incremental HTTP parsing,
-and supporting Proxy internal methods. The release must promote the ledger only after all four native
-GitHub runners pass the exact candidate and the hosted dev.11 installer is verified.
+and an isolated hosted dev.10 install are verified. Phase 32 then merged its fourth candidate `Yes` at
+`cb7de5d30b3a9c0df96bf857fe091a86f09da2cd`; exact master CI, Documentation, Compatibility, and candidate
+Pages passed. Immutable dev.11 release run `29544890706` failed only the CookieMap allocation-scaling
+assertion on both arm64 builders, so no GitHub release or assets were published and that tag will never be
+moved or reused. Phase 30 dependencies 13 and 27 are complete. Phase 26 remains after Phase 82.
+**Current scope:** publish the completed CookieMap allocation-free layout correction and the accepted
+`Clun.Glob` row together from the exact dev.12 master commit, collect four native compatibility receipts,
+then reconcile Pages and the hosted installer before handing the ledger to Phase 34.
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
 easiest to hardest among dependency-ready rows. Core engine/runtime/network/tooling changes are expected.
 Every conversion requires a legitimate canonical issue, accepted design, full declared behavior, executable
 four-target evidence, synchronized public surfaces, and the correct SemVer transition. The active parallel
-queue is Cookies, Glob, CSS Color, and YAML; exact canonical ledger IDs are frozen in `PLAN.md`.
+queue is Glob, CSS Color, YAML, and password/hash; exact canonical ledger IDs are frozen in `PLAN.md`.
 
-**Current checkpoint:** production and two independent reviews are complete. `make compat
-FEATURE=web.cookies` passes four shipped-binary evidence records plus the static core trace; the focused
-incremental parser set passes 3,165 assertions; `make build`, Cookie/Headers/fetch/server/security fixtures,
-Proxy fixtures, and purity (**708 files / 0 violations**) pass. Exact-master CI passed the build, version,
-and full `make test` gates. Its fresh 40,654-file execution measured **25,474 pass / 2,689 fail / 12,491
-skip / 0 crash**, adding 13 monotonic passes from the Proxy infrastructure required by Cookies; the
-generated pass list, gap snapshot, report, README, and site are being corrected to that exact receipt before
-tagging. The candidate ledger is **4 Yes / 6 Partial / 20 No**, while the published live ledger remains
-**3 Yes / 6 Partial / 21 No** until dev.11 is immutable and Pages is reconciled.
+**Current checkpoint:** Cookie correction commit `1762cdd969e25591dbe33d05532aa978c53b435e` replaces geometric
+CookieMap growth with an allocation-free layout prepass and exact 1024/2048/4096 capacities. The unchanged
+2.75x N-to-2N gate now measures 2.197x locally; focused resources are 13/13, Cookie core 1,500/1,500, build,
+purity (**714 files / 0 violations**), and diff check pass. Glob commits
+`758323395895ecc23b986b94bef5549d21d17630` and `dfab88be` implement the matcher and synchronous/asynchronous
+scanners, then close independent Unicode, navigation, component-local dotfile, ELOOP, cancellation,
+producer-lifetime, platform-ceiling, oracle, and evidence findings. The integrated gate passes **679 focused
+assertions**, stable and engineering matcher inventories (**24/1,471** and **26/1,483**), all shipped
+scan/adversarial/stress/oracle scripts, and the honest **3,400-site** inventory. The source candidate is now
+**5 Yes / 6 Partial / 19 No**. The published live ledger remains **3 Yes / 6 Partial / 21 No** until dev.12,
+Pages reconciliation, and the hosted installer pass.
 
 **M5 entry boundary:** immutable dev.4 diagnostic set **56 total / 0 pass / 56 fail / 0 skip / 0 crash**:
 **43 m5-owned** (32 intrinsic/prototype, 7 parser, 4 raw delegation), **12 m11** direct-eval/`with`

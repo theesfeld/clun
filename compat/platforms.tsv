@@ -15,10 +15,10 @@ database.sql-drivers	darwin-arm64	unsupported	-	Capability is not implemented.
 database.sql-drivers	darwin-x64	unsupported	-	Capability is not implemented.
 database.sql-drivers	linux-arm64	unsupported	-	Capability is not implemented.
 database.sql-drivers	linux-x64	unsupported	-	Capability is not implemented.
-filesystem.glob	darwin-arm64	unsupported	-	Capability is not implemented.
-filesystem.glob	darwin-x64	unsupported	-	Capability is not implemented.
-filesystem.glob	linux-arm64	unsupported	-	Capability is not implemented.
-filesystem.glob	linux-x64	unsupported	-	Capability is not implemented.
+filesystem.glob	darwin-arm64	supported	ev.filesystem.glob.adversarial.v1,ev.filesystem.glob.api.v1,ev.filesystem.glob.match-corpus.v1,ev.filesystem.glob.oracle.v1,ev.filesystem.glob.scan.v1,ev.filesystem.glob.stress.v1,ev.filesystem.glob.upstream-match.v1	The complete public surface executes through the shipped binary.
+filesystem.glob	darwin-x64	supported	ev.filesystem.glob.adversarial.v1,ev.filesystem.glob.api.v1,ev.filesystem.glob.match-corpus.v1,ev.filesystem.glob.oracle.v1,ev.filesystem.glob.scan.v1,ev.filesystem.glob.stress.v1,ev.filesystem.glob.upstream-match.v1	The complete public surface executes through the shipped binary.
+filesystem.glob	linux-arm64	supported	ev.filesystem.glob.adversarial.v1,ev.filesystem.glob.api.v1,ev.filesystem.glob.match-corpus.v1,ev.filesystem.glob.oracle.v1,ev.filesystem.glob.scan.v1,ev.filesystem.glob.stress.v1,ev.filesystem.glob.upstream-match.v1	The complete public surface executes through the shipped binary.
+filesystem.glob	linux-x64	supported	ev.filesystem.glob.adversarial.v1,ev.filesystem.glob.api.v1,ev.filesystem.glob.match-corpus.v1,ev.filesystem.glob.oracle.v1,ev.filesystem.glob.scan.v1,ev.filesystem.glob.stress.v1,ev.filesystem.glob.upstream-match.v1	The complete public surface executes through the shipped binary.
 language.jsx	darwin-arm64	unsupported	-	Capability is not implemented.
 language.jsx	darwin-x64	unsupported	-	Capability is not implemented.
 language.jsx	linux-arm64	unsupported	-	Capability is not implemented.

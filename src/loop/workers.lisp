@@ -10,6 +10,73 @@
   job-mailbox
   (lock (sb-thread:make-mutex :name "clun-worker-pool")))
 
+(defstruct (worker-cancel-token (:constructor %make-worker-cancel-token))
+  (cancel-state 0 :type fixnum))
+
+(defstruct (worker-job (:constructor %make-worker-job))
+  loop
+  token
+  handle
+  resource
+  on-done
+  (state :queued)
+  (lock (sb-thread:make-mutex :name "clun-worker-job")))
+
+(defun worker-cancelled-p (token)
+  (plusp (worker-cancel-token-cancel-state token)))
+
+(defun %cancel-worker-token (token)
+  (sb-ext:compare-and-swap (worker-cancel-token-cancel-state token) 0 1)
+  token)
+
+(defun %terminal-worker-state-p (state)
+  (member state '(:completed :failed :cancelled)))
+
+(defun %release-worker-job (job result terminal-state)
+  "Claim and publish JOB's terminal transition exactly once."
+  (let ((resource nil) (handle nil) (callback nil) (claimed nil))
+    (sb-thread:with-mutex ((worker-job-lock job))
+      (unless (%terminal-worker-state-p (worker-job-state job))
+        (setf claimed t
+              (worker-job-state job) terminal-state
+              resource (worker-job-resource job)
+              handle (worker-job-handle job)
+              callback (worker-job-on-done job)
+              (worker-job-resource job) nil
+              (worker-job-handle job) nil)))
+    (when claimed
+      (unregister-loop-resource resource)
+      (when handle (handle-deactivate handle))
+      (when callback (funcall callback result)))
+    claimed))
+
+(defun cancel-worker-job (job)
+  "Idempotently cancel JOB. Queued jobs settle immediately; running jobs stop
+cooperatively when their function observes WORKER-CANCELLED-P."
+  (let ((queued nil))
+    (sb-thread:with-mutex ((worker-job-lock job))
+      (unless (%terminal-worker-state-p (worker-job-state job))
+        (%cancel-worker-token (worker-job-token job))
+        (case (worker-job-state job)
+          (:queued (setf queued t (worker-job-state job) :cancel-requested))
+          (:running (setf (worker-job-state job) :cancel-requested)))))
+    (when queued
+      (%release-worker-job job (list :cancelled nil) :cancelled))
+    job))
+
+(defun cancel-loop-worker-jobs (loop)
+  "Request cancellation for every worker job still owned by LOOP. The registry
+snapshot is taken under the lifecycle lock, but callbacks run outside it."
+  (let ((jobs
+          (with-loop-lifecycle-lock (loop)
+            (loop for resource in (el-resources loop)
+                  for owner = (loop-resource-owner resource)
+                  when (worker-job-p owner)
+                    collect owner))))
+    (dolist (job jobs)
+      (cancel-worker-job job)))
+  (values))
+
 (defparameter *lazy-worker-count* 4
   "Threads spawned on first blocking submit when the loop was created with :workers 0.")
 
@@ -84,3 +151,51 @@ so concurrent submits (Promise.all of fetches) spawn exactly one set."
         (handle-deactivate handle)
         (error e)))
     handle))
+
+(defun worker-submit-cancellable (loop fn on-done)
+  "Run blocking FN on the fixed worker pool with a cooperative cancellation token.
+FN receives the token. ON-DONE receives (:OK value), (:ERR condition), or
+(:CANCELLED nil) on the loop thread. Returns a WORKER-JOB."
+  (let* ((handle (make-handle loop :kind :worker))
+         (token (%make-worker-cancel-token))
+         (job (%make-worker-job :loop loop :token token :handle handle
+                                :on-done on-done))
+         (resource nil))
+    (handler-case
+        (with-loop-lifecycle-lock (loop)
+          (%ensure-loop-open-locked loop "submit cancellable worker work")
+          (ensure-workers (el-workers loop))
+          (setf resource
+                (%register-loop-handle-resource-locked
+                 loop job (lambda () (cancel-worker-job job)) handle)
+                (worker-job-resource job) resource)
+          (sb-concurrency:send-message
+           (worker-pool-job-mailbox (el-workers loop))
+           (lambda ()
+             (let ((run nil))
+               (sb-thread:with-mutex ((worker-job-lock job))
+                 (when (eq (worker-job-state job) :queued)
+                   (setf (worker-job-state job) :running run t)))
+               (when run
+                 (let ((result
+                         (handler-case (list :ok (funcall fn token))
+                           (error (condition) (list :err condition)))))
+                   (unless
+                       (loop-post
+                        loop
+                        (lambda ()
+                          (if (worker-cancelled-p token)
+                              (%release-worker-job job (list :cancelled nil) :cancelled)
+                              (%release-worker-job
+                               job result (if (eq (first result) :ok)
+                                              :completed :failed)))))
+                     ;; Loop teardown rejected the post. Resource release may
+                     ;; safely occur here; no JS callback is invoked off-thread.
+                     (sb-thread:with-mutex ((worker-job-lock job))
+                       (setf (worker-job-on-done job) nil))
+                     (%release-worker-job job result :cancelled))))))))
+      (error (condition)
+        (unregister-loop-resource resource)
+        (handle-deactivate handle)
+        (error condition)))
+    job))

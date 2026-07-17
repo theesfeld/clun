@@ -21,7 +21,7 @@
            #:path-basename #:path-extension #:absolute-path-p #:normalize-path
            ;; Phase 07 — filesystem primitives (engine-free)
            #:path-exists-p #:file-p #:directory-p #:realpath #:read-file-string
-           #:read-directory
+           #:read-directory #:map-directory-entries
            ;; Phase 07 — JSON reader (hand-rolled, engine-free; §3.5)
            #:parse-json #:write-json #:json-error #:json-null #:json-false #:json-true
            #:jget #:jobject-p #:set-nonblocking
@@ -35,7 +35,7 @@
            ;; Phase 13 — filesystem primitives + errno-carrying condition for node:fs
            #:fs-error #:fs-error-code #:fs-error-errno #:fs-error-syscall #:fs-error-path
            #:fs-code-message
-           #:stat* #:fstat #:fstat-dev #:fstat-ino #:fstat-mode #:fstat-nlink #:fstat-uid
+           #:stat* #:stat-at* #:fstat #:fstat-dev #:fstat-ino #:fstat-mode #:fstat-nlink #:fstat-uid
            #:fstat-gid #:fstat-rdev #:fstat-size #:fstat-atime-ns #:fstat-mtime-ns #:fstat-ctime-ns
            #:fstat-file-p #:fstat-dir-p #:fstat-symlink-p
            #:make-directory #:remove-directory #:remove-file #:rename-path #:make-symlink
@@ -95,6 +95,20 @@
    #:cookie-map-entry-at #:cookie-map-response-fields
    #:cookie-map-modification-count))
 
+(defpackage :clun.glob
+  (:use :cl)
+  (:documentation "Immutable, engine-free Glob matching and filesystem traversal.")
+  (:export #:compile-glob #:compiled-glob #:compiled-glob-p #:glob-match-p
+           #:glob-scan-options #:make-glob-scan-options
+           #:glob-scan-options-cwd #:glob-scan-options-dot
+           #:glob-scan-options-absolute #:glob-scan-options-follow-symlinks
+           #:glob-scan-options-throw-error-on-broken-symlink
+           #:glob-scan-options-only-files
+           #:glob-accessor #:make-glob-accessor
+           #:glob-scan-token #:make-glob-scan-token #:cancel-glob-scan
+           #:glob-scan-cancelled #:glob-scan-cancelled-p #:glob-js-path-to-native
+           #:glob-native-path-to-js #:scan-glob))
+
 ;; Defined before clun.engine so the engine's :lp local-nickname can target it.
 (defpackage :clun.loop
   (:use :cl)
@@ -118,7 +132,9 @@
    ;; signals
    #:install-signal-handler #:remove-signal-handler
    ;; workers
-   #:worker-submit))
+   #:worker-submit #:worker-submit-cancellable #:cancel-worker-job
+   #:worker-job #:worker-job-p #:worker-job-state
+   #:worker-cancel-token #:worker-cancelled-p))
 
 (defpackage :clun.engine
   (:use :cl)
@@ -176,6 +192,9 @@
    #:data-prop #:fixed-data-prop #:nonconfigurable-data-prop #:hidden-prop
    #:new-object #:new-array #:throw-type-error #:js-undefined-p #:js-truthy #:js-boolean
    #:to-number #:arg #:intrinsic #:function-name #:js-function-p #:js-native-function-p
+   #:make-producer-generator #:make-producer-async-generator
+   #:async-generator-producer-ready #:async-generator-producer-failed
+   #:async-generator-producer-cancelled
    #:js-nullish-p #:array-like->list #:array-length
    ;; object-API surface for node builtin modules (Phase 12)
    #:js-getv #:to-object #:to-boolean #:to-integer-or-infinity #:js-strict-eq
