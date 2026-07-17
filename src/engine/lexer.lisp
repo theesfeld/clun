@@ -178,15 +178,47 @@
 ;;; --- numbers ----------------------------------------------------------------
 
 (defun read-radix-int (lx radix)
-  "Read digits of RADIX at pos into an integer (>=1 digit required)."
-  (let ((v 0) (any nil))
-    (loop for c = (lx-peek lx)
-          for d = (and c (digit-char-p c radix))
-          while d do (setf v (+ (* v radix) d) any t) (incf (lexer-pos lx)))
+  "Read digits of RADIX at pos into an integer (>=1 digit required).
+Allows NumericLiteralSeparator (`_`) between digits."
+  (let ((v 0) (any nil) (after-sep nil))
+    (loop
+      (let* ((c (lx-peek lx))
+             (d (and c (digit-char-p c radix))))
+        (cond
+          (d
+           (setf v (+ (* v radix) d) any t after-sep nil)
+           (incf (lexer-pos lx)))
+          ((and c (eql c #\_) any (not after-sep)
+                (let ((n (lx-peek lx 1)))
+                  (and n (digit-char-p n radix))))
+           (setf after-sep t)
+           (incf (lexer-pos lx)))
+          (t (return)))))
     (unless any (lex-error lx "missing digits in numeric literal"))
     ;; the trailing id-start check is done by finish-int-number, AFTER the optional
     ;; BigInt `n` suffix (which is itself an id-start char).
     v))
+
+(defun read-decimal-digits (lx &key (required t))
+  "Consume DecimalDigits with optional NumericLiteralSeparator. Returns whether
+any digit was read."
+  (let ((any nil) (after-sep nil))
+    (loop
+      (let ((c (lx-peek lx)))
+        (cond
+          ((and c (digit-p c))
+           (setf any t after-sep nil)
+           (incf (lexer-pos lx)))
+          ((and c (eql c #\_) any (not after-sep) (digit-p (lx-peek lx 1)))
+           (setf after-sep t)
+           (incf (lexer-pos lx)))
+          (t (return)))))
+    (when (and required (not any))
+      (lex-error lx "missing digits in numeric literal"))
+    any))
+
+(defun strip-numeric-separators (lexeme)
+  (remove #\_ lexeme))
 
 (defun read-number (lx start nl strict)
   (let ((c0 (lx-peek lx)))
@@ -202,29 +234,30 @@
          ;; legacy octal / non-octal decimal (Annex B; strict -> error)
          (when strict (lex-error lx "octal literals are not allowed in strict mode"))
          (return-from read-number (read-legacy-octal lx start nl)))))
-    ;; decimal / float
-    (loop while (digit-p (lx-peek lx)) do (incf (lexer-pos lx)))
-    (let ((is-float nil))
+    ;; decimal / float (including NumericLiteralSeparator). Integer part may be
+    ;; empty when the literal begins with `.` (e.g. `.5`).
+    (let ((had-int (read-decimal-digits lx :required nil))
+          (is-float nil))
       (when (eql (lx-peek lx) #\.)
         (setf is-float t) (incf (lexer-pos lx))
-        (loop while (digit-p (lx-peek lx)) do (incf (lexer-pos lx))))
+        (read-decimal-digits lx :required (not had-int)))
       (when (member (lx-peek lx) '(#\e #\E))
         (setf is-float t) (incf (lexer-pos lx))
         (when (member (lx-peek lx) '(#\+ #\-)) (incf (lexer-pos lx)))
-        (unless (digit-p (lx-peek lx)) (lex-error lx "missing exponent digits"))
-        (loop while (digit-p (lx-peek lx)) do (incf (lexer-pos lx))))
+        (read-decimal-digits lx :required t))
       (when (and (not is-float) (eql (lx-peek lx) #\n))
-        (let ((int (parse-integer (lexer-src lx) :start start :end (lexer-pos lx))))
+        (let ((int (parse-integer
+                    (strip-numeric-separators
+                     (subseq (lexer-src lx) start (lexer-pos lx))))))
           (incf (lexer-pos lx))
           (when (and (lx-peek lx) (id-start-code-p (lx-code lx)))
             (lex-error lx "identifier directly after number"))
           (return-from read-number (make-tok lx :bigint int start nl))))
       (when (and (lx-peek lx) (id-start-code-p (lx-code lx)))
         (lex-error lx "identifier directly after number"))
-      (let ((lexeme (subseq (lexer-src lx) start (lexer-pos lx))))
-        (make-tok lx :num (js-string->number lexeme) start nl)))))
-
-(defun finish-int-number (lx int start nl)
+      (let ((lexeme (strip-numeric-separators
+                     (subseq (lexer-src lx) start (lexer-pos lx)))))
+        (make-tok lx :num (js-string->number lexeme) start nl)))))(defun finish-int-number (lx int start nl)
   (cond
     ((eql (lx-peek lx) #\n)
      (incf (lexer-pos lx))
@@ -412,7 +445,8 @@ token start; returns a :regexp token (value=pattern, raw=flags)."
       (case c
         (#\{ (emit 1 "{")) (#\} (emit 1 "}")) (#\( (emit 1 "(")) (#\) (emit 1 ")"))
         (#\[ (emit 1 "[")) (#\] (emit 1 "]")) (#\; (emit 1 ";")) (#\, (emit 1 ","))
-        (#\~ (emit 1 "~")) (#\: (emit 1 ":")) (#\? (emit 1 "?"))
+        (#\~ (emit 1 "~")) (#\: (emit 1 ":"))
+        (#\? (if (eql c1 #\?) (emit 2 "??") (emit 1 "?")))
         (#\. (if (and (eql c1 #\.) (eql c2 #\.)) (emit 3 "...") (emit 1 ".")))
         (#\< (cond ((and (eql c1 #\<) (eql c2 #\=)) (emit 3 "<<="))
                    ((eql c1 #\<) (emit 2 "<<")) ((eql c1 #\=) (emit 2 "<=")) (t (emit 1 "<"))))

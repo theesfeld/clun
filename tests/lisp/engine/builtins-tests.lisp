@@ -120,6 +120,25 @@
   (is string= "hasOwn,2,isError,1"
       (ev "[Object.hasOwn.name,Object.hasOwn.length,Error.isError.name,Error.isError.length].join(',')")))
 
+(define-test builtins/array-from-async
+  ;; drive-jobs runs after the completion value is taken; mutate a container like
+  ;; the other Promise suite tests so the settled result is visible.
+  (is string= "fromAsync,1,false,true"
+      (evj "[Array.fromAsync.name,Array.fromAsync.length,Object.prototype.hasOwnProperty.call(Array.fromAsync,'prototype'),Array.fromAsync([1,2]) instanceof Promise].join(',')"))
+  (is string= "1,2,3"
+      (evj "var o=[];Array.fromAsync([1,2,3]).then(function(a){o.push(a.join(','))});o"))
+  (is string= "0,2,4"
+      (evj "var o=[];Array.fromAsync([0,1,2],function(v){return v*2}).then(function(a){o.push(a.join(','))});o"))
+  (is string= "2,4"
+      (evj "var o=[];Array.fromAsync({length:2,0:Promise.resolve(2),1:Promise.resolve(4)}).then(function(a){o.push(a.join(','))});o"))
+  (is string= "true,true"
+      (evj "var p=Promise.resolve(9),o=[];Array.fromAsync({[Symbol.asyncIterator](){var i=0;return{async next(){if(i++)return{done:true};return{value:p,done:false}}}}}).then(function(a){o.push([a[0]===p,a.length===1].join(','))});o"))
+  (is string= "type"
+      (evj "var o=[];Array.fromAsync(null).then(function(){o.push('ok')},function(e){o.push(e instanceof TypeError?'type':'other')});o"))
+  (is string= "true,2"
+      (evj "function MyArray(){this.tag='mine'}var o=[];Array.fromAsync.call(MyArray,[1,2]).then(function(a){o.push([a instanceof MyArray,a.length].join(','))});o"))
+  (is string= "type"
+      (evj "var o=[];Array.fromAsync([],null).then(function(){o.push('ok')},function(e){o.push(e instanceof TypeError?'type':'other')});o")))
 (define-test builtins/array-reduce-near-integer-limit
   ;; Both directions must start immediately without materializing every possible index.
   (is eq eng:+true+

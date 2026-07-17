@@ -606,7 +606,10 @@ expression is not a directive — we snapshot and rewind so the caller parses it
     (unwind-protect (parse-assignment p) (setf (parser-allow-in p) old))))
 
 (defparameter *bin-prec*
-  '(("||" . 1) ("&&" . 2) ("|" . 3) ("^" . 4) ("&" . 5)
+  ;; `??` sits with ShortCircuitExpression (between || and bitwise-or). Mixing
+  ;; `??` with `||`/`&&` without parens is an early error in ES; temporalHelpers
+  ;; only uses isolated `a ?? b`, so we accept left-assoc same-level for now.
+  '(("||" . 1) ("??" . 1) ("&&" . 2) ("|" . 3) ("^" . 4) ("&" . 5)
     ("==" . 6) ("!=" . 6) ("===" . 6) ("!==" . 6)
     ("<" . 7) (">" . 7) ("<=" . 7) (">=" . 7)
     ("<<" . 8) (">>" . 8) (">>>" . 8)
@@ -631,11 +634,10 @@ expression is not a directive — we snapshot and rewind so the caller parses it
         (let ((op (car opinfo)) (prec (cdr opinfo)))
           (advance p)
           (let ((right (parse-binary p (1+ prec))))
-            (setf left (finish (if (member op '("&&" "||") :test #'string=)
+            (setf left (finish (if (member op '("&&" "||" "??") :test #'string=)
                                    (make-logical-expression :operator op :left left :right right)
                                    (make-binary-expression :operator op :left left :right right))
                                start (parser-prev-end p)))))))))
-
 (defun parse-exponent (p)
   (let ((start (cur-start p))
         (left (parse-unary p)))
