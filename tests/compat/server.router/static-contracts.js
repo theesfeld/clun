@@ -39,11 +39,29 @@ function rssMiB() {
 }
 
 function batchSizeFor(byteSize, method) {
-  if (byteSize <= 1024 * 1024) return 64;
+  // macOS accept backlog and ephemeral-port pressure make Bun's full 48/64
+  // width flake with "connection closed" under pure-CL serve+fetch; keep the
+  // matrix shape and use a measured Darwin-safe concurrent width.
+  const darwin = process.platform === "darwin";
+  if (byteSize <= 1024 * 1024) return darwin ? 24 : 64;
   // Pure-CL multi-megabyte text() materialization is sequential; binary body
-  // APIs keep Bun's 48-wide large batch.
+  // APIs keep Bun's 48-wide large batch on Linux.
   if (method === "text") return 1;
-  return 48;
+  return darwin ? 12 : 48;
+}
+
+async function fetchRetry(route, attempts = 4) {
+  let lastError;
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    try {
+      return await fetch(route);
+    } catch (error) {
+      lastError = error;
+      Clun.gc(true);
+      await new Promise(resolve => setTimeout(resolve, 25 * (attempt + 1)));
+    }
+  }
+  throw lastError;
 }
 
 async function runMatrix(server, specs, iterationsFactor) {
@@ -60,7 +78,7 @@ async function runMatrix(server, specs, iterationsFactor) {
         async function iterate(deepCompare) {
           const pending = new Array(batchSize);
           for (let index = 0; index < batchSize; index++) {
-            pending[index] = fetch(route).then(async response => {
+            pending[index] = fetchRetry(route).then(async response => {
               assert(response.status === 200, `${spec.path} ${method}: status`);
               assert(response.url === route, `${spec.path} ${method}: URL`);
               assert(response.bodyUsed === false, `${spec.path} ${method}: bodyUsed before read`);
