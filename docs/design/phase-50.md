@@ -88,6 +88,20 @@ the public ledger.
 - Refresh development inventories atomically and make production inventories immutable.
 - Share the glob/path primitives already proven by Phase 30 while retaining router-specific precedence.
 
+The current M3 checkpoint installs a branded `Clun.FileSystemRouter` constructor through the shipped
+runtime. It builds a deterministic Next.js-style inventory from regular files, applies configured extension
+priority, filters dot/build/dependency directories and symlinks, and caps route count, traversal depth, and
+query pairs. Matching covers exact, dynamic, catch-all, and optional-catch-all precedence; decoded path
+parameters; string, `Request`, and absolute-URL inputs; root and nested-index aliases; origin and asset-prefix
+source paths; and query/parameter projections. `reload()` constructs the replacement inventory before
+publishing it, so a failed refresh retains the prior table.
+
+The shipped-binary fixture exercises a 72-route filtered tree, 3,000 query pairs, percent-decoding exactly
+once, extension defaults, empty and invalid directories, symlink exclusion, route addition/removal, and
+cached-inventory identity. The same gate also retains all M1/M2 HTTP, conditional, range, bounded-streaming,
+and lifecycle evidence. M4 still owns exact pinned-manifest accounting, stress/resource bounds, production
+inventory policy, and four-target receipts; this checkpoint does not change the public ledger.
+
 ### M4 - Completion evidence
 
 - Execute the complete pinned stable and engineering route/static/FileSystemRouter manifest.

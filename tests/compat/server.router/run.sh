@@ -12,6 +12,22 @@ printf '0123456789ABCDEF' >"$scratch/file.txt"
 dd if=/dev/zero of="$scratch/large.bin" bs=1048576 count=16 2>/dev/null
 ln -s "$scratch/file.txt" "$scratch/file-link.txt"
 mkfifo "$scratch/file.fifo"
+mkdir -p "$scratch/pages/posts/wow" "$scratch/pages/optional" \
+  "$scratch/pages/files" "$scratch/outside" "$scratch/invalid-pages" \
+  "$scratch/empty-pages"
+for route in index posts posts/hey 'posts/[id]' 'posts/[...rest]' \
+  'posts/wow/[[...id]]' 'optional/[[...parts]]'; do
+  printf 'export default 1;\n' >"$scratch/pages/${route}.tsx"
+done
+index=0
+while [ "$index" -lt 65 ]; do
+  printf 'export default %s;\n' "$index" >"$scratch/pages/files/a${index}.tsx"
+  index=$((index + 1))
+done
+printf 'ignored\n' >"$scratch/pages/ignored.txt"
+printf 'outside\n' >"$scratch/outside/escape.tsx"
+ln -s "$scratch/outside" "$scratch/pages/escape"
+printf 'invalid\n' >"$scratch/invalid-pages/[foo.tsx"
 server_pid=
 cleanup() {
   [ -z "$server_pid" ] || kill "$server_pid" 2>/dev/null || true
@@ -245,5 +261,10 @@ status=$(curl --silent --show-error --output "$scratch/missing" --write-out '%{h
   printf 'server.router: route-only server did not return the built-in 404\n' >&2
   exit 1
 }
+
+CLUN_ROUTER_PAGES="$scratch/pages" \
+CLUN_ROUTER_INVALID_PAGES="$scratch/invalid-pages" \
+CLUN_ROUTER_EMPTY_PAGES="$scratch/empty-pages" \
+  "$clun" "$repo_root/tests/compat/server.router/filesystem.js"
 
 printf 'server.router: routes, static/file caching, ranges, bounded streaming, safety, async, fallback, HEAD, and reload passed\n'

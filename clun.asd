@@ -188,6 +188,7 @@
                                            (:file "clun-password-hash") ; Clun.password/hash (Phase 36)
                                            (:file "clun-string-width") ; Clun.stringWidth (Phase 33) — before clun-global
                                            (:file "clun-glob") ; Clun.Glob (Phase 30) — before clun-global
+                                           (:file "clun-filesystem-router") ; Clun.FileSystemRouter (Phase 50)
                                            (:file "clun-color") ; Clun.color (Phase 34) — before clun-global
                                            (:file "clun-yaml") ; Clun.YAML (Phase 31) — before clun-global
                                            (:file "clun-global")
