@@ -51,8 +51,6 @@
   (modules nil)                  ; module registry: resolved-path(string) -> module-record (Phase 07)
   (entry-module nil))            ; the graph's entry module (import.meta.main, Phase 07)
 
-(defvar *realm* nil "The realm current code runs in (bound by the evaluator).")
-
 (defun realm-module (realm path)
   "The module-record registered under real PATH in REALM, or NIL."
   (let ((tbl (realm-modules realm)))

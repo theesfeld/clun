@@ -27,3 +27,15 @@
   (true (handler-case (eng:throw-type-error "x")
           (eng:js-condition () t)
           (:no-error (&rest _) (declare (ignore _)) nil))))
+
+(define-test conditions/native-errors-after-realm-teardown
+  ;; Installing the realm error-object hook must not make later engine-only
+  ;; parsing depend on a dynamically active realm.
+  (let ((realm (eng:make-realm)))
+    (eng:teardown-realm realm))
+  (let ((eng:*realm* nil))
+    (let ((condition (handler-case (eng:throw-syntax-error "outside realm")
+                       (eng:js-native-error (error) error))))
+      (of-type eng:js-native-error condition)
+      (is eq :syntax-error (eng:js-native-error-kind condition))
+      (is string= "outside realm" (eng:js-native-error-message condition)))))
