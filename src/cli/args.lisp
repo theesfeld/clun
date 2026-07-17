@@ -38,7 +38,8 @@
             ;; first positional stops flag parsing
             (t
              (next)
-             (if (member tok '("run" "test" "install" "add" "remove" "x" "create" "init")
+             (if (member tok '("run" "test" "install" "add" "remove" "exec"
+                              "x" "create" "init")
                          :test #'string=)
                  (progn (setf subcommand tok action :run)
                         (setf file (next))     ; the file/script name after the subcommand

@@ -2856,3 +2856,16 @@ failure therefore becomes an `fs-error`, then a shell status, and can drive `||`
 command substitutions. The shipped public API fixture closes 50 exact IDs across seven pinned files, moving
 the corpus to 726 covered, 872 pending, and 32 upstream-inactive. `exec` and unexercised lifecycle sites remain
 pending; the shell row stays `Partial` within the allocated `0.1.0-dev.18` Phase 65 boundary.
+
+### 2026-07-17 - Phase 65 adds `clun exec` on the in-process shell engine
+
+The CLI accepts `clun exec <script>` and routes the source directly into the same Common Lisp parser and
+executor used by `Clun.$`. It does not invoke `/bin/sh`; cwd, environment, byte-exact stdout/stderr, and
+status are carried explicitly. A bare `clun` command can resolve the running executable even when `PATH`
+is empty, matching the runtime self-execution contract without changing lookup for any other command.
+
+The shipped fixture closes all 18 exact stable and engineering `exec.test.ts` IDs, including help, failure,
+large output, builtin diagnostics, `cd`, self-execution, and a non-ASCII cwd. The corpus is now 744 covered,
+854 pending, and 32 upstream-inactive. This remains SemVer-minor behavior inside the allocated
+`0.1.0-dev.18` Phase 65 boundary; the public shell row stays `Partial` pending finite-corpus closure and
+four-target receipts.
