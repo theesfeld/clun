@@ -1,7 +1,7 @@
 <!-- clun-generated:release-notes:begin -->
 # Clun 0.1.0-dev.22
 
-Phase 65: Cross-platform shell API (inventory burn-down on transport master).
+Phase 65: Cross-platform shell API.
 
 - SemVer impact: `patch` within the selected `0.1.0` prerelease train.
 - Compatibility snapshot: 9 Yes / 7 Partial / 14 No across 30 generated rows.
