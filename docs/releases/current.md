@@ -2,6 +2,9 @@
 # Clun 0.1.0-dev.18
 
 Phase 65: Cross-platform shell API.
+# Clun 0.1.0-dev.19
+
+Phase 66: Jest-compatible test-runner parity.
 
 - SemVer impact: `minor` within the selected `0.1.0` prerelease train.
 - Compatibility snapshot: 9 Yes / 7 Partial / 14 No across 30 generated rows.
@@ -24,3 +27,14 @@ The canonical evidence and current limitations are in `compat/`; `make compat-va
 
 The release candidate stages an honest Partial public shell surface. Merge, publication, and issue closure
 remain blocked on residual corpus work, lifecycle stress, four-target receipts, and final review.
+- Stages Phase 66 Jest-compatible test-runner parity as an honest Partial surface: core and extended
+  matchers, snapshot lifecycles with Bun-formatted values, source-aligned coverage (text/LCOV),
+  function and module mocks, setup preloads, realm-local fake timers, reporters, sharding, and
+  deterministic randomization.
+- Freezes a 52-root Bun denominator manifest; exact Bun/Clun pass/fail/skip counts, concurrent
+  scheduling, JSX coverage mapping, and four-target Yes receipts remain open.
+- Keeps the public ledger row `Partial` (not `Yes`). Router owns dev.17 and shell owns dev.18; this
+  candidate allocates `0.1.0-dev.19` under the unpublished-intermediate prerelease gap policy.
+
+The release candidate stages an honest Partial public test-runner surface. Merge, publication, and
+issue closure remain blocked on residual PLAN gates, four-target receipts, and final review.

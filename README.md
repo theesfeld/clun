@@ -12,6 +12,9 @@ Clun does not claim blanket speed parity with Bun.
 > **Status: pre-alpha, under active construction.** [Phase 65](https://github.com/theesfeld/clun/issues/39) is in progress.
 > Its release-bearing target is `0.1.0-dev.18` / `v0.1.0-dev.18` (SemVer impact: `minor`).
 > The verified release boundary is `v0.1.0-dev.17`, with four native archives, checksums, Pages,
+> **Status: pre-alpha, under active construction.** [Phase 66](https://github.com/theesfeld/clun/issues/40) is in progress.
+> Its release-bearing target is `0.1.0-dev.19` / `v0.1.0-dev.19` (SemVer impact: `minor`).
+> The verified release boundary is `v0.1.0-dev.16`, with four native archives, checksums, Pages,
 > and hosted-installer evidence.
 > Phase 26 remains deferred until after Phase 82 and will
 > be rewritten for the repository state that exists then.
@@ -20,11 +23,15 @@ Clun does not claim blanket speed parity with Bun.
 > the local resume checklist.
 <!-- clun-generated:release:end -->
 
-Source on draft [PR #86](https://github.com/theesfeld/clun/pull/86) is the `0.1.0-dev.18` Phase 65
 candidate. Public `tooling.shell` remains honest `Partial` (1,247/1,630 pinned sites) and is not claimed as
+candidate. Public `tooling.test-runner` remains honest `Partial` and is not claimed as `Yes`.
+Source on draft [PR #86](https://github.com/theesfeld/clun/pull/86) is the `0.1.0-dev.18` Phase 65
 `Yes`. Published `v0.1.0-dev.17` is the verified release boundary (router Yes). This unit stages Partial shell as `0.1.0-dev.18`.
 The hosted installer correctly remains on published dev.17 until the candidate is merged, tagged, and released.
-
+Source on draft [PR #88](https://github.com/theesfeld/clun/pull/88) is the `0.1.0-dev.19` Phase 66
+Router PR #85 owns `0.1.0-dev.17`; shell PR #86 owns `0.1.0-dev.18`; this unit stages `0.1.0-dev.19`.
+Multi-step prerelease advances are allowed while skipped intermediates remain unpublished.
+The hosted installer correctly remains on published dev.16 until the candidate is merged, tagged, and released.
 
 ## Install
 
@@ -161,6 +168,10 @@ The current source is the `0.1.0-dev.18` release candidate; the immutable tag an
 The last published prerelease remains [`v0.1.0-dev.17`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.17).
 [The versioning contract](docs/versioning.md) defines prerelease sequencing, synchronized surfaces, immutable tags, assets, and installer evidence.
 [Phase 65 issue #39](https://github.com/theesfeld/clun/issues/39) is the canonical live release record.
+The current source is the `0.1.0-dev.19` release candidate; the immutable tag and assets are not published yet.
+The last published prerelease remains [`v0.1.0-dev.16`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.16).
+[The versioning contract](docs/versioning.md) defines prerelease sequencing, synchronized surfaces, immutable tags, assets, and installer evidence.
+[Phase 66 issue #40](https://github.com/theesfeld/clun/issues/40) is the canonical live release record.
 <!-- clun-generated:release-summary:end -->
 
 
@@ -202,6 +213,7 @@ make build     # compile everything, save build/clun (save-lisp-and-die)
 make test      # run the CL suites and JS/TS fixture harnesses
 make purity    # fail on any CFFI/foreign-code token
 ./build/clun --version   # => clun 0.1.0-dev.18
+./build/clun --version   # => clun 0.1.0-dev.19
 ```
 
 A fresh clone builds with `make build` alone: ASDF compiles the vendored closure and `src/` into
