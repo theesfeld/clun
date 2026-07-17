@@ -42,7 +42,7 @@
            #:open-regular-file-stream
            #:make-directory #:remove-directory #:remove-file #:rename-path #:make-symlink
            #:read-symlink #:change-mode #:truncate-file #:make-temp-dir #:check-access
-           #:remove-recursive #:read-file-octets #:write-file-octets #:copy-file*))
+           #:touch-file #:remove-recursive #:read-file-octets #:write-file-octets #:copy-file*))
 
 (defpackage :clun.csrf
   (:use :cl)

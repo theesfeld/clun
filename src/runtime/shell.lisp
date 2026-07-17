@@ -31,6 +31,7 @@
 
 (defparameter *shell-max-array-depth* 64)
 (defparameter *shell-max-seq-items* 1000000)
+(defparameter *shell-max-builtin-bytes* (* 256 1024 1024))
 (defparameter *shell-empty-octets*
   (make-array 0 :element-type '(unsigned-byte 8)))
 
@@ -520,7 +521,7 @@
 
 (defparameter *shell-builtins*
   '("echo" "pwd" "cd" "true" "false" ":" "export" "unset" "which" "exit"
-    "basename" "dirname" "seq"))
+    "basename" "dirname" "seq" "cat" "mkdir" "touch"))
 
 (defun %shell-relative-path (path state)
   (if (clun.sys:absolute-path-p path)
@@ -804,7 +805,300 @@ integer conversions are deliberately rejected because seq values are f32."
             (write-string terminator output)
             (%shell-result-from-strings (get-output-stream-string output) "" 0)))))))
 
-(defun %shell-run-builtin (argv state env)
+(defun %shell-coreutils-message (code)
+  (or (cdr (assoc code
+                  '(("ENOENT" . "No such file or directory")
+                    ("EEXIST" . "File exists")
+                    ("EACCES" . "Permission denied")
+                    ("ENOTDIR" . "Not a directory")
+                    ("EISDIR" . "Is a directory")
+                    ("ENOTEMPTY" . "Directory not empty")
+                    ("EPERM" . "Operation not permitted")
+                    ("ELOOP" . "Too many levels of symbolic links")
+                    ("EROFS" . "Read-only file system")
+                    ("ENOSPC" . "No space left on device"))
+                  :test #'string=))
+      (clun.sys:fs-code-message code)))
+
+(defun %shell-builtin-error-string (name path message)
+  (format nil "~a: ~a: ~a~%" name path message))
+
+(defun %shell-fs-error-string (name display-path condition)
+  (%shell-builtin-error-string
+   name display-path (%shell-coreutils-message (clun.sys:fs-error-code condition))))
+
+(defun %shell-append-octets (target source)
+  (loop for byte across source do (vector-push-extend byte target))
+  target)
+
+(defun %shell-cat-visible-byte (byte output)
+  (cond
+    ((< byte 32)
+     (vector-push-extend (char-code #\^) output)
+     (vector-push-extend (+ byte 64) output))
+    ((= byte 127)
+     (vector-push-extend (char-code #\^) output)
+     (vector-push-extend (char-code #\?) output))
+    ((>= byte 128)
+     (vector-push-extend (char-code #\M) output)
+     (vector-push-extend (char-code #\-) output)
+     (%shell-cat-visible-byte (- byte 128) output))
+    (t (vector-push-extend byte output))))
+
+(defun %shell-cat-transform (input number-all number-nonblank show-ends
+                             squeeze-blank show-tabs show-nonprinting)
+  (if (not (or number-all number-nonblank show-ends squeeze-blank
+               show-tabs show-nonprinting))
+      input
+      (let ((output (make-array (max 32 (length input))
+                                :element-type '(unsigned-byte 8)
+                                :adjustable t :fill-pointer 0))
+            (line-number 1)
+            (at-line-start t)
+            (newline-run 0))
+        (labels ((emit-string (string)
+                   (%shell-append-octets output (%shell-octets string)))
+                 (emit-byte (byte)
+                   (cond
+                     ((and (= byte 9) show-tabs)
+                      (emit-string "^I"))
+                     ((and show-nonprinting (not (member byte '(9 10))))
+                      (%shell-cat-visible-byte byte output))
+                     (t (vector-push-extend byte output)))))
+          (loop for byte across input do
+            (if (= byte 10)
+                (progn
+                  (unless (and squeeze-blank (>= newline-run 2))
+                    (when (and at-line-start number-all (not number-nonblank))
+                      (emit-string (format nil "~6d~c" line-number #\Tab))
+                      (incf line-number))
+                    (when show-ends (vector-push-extend (char-code #\$) output))
+                    (vector-push-extend byte output))
+                  (incf newline-run)
+                  (setf at-line-start t))
+                (progn
+                  (when (and at-line-start (or number-nonblank number-all))
+                    (emit-string (format nil "~6d~c" line-number #\Tab))
+                    (incf line-number))
+                  (setf newline-run 0 at-line-start nil)
+                  (emit-byte byte))))
+          (coerce output '(simple-array (unsigned-byte 8) (*)))))))
+
+(defun %shell-run-cat (arguments state stdin)
+  (let ((args arguments) (files '())
+        (number-all nil) (number-nonblank nil) (show-ends nil)
+        (squeeze-blank nil) (show-tabs nil) (show-nonprinting nil))
+    (labels ((option-error (option)
+               (return-from %shell-run-cat
+                 (%shell-result-from-strings
+                  "" (format nil "cat: illegal option -- ~a~%" option) 1))))
+      (loop while args do
+        (let ((argument (pop args)))
+          (cond
+            ((string= argument "--")
+             (setf files (append files args) args nil))
+            ((or (string= argument "-")
+                 (not (and (> (length argument) 1)
+                           (char= (char argument 0) #\-))))
+             (setf files (append files (list argument) args) args nil))
+            ((and (> (length argument) 2)
+                  (string= argument "--" :end1 2))
+             (option-error argument))
+            (t
+             (loop for option across (subseq argument 1) do
+               (case option
+                 (#\b (setf number-nonblank t))
+                 (#\e (setf show-ends t show-nonprinting t))
+                 (#\n (setf number-all t))
+                 (#\s (setf squeeze-blank t))
+                 (#\t (setf show-tabs t show-nonprinting t))
+                 (#\u nil)
+                 (#\v (setf show-nonprinting t))
+                 (otherwise (option-error (string option)))))))))
+      (let ((collected (make-array 32 :element-type '(unsigned-byte 8)
+                                   :adjustable t :fill-pointer 0))
+            (stderr (make-string-output-stream))
+            (exit-code 0)
+            (sources (if files files (list "-"))))
+        (dolist (file sources)
+          (handler-case
+              (let ((octets
+                      (if (string= file "-")
+                          stdin
+                          (let ((path (%shell-relative-path file state)))
+                            (let ((stat (clun.sys:stat* path)))
+                              (when (> (clun.sys:fstat-size stat)
+                                       *shell-max-builtin-bytes*)
+                                (write-string
+                                 (%shell-builtin-error-string
+                                  "cat" file "File too large") stderr)
+                                (setf exit-code 1)
+                                (return))
+                              (clun.sys:read-file-octets path))))))
+                (when (> (+ (length collected) (length octets))
+                         *shell-max-builtin-bytes*)
+                  (write-string
+                   (%shell-builtin-error-string "cat" file "Output limit exceeded")
+                   stderr)
+                  (setf exit-code 1)
+                  (return))
+                (%shell-append-octets collected octets))
+            (clun.sys:fs-error (condition)
+              (write-string (%shell-fs-error-string "cat" file condition) stderr)
+              (setf exit-code 1)
+              (return))))
+        (make-shell-result
+         :stdout (%shell-cat-transform
+                  (coerce collected '(simple-array (unsigned-byte 8) (*)))
+                  number-all number-nonblank show-ends squeeze-blank
+                  show-tabs show-nonprinting)
+         :stderr (%shell-octets (get-output-stream-string stderr))
+         :exit-code exit-code)))))
+
+(defun %shell-parse-octal-mode (text)
+  (handler-case
+      (multiple-value-bind (mode position) (parse-integer text :radix 8 :junk-allowed t)
+        (and mode (= position (length text)) (<= 0 mode #o7777) mode))
+    (error () nil)))
+
+(defun %shell-missing-directories (path)
+  (let ((missing '()) (current path))
+    (loop while (and (plusp (length current))
+                     (not (clun.sys:path-exists-p current)))
+          do (push current missing)
+             (let ((parent (clun.sys:path-dirname current)))
+               (when (string= parent current) (return))
+               (setf current parent)))
+    missing))
+
+(defun %shell-run-mkdir (arguments state)
+  (let ((args arguments) (paths '()) (parents nil) (verbose nil) (mode #o777))
+    (labels ((usage ()
+               (return-from %shell-run-mkdir
+                 (%shell-result-from-strings
+                  "" (format nil "usage: mkdir [-pv] [-m mode] directory_name ...~%") 1)))
+             (illegal (option)
+               (return-from %shell-run-mkdir
+                 (%shell-result-from-strings
+                  "" (format nil "mkdir: illegal option -- ~a~%" option) 1)))
+             (take-mode ()
+               (unless args (usage))
+               (let ((parsed (%shell-parse-octal-mode (pop args))))
+                 (unless parsed
+                   (return-from %shell-run-mkdir
+                     (%shell-result-from-strings
+                      "" (format nil "mkdir: invalid mode~%") 1)))
+                 (setf mode parsed))))
+      (loop while args do
+        (let ((argument (pop args)))
+          (cond
+            ((string= argument "--")
+             (setf paths (append paths args) args nil))
+            ((or (string= argument "-")
+                 (not (and (> (length argument) 1)
+                           (char= (char argument 0) #\-))))
+             (setf paths (append paths (list argument) args) args nil))
+            ((string= argument "--parents") (setf parents t))
+            ((or (string= argument "--verbose") (string= argument "--vebose"))
+             (setf verbose t))
+            ((string= argument "--mode") (take-mode))
+            ((and (> (length argument) 7)
+                  (string= argument "--mode=" :end1 7))
+             (let ((parsed (%shell-parse-octal-mode (subseq argument 7))))
+               (unless parsed
+                 (return-from %shell-run-mkdir
+                   (%shell-result-from-strings
+                    "" (format nil "mkdir: invalid mode~%") 1)))
+               (setf mode parsed)))
+            ((and (> (length argument) 2)
+                  (string= argument "-m" :end1 2))
+             (let ((parsed (%shell-parse-octal-mode (subseq argument 2))))
+               (unless parsed
+                 (return-from %shell-run-mkdir
+                   (%shell-result-from-strings
+                    "" (format nil "mkdir: invalid mode~%") 1)))
+               (setf mode parsed)))
+            ((string= argument "-m") (take-mode))
+            ((and (> (length argument) 2)
+                  (string= argument "--" :end1 2))
+             (illegal argument))
+            (t
+             (loop for option across (subseq argument 1) do
+               (case option
+                 (#\p (setf parents t))
+                 (#\v (setf verbose t))
+                 (otherwise (illegal (string option)))))))))
+      (unless paths (usage))
+      (let ((stdout (make-string-output-stream))
+            (stderr (make-string-output-stream))
+            (exit-code 0))
+        (dolist (path paths)
+          (let* ((resolved (%shell-relative-path path state))
+                 (missing (and parents (%shell-missing-directories resolved))))
+            (handler-case
+                (cond
+                  ((and parents (clun.sys:directory-p resolved)) nil)
+                  ((clun.sys:path-exists-p resolved)
+                   (write-string
+                    (%shell-builtin-error-string "mkdir" path "File exists") stderr)
+                   (setf exit-code 1))
+                  (t
+                   (clun.sys:make-directory resolved :recursive parents :mode mode)
+                   (when verbose
+                     (dolist (created (if parents missing (list resolved)))
+                       (format stdout "~a~%" created)))))
+              (clun.sys:fs-error (condition)
+                (write-string (%shell-fs-error-string "mkdir" path condition) stderr)
+                (setf exit-code 1)))))
+        (%shell-result-from-strings (get-output-stream-string stdout)
+                                    (get-output-stream-string stderr) exit-code)))))
+
+(defparameter *shell-touch-usage*
+  (format nil
+          "usage: touch [-A [-][[hh]mm]SS] [-achm] [-r file] [-t [[CC]YY]MMDDhhmm[.SS]]~%       [-d YYYY-MM-DDThh:mm:SS[.frac][tz]] file ...~%"))
+
+(defun %shell-run-touch (arguments state)
+  (let ((args arguments) (paths '()) (no-create nil))
+    (labels ((usage ()
+               (return-from %shell-run-touch
+                 (%shell-result-from-strings "" *shell-touch-usage* 1)))
+             (unsupported (option)
+               (return-from %shell-run-touch
+                 (%shell-result-from-strings
+                  "" (format nil
+                             "touch: unsupported option, please open a GitHub issue -- ~a~%"
+                             option)
+                  1))))
+      (loop while args do
+        (let ((argument (pop args)))
+          (cond
+            ((string= argument "--")
+             (setf paths (append paths args) args nil))
+            ((or (string= argument "-")
+                 (not (and (> (length argument) 1)
+                           (char= (char argument 0) #\-))))
+             (setf paths (append paths (list argument) args) args nil))
+            ((string= argument "--no-create") (setf no-create t))
+            ((and (> (length argument) 2)
+                  (string= argument "--" :end1 2))
+             (unsupported argument))
+            (t
+             (loop for option across (subseq argument 1) do
+               (case option
+                 (#\c (setf no-create t))
+                 (otherwise (unsupported (format nil "-~c" option)))))))))
+      (unless paths (usage))
+      (let ((stderr (make-string-output-stream)) (exit-code 0))
+        (dolist (path paths)
+          (handler-case
+              (clun.sys:touch-file (%shell-relative-path path state)
+                                   :no-create no-create)
+            (clun.sys:fs-error (condition)
+              (write-string (%shell-fs-error-string "touch" path condition) stderr)
+              (setf exit-code 1))))
+        (%shell-result-from-strings "" (get-output-stream-string stderr) exit-code)))))
+
+(defun %shell-run-builtin (argv state env stdin)
   "Return RESULT and true when ARGV names a builtin."
   (let ((name (first argv)) (args (rest argv)))
     (cond
@@ -827,6 +1121,12 @@ integer conversions are deliberately rejected because seq values are f32."
                     "" (format nil "usage: dirname string~%") 1) t)))
       ((string= name "seq")
        (values (%shell-run-seq args) t))
+      ((string= name "cat")
+       (values (%shell-run-cat args state stdin) t))
+      ((string= name "mkdir")
+       (values (%shell-run-mkdir args state) t))
+      ((string= name "touch")
+       (values (%shell-run-touch args state) t))
       ((string= name "pwd")
        (values (%shell-result-from-strings
                 (concatenate 'string (shell-state-cwd state) (string #\Newline)) "" 0) t))
@@ -1025,7 +1325,7 @@ integer conversions are deliberately rejected because seq values are f32."
               (multiple-value-bind (input output-redirections)
                   (%shell-command-redirections command state g stdin)
                 (multiple-value-bind (builtin handled)
-                    (%shell-run-builtin argv state env)
+                    (%shell-run-builtin argv state env input)
                   (%shell-apply-output-redirections
                    (if handled builtin
                        (%shell-run-external argv env (shell-state-cwd state) input))
