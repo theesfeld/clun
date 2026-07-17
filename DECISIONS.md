@@ -2869,3 +2869,17 @@ large output, builtin diagnostics, `cd`, self-execution, and a non-ASCII cwd. Th
 854 pending, and 32 upstream-inactive. This remains SemVer-minor behavior inside the allocated
 `0.1.0-dev.18` Phase 65 boundary; the public shell row stays `Partial` pending finite-corpus closure and
 four-target receipts.
+
+### 2026-07-17 - Phase 65 closes the first broad shell-language slice
+
+The interpolation contract is now bounded at the pinned 100-level nesting limit and validates at tagged
+template construction time, so depth 101 fails synchronously before a lazy job exists. The lexer removes
+backslash-newline continuations outside single quotes. A command that disappears after substitution returns
+the substitution's status instead of manufacturing success, and `echo` preserves exactly one pure newline
+while retaining the already-frozen two-newline cap for longer runs.
+
+The shipped language fixture binds 163 exact stable and engineering `bunshell.test.ts` IDs to these behaviors
+and the existing escaping, inert interpolation, compact operator, Unicode, Latin-1, tilde, and command
+substitution surfaces. The corpus is now 907 covered, 691 pending, and 32 upstream-inactive. This is SemVer
+minor behavior inside the allocated `0.1.0-dev.18` Phase 65 boundary; the row remains `Partial` until the
+finite pending set and four platform receipts close.
