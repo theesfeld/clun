@@ -14,6 +14,7 @@ if [ ! -d "$tmp_base" ]; then
   tmp_base=$repo_root/tmp-test
   mkdir -p "$tmp_base"
 fi
+tmp_base=${tmp_base%/}
 root=$(mktemp -d "$tmp_base/clun-glob.XXXXXX")
 edge=$(mktemp -d "$tmp_base/clun-glob-edge.XXXXXX")
 trap 'rm -rf "$root" "$edge"' EXIT HUP INT TERM
