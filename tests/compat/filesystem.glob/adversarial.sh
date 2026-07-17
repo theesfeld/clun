@@ -38,15 +38,20 @@ segment=$(printf '%255s' '' | tr ' ' D)
 file_name=$(printf '%255s' '' | tr ' ' F)
 broken_name=$(printf '%255s' '' | tr ' ' B)
 
-# Build past PATH_MAX using only relative syscalls.
+# Keep the shell's cwd below PATH_MAX, then create the over-ceiling leaf with
+# one final relative pathname. Some dash builds reject cd after chdir succeeds
+# when they cannot refresh the logical PWD.
+deep_components=$((path_ceiling / 256))
 (
   cd "$root/deep"
   index=0
-  while [ "$index" -lt 18 ]; do
+  while [ "$index" -lt $((deep_components - 1)) ]; do
     mkdir "$segment"
     cd "$segment"
     index=$((index + 1))
   done
+  mkdir "$segment"
+  printf 'deep\n' > "$segment/$file_name"
 )
 
 # Keep the parent openable while making the returned absolute leaf exceed the
