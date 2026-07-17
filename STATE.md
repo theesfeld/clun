@@ -34,10 +34,12 @@ queue is Cookies, Glob, CSS Color, and YAML; exact canonical ledger IDs are froz
 **Current checkpoint:** production and two independent reviews are complete. `make compat
 FEATURE=web.cookies` passes four shipped-binary evidence records plus the static core trace; the focused
 incremental parser set passes 3,165 assertions; `make build`, Cookie/Headers/fetch/server/security fixtures,
-Proxy fixtures, and purity (**708 files / 0 violations**) pass. The local broad suite reaches unrelated
-pre-existing `/tmp` assumptions because this sandbox has no `/tmp`; the four-target GitHub acceptance run
-owns the release receipt. The candidate ledger is **4 Yes / 6 Partial / 20 No**, while the published live
-ledger remains **3 Yes / 6 Partial / 21 No** until dev.11 is immutable and Pages is reconciled.
+Proxy fixtures, and purity (**708 files / 0 violations**) pass. Exact-master CI passed the build, version,
+and full `make test` gates. Its fresh 40,654-file execution measured **25,474 pass / 2,689 fail / 12,491
+skip / 0 crash**, adding 13 monotonic passes from the Proxy infrastructure required by Cookies; the
+generated pass list, gap snapshot, report, README, and site are being corrected to that exact receipt before
+tagging. The candidate ledger is **4 Yes / 6 Partial / 20 No**, while the published live ledger remains
+**3 Yes / 6 Partial / 21 No** until dev.11 is immutable and Pages is reconciled.
 
 **M5 entry boundary:** immutable dev.4 diagnostic set **56 total / 0 pass / 56 fail / 0 skip / 0 crash**:
 **43 m5-owned** (32 intrinsic/prototype, 7 parser, 4 raw delegation), **12 m11** direct-eval/`with`

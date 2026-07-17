@@ -1,9 +1,9 @@
 # generator: scripts/test262-buckets.lisp
 # vendor-test262-commit: d1d583db95a521218f3eb8341a887fd63eda8ff1
-# source-revision: working-tree@d3e114749655738ecbfbec21419d4dc0e5276614
-# classification-ledger: tmp-test/m6-final-classifications.tsv
+# source-revision: cb7de5d30b3a9c0df96bf857fe091a86f09da2cd
+# classification-ledger: tmp-test/test262-exec-classifications.tsv
 # frozen-passlist: tests/conformance/exec-passlist.txt
-# classification-ledger-fnv-1a-64: A742D885346DA23C
+# classification-ledger-fnv-1a-64: 51F51CA8B22FAB6D
 path	owner	phase_owner	work_bucket	topic	features	flags	includes
 arguments-object/10.5-1-s.js	language:arguments-object	phase-25b	functions-arguments	language/arguments-object	-	onlyStrict	-
 arguments-object/10.5-7-b-1-s.js	language:arguments-object	phase-25b	functions-arguments	language/arguments-object	-	onlyStrict	-
@@ -313,7 +313,6 @@ built-ins/Array/prototype/slice/create-species-neg-zero.js	builtin:Array	phase-2
 built-ins/Array/prototype/slice/create-species-non-ctor.js	builtin:Array	phase-25b	arrays	built-ins/Array/prototype/slice	Symbol.species,Reflect.construct	-	isConstructor.js
 built-ins/Array/prototype/slice/create-species-poisoned.js	builtin:Array	phase-25b	arrays	built-ins/Array/prototype/slice	Symbol.species	-	-
 built-ins/Array/prototype/slice/create-species.js	builtin:Array	phase-25b	arrays	built-ins/Array/prototype/slice	Symbol.species	-	-
-built-ins/Array/prototype/slice/length-exceeding-integer-limit-proxied-array.js	builtin:Array	phase-25b	arrays	built-ins/Array/prototype/slice	exponentiation	-	compareArray.js
 built-ins/Array/prototype/slice/target-array-non-extensible.js	builtin:Array	phase-25b	arrays	built-ins/Array/prototype/slice	Symbol.species	-	-
 built-ins/Array/prototype/slice/target-array-with-non-configurable-property.js	builtin:Array	phase-25b	arrays	built-ins/Array/prototype/slice	Symbol.species	-	-
 built-ins/Array/prototype/some/15.4.4.17-4-1.js	builtin:Array	phase-25b	arrays	built-ins/Array/prototype/some	-	-	-
@@ -671,7 +670,6 @@ built-ins/Date/prototype/toTemporalInstant/this-value-valid-date.js	builtin:Date
 built-ins/Date/prototype/toTimeString/format.js	builtin:Date	phase-25b	primitive-builtins	built-ins/Date/prototype/toTimeString	-	-	-
 built-ins/Date/prototype/toUTCString/negative-year.js	builtin:Date	phase-25b	primitive-builtins	built-ins/Date/prototype/toUTCString	-	-	-
 built-ins/Date/year-zero.js	builtin:Date	phase-25b	primitive-builtins	built-ins/Date	-	-	-
-built-ins/Error/cause_abrupt.js	builtin:Error	phase-25b	primitive-builtins	built-ins/Error	error-cause	-	-
 built-ins/Error/isError/bigints.js	builtin:Error	phase-37	binary-data	built-ins/Error/isError	Error.isError,BigInt	-	-
 built-ins/Error/isError/error-subclass.js	builtin:Error	phase-37	primitive-builtins	built-ins/Error/isError	Error.isError,class	-	-
 built-ins/Error/isError/errors.js	builtin:Error	phase-37	primitive-builtins	built-ins/Error/isError	Error.isError	-	-
@@ -823,7 +821,6 @@ built-ins/Number/prototype/toPrecision/infinity.js	builtin:Number	phase-25b	prim
 built-ins/Number/prototype/toPrecision/nan.js	builtin:Number	phase-25b	primitive-builtins	built-ins/Number/prototype/toPrecision	-	-	-
 built-ins/Object/assign/Override-notstringtarget.js	builtin:Object	phase-25b	objects	built-ins/Object/assign	-	-	-
 built-ins/Object/defineProperty/15.2.3.6-4-116.js	builtin:Object	phase-25b	objects	built-ins/Object/defineProperty	-	-	propertyHelper.js
-built-ins/Object/freeze/throws-when-false.js	builtin:Object	phase-25b	objects	built-ins/Object/freeze	-	-	-
 built-ins/Object/getOwnPropertyDescriptor/15.2.3.3-4-196.js	builtin:Object	phase-25b	objects	built-ins/Object/getOwnPropertyDescriptor	-	-	-
 built-ins/Object/getOwnPropertyDescriptor/15.2.3.3-4-197.js	builtin:Object	phase-25b	objects	built-ins/Object/getOwnPropertyDescriptor	-	-	-
 built-ins/Object/getOwnPropertyDescriptor/15.2.3.3-4-198.js	builtin:Object	phase-25b	objects	built-ins/Object/getOwnPropertyDescriptor	-	-	-
@@ -914,17 +911,11 @@ built-ins/Object/hasOwn/symbol_own_property.js	builtin:Object	phase-37	objects	b
 built-ins/Object/hasOwn/symbol_property_toPrimitive.js	builtin:Object	phase-37	objects	built-ins/Object/hasOwn	Symbol.toPrimitive,Object.hasOwn	-	-
 built-ins/Object/hasOwn/symbol_property_toString.js	builtin:Object	phase-37	objects	built-ins/Object/hasOwn	Symbol,Object.hasOwn	-	-
 built-ins/Object/hasOwn/symbol_property_valueOf.js	builtin:Object	phase-37	objects	built-ins/Object/hasOwn	Symbol,Object.hasOwn	-	-
-built-ins/Object/keys/proxy-keys.js	builtin:Object	phase-25b	objects	built-ins/Object/keys	Symbol	-	-
-built-ins/Object/preventExtensions/throws-when-false.js	builtin:Object	phase-25b	objects	built-ins/Object/preventExtensions	-	-	-
-built-ins/Object/prototype/__proto__/set-cycle-shadowed.js	builtin:Object	phase-25b	objects	built-ins/Object/prototype/__proto__	__proto__	-	-
 built-ins/Object/prototype/hasOwnProperty/topropertykey_before_toobject.js	builtin:Object	phase-25b	objects	built-ins/Object/prototype/hasOwnProperty	Symbol.toPrimitive	-	-
 built-ins/Object/prototype/toLocaleString/primitive_this_value_getter.js	builtin:Object	phase-25b	objects	built-ins/Object/prototype/toLocaleString	-	onlyStrict	-
 built-ins/Object/prototype/toString/Object.prototype.toString.call-regexp.js	builtin:Object	phase-25b	objects	built-ins/Object/prototype/toString	-	-	-
 built-ins/Object/seal/seal-finalizationregistry.js	builtin:Object	phase-37	objects	built-ins/Object/seal	FinalizationRegistry	-	-
-built-ins/Object/seal/seal-proxy.js	builtin:Object	phase-37	objects	built-ins/Object/seal	-	-	-
 built-ins/Object/seal/seal-weakref.js	builtin:Object	phase-37	objects	built-ins/Object/seal	WeakRef	-	-
-built-ins/Object/seal/throws-when-false.js	builtin:Object	phase-37	objects	built-ins/Object/seal	-	-	-
-built-ins/Object/values/order-after-define-property.js	builtin:Object	phase-25b	objects	built-ins/Object/values	-	-	compareArray.js
 built-ins/Promise/Symbol.species/symbol-species-name.js	builtin:Promise	phase-25b	promises	built-ins/Promise/Symbol.species	Symbol.species	-	-
 built-ins/Promise/all/capability-executor-called-twice.js	builtin:Promise	phase-25b	promises	built-ins/Promise/all	-	-	-
 built-ins/Promise/allKeyed/arg-is-function.js	builtin:Promise	phase-37	promises	built-ins/Promise/allKeyed	await-dictionary	async	asyncHelpers.js
@@ -1004,7 +995,6 @@ built-ins/Promise/allSettledKeyed/resolves-empty-object.js	builtin:Promise	phase
 built-ins/Promise/allSettledKeyed/result-property-descriptors.js	builtin:Promise	phase-37	promises	built-ins/Promise/allSettledKeyed	await-dictionary	async	asyncHelpers.js,propertyHelper.js
 built-ins/Promise/allSettledKeyed/symbol-keys.js	builtin:Promise	phase-37	promises	built-ins/Promise/allSettledKeyed	await-dictionary,Symbol	async	asyncHelpers.js
 built-ins/Promise/any/capability-executor-called-twice.js	builtin:Promise	phase-25b	promises	built-ins/Promise/any	Promise.any	-	-
-built-ins/Promise/prototype/finally/this-value-proxy.js	builtin:Promise	phase-25b	promises	built-ins/Promise/prototype/finally	Promise.prototype.finally	-	-
 built-ins/Promise/prototype/then/capability-executor-called-twice.js	builtin:Promise	phase-25b	promises	built-ins/Promise/prototype/then	class	-	-
 built-ins/Promise/prototype/then/rxn-handler-fulfilled-next-abrupt.js	builtin:Promise	phase-25b	promises	built-ins/Promise/prototype/then	-	async	-
 built-ins/Promise/prototype/then/rxn-handler-rejected-next-abrupt.js	builtin:Promise	phase-25b	promises	built-ins/Promise/prototype/then	-	async	-
@@ -1441,7 +1431,6 @@ built-ins/Symbol/isConcatSpreadable/prop-desc.js	builtin:Symbol	phase-25b	primit
 built-ins/Symbol/match/prop-desc.js	builtin:Symbol	phase-25b	regexp	built-ins/Symbol/match	Symbol.match	-	propertyHelper.js
 built-ins/Symbol/matchAll/prop-desc.js	builtin:Symbol	phase-25b	regexp	built-ins/Symbol/matchAll	Symbol.matchAll	-	propertyHelper.js
 built-ins/Symbol/prototype/constructor.js	builtin:Symbol	phase-25b	primitive-builtins	built-ins/Symbol/prototype	Symbol	-	propertyHelper.js
-built-ins/Symbol/prototype/description/this-val-non-symbol.js	builtin:Symbol	phase-25b	primitive-builtins	built-ins/Symbol/prototype/description	Symbol.prototype.description	-	-
 built-ins/Symbol/prototype/toString/toString-default-attributes-strict.js	builtin:Symbol	phase-25b	primitive-builtins	built-ins/Symbol/prototype/toString	Symbol	onlyStrict	-
 built-ins/Symbol/replace/prop-desc.js	builtin:Symbol	phase-25b	regexp	built-ins/Symbol/replace	Symbol.replace	-	propertyHelper.js
 built-ins/Symbol/search/prop-desc.js	builtin:Symbol	phase-25b	regexp	built-ins/Symbol/search	Symbol.search	-	propertyHelper.js
@@ -2428,7 +2417,6 @@ statements/class/elements/private-class-field-on-nonextensible-objects.js	langua
 statements/class/subclass-builtins/subclass-AggregateError.js	language:statements	phase-25b	classes	language/statements/class	AggregateError	generated	-
 statements/class/subclass-builtins/subclass-WeakRef.js	language:statements	phase-37	classes	language/statements/class	WeakRef	generated	-
 statements/class/subclass/builtin-objects/ArrayBuffer/regular-subclassing.js	language:statements	phase-25b	classes	language/statements/class	-	-	-
-statements/class/subclass/builtin-objects/Proxy/no-prototype-throws.js	language:statements	phase-37	classes	language/statements/class	-	-	-
 statements/class/subclass/private-class-field-on-nonextensible-return-override.js	language:statements	phase-37	classes	language/statements/class	class,class-fields-private,class-fields-public,nonextensible-applies-to-private	onlyStrict	-
 statements/do-while/S12.6.1_A3.js	language:statements	phase-25b	other-runtime	language/statements/do-while	-	-	-
 statements/do-while/S12.6.1_A5.js	language:statements	phase-25b	other-runtime	language/statements/do-while	-	-	-
@@ -2464,7 +2452,6 @@ statements/for-of/cptn-expr-itr.js	language:statements	phase-25b	other-runtime	l
 statements/for-of/cptn-expr-no-itr.js	language:statements	phase-25b	other-runtime	language/statements/for-of	-	-	-
 statements/for-of/head-const-bound-names-fordecl-tdz.js	language:statements	phase-25b	other-runtime	language/statements/for-of	-	-	-
 statements/for-of/head-let-bound-names-fordecl-tdz.js	language:statements	phase-25b	other-runtime	language/statements/for-of	-	-	-
-statements/for-of/iterator-next-result-type.js	language:statements	phase-37	iterator-protocol	language/statements/for-of	Symbol.iterator	-	-
 statements/for-of/scope-body-lex-open.js	language:statements	phase-25b	other-runtime	language/statements/for-of	let	-	-
 statements/for-of/scope-head-lex-close.js	language:statements	phase-25b	other-runtime	language/statements/for-of	let	-	-
 statements/for-of/scope-head-lex-open.js	language:statements	phase-25b	other-runtime	language/statements/for-of	let	-	-

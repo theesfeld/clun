@@ -262,8 +262,8 @@ printf '%s\n' "$report_source_revision" | grep -Eq '^(working-tree@)?[0-9a-f]{40
   fail "test262 execution report has an invalid source revision: $report_source_revision"
 printf '%s\n' "$report_digest" | grep -Eq '^[0-9A-F]{16}$' ||
   fail "test262 execution report has an invalid FNV-1a-64 digest: $report_digest"
-[ "$report_digest" = A742D885346DA23C ] ||
-  fail "Phase 25b m6 execution digest is not the frozen A742D885346DA23C"
+[ "$report_digest" = 51F51CA8B22FAB6D ] ||
+  fail "current execution digest is not the frozen 51F51CA8B22FAB6D"
 
 for value in "$report_total" "$report_pass" "$report_fail" "$report_skip" \
              "$report_crash" "$report_eligible" "$report_frozen" \
@@ -297,12 +297,12 @@ computed_lift=$((report_target - report_pass))
 [ "$computed_lift" -ge 0 ] || computed_lift=0
 [ "$report_lift" -eq "$computed_lift" ] ||
   fail "test262 execution report required lift is inconsistent"
-[ "$test262_passes" -eq 25461 ] && [ "$report_total" -eq 40654 ] &&
-  [ "$report_pass" -eq 25461 ] && [ "$report_fail" -eq 2702 ] &&
+[ "$test262_passes" -eq 25474 ] && [ "$report_total" -eq 40654 ] &&
+  [ "$report_pass" -eq 25474 ] && [ "$report_fail" -eq 2689 ] &&
   [ "$report_skip" -eq 12491 ] && [ "$report_crash" -eq 0 ] &&
   [ "$report_eligible" -eq 28163 ] && [ "$report_target" -eq 25347 ] &&
   [ "$report_lift" -eq 0 ] ||
-  fail "Phase 25b m6 execution artifacts no longer match the frozen 25,461/28,163 candidate result"
+  fail "execution artifacts no longer match the frozen 25,474/28,163 candidate result"
 
 gap_stats="$scratch_dir/gap-stats"
 bucket_stats="$scratch_dir/bucket-stats"
@@ -349,8 +349,8 @@ IFS="$(printf '\t')" read -r gap_rows phase25b_rows phase37_rows <"$gap_stats"
   fail "execution gap snapshot row count disagrees with the report"
 [ $((phase25b_rows + phase37_rows)) -eq "$report_fail" ] ||
   fail "execution gap snapshot phase-owner counts do not reconcile"
-[ "$phase25b_rows" -eq 1817 ] && [ "$phase37_rows" -eq 885 ] ||
-  fail "Phase 25b m6 residual ownership no longer matches the frozen 1,817/885 split"
+[ "$phase25b_rows" -eq 1808 ] && [ "$phase37_rows" -eq 881 ] ||
+  fail "residual ownership no longer matches the frozen 1,808/881 split"
 require_text docs/conformance/test262-execution.md "| \`phase-25b\` | $phase25b_rows |"
 require_text docs/conformance/test262-execution.md "| \`phase-37\` | $phase37_rows |"
 LC_ALL=C sort -o "$bucket_stats" "$bucket_stats"
@@ -366,8 +366,8 @@ report_rate=$(awk -v pass="$report_pass" -v eligible="$report_eligible" '
 ')
 report_rate_exact=$(awk -v pass="$report_pass" -v eligible="$report_eligible" \
   'BEGIN { printf "%.6f", (pass * 100) / eligible }')
-[ "$report_rate_exact" = 90.405852 ] ||
-  fail "Phase 25b m6 exact pass rate is not the frozen 90.405852%"
+[ "$report_rate_exact" = 90.452012 ] ||
+  fail "current exact pass rate is not the frozen 90.452012%"
 require_text docs/conformance/test262-execution.md \
   "| Pass rate | $report_pass / $report_eligible = $report_rate_exact% |"
 pretty_report_pass=$(format_count "$report_pass")
@@ -790,8 +790,8 @@ require_text README.md "$pretty_phase37_rows to Phase 37."
 require_text site/index.html "Focused $focused_milestone slice: $pretty_focused_total total / $pretty_focused_pass pass / $focused_fail fail / $focused_skip skip / $focused_timeout timeout / $focused_crash crash."
 require_text site/index.html "All $focused_owned_pass owned rows pass; controls: $focused_m11 m11 / $focused_phase37 Phase 37; m6 residual: $focused_owned_fail. Remaining ownership:"
 require_text site/index.html "$pretty_phase25b_rows Phase-25b / $pretty_phase37_rows Phase-37 gaps."
-require_text README.md "pass list gained 410 tests from milestone 5 and 2,818 from the Phase 25b entry"
-require_text site/index.html "Pass-list gain: +410 from m5 / +2,818 from Phase 25b entry."
+require_text README.md "pass list gained 423 tests from milestone 5 and 2,831 from the Phase 25b entry"
+require_text site/index.html "Pass-list gain: +423 from m5 / +2,831 from Phase 25b entry."
 require_text README.md "\`species-constructor.js\`, \`subclass-reject-count.js\`, and \`subclass-resolve-count.js\`"
 require_text site/index.html "<code>species-constructor.js</code>, <code>subclass-reject-count.js</code>, and"
 require_text site/index.html "<code>subclass-resolve-count.js</code>."

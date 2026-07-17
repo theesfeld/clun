@@ -1,5 +1,5 @@
 # test262 execution-phase pass-list (PLAN.md §3.1). Sorted; only grows.
-# Regenerate: CLUN_GEN=1 CLUN_EXEC=1 make conformance. 25461 entries.
+# Regenerate: CLUN_GEN=1 CLUN_EXEC=1 make conformance. 25474 entries.
 arguments-object/10.5-7-b-2-s.js
 arguments-object/10.5-7-b-3-s.js
 arguments-object/10.5-7-b-4-s.js
@@ -2434,6 +2434,7 @@ built-ins/Array/prototype/slice/call-with-boolean.js
 built-ins/Array/prototype/slice/create-non-array.js
 built-ins/Array/prototype/slice/create-species-null.js
 built-ins/Array/prototype/slice/create-species-undef.js
+built-ins/Array/prototype/slice/length-exceeding-integer-limit-proxied-array.js
 built-ins/Array/prototype/slice/length-exceeding-integer-limit.js
 built-ins/Array/prototype/slice/length.js
 built-ins/Array/prototype/slice/name.js
@@ -4038,6 +4039,7 @@ built-ins/Date/value-to-primitive-get-meth-err.js
 built-ins/Date/value-to-primitive-result-faulty.js
 built-ins/Date/value-to-primitive-result-non-string-prim.js
 built-ins/Date/value-to-primitive-result-string.js
+built-ins/Error/cause_abrupt.js
 built-ins/Error/cause_property.js
 built-ins/Error/constructor.js
 built-ins/Error/error-message-tostring-symbol.js
@@ -7753,6 +7755,7 @@ built-ins/Object/freeze/frozen-object-contains-symbol-properties-non-strict.js
 built-ins/Object/freeze/frozen-object-contains-symbol-properties-strict.js
 built-ins/Object/freeze/name.js
 built-ins/Object/freeze/not-a-constructor.js
+built-ins/Object/freeze/throws-when-false.js
 built-ins/Object/fromEntries/empty-iterable.js
 built-ins/Object/fromEntries/evaluation-order.js
 built-ins/Object/fromEntries/iterator-closed-for-null-entry.js
@@ -8385,6 +8388,7 @@ built-ins/Object/keys/name.js
 built-ins/Object/keys/not-a-constructor.js
 built-ins/Object/keys/order-after-define-property-with-function.js
 built-ins/Object/keys/order-after-define-property.js
+built-ins/Object/keys/proxy-keys.js
 built-ins/Object/keys/return-order.js
 built-ins/Object/preventExtensions/15.2.3.10-0-1.js
 built-ins/Object/preventExtensions/15.2.3.10-0-2.js
@@ -8424,6 +8428,7 @@ built-ins/Object/preventExtensions/name.js
 built-ins/Object/preventExtensions/not-a-constructor.js
 built-ins/Object/preventExtensions/symbol-object-contains-symbol-properties-non-strict.js
 built-ins/Object/preventExtensions/symbol-object-contains-symbol-properties-strict.js
+built-ins/Object/preventExtensions/throws-when-false.js
 built-ins/Object/prop-desc.js
 built-ins/Object/property-order.js
 built-ins/Object/prototype/15.2.3.1.js
@@ -8483,6 +8488,7 @@ built-ins/Object/prototype/__proto__/get-fn-name.js
 built-ins/Object/prototype/__proto__/get-ordinary-obj.js
 built-ins/Object/prototype/__proto__/get-to-obj-abrupt.js
 built-ins/Object/prototype/__proto__/prop-desc.js
+built-ins/Object/prototype/__proto__/set-cycle-shadowed.js
 built-ins/Object/prototype/__proto__/set-cycle.js
 built-ins/Object/prototype/__proto__/set-fn-name.js
 built-ins/Object/prototype/__proto__/set-immutable.js
@@ -8715,6 +8721,7 @@ built-ins/Object/seal/seal-null.js
 built-ins/Object/seal/seal-number.js
 built-ins/Object/seal/seal-object.js
 built-ins/Object/seal/seal-promise.js
+built-ins/Object/seal/seal-proxy.js
 built-ins/Object/seal/seal-rangeerror.js
 built-ins/Object/seal/seal-referenceerror.js
 built-ins/Object/seal/seal-regexp.js
@@ -8733,6 +8740,7 @@ built-ins/Object/seal/seal-weakmap.js
 built-ins/Object/seal/seal-weakset.js
 built-ins/Object/seal/symbol-object-contains-symbol-properties-non-strict.js
 built-ins/Object/seal/symbol-object-contains-symbol-properties-strict.js
+built-ins/Object/seal/throws-when-false.js
 built-ins/Object/setPrototypeOf/bigint.js
 built-ins/Object/setPrototypeOf/length.js
 built-ins/Object/setPrototypeOf/name.js
@@ -8755,6 +8763,7 @@ built-ins/Object/values/getter-making-future-key-nonenumerable.js
 built-ins/Object/values/getter-removing-future-key.js
 built-ins/Object/values/inherited-properties-omitted.js
 built-ins/Object/values/not-a-constructor.js
+built-ins/Object/values/order-after-define-property.js
 built-ins/Object/values/primitive-booleans.js
 built-ins/Object/values/primitive-numbers.js
 built-ins/Object/values/primitive-strings.js
@@ -9123,6 +9132,7 @@ built-ins/Promise/prototype/finally/subclass-resolve-count.js
 built-ins/Promise/prototype/finally/subclass-species-constructor-reject-count.js
 built-ins/Promise/prototype/finally/subclass-species-constructor-resolve-count.js
 built-ins/Promise/prototype/finally/this-value-non-object.js
+built-ins/Promise/prototype/finally/this-value-proxy.js
 built-ins/Promise/prototype/finally/this-value-then-not-callable.js
 built-ins/Promise/prototype/finally/this-value-then-poisoned.js
 built-ins/Promise/prototype/finally/this-value-then-throws.js
@@ -11477,6 +11487,7 @@ built-ins/Symbol/prototype/description/description-symboldescriptivestring.js
 built-ins/Symbol/prototype/description/descriptor.js
 built-ins/Symbol/prototype/description/get.js
 built-ins/Symbol/prototype/description/is-not-own-property.js
+built-ins/Symbol/prototype/description/this-val-non-symbol.js
 built-ins/Symbol/prototype/description/this-val-symbol.js
 built-ins/Symbol/prototype/description/wrapper.js
 built-ins/Symbol/prototype/intrinsic.js
@@ -22010,6 +22021,7 @@ statements/class/subclass/builtin-objects/Object/regular-subclassing.js
 statements/class/subclass/builtin-objects/Object/replacing-prototype.js
 statements/class/subclass/builtin-objects/Promise/regular-subclassing.js
 statements/class/subclass/builtin-objects/Promise/super-must-be-called.js
+statements/class/subclass/builtin-objects/Proxy/no-prototype-throws.js
 statements/class/subclass/builtin-objects/RegExp/lastIndex.js
 statements/class/subclass/builtin-objects/RegExp/regular-subclassing.js
 statements/class/subclass/builtin-objects/RegExp/super-must-be-called.js
@@ -23884,6 +23896,7 @@ statements/for-of/iterator-close-via-throw.js
 statements/for-of/iterator-next-error.js
 statements/for-of/iterator-next-reference.js
 statements/for-of/iterator-next-result-done-attr.js
+statements/for-of/iterator-next-result-type.js
 statements/for-of/iterator-next-result-value-attr-error.js
 statements/for-of/iterator-next-result-value-attr.js
 statements/for-of/let-block-with-newline.js
