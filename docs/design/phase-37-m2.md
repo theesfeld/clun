@@ -62,8 +62,8 @@ matrix Yes row.
    array-like inputs, mapping, and rejection.
 3. `make build`, focused tests, `make purity` pass.
 4. Pass-list remains monotonic when updated by the release/integration unit.
-5. Phase 37 stays open; residual ownership after m2 is **708 − 95 = 613** if the
-   full corpus reclassifies exactly those paths (measured at gate time).
+5. Phase 37 stays open; measured residual ownership after m2 is **603** fail rows
+   (from 708: −95 fromAsync + −10 additional syntax-unlock paths in the full ledger).
 
 ## SemVer
 

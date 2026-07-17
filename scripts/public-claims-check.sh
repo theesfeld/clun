@@ -268,8 +268,8 @@ printf '%s\n' "$report_source_revision" | grep -Eq '^(working-tree@)?[0-9a-f]{40
   fail "test262 execution report has an invalid source revision: $report_source_revision"
 printf '%s\n' "$report_digest" | grep -Eq '^[0-9A-F]{16}$' ||
   fail "test262 execution report has an invalid FNV-1a-64 digest: $report_digest"
-[ "$report_digest" = C69927D3946A20FB ] ||
-  fail "current execution digest is not the frozen C69927D3946A20FB"
+[ "$report_digest" = 6A1583FC8C3EAAAF ] ||
+  fail "current execution digest is not the frozen 6A1583FC8C3EAAAF"
 
 for value in "$report_total" "$report_pass" "$report_fail" "$report_skip" \
              "$report_crash" "$report_eligible" "$report_frozen" \
@@ -303,12 +303,12 @@ computed_lift=$((report_target - report_pass))
 [ "$computed_lift" -ge 0 ] || computed_lift=0
 [ "$report_lift" -eq "$computed_lift" ] ||
   fail "test262 execution report required lift is inconsistent"
-[ "$test262_passes" -eq 25688 ] && [ "$report_total" -eq 40654 ] &&
-  [ "$report_pass" -eq 25688 ] && [ "$report_fail" -eq 2475 ] &&
+[ "$test262_passes" -eq 25752 ] && [ "$report_total" -eq 40654 ] &&
+  [ "$report_pass" -eq 25752 ] && [ "$report_fail" -eq 2411 ] &&
   [ "$report_skip" -eq 12491 ] && [ "$report_crash" -eq 0 ] &&
   [ "$report_eligible" -eq 28163 ] && [ "$report_target" -eq 25347 ] &&
   [ "$report_lift" -eq 0 ] ||
-  fail "execution artifacts no longer match the frozen 25,688/28,163 candidate result"
+  fail "execution artifacts no longer match the frozen 25,752/28,163 candidate result"
 
 gap_stats="$scratch_dir/gap-stats"
 bucket_stats="$scratch_dir/bucket-stats"
@@ -355,8 +355,8 @@ IFS="$(printf '\t')" read -r gap_rows phase25b_rows phase37_rows <"$gap_stats"
   fail "execution gap snapshot row count disagrees with the report"
 [ $((phase25b_rows + phase37_rows)) -eq "$report_fail" ] ||
   fail "execution gap snapshot phase-owner counts do not reconcile"
-[ "$phase25b_rows" -eq 1767 ] && [ "$phase37_rows" -eq 708 ] ||
-  fail "residual ownership no longer matches the frozen 1,767/708 split"
+[ "$phase25b_rows" -eq 1808 ] && [ "$phase37_rows" -eq 603 ] ||
+  fail "residual ownership no longer matches the frozen 1,808/603 split"
 require_text docs/conformance/test262-execution.md "| \`phase-25b\` | $phase25b_rows |"
 require_text docs/conformance/test262-execution.md "| \`phase-37\` | $phase37_rows |"
 LC_ALL=C sort -o "$bucket_stats" "$bucket_stats"
@@ -372,8 +372,8 @@ report_rate=$(awk -v pass="$report_pass" -v eligible="$report_eligible" '
 ')
 report_rate_exact=$(awk -v pass="$report_pass" -v eligible="$report_eligible" \
   'BEGIN { printf "%.6f", (pass * 100) / eligible }')
-[ "$report_rate_exact" = 91.211874 ] ||
-  fail "current exact pass rate is not the frozen 91.211874%"
+[ "$report_rate_exact" = 91.439122 ] ||
+  fail "current exact pass rate is not the frozen 91.439122%"
 require_text docs/conformance/test262-execution.md \
   "| Pass rate | $report_pass / $report_eligible = $report_rate_exact% |"
 pretty_report_pass=$(format_count "$report_pass")
