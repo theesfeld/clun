@@ -182,5 +182,32 @@ chain = chain.then(() => expectJob(job("echo hi hello \\\non a newline!"), 0,
   .then(() => expectJob(job('echo hi hello \\\non a newline! \\\nooga"\nbooga"'), 0,
     "hi hello on a newline! ooga\nbooga\n", "", "quoted continuation"));
 
+const backtick = String.fromCharCode(96);
+const gnuQuoteCases = [
+  ["echo 'foo\nbar'\necho 'foo\nbar'\necho 'foo\\\nbar'",
+    "foo\nbar\nfoo\nbar\nfoo\\\nbar\n", "single-quoted multiline"],
+  ['echo "foo\nbar"\necho "foo\nbar"\necho "foo\\\nbar"',
+    "foo\nbar\nfoo\nbar\nfoobar\n", "double-quoted multiline"],
+  ["echo " + backtick + "echo 'foo\nbar'" + backtick + "\n" +
+    "echo " + backtick + "echo 'foo\nbar'" + backtick + "\n" +
+    "echo " + backtick + "echo 'foo\\\nbar'" + backtick,
+    "foo bar\nfoo bar\nfoobar\n", "unquoted backticks"],
+  ['echo "' + backtick + "echo 'foo\nbar'" + backtick + '"\n' +
+    'echo "' + backtick + "echo 'foo\nbar'" + backtick + '"\n' +
+    'echo "' + backtick + "echo 'foo\\\nbar'" + backtick + '"',
+    "foo\nbar\nfoo\nbar\nfoobar\n", "quoted backticks"],
+  ["echo $(echo 'foo\nbar')\necho $(echo 'foo\nbar')\necho $(echo 'foo\\\nbar')",
+    "foo bar\nfoo bar\nfoo\\ bar\n", "unquoted dollar substitution"],
+  ['echo "$(echo \'foo\nbar\')"\necho "$(echo \'foo\nbar\')"\n' +
+    'echo "$(echo \'foo\\\nbar\')"',
+    "foo\nbar\nfoo\nbar\nfoo\\\nbar\n", "quoted dollar substitution"],
+  ['echo "$(echo \'foo\nbar\')"\necho "$(echo \'foo\nbar\')"\n' +
+    'echo "$(echo \'foo\\\nbar\')"',
+    "foo\nbar\nfoo\nbar\nfoo\\\nbar\n", "repeated quoted dollar substitution"],
+];
+for (const [source, output, label] of gnuQuoteCases) {
+  chain = chain.then(() => expectJob(job(source), 0, output, "", label));
+}
+
 chain = chain.then(() => job(`rm -rf ${root}`).quiet())
-  .then(() => console.log("upstream-language: 163 exact sites"));
+  .then(() => console.log("upstream-language: 177 exact sites"));

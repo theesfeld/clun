@@ -89,4 +89,4 @@ queue('if [[ "123abc" == *?(a)bc ]]; then echo ok 42; else echo bad 42; fi\n' +
 
 chain
   .then(() => job(`rm -rf ${root}`).quiet())
-  .then(() => console.log("upstream-conditions: 51 exact sites"));
+  .then(() => console.log("upstream-conditions: 102 exact sites"));

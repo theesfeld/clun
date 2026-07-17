@@ -80,10 +80,12 @@ Brace and subshell groups are now opaque to the surrounding `if` reserved-word s
 correctly in conditions and every branch; command negation also applies recursively to compound commands.
 Application tags and standalone `.bun.sh` files now expose positional parameters with exact missing,
 multi-digit, and non-ASCII argument behavior.
-`make phase-65-shell-core-check` passes **305 / 0 / 0** plus
+Historical backtick command substitution now executes in-process with quoted multiline output and its
+distinct line-continuation semantics.
+`make phase-65-shell-core-check` passes **312 / 0 / 0** plus
 **20/20** shipped `tooling.shell` evidence records; `make build`, `make purity` (**728 / 0**), and diff check
 pass. The exact stable and engineering Bun boundary is now frozen at **211 source/docs/types/test files** and
-**1,630 lexical test sites**: **1,172 covered / 426 pending / 32 upstream-inactive**. The checked-in coverage
+**1,630 lexical test sites**: **1,247 covered / 351 pending / 32 upstream-inactive**. The checked-in coverage
 overlay binds every credited site to executable shipped-binary evidence and rejects stale or unknown IDs.
 The row is honestly **Partial**, not `Yes`: remaining language/API/lifecycle cases, four permission-sensitive
 `ls` sites, 1,000-job stress, and Linux/macOS x64/arm64 receipts are still open.

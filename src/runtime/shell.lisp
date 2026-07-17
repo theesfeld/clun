@@ -183,6 +183,38 @@
            (vector-push-extend unit output) (incf index)))))
     (%shell-syntax "unterminated command substitution")))
 
+(defun %shell-read-backtick-substitution (units start)
+  "Read an old-style command substitution after a consumed backtick."
+  (let ((output (make-array 32 :adjustable t :fill-pointer 0))
+        (index start))
+    (loop while (< index (length units)) do
+      (let ((unit (aref units index)))
+        (cond
+          ((not (characterp unit))
+           (vector-push-extend unit output)
+           (incf index))
+          ((char= unit #\\)
+           (if (< (1+ index) (length units))
+               (let ((next (aref units (1+ index))))
+                 (if (and (characterp next) (char= next #\Newline))
+                     ;; Historical backticks remove line continuations before
+                     ;; parsing their body, including continuations in quotes.
+                     (incf index 2)
+                     (progn
+                       (vector-push-extend unit output)
+                       (vector-push-extend next output)
+                       (incf index 2))))
+               (progn
+                 (vector-push-extend unit output)
+                 (incf index))))
+          ((char= unit #\`)
+           (return-from %shell-read-backtick-substitution
+             (values (coerce output 'vector) (1+ index))))
+          (t
+           (vector-push-extend unit output)
+           (incf index)))))
+    (%shell-syntax "unterminated backtick command substitution")))
+
 (defun %shell-read-variable (units index quoted)
   "Read a variable beginning at the character after $, returning fragment and next index."
   (when (>= index (length units))
@@ -315,6 +347,13 @@
                  (multiple-value-bind (fragment next)
                      (%shell-read-variable units (1+ index) (not (null quote)))
                    (emit-fragment fragment) (setf index next))))
+            ((char= unit #\`)
+             (multiple-value-bind (body next)
+                 (%shell-read-backtick-substitution units (1+ index))
+               (emit-fragment (make-shell-fragment :kind :substitution
+                                                   :value body
+                                                   :quoted (not (null quote))))
+               (setf index next)))
             ((and (null quote)
                   (find unit '(#\Space #\Tab #\Return #\Newline)))
              (flush-word)

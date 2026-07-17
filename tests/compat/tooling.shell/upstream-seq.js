@@ -48,9 +48,14 @@ queue(Clun.$`seq 4 7 ba`, 1, "", "seq: invalid argument\n", "invalid third");
 queue(Clun.$`seq 4 0 7`, 1, "", "seq: zero increment\n", "zero increment");
 queue(Clun.$`seq 4 -2 7`, 1, "", "seq: needs positive increment\n", "wrong ascending sign");
 queue(Clun.$`seq 7 2 4`, 1, "", "seq: needs negative decrement\n", "wrong descending sign");
+queue(Clun.$`seq inf`, 1, "", "seq: invalid argument\n", "positive infinity");
+queue(Clun.$`seq nan`, 1, "", "seq: invalid argument\n", "not a number");
+queue(Clun.$`seq -- -inf`, 1, "", "seq: invalid argument\n", "negative infinity");
+queue(Clun.$`[[ -d "" ]]`, 1, "", "", "empty directory predicate");
+queue(Clun.$`[[ -f "" ]]`, 1, "", "", "empty file predicate");
 queue(Clun.$`seq 16777216 16777218`, 0, "16777216\n", "", "f32 stalled increment");
 queue(Clun.$`seq 1 0.00000001 2`, 0, "1\n", "", "f32 tiny increment");
 queue(Clun.$`echo $(seq 0 5)`, 0, "0 1 2 3 4 5\n", "", "ascending substitution");
 queue(Clun.$`echo $(seq 5 0)`, 0, "5 4 3 2 1 0\n", "", "descending substitution");
 
-chain.then(() => console.log("upstream-seq: 60 exact sites"));
+chain.then(() => console.log("upstream-seq: 70 exact sites"));

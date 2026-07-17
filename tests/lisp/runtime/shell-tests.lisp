@@ -100,6 +100,24 @@
     (is = 0 (length stderr))
     (is = 0 status)))
 
+(define-test shell/backtick-command-substitution
+  (multiple-value-bind (output exit-code)
+      (shell-test-output "echo `echo one; echo two`")
+    (is equal (format nil "one two~%") output)
+    (is = 0 exit-code))
+  (multiple-value-bind (output exit-code)
+      (shell-test-output "echo \"`echo one; echo two`\"")
+    (is equal (format nil "one~%two~%") output)
+    (is = 0 exit-code))
+  (multiple-value-bind (output exit-code)
+      (shell-test-output
+       (format nil "echo `echo 'foo\\~%bar'`"))
+    (is equal (format nil "foobar~%") output)
+    (is = 0 exit-code))
+  (fail (clun.runtime::%shell-parse
+         (shell-test-units "echo `unterminated"))
+        clun.runtime::shell-syntax-error))
+
 (define-test shell/compound-word-field-boundaries
   (multiple-value-bind (output exit-code)
       (shell-test-output "echo pre$(echo one two)post")

@@ -88,7 +88,7 @@ types, fixtures, and upstream licenses. `upstream-files.tsv` binds every file to
 
 `upstream-corpus.tsv` enumerates 1,630 lexical test sites from those exact snapshots. The initial conservative
 disposition was 1,598 pending and 32 explicitly inactive at the pinned revisions. The current executable
-mapping is 1,172 covered, 426 pending, and 32 upstream-inactive. `upstream-coverage.tsv` binds each credited
+mapping is 1,247 covered, 351 pending, and 32 upstream-inactive. `upstream-coverage.tsv` binds each credited
 inventory ID to a checked-in shipped-binary fixture; regeneration rejects duplicate, stale, or unknown IDs,
 and the corpus validator rejects missing evidence. `shell-upstream-corpus-check.sh` rejects inventory drift
 or an unexplained disposition. Its `--yes` mode is the finite closure gate: it rejects any pending row and
@@ -118,9 +118,10 @@ protection that keeps a comma inside one literal branch.
 Assignment-only pipeline stages are isolated environment boundaries that forward their incoming bytes, so
 middle and trailing assignment stages preserve pipeline data without leaking variables. The grouped
 assignment pipeline runs through the recursive subshell AST rather than an approximation.
-`tests/compat/tooling.shell/upstream-seq.js` executes all 60 exact stable and engineering `seq` inventory IDs,
-including usage and option errors, separators and terminators, descending ranges, f32 stalled progress, and
-command-substitution output. No aggregate credit is used.
+`tests/compat/tooling.shell/upstream-seq.js` executes 70 exact stable and engineering `seq` and focused
+condition inventory IDs, including usage and option errors, non-finite number rejection, empty file predicates,
+separators and terminators, descending ranges, f32 stalled progress, and command-substitution output. No
+aggregate credit is used.
 `tests/compat/tooling.shell/upstream-echo.js` executes all 41 exact `echo` IDs across the two baselines,
 including invalid flags as data and the engineering two-or-more-trailing-newline regressions.
 `tests/compat/tooling.shell/upstream-cp.js` executes all 32 exact `cp` IDs through hermetic file, overwrite,
@@ -164,13 +165,14 @@ shipped binary.
 to `$9`; `clun run` executes standalone `.bun.sh` files with the script path at `$0` and user arguments at
 the remaining positions. Missing values expand empty, `$10` composes `$1` with a literal zero, and Unicode
 arguments round trip through the shipped binary.
-`tests/compat/tooling.shell/upstream-language.js` executes 163 exact pending IDs across both pinned
+`tests/compat/tooling.shell/upstream-language.js` executes 177 exact pending IDs across both pinned
 `bunshell.test.ts` baselines. Nested interpolation arrays are accepted through depth 100 and rejected
 synchronously beyond it. Backslash-newline pairs are removed by the lexer outside single quotes, empty
 command substitutions retain their exit status, and `echo` distinguishes one trailing newline from runs of
-two or more. The fixture also freezes escape output and round trips, inert special-character interpolation,
-compact operators, Unicode and Latin-1 values, command substitution, tilde expansion, and continuation
-behavior through the shipped binary.
+two or more. Dollar and historical backtick command substitutions now preserve quoted multiline output;
+backticks remove line continuations before parsing their bodies. The fixture also freezes escape output and
+round trips, inert special-character interpolation, compact operators, Unicode and Latin-1 values, tilde
+expansion, and continuation behavior through the shipped binary.
 The conditional fixture freezes the active `shell-seq-condexpr.test.ts` empty-path regressions and the
 non-todo `bunshell.test.ts` unary/string cases, including both conditional pipeline positions. It additionally
 freezes the pinned GNU-bash-derived compound-expression cases for repeated negation, short-circuit operators,
