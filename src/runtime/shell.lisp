@@ -521,7 +521,7 @@
 
 (defparameter *shell-builtins*
   '("echo" "pwd" "cd" "true" "false" ":" "export" "unset" "which" "exit"
-    "basename" "dirname" "seq" "cat" "mkdir" "touch" "rm" "mv" "ls"))
+    "basename" "dirname" "seq" "cat" "mkdir" "touch" "rm" "mv" "ls" "cp"))
 
 (defun %shell-relative-path (path state)
   (if (clun.sys:absolute-path-p path)
@@ -1468,6 +1468,230 @@ integer conversions are deliberately rejected because seq values are f32."
         (%shell-result-from-strings (get-output-stream-string stdout)
                                     (get-output-stream-string stderr) exit-code)))))
 
+(defparameter *shell-cp-usage*
+  (format nil
+          "usage: cp [-R [-H | -L | -P]] [-fi | -n] [-aclpsvXx] source_file target_file~%       cp [-R [-H | -L | -P]] [-fi | -n] [-aclpsvXx] source_file ... target_directory~%"))
+
+(define-condition shell-cp-error (error)
+  ((message :initarg :message :reader shell-cp-error-message)))
+
+(defun %shell-cp-custom-error (control &rest arguments)
+  (error 'shell-cp-error :message (apply #'format nil control arguments)))
+
+(defun %shell-cp-existing-stat (path)
+  (multiple-value-bind (stat present condition) (%shell-path-stat path :lstat t)
+    (when condition (error condition))
+    (values stat present)))
+
+(defun %shell-cp-same-entry-p (source destination)
+  (multiple-value-bind (source-stat source-present) (%shell-cp-existing-stat source)
+    (declare (ignore source-present))
+    (multiple-value-bind (destination-stat destination-present)
+        (%shell-cp-existing-stat destination)
+      (and destination-present
+           (= (clun.sys:fstat-dev source-stat) (clun.sys:fstat-dev destination-stat))
+           (= (clun.sys:fstat-ino source-stat) (clun.sys:fstat-ino destination-stat))))))
+
+(defun %shell-cp-contained-p (source destination)
+  (or (string= source destination)
+      (let ((prefix (if (string= source "/") "/"
+                        (concatenate 'string
+                                     (%shell-trim-trailing-separators source) "/"))))
+        (and (>= (length destination) (length prefix))
+             (string= prefix destination :end2 (length prefix))))))
+
+(defun %shell-cp-canonical-destination (destination)
+  "Resolve the nearest existing ancestor, retaining nonexistent suffixes."
+  (loop with cursor = destination
+        with suffix = '()
+        for resolved = (clun.sys:realpath cursor)
+        when resolved
+          return (reduce #'clun.sys:path-join suffix :initial-value resolved)
+        do (let ((parent (clun.sys:path-dirname cursor)))
+             (when (string= parent cursor)
+               (return (clun.sys:normalize-path destination)))
+             (push (clun.sys:path-basename cursor) suffix)
+             (setf cursor parent))))
+
+(defun %shell-cp-descendant-p (source destination)
+  (let ((source-normal (clun.sys:normalize-path source))
+        (destination-normal (clun.sys:normalize-path destination))
+        (source-real (clun.sys:realpath source))
+        (destination-real (%shell-cp-canonical-destination destination)))
+    (or (%shell-cp-contained-p source-normal destination-normal)
+        (and source-real destination-real
+             (%shell-cp-contained-p source-real destination-real)))))
+
+(defun %shell-cp-remove-destination-link (destination destination-stat)
+  ;; Never open a destination symlink for writing. Replacing the link is both
+  ;; cp-compatible and prevents a target swap from redirecting file contents.
+  (when (and destination-stat (clun.sys:fstat-symlink-p destination-stat))
+    (clun.sys:remove-file destination)
+    t))
+
+(defun %shell-cp-copy-entry (source destination recursive no-overwrite
+                              verbose output &optional (depth 0))
+  (when (> depth 1024)
+    (%shell-cp-custom-error "directory nesting exceeds 1024 entries"))
+  (let ((source-stat (clun.sys:stat* source :lstat t)))
+    (multiple-value-bind (destination-stat destination-present)
+        (%shell-cp-existing-stat destination)
+      (when (and destination-present
+                 (= (clun.sys:fstat-dev source-stat)
+                    (clun.sys:fstat-dev destination-stat))
+                 (= (clun.sys:fstat-ino source-stat)
+                    (clun.sys:fstat-ino destination-stat)))
+        (%shell-cp-custom-error "~a and ~a are identical (not copied)"
+                                source source))
+      (when (and no-overwrite destination-present
+                 (not (and (clun.sys:fstat-dir-p source-stat)
+                           (clun.sys:fstat-dir-p destination-stat))))
+        (return-from %shell-cp-copy-entry nil))
+      (cond
+        ((clun.sys:fstat-dir-p source-stat)
+         (unless recursive
+           (%shell-cp-custom-error "~a is a directory (not copied)" source))
+         (when (%shell-cp-descendant-p source destination)
+           (%shell-cp-custom-error "cannot copy a directory into itself: ~a" source))
+         (cond
+           ((and destination-present
+                 (not (clun.sys:fstat-dir-p destination-stat)))
+            (error 'clun.sys:fs-error :code "ENOTDIR" :errno 0
+                   :syscall "copyfile" :path destination))
+           ((not destination-present)
+            (clun.sys:make-directory destination
+                                     :mode (logand (clun.sys:fstat-mode source-stat) #o777))))
+         (when verbose (format output "~a -> ~a~%" source destination))
+         (let ((entries '()))
+           (clun.sys:map-directory-entries
+            source (lambda (entry) (push entry entries)))
+           (dolist (entry (sort entries #'string<))
+             (%shell-cp-copy-entry
+              (clun.sys:path-join source entry)
+              (clun.sys:path-join destination entry)
+              recursive no-overwrite verbose output (1+ depth)))))
+        ((clun.sys:fstat-symlink-p source-stat)
+         (when destination-present
+           (if (clun.sys:fstat-dir-p destination-stat)
+               (error 'clun.sys:fs-error :code "EISDIR" :errno 0
+                      :syscall "copyfile" :path destination)
+               (clun.sys:remove-file destination)))
+         (clun.sys:make-symlink (clun.sys:read-symlink source) destination)
+         (when verbose (format output "~a -> ~a~%" source destination)))
+        ((clun.sys:fstat-file-p source-stat)
+         (%shell-cp-remove-destination-link destination destination-stat)
+         (clun.sys:copy-file-stream
+          source destination :mode (logand (clun.sys:fstat-mode source-stat) #o7777))
+         (when verbose (format output "~a -> ~a~%" source destination)))
+        (t (%shell-cp-custom-error "~a has an unsupported file type" source))))))
+
+(defun %shell-run-cp (arguments state)
+  (let ((args arguments) (paths nil)
+        (recursive nil) (verbose nil) (no-overwrite nil))
+    (labels ((usage ()
+               (return-from %shell-run-cp
+                 (%shell-result-from-strings "" *shell-cp-usage* 1)))
+             (illegal (option)
+               (return-from %shell-run-cp
+                 (%shell-result-from-strings
+                  "" (format nil "cp: illegal option -- ~a~%" option) 1)))
+             (unsupported (option)
+               (return-from %shell-run-cp
+                 (%shell-result-from-strings
+                  "" (format nil
+                             "cp: unsupported option, please open a GitHub issue -- -~a~%"
+                             option)
+                  1))))
+      (loop while args do
+        (let ((argument (first args)))
+          (cond
+            ((or (zerop (length argument))
+                 (not (char= (char argument 0) #\-)))
+             (setf paths args)
+             (return))
+            ((= (length argument) 1) (illegal "-"))
+            (t
+             (pop args)
+             (loop for index from 1 below (length argument)
+                   for option = (char argument index)
+                   do (case option
+                        (#\R (setf recursive t))
+                        (#\v (setf verbose t))
+                        (#\n (setf no-overwrite t))
+                        ((#\f #\H #\i #\L #\P #\p) (unsupported option))
+                        (otherwise (illegal (subseq argument index)))))))))
+      (unless (and paths (rest paths)) (usage))
+      (let* ((sources (butlast paths))
+             (target-display (car (last paths)))
+             (target (if (zerop (length target-display)) ""
+                         (%shell-relative-path target-display state)))
+             (operands (length paths))
+             (stdout (make-string-output-stream))
+             (stderr (make-string-output-stream))
+             (exit-code 0))
+        (dolist (source-display sources)
+          (let ((source (if (zerop (length source-display)) ""
+                            (%shell-relative-path source-display state))))
+            (handler-case
+                (let* ((source-stat (clun.sys:stat* source :lstat t))
+                       (source-directory (clun.sys:fstat-dir-p source-stat)))
+                  (when (and source-directory (not recursive))
+                    (%shell-cp-custom-error "~a is a directory (not copied)"
+                                            source-display))
+                  (multiple-value-bind (target-stat target-present)
+                      (%shell-cp-existing-stat target)
+                    (let* ((target-directory
+                             (and target-present (clun.sys:fstat-dir-p target-stat)))
+                           (trailing-separator
+                             (and (plusp (length target-display))
+                                  (%shell-path-separator-p
+                                   (char target-display (1- (length target-display))))))
+                           (destination-display nil)
+                           (destination nil))
+                      (cond
+                        (recursive
+                         (cond
+                           (target-present
+                            (setf destination
+                                  (clun.sys:path-join target (%shell-basename source-display))
+                                  destination-display
+                                  (clun.sys:path-join target-display
+                                                      (%shell-basename source-display))))
+                           ((= operands 2)
+                            (setf destination target
+                                  destination-display target-display))
+                           (t (%shell-cp-custom-error
+                               "directory ~a does not exist" target-display))))
+                        (target-directory
+                         (setf destination
+                               (clun.sys:path-join target (%shell-basename source-display))
+                               destination-display
+                               (clun.sys:path-join target-display
+                                                   (%shell-basename source-display))))
+                        ((and (= operands 2) (not trailing-separator))
+                         (setf destination target destination-display target-display))
+                        (t (%shell-cp-custom-error "~a is not a directory"
+                                                   target-display)))
+                      (when (%shell-cp-same-entry-p source destination)
+                        (%shell-cp-custom-error
+                         "~a and ~a are identical (not copied)"
+                         source-display source-display))
+                      (%shell-cp-copy-entry source destination recursive no-overwrite
+                                            verbose stdout))))
+              (shell-cp-error (condition)
+                (format stderr "cp: ~a~%" (shell-cp-error-message condition))
+                (setf exit-code 1))
+              (clun.sys:fs-error (condition)
+                (let* ((path (clun.sys:fs-error-path condition))
+                       (display (cond
+                                  ((string= path source) source-display)
+                                  ((string= path target) target-display)
+                                  (t path))))
+                  (write-string (%shell-fs-error-string "cp" display condition) stderr)
+                  (setf exit-code 1))))))
+        (%shell-result-from-strings (get-output-stream-string stdout)
+                                    (get-output-stream-string stderr) exit-code)))))
+
 (defun %shell-run-builtin (argv state env stdin)
   "Return RESULT and true when ARGV names a builtin."
   (let ((name (first argv)) (args (rest argv)))
@@ -1503,6 +1727,8 @@ integer conversions are deliberately rejected because seq values are f32."
        (values (%shell-run-mv args state) t))
       ((string= name "ls")
        (values (%shell-run-ls args state) t))
+      ((string= name "cp")
+       (values (%shell-run-cp args state) t))
       ((string= name "pwd")
        (values (%shell-result-from-strings
                 (concatenate 'string (shell-state-cwd state) (string #\Newline)) "" 0) t))

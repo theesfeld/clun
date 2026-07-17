@@ -267,3 +267,58 @@
              (is equal (format nil "ls: missing: No such file or directory~%")
                  (eng:utf8->code-units (clun.runtime::shell-result-stderr result)))))
       (ignore-errors (sys:remove-recursive directory)))))
+
+(define-test shell/cp-bounded-recursive-and-symlink-copy
+  (let* ((directory (clun.runtime::%shell-temp-directory))
+         (state (shell-test-state))
+         (payload (make-array 200000 :element-type '(unsigned-byte 8)
+                              :initial-element 97)))
+    (unwind-protect
+         (progn
+           (setf (clun.runtime::shell-state-cwd state) directory)
+           (sys:write-file-octets (sys:path-join directory "source") payload)
+           (sys:change-mode (sys:path-join directory "source") #o751)
+           (is = 0 (clun.runtime::shell-result-exit-code
+                    (clun.runtime::%shell-run-cp '("source" "copy") state)))
+           (is = 200000 (length (sys:read-file-octets
+                                 (sys:path-join directory "copy"))))
+           (is = #o751 (logand #o777
+                                (sys:fstat-mode
+                                 (sys:stat* (sys:path-join directory "copy")))))
+           (fail (sys:copy-file-stream (sys:path-join directory "source")
+                                       (sys:path-join directory "source"))
+                 sys:fs-error)
+           (is = 200000 (length (sys:read-file-octets
+                                 (sys:path-join directory "source"))))
+           (sys:make-symlink "copy" (sys:path-join directory "nofollow"))
+           (fail (sys:copy-file-stream (sys:path-join directory "source")
+                                       (sys:path-join directory "nofollow"))
+                 sys:fs-error)
+           (is equal "copy" (sys:read-symlink
+                              (sys:path-join directory "nofollow")))
+           (sys:make-directory (sys:path-join directory "tree/sub") :recursive t)
+           (sys:write-file-octets (sys:path-join directory "tree/sub/file")
+                                  (eng:code-units->utf8 "nested"))
+           (sys:make-symlink "sub/file" (sys:path-join directory "tree/link"))
+           (is = 0 (clun.runtime::shell-result-exit-code
+                    (clun.runtime::%shell-run-cp '("-R" "tree" "tree-copy") state)))
+           (is equal "nested"
+               (eng:utf8->code-units
+                (sys:read-file-octets (sys:path-join directory "tree-copy/sub/file"))))
+           (is equal "sub/file" (sys:read-symlink
+                                  (sys:path-join directory "tree-copy/link")))
+           (is = 1 (clun.runtime::shell-result-exit-code
+                    (clun.runtime::%shell-run-cp
+                     '("-R" "tree" "tree/new/deep") state)))
+           (false (sys:path-exists-p (sys:path-join directory "tree/new")))
+           (sys:write-file-octets (sys:path-join directory "preserved")
+                                  (eng:code-units->utf8 "preserved"))
+           (is = 0 (clun.runtime::shell-result-exit-code
+                    (clun.runtime::%shell-run-cp
+                     '("-n" "source" "preserved") state)))
+           (is equal "preserved"
+               (eng:utf8->code-units
+                (sys:read-file-octets (sys:path-join directory "preserved"))))
+           (is = 1 (clun.runtime::shell-result-exit-code
+                    (clun.runtime::%shell-run-cp '("source" "source") state))))
+      (ignore-errors (sys:remove-recursive directory)))))
