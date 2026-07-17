@@ -14,6 +14,8 @@ function check(job, expectedCode, expectedOut, expectedErr, label) {
   });
 }
 
+const inertConditionalPattern = "/usr/homes/*";
+
 check(Clun.$`basename`, 1, "", "usage: basename string\n", "basename usage")
   .then(() => check(
     Clun.$`basename js/bun/shell/commands/basename.test.ts /home/tux/example.txt /catalog/ / C:/Documents/Newsletters/Summer2018.pdf`,
@@ -176,6 +178,23 @@ check(Clun.$`basename`, 1, "", "usage: basename string\n", "basename usage")
   ))
   .then(() => check(Clun.$`[[ (-n value) ]] && echo compact`, 0, "compact\n", "", "compact conditional grouping"))
   .then(() => check(Clun.$`[[ alpha > aardvark && alpha < beta ]] && echo ordered`, 0, "ordered\n", "", "conditional lexical ordering"))
+  .then(() => check(
+    Clun.$`TDIR=/usr/homes/gmacs; [[ $TDIR == /usr/homes/* ]] && echo wildcard`,
+    0,
+    "wildcard\n",
+    "",
+    "conditional glob pattern",
+  ))
+  .then(() => check(Clun.$`TDIR=/usr/homes/gmacs; [[ $TDIR == '/usr/homes/*' ]]`, 1, "", "", "quoted conditional pattern"))
+  .then(() => check(Clun.$`TDIR=/usr/homes/gmacs; [[ $TDIR == /usr/homes/\* ]]`, 1, "", "", "escaped conditional pattern"))
+  .then(() => check(
+    Clun.$`TDIR=/usr/homes/gmacs; PAT='/usr/homes/*'; [[ $TDIR == $PAT ]] && echo variable`,
+    0,
+    "variable\n",
+    "",
+    "variable conditional pattern",
+  ))
+  .then(() => check(Clun.$`[[ /usr/homes/gmacs == ${inertConditionalPattern} ]]`, 1, "", "", "inert interpolated conditional pattern"))
   .then(() => check(Clun.$`[[ -n test ]] | true && echo ok`, 0, "ok\n", "", "conditional producer pipeline"))
   .then(() => check(Clun.$`true | [[ -n test ]] && echo ok`, 0, "ok\n", "", "conditional consumer pipeline"))
   .then(() => {

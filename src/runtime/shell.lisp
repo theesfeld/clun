@@ -28,6 +28,9 @@
   (terminated nil))
 (defstruct shell-job
   units state g result error (started nil))
+(defstruct (shell-condition-operand
+            (:constructor %make-shell-condition-operand (value protected)))
+  value protected)
 
 (defparameter *shell-max-array-depth* 64)
 (defparameter *shell-max-seq-items* 1000000)
@@ -241,11 +244,12 @@
              (if (< (1+ index) (length units))
                  (let ((next (aref units (1+ index))))
                    (if (characterp next)
-                       (progn
-                         (unless (and (eq quote :double)
-                                      (not (find next "$\\\"`")))
-                           (setf index (1+ index)))
-                         (emit-character (aref units index) (not (null quote)))
+                       (let ((escaped
+                               (not (and (eq quote :double)
+                                         (not (find next "$\\\"`"))))))
+                         (when escaped (setf index (1+ index)))
+                         (emit-character (aref units index)
+                                         (or escaped (not (null quote))))
                          (incf index))
                        (progn (emit-character #\\ (not (null quote))) (incf index))))
                  (progn (emit-character #\\ (not (null quote))) (incf index))))
@@ -1768,6 +1772,49 @@ integer conversions are deliberately rejected because seq values are f32."
     (%shell-fill-byte-target target pattern)
     (make-shell-result)))
 
+(defun %shell-condition-as-operand (term)
+  (if (shell-condition-operand-p term)
+      term
+      (%make-shell-condition-operand
+       term (make-array (length term) :element-type 'bit :initial-element 0))))
+
+(defun %shell-condition-operand-text (term)
+  (shell-condition-operand-value (%shell-condition-as-operand term)))
+
+(defun %shell-condition-protected-p (term index)
+  (= 1 (aref (shell-condition-operand-protected
+              (%shell-condition-as-operand term))
+             index)))
+
+(defun %shell-condition-operator-p (term operator)
+  (let ((operand (%shell-condition-as-operand term)))
+    (and (string= (shell-condition-operand-value operand) operator)
+         (every #'zerop (shell-condition-operand-protected operand)))))
+
+(defun %shell-condition-operand-slice (term start &optional end)
+  (let* ((operand (%shell-condition-as-operand term))
+         (value (shell-condition-operand-value operand))
+         (end (or end (length value))))
+    (%make-shell-condition-operand
+     (subseq value start end)
+     (subseq (shell-condition-operand-protected operand) start end))))
+
+(defun %shell-condition-literal-operand (value)
+  (%make-shell-condition-operand
+   value (make-array (length value) :element-type 'bit :initial-element 0)))
+
+(defun %shell-condition-pattern (term)
+  (let* ((operand (%shell-condition-as-operand term))
+         (value (shell-condition-operand-value operand)))
+    (with-output-to-string (output)
+      (loop for character across value
+            for index from 0
+            for protected = (%shell-condition-protected-p operand index)
+            do (when (or (and protected (find character "\\*?[]{}!,-^"))
+                         (and (zerop index) (char= character #\!)))
+                 (write-char #\\ output))
+               (write-char character output)))))
+
 (defun %shell-condition-integer (value)
   (handler-case
       (multiple-value-bind (integer position)
@@ -1783,6 +1830,7 @@ integer conversions are deliberately rejected because seq values are f32."
   (and (plusp (length value)) (%shell-relative-path value state)))
 
 (defun %shell-condition-unary-p (operator value state)
+  (setf value (%shell-condition-operand-text value))
   (let ((path (and (member operator '("-e" "-f" "-d" "-c" "-L")
                            :test #'string=)
                    (%shell-condition-path value state))))
@@ -1805,61 +1853,78 @@ integer conversions are deliberately rejected because seq values are f32."
       (t nil))))
 
 (defun %shell-condition-binary-p (left operator right state)
-  (cond
-    ((member operator '("=" "==") :test #'string=) (string= left right))
-    ((string= operator "!=") (not (string= left right)))
-    ((string= operator "<") (string< left right))
-    ((string= operator ">") (string> left right))
-    ((string= operator "-ef")
-     (let ((left-stat (%shell-condition-stat (%shell-condition-path left state)))
-           (right-stat (%shell-condition-stat (%shell-condition-path right state))))
-       (and left-stat right-stat
-            (= (clun.sys:fstat-dev left-stat) (clun.sys:fstat-dev right-stat))
-            (= (clun.sys:fstat-ino left-stat) (clun.sys:fstat-ino right-stat)))))
-    ((member operator '("-eq" "-ne" "-lt" "-le" "-gt" "-ge")
-             :test #'string=)
-     (let ((left-number (%shell-condition-integer left))
-           (right-number (%shell-condition-integer right)))
-       (and left-number right-number
-            (cond
-              ((string= operator "-eq") (= left-number right-number))
-              ((string= operator "-ne") (/= left-number right-number))
-              ((string= operator "-lt") (< left-number right-number))
-              ((string= operator "-le") (<= left-number right-number))
-              ((string= operator "-gt") (> left-number right-number))
-              (t (>= left-number right-number))))))
-    (t nil)))
+  (let ((left-value (%shell-condition-operand-text left))
+        (right-value (%shell-condition-operand-text right)))
+    (cond
+      ((member operator '("=" "==") :test #'string=)
+       (clun.glob:glob-match-p (%shell-condition-pattern right) left-value))
+      ((string= operator "!=")
+       (not (clun.glob:glob-match-p (%shell-condition-pattern right) left-value)))
+      ((string= operator "<") (string< left-value right-value))
+      ((string= operator ">") (string> left-value right-value))
+      ((string= operator "-ef")
+       (let ((left-stat (%shell-condition-stat
+                         (%shell-condition-path left-value state)))
+             (right-stat (%shell-condition-stat
+                          (%shell-condition-path right-value state))))
+         (and left-stat right-stat
+              (= (clun.sys:fstat-dev left-stat) (clun.sys:fstat-dev right-stat))
+              (= (clun.sys:fstat-ino left-stat) (clun.sys:fstat-ino right-stat)))))
+      ((member operator '("-eq" "-ne" "-lt" "-le" "-gt" "-ge")
+               :test #'string=)
+       (let ((left-number (%shell-condition-integer left-value))
+             (right-number (%shell-condition-integer right-value)))
+         (and left-number right-number
+              (cond
+                ((string= operator "-eq") (= left-number right-number))
+                ((string= operator "-ne") (/= left-number right-number))
+                ((string= operator "-lt") (< left-number right-number))
+                ((string= operator "-le") (<= left-number right-number))
+                ((string= operator "-gt") (> left-number right-number))
+                (t (>= left-number right-number))))))
+      (t nil))))
 
 (defun %shell-condition-normalize-parentheses (terms)
   "Split grouping parentheses attached to operands without splitting balanced pattern text."
   (let ((output '()) (depth 0))
     (dolist (term terms (nreverse output))
-      (let* ((length (length term))
+      (let* ((term (%shell-condition-as-operand term))
+             (text (%shell-condition-operand-text term))
+             (length (length text))
              (leading (loop for index below length
-                            while (char= (char term index) #\()
+                            while (and (not (%shell-condition-protected-p term index))
+                                       (char= (char text index) #\())
                             count 1))
-             (body (subseq term leading)))
+             (body (%shell-condition-operand-slice term leading)))
         (dotimes (index leading)
           (declare (ignore index))
-          (push "(" output)
+          (push (%shell-condition-literal-operand "(") output)
           (incf depth))
         (let ((balance 0) (unmatched 0))
-          (loop for character across body do
+          (loop for character across (%shell-condition-operand-text body)
+                for index from 0 do
             (cond
-              ((char= character #\() (incf balance))
-              ((char= character #\))
+              ((and (not (%shell-condition-protected-p body index))
+                    (char= character #\())
+               (incf balance))
+              ((and (not (%shell-condition-protected-p body index))
+                    (char= character #\)))
                (if (plusp balance) (decf balance) (incf unmatched)))))
-          (let* ((trailing (loop for index downfrom (1- (length body)) to 0
-                                 while (char= (char body index) #\))
+          (let* ((body-text (%shell-condition-operand-text body))
+                 (trailing (loop for index downfrom (1- (length body-text)) to 0
+                                 while (and
+                                        (not (%shell-condition-protected-p body index))
+                                        (char= (char body-text index) #\)))
                                  count 1))
                  (closings (min depth unmatched trailing))
-                 (value (subseq body 0 (- (length body) closings))))
-            (when (or (plusp (length value))
+                 (value (%shell-condition-operand-slice
+                         body 0 (- (length body-text) closings))))
+            (when (or (plusp (length (%shell-condition-operand-text value)))
                       (and (zerop leading) (zerop closings)))
               (push value output))
             (dotimes (index closings)
               (declare (ignore index))
-              (push ")" output)
+              (push (%shell-condition-literal-operand ")") output)
               (decf depth))))))))
 
 (defun %shell-condition-p (terms state)
@@ -1869,47 +1934,57 @@ integer conversions are deliberately rejected because seq values are f32."
          (binary-operators '("=" "==" "!=" "<" ">" "-ef"
                              "-eq" "-ne" "-lt" "-le" "-gt" "-ge")))
     (labels ((term (index) (and (< index length) (aref terms index)))
+             (operator-p (operand operator)
+               (and operand (%shell-condition-operator-p operand operator)))
+             (operator-in-p (operand operators)
+               (some (lambda (operator) (operator-p operand operator)) operators))
              (invalid (index) (values nil index nil))
              (parse-primary (index evaluate)
                (let ((current (term index)))
                  (cond
                    ((null current) (invalid index))
-                   ((string= current "(")
+                   ((operator-p current "(")
                     (multiple-value-bind (value next valid)
                         (parse-or (1+ index) evaluate)
-                      (if (and valid (term next) (string= (term next) ")"))
+                      (if (and valid (operator-p (term next) ")"))
                           (values value (1+ next) t)
                           (invalid next))))
-                   ((string= current ")") (invalid index))
-                   ((member current unary-operators :test #'string=)
+                   ((operator-p current ")") (invalid index))
+                   ((operator-in-p current unary-operators)
                     (let ((operand (term (1+ index))))
-                      (if (and operand (not (member operand '("&&" "||" ")")
-                                                   :test #'string=)))
+                      (if (and operand
+                               (not (operator-in-p operand '("&&" "||" ")"))))
                           (values (and evaluate
-                                       (%shell-condition-unary-p current operand state))
+                                       (%shell-condition-unary-p
+                                        (%shell-condition-operand-text current)
+                                        operand state))
                                   (+ index 2) t)
                           (invalid index))))
                    ((and (term (1+ index))
-                         (member (term (1+ index)) binary-operators :test #'string=))
+                         (operator-in-p (term (1+ index)) binary-operators))
                     (let ((right (term (+ index 2))))
-                      (if (and right (not (member right '("&&" "||" ")")
-                                                 :test #'string=)))
+                      (if (and right
+                               (not (operator-in-p right '("&&" "||" ")"))))
                           (values (and evaluate
                                        (%shell-condition-binary-p
-                                        current (term (1+ index)) right state))
+                                        current
+                                        (%shell-condition-operand-text (term (1+ index)))
+                                        right state))
                                   (+ index 3) t)
                           (invalid index))))
-                   (t (values (and evaluate (plusp (length current)))
+                   (t (values (and evaluate
+                                   (plusp
+                                    (length (%shell-condition-operand-text current))))
                               (1+ index) t)))))
              (parse-not (index evaluate)
-               (if (and (term index) (string= (term index) "!"))
+               (if (operator-p (term index) "!")
                    (multiple-value-bind (value next valid)
                        (parse-not (1+ index) evaluate)
                      (values (and evaluate valid (not value)) next valid))
                    (parse-primary index evaluate)))
              (parse-and (index evaluate)
                (multiple-value-bind (value next valid) (parse-not index evaluate)
-                 (loop while (and valid (term next) (string= (term next) "&&")) do
+                 (loop while (and valid (operator-p (term next) "&&")) do
                    (multiple-value-bind (right after right-valid)
                        (parse-not (1+ next) (and evaluate value))
                      (setf valid right-valid
@@ -1918,7 +1993,7 @@ integer conversions are deliberately rejected because seq values are f32."
                  (values value next valid)))
              (parse-or (index evaluate)
                (multiple-value-bind (value next valid) (parse-and index evaluate)
-                 (loop while (and valid (term next) (string= (term next) "||")) do
+                 (loop while (and valid (operator-p (term next) "||")) do
                    (multiple-value-bind (right after right-valid)
                        (parse-and (1+ next) (and evaluate (not value)))
                      (setf valid right-valid
@@ -1930,7 +2005,7 @@ integer conversions are deliberately rejected because seq values are f32."
                 (and valid (= next length)))))))
 
 (defun %shell-run-condition (arguments state)
-  (if (and arguments (string= (car (last arguments)) "]]"))
+  (if (and arguments (%shell-condition-operator-p (car (last arguments)) "]]"))
       (multiple-value-bind (matches valid)
           (%shell-condition-p (butlast arguments) state)
         (if valid
@@ -2183,16 +2258,30 @@ integer conversions are deliberately rejected because seq values are f32."
        (%shell-trim-command-output (%shell-string (shell-result-stdout result)))))
     (otherwise "")))
 
-(defun %shell-condition-word-value (word state g)
-  (with-output-to-string (output)
+(defun %shell-condition-word-operand (word state g)
+  (let ((output (make-string-output-stream))
+        (protected (make-array 16 :element-type 'bit
+                                 :adjustable t :fill-pointer 0)))
     (dolist (fragment (shell-word-fragments word))
-      (write-string (%shell-condition-fragment-string fragment state g) output))))
+      (let* ((value (%shell-condition-fragment-string fragment state g))
+             (protect (or (eq (shell-fragment-kind fragment) :interpolation)
+                          (shell-fragment-quoted fragment))))
+        (write-string value output)
+        (dotimes (index (length value))
+          (declare (ignore index))
+          (vector-push-extend (if protect 1 0) protected))))
+    (%make-shell-condition-operand
+     (get-output-stream-string output) (copy-seq protected))))
+
+(defun %shell-condition-word-value (word state g)
+  (%shell-condition-operand-text (%shell-condition-word-operand word state g)))
 
 (defun %shell-condition-command-p (command)
   (let* ((word (first (shell-command-words command)))
          (fragments (and word (shell-word-fragments word))))
     (and (= (length fragments) 1)
          (eq (shell-fragment-kind (first fragments)) :literal)
+         (not (shell-fragment-quoted (first fragments)))
          (string= (shell-fragment-value (first fragments)) "[["))))
 
 (defun %shell-command-argv (command state g)
@@ -2211,20 +2300,32 @@ integer conversions are deliberately rejected because seq values are f32."
         (progn
           (setf (shell-state-env state) env)
           (make-shell-result))
-        (let ((argv (%shell-command-argv command state g)))
+        (let* ((condition-p (%shell-condition-command-p command))
+               (condition-arguments
+                 (when condition-p
+                   (mapcar (lambda (word)
+                             (%shell-condition-word-operand word state g))
+                           (rest (shell-command-words command)))))
+               (argv (if condition-p
+                         (cons "[[" (mapcar #'%shell-condition-operand-text
+                                             condition-arguments))
+                         (%shell-command-argv command state g))))
           (if (null argv)
               (make-shell-result)
               (multiple-value-bind (input output-redirections)
                   (%shell-command-redirections command state g stdin)
                 (multiple-value-bind (builtin handled)
-                    (if (string= (first argv) "yes")
-                        (values
-                         (%shell-run-yes
-                          (rest argv)
-                          (%shell-bounded-output-target
-                           output-redirections state g))
-                         t)
-                        (%shell-run-builtin argv state env input))
+                    (cond
+                      (condition-p
+                       (values (%shell-run-condition condition-arguments state) t))
+                      ((string= (first argv) "yes")
+                       (values
+                        (%shell-run-yes
+                         (rest argv)
+                         (%shell-bounded-output-target
+                          output-redirections state g))
+                        t))
+                      (t (%shell-run-builtin argv state env input)))
                   (%shell-apply-output-redirections
                    (if handled builtin
                        (%shell-run-external argv env (shell-state-cwd state) input))

@@ -242,6 +242,26 @@
   (multiple-value-bind (output exit-code)
       (shell-test-output "[[ (-n value) ]] && echo compact")
     (is equal (format nil "compact~%") output)
+    (is = 0 exit-code))
+  (multiple-value-bind (output exit-code)
+      (shell-test-output
+       "TDIR=/usr/homes/gmacs; [[ $TDIR == /usr/homes/* ]] && echo wildcard")
+    (is equal (format nil "wildcard~%") output)
+    (is = 0 exit-code))
+  (multiple-value-bind (output exit-code)
+      (shell-test-output
+       "TDIR=/usr/homes/gmacs; [[ $TDIR == '/usr/homes/*' ]]")
+    (is equal "" output)
+    (is = 1 exit-code))
+  (multiple-value-bind (output exit-code)
+      (shell-test-output
+       "TDIR=/usr/homes/gmacs; [[ $TDIR == /usr/homes/\\* ]]")
+    (is equal "" output)
+    (is = 1 exit-code))
+  (multiple-value-bind (output exit-code)
+      (shell-test-output
+       "TDIR=/usr/homes/gmacs; PAT='/usr/homes/*'; [[ $TDIR == $PAT ]]")
+    (is equal "" output)
     (is = 0 exit-code)))
 
 (define-test shell/lines-preserve-string-split-boundaries
