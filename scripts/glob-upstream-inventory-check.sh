@@ -25,15 +25,20 @@ emit_sites() {
     }
     {
       original = $0
+      if (suite == "match") {
+        disposition = "executed"
+        test_note = "executed from exact pinned source through build/clun"
+        assertion_note = test_note
+      } else {
+        disposition = "aggregate-mapped"
+        test_note = "lexical source site is associated with an aggregate suite; this row does not claim one-to-one execution"
+        assertion_note = "associated with an aggregate suite; this row does not claim one-to-one execution"
+      }
       rest = original
       occurrence = 0
       while (match(rest, /test([.]concurrent)?[[:space:]]*[(]/)) {
         occurrence++
-        emit("test", occurrence,
-             suite == "match" ? "executed" : "aggregate-mapped", evidence,
-             suite == "match" ?
-               "executed from exact pinned source through build/clun" :
-               "lexical source site is associated with an aggregate suite; this row does not claim one-to-one execution")
+        emit("test", occurrence, disposition, evidence, test_note)
         rest = substr(rest, RSTART + RLENGTH)
       }
 
@@ -53,11 +58,7 @@ emit_sites() {
           emit("assertion", occurrence, "not-applicable", "-",
                "Windows-only separator branch; Phase 30 supports macOS and Linux")
         } else {
-          emit("assertion", occurrence,
-               suite == "match" ? "executed" : "aggregate-mapped", evidence,
-               suite == "match" ?
-                 "executed from exact pinned source through build/clun" :
-                 "associated with an aggregate suite; this row does not claim one-to-one execution")
+          emit("assertion", occurrence, disposition, evidence, assertion_note)
         }
         rest = substr(rest, RSTART + RLENGTH)
       }
