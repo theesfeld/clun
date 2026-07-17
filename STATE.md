@@ -7,34 +7,26 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **31 - YAML API and module loading**  (RELEASE CANDIDATE)
+## Current phase: **31 - YAML API and module loading**  (PUBLICATION RECONCILIATION)
 
 **Canonical issue:** https://github.com/theesfeld/clun/issues/5
 **Next phase issue:** https://github.com/theesfeld/clun/issues/11
 **Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/2,
 https://github.com/theesfeld/clun/issues/39, and https://github.com/theesfeld/clun/issues/40
-**Current implementation unit:** Phase 31 now passes the complete exact pinned 402-case Bun-generated YAML
-corpus with zero failures. The dev.16 recovery candidate combines that eighth compatibility-ledger `Yes`
+**Current implementation unit:** Phase 31 passes the complete exact pinned 402-case Bun-generated YAML
+corpus with zero failures. The published dev.16 release combines that eighth compatibility-ledger `Yes`
 with the reviewed 173-pass Phase 37 milestone-1 unit; Phase 37 remains explicitly incomplete.
 **SemVer impact:** `minor`
-**Published release:** `0.1.0-dev.14` / `v0.1.0-dev.14`
-**Candidate release:** `0.1.0-dev.16` / `v0.1.0-dev.16`
-**Entry boundary:** Phase 36 is published in immutable dev.14 at exact commit
-`002292cbcad064a0da7c2879f9d03b44659a8f59`; release reconciliation is merged at exact master
-`f2fe6aa7ec255a98baabb73b865fdec66608c44d`. Exact-head CI, Documentation, Pages, and four-target
-Compatibility passed; live `clun.sh` and its hosted installer serve dev.14; and issue #10 is closed
-complete. Phase 26 remains after Phase 82.
-The immutable `v0.1.0-dev.15` tag peels to exact candidate commit
-`9ef93791c4b1fa3d3bcf5e8dc2f9b5cf1bd13073`, whose CI, explicitly dispatched Pages/public-claims, and
-four-target Compatibility gates passed. Its release run `29559913562` stopped before builds or assets
-because the path-filtered Documentation workflow had no exact-SHA master run at that commit. No dev.15
-GitHub release, asset, or installer was published; the tag is not reused. The dev.16 recovery makes
-Documentation explicitly dispatchable and advances the prerelease sequence once without changing the
-published dev.14 installer.
-**Next scope:** merge the dev.16 recovery through review, require exact-SHA master
-CI/Documentation/Compatibility/Pages, publish the immutable four-platform release, reconcile the release
-ledger, close issue #5 with receipts, and verify the live page and hosted installer before moving the active
-release slot.
+**Published release:** `0.1.0-dev.16` / `v0.1.0-dev.16`
+**Entry boundary:** The dev.16 recovery is merged and tagged at exact master
+`7c7377780413b98da1396f5d8e5d84611cf6cca3`. Exact-master CI `29560539473`, Documentation
+`29560539481`, Pages/publication validation `29560539500`, and four-target Compatibility plus receipt
+aggregation `29560539518` passed. The immutable `v0.1.0-dev.15` tag remains the failed pre-build
+attempt with no release or assets. Live `clun.sh` and its hosted installer still serve dev.14 until this
+reconciliation deploys. Phase 26 remains after Phase 82.
+**Next scope:** merge this publication reconciliation, wait for the exact-commit Pages deployment, verify
+the live page and hosted installer, add those receipts to closed-complete issue #5, and move the active
+release slot without interrupting the parallel compatibility implementation lanes.
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
 easiest to hardest among dependency-ready rows. Core engine/runtime/network/tooling changes are expected.
@@ -44,14 +36,16 @@ queue is YAML, transport streaming, shell, test-runner parity, and the dependenc
 wave; exact canonical ledger IDs are frozen in `PLAN.md`.
 
 **Current checkpoint:** the integrated YAML parser reports **402 pass / 0 fail / 402 total** and **408
-assertions** in the exact pinned corpus; deterministic baseline and full Phase 31 gates are being frozen on
-the candidate branch. Phase 37 milestone 1 adds `Object.hasOwn`, array copy-by-change methods, String
+assertions** in the exact pinned corpus. Exact master CI **29560539473**, Documentation **29560539481**,
+Pages validation **29560539500**, and four-target Compatibility plus receipt aggregation **29560539518**
+pass at `7c7377780413b98da1396f5d8e5d84611cf6cca3`; annotated tag `v0.1.0-dev.16` peels to that commit and
+release run **29561031150** published the immutable four-platform archives plus checksums. Issue #5 is
+closed complete with exact asset digests. Phase 37 milestone 1 adds `Object.hasOwn`, array copy-by-change methods, String
 well-formedness, `Error.isError`, and `Promise.withResolvers`, producing 173 measured execution-pass gains;
 its frozen inventory still has 708 residual failures and no full ledger row is claimed. Parallel durable
 checkpoints include transport request streaming plus origin-keyed HTTP pooling and shell parser/runtime,
-guarded filesystem builtins, bounded `yes`, and isolated pipeline state. Published master remains **7 Yes /
-7 Partial / 16 No**; the candidate ledger becomes **8 Yes / 6 Partial / 16 No** only with the complete Phase
-31 evidence attached.
+guarded filesystem builtins, bounded `yes`, and isolated pipeline state. Merged `master` is **8 Yes /
+6 Partial / 16 No** with the complete Phase 31 evidence attached.
 
 **M5 entry boundary:** immutable dev.4 diagnostic set **56 total / 0 pass / 56 fail / 0 skip / 0 crash**:
 **43 m5-owned** (32 intrinsic/prototype, 7 parser, 4 raw delegation), **12 m11** direct-eval/`with`
