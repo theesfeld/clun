@@ -26,6 +26,27 @@
                  (clun.runtime::shell-token-value (first tokens))))))
     (is equal "|" (clun.runtime::shell-token-value (third tokens)))))
 
+(define-test shell/escaped-newline-is-a-continuation
+  (let* ((result (clun.runtime::%shell-execute-units
+                  (shell-test-units
+                   (format nil "echo one ~c~%two; echo \"three~c~%four\""
+                           #\\ #\\))
+                  (shell-test-state) nil))
+         (output (eng:utf8->code-units
+                  (clun.runtime::shell-result-stdout result))))
+    (is equal (format nil "one two~%threefour~%") output)
+    (is = 0 (clun.runtime::shell-result-exit-code result))))
+
+(define-test shell/empty-substitution-preserves-status
+  (multiple-value-bind (output exit-code)
+      (shell-test-output "$(exit 1) && echo must-not-run")
+    (is equal "" output)
+    (is = 1 exit-code))
+  (multiple-value-bind (output exit-code)
+      (shell-test-output "$(exit 0) && echo did-run")
+    (is equal (format nil "did-run~%") output)
+    (is = 0 exit-code)))
+
 (define-test shell/interpolation-cannot-create-grammar
   (let* ((units (concatenate
                  'vector (shell-test-units "echo ")
@@ -93,6 +114,8 @@
   (is equal "hello" (clun.runtime::%shell-echo-output '("hello") nil))
   (is equal (format nil "hello~%")
       (clun.runtime::%shell-echo-output '("hello") t))
+  (is equal (format nil "~%")
+      (clun.runtime::%shell-echo-output (list (format nil "~%")) t))
   (is equal (format nil "~%~%")
       (clun.runtime::%shell-echo-output (list (format nil "~%~%~%")) t))
   (is equal (format nil "a~%")

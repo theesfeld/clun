@@ -67,10 +67,12 @@ Response stdin, emit to bounded typed-array targets, and expose Blob output on s
 Synchronous write errors retain errno as shell statuses through nested substitutions and recovery operators.
 `clun exec` now runs scripts through the same in-process shell engine, including exact help, cwd/env handling,
 large output, builtin error contracts, non-ASCII cwd, and current-executable resolution when `PATH` is empty.
-`make phase-65-shell-core-check` passes **233 / 0 / 0** plus
-**15/15** shipped `tooling.shell` evidence records; `make build`, `make purity` (**728 / 0**), and diff check
+Nested interpolation arrays now support the pinned 100-level boundary, escaped newlines are continuations,
+empty substitutions retain their command status, and a single interpolated newline is not doubled by `echo`.
+`make phase-65-shell-core-check` passes **240 / 0 / 0** plus
+**16/16** shipped `tooling.shell` evidence records; `make build`, `make purity` (**728 / 0**), and diff check
 pass. The exact stable and engineering Bun boundary is now frozen at **211 source/docs/types/test files** and
-**1,630 lexical test sites**: **744 covered / 854 pending / 32 upstream-inactive**. The checked-in coverage
+**1,630 lexical test sites**: **907 covered / 691 pending / 32 upstream-inactive**. The checked-in coverage
 overlay binds every credited site to executable shipped-binary evidence and rejects stale or unknown IDs.
 The row is honestly **Partial**, not `Yes`: remaining language/API/lifecycle cases, four permission-sensitive
 `ls` sites, 1,000-job stress, and Linux/macOS x64/arm64 receipts are still open.

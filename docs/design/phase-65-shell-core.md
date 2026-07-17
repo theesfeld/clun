@@ -88,7 +88,7 @@ types, fixtures, and upstream licenses. `upstream-files.tsv` binds every file to
 
 `upstream-corpus.tsv` enumerates 1,630 lexical test sites from those exact snapshots. The initial conservative
 disposition was 1,598 pending and 32 explicitly inactive at the pinned revisions. The current executable
-mapping is 744 covered, 854 pending, and 32 upstream-inactive. `upstream-coverage.tsv` binds each credited
+mapping is 907 covered, 691 pending, and 32 upstream-inactive. `upstream-coverage.tsv` binds each credited
 inventory ID to a checked-in shipped-binary fixture; regeneration rejects duplicate, stale, or unknown IDs,
 and the corpus validator rejects missing evidence. `shell-upstream-corpus-check.sh` rejects inventory drift
 or an unexplained disposition. Its `--yes` mode is the finite closure gate: it rejects any pending row and
@@ -159,6 +159,13 @@ baselines. The `clun exec <script>` CLI dispatches through the same Common Lisp 
 normalizes command lookup failure to the CLI contract, resolves the current Clun executable when `PATH` is
 empty, and freezes help, large output, builtin diagnostics, default `cd`, and a non-ASCII cwd through the
 shipped binary.
+`tests/compat/tooling.shell/upstream-language.js` executes 163 exact pending IDs across both pinned
+`bunshell.test.ts` baselines. Nested interpolation arrays are accepted through depth 100 and rejected
+synchronously beyond it. Backslash-newline pairs are removed by the lexer outside single quotes, empty
+command substitutions retain their exit status, and `echo` distinguishes one trailing newline from runs of
+two or more. The fixture also freezes escape output and round trips, inert special-character interpolation,
+compact operators, Unicode and Latin-1 values, command substitution, tilde expansion, and continuation
+behavior through the shipped binary.
 The conditional fixture freezes the active `shell-seq-condexpr.test.ts` empty-path regressions and the
 non-todo `bunshell.test.ts` unary/string cases, including both conditional pipeline positions. It additionally
 freezes the pinned GNU-bash-derived compound-expression cases for repeated negation, short-circuit operators,

@@ -45,7 +45,7 @@
 (defstruct shell-brace-atom kind value)
 (defstruct shell-brace-group (atoms '()))
 
-(defparameter *shell-max-array-depth* 64)
+(defparameter *shell-max-array-depth* 100)
 (defparameter *shell-max-seq-items* 1000000)
 (defparameter *shell-max-builtin-bytes* (* 256 1024 1024))
 (defparameter *shell-empty-octets*
@@ -101,6 +101,15 @@
       (unless (eng:js-undefined-p raw)
         (eng:to-string raw)))))
 
+(defun %shell-validate-interpolation-depth (value &optional (depth 0))
+  (when (> depth *shell-max-array-depth*)
+    (eng:throw-range-error
+     "Shell script template arrays cannot be nested more than 100 levels deep"))
+  (when (eng:js-array-p value)
+    (loop for index below (eng:array-length value)
+          do (%shell-validate-interpolation-depth
+              (eng:js-getv value (princ-to-string index)) (1+ depth)))))
+
 (defun %shell-template-units (strings expressions)
   "Build a vector of characters and (:INTERP . value) cells from a tag call."
   (unless (eng:js-array-p strings)
@@ -118,7 +127,9 @@
                         (raw (%shell-raw-interpolation value)))
                    (if raw
                        (append-source raw)
-                       (vector-push-extend (cons :interp value) pieces)))))
+                       (progn
+                         (%shell-validate-interpolation-depth value)
+                         (vector-push-extend (cons :interp value) pieces))))))
       (coerce pieces 'vector))))
 
 (defun %shell-operator-at (units index)
@@ -264,15 +275,20 @@
             ((char= unit #\\)
              (if (< (1+ index) (length units))
                  (let ((next (aref units (1+ index))))
-                   (if (characterp next)
-                       (let ((escaped
-                               (not (and (eq quote :double)
-                                         (not (find next "$\\\"`"))))))
-                         (when escaped (setf index (1+ index)))
-                         (emit-character (aref units index)
-                                         (or escaped (not (null quote))))
-                         (incf index))
-                       (progn (emit-character #\\ (not (null quote))) (incf index))))
+                   (cond
+                     ((and (characterp next) (char= next #\Newline))
+                      (incf index 2))
+                     ((characterp next)
+                      (let ((escaped
+                              (not (and (eq quote :double)
+                                        (not (find next "$\\\"`"))))))
+                        (when escaped (setf index (1+ index)))
+                        (emit-character (aref units index)
+                                        (or escaped (not (null quote))))
+                        (incf index)))
+                     (t
+                      (emit-character #\\ (not (null quote)))
+                      (incf index))))
                  (progn (emit-character #\\ (not (null quote))) (incf index))))
             ((char= unit #\")
              (setf quote (if (eq quote :double) nil :double) word-started t)
@@ -644,7 +660,8 @@
 
 (defun %shell-flatten-interpolation (value &optional (depth 0))
   (when (> depth *shell-max-array-depth*)
-    (eng:throw-range-error "Clun.$ interpolation arrays are nested too deeply"))
+    (eng:throw-range-error
+     "Shell script template arrays cannot be nested more than 100 levels deep"))
   (if (eng:js-array-p value)
       (loop for index below (eng:array-length value)
             append (%shell-flatten-interpolation
@@ -663,7 +680,6 @@
 
 (defun %shell-fragment-values (fragment state g)
   "Return values for FRAGMENT and whether unquoted field splitting applies."
-  (declare (ignore g))
   (let ((quoted (shell-fragment-quoted fragment)))
     (case (shell-fragment-kind fragment)
       (:literal (values (list (shell-fragment-value fragment)) nil))
@@ -677,7 +693,8 @@
        (values (list (princ-to-string (shell-state-last-exit-code state))) nil))
       (:substitution
        (let* ((sub-state (copy-shell-state state))
-              (result (%shell-execute-units (shell-fragment-value fragment) sub-state))
+              (result (%shell-execute-units
+                       (shell-fragment-value fragment) sub-state g))
               (value (%shell-trim-command-output
                       (%shell-string (shell-result-stdout result)))))
          (setf (shell-state-last-exit-code state) (shell-result-exit-code result))
@@ -893,7 +910,7 @@
             ((zerop trailing)
              (concatenate 'string body (string #\Newline)))
             ((= trailing (length body))
-             (make-string (if (= trailing 1) 2 (min trailing 2))
+             (make-string (min trailing 2)
                           :initial-element #\Newline))
             (t
              (concatenate 'string (subseq body 0 (- (length body) trailing))
@@ -2951,7 +2968,7 @@ integer conversions are deliberately rejected because seq values are f32."
                                             condition-arguments))
                         (%shell-command-argv command state g))))
          (if (null argv)
-             (make-shell-result)
+             (make-shell-result :exit-code (shell-state-last-exit-code state))
              (multiple-value-bind (input output-redirections)
                  (%shell-command-redirections command state g stdin)
                (multiple-value-bind (builtin handled)
@@ -3564,7 +3581,9 @@ deadlock even when commands produce output larger than kernel pipe capacity."
   (let ((string (eng:to-string value)))
     (if (and (plusp (length string))
              (every (lambda (character)
-                      (or (alphanumericp character) (find character "_@%+=:,./-")))
+                      (or (alphanumericp character)
+                          (> (char-code character) 127)
+                          (find character "_@%+:,./-")))
                     string))
         string
         (with-output-to-string (output)
