@@ -6,6 +6,7 @@ logical-operators
 command-substitution
 env-and-cwd
 redirection
+descriptor-redirection
 structured-output
 structured-error
 helpers

@@ -187,6 +187,58 @@
                    (clun.runtime::shell-result-stderr result)))
     (is = 1 (clun.runtime::shell-result-exit-code result))))
 
+(define-test shell/ordered-descriptor-redirections
+  (let* ((directory (clun.runtime::%shell-temp-directory))
+         (state (shell-test-state))
+         (result (clun.runtime::make-shell-result
+                  :stdout (eng:code-units->utf8 (format nil "out~%"))
+                  :stderr (eng:code-units->utf8 (format nil "err~%"))
+                  :exit-code 7)))
+    (labels ((word (value)
+               (clun.runtime::make-shell-word
+                :fragments
+                (list (clun.runtime::make-shell-fragment
+                       :kind :literal :value value :quoted nil))))
+             (redirect (kind &optional target)
+               (clun.runtime::make-shell-redirection
+                :kind kind :target (and target (word target))))
+             (apply-redirections (&rest redirections)
+               (clun.runtime::%shell-apply-output-redirections
+                result redirections state nil))
+             (text (path)
+               (eng:utf8->code-units
+                (sys:read-file-octets (sys:path-join directory path)))))
+      (unwind-protect
+           (progn
+             (setf (clun.runtime::shell-state-cwd state) directory)
+             (let ((redirected
+                     (apply-redirections
+                      (redirect :output "both")
+                      (redirect :error-to-output))))
+               (is equal "" (eng:utf8->code-units
+                               (clun.runtime::shell-result-stdout redirected)))
+               (is equal "" (eng:utf8->code-units
+                               (clun.runtime::shell-result-stderr redirected)))
+               (is equal (format nil "out~%err~%") (text "both")))
+             (let ((redirected
+                     (apply-redirections
+                      (redirect :error-to-output)
+                      (redirect :output "ordered"))))
+               (is equal (format nil "err~%")
+                   (eng:utf8->code-units
+                    (clun.runtime::shell-result-stdout redirected)))
+               (is equal "" (eng:utf8->code-units
+                               (clun.runtime::shell-result-stderr redirected)))
+               (is equal (format nil "out~%") (text "ordered")))
+             (apply-redirections
+              (redirect :output "superseded")
+              (redirect :output "final"))
+             (is equal "" (text "superseded"))
+             (is equal (format nil "out~%") (text "final"))
+             (apply-redirections (redirect :both-append "both"))
+             (is equal (format nil "out~%err~%out~%err~%") (text "both")))
+        (ignore-errors (sys:remove-recursive directory))))))
+
 (define-test shell/conditional-expression-core
   (let* ((directory (clun.runtime::%shell-temp-directory))
          (state (shell-test-state)))

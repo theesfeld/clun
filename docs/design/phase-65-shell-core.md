@@ -48,6 +48,9 @@ their contents cannot create operators, substitutions, redirects, globs, or extr
   `sb-ext:run-program` directly. The implementation does not invoke `sh`, `bash`, or another command parser.
 - Spawn every command in an external-only pipeline before waiting. Intermediate streams are connected while
   the final stdout and all stderr are file-backed, preventing parent-side pipe-capacity deadlocks.
+- Resolve supported output redirects left to right as descriptor destinations. `2>&1` and `1>&2` snapshot the current
+  destination, later redirects do not move the duplicated descriptor, superseded pathname redirects still
+  create or truncate their targets, and `&>` / `&>>` share one destination for both output streams.
 - Stream an internal `yes` producer into an otherwise external pipeline without invoking a host `yes` binary.
   The producer uses bounded memory, observes downstream pipe closure, and preserves the last-command status.
 - Isolate mutable cwd, environment, termination, and status state for every stage of a multi-command builtin
@@ -67,7 +70,7 @@ their contents cannot create operators, substitutions, redirects, globs, or extr
 
 `tests/compat/tooling.shell/core.js` drives the shipped binary and freezes exact results for hostile scalar
 interpolation, array boundaries, a 1 MiB producer/consumer pipeline, logical operators, command substitution,
-cwd and environment, redirects, output/error objects, Promise chaining, helper methods, and job-local
+cwd and environment, ordered descriptor redirects, output/error objects, Promise chaining, helper methods, and job-local
 executable lookup. It also freezes callable `$.Shell` instances, constructor behavior, prototype identity,
 and bidirectional default isolation. `tests/compat/tooling.shell/builtins.js` freezes exact application behavior for path,
 echo, exit, sequence, binary cat, mkdir, touch, guarded recursive rm, and mv builtins. The mv fixture covers
@@ -99,8 +102,9 @@ make purity
 
 This milestone is substantial application behavior, but it is not the complete frozen Bun contract. The
 ledger must not report `Yes` until the pinned source inventory and full applicable corpus are mapped and pass,
-including remaining control/background forms and builtins, exact descriptor/coercion/error behavior, async
-line and blob surfaces, ordered descriptor redirects, signal/exit ordering, cancellation, 1,000-job child/fd
+including remaining control/background forms and builtins, exact redirect open/error timing, shared-stream
+interleaving and coercion behavior, async
+line and blob surfaces, signal/exit ordering, cancellation, 1,000-job child/fd
 and memory stress, and Linux/macOS x64/arm64 receipts. General concurrent builtin streaming and standalone
 unbounded job-output sinks are still required. Recursive `rm` still requires a portable
 descriptor-relative traversal before the directory-to-symlink replacement race can be considered closed on
