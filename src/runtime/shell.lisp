@@ -3172,39 +3172,15 @@ deadlock even when commands produce output larger than kernel pipe capacity."
                            (concatenate 'string prefix part suffix)))
                         parts)))))))
 
-(defun install-shell (clun g)
-  "Install the realm-local Clun.$ tag and the global $ alias."
-  (let ((default-env (clun.sys:environ-alist))
-        (default-cwd (clun.sys:current-directory))
-        (default-throws t)
-        (tag nil)
-        (shell-error-constructor nil))
-    (let* ((error-prototype (eng:js-get (eng:js-get g "Error") "prototype"))
-           (shell-error-prototype (eng:js-make-object error-prototype :error)))
-      (eng:hidden-prop shell-error-prototype "name" "ShellError")
-      (eng:hidden-prop shell-error-prototype "message" "")
-      (labels ((make-error (args)
-                 (let* ((message (eng:arg args 0))
-                        (error (eng:js-make-object shell-error-prototype :error)))
-                   (unless (eng:js-undefined-p message)
-                     (eng:hidden-prop error "message" (eng:to-string message)))
-                   (eng:hidden-prop
-                    error "stack"
-                    (format nil "ShellError: ~a"
-                            (if (eng:js-undefined-p message) ""
-                                (eng:to-string message))))
-                   error)))
-        (setf shell-error-constructor
-              (eng:make-native-function
-               "ShellError" 1
-               (lambda (this args) (declare (ignore this)) (make-error args))
-               :construct (lambda (args new-target)
-                            (declare (ignore new-target)) (make-error args)))))
-      (eng:data-prop shell-error-constructor "prototype" shell-error-prototype)
-      (eng:data-prop shell-error-prototype "constructor" shell-error-constructor))
+(defun %shell-make-tag (g name initial-env initial-cwd initial-throws)
+  "Create one callable shell tag with instance-local defaults."
+  (let ((default-env (%shell-env-copy initial-env))
+        (default-cwd initial-cwd)
+        (default-throws initial-throws)
+        (tag nil))
     (setf tag
           (eng:make-native-function
-           "$" 1
+           name 1
            (lambda (this args)
              (declare (ignore this))
              (let* ((strings (eng:arg args 0))
@@ -3229,15 +3205,69 @@ deadlock even when commands produce output larger than kernel pipe capacity."
                          (clun.sys:path-join (clun.sys:current-directory) value))))))
         this))
     (eng:install-method tag "nothrow" 0
-      (lambda (this args) (declare (ignore args)) (setf default-throws nil) this))
+      (lambda (this args)
+        (declare (ignore args))
+        (setf default-throws nil)
+        this))
     (eng:install-method tag "throws" 1
       (lambda (this args)
         (setf default-throws (eng:js-truthy (eng:arg args 0))) this))
+    tag))
+
+(defun install-shell (clun g)
+  "Install the realm-local Clun.$ tag and the global $ alias."
+  (let ((tag nil)
+        (shell-error-constructor nil))
+    (let* ((error-prototype (eng:js-get (eng:js-get g "Error") "prototype"))
+           (shell-error-prototype (eng:js-make-object error-prototype :error)))
+      (eng:hidden-prop shell-error-prototype "name" "ShellError")
+      (eng:hidden-prop shell-error-prototype "message" "")
+      (labels ((make-error (args)
+                 (let* ((message (eng:arg args 0))
+                        (error (eng:js-make-object shell-error-prototype :error)))
+                   (unless (eng:js-undefined-p message)
+                     (eng:hidden-prop error "message" (eng:to-string message)))
+                   (eng:hidden-prop
+                    error "stack"
+                    (format nil "ShellError: ~a"
+                            (if (eng:js-undefined-p message) ""
+                                (eng:to-string message))))
+                   error)))
+        (setf shell-error-constructor
+              (eng:make-native-function
+               "ShellError" 1
+               (lambda (this args) (declare (ignore this)) (make-error args))
+               :construct (lambda (args new-target)
+                            (declare (ignore new-target)) (make-error args)))))
+      (eng:data-prop shell-error-constructor "prototype" shell-error-prototype)
+      (eng:data-prop shell-error-prototype "constructor" shell-error-constructor))
+    (setf tag (%shell-make-tag
+               g "$" (clun.sys:environ-alist) (clun.sys:current-directory) t))
     (eng:install-method tag "escape" 1
       (lambda (this args) (declare (ignore this)) (%shell-escape (eng:arg args 0))))
     (eng:install-method tag "braces" 1
       (lambda (this args) (declare (ignore this))
         (eng:new-array (%shell-brace-expand (eng:to-string (eng:arg args 0))))))
+    (let* ((shell-prototype (eng:new-object))
+           (shell-constructor
+             (eng:make-native-function
+              "Shell" 0
+              (lambda (this args)
+                (declare (ignore this args))
+                (eng:throw-type-error
+                 "Class constructor Shell cannot be invoked without 'new'"))
+              :construct
+              (lambda (args new-target)
+                (declare (ignore args new-target))
+                (let ((instance
+                        (%shell-make-tag
+                         g "Shell" (clun.sys:environ-alist)
+                         (clun.sys:current-directory) t)))
+                  (eng::jm-set-prototype-of instance shell-prototype)
+                  instance)))))
+      (eng:data-prop shell-constructor "prototype" shell-prototype)
+      (eng:data-prop shell-prototype "constructor" shell-constructor)
+      (eng:data-prop tag "Shell" shell-constructor))
     (eng:data-prop tag "ShellError" shell-error-constructor)
     (eng:data-prop clun "$" tag)
     (eng:hidden-prop g "$" tag)
