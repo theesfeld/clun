@@ -1,0 +1,15 @@
+(pass) fake timers stay inside their file realm
+(pass) activation and restoration
+(pass) next timer ordering and nested scheduling
+(pass) interval advancement and clearing
+(pass) pending and all timer drains
+(pass) clearAllTimers cancels pending work
+(pass) system time rebases Date without moving performance
+(pass) timer handles refresh and preserve extra arguments
+(pass) inactive and invalid operations fail deterministically
+(pass) the next file starts on real timers
+
+ 10 pass
+ 0 fail
+ 58 expect() calls
+Ran 10 tests across 3 files.

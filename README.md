@@ -9,8 +9,8 @@ targets are workload-specific and published;
 Clun does not claim blanket speed parity with Bun.
 
 <!-- clun-generated:release:begin -->
-> **Status: pre-alpha, under active construction.** [Phase 65](https://github.com/theesfeld/clun/issues/39) is in progress.
-> Its release-bearing target is `0.1.0-dev.18` / `v0.1.0-dev.18` (SemVer impact: `minor`).
+> **Status: pre-alpha, under active construction.** [Phase 66](https://github.com/theesfeld/clun/issues/40) is in progress.
+> Its release-bearing target is `0.1.0-dev.19` / `v0.1.0-dev.19` (SemVer impact: `minor`).
 > The verified release boundary is `v0.1.0-dev.17`, with four native archives, checksums, Pages,
 > and hosted-installer evidence.
 > Phase 26 remains deferred until after Phase 82 and will
@@ -20,11 +20,13 @@ Clun does not claim blanket speed parity with Bun.
 > the local resume checklist.
 <!-- clun-generated:release:end -->
 
-Source on draft [PR #86](https://github.com/theesfeld/clun/pull/86) is the `0.1.0-dev.18` Phase 65
-candidate. Public `tooling.shell` remains honest `Partial` (1,247/1,630 pinned sites) and is not claimed as
-`Yes`. Published `v0.1.0-dev.17` is the verified release boundary (router Yes). This unit stages Partial shell as `0.1.0-dev.18`.
-The hosted installer correctly remains on published dev.17 until the candidate is merged, tagged, and released.
-
+Source on draft [PR #88](https://github.com/theesfeld/clun/pull/88) is the `0.1.0-dev.19` Phase 66
+candidate. Public `tooling.test-runner` remains honest `Partial` and is not claimed as `Yes`.
+Shell Partial (`tooling.shell`, 1,247/1,630 pinned sites) is on `master` as source `0.1.0-dev.18`
+(PR #86); published `v0.1.0-dev.17` remains the verified release boundary. This unit stages
+`0.1.0-dev.19` (transition from master `0.1.0-dev.18`). Multi-step prerelease advances remain
+allowed only while skipped intermediates stay unpublished.
+The hosted installer correctly remains on published dev.17 until this candidate is merged, tagged, and released.
 
 ## Install
 
@@ -64,7 +66,8 @@ interoperability gap.
   values, reject incompatible receivers, and support async `yield*`. Async iteration includes
   AsyncFromSync fallback and completion-correct `for await...of` close behavior.
 - Timers, promises, files, buffered HTTP serving, `fetch`, URL APIs, and process spawning.
-- `clun test` with hooks, modifiers, filters, async tests, timeouts, and about 22 matchers.
+- `clun test` with hooks, filters, async tests, timeouts, 33 core matchers, function mocks/spies,
+  expected-failure modifiers, array-parameterized tests and suites, retries, and repeats.
 - `clun install`, `add`, `remove`, and package scripts with a deterministic lockfile and cache.
 
 The checked-in curated test262 pass list contains 25,688 tests. The current
@@ -121,7 +124,7 @@ July 16, 2026. Engineering references are separately pinned to Bun commit `c1076
 | npm package management | Partial: fixture-tested; public npm is blocked by TLS interop | Phases [28](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-28), [59](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-59), [60](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-60), [61](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-61) |
 | Bundler | No: not included in the v0.1 scope | Phases [62](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-62), [63](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-63), [64](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-64), [77](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-77) |
 | Cross-platform shell API | Partial: `Clun.$`, `clun exec`, standalone `.bun.sh` files with positional parameters, dollar and backtick command substitution, merged stdout/stderr pipelines, grouped subshells and brace groups nested across `if` control flow, Blob/Response I/O, positive extended-glob conditions, compound-word field splitting, 100-level arrays, Unicode, tilde and continuation expansion, builtins, and 1,247/1,630 pinned shell sites | [Phase 65](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-65) |
-| Jest-compatible test runner | Partial: 22 matchers; no snapshots, coverage, mocks, or concurrency | [Phase 66](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-66) |
+| Jest-compatible test runner | Partial: 62 core and extended matchers, snapshot lifecycles with stable property tokens and Bun-formatted core values, source-aligned ESM/CommonJS/TypeScript statement and function coverage with Bun-shaped text and LCOV reporters, filters, config, and thresholds, custom and Promise-settlement asymmetric matchers, per-realm ESM/CJS module mocks, CLI and bunfig setup preloads, realm-local Jest and vi fake timers with Date and performance clock control, seeded Bun-pinned randomization, deterministic file sharding, dots and JUnit reporters, function mocks/spies, callbacks, cleanup, parameterization, retries, and repeats | [Phase 66](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-66) |
 | Hot reloading | No | [Phase 67](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-67) |
 | Monorepo support | No: workspaces are unsupported | [Phase 60](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-60) |
 | Frontend development server | No | [Phase 68](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-68) |
@@ -156,10 +159,10 @@ workflows are read-only and fail closed if the canonical issues, README, or site
 
 <!-- clun-generated:release-summary:begin -->
 Release versions follow the actual SemVer impact recorded in the canonical issue, not the number of pushes.
-The current source is the `0.1.0-dev.18` release candidate; the immutable tag and assets are not published yet.
+The current source is the `0.1.0-dev.19` release candidate; the immutable tag and assets are not published yet.
 The last published prerelease remains [`v0.1.0-dev.17`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.17).
 [The versioning contract](docs/versioning.md) defines prerelease sequencing, synchronized surfaces, immutable tags, assets, and installer evidence.
-[Phase 65 issue #39](https://github.com/theesfeld/clun/issues/39) is the canonical live release record.
+[Phase 66 issue #40](https://github.com/theesfeld/clun/issues/40) is the canonical live release record.
 <!-- clun-generated:release-summary:end -->
 
 
@@ -200,7 +203,7 @@ vendored under `vendor/` and located via `scripts/registry.lisp`.
 make build     # compile everything, save build/clun (save-lisp-and-die)
 make test      # run the CL suites and JS/TS fixture harnesses
 make purity    # fail on any CFFI/foreign-code token
-./build/clun --version   # => clun 0.1.0-dev.18
+./build/clun --version   # => clun 0.1.0-dev.19
 ```
 
 A fresh clone builds with `make build` alone: ASDF compiles the vendored closure and `src/` into

@@ -1231,6 +1231,9 @@ shows Clun at or above Bun's pass set on every category in the frozen Jest manif
 reclassified after implementation begins; snapshots are stable, mock/timer state cannot leak, coverage maps
 to sources, serial/parallel results agree and 10k tests plateau in RSS; `make build`; `make test`;
 `make purity`; `make docs-check` on all targets.
+**Frozen denominator:** 52 SHA-256-pinned result roots at Bun `c1076ce95e`, recorded under
+`tests/compat/tooling.test-runner/upstream/`; exact Bun and Clun pass/fail/skip fields remain pending until
+reproducible execution fills them.
 
 ### Phase 67 — Watch mode and state-preserving hot reload  *(deps: 41, 49, 62, 66)* ~7k LOC ⚡
 Objective: provide Bun-compatible restart watch mode and state-preserving hot reload where supported.

@@ -17,6 +17,7 @@ FEATURE                    ?= all
 		bench-check compile-tier-ceiling test-installer test-release-live-check \
 		public-claims-check version-transition-check test-version-transition-check \
 		compat compat-validate docs-generate docs-check test-compat-tools \
+		test-test-runner-manifest \
 		test-yaml-upstream test-yaml-upstream-full \
 		roadmap-check roadmap-sync \
 		roadmap-verify-live \
@@ -239,6 +240,10 @@ docs-check:
 
 test-compat-tools:
 	sh scripts/test-compat-tools.sh
+
+## test-test-runner-manifest -- validate the frozen Phase 66 Bun denominator.
+test-test-runner-manifest:
+	sh scripts/test-runner-manifest-check.sh
 
 ## test-yaml-upstream -- reproduce every current result in the pinned 402-case Bun YAML corpus.
 test-yaml-upstream: build

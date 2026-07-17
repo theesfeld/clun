@@ -1,0 +1,9 @@
+(pass) resolvesTo matches fulfilled values, including nested positions
+(pass) rejectsTo matches rejection reasons and supports negation
+(pass) settlement asymmetric matchers wait for timer-driven promises
+(pass) async nested equality distinguishes aliases from cycles
+
+ 4 pass
+ 0 fail
+ 12 expect() calls
+Ran 4 tests across 1 file.

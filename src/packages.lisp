@@ -218,7 +218,8 @@
    #:literal-kind #:analyze #:ast->sexp #:binding-bound-names
    ;; evaluator / object kernel (Phase 03)
    #:make-realm #:run-source #:run-program #:eval-source #:*realm*
-   #:js-make-object #:js-get #:js-set #:has-property #:has-own-property
+   #:current-call-source-span
+   #:js-make-object #:js-get #:js-set #:js-delete #:has-property #:has-own-property
    #:create-data-property #:jm-get #:jm-get-own-property #:jm-own-property-keys
    #:callable-p #:get-method #:get-iterator-record #:iterator-step-value
    #:call-with-iterator-close-on-abrupt
@@ -227,8 +228,12 @@
    #:inspect-value #:*inspect-defaults*
    ;; runtime hooks (Phase 08): completion capture for -p, error introspection,
    ;; realm accessors the runtime/CLI need
-   #:run-module-file #:run-module-source #:eval-source #:realm-global
+   #:run-module-file #:run-module-source #:eval-source #:realm-global #:realm-clock-now-ms
+   #:realm-coverage-session
+   #:register-module-mock
    #:teardown-realm #:run-callback-to-settlement #:drive-jobs #:current-loop
+   #:make-coverage-session #:call-with-coverage-session #:coverage-results
+   #:promise-and-caps
    #:js-promise-p #:js-promise-pstate #:js-promise-value #:to-string #:js-object-class
    #:make-native-function #:install-method #:install-getter #:install-accessor
    #:data-prop #:fixed-data-prop #:nonconfigurable-data-prop #:hidden-prop

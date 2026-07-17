@@ -1,0 +1,12 @@
+(pass) Bun snapshot primitives and sorted containers
+(pass) Bun snapshot collection formatting
+(pass) Bun snapshot built-in formatting
+(pass) Bun snapshot binary and circular formatting
+(pass) Bun snapshot functions, wrappers, and classes
+(pass) Bun snapshot numeric and Buffer edge values
+
+ 6 pass
+ 0 fail
+ 33 snapshots
+ 33 expect() calls
+Ran 6 tests across 1 file.

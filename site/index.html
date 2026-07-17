@@ -20,9 +20,9 @@
 
     <div class="announcement">
 <!-- clun-generated:release:begin -->
-<a href="https://github.com/theesfeld/clun/issues/39">
+<a href="https://github.com/theesfeld/clun/issues/40">
   <span>In development</span>
-  v0.1.0-dev.18 / Phase 65
+  v0.1.0-dev.19 / Phase 66
   <span aria-hidden="true">-&gt;</span>
 </a>
 <!-- clun-generated:release:end -->
@@ -56,7 +56,7 @@
             <img class="hero-mark" src="assets/clun.jpg" alt="Clun mascot wearing a Lisp helmet" width="250" height="250">
           </div>
 <!-- clun-generated:version:begin -->
-<p class="eyebrow"><span class="status-dot" aria-hidden="true"></span> v0.1.0-dev.18 release candidate / pre-alpha</p>
+<p class="eyebrow"><span class="status-dot" aria-hidden="true"></span> v0.1.0-dev.19 release candidate / pre-alpha</p>
 <!-- clun-generated:version:end -->
           <h1>Clun is JavaScript tooling,<br> rewritten in pure Common Lisp.</h1>
           <p class="hero-copy">
@@ -118,7 +118,7 @@
             CI, Documentation, all four native archives and checksums, the exact-candidate Pages deployment,
             and the hosted installer are verified. Phase 25b and its handoff are closed.
 <!-- clun-generated:phase-status:begin -->
-Phase 65 is active: <a href="https://github.com/theesfeld/clun/issues/39">Cross-platform shell API in issue #39</a>.
+Phase 66 is active: <a href="https://github.com/theesfeld/clun/issues/40">Jest-compatible test-runner parity in issue #40</a>.
 Phase 26 remains deferred until after Phase 82 and will be re-baselined for the system state at that time.
 <!-- clun-generated:phase-status:end -->
             The issue is the canonical live record; <a href="https://github.com/theesfeld/clun/blob/master/PLAN.md">PLAN</a>
@@ -265,11 +265,13 @@ Phase 26 remains deferred until after Phase 82 and will be re-baselined for the 
               <h3>Test runner</h3>
               <p>Discover JavaScript and TypeScript tests and run them with familiar Jest-style globals.</p>
               <ul>
-                <li>Hooks, skip, only, todo, and filters</li>
-                <li>Async tests and timeouts</li>
-                <li>About 22 built-in matchers</li>
-                <li>No snapshots, coverage, mocks, or concurrency</li>
+                <li>Hooks, filters, and conditional modifiers</li>
+                <li>Async and callback tests, timeouts, retries, and repeats</li>
+                <li>62 core and extended matchers</li>
+                <li>Bun-formatted snapshots, mocks, preloads, fake timers, and JUnit</li>
+                <li>Source-aligned JS/TS coverage with text, LCOV, filters, and thresholds</li>
               </ul>
+              <div class="tool-status warning"><span>Known gaps</span> Exotic snapshot edges, JSX coverage, watch, and concurrency</div>
               <div class="tool-status"><span>Output</span> Deterministic by design</div>
             </article>
 
@@ -359,7 +361,7 @@ Linked phase labels are planned acceptance gates, not capabilities available tod
   <thead>
     <tr>
       <th scope="col">Capability</th>
-      <th scope="col" class="clun-col"><a href="https://github.com/theesfeld/clun">Clun</a><span>0.1.0-dev.18 candidate / pre-alpha</span></th>
+      <th scope="col" class="clun-col"><a href="https://github.com/theesfeld/clun">Clun</a><span>0.1.0-dev.19 candidate / pre-alpha</span></th>
       <th scope="col"><a href="https://bun.sh/">Bun</a><span>1.3.14 / toolkit</span></th>
       <th scope="col"><a href="https://nodejs.org/">Node.js</a><span>26.5.0 / current</span></th>
       <th scope="col"><a href="https://deno.com/">Deno</a><span>2.9.3 / runtime</span></th>
@@ -514,7 +516,7 @@ Linked phase labels are planned acceptance gates, not capabilities available tod
     </tr>
     <tr data-compat-feature="tooling.test-runner">
       <th scope="row"><strong>Jest-compatible test runner</strong><span>Tests with familiar Jest-style APIs</span></th>
-      <td class="clun-col"><b class="state partial">Partial</b> 22 matchers; no snapshots, coverage, mocks, or concurrency<a class="phase-link" data-roadmap-phase="66" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-66">Phase 66</a></td>
+      <td class="clun-col"><b class="state partial">Partial</b> 62 core and extended matchers, snapshot lifecycles with stable property tokens and Bun-formatted core values, source-aligned ESM/CommonJS/TypeScript statement and function coverage with Bun-shaped text and LCOV reporters, filters, config, and thresholds, custom and Promise-settlement asymmetric matchers, per-realm ESM/CJS module mocks, CLI and bunfig setup preloads, realm-local Jest and vi fake timers with Date and performance clock control, seeded Bun-pinned randomization, deterministic file sharding, dots and JUnit reporters, function mocks/spies, callbacks, cleanup, parameterization, retries, and repeats<a class="phase-link" data-roadmap-phase="66" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-66">Phase 66</a></td>
       <td><b class="state yes">Yes</b> <code>bun test</code></td>
       <td><b class="state no">No</b> <code>node:test</code> uses its own API</td>
       <td><b class="state no">No</b> <code>Deno.test</code> uses its own API</td>
@@ -677,7 +679,7 @@ Linked phase labels are planned acceptance gates, not capabilities available tod
           <p>Bun, rewritten in pure Common Lisp. Scoped, pre-alpha, and GPL-3.0-or-later.</p>
         </div>
 <!-- clun-generated:release-links:begin -->
-<div><h2>Project</h2><a href="https://github.com/theesfeld/clun">Source</a><a href="https://github.com/theesfeld/clun/blob/master/README.md">README</a><a href="https://github.com/theesfeld/clun/issues/39">Current status</a></div>
+<div><h2>Project</h2><a href="https://github.com/theesfeld/clun">Source</a><a href="https://github.com/theesfeld/clun/blob/master/README.md">README</a><a href="https://github.com/theesfeld/clun/issues/40">Current status</a></div>
 <div><h2>Evidence</h2><a href="https://github.com/theesfeld/clun/blob/master/compat/README.md">Compatibility ledger</a><a href="https://github.com/theesfeld/clun/actions/workflows/compat.yml">Compatibility CI</a><a href="https://github.com/theesfeld/clun/blob/master/LICENSE">License</a></div>
 <div><h2>Install</h2><a href="install">Shell installer</a><a href="https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.17">v0.1.0-dev.17 release</a><a href="https://github.com/theesfeld/clun#building-from-source">Build from source</a></div>
 <!-- clun-generated:release-links:end -->

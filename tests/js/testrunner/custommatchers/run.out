@@ -1,0 +1,11 @@
+(pass) extend installs synchronous matchers and matcher context
+(pass) custom matchers are available as asymmetric matchers
+(pass) async custom matchers compose with direct and asymmetric assertions
+(pass) extend validates definitions and supports replacement
+(pass) extend discovers prototype, class, empty, and numeric matcher keys
+(pass) custom matcher failures validate results and preserve async rejection
+
+ 6 pass
+ 0 fail
+ 39 expect() calls
+Ran 6 tests across 1 file.

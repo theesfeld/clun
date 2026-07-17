@@ -147,6 +147,14 @@
   (is eq eng:+true+ (ev "Number.isNaN(Date.parse('2021-01-01T24:30:00Z'))"))
   (is eql 1609545600000d0 (ev "Date.parse('2021-01-01T24:00:00Z')")))  ; 24:00:00 is valid
 
+(define-test builtins/date-realm-clock-override
+  (let ((realm (eng:make-realm)))
+    (setf (eng:realm-clock-now-ms realm) 42d0)
+    (is string= "42,42,1970-01-01T00:00:00.042Z"
+        (eng:eval-source
+         "[Date.now(),new Date().getTime(),new Date().toISOString()].join(',')"
+         :realm realm))))
+
 (define-test builtins/symbol-reflect-uri
   (is eq eng:+true+ (ev "Symbol.for('x') === Symbol.for('x')"))
   (is string= "desc" (ev "Symbol('desc').description"))

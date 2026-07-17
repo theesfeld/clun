@@ -2883,3 +2883,233 @@ and the existing escaping, inert interpolation, compact operator, Unicode, Latin
 substitution surfaces. The corpus is now 907 covered, 691 pending, and 32 upstream-inactive. This is SemVer
 minor behavior inside the allocated `0.1.0-dev.18` Phase 65 boundary; the row remains `Partial` until the
 finite pending set and four platform receipts close.
+### 2026-07-16 - Phase 66 milestone 1: host-owned function mocks and spies
+
+The first Phase 66 implementation unit adds mock functions and spies as native Common Lisp engine
+functions rather than JavaScript framework code. A per-file mock record owns FIFO one-shot/default behavior,
+calls, results, contexts, constructor instances, invocation order, naming, and optional spy restoration data.
+`mock`, `jest.fn`, and `vi.fn` are the same callable; `spyOn`, lifecycle operations, implementation/return/
+Promise controls, and the call/return matcher families use that shared record. File cleanup restores own or
+inherited spy properties, removes every host registry entry, and only then tears down the realm. Executable
+evidence proves 86 assertions across three isolated files. The ledger remains `Partial`: this milestone does
+not satisfy snapshots, module mocks, fake timers, coverage, asymmetric/custom matchers, retries, concurrency,
+reporters, sharding, the full pinned manifest, four-target receipts, or stress gates.
+
+### 2026-07-17 - Phase 66 expected failures invert only callback failures
+
+`test.failing` treats a callback throw or returned-Promise rejection as the expected result, while a callback
+that settles successfully fails with Bun's remove-`.failing` diagnostic. Timeouts, before/after hook errors,
+and assertion-count contract failures remain runner failures; allowing the modifier to hide those conditions
+would produce false positives and diverge from the pinned Bun fixtures. The same mode is available through
+`it.failing`, `failingIf`, and `.failing.each`, and missing callbacks are rejected during registration.
+
+### 2026-07-17 - Phase 66 qualifier binding keeps orthogonal test state
+
+Parameterized callables retain their table in a host-owned closure and return a complete qualifier family.
+Selection mode and expected-failure state are stored separately on each registered test; this prevents a later
+`.only`, `.skip`, or conditional qualifier from erasing `.failing` semantics. Describe parameterization uses
+the same deterministic row expansion during tree construction, while inherited todo state is carried by the
+scheduler rather than rewriting every descendant node. This representation is the base for later independent
+concurrent/serial state without another single-mode combinatorial rewrite.
+
+### 2026-07-17 - Phase 66 attempt policies operate on semantic results
+
+Retry termination uses the test's semantic result rather than the callback's raw settlement. A normal test
+stops on a successful execution, while an expected-failure test stops when its callback throws or rejects.
+Repeats always execute every requested iteration and retain the first semantic failure. Both policies rerun
+the complete beforeEach/body/afterEach sequence with fresh assertion-count state; this keeps hook-visible
+attempts deterministic and prevents a failed assertion contract from leaking into the recovery attempt.
+
+### 2026-07-17 - Phase 66 object titles resolve from the bound row
+
+Dollar-path interpolation reads from the first row argument because non-array object rows are passed as one
+argument and tuple rows may intentionally place an object first. Nested paths use ordinary JavaScript
+property access at registration time, primitive values use JavaScript string coercion, and object values use
+the same deterministic inspector as `%p`. This keeps generated names stable without executing user callbacks.
+
+### 2026-07-17 - Phase 66 callback completion has one scheduler Promise
+
+Callback-style tests are detected from callable arity after accounting for bound parameterized row values.
+The runner appends a native `done(error?)` and returns a host-created completion Promise to the existing
+settlement/timeout path; hooks use the same mechanism. When a callback also returns a Promise, success waits
+for both that Promise and `done()`, while either error rejects. This preserves Bun's async-plus-callback
+ordering, catches a rejection after an early `done()`, and keeps missing callbacks under the ordinary timeout
+classification instead of introducing a second scheduler loop.
+
+### 2026-07-17 - Phase 66 asymmetric matchers use a public object protocol
+
+Loose equality invokes a callable `asymmetricMatch(received)` method instead of recognizing only private
+host tags. The seven built-in factories use that same protocol, so user-authored asymmetric objects already
+compose through nested equality, object subsets, mock histories, property values, and thrown errors. Built-in
+state stays in native Common Lisp closures and each factory validates its sample at construction. Async
+settlement is deliberately not hidden in synchronous equality; `resolvesTo` / `rejectsTo` remain a separate
+scheduler-aware milestone.
+
+### 2026-07-17 - Phase 66 custom matchers share one per-file protocol
+
+`expect.extend` stores validated callables in the test file's host-owned context and installs both symmetric
+methods and static asymmetric factories from that registry. This preserves replacement behavior while making
+file teardown the state-isolation boundary. Matcher result Promises flow through the realm scheduler, and
+recursive loose equality now carries Promise-valued asymmetric results rather than treating them as truthy
+objects. `resolvesTo` and `rejectsTo` wrap the full settlement predicate so negation includes wrong-settlement
+and non-Promise values, matching the pinned Bun behavior without unhandled rejection shortcuts.
+
+### 2026-07-17 - Phase 66 freezes result roots before recording pass counts
+
+The immutable denominator is 52 test-runner result roots at Bun `c1076ce95e`, each identified by source path,
+category, and SHA-256 digest. The manifest deliberately records Bun and Clun result counts as `pending` until
+the exact root executes under a reproducible binary. This separates the already-complete scope freeze from
+the still-open baseline measurement and prevents a frozen manifest from being misrepresented as a passing
+compatibility gate.
+
+### 2026-07-17 - Phase 66 completion cleanup belongs to one attempt
+
+`onTestFinished` callbacks live in a dynamically bound list for one active attempt. Retry and repeat attempts
+therefore start empty, while a failed test body still drains its registered callbacks before producing the
+attempt result. The scheduler runs them in registration order after inherited `afterEach` hooks through the
+existing synchronous, Promise, callback, and timeout settlement path. Concurrent registration remains
+unclaimed until the runner has real concurrent scheduling rather than serial qualifier aliases.
+
+### 2026-07-17 - Phase 66 extended matchers stay in the native dispatcher
+
+The 27 additional Bun and Jest Extended contracts use the same native matcher object and assertion counter as
+the original matchers, so `.not`, `.resolves`, and `.rejects` do not require a parallel JavaScript framework.
+Predicate matching intentionally accepts only the boolean `true`, repetition counts non-overlapping matches,
+`toBeWithin` keeps its inclusive-start/exclusive-end boundary, and even/odd matching handles both Number and
+BigInt values. Type and argument errors remain matcher-owned failures rather than coercing unsupported input.
+The asynchronous deep-equality traversal now scopes its identity map to the active recursion path and defers
+cleanup with `Promise.prototype.finally`; repeated aliases may match distinct equal objects without weakening
+cycle termination while an asynchronous asymmetric matcher is still pending.
+
+### 2026-07-17 - Phase 66 snapshots commit only at the file boundary
+
+External and inline snapshot matchers mutate a file-owned Common Lisp state during execution and defer
+filesystem writes until the test tree completes. External keys use the describe/test path, optional hint,
+and an ordinal reset for every attempt. The snapshot state stores the active test explicitly because an
+async JavaScript body may execute outside the scheduler's dynamic `*active-test*` binding. Inline matcher
+calls capture emitter source spans before Promise settlement and queue descending non-overlapping source
+edits; finalization rejects a concurrently changed source file.
+
+CI forbids new snapshots unless `--update-snapshots` or `-u` is explicit. Ordinary mismatch paths never
+write. The checked shipped-binary lifecycle records both source and external snapshot byte identity across
+reuse and failure. This milestone does not claim Bun-exact value serialization or property token
+substitution: property matcher objects are validated before mutation, while serialized values still use
+Clun's deterministic inspector. Those boundaries remain public residuals while the compatibility row is
+`Partial`.
+
+### 2026-07-17 - Phase 66 snapshot property tokens use structural traversal
+
+After a snapshot property object validates, serialization traverses the received object or array alongside
+that matcher shape. Asymmetric matches render their public `toAsymmetricMatcher` label, with `toString` as a
+fallback; ordinary fields keep their received representation. This avoids unsafe string replacement when
+two fields contain equal values and preserves nested property ownership. Snapshots without property
+matchers continue to use Clun's deterministic inspector, so this closes stable property substitution but
+does not claim Bun-exact formatting for the complete value corpus.
+
+### 2026-07-17 - Phase 66 randomization derives state per file
+
+Randomized execution ports the pinned Bun generator and reductions instead of using Common Lisp's
+implementation-defined `random-state`. The printed u32 seed drives descending file shuffling. Each file
+then receives a fresh splitmix64-seeded xoshiro256++ state derived from `wyhash(basename) + seed` with u64
+wrapping, and nested describe scopes consume that state through forward Fisher-Yates with Lemire rejection.
+This preserves replay when later parallel workers change file assignment. An omitted seed comes from the
+vendored OS-backed PRNG; explicit seeds are decimal u32 values and invalid input is a command failure.
+
+### 2026-07-17 - Phase 66 reporters separate console rendering from result records
+
+One reporter closure remains responsible for deterministic console or dot output and also emits structured
+host-side result records. The runner attaches the owning file before execution, while the scheduler returns
+the representative attempt's assertion count with its semantic result. JUnit generation therefore does not
+parse console text and cannot lose file, status, or assertion ownership. XML reports intentionally use zero
+timing to preserve Clun's established deterministic-output contract, escape invalid attribute content, and
+commit through a sibling temporary file. JUnit is additive: selecting it never suppresses or reshapes the
+console reporter.
+
+### 2026-07-17 - Phase 66 shards select before randomization
+
+File sharding applies to the canonical sorted discovery result, assigning file ordinal `n` to shard
+`1 + (n mod count)`. Only the selected subset is then passed to seeded Fisher-Yates. This order makes the
+shard union exhaustive and non-overlapping, keeps membership independent of random seeds and future worker
+timing, and still lets operators randomize execution within one shard reproducibly. The CLI uses the
+portable Jest-style one-based `INDEX/COUNT` contract and rejects invalid u32 values before loading code.
+
+### 2026-07-17 - Phase 66 module mocks belong to the realm module registry
+
+Module replacement is engine-owned registry state rather than a source transform or JavaScript shim. The
+test runner validates and settles the factory, then registers its object under unresolved lexical identity
+and every resolved import/require path. Existing ESM import thunks consult the record's current mock export,
+namespace objects are refreshed, and CommonJS object exports are changed in place so previously returned
+references keep their identity. Repeated replacements therefore have one cache-coherent path across ESM,
+CommonJS, builtins, and missing modules, while normal realm teardown provides the isolation boundary.
+
+`mock.restore()` intentionally restores function spies only, matching Bun's documented boundary; it does not
+remove `mock.module()` replacements. Dynamic import remains a separate core-engine feature and is not claimed
+by this milestone.
+
+### 2026-07-17 - Phase 66 preloads re-execute per realm while suite hooks bracket files
+
+Setup modules run inside every fresh file realm before the file module, preserving Clun's existing isolation
+boundary while making setup globals, matcher extensions, and module mocks visible to that file. The runner
+captures preload hooks before collecting file hooks: preload beforeAll runs in the first executable realm,
+preload afterAll runs in the last or bailed realm, and preload beforeEach/afterEach are merged around each
+file's hooks in registration order. Host-side suite state records only lifecycle completion, never JS values
+or functions, so no realm-owned object crosses teardown.
+
+The bunfig reader owns only the structured `test.preload` field and ignores unrelated TOML configuration.
+It accepts the documented string and string-array forms, including multiline arrays, comments, literal
+strings, and basic escapes, while rejecting malformed or duplicate declarations instead of guessing. An
+explicit context phase permits lifecycle registration during setup but rejects test/describe registration,
+matching the pinned Bun separation between preload configuration and test collection.
+
+### 2026-07-17 - Phase 66 fake time is realm-owned, not process-global
+
+The engine realm has one optional wall-clock value used by Date construction and `Date.now`; ordinary realms
+leave it `NIL` and continue reading the host clock. The test runner owns the corresponding virtual monotonic
+clock and ordered timer entries. This keeps fake time, callbacks, wrapper objects, and custom system time
+inside the file realm and makes teardown a complete isolation boundary without modifying the process clock or
+the shared event loop.
+
+Fake timeout and interval functions replace the realm globals only while activated. They retain the shipped
+Timeout ref/unref/refresh contract, advance Date and performance before callback dispatch, reschedule intervals
+before callbacks so `clearInterval` works from inside a callback, and restore the exact original functions on
+deactivation. A deterministic 100,000-callback ceiling turns accidental recursive or interval-only complete
+drains into a test failure instead of hanging the runner.
+
+### 2026-07-17 - Snapshot formatting is independent from console inspection
+
+Console output and stored test snapshots have different compatibility contracts. Snapshot serialization now
+owns its recursion, cycle tracking, key sorting, container layout, and built-in type labels instead of passing
+values through `inspect-value`. This prevents changes to interactive inspection depth or layout from silently
+rewriting snapshots and permits Bun-exact forms such as `Map { key => value }`, `Promise {}`, typed-array
+labels, and Buffer's `{ data, type }` representation.
+
+External and inline storage share the same value renderer but apply multiline boundaries at their respective
+storage edge: external template literals retain Bun's leading/trailing newline, while inline snapshots compare
+the dedented value and add source indentation only during an edit. Property matcher tokens remain a structural
+pre-pass and therefore cannot be replaced accidentally in unrelated equal-looking values.
+
+### 2026-07-17 - Phase 66 coverage probes belong to source modules and realms
+
+Coverage is registered in the engine emitter from original AST offsets rather than inferred from runner
+output or generated Common Lisp forms. Each emitted probe captures its point for runtime hits, while the
+coverage session also belongs to the realm so loader work retains attribution across coroutine threads. ESM
+and CommonJS bind their resolved source path during compilation. TypeScript stripping remains length- and
+newline-preserving, which makes its existing transformed AST positions valid original-source positions
+without a second approximate mapping layer.
+
+The runner owns filtering and reporting after all selected files finish. One filtered record set feeds the
+deterministic text table, LCOV, and aggregate line/function/statement thresholds, preventing reporter-specific
+denominator drift. Test sources are excluded by default and can be included explicitly; project-external and
+`node_modules` sources are never presented as project coverage. This milestone claims source-aligned
+JavaScript and TypeScript only. JSX mapping remains public residual scope until the JSX runtime and its source
+contract are implemented.
+
+### 2026-07-17 - Phase 66.23 records measured 52-root baseline counts
+
+The frozen 52-root manifest replaces every `pending` result triple with measured pass/fail/skip counts.
+Bun counts come from Bun **1.3.14 stable** executing the `c1076ce95e` source tree (no host engineering
+binary for that commit). Clun counts come from `0.1.0-dev.19` single-file absolute-path runs. Aggregate
+**Bun 849/18/32** vs **Clun 0/52/0**. `gap-catalog.tsv` assigns residual owners; dominant blockers are
+`bun:test` ESM resolve, `bun` namespace imports, parser tier gaps, and upstream harness/host-spawn meta
+tests. Numeric coincidence of failing 0/1/0 roots is not treated as a closed residual. Ledger remains
+Partial; re-measure under a true `c1076ce95e` engineering binary when available.

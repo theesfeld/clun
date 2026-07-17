@@ -21,6 +21,7 @@
   lexical-idxs func-compiled
   ;; CJS:
   cjs-exports                   ; the live module.exports js-object
+  mock-exports                  ; mock.module replacement namespace, or NIL
   (yaml-named-exports-p nil)    ; only a single top-level mapping exposes named exports
   ;; error capture (cycle re-throw):
   eval-error)

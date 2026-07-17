@@ -58,7 +58,9 @@
   "Integer components -> clipped double time value."
   (%time-clip (coerce (+ (* (%make-day y mo d) +ms-per-day+) (%make-time-ms h mi s ms)) 'double-float)))
 
-(defun %date-now () (coerce (* 1000 (- (get-universal-time) 2208988800)) 'double-float))
+(defun %date-now ()
+  (or (and *realm* (realm-clock-now-ms *realm*))
+      (coerce (* 1000 (- (get-universal-time) 2208988800)) 'double-float)))
 
 (defun this-date (this)
   (if (js-date-p this) this (throw-type-error "this is not a Date object")))

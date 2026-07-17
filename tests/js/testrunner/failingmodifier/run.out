@@ -1,0 +1,20 @@
+(pass) modifier surface
+(pass) sync expected failure
+(pass) async expected rejection
+(pass) conditional expected failure
+(pass) conditional normal pass
+(pass) each expected failure 1
+(pass) each expected failure 2
+(fail) unexpected pass
+  ^ this test is marked as failing but it passed. Remove `.failing` if tested behavior now works
+(fail) assertion contract stays failed
+  expect.assertions(1) — but 0 assertion(s) ran
+(fail) timeout stays failed
+  this test timed out after 5ms
+(fail) hook boundary > hook failure stays failed
+  Error: setup failed
+
+ 7 pass
+ 4 fail
+ 7 expect() calls
+Ran 11 tests across 1 file.

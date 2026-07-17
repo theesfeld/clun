@@ -1,0 +1,14 @@
+(pass) mock order starts at one in first file
+(pass) mock surface and histories
+(pass) one-shot and default implementations
+(pass) throw results and clear reset
+(pass) resolved and rejected values
+(pass) spies preserve receiver and restore exactly
+(pass) global mock lifecycle operations
+(pass) constructors temporary implementations and aliases
+(pass) mock order starts at one in second file
+
+ 9 pass
+ 0 fail
+ 86 expect() calls
+Ran 9 tests across 3 files.

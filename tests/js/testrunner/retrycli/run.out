@@ -1,0 +1,9 @@
+(pass) global retry passes on the third attempt
+(fail) per-test zero disables global retry
+  Error: no retry
+(pass) global and override attempt counts
+
+ 2 pass
+ 1 fail
+ 2 expect() calls
+Ran 3 tests across 1 file.

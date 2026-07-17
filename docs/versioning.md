@@ -55,6 +55,7 @@ and the branch must rebase onto the published train before it can land.
 0.1.0-dev.16
 0.1.0-dev.17
 0.1.0-dev.18
+0.1.0-dev.19
 ```
 
 Phase 25b is the compatibility program for the planned `0.1.0` release. Its first behavioral
@@ -111,11 +112,13 @@ the published installer remains dev.14. The dispatchable-gate recovery advances 
 hosted-installer evidence. The same candidate includes Phase 37 milestone 1's reviewed modern built-ins,
 but Phase 37 and Issue #11 remain in progress and make no full language-parity claim.
 Phase 50 stages `0.1.0-dev.17` / `v0.1.0-dev.17` under Issue #24 (router PR #85). Phase 65 stages
-`0.1.0-dev.18` / `v0.1.0-dev.18` under Issue #39. Version-transition allows multi-step prerelease advances
-only while every skipped intermediate remains unpublished, so shell may allocate after router while both
-drafts are open. Phase 65 adds the backward-compatible public `Clun.$` application shell and therefore its
-SemVer impact is `minor` within the selected `0.1.0` core. Until gates complete, the installer and immutable
-published boundary remain dev.16; `tooling.shell` remains Partial and is not claimed as Yes.
+`0.1.0-dev.18` / `v0.1.0-dev.18` under Issue #39. Phase 66 stages `0.1.0-dev.19` / `v0.1.0-dev.19`
+under Issue #40 (test-runner PR #88). Version-transition allows multi-step prerelease advances only
+while every skipped intermediate remains unpublished, so parallel drafts may allocate later slots
+without claiming each other's tags. Phase 66 adds backward-compatible test-runner APIs (mocks,
+snapshots, coverage, reporters, sharding, fake timers, preloads) and therefore its SemVer impact is
+`minor` within the selected `0.1.0` core. Until gates complete, the installer and immutable published
+boundary remain dev.17; `tooling.test-runner` remains Partial and is not claimed as Yes. Shell Partial source on master is `0.1.0-dev.18` (tag pending).
 
 ## Canonical record
 
