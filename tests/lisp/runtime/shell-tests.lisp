@@ -63,3 +63,34 @@
         clun.runtime::shell-syntax-error)
   (fail (clun.runtime::%shell-parse (shell-test-units "| echo no"))
         clun.runtime::shell-syntax-error))
+
+(define-test shell/path-builtins
+  (is equal "basename.test.ts"
+      (clun.runtime::%shell-basename "js/bun/shell/commands/basename.test.ts"))
+  (is equal "catalog" (clun.runtime::%shell-basename "/catalog/"))
+  (is equal "/" (clun.runtime::%shell-basename "/"))
+  (is equal "Summer2018.pdf"
+      (clun.runtime::%shell-basename "C:/Documents/Newsletters/Summer2018.pdf"))
+  (is equal "js/bun/shell/commands"
+      (clun.runtime::%shell-dirname "js/bun/shell/commands/dirname.test.ts"))
+  (is equal "/" (clun.runtime::%shell-dirname "/catalog/"))
+  (is equal "C:/Documents/Newsletters"
+      (clun.runtime::%shell-dirname "C:/Documents/Newsletters/Summer2018.pdf")))
+
+(define-test shell/echo-newline-rules
+  (is equal "hello" (clun.runtime::%shell-echo-output '("hello") nil))
+  (is equal (format nil "hello~%")
+      (clun.runtime::%shell-echo-output '("hello") t))
+  (is equal (format nil "~%~%")
+      (clun.runtime::%shell-echo-output (list (format nil "~%~%~%")) t))
+  (is equal (format nil "a~%")
+      (clun.runtime::%shell-echo-output (list (format nil "a~%~%")) t)))
+
+(define-test shell/exit-wraps-and-terminates-script
+  (multiple-value-bind (output exit-code)
+      (shell-test-output "exit 62757836; echo unreachable")
+    (is equal "" output)
+    (is = 204 exit-code))
+  (is = 0 (clun.runtime::%shell-parse-exit-code "0"))
+  (is = 255 (clun.runtime::%shell-parse-exit-code "-1"))
+  (false (clun.runtime::%shell-parse-exit-code "12x")))
