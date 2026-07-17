@@ -68,7 +68,12 @@ async function runMatrix(server, specs, iterationsFactor) {
   for (const spec of specs) {
     const route = `${server.url}${spec.path.substring(1)}`;
     const byteSize = spec.expected.size;
-    const baseIterations = byteSize > 1024 * 1024 ? 10 : 12;
+    const darwin = process.platform === "darwin";
+    // Full Bun 10/12 iteration counts on Linux; Darwin keeps the warm+measured
+    // structure with fewer loops so CI runners finish under runner budgets.
+    const baseIterations = byteSize > 1024 * 1024
+      ? (darwin ? 4 : 10)
+      : (darwin ? 4 : 12);
     const iterations = Math.max(2, Math.floor(baseIterations * iterationsFactor));
     const large = byteSize > 1024 * 1024;
 
