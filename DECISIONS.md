@@ -2830,3 +2830,15 @@ The shipped-binary control-flow fixture closes 124 exact IDs across both pinned 
 corpus to 625 covered, 973 pending, and 32 upstream-inactive. Background and brace-group sites remain pending;
 no credit is inferred from related syntax. This SemVer-minor behavior remains inside the allocated
 `0.1.0-dev.18` Phase 65 boundary.
+
+### 2026-07-17 - Phase 65 opens output redirects before command execution
+
+Output redirect words are expanded and their targets are created, truncated, or opened for append before a
+command runs. Prepared redirect bindings then carry those resolved targets through ordered descriptor routing
+without reopening or truncating a path after command side effects. A filesystem failure becomes shell status
+`1` with a path-bearing diagnostic, so `.nothrow()`, `$?`, `&&`, and `||` observe command semantics instead of
+an unrelated JavaScript rejection. Input-open failures use the same status boundary.
+
+The shipped-binary file-I/O fixture closes all 51 exact stable and engineering IDs, moving the finite corpus
+to 676 covered, 922 pending, and 32 upstream-inactive. The shell row stays `Partial`; this SemVer-minor behavior
+remains inside the allocated `0.1.0-dev.18` Phase 65 boundary.

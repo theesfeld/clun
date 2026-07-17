@@ -88,7 +88,7 @@ types, fixtures, and upstream licenses. `upstream-files.tsv` binds every file to
 
 `upstream-corpus.tsv` enumerates 1,630 lexical test sites from those exact snapshots. The initial conservative
 disposition was 1,598 pending and 32 explicitly inactive at the pinned revisions. The current executable
-mapping is 625 covered, 973 pending, and 32 upstream-inactive. `upstream-coverage.tsv` binds each credited
+mapping is 676 covered, 922 pending, and 32 upstream-inactive. `upstream-coverage.tsv` binds each credited
 inventory ID to a checked-in shipped-binary fixture; regeneration rejects duplicate, stale, or unknown IDs,
 and the corpus validator rejects missing evidence. `shell-upstream-corpus-check.sh` rejects inventory drift
 or an unexplained disposition. Its `--yes` mode is the finite closure gate: it rejects any pending row and
@@ -140,6 +140,11 @@ all six pipeline-condition sites plus pinned `bunshell` branch paths, `elif` cha
 linebreak placements, multi-command conditions and bodies, branch exit status, reserved-word arguments, and
 whole-compound redirection to shipped-binary assertions. Background-command and brace-group cases remain
 pending rather than being approximated.
+`tests/compat/tooling.shell/upstream-file-io.js` executes all 51 exact stable and engineering file-I/O IDs.
+Redirect targets are expanded and opened before command execution, so an open failure suppresses command
+side effects and produces a status `1` result instead of an unrelated JavaScript rejection. The fixture also
+freezes empty and large writes, truncation, append, quoted filenames, pipeline delivery, `/dev/null`, merged
+stdout/stderr targets, and completion after the redirect writer's last external reference is dropped.
 The conditional fixture freezes the active `shell-seq-condexpr.test.ts` empty-path regressions and the
 non-todo `bunshell.test.ts` unary/string cases, including both conditional pipeline positions. It additionally
 freezes the pinned GNU-bash-derived compound-expression cases for repeated negation, short-circuit operators,
@@ -164,7 +169,7 @@ This milestone is substantial application behavior, but it is not the complete f
 source and lexical-site inventories are now finite and immutable; their pending rows still require exact
 mapping, production closure, and executable evidence. The ledger must not report `Yes` until the full
 applicable corpus is mapped and passes,
-including remaining control/background forms and builtins, exact redirect open/error timing, shared-stream
+including remaining control/background forms and builtins, shared-stream
 interleaving and coercion behavior, async
 line and blob surfaces, signal/exit ordering, cancellation, 1,000-job child/fd
 and memory stress, and Linux/macOS x64/arm64 receipts. General concurrent builtin streaming and standalone
