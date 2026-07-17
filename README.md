@@ -9,8 +9,8 @@ targets are workload-specific and published;
 Clun does not claim blanket speed parity with Bun.
 
 <!-- clun-generated:release:begin -->
-> **Status: pre-alpha, under active construction.** [Phase 66](https://github.com/theesfeld/clun/issues/40) is in progress.
-> Its release-bearing target is `0.1.0-dev.19` / `v0.1.0-dev.19` (SemVer impact: `minor`).
+> **Status: pre-alpha, under active construction.** [Phase 37](https://github.com/theesfeld/clun/issues/11) is in progress.
+> Its release-bearing target is `0.1.0-dev.21` / `v0.1.0-dev.21` (SemVer impact: `minor`).
 > The verified release boundary is `v0.1.0-dev.18`, with four native archives, checksums, Pages,
 > and hosted-installer evidence.
 > Phase 26 remains deferred until after Phase 82 and will
@@ -20,12 +20,13 @@ Clun does not claim blanket speed parity with Bun.
 > the local resume checklist.
 <!-- clun-generated:release:end -->
 
-Source on master after [PR #88](https://github.com/theesfeld/clun/pull/88) is the `0.1.0-dev.19` Phase 66
-candidate. Public `tooling.test-runner` remains honest `Partial` and is not claimed as `Yes`.
-Shell Partial (`tooling.shell`, 1,247/1,630 pinned sites) is published as immutable
-[`v0.1.0-dev.18`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.18) (PR #86; merge
-`b5ecdb5defeef8ddede72ef794e41f14fb423b86`). The hosted installer defaults to that tag. This unit
-keeps source on the `0.1.0-dev.19` candidate until Phase 66 is tagged.
+Source on draft [PR #96](https://github.com/theesfeld/clun/pull/96) is the `0.1.0-dev.21` Phase 37
+milestone 2 candidate (`Array.fromAsync`). No compatibility-table `Yes` is claimed. Published
+[`v0.1.0-dev.18`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.18) is the verified release
+boundary (shell PR #86). Master source is `0.1.0-dev.19` after test-runner (#88); transport holds
+unpublished `0.1.0-dev.20`; this unit stages `0.1.0-dev.21` under the unpublished-intermediate
+prerelease gap policy (transition 19→21). The hosted installer correctly remains on published
+dev.18 until the candidate is merged, tagged, and released.
 
 ## Install
 
@@ -69,18 +70,18 @@ interoperability gap.
   expected-failure modifiers, array-parameterized tests and suites, retries, and repeats.
 - `clun install`, `add`, `remove`, and package scripts with a deterministic lockfile and cache.
 
-The checked-in curated test262 pass list contains 25,688 tests. The current
-40,654-row off-mode execution ledger measures 25,688 passes and 2,475 gaps across 28,163 eligible tests
-(91.21%), with 12,491 skips and zero crashes. Phase 25b's 90% target is met: the 25,347-pass target has
-zero remaining lift. The pass list gained 637 tests from milestone 5 and 3,045 from the Phase 25b entry.
+The checked-in curated test262 pass list contains 25,793 tests. The current
+40,654-row off-mode execution ledger measures 25,793 passes and 2,370 gaps across 28,163 eligible tests
+(91.58%), with 12,491 skips and zero crashes. Phase 25b's 90% target is met: the 25,347-pass target has
+zero remaining lift. The pass list gained 742 tests from milestone 5 and 3,150 from the Phase 25b entry.
 Its focused m6 slice contains 509 tests: 407 pass and 102 fail, with zero skips, timeouts, and crashes.
 All 407 milestone-owned rows pass; the 102 deliberate controls remain assigned to m11 (7) and Phase 37
 (95), leaving m6 with no owned residual. Three additional `Promise.prototype.finally` rows passed
 incidentally: `species-constructor.js`, `subclass-reject-count.js`, and `subclass-resolve-count.js`.
 Phase 32's supporting Proxy infrastructure adds 13 newly frozen passes without making a blanket Proxy
 compatibility claim. Phase 37 milestone 1 adds 173 more frozen passes without claiming complete modern
-ECMAScript parity. The full gap inventory assigns 1,767 residuals to Phase 25b and 708 to Phase 37.
-The canonical execution ledger digest is `C69927D3946A20FB`.
+ECMAScript parity. The full gap inventory assigns 1,767 residuals to Phase 25b and 603 to Phase 37.
+The canonical execution ledger digest is `B74BA9D0C45F150C`.
 The off/eager ledgers are byte-identical; eager mode compiled
 1,030,545 forms, classified 56,018 as ineligible, fell back zero times, and executed zero interpreter
 fallbacks. The parse gate classifies
@@ -158,12 +159,11 @@ workflows are read-only and fail closed if the canonical issues, README, or site
 
 <!-- clun-generated:release-summary:begin -->
 Release versions follow the actual SemVer impact recorded in the canonical issue, not the number of pushes.
-The current source is the `0.1.0-dev.19` release candidate; the immutable tag and assets are not published yet.
+The current source is the `0.1.0-dev.21` release candidate; the immutable tag and assets are not published yet.
 The last published prerelease remains [`v0.1.0-dev.18`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.18).
 [The versioning contract](docs/versioning.md) defines prerelease sequencing, synchronized surfaces, immutable tags, assets, and installer evidence.
-[Phase 66 issue #40](https://github.com/theesfeld/clun/issues/40) is the canonical live release record.
+[Phase 37 issue #11](https://github.com/theesfeld/clun/issues/11) is the canonical live release record.
 <!-- clun-generated:release-summary:end -->
-
 
 ## The purity contract
 
@@ -202,7 +202,7 @@ vendored under `vendor/` and located via `scripts/registry.lisp`.
 make build     # compile everything, save build/clun (save-lisp-and-die)
 make test      # run the CL suites and JS/TS fixture harnesses
 make purity    # fail on any CFFI/foreign-code token
-./build/clun --version   # => clun 0.1.0-dev.19
+./build/clun --version   # => clun 0.1.0-dev.21
 ```
 
 A fresh clone builds with `make build` alone: ASDF compiles the vendored closure and `src/` into

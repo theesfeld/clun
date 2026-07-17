@@ -1,7 +1,7 @@
 <!-- clun-generated:release-notes:begin -->
-# Clun 0.1.0-dev.19
+# Clun 0.1.0-dev.21
 
-Phase 66: Jest-compatible test-runner parity.
+Phase 37: Modern ECMAScript gap wave.
 
 - SemVer impact: `minor` within the selected `0.1.0` prerelease train.
 - Compatibility snapshot: 9 Yes / 7 Partial / 14 No across 30 generated rows.
@@ -14,15 +14,17 @@ The canonical evidence and current limitations are in `compat/`; `make compat-va
 
 ## Highlights
 
-- Stages Phase 66 Jest-compatible test-runner parity as an honest Partial surface: core and extended
-  matchers, snapshot lifecycles with Bun-formatted values, source-aligned coverage (text/LCOV),
-  function and module mocks, setup preloads, realm-local fake timers, reporters, sharding, and
-  deterministic randomization.
-- Freezes a 52-root Bun denominator manifest; exact Bun/Clun pass/fail/skip counts, concurrent
-  scheduling, JSX coverage mapping, and four-target Yes receipts remain open.
-- Keeps the public ledger row `Partial` (not `Yes`). Shell Partial is on master as source
-  `0.1.0-dev.18`; published boundary remains `v0.1.0-dev.17`; this candidate allocates
-  `0.1.0-dev.19` as the next prerelease after master.
+- Stages Phase 37 milestone 2 as a bounded engine residual conversion: pure-CL
+  `Array.fromAsync` over Promise + async-iterator / AsyncFromSync / array-like paths.
+- Admits nullish coalescing (`??`) and numeric separators in the lexer/parser so frozen
+  Test262 helper observation controls parse (emitter already handled `??`).
+- Converts 95 frozen `built-ins/Array/fromAsync` failures; pass-list reclassification is not
+  claimed on this candidate. No compatibility-table `Yes` is claimed.
+- Slot map after published shell (`v0.1.0-dev.18`, #86/#98) and master test-runner (#88):
+  published base `0.1.0-dev.18`; master source is `0.1.0-dev.19`; transport holds unpublished
+  `0.1.0-dev.20`; this candidate allocates `0.1.0-dev.21` under the unpublished-intermediate
+  prerelease gap policy (transition `0.1.0-dev.19` → `0.1.0-dev.21`).
 
-The release candidate stages an honest Partial public test-runner surface. Merge, publication, and
-issue closure remain blocked on residual PLAN gates, four-target receipts, and final review.
+The release candidate stages honest engine residual work without promoting any matrix row to `Yes`.
+Merge, publication, and Phase 37 closure remain blocked on remaining inventory residuals, pass-list
+integration, and final review.
