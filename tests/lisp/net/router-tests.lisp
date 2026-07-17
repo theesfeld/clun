@@ -115,3 +115,42 @@
       (let ((params (eng:js-get request "params")))
         (is string= "42" (eng:js-get params "id"))
         (is string= "a/b" (eng:js-get params "*"))))))
+
+(define-test net/router-file-range-parser
+  (flet ((parsed (value size)
+           (multiple-value-list (rt::%parse-byte-range value size))))
+    (is equal '(:range 0 3) (parsed "bytes=0-3" 16))
+    (is equal '(:range 4 15) (parsed "bytes=4-" 16))
+    (is equal '(:range 12 15) (parsed "bytes=-4" 16))
+    (is equal '(:range 2 5) (parsed "Bytes = 2-5" 16))
+    (is equal '(:range 0 15) (parsed "bytes=0-999" 16))
+    (is equal '(:unsatisfiable nil nil) (parsed "bytes=100-200" 16))
+    (is equal '(:unsatisfiable nil nil) (parsed "bytes=-4" 0))
+    (is equal '(:ignore nil nil) (parsed "bytes=0-1,4-5" 16))
+    (is equal '(:ignore nil nil) (parsed "items=0-3" 16))))
+
+(define-test net/router-http-conditional-parsers
+  (let* ((instant (encode-universal-time 59 58 23 31 12 2099 0))
+         (http-date (rt::%http-date-at instant)))
+    (is = instant (rt::%parse-http-date http-date))
+    (is = instant (rt::%parse-http-date "2099-12-31T23:58:59.000Z"))
+    (is equal nil (rt::%parse-http-date "not-a-date"))
+    (true (rt::%if-none-match-p "\"other\", W/\"match\"" "\"match\""))
+    (false (rt::%if-none-match-p "\"other\"" "\"match\""))
+    (true (rt::%if-none-match-wildcard-p "\"other\", *"))))
+
+(define-test net/router-file-responses-defer-open-until-write-turn
+  (with-router-realm
+    (let* ((path
+             (namestring
+              (asdf:system-relative-pathname
+               :clun "tests/compat/server.router/server.js")))
+           (file (rt::%clun-file (eng:realm-global realm) path))
+           (response (rt::%new-response file eng:+undefined+))
+           (source (rt::%serialize-response response "GET" t)))
+      (true (rt::file-response-source-p source))
+      (let ((plan (rt::%serialize-file-response source)))
+        (true (rt::file-send-plan-p plan))
+        (true (plusp (rt::file-send-plan-remaining plan)))
+        (rt::%close-file-send-plan plan)
+        (is equal nil (rt::file-send-plan-stream plan))))))

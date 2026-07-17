@@ -556,9 +556,11 @@ Headers, Request, Response, and cookie state never use this mechanism."
 (defun %status-text (code)
   (case code
     (200 "OK") (201 "Created") (204 "No Content")
+    (206 "Partial Content")
     (301 "Moved Permanently") (302 "Found") (304 "Not Modified")
     (400 "Bad Request") (401 "Unauthorized") (403 "Forbidden")
     (404 "Not Found") (405 "Method Not Allowed")
+    (416 "Range Not Satisfiable")
     (413 "Payload Too Large") (431 "Request Header Fields Too Large")
     (500 "Internal Server Error") (503 "Service Unavailable")
     (t "")))
@@ -583,7 +585,7 @@ Headers, Request, Response, and cookie state never use this mechanism."
      (copy-seq (eng:js-array-buffer-bytes body)))
     ((js-clun-file-p body)
      (handler-case
-         (clun.sys:read-file-octets (js-clun-file-path body))
+         (%clun-file-octets body)
        (error () (make-array 0 :element-type '(unsigned-byte 8)))))
     (t (eng:code-units->utf8 (eng:to-string body)))))
 

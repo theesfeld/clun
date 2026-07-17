@@ -82,7 +82,7 @@
             wildcard-p)))
 
 (defun %route-action-p (value)
-  (or (eng:callable-p value) (%response-object-p value)))
+  (or (eng:callable-p value) (%response-object-p value) (js-clun-file-p value)))
 
 (defun %compile-route-value (value)
   (let ((entry (%make-route-entry)))
@@ -103,9 +103,9 @@
                    ((%route-action-p action)
                     (setf (gethash method (route-entry-method-actions entry)) action))
                    (t (%route-pattern-error
-                       "Route method values must be a function, Response, or false.")))))))))
+                       "Route method values must be a function, Response, Clun.file, or false.")))))))))
       (t (%route-pattern-error
-          "Route values must be a function, Response, method object, or false.")))))
+          "Route values must be a function, Response, Clun.file, method object, or false.")))))
 
 (defun %route-entry-active-p (entry)
   (or (route-entry-any-action entry)

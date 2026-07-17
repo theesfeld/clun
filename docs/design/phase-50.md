@@ -49,7 +49,8 @@ engine-independent except for the frozen JavaScript action values at terminal en
 ### M1 - First-party route table
 
 - `Clun.serve({ routes })` accepts exact, `:parameter`, and terminal `*` patterns.
-- Route values may be a handler, a static `Response`, `false`, or a per-method object.
+- Route values may be a handler, a static `Response`, a direct `Clun.file(...)`, `false`, or a per-method
+  object. Direct files are materialized by M2's bounded file-response path.
 - `fetch` is optional when at least one active route exists; an unmatched request receives 404 when absent.
 - `request.params` contains decoded values, including wildcard capture.
 - Exact/parameter/wildcard precedence, method fallback, implicit `HEAD`, async handlers, errors, and atomic
@@ -66,6 +67,20 @@ M1 is a production capability but leaves the ledger `No`; the row describes the 
   and stream with backpressure rather than reading an unbounded file into memory.
 - Missing files become 404 without hiding unrelated errors.
 - Canonical-root checks reject traversal, symlink escape, special files, and time-of-check/time-of-use swaps.
+
+The current M2 checkpoint implements the first three items through the shipped runtime. Route values accept
+direct `Clun.file(...)` objects as well as file-backed `Response` objects; explicit `slice(begin, end)` windows
+cannot be escaped with a client `Range`. Regular files are opened with no-follow semantics, validated through
+the opened descriptor, and emitted through one reusable 64 KiB buffer. Queued pipeline slots retain frozen
+response metadata rather than open files, so a connection owns at most the descriptor for its active file
+response. Disconnect, truncation, and socket-write failure close that descriptor fail-closed.
+
+Executable coverage includes stable buffered ETags, weak/list/wildcard `If-None-Match`, `If-Modified-Since`
+precedence, custom ETag and Last-Modified fields, single/suffix/open byte ranges, 416 responses, ignored
+multi-ranges, user-owned Content-Range, HEAD framing, MIME selection, live file mutation/deletion, missing
+file fallback, symlink/FIFO rejection, a 16 MiB multi-chunk body, and abort followed by a healthy request.
+The canonical-root/traversal policy remains an M2 exit item; this checkpoint does not complete M2 or change
+the public ledger.
 
 ### M3 - FileSystemRouter
 

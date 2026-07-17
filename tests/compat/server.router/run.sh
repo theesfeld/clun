@@ -8,6 +8,10 @@ clun=${CLUN_COMPAT_EXECUTABLE:-$repo_root/build/clun}
 command -v curl >/dev/null 2>&1 || { printf 'server.router: curl is required\n' >&2; exit 2; }
 
 scratch=$(mktemp -d "${TMPDIR:-/tmp}/clun-compat-router.XXXXXX")
+printf '0123456789ABCDEF' >"$scratch/file.txt"
+dd if=/dev/zero of="$scratch/large.bin" bs=1048576 count=16 2>/dev/null
+ln -s "$scratch/file.txt" "$scratch/file-link.txt"
+mkfifo "$scratch/file.fifo"
 server_pid=
 cleanup() {
   [ -z "$server_pid" ] || kill "$server_pid" 2>/dev/null || true
@@ -16,6 +20,11 @@ cleanup() {
 }
 trap cleanup 0 HUP INT TERM
 
+CLUN_ROUTER_FILE="$scratch/file.txt" \
+CLUN_ROUTER_LARGE="$scratch/large.bin" \
+CLUN_ROUTER_MISSING="$scratch/missing.txt" \
+CLUN_ROUTER_SYMLINK="$scratch/file-link.txt" \
+CLUN_ROUTER_SPECIAL="$scratch/file.fifo" \
 "$clun" "$repo_root/tests/compat/server.router/server.js" >"$scratch/server.out" \
   2>"$scratch/server.err" &
 server_pid=$!
@@ -75,6 +84,124 @@ status=$(curl --silent --show-error --output "$scratch/not-modified" --write-out
   exit 1
 }
 
+curl --silent --show-error --dump-header "$scratch/file-headers" \
+  --output "$scratch/file-body" "${url}file"
+[ "$(cat "$scratch/file-body")" = '0123456789ABCDEF' ] || {
+  printf 'server.router: file route body mismatch\n' >&2
+  exit 1
+}
+file_headers=$(tr -d '\r' <"$scratch/file-headers")
+printf '%s\n' "$file_headers" | grep -i -x 'content-length: 16' >/dev/null
+printf '%s\n' "$file_headers" | grep -i -x 'content-type: text/plain;charset=utf-8' >/dev/null
+last_modified=$(printf '%s\n' "$file_headers" | awk '
+  BEGIN { IGNORECASE = 1 }
+  /^last-modified:/ { sub(/^[^:]*:[[:space:]]*/, ""); print; exit }
+')
+[ -n "$last_modified" ] || {
+  printf 'server.router: file route omitted Last-Modified\n' >&2
+  exit 1
+}
+assert_body file-direct 0123456789ABCDEF
+status=$(curl --silent --show-error --dump-header "$scratch/slice-headers" \
+  --output "$scratch/slice-body" --write-out '%{http_code}' \
+  -H 'Range: bytes=12-15' "${url}file-slice")
+if [ "$status" != 200 ] || [ "$(cat "$scratch/slice-body")" != 56789 ] || \
+    tr -d '\r' <"$scratch/slice-headers" | grep -i '^content-range:' >/dev/null; then
+    printf 'server.router: Range escaped or altered the explicit file slice\n' >&2
+    exit 1
+fi
+
+assert_range() {
+  value=$1
+  expected_status=$2
+  expected_body=$3
+  expected_range=$4
+  status=$(curl --silent --show-error --dump-header "$scratch/range-headers" \
+    --output "$scratch/range-body" --write-out '%{http_code}' \
+    -H "Range: $value" "${url}file")
+  actual_body=$(cat "$scratch/range-body")
+  actual_range=$(tr -d '\r' <"$scratch/range-headers" | awk '
+    BEGIN { IGNORECASE = 1 }
+    /^content-range:/ { sub(/^[^:]*:[[:space:]]*/, ""); print; exit }
+  ')
+  [ "$status" = "$expected_status" ] && [ "$actual_body" = "$expected_body" ] && \
+    [ "$actual_range" = "$expected_range" ] || {
+      printf 'server.router: range %s: got status=%s body=%s range=%s\n' \
+        "$value" "$status" "$actual_body" "$actual_range" >&2
+      exit 1
+    }
+}
+
+assert_range 'bytes=0-3' 206 0123 'bytes 0-3/16'
+assert_range 'bytes=4-' 206 456789ABCDEF 'bytes 4-15/16'
+assert_range 'bytes=-4' 206 CDEF 'bytes 12-15/16'
+assert_range 'Bytes = 2-5' 206 2345 'bytes 2-5/16'
+assert_range 'bytes=100-200' 416 '' 'bytes */16'
+
+status=$(curl --silent --show-error --output "$scratch/file-ims" --write-out '%{http_code}' \
+  -H 'If-Modified-Since: Thu, 31 Dec 2099 23:59:59 GMT' "${url}file")
+[ "$status" = 304 ] && [ ! -s "$scratch/file-ims" ] || {
+  printf 'server.router: file If-Modified-Since did not produce 304\n' >&2
+  exit 1
+}
+status=$(curl --silent --show-error --output "$scratch/file-star" --write-out '%{http_code}' \
+  -H 'If-None-Match: *' "${url}file")
+[ "$status" = 304 ] && [ ! -s "$scratch/file-star" ] || {
+  printf 'server.router: file If-None-Match wildcard did not produce 304\n' >&2
+  exit 1
+}
+status=$(curl --silent --show-error --output "$scratch/file-precedence" --write-out '%{http_code}' \
+  -H 'If-None-Match: "not-a-match"' \
+  -H 'If-Modified-Since: Thu, 31 Dec 2099 23:59:59 GMT' "${url}file")
+[ "$status" = 200 ] && [ "$(cat "$scratch/file-precedence")" = '0123456789ABCDEF' ] || {
+  printf 'server.router: If-None-Match did not take precedence over If-Modified-Since\n' >&2
+  exit 1
+}
+status=$(curl --silent --show-error --output "$scratch/file-custom" --write-out '%{http_code}' \
+  -H 'If-None-Match: "file-custom"' "${url}file-custom")
+[ "$status" = 304 ] && [ ! -s "$scratch/file-custom" ] || {
+  printf 'server.router: custom file ETag did not produce 304\n' >&2
+  exit 1
+}
+content_range=$(curl --silent --show-error --dump-header "$scratch/user-range-headers" \
+  --output "$scratch/user-range-body" -H 'Range: bytes=2-5' "${url}file-content-range" && \
+  tr -d '\r' <"$scratch/user-range-headers" | awk '
+    BEGIN { IGNORECASE = 1 }
+    /^content-range:/ { sub(/^[^:]*:[[:space:]]*/, ""); print; exit }
+  ')
+[ "$content_range" = 'bytes 0-15/100' ] && \
+  [ "$(cat "$scratch/user-range-body")" = '0123456789ABCDEF' ] || {
+    printf 'server.router: user Content-Range did not disable automatic range handling\n' >&2
+    exit 1
+  }
+
+curl --silent --show-error --output /dev/null "${url}large-file"
+curl --silent --show-error --limit-rate 32768 --max-time 0.2 \
+  --output /dev/null "${url}large-file" 2>/dev/null || true
+sleep 0.1
+assert_body api/users exact
+
+printf 'updated-file' >"$scratch/file.txt"
+assert_body file updated-file
+rm "$scratch/file.txt"
+status=$(curl --silent --show-error --output "$scratch/deleted-file" --write-out '%{http_code}' \
+  "${url}file")
+[ "$status" = 202 ] && [ "$(cat "$scratch/deleted-file")" = 'fallback:GET:/file' ] || {
+  printf 'server.router: deleted file route did not re-stat and fall through\n' >&2
+  exit 1
+}
+printf '0123456789ABCDEF' >"$scratch/file.txt"
+
+for unsafe_path in missing-file symlink-file special-file; do
+  status=$(curl --silent --show-error --output "$scratch/unsafe-body" --write-out '%{http_code}' \
+    "${url}${unsafe_path}")
+  [ "$status" = 202 ] && \
+    [ "$(cat "$scratch/unsafe-body")" = "fallback:GET:/${unsafe_path}" ] || {
+      printf 'server.router: %s did not fall through safely\n' "$unsafe_path" >&2
+      exit 1
+    }
+done
+
 assert_body api/users exact
 assert_body api/users/alice%40example.com 'param:alice@example.com'
 assert_body api/users/%C3%A9 'param:é'
@@ -119,4 +246,4 @@ status=$(curl --silent --show-error --output "$scratch/missing" --write-out '%{h
   exit 1
 }
 
-printf 'server.router: routes, params, methods, ETags, conditional GET, async, errors, fallback, HEAD, and reload passed\n'
+printf 'server.router: routes, static/file caching, ranges, bounded streaming, safety, async, fallback, HEAD, and reload passed\n'

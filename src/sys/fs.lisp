@@ -222,6 +222,47 @@ or a process-global chdir. Errors retain the logical joined path."
 (defconstant +s-iflnk+ #o120000)
 (defun fstat-symlink-p (st) (= (logand (fstat-mode st) +s-ifmt+) +s-iflnk+))
 
+(defun %open-flag (name)
+  (let ((symbol (find-symbol name :sb-posix)))
+    (if (and symbol (boundp symbol)) (symbol-value symbol) 0)))
+
+(defun open-regular-file-stream (path &key (no-follow t))
+  "Open PATH once and return its byte stream plus descriptor-derived FSTAT.
+
+The descriptor is opened with O_NOFOLLOW where the host exposes it, then classified
+with fstat before it is wrapped as a stream.  Callers therefore read the exact regular
+file that was validated, even if the pathname is replaced concurrently.  The caller
+owns and must close the returned stream."
+  (let ((fd nil))
+    (handler-case
+        (let* ((flags (logior sb-posix:o-rdonly
+                              sb-posix:o-nonblock
+                              (%open-flag "O-CLOEXEC")
+                              (if no-follow (%open-flag "O-NOFOLLOW") 0))))
+          (setf fd (sb-posix:open (native->pathname path) flags))
+          (let ((stat (%stat->fstat (sb-posix:fstat fd))))
+            (unless (fstat-file-p stat)
+              (sb-posix:close fd)
+              (setf fd nil)
+              (let ((code (if (fstat-dir-p stat) "EISDIR" "EACCES")))
+                (error 'fs-error :code code :errno (%errno-of-name code)
+                                 :syscall "open" :path path)))
+            (let ((stream
+                    (sb-sys:make-fd-stream
+                     fd :input t :element-type '(unsigned-byte 8)
+                     :buffering :none :name path)))
+              (setf fd nil)
+              (values stream stat))))
+      (sb-posix:syscall-error (error)
+        (when fd (ignore-errors (sb-posix:close fd)))
+        (%raise-fs "open" path error))
+      (file-error ()
+        (when fd (ignore-errors (sb-posix:close fd)))
+        (%raise-fs-file "open" path))
+      (condition (error)
+        (when fd (ignore-errors (sb-posix:close fd)))
+        (error error)))))
+
 ;;; --- mutating ops ----------------------------------------------------------
 
 (defun make-directory (path &key recursive (mode #o777))

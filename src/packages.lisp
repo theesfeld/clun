@@ -38,6 +38,7 @@
            #:stat* #:stat-at* #:fstat #:fstat-dev #:fstat-ino #:fstat-mode #:fstat-nlink #:fstat-uid
            #:fstat-gid #:fstat-rdev #:fstat-size #:fstat-atime-ns #:fstat-mtime-ns #:fstat-ctime-ns
            #:fstat-file-p #:fstat-dir-p #:fstat-symlink-p
+           #:open-regular-file-stream
            #:make-directory #:remove-directory #:remove-file #:rename-path #:make-symlink
            #:read-symlink #:change-mode #:truncate-file #:make-temp-dir #:check-access
            #:remove-recursive #:read-file-octets #:write-file-octets #:copy-file*))

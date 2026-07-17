@@ -15,3 +15,8 @@ console.log(
   throws(() => Clun.serve({ routes: {} })),
   throws(() => Clun.serve({ routes: { "/skip": false } })),
 );
+
+const directFile = Clun.file(`${process.cwd()}/tests/js/web/router-validation.js`);
+const directFileServer = Clun.serve({ routes: { "/self": directFile } });
+directFileServer.stop();
+console.log(true);
