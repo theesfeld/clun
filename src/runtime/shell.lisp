@@ -21,7 +21,7 @@
 (defstruct shell-word (fragments '()))
 (defstruct shell-token kind value)
 (defstruct shell-redirection kind target)
-(defstruct shell-command (words '()) (assignments '()) (redirections '()))
+(defstruct shell-command (words '()) (assignments '()) (redirections '()) group)
 (defstruct shell-pipeline (commands '()))
 (defstruct shell-script (pipelines '()) (operators '()))
 (defstruct shell-result
@@ -125,7 +125,8 @@
                       always (and (characterp unit)
                                   (char= unit (char text offset)))))))
     (or (find-if #'matches '("2>&1" "1>&2" "&>>" "2>>" "1>>" "&&" "||"
-                             ">>" "&>" "2>" "1>" "|" ";" "<" ">" "&")))))
+                             ">>" "&>" "2>" "1>" "|" ";" "<" ">" "&"
+                             "(" ")")))))
 
 (defun %shell-read-substitution (units start)
   "Read the body after a consumed $(, returning its units and the next index."
@@ -211,7 +212,7 @@
   (let ((tokens '()) (fragments '())
         (literal (make-string-output-stream))
         (literal-quoted nil) (word-started nil)
-        (quote nil) (index 0))
+        (quote nil) (index 0) (in-condition nil))
     (labels ((flush-literal ()
                (let ((text (get-output-stream-string literal)))
                  (when (plusp (length text))
@@ -229,10 +230,17 @@
              (flush-word ()
                (flush-literal)
                (when word-started
-                 (push (make-shell-token :kind :word
-                                         :value (make-shell-word
-                                                 :fragments (nreverse fragments)))
-                       tokens))
+                 (let* ((word (make-shell-word :fragments (nreverse fragments)))
+                        (parts (shell-word-fragments word)))
+                   (push (make-shell-token :kind :word :value word) tokens)
+                   (when (and (= (length parts) 1)
+                              (eq (shell-fragment-kind (first parts)) :literal)
+                              (not (shell-fragment-quoted (first parts))))
+                     (cond
+                       ((string= (shell-fragment-value (first parts)) "[[")
+                        (setf in-condition t))
+                       ((string= (shell-fragment-value (first parts)) "]]")
+                        (setf in-condition nil))))))
                (setf fragments '() word-started nil literal-quoted nil))
              (emit-operator (operator)
                (flush-word)
@@ -297,7 +305,9 @@
                    do (incf index)))
             ((null quote)
              (let ((operator (%shell-operator-at units index)))
-               (if operator
+               (if (and operator
+                        (not (and in-condition
+                                  (member operator '("(" ")") :test #'string=))))
                    (progn (emit-operator operator) (incf index (length operator)))
                    (progn (emit-character unit nil) (incf index)))))
             (t
@@ -337,6 +347,34 @@
               :test #'string=)))
 
 (defun %shell-parse-command (tokens)
+  (when (and tokens
+             (eq (shell-token-kind (first tokens)) :operator)
+             (string= (shell-token-value (first tokens)) "("))
+    (let ((depth 0) (close nil))
+      (loop for token in tokens
+            for index from 0
+            when (eq (shell-token-kind token) :operator)
+              do (cond
+                   ((string= (shell-token-value token) "(") (incf depth))
+                   ((string= (shell-token-value token) ")")
+                    (decf depth)
+                    (when (minusp depth) (%shell-syntax "unexpected )"))
+                    (when (zerop depth) (setf close index) (loop-finish)))))
+      (unless close (%shell-syntax "unterminated subshell group"))
+      (let* ((inner (subseq tokens 1 close))
+             (suffix (nthcdr (1+ close) tokens))
+             (redirections
+               (when suffix
+                 (let ((parsed (%shell-parse-command suffix)))
+                   (when (or (shell-command-group parsed)
+                             (shell-command-words parsed)
+                             (shell-command-assignments parsed))
+                     (%shell-syntax "unexpected token after subshell group"))
+                   (shell-command-redirections parsed)))))
+        (when (null inner) (%shell-syntax "empty subshell group"))
+        (return-from %shell-parse-command
+          (make-shell-command :group (%shell-parse-tokens inner)
+                              :redirections redirections)))))
   (let ((words '()) (assignments '()) (redirections '()) (command-seen nil)
         (index 0))
     (loop while (< index (length tokens)) do
@@ -373,14 +411,22 @@
                         :redirections (nreverse redirections))))
 
 (defun %shell-split-tokens (tokens separator)
-  (let ((groups '()) (current '()))
+  (let ((groups '()) (current '()) (depth 0))
     (dolist (token tokens)
-      (if (and (eq (shell-token-kind token) :operator)
+      (when (eq (shell-token-kind token) :operator)
+        (cond
+          ((string= (shell-token-value token) "(") (incf depth))
+          ((string= (shell-token-value token) ")")
+           (decf depth)
+           (when (minusp depth) (%shell-syntax "unexpected )")))))
+      (if (and (zerop depth)
+               (eq (shell-token-kind token) :operator)
                (string= (shell-token-value token) separator))
           (progn
             (when (null current) (%shell-syntax "empty command before ~a" separator))
             (push (nreverse current) groups) (setf current '()))
           (push token current)))
+    (unless (zerop depth) (%shell-syntax "unterminated subshell group"))
     (when (null current) (%shell-syntax "empty command after ~a" separator))
     (nreverse (cons (nreverse current) groups))))
 
@@ -403,9 +449,9 @@
            :fragments (list (make-shell-fragment
                              :kind :literal :value operator :quoted nil)))))
 
-(defun %shell-parse (units)
-  (let ((tokens (%shell-lex units)) (pipelines '()) (operators '()) (current '())
-        (in-condition nil))
+(defun %shell-parse-tokens (tokens)
+  (let ((pipelines '()) (operators '()) (current '())
+        (in-condition nil) (depth 0))
     (labels ((flush (operator)
                (when current
                  (push (%shell-parse-pipeline (nreverse current)) pipelines)
@@ -422,22 +468,38 @@
              (push token current))
             ((and in-condition
                   (eq (shell-token-kind token) :operator)
-                  (member (shell-token-value token) '("&&" "||" "<" ">")
+                  (member (shell-token-value token) '("&&" "||" "<" ">" "(" ")")
                           :test #'string=))
              (push (%shell-operator-word-token (shell-token-value token)) current))
             ((and (not in-condition)
+                  (eq (shell-token-kind token) :operator)
+                  (string= (shell-token-value token) "("))
+             (incf depth)
+             (push token current))
+            ((and (not in-condition)
+                  (eq (shell-token-kind token) :operator)
+                  (string= (shell-token-value token) ")"))
+             (decf depth)
+             (when (minusp depth) (%shell-syntax "unexpected )"))
+             (push token current))
+            ((and (not in-condition)
+                  (zerop depth)
                   (eq (shell-token-kind token) :operator)
                   (member (shell-token-value token) '(";" "&&" "||") :test #'string=))
              (flush (cond ((string= (shell-token-value token) "&&") :and)
                           ((string= (shell-token-value token) "||") :or)
                           (t :sequence))))
             (t (push token current)))))
+      (unless (zerop depth) (%shell-syntax "unterminated subshell group"))
       (flush nil))
     ;; A trailing separator records one extra operator; it has no right-hand side.
     (when (>= (length operators) (length pipelines))
       (setf operators (butlast operators)))
     (make-shell-script :pipelines (nreverse pipelines)
                        :operators (nreverse operators))))
+
+(defun %shell-parse (units)
+  (%shell-parse-tokens (%shell-lex units)))
 
 ;;; --- expansion -------------------------------------------------------------
 
@@ -2645,7 +2707,16 @@ integer conversions are deliberately rejected because seq values are f32."
     (dolist (assignment (shell-command-assignments command))
       (setf env (%shell-env-set env (car assignment)
                                 (%shell-assignment-value (cdr assignment) state g))))
-    (if (null (shell-command-words command))
+    (if (shell-command-group command)
+        (multiple-value-bind (input output-redirections)
+            (%shell-command-redirections command state g stdin)
+          (let ((sub-state (copy-shell-state state)))
+            (setf (shell-state-env sub-state) (%shell-env-copy env)
+                  (shell-state-terminated sub-state) nil)
+            (%shell-apply-output-redirections
+             (%shell-execute-script (shell-command-group command) sub-state g input)
+             output-redirections state g)))
+        (if (null (shell-command-words command))
         (progn
           (setf (shell-state-env state) env)
           ;; Bun treats an assignment-only pipeline stage as an environment
@@ -2681,7 +2752,7 @@ integer conversions are deliberately rejected because seq values are f32."
                   (%shell-apply-output-redirections
                    (if handled builtin
                        (%shell-run-external argv env (shell-state-cwd state) input))
-                   output-redirections state g))))))))
+                   output-redirections state g)))))))))
 
 (defun %shell-static-command-name (command)
   (let* ((word (and command (first (shell-command-words command))))
@@ -2890,10 +2961,11 @@ deadlock even when commands produce output larger than kernel pipe capacity."
        (null (shell-command-redirections command))
        (%shell-no-stdin-builtin-p (second commands))))
 
-(defun %shell-execute-sequential-pipeline (pipeline state g)
+(defun %shell-execute-sequential-pipeline (pipeline state g
+                                           &optional (initial-input *shell-empty-octets*))
   (let* ((commands (shell-pipeline-commands pipeline))
          (isolated (> (length commands) 1))
-         (input *shell-empty-octets*) (stderr *shell-empty-octets*)
+         (input initial-input) (stderr *shell-empty-octets*)
          (result (make-shell-result)))
     (dolist (command commands)
       (let ((command-state (if isolated (copy-shell-state state) state)))
@@ -2910,17 +2982,21 @@ deadlock even when commands produce output larger than kernel pipe capacity."
     (make-shell-result :stdout (shell-result-stdout result) :stderr stderr
                        :exit-code (shell-result-exit-code result))))
 
-(defun %shell-execute-pipeline (pipeline state g)
+(defun %shell-execute-pipeline (pipeline state g
+                                &optional (initial-input *shell-empty-octets*))
   (cond
+    ((plusp (length initial-input))
+     (%shell-execute-sequential-pipeline pipeline state g initial-input))
     ((%shell-yes-pipeline-p pipeline)
      (%shell-execute-yes-pipeline pipeline state g))
     ((%shell-concurrent-pipeline-p pipeline)
      (%shell-execute-concurrent-pipeline pipeline state g))
     (t (%shell-execute-sequential-pipeline pipeline state g))))
 
-(defun %shell-execute-script (script state g)
+(defun %shell-execute-script (script state g
+                              &optional (initial-input *shell-empty-octets*))
   (let ((stdout *shell-empty-octets*) (stderr *shell-empty-octets*)
-        (previous (make-shell-result)) (index 0))
+        (previous (make-shell-result)) (index 0) (pending-input initial-input))
     (dolist (pipeline (shell-script-pipelines script))
       (when (shell-state-terminated state) (return))
       (let ((operator (and (plusp index)
@@ -2929,7 +3005,8 @@ deadlock even when commands produce output larger than kernel pipe capacity."
                   (eq operator :sequence)
                   (and (eq operator :and) (zerop (shell-result-exit-code previous)))
                   (and (eq operator :or) (not (zerop (shell-result-exit-code previous)))))
-          (setf previous (%shell-execute-pipeline pipeline state g))
+          (setf previous (%shell-execute-pipeline pipeline state g pending-input)
+                pending-input *shell-empty-octets*)
           (setf stdout (%shell-concat-octets stdout (shell-result-stdout previous))
                 stderr (%shell-concat-octets stderr (shell-result-stderr previous))
                 (shell-state-last-exit-code state) (shell-result-exit-code previous))))

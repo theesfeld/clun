@@ -10,7 +10,8 @@ their contents cannot create operators, substitutions, redirects, globs, or extr
 ## Runtime contract
 
 - Lex quoting, escaping, comments, variables, `$?`, command substitution, pipelines, redirects, logical
-  operators, sequences, assignments, tilde expansion, and `Clun.Glob` expansion into an explicit AST.
+  operators, sequences, assignments, grouped subshells, tilde expansion, and `Clun.Glob` expansion into an
+  explicit AST.
 - Treat scalar interpolation as one inert argument and flatten array interpolation into inert arguments with
   a bounded nesting depth. Only an explicit `{ raw: source }` interpolation opts source text into grammar.
 - Execute `echo`, `basename`, `dirname`, `seq`, `yes`, `cat`, `mkdir`, `touch`, `rm`, `mv`, `ls`, `cp`, `pwd`, `cd`, `true`, `false`, `[[`,
@@ -56,6 +57,9 @@ their contents cannot create operators, substitutions, redirects, globs, or extr
 - Isolate mutable cwd, environment, termination, and status state for every stage of a multi-command builtin
   pipeline. Immediate builtins that do not consume stdin close an upstream `yes` producer without materializing
   output, while the last stage still determines the pipeline exit code.
+- Parse nested parenthesized groups recursively and execute them with copied environment, cwd, termination,
+  and status state. Group stdin is propagated through the bounded pipeline executor, group output composes
+  with surrounding pipelines, and group-local `exit`, assignments, and directory changes never leak outward.
 - Expose lazy job methods for cwd, environment, quiet/nothrow/throws, explicit one-shot `run`, Promise
   chaining, text, JSON, bytes, array buffers, and lines. `lines()` is a lazy async iterator with JavaScript
   split boundaries, including a trailing empty line after a final newline. Results and failures carry stdout,
@@ -80,7 +84,7 @@ types, fixtures, and upstream licenses. `upstream-files.tsv` binds every file to
 
 `upstream-corpus.tsv` enumerates 1,630 lexical test sites from those exact snapshots. The initial conservative
 disposition was 1,598 pending and 32 explicitly inactive at the pinned revisions. The current executable
-mapping is 381 covered, 1,217 pending, and 32 upstream-inactive. `upstream-coverage.tsv` binds each credited
+mapping is 501 covered, 1,097 pending, and 32 upstream-inactive. `upstream-coverage.tsv` binds each credited
 inventory ID to a checked-in shipped-binary fixture; regeneration rejects duplicate, stale, or unknown IDs,
 and the corpus validator rejects missing evidence. `shell-upstream-corpus-check.sh` rejects inventory drift
 or an unexplained disposition. Its `--yes` mode is the finite closure gate: it rejects any pending row and
@@ -106,10 +110,10 @@ through `build/clun`: every pinned site for basename, dirname, exit, true, false
 pathological command lookup, plus both revisions' brace helper cases and the engineering brace resource
 bound. It also executes all three engineering brace-plus-glob composition sites, including interpolation
 protection that keeps a comma inside one literal branch.
-`tests/compat/tooling.shell/upstream-assignments.js` executes 74 exact stable and engineering inventory IDs.
+`tests/compat/tooling.shell/upstream-assignments.js` executes all 76 exact stable and engineering inventory IDs.
 Assignment-only pipeline stages are isolated environment boundaries that forward their incoming bytes, so
-middle and trailing assignment stages preserve pipeline data without leaking variables. The two parenthesized
-subshell-grouping sites remain pending because grouping syntax is not implemented.
+middle and trailing assignment stages preserve pipeline data without leaking variables. The grouped
+assignment pipeline runs through the recursive subshell AST rather than an approximation.
 `tests/compat/tooling.shell/upstream-seq.js` executes all 60 exact stable and engineering `seq` inventory IDs,
 including usage and option errors, separators and terminators, descending ranges, f32 stalled progress, and
 command-substitution output. No aggregate credit is used.
@@ -123,6 +127,10 @@ symlinks. The four `chmod 000` permission sites remain pending because their out
 privilege and filesystem policy.
 `tests/compat/tooling.shell/upstream-mv-rm.js` executes 20 exact `mv` and `rm` IDs. The engineering concurrent
 directory-to-symlink swap race remains pending until the actual mutation race is exercised.
+`tests/compat/tooling.shell/upstream-pipeline-stack.js` executes 118 exact stable and engineering IDs for
+builtin and subprocess stages, nested groups, depth, logical and sequential drains, errors, substitutions,
+assignments, `seq`, and bounded `yes` streaming. The six `if` control-flow IDs and two-line `pwd | cd | pwd`
+pair remain pending with their exact upstream behavior visible.
 The conditional fixture freezes the active `shell-seq-condexpr.test.ts` empty-path regressions and the
 non-todo `bunshell.test.ts` unary/string cases, including both conditional pipeline positions. It additionally
 freezes the pinned GNU-bash-derived compound-expression cases for repeated negation, short-circuit operators,
