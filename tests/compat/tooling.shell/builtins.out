@@ -4,6 +4,7 @@ echo
 exit
 seq
 yes
+builtin-pipelines
 filesystem-builtins
 rm
 mv

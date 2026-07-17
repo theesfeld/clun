@@ -36,6 +36,9 @@ their contents cannot create operators, substitutions, redirects, globs, or extr
   the final stdout and all stderr are file-backed, preventing parent-side pipe-capacity deadlocks.
 - Stream an internal `yes` producer into an otherwise external pipeline without invoking a host `yes` binary.
   The producer uses bounded memory, observes downstream pipe closure, and preserves the last-command status.
+- Isolate mutable cwd, environment, termination, and status state for every stage of a multi-command builtin
+  pipeline. Immediate builtins that do not consume stdin close an upstream `yes` producer without materializing
+  output, while the last stage still determines the pipeline exit code.
 - Expose lazy job methods for cwd, environment, quiet/nothrow/throws, explicit one-shot `run`, Promise
   chaining, text, JSON, bytes, array buffers, and lines. `lines()` is a lazy async iterator with JavaScript
   split boundaries, including a trailing empty line after a final newline. Results and failures carry stdout,
@@ -56,6 +59,8 @@ behavior, plus cp file, directory-target, multi-source, recursive, no-overwrite,
 The fixture also executes all three active pinned `commands/yes.test.ts` cases, a typed-array view-offset case,
 an internal `yes | head` streaming case, and the explicit standalone unbounded-output boundary. The core
 fixture independently drains 1 MiB from that internal producer to prove behavior beyond pipe capacity.
+It also freezes active `pipeline_stack.test.ts` behavior for last-command status, `exit`, cwd and environment
+isolation, immediate `yes` sinks, and a 20-stage builtin pipeline.
 `tests/lisp/runtime/shell-tests.lisp` separately
 owns parser and built-in behavior without an external process dependency.
 

@@ -145,6 +145,48 @@
         (eng:utf8->code-units
          (clun.runtime::shell-result-stderr result)))))
 
+(define-test shell/pipeline-builtins-use-isolated-state
+  (let* ((directory (clun.runtime::%shell-temp-directory))
+         (state (shell-test-state)))
+    (unwind-protect
+         (progn
+           (setf (clun.runtime::shell-state-cwd state) directory)
+           (let ((result (clun.runtime::%shell-execute-units
+                          (shell-test-units "cd / | pwd") state nil)))
+             (is equal (format nil "~a~%" directory)
+                 (eng:utf8->code-units
+                  (clun.runtime::shell-result-stdout result)))
+             (is equal directory (clun.runtime::shell-state-cwd state)))
+           (let ((result (clun.runtime::%shell-execute-units
+                          (shell-test-units
+                           "export CLUN_PIPE_VALUE=inner | echo $CLUN_PIPE_VALUE")
+                          state nil)))
+             (is equal (format nil "~%")
+                 (eng:utf8->code-units
+                  (clun.runtime::shell-result-stdout result)))
+             (false (assoc "CLUN_PIPE_VALUE" (clun.runtime::shell-state-env state)
+                           :test #'string=)))
+           (let ((result (clun.runtime::%shell-execute-units
+                          (shell-test-units
+                           "exit 42 | echo after; echo outside") state nil)))
+             (is equal (format nil "after~%outside~%")
+                 (eng:utf8->code-units
+                  (clun.runtime::shell-result-stdout result)))
+             (false (clun.runtime::shell-state-terminated state))))
+      (ignore-errors (sys:remove-recursive directory)))))
+
+(define-test shell/yes-to-immediate-builtin-sink
+  (multiple-value-bind (output exit-code) (shell-test-output "yes | true")
+    (is equal "" output)
+    (is = 0 exit-code))
+  (let ((result (clun.runtime::%shell-execute-units
+                 (shell-test-units "yes | false") (shell-test-state) nil)))
+    (is equal "" (eng:utf8->code-units
+                   (clun.runtime::shell-result-stdout result)))
+    (is equal "" (eng:utf8->code-units
+                   (clun.runtime::shell-result-stderr result)))
+    (is = 1 (clun.runtime::shell-result-exit-code result))))
+
 (define-test shell/lines-preserve-string-split-boundaries
   (is equal '() (clun.runtime::%shell-lines ""))
   (is equal '("hello") (clun.runtime::%shell-lines "hello"))

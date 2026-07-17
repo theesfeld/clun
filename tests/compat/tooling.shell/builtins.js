@@ -108,8 +108,38 @@ check(Clun.$`basename`, 1, "", "usage: basename string\n", "basename usage")
     "",
     "yes pipeline streaming",
   ))
+  .then(() => check(Clun.$`true | false`, 1, "", "", "builtin pipeline last failure"))
+  .then(() => check(Clun.$`false | true`, 0, "", "", "builtin pipeline last success"))
+  .then(() => check(
+    Clun.$`exit 42 | echo after; echo outside`,
+    0,
+    "after\noutside\n",
+    "",
+    "pipeline exit isolation",
+  ))
+  .then(() => Clun.$`pwd`.text())
+  .then(original => Clun.$`cd / | pwd`.text().then(actual => {
+    assert(actual === original, "pipeline cwd isolation");
+  }))
+  .then(() => check(
+    Clun.$`export CLUN_PIPE_VALUE=inner | echo $CLUN_PIPE_VALUE`,
+    0,
+    "\n",
+    "",
+    "pipeline environment isolation",
+  ))
+  .then(() => check(Clun.$`yes | true`, 0, "", "", "yes immediate success sink"))
+  .then(() => check(Clun.$`yes | false`, 1, "", "", "yes immediate failure sink"))
+  .then(() => check(
+    Clun.$`true | false | true | false | true | false | true | false | true | false | true | false | true | false | true | false | true | false | true | false`,
+    1,
+    "",
+    "",
+    "builtin pipeline depth",
+  ))
   .then(() => {
     console.log("yes");
+    console.log("builtin-pipelines");
     return check(Clun.$`rm -rf clun-shell-builtins.tmp`, 0, "", "", "filesystem setup");
   })
   .then(() => check(Clun.$`mkdir -p clun-shell-builtins.tmp/nested`, 0, "", "", "mkdir parents"))

@@ -1990,7 +1990,7 @@ integer conversions are deliberately rejected because seq values are f32."
                    output-redirections state g))))))))
 
 (defun %shell-static-command-name (command)
-  (let* ((word (first (shell-command-words command)))
+  (let* ((word (and command (first (shell-command-words command))))
          (fragments (and word (shell-word-fragments word))))
     (and (= (length fragments) 1)
          (eq (shell-fragment-kind (first fragments)) :literal)
@@ -2179,13 +2179,40 @@ deadlock even when commands produce output larger than kernel pipe capacity."
       (dolist (process processes) (ignore-errors (sb-ext:process-close process)))
       (ignore-errors (clun.sys:remove-recursive directory)))))
 
+(defparameter *shell-no-stdin-builtins*
+  '("echo" "pwd" "cd" "true" "false" ":" "export" "unset" "which" "exit"
+    "basename" "dirname" "seq" "mkdir" "touch" "rm" "mv" "ls" "cp"))
+
+(defun %shell-no-stdin-builtin-p (command)
+  (let ((name (%shell-static-command-name command)))
+    (and name (member name *shell-no-stdin-builtins* :test #'string=))))
+
+(defun %shell-discarded-yes-producer-p (commands command)
+  ;; A downstream builtin that never reads stdin closes the conceptual pipe
+  ;; immediately. Do not materialize or reject the infinite producer.
+  (and (eq command (first commands))
+       (rest commands)
+       (string= (or (%shell-static-command-name command) "") "yes")
+       (null (shell-command-redirections command))
+       (%shell-no-stdin-builtin-p (second commands))))
+
 (defun %shell-execute-sequential-pipeline (pipeline state g)
-  (let ((input *shell-empty-octets*) (stderr *shell-empty-octets*)
-        (result (make-shell-result)))
-    (dolist (command (shell-pipeline-commands pipeline))
-      (setf result (%shell-execute-command command state g input)
-            input (shell-result-stdout result)
-            stderr (%shell-concat-octets stderr (shell-result-stderr result))))
+  (let* ((commands (shell-pipeline-commands pipeline))
+         (isolated (> (length commands) 1))
+         (input *shell-empty-octets*) (stderr *shell-empty-octets*)
+         (result (make-shell-result)))
+    (dolist (command commands)
+      (let ((command-state (if isolated (copy-shell-state state) state)))
+        (when isolated
+          (setf (shell-state-env command-state)
+                (%shell-env-copy (shell-state-env state))))
+        (setf result
+              (if (%shell-discarded-yes-producer-p commands command)
+                  (make-shell-result)
+                  (%shell-execute-command command command-state g input))
+              input (shell-result-stdout result)
+              stderr (%shell-concat-octets stderr
+                                            (shell-result-stderr result)))))
     (make-shell-result :stdout (shell-result-stdout result) :stderr stderr
                        :exit-code (shell-result-exit-code result))))
 
