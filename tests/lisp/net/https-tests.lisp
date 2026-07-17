@@ -26,7 +26,8 @@
 
 ;;; --- (1) transport round-trip ------------------------------------------------
 
-(defun %https-fixture-server (cert-file key-file response-bytes)
+(defun %https-fixture-server
+    (cert-file key-file response-bytes &key split-at tail-sent-box)
   "Start a ONE-SHOT blocking pure-tls HTTPS server on 127.0.0.1:0 presenting CERT-FILE/KEY-FILE.
 Returns (values port thread): accepts one connection, handshakes, reads the request headers to
 CRLFCRLF, writes RESPONSE-BYTES, closes (close_notify → the client sees EOF)."
@@ -48,7 +49,14 @@ CRLFCRLF, writes RESPONSE-BYTES, closes (close_notify → the client sees EOF)."
                      (loop for b = (read-byte tls nil nil) while b do
                        (setf w x x y y z z b)
                        (when (and (= w 13) (= x 10) (= y 13) (= z 10)) (return))))
-                   (write-sequence response-bytes tls)
+                   (if split-at
+                       (progn
+                         (write-sequence response-bytes tls :end split-at)
+                         (force-output tls)
+                         (sleep 0.1)
+                         (when tail-sent-box (setf (car tail-sent-box) t))
+                         (write-sequence response-bytes tls :start split-at))
+                       (write-sequence response-bytes tls))
                    (force-output tls)
                    (close tls))
                (error () nil))
@@ -84,6 +92,84 @@ CRLFCRLF, writes RESPONSE-BYTES, closes (close_notify → the client sees EOF)."
            (true (search "\"tls\":\"ok\"" (sb-ext:octets-to-string (net:hres-body resp)
                                                                    :external-format :utf-8))))
       (ignore-errors (sb-thread:join-thread thread :timeout 5)))))
+
+(define-test net/https-transport-streams-authenticated-response
+  (multiple-value-bind (fport thread)
+      (%https-fixture-server
+       (%cert "localhost-leaf.crt") (%cert "localhost-leaf.key")
+       (%http-response-bytes 200 "streamed over tls" "text/plain"))
+    (unwind-protect
+         (let ((events '())
+               (chunks '()))
+           (net:https-request-stream
+            :host "localhost" :port fport :method "GET" :path "/stream"
+            :verify nil
+            :on-headers
+            (lambda (head)
+              (push :headers events)
+              (is = 200 (net:hres-status head))
+              (is = 0 (length (net:hres-body head))))
+            :on-data
+            (lambda (chunk)
+              (push :data events)
+              (push chunk chunks))
+            :on-complete (lambda () (push :complete events)))
+           (is eq :headers (car (last events)))
+           (is eq :complete (first events))
+           (is string= "streamed over tls"
+               (sb-ext:octets-to-string
+                (apply #'concatenate '(vector (unsigned-byte 8))
+                       (nreverse chunks))
+                :external-format :utf-8)))
+      (ignore-errors (sb-thread:join-thread thread :timeout 5)))))
+
+(define-test net/https-async-stream-bridge-pauses-worker
+  (let* ((body (make-string 40000 :initial-element #\x))
+         (response (%http-response-bytes 200 body "text/plain"))
+         (tail-sent (list nil)))
+    (multiple-value-bind (fport thread)
+        (%https-fixture-server
+         (%cert "localhost-leaf.crt") (%cert "localhost-leaf.key")
+         response :split-at 1000 :tail-sent-box tail-sent)
+      (let ((loop (lp:make-event-loop :workers 1))
+            (chunks '())
+            (data-calls 0)
+            (headers-before-tail nil)
+            (complete-p nil)
+            (error-code nil)
+            (pause nil)
+            (resume nil))
+        (unwind-protect
+             (progn
+               (multiple-value-bind (cancel pause-function resume-function)
+                   (rt::%https-request-stream-async
+                    loop :host "localhost" :port fport :method "GET" :path "/"
+                    :verify nil :timeout 5000
+                    :on-headers
+                    (lambda (head)
+                      (is = 200 (net:hres-status head))
+                      (setf headers-before-tail (not (car tail-sent))))
+                    :on-data
+                    (lambda (chunk)
+                      (push chunk chunks)
+                      (incf data-calls)
+                      (when (= data-calls 1)
+                        (funcall pause)
+                        (lp:set-timer loop 10 (lambda () (funcall resume)))))
+                    :on-complete (lambda () (setf complete-p t))
+                    :on-error (lambda (code) (setf error-code code)))
+                 (declare (ignore cancel))
+                 (setf pause pause-function
+                       resume resume-function))
+               (lp:run-loop loop)
+               (false error-code)
+               (true complete-p)
+               (true headers-before-tail)
+               (true (plusp data-calls))
+               (is = (length body)
+                   (reduce #'+ chunks :key #'length :initial-value 0)))
+          (lp:destroy-event-loop loop)
+          (ignore-errors (sb-thread:join-thread thread :timeout 5)))))))
 
 ;;; --- (2) verification matrix (direct verify functions vs the test PKI) --------
 

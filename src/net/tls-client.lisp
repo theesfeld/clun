@@ -255,3 +255,140 @@ an abort can close it to unblock the blocking read."
                    (force-output tls)
                    (%parse-http-response-octets (%read-to-eof tls))))))
       (close-transport)))))
+
+(defun %make-https-response-stream-dispatcher
+    (method on-headers on-data on-complete)
+  "Return FEED and EOF closures for one authenticated HTTPS response."
+  (let ((parser (make-http-response-stream-parser
+                 :head-request-p (string-equal method "HEAD")))
+        (content-format nil)
+        (encoded-body nil)
+        (message-complete-p nil)
+        (finalized-p nil))
+    (labels
+        ((finalize ()
+           (unless finalized-p
+             (setf finalized-p t)
+             (when encoded-body
+               (let ((decoded
+                       (%decompress-body-bounded
+                        content-format
+                        (subseq encoded-body 0 (fill-pointer encoded-body)))))
+                 (when (and on-data (plusp (length decoded)))
+                   (funcall on-data decoded))))
+             (when on-complete (funcall on-complete))))
+         (deliver (events)
+           (dolist (event events)
+             (case (car event)
+               (:headers
+                (let ((encoding (%response-content-encoding (cdr event))))
+                  (cond
+                    ((and encoding (search "gzip" encoding))
+                     (setf content-format :gzip))
+                    ((and encoding (search "deflate" encoding))
+                     (setf content-format :zlib)))
+                  (when content-format
+                    (setf encoded-body
+                          (make-array (* 64 1024)
+                                      :element-type '(unsigned-byte 8)
+                                      :adjustable t :fill-pointer 0)))
+                  (when on-headers (funcall on-headers (cdr event)))))
+               (:data
+                (if encoded-body
+                    (%stream-append-bounded
+                     encoded-body (cdr event) *max-body-bytes*)
+                    (when on-data (funcall on-data (cdr event)))))
+               (:complete
+                (setf message-complete-p t)
+                (finalize))
+               (:error
+                (error "HTTP parse error ~a" (car (cdr event))))))
+           message-complete-p)
+         (feed (octets)
+           (deliver (response-stream-feed parser octets)))
+         (eof (clean-eof-p)
+           (unless clean-eof-p
+             (error "TLS peer closed without close_notify before the HTTP response completed"))
+           (deliver (response-stream-finish parser))
+           (unless message-complete-p
+             (error "connection closed before a full response"))
+           message-complete-p))
+      (values #'feed #'eof))))
+
+(defun https-request-stream
+    (&key host port method path headers body host-header
+          (ca-file (%system-ca-file)) (verify t) socket-box
+          (connect-timeout-ms 30000) on-headers on-data on-complete)
+  "Issue one blocking HTTPS request and deliver its response incrementally.
+
+This preserves HTTPS-REQUEST's DNS, Happy Eyeballs, TLS 1.3-to-1.2 fallback,
+certificate/hostname verification, authenticated records, decompression bounds,
+and abort socket. The caller must run it off the event-loop thread. Callbacks run
+on that worker thread; an asynchronous caller is responsible for loop marshalling."
+  (let ((addresses (resolve-hostname-all host))
+        (sock nil)
+        (raw nil)
+        (tls nil)
+        (request (%serialize-request method path (or host-header host)
+                                     headers body "identity")))
+    (labels ((close-transport ()
+               (ignore-errors (when tls (close tls)))
+               (ignore-errors (when raw (close raw)))
+               (ignore-errors (when sock (sb-bsd-sockets:socket-close sock)))
+               (setf tls nil raw nil sock nil))
+             (connect-transport ()
+               (setf sock (%connect-happy-blocking addresses port socket-box
+                                                   connect-timeout-ms))
+               (setf raw
+                     (sb-bsd-sockets:socket-make-stream
+                      sock :input t :output t
+                      :element-type '(unsigned-byte 8)))))
+      (unwind-protect
+           (progn
+             (connect-transport)
+             (multiple-value-bind (feed finish-at-eof)
+                 (%make-https-response-stream-dispatcher
+                  method on-headers on-data on-complete)
+               (let ((fallback-p nil)
+                     (context (if ca-file
+                                  (pure-tls:make-tls-context :ca-file ca-file)
+                                  (pure-tls:make-tls-context))))
+                 (handler-case
+                     (setf tls
+                           (pure-tls:make-tls-client-stream
+                            raw :hostname host
+                                :verify (if verify
+                                            pure-tls:+verify-required+
+                                            pure-tls:+verify-none+)
+                                :alpn-protocols '("http/1.1")
+                                :context context))
+                   (pure-tls:tls-alert-error (condition)
+                     (unless (%protocol-version-alert-p condition)
+                       (error condition))
+                     (setf fallback-p t)))
+                 (if fallback-p
+                     (progn
+                       (close-transport)
+                       (connect-transport)
+                       (multiple-value-bind (termination clean-eof-p)
+                           (https-request-tls12-stream
+                            raw host request feed
+                            :ca-file ca-file :verify verify)
+                         (case termination
+                           (:message-complete t)
+                           (:close-notify (funcall finish-at-eof clean-eof-p))
+                           (:eof (funcall finish-at-eof clean-eof-p)))))
+                     (progn
+                       (write-sequence request tls)
+                       (force-output tls)
+                       (let ((buffer
+                               (make-array 65536
+                                           :element-type '(unsigned-byte 8))))
+                         (loop
+                           (let ((count (read-sequence buffer tls)))
+                             (when (zerop count)
+                               (funcall finish-at-eof t)
+                               (return))
+                             (when (funcall feed (subseq buffer 0 count))
+                               (return))))))))))
+        (close-transport)))))

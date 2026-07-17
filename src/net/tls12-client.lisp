@@ -573,6 +573,28 @@ span records or share a record. When ALLOW-CCS is true, return (:ccs, payload)."
     (values (subseq result 0 (fill-pointer result))
             (tls12-closed-p state))))
 
+(defun %tls12-read-application-data-stream (state on-data)
+  "Deliver authenticated application records incrementally to ON-DATA.
+
+ON-DATA may return true once the HTTP message is complete, allowing the client
+to send close_notify without waiting for the peer to close its side. Returns a
+termination keyword and whether a peer close_notify was authenticated."
+  (loop
+    (multiple-value-bind (type payload) (%tls12-read-record state :eof-ok t)
+      (unless type
+        (return (values :eof (tls12-closed-p state))))
+      (case type
+        (#.+tls12-application-data+
+         (when (and (plusp (length payload)) (funcall on-data payload))
+           (return (values :message-complete (tls12-closed-p state)))))
+        (#.+tls12-alert+
+         (when (eq (%tls12-alert payload) :close-notify)
+           (setf (tls12-closed-p state) t)
+           (return (values :close-notify t))))
+        (#.+tls12-handshake+
+         (%tls12-fail "post-handshake TLS messages are not supported"))
+        (otherwise (%tls12-fail "unexpected TLS record type ~d" type))))))
+
 (defun %tls12-close-notify (state)
   (unless (tls12-closed-p state)
     (ignore-errors (%tls12-write-record state +tls12-alert+
@@ -590,4 +612,17 @@ are mandatory unless VERIFY is explicitly NIL for a hermetic fixture."
          (progn
            (%tls12-write-application-data state request-bytes)
            (%tls12-read-application-data state))
+      (%tls12-close-notify state))))
+
+(defun https-request-tls12-stream
+    (stream hostname request-bytes on-data &key ca-file (verify t))
+  "Perform a TLS 1.2 exchange and deliver authenticated HTTP wire chunks.
+
+This is the streaming counterpart to HTTPS-REQUEST-TLS12. It preserves the
+same handshake, certificate, hostname, record-MAC, and close-notify behavior."
+  (let ((state (%tls12-handshake stream hostname ca-file verify)))
+    (unwind-protect
+         (progn
+           (%tls12-write-application-data state request-bytes)
+           (%tls12-read-application-data-stream state on-data))
       (%tls12-close-notify state))))

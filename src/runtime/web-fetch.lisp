@@ -95,18 +95,44 @@ they describe a body that no longer exists (Content-Type/Length/Encoding/Languag
                        :test #'string=))
              headers))
 
-(defun %https-request-async (loop &key host port method path headers body host-header
-                                       timeout on-response on-error)
-  "HTTPS transport: net:https-request runs BLOCKING on the worker pool; its completion runs
-on the loop thread → ON-RESPONSE (an http-response) / ON-ERROR (a code string). Returns a
-cancel thunk that closes the worker's socket to unblock its read (abort/timeout). CA trust =
-$SSL_CERT_FILE / the system bundle (net's %system-ca-file). Certs always fail closed."
+(defun %https-request-stream-async
+    (loop &key host port method path headers body host-header timeout
+               (verify t) on-headers on-data on-complete on-error)
+  "Run the blocking authenticated TLS transport on a worker with bounded loop delivery.
+
+At most one callback is outstanding in the loop mailbox. PAUSE blocks the worker before
+its next decrypted chunk; RESUME wakes it. Returns idempotent CANCEL, PAUSE, and RESUME
+thunks matching NET:HTTP-REQUEST-STREAM-ASYNC."
   (let ((box (list nil))                 ; (car box) <- current socket-close thunk
         (done nil)
         (timer nil)
-        (job nil))
+        (job nil)
+        (control-lock (sb-thread:make-mutex :name "clun-https-stream-control"))
+        (control-wake (sb-thread:make-semaphore :name "clun-https-stream-wake"))
+        (paused-p nil)
+        (cancelled-p nil))
     (labels ((abort-socket ()
                (when (car box) (ignore-errors (funcall (car box)))))
+             (cancel-control ()
+               (sb-thread:with-mutex (control-lock)
+                 (setf cancelled-p t
+                       paused-p nil))
+               (sb-thread:signal-semaphore control-wake))
+             (pause-control ()
+               (sb-thread:with-mutex (control-lock)
+                 (unless cancelled-p (setf paused-p t))))
+             (resume-control ()
+               (sb-thread:with-mutex (control-lock)
+                 (setf paused-p nil))
+               (sb-thread:signal-semaphore control-wake))
+             (wait-ready ()
+               (loop
+                 (multiple-value-bind (cancelled ready)
+                     (sb-thread:with-mutex (control-lock)
+                       (values cancelled-p (not paused-p)))
+                   (when cancelled (return nil))
+                   (when ready (return t)))
+                 (sb-thread:wait-on-semaphore control-wake)))
              (cleanup ()
                (when timer
                  (lp:clear-timer timer)
@@ -116,21 +142,63 @@ $SSL_CERT_FILE / the system bundle (net's %system-ca-file). Certs always fail cl
                  (setf done t)
                  (cleanup)
                  (when cancel-worker
+                   (cancel-control)
                    (abort-socket)
                    (when job (lp:cancel-worker-job job)))
-                 (funcall thunk))))
+                 (funcall thunk)))
+             (post-and-wait (thunk)
+               (unless (wait-ready)
+                 (error 'net:socket-open-error :code "ECANCELED" :op "https"))
+               (let ((ack (sb-thread:make-semaphore :name "clun-https-stream-ack"))
+                     (failure (list nil)))
+                 (unless
+                     (lp:loop-post
+                      loop
+                      (lambda ()
+                        (unwind-protect
+                             (handler-case
+                                 (unless done (funcall thunk))
+                               (error (condition)
+                                 (setf (car failure) condition)))
+                          (sb-thread:signal-semaphore ack))))
+                   (error 'net:socket-open-error :code "ECANCELED" :op "https"))
+                 (sb-thread:wait-on-semaphore ack)
+                 (when (car failure) (error (car failure)))
+                 (unless (wait-ready)
+                   (error 'net:socket-open-error :code "ECANCELED" :op "https"))))
+             (cancel ()
+               (cancel-control)
+               (settle (lambda () (funcall on-error "abort"))
+                       :cancel-worker t)))
       (setf job
             (lp:worker-submit-cancellable
              loop
              (lambda (token)
                (when (lp:worker-cancelled-p token)
                  (error 'net:socket-open-error :code "ECANCELED" :op "https"))
-               (net:https-request :host host :port port :method method :path path
-                                  :headers headers :body body :host-header host-header
-                                  :socket-box box))
+               (net:https-request-stream
+                :host host :port port :method method :path path
+                :headers headers :body body :host-header host-header
+                :socket-box box :connect-timeout-ms (or timeout 30000)
+                :verify verify
+                :on-headers
+                (lambda (head)
+                  (post-and-wait (lambda () (funcall on-headers head))))
+                :on-data
+                (lambda (chunk)
+                  (post-and-wait (lambda () (funcall on-data chunk))))
+                :on-complete
+                (lambda ()
+                  (post-and-wait
+                   (lambda ()
+                     (settle (lambda () (funcall on-complete))))))))
              (lambda (result)             ; loop thread
                (case (first result)
-                 (:ok (settle (lambda () (funcall on-response (second result)))))
+                 (:ok
+                  (settle
+                   (lambda ()
+                     (funcall on-error
+                              "connection closed before a full response"))))
                  (:cancelled
                   (settle (lambda () (funcall on-error "abort"))))
                  (t
@@ -144,8 +212,7 @@ $SSL_CERT_FILE / the system bundle (net's %system-ca-file). Certs always fail cl
                (lambda ()
                  (settle (lambda () (funcall on-error "timeout"))
                          :cancel-worker t)))))
-      (lambda ()
-        (settle (lambda () (funcall on-error "abort")) :cancel-worker t)))))
+      (values #'cancel #'pause-control #'resume-control))))
 
 (defstruct (fetch-operation (:constructor %make-fetch-operation))
   global resolve reject signal listener active-cancel response-stream
@@ -296,130 +363,91 @@ $SSL_CERT_FILE / the system bundle (net's %system-ca-file). Certs always fail cl
               (if (ur-query record)
                   (concatenate 'string "?" (ur-query record))
                   ""))))
-      (if https
-          ;; The TLS 1.2 worker is still buffered.  It preserves the same abort and
-          ;; redirect lifecycle while the pure-TLS streaming adapter is completed.
-          (labels
-              ((on-response (response)
-                 (setf (fetch-operation-active-cancel operation) nil)
-                 (let ((location
-                         (net:%header (net:hres-headers response) "location"))
-                       (status (net:hres-status response)))
-                   (cond
-                     ((and (%redirect-p status) location
-                           (string= (getf info :redirect) "follow"))
-                      (if (>= hops 20)
+      (let ((stream nil)
+            (cancel nil)
+            (pause nil)
+            (resume nil)
+            (redirecting-p nil))
+        (labels
+            ((stop-current-hop ()
+               ;; Suppress the cancellation callback only while deliberately
+               ;; abandoning a redirect response before starting the next hop.
+               (setf redirecting-p t
+                     (fetch-operation-active-cancel operation) nil)
+               (when cancel (funcall cancel))
+               (setf redirecting-p nil))
+             (expose-response (head)
+               (setf stream (%new-body-stream))
+               (%body-stream-bind-transport
+                stream :cancel cancel :pause pause :resume resume
+                :terminal-callback
+                (lambda () (%fetch-operation-finish operation)))
+               (%fetch-operation-resolve-stream
+                operation stream
+                (%build-stream-fetch-response
+                 head stream url-str (getf info :method))))
+             (on-headers (head)
+               (let ((location
+                       (net:%header (net:hres-headers head) "location"))
+                     (status (net:hres-status head)))
+                 (cond
+                   ((and (%redirect-p status) location
+                         (string= (getf info :redirect) "follow"))
+                    (if (>= hops 20)
+                        (progn
+                          (stop-current-hop)
                           (%fetch-operation-settle
                            operation :reject
-                           (%fetch-error g "TypeError" "fetch: too many redirects"))
-                          (let ((redirected
-                                  (%redirect-info info record location status)))
-                            (if redirected
-                                (%do-fetch operation redirected (1+ hops))
-                                (%fetch-operation-settle
-                                 operation :resolve
-                                 (%build-fetch-response response url-str))))))
-                     ((and (%redirect-p status)
-                           (string= (getf info :redirect) "error"))
-                      (%fetch-operation-settle
-                       operation :reject
-                       (%fetch-error g "TypeError" "fetch: unexpected redirect")))
-                     (t
-                      (%fetch-operation-settle
-                       operation :resolve
-                       (%build-fetch-response response url-str))))))
-               (on-error (code)
-                 (setf (fetch-operation-active-cancel operation) nil)
+                           (%fetch-error g "TypeError"
+                                         "fetch: too many redirects")))
+                        (let ((redirected
+                                (%redirect-info info record location status)))
+                          (if redirected
+                              (progn
+                                (stop-current-hop)
+                                (%do-fetch operation redirected (1+ hops)))
+                              (expose-response head)))))
+                   ((and (%redirect-p status)
+                         (string= (getf info :redirect) "error"))
+                    (stop-current-hop)
+                    (%fetch-operation-settle
+                     operation :reject
+                     (%fetch-error g "TypeError"
+                                   "fetch: unexpected redirect")))
+                   (t (expose-response head)))))
+             (on-data (chunk)
+               (when stream (%body-stream-enqueue stream chunk)))
+             (on-complete ()
+               (setf (fetch-operation-active-cancel operation) nil)
+               (if stream
+                   (%body-stream-close stream)
+                   (%fetch-operation-finish operation)))
+             (on-error (code)
+               (setf (fetch-operation-active-cancel operation) nil)
+               (unless redirecting-p
                  (%fetch-operation-fail
                   operation
                   (if (string= code "abort")
                       (%abort-reason g signal)
-                      (%fetch-error g "TypeError"
-                                    (format nil "fetch failed: ~a" code))))))
-            (setf (fetch-operation-active-cancel operation)
-                  (%https-request-async
-                   loop :host raw-host :port port :host-header host-header
-                   :method (getf info :method) :path path
-                   :headers (getf info :headers) :body (getf info :body)
-                   :timeout *fetch-connect-timeout-ms*
-                   :on-response #'on-response :on-error #'on-error)))
-          (let ((stream nil)
-                (cancel nil)
-                (pause nil)
-                (resume nil)
-                (redirecting-p nil))
-            (labels
-                ((stop-current-hop ()
-                   ;; Suppress the cancellation callback only while deliberately
-                   ;; abandoning a redirect response before starting the next hop.
-                   (setf redirecting-p t
-                         (fetch-operation-active-cancel operation) nil)
-                   (when cancel (funcall cancel))
-                   (setf redirecting-p nil))
-                 (expose-response (head)
-                   (setf stream (%new-body-stream))
-                   (%body-stream-bind-transport
-                    stream :cancel cancel :pause pause :resume resume
-                    :terminal-callback
-                    (lambda () (%fetch-operation-finish operation)))
-                   (%fetch-operation-resolve-stream
-                    operation stream
-                    (%build-stream-fetch-response
-                     head stream url-str (getf info :method))))
-                 (on-headers (head)
-                   (let ((location
-                           (net:%header (net:hres-headers head) "location"))
-                         (status (net:hres-status head)))
-                     (cond
-                       ((and (%redirect-p status) location
-                             (string= (getf info :redirect) "follow"))
-                        (if (>= hops 20)
-                            (progn
-                              (stop-current-hop)
-                              (%fetch-operation-settle
-                               operation :reject
-                               (%fetch-error g "TypeError"
-                                             "fetch: too many redirects")))
-                            (let ((redirected
-                                    (%redirect-info info record location status)))
-                              (if redirected
-                                  (progn
-                                    (stop-current-hop)
-                                    (%do-fetch operation redirected (1+ hops)))
-                                  (expose-response head)))))
-                       ((and (%redirect-p status)
-                             (string= (getf info :redirect) "error"))
-                        (stop-current-hop)
-                        (%fetch-operation-settle
-                         operation :reject
-                         (%fetch-error g "TypeError"
-                                       "fetch: unexpected redirect")))
-                       (t (expose-response head)))))
-                 (on-data (chunk)
-                   (when stream (%body-stream-enqueue stream chunk)))
-                 (on-complete ()
-                   (setf (fetch-operation-active-cancel operation) nil)
-                   (if stream
-                       (%body-stream-close stream)
-                       (%fetch-operation-finish operation)))
-                 (on-error (code)
-                   (setf (fetch-operation-active-cancel operation) nil)
-                   (unless redirecting-p
-                     (%fetch-operation-fail
-                      operation
-                      (if (string= code "abort")
-                          (%abort-reason g signal)
-                          (%fetch-error
-                           g "TypeError" (format nil "fetch failed: ~a" code)))))))
-              (multiple-value-setq (cancel pause resume)
+                      (%fetch-error
+                       g "TypeError" (format nil "fetch failed: ~a" code)))))))
+          (multiple-value-setq (cancel pause resume)
+            (if https
+                (%https-request-stream-async
+                 loop :host raw-host :port port :host-header host-header
+                 :method (getf info :method) :path path
+                 :headers (getf info :headers) :body (getf info :body)
+                 :timeout *fetch-connect-timeout-ms*
+                 :on-headers #'on-headers :on-data #'on-data
+                 :on-complete #'on-complete :on-error #'on-error)
                 (net:http-request-stream-async
                  loop :host raw-host :port port :host-header host-header
                  :method (getf info :method) :path path
                  :headers (getf info :headers) :body (getf info :body)
                  :timeout *fetch-connect-timeout-ms*
                  :on-headers #'on-headers :on-data #'on-data
-                 :on-complete #'on-complete :on-error #'on-error))
-              (setf (fetch-operation-active-cancel operation) cancel)))))))
+                 :on-complete #'on-complete :on-error #'on-error)))
+          (setf (fetch-operation-active-cancel operation) cancel))))))
 
 (defun install-fetch (realm)
   (let ((eng:*realm* realm) (g (eng:realm-global realm)))

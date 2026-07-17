@@ -17,6 +17,25 @@
                     (sb-ext:octets-to-string (clun.net:hres-body response)
                                              :external-format :latin-1))
       (error "TLS 1.2 peer response body was not the OpenSSL status page")))
+  (let ((status nil)
+        (chunks '())
+        (complete-p nil))
+    (clun.net:https-request-stream
+     :host "localhost" :port port :method "GET" :path "/"
+     :ca-file ca-file
+     :on-headers (lambda (head)
+                   (setf status (clun.net:hres-status head)))
+     :on-data (lambda (chunk) (push chunk chunks))
+     :on-complete (lambda () (setf complete-p t)))
+    (unless (and (= 200 status) complete-p)
+      (error "TLS 1.2 streaming response did not complete"))
+    (unless (search
+             "s_server"
+             (sb-ext:octets-to-string
+              (apply #'concatenate '(vector (unsigned-byte 8))
+                     (nreverse chunks))
+              :external-format :latin-1))
+      (error "TLS 1.2 streaming body was not the OpenSSL status page")))
   ;; Connect to the same loopback peer but authenticate an identity absent from
   ;; the fixture certificate.  Its SAN intentionally contains both localhost
   ;; and 127.0.0.1, so using the address itself would be a false negative.
@@ -38,4 +57,4 @@
                (pure-tls:tls-verification-error () (setf failed t)))))
       (ignore-errors (sb-bsd-sockets:socket-close socket)))
     (unless failed (error "TLS 1.2 wrong-host certificate was accepted")))
-  (format t "TLS 1.2 interop: trusted round-trip + wrong-host rejection passed~%"))
+  (format t "TLS 1.2 interop: buffered + streaming round-trip + wrong-host rejection passed~%"))

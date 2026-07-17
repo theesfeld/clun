@@ -293,7 +293,7 @@
    #:http-content-decoding-error #:http-content-decoding-error-message
    #:*max-decoded-body-bytes*
    ;; TLS client (Phase 20): blocking HTTPS request for the worker pool + error mapping.
-   #:https-request #:tls-error-message))
+   #:https-request #:https-request-stream #:tls-error-message))
 
 ;; --- dependent layer (local-nicknames into the base packages above) ---------
 
