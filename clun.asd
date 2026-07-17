@@ -210,6 +210,7 @@
                                                          (:file "path")
                                                          (:file "os")
                                                          (:file "querystring")
+                                                         (:file "url")      ; node:url legacy (Phase 47 residual)
                                                          (:file "util")
                                                          (:file "events")
                                                          (:file "assert")
