@@ -14,15 +14,17 @@ The canonical evidence and current limitations are in `compat/`; `make compat-va
 
 ## Highlights
 
-- Stages Phase 28 transport foundation as an honest Partial surface: pure-CL TLS 1.2 registry
-  fallback, A/AAAA DNS and Happy Eyeballs, streaming Fetch request/response bodies, HTTP
-  connection pooling, and HTTP proxy / HTTPS CONNECT transport.
-- Registers executable hermetic proxy contracts and DNS suite evidence under the real ledger IDs
-  `runtime.web-standard-apis` and `package-manager.npm` (`make compat FEATURE=…` is valid).
-- Keeps both public rows `Partial` (not `Yes`). Router owns published `0.1.0-dev.17`; shell
-  (`0.1.0-dev.18`, #86) and test-runner (`0.1.0-dev.19`, #88) are on master; this candidate is the
-  exact next prerelease `0.1.0-dev.22`.
+- Stages Phase 37 milestone 2 as a bounded engine residual conversion: pure-CL
+  `Array.fromAsync` over Promise + async-iterator / AsyncFromSync / array-like paths.
+- Admits nullish coalescing (`??`) and numeric separators in the lexer/parser so frozen
+  Test262 helper observation controls parse (emitter already handled `??`).
+- Converts 95 frozen `built-ins/Array/fromAsync` failures; pass-list reclassification is not
+  claimed on this candidate. No compatibility-table `Yes` is claimed.
+- Slot map after published shell (`v0.1.0-dev.18`, #86/#98) and master test-runner (#88):
+  published base `0.1.0-dev.18`; master source is `0.1.0-dev.19`; transport holds unpublished
+  `0.1.0-dev.20`; this candidate allocates `0.1.0-dev.21` under the unpublished-intermediate
+  prerelease gap policy (transition `0.1.0-dev.19` → `0.1.0-dev.21`).
 
-The release candidate stages honest Partial transport and package-manager surfaces. Merge,
-publication, and issue closure remain blocked on HTTPS proxy endpoints, pooling/stress breadth,
-four-target receipts, and final review.
+The release candidate stages honest engine residual work without promoting any matrix row to `Yes`.
+Merge, publication, and Phase 37 closure remain blocked on remaining inventory residuals, pass-list
+integration, and final review.

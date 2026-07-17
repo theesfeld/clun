@@ -20,12 +20,15 @@ Clun does not claim blanket speed parity with Bun.
 > the local resume checklist.
 <!-- clun-generated:release:end -->
 
-Source on draft [PR #95](https://github.com/theesfeld/clun/pull/95) is the `0.1.0-dev.22` Phase 28
-candidate. Public `runtime.web-standard-apis` and `package-manager.npm` remain honest `Partial` and are not
-claimed as `Yes`. Published `v0.1.0-dev.18` is the verified release boundary (shell Partial). Test-runner (`0.1.0-dev.19`, #88) and Phase 37 m2 (`0.1.0-dev.21`, #96) are on `master`. This unit stages Partial transport as the exact next prerelease
-`0.1.0-dev.22` and stays draft until residual Phase 28 gates are decided. The hosted installer correctly
-remains on published dev.18 until the candidate is merged, tagged, and released.
+Source on draft [PR #95](https://github.com/theesfeld/clun/pull/95) is the `0.1.0-dev.22` Phase 28 candidate. Public `runtime.web-standard-apis` and `package-manager.npm` remain honest `Partial` and are not claimed as `Yes`. Published `v0.1.0-dev.18` is the verified release boundary. Test-runner (`0.1.0-dev.19`, #88) and Phase 37 m2 (`0.1.0-dev.21`, #96) are on `master`. This unit stages Partial transport as `0.1.0-dev.22` and stays draft until residual Phase 28 gates are decided. The hosted installer remains on published dev.18 until the candidate is merged, tagged, and released.
 
+Source on draft [PR #96](https://github.com/theesfeld/clun/pull/96) is the `0.1.0-dev.21` Phase 37
+milestone 2 candidate (`Array.fromAsync`). No compatibility-table `Yes` is claimed. Published
+[`v0.1.0-dev.18`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.18) is the verified release
+boundary (shell PR #86). Master source is `0.1.0-dev.19` after test-runner (#88); transport holds
+unpublished `0.1.0-dev.20`; this unit stages `0.1.0-dev.21` under the unpublished-intermediate
+prerelease gap policy (transition 19→21). The hosted installer correctly remains on published
+dev.18 until the candidate is merged, tagged, and released.
 
 ## Install
 
@@ -40,10 +43,9 @@ The installer detects x86-64 or arm64, verifies the release SHA-256 checksum, an
 both architectures. macOS archives target macOS 13.0 or newer, but are runtime-tested on macOS 15.
 Windows is not supported.
 
-Clun is still pre-alpha. `clun install` is verified against the hermetic registry fixture, and an
-opt-in live smoke installs and executes pinned `is-number@7.0.0` from the public npm registry with
-SRI verification. Publishing, workspaces, broader dependency specifications, and complete four-target
-package transport receipts remain unfinished.
+Clun is still pre-alpha. In particular, `clun install` is verified against the hermetic registry
+fixture, but the default public npm registry currently hits a TLS `protocol_version`
+interoperability gap.
 
 ## What works
 
@@ -51,7 +53,7 @@ package transport receipts remain unfinished.
   v0.1; JSX/TSX is planned for Phase 40).
 - Object integrity and legacy accessor operations including `Object.seal`, `Object.isSealed`,
   `__defineGetter__`, `__defineSetter__`, `__lookupGetter__`, and `__lookupSetter__`. Proxy remains
-  a scoped compatibility surface rather than a blanket modern-ECMAScript claim.
+  unsupported.
 - Shared iterator operations now drive lazy `for...of`, destructuring, `Array.from`, collection
   constructors, and Promise combinators, including iterator close on abrupt completion.
 - Parameter defaults, catch patterns, and the covered destructuring paths enforce temporal dead
@@ -65,25 +67,23 @@ package transport receipts remain unfinished.
 - Async generators serialize `next`, `return`, and `throw` requests, await yielded and returned
   values, reject incompatible receivers, and support async `yield*`. Async iteration includes
   AsyncFromSync fallback and completion-correct `for await...of` close behavior.
-- Timers, promises, files, buffered HTTP serving, URL APIs, process spawning, and streaming `fetch`.
-  Fetch exposes bounded response readers and async iteration, `Response.clone()`/body tee, bounded
-  half-duplex streaming uploads, dual-stack DNS/Happy Eyeballs, prompt DNS cancellation, one timeout
-  budget across redirects, and reusable plain HTTP connections.
-- `clun test` with hooks, modifiers, filters, async tests, timeouts, and about 22 matchers.
+- Timers, promises, files, buffered HTTP serving, `fetch`, URL APIs, and process spawning.
+- `clun test` with hooks, filters, async tests, timeouts, 33 core matchers, function mocks/spies,
+  expected-failure modifiers, array-parameterized tests and suites, retries, and repeats.
 - `clun install`, `add`, `remove`, and package scripts with a deterministic lockfile and cache.
 
-The checked-in curated test262 pass list contains 25,688 tests. The current
-40,654-row off-mode execution ledger measures 25,688 passes and 2,475 gaps across 28,163 eligible tests
-(91.21%), with 12,491 skips and zero crashes. Phase 25b's 90% target is met: the 25,347-pass target has
-zero remaining lift. The pass list gained 637 tests from milestone 5 and 3,045 from the Phase 25b entry.
+The checked-in curated test262 pass list contains 25,793 tests. The current
+40,654-row off-mode execution ledger measures 25,793 passes and 2,370 gaps across 28,163 eligible tests
+(91.58%), with 12,491 skips and zero crashes. Phase 25b's 90% target is met: the 25,347-pass target has
+zero remaining lift. The pass list gained 742 tests from milestone 5 and 3,150 from the Phase 25b entry.
 Its focused m6 slice contains 509 tests: 407 pass and 102 fail, with zero skips, timeouts, and crashes.
 All 407 milestone-owned rows pass; the 102 deliberate controls remain assigned to m11 (7) and Phase 37
 (95), leaving m6 with no owned residual. Three additional `Promise.prototype.finally` rows passed
 incidentally: `species-constructor.js`, `subclass-reject-count.js`, and `subclass-resolve-count.js`.
 Phase 32's supporting Proxy infrastructure adds 13 newly frozen passes without making a blanket Proxy
 compatibility claim. Phase 37 milestone 1 adds 173 more frozen passes without claiming complete modern
-ECMAScript parity. The full gap inventory assigns 1,767 residuals to Phase 25b and 708 to Phase 37.
-The canonical execution ledger digest is `C69927D3946A20FB`.
+ECMAScript parity. The full gap inventory assigns 1,767 residuals to Phase 25b and 603 to Phase 37.
+The canonical execution ledger digest is `B74BA9D0C45F150C`.
 The off/eager ledgers are byte-identical; eager mode compiled
 1,030,545 forms, classified 56,018 as ineligible, fell back zero times, and executed zero interpreter
 fallbacks. The parse gate classifies
@@ -167,7 +167,6 @@ The last published prerelease remains [`v0.1.0-dev.18`](https://github.com/thees
 [Phase 28 issue #2](https://github.com/theesfeld/clun/issues/2) is the canonical live release record.
 <!-- clun-generated:release-summary:end -->
 
-
 ## The purity contract
 
 - **Allowed:** ANSI Common Lisp, SBCL contribs, and third-party libraries written entirely in CL
@@ -191,12 +190,10 @@ pure-tls verification gap recorded in `DECISIONS.md`. Trust anchors resolve from
 `$SSL_CERT_DIR`, else the system CA bundle; if none is found, verification rejects rather than
 trusting nothing.
 
-Known limitations (see `STATE.md`): each in-flight HTTPS request still uses one worker thread; TLS
-connections are not yet pooled; HTTP proxies and HTTPS CONNECT tunnels work, while HTTPS proxy endpoints,
-proxy object options/pooling, and the remaining HTTPS timeout-race stress matrix are open; compressed Fetch
-bodies are bounded but decoded at completion rather than incrementally. Package tarballs
-are additionally protected by SRI SHA-512 verification before extraction, so a TLS compromise cannot by
-itself corrupt an install.
+Known limitations (see `STATE.md`): pure-tls does not yet interoperate with every server frontend
+(e.g. `registry.npmjs.org` currently returns a `protocol_version` alert); DNS resolution is blocking;
+each in-flight HTTPS request uses one worker thread. Package tarballs are additionally protected by
+SRI SHA-512 verification before extraction, so a TLS compromise cannot by itself corrupt an install.
 
 ## Building from source
 

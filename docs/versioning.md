@@ -29,12 +29,7 @@ unless its actual completed work requires a higher-impact core. A release-bearin
 retain the selected version only while that version remains unpublished. A local tag, remote tag,
 or GitHub release named `v<version>` establishes publication; after any one exists, the correction
 must select the next version. Publication lookups fail closed unless GitHub confirms that the
-resource does not exist with a 404 response.
-
-Same-core prerelease units normally advance the numeric sequence by exactly one. A draft unit may
-advance by more than one only while every skipped intermediate remains unpublished (no local tag,
-remote tag, or GitHub release). Once any intermediate is published, the multi-step skip is rejected
-and the branch must rebase onto the published train before it can land.
+resource does not exist with a 404 response:
 
 ```text
 0.1.0-dev.1
@@ -115,11 +110,17 @@ the published installer remains dev.14. The dispatchable-gate recovery advances 
 hosted-installer evidence. The same candidate includes Phase 37 milestone 1's reviewed modern built-ins,
 but Phase 37 and Issue #11 remain in progress and make no full language-parity claim.
 Phase 50 stages `0.1.0-dev.17` / `v0.1.0-dev.17` under Issue #24 (router PR #85) and is published on
-master. Phase 65 staged `0.1.0-dev.18` / `v0.1.0-dev.18` under Issue #39 and is on master via PR #86
-(published installer boundary). Phase 66 staged `0.1.0-dev.19` / `v0.1.0-dev.19` under Issue #40 and is
-on master via PR #88. Phase 37 m2 staged `0.1.0-dev.21` / `v0.1.0-dev.21` under Issue #11 and is on
-master via PR #96 (slot `dev.20` remains unused/unpublished). Phase 28 stages `0.1.0-dev.22` / `v0.1.0-dev.22` under Issue #2 (transport PR #95) as the exact next prerelease on top of master `0.1.0-dev.21`. Phase 28 adds backward-compatible pure-CL TLS 1.2 registry transport, DNS and Happy Eyeballs, streaming Fetch, HTTP pooling, and proxy/CONNECT support and therefore its SemVer impact is `minor` within the selected `0.1.0` core. Until gates complete, the installer and immutable published boundary remain dev.18; `runtime.web-standard-apis` and `package-manager.npm` remain Partial and are not claimed as Yes.
+master. Phase 65 stages `0.1.0-dev.18` / `v0.1.0-dev.18` under Issue #39 (shell PR #86; published).
+Phase 66 stages `0.1.0-dev.19` / `v0.1.0-dev.19` under Issue #40 (test-runner PR #88 on master).
+Phase 28 stages `0.1.0-dev.20` / `v0.1.0-dev.20` under Issue #2. Phase 37 milestone 2 stages
+`0.1.0-dev.21` / `v0.1.0-dev.21` under Issue #11 (PR #96). Version-transition allows multi-step
+prerelease advances only while every skipped intermediate remains unpublished, so parallel drafts
+may allocate later slots without claiming each other's tags. Phase 37 m2 adds backward-compatible
+`Array.fromAsync` and supporting lexer/parser admissions and therefore its SemVer impact is `minor`
+within the selected `0.1.0` core. Until gates complete, the installer and immutable published
+boundary remain dev.18; Phase 37 remains open and makes no full language-parity or matrix Yes claim.
 
+Phase 28 stages `0.1.0-dev.22` / `v0.1.0-dev.22` under Issue #2 (transport PR #95) as the exact next prerelease on top of master `0.1.0-dev.21` (slot `dev.20` remains unused/unpublished). Phase 28 adds backward-compatible pure-CL TLS 1.2 registry transport, DNS and Happy Eyeballs, streaming Fetch, HTTP pooling, and proxy/CONNECT support and therefore its SemVer impact is `minor` within the selected `0.1.0` core. Until Phase 28 gates complete, `runtime.web-standard-apis` and `package-manager.npm` remain Partial and are not claimed as Yes.
 
 ## Canonical record
 
