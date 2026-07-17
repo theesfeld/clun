@@ -12,6 +12,8 @@
 (pass) format 2.25 true
 (pass) non-finite integer NaN
 (pass) non-finite integer Infinity
+(pass) object 1 + 2 = 3 [first] row 0
+(pass) object 3 + 4 = 7 [second] row 1
 (pass) suite A > case 0 1
 (pass) suite A > case 1 2
 (pass) suite B > case 0 1
@@ -21,9 +23,9 @@
 (skip) skipped suite > never runs
 (pass) all rows executed in registration order
 
- 16 pass
+ 18 pass
  0 fail
  3 skip
  3 todo
- 16 expect() calls
-Ran 22 tests across 1 file.
+ 18 expect() calls
+Ran 24 tests across 1 file.

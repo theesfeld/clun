@@ -1933,12 +1933,13 @@ Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-earl
   throws/rejections invert, while unexpected passes, timeouts, hooks, and assertion-count contracts fail.
 - Milestone 66.3 adds deterministic array-backed `test.each` and `describe.each`, bound skip/only/todo/
   failing and conditional qualifiers, inherited describe todo behavior, and all documented percent title
-  directives. Focused fixtures cover 38 registered tests with 25 passes, 5 deliberate fixture failures,
-  4 skips, 4 todos, and 27 expectations across expected-failure and parameterization boundaries.
+  directives plus `$property` / nested `$property.path` / `$#` object-row interpolation. Focused fixtures
+  cover 40 registered tests with 27 passes, 5 deliberate fixture failures, 4 skips, 4 todos, and 29
+  expectations across expected-failure and parameterization boundaries.
 - Milestone 66.4 adds per-test retry/repeat policies and global `--retry`, rerunning hooks and assertion
   contracts per attempt, retaining failed repetitions, honoring per-test zero, and rejecting both options
   together. Focused fixtures cover 14 tests, 12 passes, 2 deliberate failures, and 11 expectations.
 - Ledger stays `Partial`. Remaining Phase 66 scope: snapshots/inline updates, module mocks, fake timers,
   coverage/source maps, asymmetric/custom matchers, parallelism/concurrency, setup/reporters/JUnit,
-  done callbacks, object-path parameterized titles, sharding/randomization/watch hooks, frozen complete
+  done callbacks, sharding/randomization/watch hooks, frozen complete
   upstream manifest, four-target receipts, and 10k RSS.

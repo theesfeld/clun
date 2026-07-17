@@ -34,6 +34,13 @@ test.each([[NaN], [Infinity]])('non-finite integer %i', value => {
   expect(typeof value).toBe('number');
 });
 
+test.each([
+  { a: 1, b: 2, expected: 3, nested: { label: 'first' } },
+  { a: 3, b: 4, expected: 7, nested: { label: 'second' } },
+])('object $a + $b = $expected [$nested.label] row $#', data => {
+  expect(data.a + data.b).toBe(data.expected);
+});
+
 describe.each([['A'], ['B']])('suite %s', label => {
   test.each([[1], [2]])('case %# %i', value => {
     seen.push(label + value);

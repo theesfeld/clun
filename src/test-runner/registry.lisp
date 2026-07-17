@@ -81,24 +81,64 @@
     ((#\o #\p) (eng:inspect-value value))
     (t (eng:to-string value))))
 
+(defun %each-path-value (root path)
+  (let ((value root) (start 0) (length (length path)))
+    (loop
+      for dot = (position #\. path :start start)
+      for end = (or dot length)
+      do (setf value (eng:js-get value (subseq path start end)))
+      when (null dot) return value
+      do (setf start (1+ dot)))))
+
+(defun %each-title-value (value)
+  (if (eng:js-object-p value) (eng:inspect-value value) (eng:to-string value)))
+
+(defun %each-path-char-p (char)
+  (or (alphanumericp char) (char= char #\_) (char= char #\.)))
+
 (defun %each-name (template row-args index)
   "Substitute %s/%d/%i/%f/%j/%o/%p (positional, consuming ROW-ARGS in order), %# (index),
-and %% in a .each name template. A documented subset of Bun's printf-style names."
+%%, and object-row $property/$property.path/$# forms in a .each name template."
   (let ((out (make-string-output-stream)) (i 0) (n (length template)) (args row-args))
     (loop while (< i n) do
       (let ((c (char template i)))
-        (if (and (char= c #\%) (< (1+ i) n))
-            (let ((d (char template (1+ i))))
-              (case d
-                (#\# (write-string (princ-to-string index) out))
-                (#\% (write-char #\% out))
-                ((#\s #\d #\i #\f #\j #\o #\p)
-                 (write-string (%each-format-value
-                                d (if args (pop args) eng:+undefined+))
-                               out))
-                (t (write-char c out) (write-char d out)))
-              (incf i 2))
-            (progn (write-char c out) (incf i)))))
+        (cond
+          ((and (char= c #\%) (< (1+ i) n))
+           (let ((d (char template (1+ i))))
+             (case d
+               (#\# (write-string (princ-to-string index) out))
+               (#\% (write-char #\% out))
+               ((#\s #\d #\i #\f #\j #\o #\p)
+                (write-string (%each-format-value
+                               d (if args (pop args) eng:+undefined+))
+                              out))
+               (t (write-char c out) (write-char d out)))
+             (incf i 2)))
+          ((and (char= c #\$) (< (1+ i) n))
+           (let ((next (char template (1+ i))))
+             (cond
+               ((char= next #\$)
+                (write-char #\$ out)
+                (incf i 2))
+               ((char= next #\#)
+                (write-string (princ-to-string index) out)
+                (incf i 2))
+               ((or (alpha-char-p next) (char= next #\_))
+                (let ((end (+ i 2)))
+                  (loop while (and (< end n) (%each-path-char-p (char template end)))
+                        do (incf end))
+                  (write-string
+                   (%each-title-value
+                    (%each-path-value (if row-args (first row-args) eng:+undefined+)
+                                      (subseq template (1+ i) end)))
+                   out)
+                  (setf i end)))
+               (t
+                (write-char c out)
+                (incf i)))))
+          (t
+           (write-char c out)
+           (incf i)))))
     (get-output-stream-string out)))
 
 ;;; --- the test()/describe() function objects (with .skip/.only/... variants) --

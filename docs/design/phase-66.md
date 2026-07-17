@@ -79,8 +79,8 @@ callback, and supports the same selection and conditional suite qualifiers. A to
 to every descendant: it is inert by default and, under `--todo`, runs hooks/tests while applying todo result
 inversion to each child. Name formatting covers `%s`, `%d`, `%i`, `%f`, `%j`, `%o`, `%p`, `%#`, and `%%`.
 
-This milestone does not yet claim the entire parameterization category. Done-callback injection and object
-`$path` title interpolation remain explicit residuals, together with concurrent/serial qualifier state.
+This milestone does not yet claim the entire parameterization category. Done-callback injection remains an
+explicit residual together with concurrent/serial qualifier state.
 
 ## Milestone 66.4 - retry and repeat policies
 
@@ -94,3 +94,10 @@ For expected-failure tests, a callback throw/rejection is semantic success and t
 failures and unexpected callback success remain retryable. Todo execution does not retry. The shipped fixtures
 cover hook counts, assertion-contract recovery, global and local policy precedence, failed middle repeats,
 continued repetition, expected failures, and conflicting-option rejection.
+
+## Milestone 66.5 - object-table title interpolation
+
+Array parameterization now expands `$property`, nested `$property.path`, and `$#` row indices from object
+rows. Primitive values use JavaScript string coercion while object values retain the runner's deterministic
+inspection format; `$$` emits a literal dollar sign. The expansion happens at registration while the bound
+table remains rooted by the host closure, matching the existing deterministic percent-directive path.

@@ -2919,3 +2919,10 @@ stops on a successful execution, while an expected-failure test stops when its c
 Repeats always execute every requested iteration and retain the first semantic failure. Both policies rerun
 the complete beforeEach/body/afterEach sequence with fresh assertion-count state; this keeps hook-visible
 attempts deterministic and prevents a failed assertion contract from leaking into the recovery attempt.
+
+### 2026-07-17 - Phase 66 object titles resolve from the bound row
+
+Dollar-path interpolation reads from the first row argument because non-array object rows are passed as one
+argument and tuple rows may intentionally place an object first. Nested paths use ordinary JavaScript
+property access at registration time, primitive values use JavaScript string coercion, and object values use
+the same deterministic inspector as `%p`. This keeps generated names stable without executing user callbacks.
