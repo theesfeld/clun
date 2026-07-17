@@ -12,6 +12,22 @@
 (defvar *current-source-text* nil
   "Source string associated with the AST currently being compiled.")
 
+(defvar *current-call-start* nil
+  "Source start of the JavaScript call currently invoking a host function.")
+
+(defvar *current-call-end* nil
+  "Source end of the JavaScript call currently invoking a host function.")
+
+(defun current-call-source-span ()
+  "Return the source START and END of the currently executing call expression."
+  (values *current-call-start* *current-call-end*))
+
+(defun %with-call-source-span (function start end)
+  (lambda (environment)
+    (let ((*current-call-start* start)
+          (*current-call-end* end))
+      (funcall function environment))))
+
 (defun source-text-slice (start end)
   (when (and *current-source-text* start end
              (<= 0 start end (length *current-source-text*)))
@@ -459,30 +475,33 @@ base and computed key exactly once, before evaluating a right-hand side."
 (defun compile-call (comp node)
   (let ((callee (call-expression-callee node))
         (args-fn (compile-arguments-list comp (call-expression-arguments node))))
-    (cond
-      ((super-node-p callee)
-       (compile-super-call comp args-fn))
-      ;; method call: preserve `this`
-      ((super-member-p callee)
-       (let ((reference (compile-super-reference comp callee)))
-         (lambda (env)
-           (multiple-value-bind (base property receiver) (funcall reference env)
-             (let ((function (jm-get base (to-property-key property) receiver)))
-               (js-call function receiver (funcall args-fn env)))))))
-      ((member-expression-p callee)
-       (let ((obj-fn (compile-node comp (member-expression-object callee))))
-         (if (member-expression-computed callee)
-             (let ((prop-fn (compile-node comp (member-expression-property callee))))
-               (lambda (env) (let* ((o (funcall obj-fn env))
-                                    (f (js-getv o (to-property-key (funcall prop-fn env)))))
-                               (js-call f o (funcall args-fn env)))))
-             (let ((key (identifier-name (member-expression-property callee)))
-                   (cache (%make-ic)))         ; method reads are usually a depth-1 proto IC hit
-               (lambda (env) (let* ((o (funcall obj-fn env)) (f (%ic-read o key cache)))
-                               (js-call f o (funcall args-fn env))))))))
-      ;; direct eval is not supported (Phase 03) — treat `eval(...)` as an ordinary call
-      (t (let ((fn (compile-node comp callee)))
-           (lambda (env) (js-call (funcall fn env) +undefined+ (funcall args-fn env))))))))
+    (%with-call-source-span
+     (cond
+       ((super-node-p callee)
+        (compile-super-call comp args-fn))
+       ;; method call: preserve `this`
+       ((super-member-p callee)
+        (let ((reference (compile-super-reference comp callee)))
+          (lambda (env)
+            (multiple-value-bind (base property receiver) (funcall reference env)
+              (let ((function (jm-get base (to-property-key property) receiver)))
+                (js-call function receiver (funcall args-fn env)))))))
+       ((member-expression-p callee)
+        (let ((obj-fn (compile-node comp (member-expression-object callee))))
+          (if (member-expression-computed callee)
+              (let ((prop-fn (compile-node comp (member-expression-property callee))))
+                (lambda (env) (let* ((o (funcall obj-fn env))
+                                     (f (js-getv o (to-property-key (funcall prop-fn env)))))
+                                (js-call f o (funcall args-fn env)))))
+              (let ((key (identifier-name (member-expression-property callee)))
+                    (cache (%make-ic)))         ; method reads are usually a depth-1 proto IC hit
+                (lambda (env) (let* ((o (funcall obj-fn env)) (f (%ic-read o key cache)))
+                                (js-call f o (funcall args-fn env))))))))
+       ;; direct eval is not supported (Phase 03) — treat `eval(...)` as an ordinary call
+       (t (let ((fn (compile-node comp callee)))
+            (lambda (env) (js-call (funcall fn env) +undefined+ (funcall args-fn env))))))
+     (node-start node)
+     (node-end node))))
 
 (defun compile-super-call (comp args-fn)
   (multiple-value-bind (fn-kind fn-depth fn-index) (comp-resolve comp "%active.function%")

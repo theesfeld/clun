@@ -2980,3 +2980,19 @@ BigInt values. Type and argument errors remain matcher-owned failures rather tha
 The asynchronous deep-equality traversal now scopes its identity map to the active recursion path and defers
 cleanup with `Promise.prototype.finally`; repeated aliases may match distinct equal objects without weakening
 cycle termination while an asynchronous asymmetric matcher is still pending.
+
+### 2026-07-17 - Phase 66 snapshots commit only at the file boundary
+
+External and inline snapshot matchers mutate a file-owned Common Lisp state during execution and defer
+filesystem writes until the test tree completes. External keys use the describe/test path, optional hint,
+and an ordinal reset for every attempt. The snapshot state stores the active test explicitly because an
+async JavaScript body may execute outside the scheduler's dynamic `*active-test*` binding. Inline matcher
+calls capture emitter source spans before Promise settlement and queue descending non-overlapping source
+edits; finalization rejects a concurrently changed source file.
+
+CI forbids new snapshots unless `--update-snapshots` or `-u` is explicit. Ordinary mismatch paths never
+write. The checked shipped-binary lifecycle records both source and external snapshot byte identity across
+reuse and failure. This milestone does not claim Bun-exact value serialization or property token
+substitution: property matcher objects are validated before mutation, while serialized values still use
+Clun's deterministic inspector. Those boundaries remain public residuals while the compatibility row is
+`Partial`.

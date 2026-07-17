@@ -222,6 +222,7 @@
                               :components ((:file "diff")
                                            (:file "registry")
                                            (:file "mock")
+                                           (:file "snapshot")
                                            (:file "expect")
                                            (:file "scheduler")
                                            (:file "reporter")

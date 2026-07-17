@@ -7,10 +7,13 @@
 (in-package :clun.test-runner)
 
 (defstruct (run-cfg (:conc-name cfg-))
-  (default-timeout 5000) (retry 0) (todo nil) (ci nil) (name-re nil) (bail nil))
+  (default-timeout 5000) (retry 0) (todo nil) (ci nil) (name-re nil) (bail nil)
+  (snapshot nil))
 
 (defstruct (run-stats (:conc-name st-))
-  (pass 0) (fail 0) (skip 0) (todo 0) (matched 0) (bailed nil))
+  (pass 0) (fail 0) (skip 0) (todo 0) (matched 0) (bailed nil)
+  (snapshots 0) (snapshot-added 0) (snapshot-matched 0)
+  (snapshot-updated 0) (snapshot-failed 0))
 
 (defun %node-parent (n) (if (td-p n) (td-parent n) (tt-parent n)))
 (defun %node-name (n) (if (td-p n) (td-name n) (tt-name n)))
@@ -318,6 +321,7 @@ the first semantic failure while still completing later attempts."
   "Run beforeEach chain → the body → afterEach chain.
 Returns (values ok detail failure-kind); FAILURE-KIND distinguishes an expected body
 failure from framework failures that `test.failing` must not invert."
+  (snapshot-reset-attempt (cfg-snapshot cfg) test)
   (let ((*test-assertions* 0) (*expected-assertions* nil) (*has-assertions* nil)
         (*active-test* test) (*test-finished-callbacks* '())
         (timeout (or (tt-timeout test) (cfg-default-timeout cfg)))

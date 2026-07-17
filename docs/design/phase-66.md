@@ -189,3 +189,26 @@ The row remains `Partial`. Snapshot/inline updates, module mocks, fake timers, c
 concurrency/parallel files, setup/reporters/JUnit, sharding/randomization/watch behavior, exact 52-root Bun
 and Clun counts, four-target receipts, serial/parallel agreement, and the 10k-test RSS gate remain explicit
 residuals.
+
+## Milestone 66.13 - external and inline snapshot lifecycle
+
+Each discovered test file owns one snapshot state. It loads the sibling
+`__snapshots__/<test-file>.snap` Bun v1 format before executing the module, assigns external keys from the
+describe path, test name, optional hint, and per-attempt ordinal, and defers every write until the file tree
+finishes. Retry and repeat attempts reset their ordinals against an explicit active-test owner instead of
+depending on dynamic execution scope. External writes use a temporary sibling and rename; inline writes
+verify that the source has not changed since load and apply non-overlapping edits from the highest byte
+offset downward.
+
+The emitter attaches source spans to executing call expressions. Synchronous and Promise-settlement matcher
+paths capture that span before asynchronous callbacks can unwind it, allowing missing or stale
+`toMatchInlineSnapshot` arguments to be inserted or replaced at the owning call site. Existing snapshots
+compare without touching either file. Missing snapshots are created in local mode, rejected under CI, and
+created or replaced under `--update-snapshots` / `-u`; mismatches without update leave source and snapshot
+files byte-identical. Property matcher objects are validated before snapshot state mutates.
+
+Focused checked-script evidence drives the shipped binary through local creation, CI reuse, immutable
+mismatch failure, CI creation denial, long and short update flags, external hints, synchronous and
+`.resolves` inline edits, and property validation. The public row remains `Partial`: Clun currently uses
+its deterministic inspector rather than Bun's exact pretty-format representation, and property matchers
+validate received values without yet substituting `Any<Type>` tokens into serialized snapshots.

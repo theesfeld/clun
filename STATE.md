@@ -1961,6 +1961,11 @@ Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-earl
   whitespace, repetition, and exact-boolean predicate contracts. Focused shipped-binary integration covers
   13 tests and 103 expectations, including validation, negation, wrappers, invalid dates, and BigInt parity;
   Promise-aware deep equality also distinguishes repeated aliases from active recursion cycles.
-- Ledger stays `Partial`. Remaining Phase 66 scope: snapshots/inline updates, module mocks, fake timers,
-  coverage/source maps, parallelism/concurrency, setup/reporters/JUnit, sharding/randomization/watch hooks,
-  exact 52-root Bun/Clun counts, four-target receipts, serial/parallel agreement, and 10k RSS.
+- Milestone 66.13 adds file-owned Bun v1 external snapshots, inline call-site creation/update, CI creation
+  denial, `--update-snapshots` / `-u`, hints, per-attempt counters, async-settlement source ownership, and
+  deferred writes. The checked shipped-binary lifecycle proves creation, byte-stable reuse, mismatch
+  immutability, explicit updates, async inline edits, and property-matcher validation.
+- Ledger stays `Partial`. Remaining Phase 66 scope: Bun-exact snapshot serialization/property substitution,
+  module mocks, fake timers, coverage/source maps, parallelism/concurrency, setup/reporters/JUnit,
+  sharding/randomization/watch hooks, exact 52-root Bun/Clun counts, four-target receipts,
+  serial/parallel agreement, and 10k RSS.

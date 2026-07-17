@@ -218,6 +218,7 @@
    #:literal-kind #:analyze #:ast->sexp #:binding-bound-names
    ;; evaluator / object kernel (Phase 03)
    #:make-realm #:run-source #:run-program #:eval-source #:*realm*
+   #:current-call-source-span
    #:js-make-object #:js-get #:js-set #:js-delete #:has-property #:has-own-property
    #:create-data-property #:jm-get #:jm-get-own-property #:jm-own-property-keys
    #:callable-p #:get-method #:get-iterator-record #:iterator-step-value

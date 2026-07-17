@@ -35,6 +35,8 @@ calls; then the `Ran N tests across M files.` line (timing omitted for determini
     (format stream " ~a fail~%" (st-fail stats))
     (when (plusp (st-skip stats)) (format stream " ~a skip~%" (st-skip stats)))
     (when (plusp (st-todo stats)) (format stream " ~a todo~%" (st-todo stats)))
+    (when (plusp (st-snapshots stats))
+      (format stream " ~a snapshot~:p~%" (st-snapshots stats)))
     (format stream " ~a expect() calls~%" expect-calls)
     (when (st-bailed stats) (format stream "Bailed out after ~a failure~:p~%" (st-fail stats)))
     (format stream "Ran ~a ~a across ~a ~a.~%"

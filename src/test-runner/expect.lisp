@@ -514,7 +514,8 @@ the length property), or NIL when V has no numeric length."
     "toBeLessThan" "toBeLessThanOrEqual" "toBeCloseTo" "toMatch" "toContain" "toContainEqual"
     "toBeWithin" "toEqualIgnoringWhitespace" "toInclude" "toIncludeRepeated"
     "toStartWith" "toEndWith"
-    "toHaveLength" "toHaveProperty" "toMatchObject" "toThrow"
+    "toHaveLength" "toHaveProperty" "toMatchObject" "toMatchSnapshot"
+    "toMatchInlineSnapshot" "toThrow"
     "toHaveBeenCalled" "toHaveBeenCalledOnce" "toHaveBeenCalledTimes"
     "toHaveBeenCalledWith" "toHaveBeenLastCalledWith" "toHaveBeenNthCalledWith"
     "toHaveReturned" "toHaveReturnedTimes" "toHaveReturnedWith"
@@ -594,7 +595,81 @@ the length property), or NIL when V has no numeric length."
 (defun %deep-fail (name actual expected)
   (%fail "expect(received).~a(expected)~%~%~a" name (line-diff (%insp expected) (%insp actual))))
 
-(defun %apply-matcher (name actual negated args)
+(defun %snapshot-property-object-p (value)
+  (and (eng:js-object-p value) (not (eng:js-array-p value))
+       (not (eng:callable-p value))))
+
+(defun %snapshot-external-args (args)
+  (case (length args)
+    (0 (values nil ""))
+    (1 (let ((first (first args)))
+         (cond ((eng:js-string-p first) (values nil first))
+               ((%snapshot-property-object-p first) (values first ""))
+               (t (%fail "toMatchSnapshot() expects a hint string or property matcher object")))))
+    (2 (let ((properties (first args)) (hint (second args)))
+         (unless (%snapshot-property-object-p properties)
+           (%fail "toMatchSnapshot() property matchers must be an object"))
+         (unless (eng:js-string-p hint)
+           (%fail "toMatchSnapshot() hint must be a string"))
+         (values properties hint)))
+    (t (%fail "toMatchSnapshot() accepts at most two arguments"))))
+
+(defun %snapshot-inline-args (args)
+  (case (length args)
+    (0 (values nil nil))
+    (1 (let ((first (first args)))
+         (cond ((eng:js-string-p first) (values nil first))
+               ((%snapshot-property-object-p first) (values first nil))
+               (t (%fail "toMatchInlineSnapshot() expects a snapshot string or property matcher object")))))
+    (2 (let ((properties (first args)) (expected (second args)))
+         (unless (%snapshot-property-object-p properties)
+           (%fail "toMatchInlineSnapshot() property matchers must be an object"))
+         (unless (eng:js-string-p expected)
+           (%fail "toMatchInlineSnapshot() snapshot must be a string"))
+         (values properties expected)))
+    (t (%fail "toMatchInlineSnapshot() accepts at most two arguments"))))
+
+(defun %snapshot-check-properties (actual properties matcher-name)
+  (when properties
+    (unless (eng:js-object-p actual)
+      (%fail "~a() property matchers require an object received value" matcher-name))
+    (unless (%match-object actual properties)
+      (%fail "expect(received).~a(propertyMatchers)~%~%~a"
+             matcher-name (%deep-msg matcher-name actual properties)))))
+
+(defun %apply-snapshot-matcher (name actual negated args ctx call-span)
+  (when negated (%fail "Snapshot matchers cannot be used with .not"))
+  (let ((state (ctx-snapshot ctx))
+        (serialized (snapshot-format-value actual)))
+    (handler-case
+        (if (string= name "toMatchSnapshot")
+            (multiple-value-bind (properties hint) (%snapshot-external-args args)
+              (%snapshot-check-properties actual properties name)
+              (multiple-value-bind (status expected key)
+                  (snapshot-match-external state *active-test* hint serialized)
+                (case status
+                  ((:matched :added :updated) eng:+undefined+)
+                  (:mismatch
+                   (%fail "Snapshot ~s did not match~%~%~a"
+                          key (line-diff expected serialized)))
+                  (:ci-denied
+                   (%fail "Snapshot ~s is missing; new snapshots are disabled in CI" key)))))
+            (multiple-value-bind (properties expected) (%snapshot-inline-args args)
+              (%snapshot-check-properties actual properties name)
+              (multiple-value-bind (status old)
+                  (snapshot-match-inline state serialized expected (not (null properties))
+                                         call-span)
+                (case status
+                  ((:matched :added :updated) eng:+undefined+)
+                  (:mismatch
+                   (%fail "Inline snapshot did not match~%~%~a"
+                          (line-diff old serialized)))
+                  (:ci-denied
+                   (%fail "Inline snapshot is missing; new snapshots are disabled in CI"))))))
+      (snapshot-error (condition)
+        (%fail "~a" (snapshot-error-message condition))))))
+
+(defun %apply-matcher (name actual negated args ctx &optional call-span)
   "Run matcher NAME on ACTUAL with ARGS (a list of JS values). Throws an AssertionError
 on the wrong outcome (honouring NEGATED). Returns undefined on success."
   (let ((e0 (eng:arg args 0)) (e1 (eng:arg args 1)))
@@ -609,6 +684,8 @@ on the wrong outcome (honouring NEGATED). Returns undefined on success."
                  (chk (and (not (%nan na)) (not (%nan ne)) (funcall op na ne))
                       (format nil "expect(~a).~:[~;not.~]~a(~a)" (%insp actual) negated name (%insp e0))))))
       (cond
+        ((member name '("toMatchSnapshot" "toMatchInlineSnapshot") :test #'string=)
+         (%apply-snapshot-matcher name actual negated args ctx call-span))
         ((member name '("toHaveBeenCalled" "toHaveBeenCalledOnce" "toHaveBeenCalledTimes"
                         "toHaveBeenCalledWith" "toHaveBeenLastCalledWith" "toHaveBeenNthCalledWith"
                         "toHaveReturned" "toHaveReturnedTimes" "toHaveReturnedWith"
@@ -793,7 +870,9 @@ on the wrong outcome (honouring NEGATED). Returns undefined on success."
         (eng:install-method o name 3
           (lambda (this args) (declare (ignore this))
             (incf *test-assertions*)
-            (%apply-matcher name actual negated args)))))
+            (multiple-value-bind (start end) (eng:current-call-source-span)
+              (%apply-matcher name actual negated args ctx
+                              (and start end (list start end))))))))
     (maphash
      (lambda (name function)
        (eng:install-method o name 3
@@ -825,7 +904,8 @@ applies MATCHER to the fulfilled value (resolves) or rejection reason (rejects).
         (eng:install-method o name 3
           (lambda (this args) (declare (ignore this))
             (incf *test-assertions*)
-            (let ((then (and (eng:js-object-p actual) (eng:js-get actual "then")))
+            (multiple-value-bind (call-start call-end) (eng:current-call-source-span)
+              (let ((then (and (eng:js-object-p actual) (eng:js-get actual "then")))
                   (on-value (lambda (v)
                               ;; .resolves/.rejects.toThrow: the settled value IS the error
                               ;; to match (not a function to call); other matchers apply normally.
@@ -834,7 +914,9 @@ applies MATCHER to the fulfilled value (resolves) or rejection reason (rejects).
                                     (unless (if negated (not pass) pass)
                                       (%fail "expect(received).~:[~;not.~]toThrow(...) — ~a"
                                              negated (%thrown-message v))))
-                                  (%apply-matcher name v negated args))
+                                  (%apply-matcher name v negated args ctx
+                                                  (and call-start call-end
+                                                       (list call-start call-end))))
                               eng:+undefined+)))
               (unless (eng:callable-p then)
                 (%fail "expect(received).~:[resolves~;rejects~] — received is not a Promise" reject-p))
@@ -845,7 +927,7 @@ applies MATCHER to the fulfilled value (resolves) or rejection reason (rejects).
                           (%fn "" 1 (lambda (th a) (declare (ignore th)) (funcall on-value (eng:arg a 0)))))
                     (list (%fn "" 1 (lambda (th a) (declare (ignore th)) (funcall on-value (eng:arg a 0))))
                           (%fn "" 1 (lambda (th a) (declare (ignore th a))
-                                      (%fail "expect(received).resolves.~a() — promise rejected" name)))))))))))
+                                      (%fail "expect(received).resolves.~a() — promise rejected" name))))))))))))
     (maphash
      (lambda (name function)
        (eng:install-method o name 3
