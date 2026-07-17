@@ -6,6 +6,15 @@
 
 (in-package :clun.net)
 
+(define-condition http-content-decoding-error (error)
+  ((message :initarg :message :reader http-content-decoding-error-message))
+  (:report (lambda (condition stream)
+             (write-string (http-content-decoding-error-message condition) stream))))
+
+(defparameter *max-decoded-body-bytes* *max-body-bytes*
+  "Hard cap for an HTTP response after content decoding.  This prevents a small
+gzip or deflate response from expanding beyond the parser's body budget.")
+
 (defun %dotted-quad-p (s)
   (and (plusp (length s)) (every (lambda (c) (or (digit-char-p c) (char= c #\.))) s) (find #\. s)))
 
@@ -48,14 +57,47 @@ direct; else blocking sb-bsd-sockets:get-host-by-name (v1 — no getaddrinfo; AA
             (replace out hbytes) (replace out body :start1 (length hbytes)) out)
           hbytes))))
 
+(defun %decompress-body-bounded (format octets &key (max-bytes *max-decoded-body-bytes*))
+  "Decode OCTETS in FORMAT without ever retaining more than MAX-BYTES of output."
+  (handler-case
+      (flexi-streams:with-input-from-sequence (input octets)
+        (let* ((decoded (chipz:make-decompressing-stream format input))
+               (capacity (max 1 (min (* 256 1024) max-bytes)))
+               (output (make-array capacity :element-type '(unsigned-byte 8)
+                                            :adjustable t :fill-pointer 0))
+               (buffer (make-array (* 64 1024) :element-type '(unsigned-byte 8))))
+          (loop for count = (read-sequence buffer decoded)
+                while (plusp count) do
+                  (when (> (+ (fill-pointer output) count) max-bytes)
+                    (error 'http-content-decoding-error
+                           :message "decoded HTTP body exceeded the size limit"))
+                  (let* ((start (fill-pointer output))
+                         (new (+ start count)))
+                    (when (> new (array-total-size output))
+                      (adjust-array output
+                                    (min max-bytes
+                                         (max new (* 2 (array-total-size output))))
+                                    :fill-pointer start))
+                    (setf (fill-pointer output) new)
+                    (replace output buffer :start1 start :end2 count)))
+          (coerce output '(simple-array (unsigned-byte 8) (*)))))
+    (http-content-decoding-error (condition) (error condition))
+    (chipz:decompression-error (condition)
+      (error 'http-content-decoding-error
+             :message (format nil "invalid compressed HTTP body: ~a" condition)))
+    (error (condition)
+      (error 'http-content-decoding-error
+             :message (format nil "HTTP content decoding failed: ~a" condition)))))
+
 (defun %decode-body (resp)
-  "Gunzip RESP's body in place if Content-Encoding: gzip (or deflate); else leave it."
-  (let ((enc (let ((v (%header (hres-headers resp) "content-encoding"))) (and v (string-downcase v)))))
-    (when enc
-      (handler-case
-          (cond ((search "gzip" enc) (setf (hres-body resp) (chipz:decompress nil :gzip (hres-body resp))))
-                ((search "deflate" enc) (setf (hres-body resp) (chipz:decompress nil :zlib (hres-body resp)))))
-        (error () nil)))                  ; a decode failure leaves the raw body (best-effort)
+  "Decode a gzip or zlib-deflate RESP body in place; malformed input fails closed."
+  (let ((enc (let ((value (%header (hres-headers resp) "content-encoding")))
+               (and value (string-downcase value)))))
+    (cond
+      ((and enc (search "gzip" enc))
+       (setf (hres-body resp) (%decompress-body-bounded :gzip (hres-body resp))))
+      ((and enc (search "deflate" enc))
+       (setf (hres-body resp) (%decompress-body-bounded :zlib (hres-body resp)))))
     resp))
 
 (defun http-request-async (loop &key host port method path headers body timeout host-header on-response on-error)
@@ -68,7 +110,14 @@ for the Host: line) defaults to HOST when the caller does not pass a distinct va
     (labels ((cleanup () (setf done t) (when timer (lp:clear-timer timer))
                        (when conn (tcp-close conn)))
              (fail (code) (unless done (cleanup) (funcall on-error code)))
-             (ok (resp) (unless done (cleanup) (funcall on-response (%decode-body resp)))))
+             (ok (resp)
+               (unless done
+                 (handler-case
+                     (let ((decoded (%decode-body resp)))
+                       (cleanup)
+                       (funcall on-response decoded))
+                   (http-content-decoding-error (condition)
+                     (fail (princ-to-string condition)))))))
       (setf conn
             (tcp-connect loop host port
               :on-connect (lambda (c) (tcp-write c (%serialize-request method path hh headers body)))

@@ -285,6 +285,8 @@
    #:hres-status #:hres-reason #:hres-version #:hres-headers #:hres-body #:hres-keep-alive
    ;; Phase 18 — reactor HTTP client
    #:http-request-async #:resolve-hostname #:%header
+   #:http-content-decoding-error #:http-content-decoding-error-message
+   #:*max-decoded-body-bytes*
    ;; TLS client (Phase 20): blocking HTTPS request for the worker pool + error mapping.
    #:https-request #:tls-error-message))
 

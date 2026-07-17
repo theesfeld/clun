@@ -87,6 +87,7 @@
                               :components ((:file "sockets")
                                            (:file "http-parser")
                                            (:file "http-client")
+                                           (:file "tls12-client")
                                            (:file "tls-client")))
                              ;; install (Phase 21): pure-CL package-manager substrate.
                              ;; It has no engine dependency, so the public runtime can
@@ -309,6 +310,7 @@
                                                          (:file "http-parser-tests")
                                                          (:file "http-server-tests")
                                                          (:file "fetch-tests")
+                                                         (:file "tls12-tests")
                                                          (:file "https-tests")))
                                            (:module "install"
                                             :serial t

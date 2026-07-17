@@ -1,0 +1,41 @@
+;;;; Client side of the hermetic OpenSSL TLS 1.2 interop gate.
+
+(load (merge-pathnames "registry.lisp" *load-truename*))
+(asdf:load-system :clun)
+
+(let* ((port-text (sb-ext:posix-getenv "CLUN_TLS12_PORT"))
+       (ca-file (sb-ext:posix-getenv "CLUN_TLS12_CA_FILE"))
+       (port (and port-text (parse-integer port-text))))
+  (unless (and port ca-file)
+    (error "CLUN_TLS12_PORT and CLUN_TLS12_CA_FILE are required"))
+  (let ((response (clun.net:https-request
+                   :host "localhost" :port port :method "GET" :path "/"
+                   :ca-file ca-file)))
+    (unless (= 200 (clun.net:hres-status response))
+      (error "TLS 1.2 peer returned HTTP ~d" (clun.net:hres-status response)))
+    (unless (search "s_server"
+                    (sb-ext:octets-to-string (clun.net:hres-body response)
+                                             :external-format :latin-1))
+      (error "TLS 1.2 peer response body was not the OpenSSL status page")))
+  ;; Connect to the same loopback peer but authenticate an identity absent from
+  ;; the fixture certificate.  Its SAN intentionally contains both localhost
+  ;; and 127.0.0.1, so using the address itself would be a false negative.
+  (let ((socket (make-instance 'sb-bsd-sockets:inet-socket
+                               :type :stream :protocol :tcp))
+        (failed nil))
+    (unwind-protect
+         (progn
+           (sb-bsd-sockets:socket-connect
+            socket (sb-bsd-sockets:make-inet-address "127.0.0.1") port)
+           (let ((stream (sb-bsd-sockets:socket-make-stream
+                          socket :input t :output t
+                          :element-type '(unsigned-byte 8))))
+             (handler-case
+                 (clun.net::https-request-tls12
+                  stream "wrong.example"
+                  (clun.net::%serialize-request "GET" "/" "wrong.example" nil nil)
+                  :ca-file ca-file)
+               (pure-tls:tls-verification-error () (setf failed t)))))
+      (ignore-errors (sb-bsd-sockets:socket-close socket)))
+    (unless failed (error "TLS 1.2 wrong-host certificate was accepted")))
+  (format t "TLS 1.2 interop: trusted round-trip + wrong-host rejection passed~%"))
