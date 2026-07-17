@@ -24,7 +24,8 @@
   (stderr #() :type vector)
   (exit-code 0 :type integer))
 (defstruct shell-state
-  (env '()) cwd old-cwd (last-exit-code 0) (throws t) (quiet nil))
+  (env '()) cwd old-cwd (last-exit-code 0) (throws t) (quiet nil)
+  (terminated nil))
 (defstruct shell-job
   units state g result error (started nil))
 
@@ -517,7 +518,8 @@
 ;;; --- builtins and direct external execution --------------------------------
 
 (defparameter *shell-builtins*
-  '("echo" "pwd" "cd" "true" "false" ":" "export" "unset" "which" "exit"))
+  '("echo" "pwd" "cd" "true" "false" ":" "export" "unset" "which" "exit"
+    "basename" "dirname"))
 
 (defun %shell-relative-path (path state)
   (if (clun.sys:absolute-path-p path)
@@ -547,16 +549,78 @@
               when (usable candidate) return candidate
               while colon do (setf start (1+ colon))))))
 
+(defun %shell-path-separator-p (character)
+  (or (char= character #\/) (char= character #\\)))
+
+(defun %shell-trim-trailing-separators (path)
+  (let ((end (length path)))
+    (loop while (and (> end 1)
+                     (%shell-path-separator-p (char path (1- end))))
+          do (decf end))
+    (subseq path 0 end)))
+
+(defun %shell-basename (path)
+  (let* ((trimmed (%shell-trim-trailing-separators path))
+         (separator (position-if #'%shell-path-separator-p trimmed :from-end t)))
+    (cond
+      ((or (string= trimmed "/") (string= trimmed "\\")) trimmed)
+      ((null separator) trimmed)
+      (t (subseq trimmed (1+ separator))))))
+
+(defun %shell-dirname (path)
+  (let* ((trimmed (%shell-trim-trailing-separators path))
+         (separator (position-if #'%shell-path-separator-p trimmed :from-end t)))
+    (cond
+      ((or (string= trimmed "/") (string= trimmed "\\")) trimmed)
+      ((null separator) ".")
+      ((zerop separator) (string (char trimmed 0)))
+      (t (%shell-trim-trailing-separators (subseq trimmed 0 separator))))))
+
+(defun %shell-echo-output (args newline)
+  (let ((body (format nil "~{~a~^ ~}" args)))
+    (if (not newline)
+        body
+        (let ((trailing 0))
+          (loop for index downfrom (1- (length body)) to 0
+                while (char= (char body index) #\Newline)
+                do (incf trailing))
+          (cond
+            ((zerop trailing)
+             (concatenate 'string body (string #\Newline)))
+            ((= trailing (length body))
+             (make-string (if (= trailing 1) 2 (min trailing 2))
+                          :initial-element #\Newline))
+            (t
+             (concatenate 'string (subseq body 0 (- (length body) trailing))
+                          (string #\Newline))))))))
+
+(defun %shell-parse-exit-code (argument)
+  (handler-case
+      (multiple-value-bind (value position) (parse-integer argument :junk-allowed t)
+        (and value (= position (length argument)) (mod value 256)))
+    (error () nil)))
+
 (defun %shell-run-builtin (argv state env)
   "Return RESULT and true when ARGV names a builtin."
   (let ((name (first argv)) (args (rest argv)))
     (cond
       ((string= name "echo")
        (let ((newline t))
-         (when (and args (string= (first args) "-n"))
-           (setf newline nil args (rest args)))
-         (values (%shell-result-from-strings
-                  (format nil "~{~a~^ ~}~:[~;~%~]" args newline) "" 0) t)))
+         (loop while (and args (string= (first args) "-n"))
+               do (setf newline nil args (rest args)))
+         (values (%shell-result-from-strings (%shell-echo-output args newline) "" 0) t)))
+      ((string= name "basename")
+       (if args
+           (values (%shell-result-from-strings
+                    (format nil "~{~a~%~}" (mapcar #'%shell-basename args)) "" 0) t)
+           (values (%shell-result-from-strings
+                    "" (format nil "usage: basename string~%") 1) t)))
+      ((string= name "dirname")
+       (if args
+           (values (%shell-result-from-strings
+                    (format nil "~{~a~%~}" (mapcar #'%shell-dirname args)) "" 0) t)
+           (values (%shell-result-from-strings
+                    "" (format nil "usage: dirname string~%") 1) t)))
       ((string= name "pwd")
        (values (%shell-result-from-strings
                 (concatenate 'string (shell-state-cwd state) (string #\Newline)) "" 0) t))
@@ -611,8 +675,19 @@
                   (if found (format nil "~{~a~%~}" found) "") ""
                   (if (= (length found) (length args)) 0 1)) t)))
       ((string= name "exit")
-       (values (%shell-result-from-strings
-                "" "" (if args (handler-case (parse-integer (first args)) (error () 2)) 0)) t))
+       (setf (shell-state-terminated state) t)
+       (cond
+         ((> (length args) 1)
+          (values (%shell-result-from-strings
+                   "" (format nil "exit: too many arguments~%") 1) t))
+         ((null args)
+          (values (%shell-result-from-strings "" "" 0) t))
+         (t
+          (let ((code (%shell-parse-exit-code (first args))))
+            (if code
+                (values (%shell-result-from-strings "" "" code) t)
+                (values (%shell-result-from-strings
+                         "" (format nil "exit: numeric argument required~%") 1) t))))))
       (t (values nil nil)))))
 
 (defun %shell-temp-directory ()
@@ -861,6 +936,7 @@ deadlock even when commands produce output larger than kernel pipe capacity."
   (let ((stdout *shell-empty-octets*) (stderr *shell-empty-octets*)
         (previous (make-shell-result)) (index 0))
     (dolist (pipeline (shell-script-pipelines script))
+      (when (shell-state-terminated state) (return))
       (let ((operator (and (plusp index)
                            (nth (1- index) (shell-script-operators script)))))
         (when (or (zerop index)
