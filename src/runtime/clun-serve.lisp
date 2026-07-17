@@ -849,6 +849,48 @@ COMMIT is connection-owned, so late Promise settlement cannot write after teardo
           (format nil "http://~a:~a/"
                   (if (string= host "0.0.0.0") "localhost" host)
                   (net:listener-port listener)))
+        (eng:install-method server "fetch" 1
+          (lambda (this args)
+            (declare (ignore this))
+            (let ((handler (car fetch-cell)))
+              (if (null handler)
+                  (%rejected-promise
+                   g (eng:make-error-object
+                      :type-error-prototype "TypeError"
+                      "fetch() requires the server to have a fetch handler"))
+                  (handler-case
+                      (let* ((input (eng:arg args 0))
+                             (request
+                               (cond
+                                 ((js-request-p input) input)
+                                 ((eng:js-string-p input)
+                                  (let* ((value (eng:to-string input))
+                                         (base (eng:to-string
+                                                (eng:js-get server "url")))
+                                         (url
+                                           (cond
+                                             ((search "://" value) value)
+                                             ((and (plusp (length value))
+                                                   (char= (char value 0) #\/))
+                                              (concatenate
+                                               'string
+                                               (subseq base 0 (1- (length base)))
+                                               value))
+                                             (t (concatenate 'string base value)))))
+                                    (%make-client-request "GET" url '() #())))
+                                 (t
+                                  (eng:throw-type-error
+                                   "server.fetch expects a Request or string")))))
+                        (eng:js-call handler eng:+undefined+
+                                     (list request server)))
+                    (eng:js-condition (condition)
+                      (%rejected-promise
+                       g (eng:js-condition-value condition)))
+                    (condition (condition)
+                      (%rejected-promise
+                       g (eng:make-error-object
+                          :error-prototype "Error"
+                          (princ-to-string condition)))))))))
         (eng:install-method server "reload" 1
           (lambda (this args)
             (declare (ignore this))

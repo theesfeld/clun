@@ -83,6 +83,9 @@ while [ "$attempt" -lt 100 ]; do
 done
 [ -n "$url" ] || { printf 'server.router: timed out waiting for server URL\n' >&2; exit 1; }
 
+"$clun" "$repo_root/tests/compat/server.router/server-fetch.js" \
+  | grep -x 'server.router: server.fetch API passed' >/dev/null
+
 assert_body() {
   path=$1
   expected=$2
