@@ -2661,3 +2661,14 @@ Cookie header layout prepass and exact backing capacity. The original 2.75x acce
 local repeated ratios improve from 2.38-2.48x to 2.197x. Because Phase 30 Glob is the next release-bearing
 compatibility unit, the correction and Glob ship together as `0.1.0-dev.12` / `v0.1.0-dev.12`. This is a
 new minor prerelease boundary, not a retry or mutation of dev.11.
+### 2026-07-16 - Phase 66 milestone 1: host-owned function mocks and spies
+
+The first Phase 66 implementation unit adds mock functions and spies as native Common Lisp engine
+functions rather than JavaScript framework code. A per-file mock record owns FIFO one-shot/default behavior,
+calls, results, contexts, constructor instances, invocation order, naming, and optional spy restoration data.
+`mock`, `jest.fn`, and `vi.fn` are the same callable; `spyOn`, lifecycle operations, implementation/return/
+Promise controls, and the call/return matcher families use that shared record. File cleanup restores own or
+inherited spy properties, removes every host registry entry, and only then tears down the realm. Executable
+evidence proves 86 assertions across three isolated files. The ledger remains `Partial`: this milestone does
+not satisfy snapshots, module mocks, fake timers, coverage, asymmetric/custom matchers, retries, concurrency,
+reporters, sharding, the full pinned manifest, four-target receipts, or stress gates.

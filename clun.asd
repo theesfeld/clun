@@ -201,6 +201,7 @@
                               :serial t
                               :components ((:file "diff")
                                            (:file "registry")
+                                           (:file "mock")
                                            (:file "expect")
                                            (:file "scheduler")
                                            (:file "reporter")

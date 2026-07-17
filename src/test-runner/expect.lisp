@@ -121,7 +121,82 @@ the length property), or NIL when V has no numeric length."
   '("toBe" "toEqual" "toStrictEqual" "toBeTruthy" "toBeFalsy" "toBeNull" "toBeUndefined"
     "toBeDefined" "toBeNaN" "toBeInstanceOf" "toBeGreaterThan" "toBeGreaterThanOrEqual"
     "toBeLessThan" "toBeLessThanOrEqual" "toBeCloseTo" "toMatch" "toContain" "toContainEqual"
-    "toHaveLength" "toHaveProperty" "toMatchObject" "toThrow"))
+    "toHaveLength" "toHaveProperty" "toMatchObject" "toThrow"
+    "toHaveBeenCalled" "toHaveBeenCalledOnce" "toHaveBeenCalledTimes"
+    "toHaveBeenCalledWith" "toHaveBeenLastCalledWith" "toHaveBeenNthCalledWith"
+    "toHaveReturned" "toHaveReturnedTimes" "toHaveReturnedWith"
+    "toHaveLastReturnedWith" "toHaveNthReturnedWith"
+    "toBeCalled" "toBeCalledTimes" "toBeCalledWith" "lastCalledWith" "nthCalledWith"
+    "toReturn" "toReturnTimes" "toReturnWith" "lastReturnedWith" "nthReturnedWith"))
+
+(defun %canonical-mock-matcher (name)
+  (or (cdr (assoc name
+                  '(("toBeCalled" . "toHaveBeenCalled")
+                    ("toBeCalledTimes" . "toHaveBeenCalledTimes")
+                    ("toBeCalledWith" . "toHaveBeenCalledWith")
+                    ("lastCalledWith" . "toHaveBeenLastCalledWith")
+                    ("nthCalledWith" . "toHaveBeenNthCalledWith")
+                    ("toReturn" . "toHaveReturned")
+                    ("toReturnTimes" . "toHaveReturnedTimes")
+                    ("toReturnWith" . "toHaveReturnedWith")
+                    ("lastReturnedWith" . "toHaveLastReturnedWith")
+                    ("nthReturnedWith" . "toHaveNthReturnedWith"))
+                  :test #'string=))
+      name))
+
+(defun %mock-args-equal-p (actual expected)
+  (and (= (length actual) (length expected))
+       (loop for a in actual for e in expected
+             always (%loose-equal a e))))
+
+(defun %mock-required-count (name value &key positive)
+  (unless (and (eng:js-number-p value) (not (eng:js-nan-p value))
+               (= value (truncate value))
+               (if positive (> value 0) (>= value 0)))
+    (%fail "~a() requires a ~:[non-negative~;positive~] integer" name positive))
+  (truncate value))
+
+(defun %apply-mock-matcher (name actual negated args)
+  (let* ((canonical (%canonical-mock-matcher name))
+         (record (mock-record-for actual)))
+    (unless record (%fail "expect(received).~a(...) requires a mock function" name))
+    (let* ((calls (reverse (mock-calls record)))
+           (results (reverse (mock-results record)))
+           (returns (remove-if-not (lambda (entry) (eq (result-kind entry) :return)) results))
+           (pass
+             (cond
+               ((string= canonical "toHaveBeenCalled") (plusp (length calls)))
+               ((string= canonical "toHaveBeenCalledOnce") (= (length calls) 1))
+               ((string= canonical "toHaveBeenCalledTimes")
+                (= (length calls) (%mock-required-count canonical (eng:arg args 0))))
+               ((string= canonical "toHaveBeenCalledWith")
+                (some (lambda (call) (%mock-args-equal-p call args)) calls))
+               ((string= canonical "toHaveBeenLastCalledWith")
+                (and calls (%mock-args-equal-p (car (last calls)) args)))
+               ((string= canonical "toHaveBeenNthCalledWith")
+                (let ((n (%mock-required-count canonical (eng:arg args 0) :positive t)))
+                  (and (<= n (length calls))
+                       (%mock-args-equal-p (nth (1- n) calls) (rest args)))))
+               ((string= canonical "toHaveReturned") (plusp (length returns)))
+               ((string= canonical "toHaveReturnedTimes")
+                (= (length returns) (%mock-required-count canonical (eng:arg args 0))))
+               ((string= canonical "toHaveReturnedWith")
+                (some (lambda (entry) (%loose-equal (result-value entry) (eng:arg args 0))) returns))
+               ((string= canonical "toHaveLastReturnedWith")
+                (and results
+                     (let ((entry (car (last results))))
+                       (and (eq (result-kind entry) :return)
+                            (%loose-equal (result-value entry) (eng:arg args 0))))))
+               ((string= canonical "toHaveNthReturnedWith")
+                (let ((n (%mock-required-count canonical (eng:arg args 0) :positive t)))
+                  (and (<= n (length results))
+                       (let ((entry (nth (1- n) results)))
+                         (and (eq (result-kind entry) :return)
+                              (%loose-equal (result-value entry) (eng:arg args 1))))))))))
+      (unless (if negated (not pass) pass)
+        (%fail "expect(received).~:[~;not.~]~a(...)~%  calls: ~a, returns: ~a"
+               negated name (length calls) (length returns)))
+      eng:+undefined+)))
 
 (defun %deep-fail (name actual expected)
   (%fail "expect(received).~a(expected)~%~%~a" name (line-diff (%insp expected) (%insp actual))))
@@ -141,6 +216,14 @@ on the wrong outcome (honouring NEGATED). Returns undefined on success."
                  (chk (and (not (%nan na)) (not (%nan ne)) (funcall op na ne))
                       (format nil "expect(~a).~:[~;not.~]~a(~a)" (%insp actual) negated name (%insp e0))))))
       (cond
+        ((member name '("toHaveBeenCalled" "toHaveBeenCalledOnce" "toHaveBeenCalledTimes"
+                        "toHaveBeenCalledWith" "toHaveBeenLastCalledWith" "toHaveBeenNthCalledWith"
+                        "toHaveReturned" "toHaveReturnedTimes" "toHaveReturnedWith"
+                        "toHaveLastReturnedWith" "toHaveNthReturnedWith"
+                        "toBeCalled" "toBeCalledTimes" "toBeCalledWith" "lastCalledWith"
+                        "nthCalledWith" "toReturn" "toReturnTimes" "toReturnWith"
+                        "lastReturnedWith" "nthReturnedWith") :test #'string=)
+         (%apply-mock-matcher name actual negated args))
         ((string= name "toBe")
          (chk (eng:js-same-value actual e0)
               (unless negated (format nil "expect(received).toBe(expected)~%~%~a"
