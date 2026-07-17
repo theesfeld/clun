@@ -51,4 +51,19 @@ check(Clun.$`basename`, 1, "", "usage: basename string\n", "basename usage")
   .then(() => check(Clun.$`exit abc`, 1, "", "exit: numeric argument required\n", "exit numeric"))
   .then(() => check(Clun.$`exit 3 5`, 1, "", "exit: too many arguments\n", "exit arity"))
   .then(() => check(Clun.$`exit 2; echo unreachable`, 2, "", "", "exit terminates script"))
-  .then(() => console.log("exit"));
+  .then(() => {
+    console.log("exit");
+    return check(Clun.$`seq`, 1, "", "usage: seq [-w] [-f format] [-s string] [-t string] [first [incr]] last\n", "seq usage");
+  })
+  .then(() => check(Clun.$`seq -s`, 1, "", "seq: option requires an argument -- s\n", "seq missing separator"))
+  .then(() => check(Clun.$`seq 0 5`, 0, "0\n1\n2\n3\n4\n5\n", "", "seq ascending"))
+  .then(() => check(Clun.$`seq 5 0`, 0, "5\n4\n3\n2\n1\n0\n", "", "seq descending"))
+  .then(() => check(Clun.$`seq -s. -t, 0 5`, 0, "0.1.2.3.4.5.,", "", "seq separators"))
+  .then(() => check(Clun.$`seq 0`, 0, "1\n0\n", "", "seq single zero"))
+  .then(() => check(Clun.$`seq 4 0 7`, 1, "", "seq: zero increment\n", "seq zero increment"))
+  .then(() => check(Clun.$`seq 4 -2 7`, 1, "", "seq: needs positive increment\n", "seq direction"))
+  .then(() => check(Clun.$`seq 16777216 16777218`, 0, "16777216\n", "", "seq f32 non-advance"))
+  .then(() => check(Clun.$`seq 1 0.00000001 2`, 0, "1\n", "", "seq tiny increment"))
+  .then(() => check(Clun.$`seq -w -s, 8 2 12`, 0, "08,10,12,", "", "seq fixed width"))
+  .then(() => check(Clun.$`seq -f %05.1f -s, 1 1 3`, 0, "001.0,002.0,003.0,", "", "seq format"))
+  .then(() => console.log("seq"));
