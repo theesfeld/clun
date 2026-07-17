@@ -7,22 +7,21 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **37 - Modern ECMAScript gap wave**  (M2 CHECKPOINT)
+## Current phase: **51 - WebSocket and Pub/Sub**  (M0 CHECKPOINT)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/11
-**Next phase issue:** https://github.com/theesfeld/clun/issues/11
+**Canonical issue:** https://github.com/theesfeld/clun/issues/25
+**Next phase issue:** https://github.com/theesfeld/clun/issues/25
 **Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/2,
 https://github.com/theesfeld/clun/issues/39, and https://github.com/theesfeld/clun/issues/40
-**Current implementation unit:** Phase 37 milestone 2 on draft PR #96 — pure-CL `Array.fromAsync`
-plus lexer/parser admission of nullish coalescing and numeric separators required by the frozen
-Test262 helpers. Converts 95 frozen `built-ins/Array/fromAsync` failures. No compatibility-table
-`Yes` is claimed; Phase 37 remains open with residual ownership after reclassification.
+**Current implementation unit:** Phase 51 M0 constitutional checkpoint on PR #107 — pure-CL WebSocket
+is feasible (not a purity block); ships `clun.websocket` types scaffold and fail-closed `Clun.serve`
+refusal of `websocket` options / `upgrade` / `publish` / `subscriberCount`. Compatibility ledger
+`server.websocket` remains **No** (no Autobahn or Bun-differential Yes claim).
 **SemVer impact:** `minor`
 **Candidate release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
 **Published release:** `0.1.0-dev.18` / `v0.1.0-dev.18`
-**Entry boundary:** immutable `v0.1.0-dev.18` is tagged at exact master `b5ecdb5defeef8ddede72ef794e41f14fb423b86` with four native archives + checksums (release run 29596302229); installer defaults to that tag. Master source is `0.1.0-dev.19` after test-runner PR #88. Transport holds unpublished `0.1.0-dev.20`; this unit stages `0.1.0-dev.21` under the unpublished-intermediate prerelease gap policy (transition 19→21). Phase 26 remains after Phase 82.
-**Next scope:** keep Phase 37 open (no matrix Yes); green exact-head CI on the staged candidate; residual
-modern ECMAScript inventory continues after m2; pass-list reclassification is owned by the release unit.
+**Entry boundary:** immutable `v0.1.0-dev.18` is tagged at exact master `b5ecdb5defeef8ddede72ef794e41f14fb423b86` with four native archives + checksums (release run 29596302229); installer defaults to that tag. Master source remains `0.1.0-dev.21` (unpublished); this unit **retains** `0.1.0-dev.21` as an unpublished release-bearing correction (no new prerelease slot). Phase 26 remains after Phase 82.
+**Next scope:** Autobahn-style framing fixtures and Bun-differential corpus before any Partial/Yes ledger move; keep fail-closed serve edges explicit until real upgrade path lands.
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
 easiest to hardest among dependency-ready rows. Core engine/runtime/network/tooling changes are expected.
