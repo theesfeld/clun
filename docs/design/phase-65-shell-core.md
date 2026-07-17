@@ -60,6 +60,10 @@ their contents cannot create operators, substitutions, redirects, globs, or extr
 - Parse nested parenthesized groups recursively and execute them with copied environment, cwd, termination,
   and status state. Group stdin is propagated through the bounded pipeline executor, group output composes
   with surrounding pipelines, and group-local `exit`, assignments, and directory changes never leak outward.
+- Parse `if` / `elif` / `else` / `fi` as recursive compound-command nodes rather than keyword-shaped simple
+  commands. Conditions and branches retain ordered stdout and stderr, the selected branch determines status,
+  a false condition without an alternative returns zero, `!` negates command status, and redirects apply to
+  the whole compound command. Reserved words are structural only at command boundaries.
 - Expose lazy job methods for cwd, environment, quiet/nothrow/throws, explicit one-shot `run`, Promise
   chaining, text, JSON, bytes, array buffers, and lines. `lines()` is a lazy async iterator with JavaScript
   split boundaries, including a trailing empty line after a final newline. Results and failures carry stdout,
@@ -84,7 +88,7 @@ types, fixtures, and upstream licenses. `upstream-files.tsv` binds every file to
 
 `upstream-corpus.tsv` enumerates 1,630 lexical test sites from those exact snapshots. The initial conservative
 disposition was 1,598 pending and 32 explicitly inactive at the pinned revisions. The current executable
-mapping is 501 covered, 1,097 pending, and 32 upstream-inactive. `upstream-coverage.tsv` binds each credited
+mapping is 625 covered, 973 pending, and 32 upstream-inactive. `upstream-coverage.tsv` binds each credited
 inventory ID to a checked-in shipped-binary fixture; regeneration rejects duplicate, stale, or unknown IDs,
 and the corpus validator rejects missing evidence. `shell-upstream-corpus-check.sh` rejects inventory drift
 or an unexplained disposition. Its `--yes` mode is the finite closure gate: it rejects any pending row and
@@ -129,8 +133,13 @@ privilege and filesystem policy.
 directory-to-symlink swap race remains pending until the actual mutation race is exercised.
 `tests/compat/tooling.shell/upstream-pipeline-stack.js` executes 118 exact stable and engineering IDs for
 builtin and subprocess stages, nested groups, depth, logical and sequential drains, errors, substitutions,
-assignments, `seq`, and bounded `yes` streaming. The six `if` control-flow IDs and two-line `pwd | cd | pwd`
-pair remain pending with their exact upstream behavior visible.
+assignments, `seq`, and bounded `yes` streaming. The two-line `pwd | cd | pwd` pair remains pending with its
+exact upstream behavior visible.
+`tests/compat/tooling.shell/upstream-control-flow.js` executes 124 exact stable and engineering IDs. It binds
+all six pipeline-condition sites plus pinned `bunshell` branch paths, `elif` chains, false conditions,
+linebreak placements, multi-command conditions and bodies, branch exit status, reserved-word arguments, and
+whole-compound redirection to shipped-binary assertions. Background-command and brace-group cases remain
+pending rather than being approximated.
 The conditional fixture freezes the active `shell-seq-condexpr.test.ts` empty-path regressions and the
 non-todo `bunshell.test.ts` unary/string cases, including both conditional pipeline positions. It additionally
 freezes the pinned GNU-bash-derived compound-expression cases for repeated negation, short-circuit operators,
