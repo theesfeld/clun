@@ -23,9 +23,9 @@ and an isolated hosted dev.10 install are verified. Phase 32 then merged its fou
 Pages passed. Immutable dev.11 release run `29544890706` failed only the CookieMap allocation-scaling
 assertion on both arm64 builders, so no GitHub release or assets were published and that tag will never be
 moved or reused. Phase 30 dependencies 13 and 27 are complete. Phase 26 remains after Phase 82.
-**Current scope:** finish the independently found Glob Unicode, navigation, dotfile, symlink-error,
-cancellation, producer-lifetime, platform-ceiling, oracle, and evidence corrections; integrate the completed
-CookieMap allocation-free layout prepass; then publish both rows together from the exact dev.12 master commit.
+**Current scope:** publish the completed CookieMap allocation-free layout correction and the accepted
+`Clun.Glob` row together from the exact dev.12 master commit, collect four native compatibility receipts,
+then reconcile Pages and the hosted installer before handing the ledger to Phase 34.
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
 easiest to hardest among dependency-ready rows. Core engine/runtime/network/tooling changes are expected.
@@ -36,14 +36,14 @@ queue is Glob, CSS Color, YAML, and password/hash; exact canonical ledger IDs ar
 **Current checkpoint:** Cookie correction commit `1762cdd969e25591dbe33d05532aa978c53b435e` replaces geometric
 CookieMap growth with an allocation-free layout prepass and exact 1024/2048/4096 capacities. The unchanged
 2.75x N-to-2N gate now measures 2.197x locally; focused resources are 13/13, Cookie core 1,500/1,500, build,
-purity (**708 files / 0 violations**), and diff check pass. Initial Glob commit
-`758323395895ecc23b986b94bef5549d21d17630` is integrated; its existing 662 focused assertions, stable and
-engineering matcher inventories (24/1,471 and 26/1,483), 3,400-row inventory, scan/stress gates, and combined
-dev.12 build pass. Independent review found missing behavior in the paths listed above, so `filesystem.glob`
-remains `No` until those production fixes and exact fixtures pass. The source candidate currently remains
-**4 Yes / 6 Partial / 20 No**; accepted Glob promotion will make it **5 Yes / 6 Partial / 19 No**. The
-published live ledger remains **3 Yes / 6 Partial / 21 No** until dev.12, Pages reconciliation, and the hosted
-installer pass.
+purity (**714 files / 0 violations**), and diff check pass. Glob commits
+`758323395895ecc23b986b94bef5549d21d17630` and `dfab88be` implement the matcher and synchronous/asynchronous
+scanners, then close independent Unicode, navigation, component-local dotfile, ELOOP, cancellation,
+producer-lifetime, platform-ceiling, oracle, and evidence findings. The integrated gate passes **679 focused
+assertions**, stable and engineering matcher inventories (**24/1,471** and **26/1,483**), all shipped
+scan/adversarial/stress/oracle scripts, and the honest **3,400-site** inventory. The source candidate is now
+**5 Yes / 6 Partial / 19 No**. The published live ledger remains **3 Yes / 6 Partial / 21 No** until dev.12,
+Pages reconciliation, and the hosted installer pass.
 
 **M5 entry boundary:** immutable dev.4 diagnostic set **56 total / 0 pass / 56 fail / 0 skip / 0 crash**:
 **43 m5-owned** (32 intrinsic/prototype, 7 parser, 4 raw delegation), **12 m11** direct-eval/`with`
