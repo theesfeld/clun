@@ -2768,3 +2768,10 @@ the forwarded bytes do not create environment leakage into neighboring commands 
 This production change closes 74 exact stable and engineering assignment-pipeline sites through a shipped-
 binary fixture. The two parenthesized subshell sites remain pending rather than being mapped to an approximation.
 The shell row remains `Partial`; this is another SemVer-minor behavior increment within `0.1.0-dev.18`.
+
+### 2026-07-16 - Phase 65 credits the complete pinned seq cluster only through exact binary evidence
+
+The existing pure-Common-Lisp `seq` builtin now has one shipped-binary fixture covering every lexical test
+site in both frozen Bun baselines. All 60 IDs retain their own overlay rows and exact status, stdout, and stderr
+assertions; no file-level or aggregate mapping substitutes for execution. This evidence-only closure changes
+the public count but not runtime behavior or the allocated `0.1.0-dev.18` release boundary.
