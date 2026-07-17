@@ -55,6 +55,24 @@ assert(match.params.id === "%2e%2e%2fetc", "percent decoding exactly once");
 assert(match.query.x === "1", "absolute URL query");
 match = router.match(new Request("https://example.com/posts/request"));
 assert(match.params.id === "request", "Request input");
+for (const current of [
+  new Request({ url: "https://example.com123/posts/hello-world" }),
+  new Request({ url: "http://example.com/posts/hello-world" }),
+]) {
+  match = router.match(current);
+  assert(match.name === "/posts/[id]", "object-form Request route");
+  assert(match.filePath === path.join(process.env.CLUN_ROUTER_PAGES, "posts/[id].tsx"), "object-form Request file");
+  assert(match.params.id === "hello-world", "object-form Request param");
+}
+for (const current of [
+  new Request({ url: "http://helloooo.com/posts/hello-world" }),
+  new Request({ url: "https://clun.sh/posts/hello-world" }),
+]) {
+  match = router.match(current);
+  assert(match.name === "/posts/[id]", "object-form Request origin route");
+  assert(match.src === "https://clun.sh/_next/static/posts/[id].tsx", "object-form Request public source");
+  assert(match.filePath === path.join(process.env.CLUN_ROUTER_PAGES, "posts/[id].tsx"), "object-form Request origin file");
+}
 
 match = router.match("/posts/hey/there");
 assert(match.name === "/posts/[...rest]" && match.params.rest === "hey/there", "catch-all");

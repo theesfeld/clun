@@ -540,6 +540,17 @@ Headers, Request, Response, and cookie state never use this mechanism."
 (defun %make-client-request (method url headers-alist body-octets)
   (%allocate-request nil method url headers-alist body-octets))
 
+(defun %request-input-url (input)
+  (cond
+    ((js-request-p input)
+     (eng:to-string (eng:js-get input "url")))
+    ((eng:js-object-p input)
+     (let ((url (eng:js-get input "url")))
+       (if (eng:js-undefined-p url)
+           (eng:to-string input)
+           (eng:to-string url))))
+    (t (eng:to-string input))))
+
 (defun %make-server-request (method url headers-alist body-octets
                              &optional context)
   (%allocate-request t method url headers-alist body-octets context))
@@ -665,7 +676,7 @@ but an ordinary object is never promoted into the Response brand."
            :construct
            (lambda (args new-target)
              (declare (ignore new-target))
-             (let* ((url (eng:to-string (eng:arg args 0)))
+             (let* ((url (%request-input-url (eng:arg args 0)))
                     (init (eng:arg args 1))
                     (init-object-p (eng:js-object-p init))
                     (method-value (and init-object-p
