@@ -3,10 +3,10 @@ cloud.s3	darwin-arm64	unsupported	-	Capability is not implemented.
 cloud.s3	darwin-x64	unsupported	-	Capability is not implemented.
 cloud.s3	linux-arm64	unsupported	-	Capability is not implemented.
 cloud.s3	linux-x64	unsupported	-	Capability is not implemented.
-data.yaml	darwin-arm64	supported	ev.data.yaml.api-differential.v1,ev.data.yaml.module-loading.v1	The complete public surface executes through the shipped binary.
-data.yaml	darwin-x64	supported	ev.data.yaml.api-differential.v1,ev.data.yaml.module-loading.v1	The complete public surface executes through the shipped binary.
-data.yaml	linux-arm64	supported	ev.data.yaml.api-differential.v1,ev.data.yaml.module-loading.v1	The complete public surface executes through the shipped binary.
-data.yaml	linux-x64	supported	ev.data.yaml.api-differential.v1,ev.data.yaml.module-loading.v1	The complete public surface executes through the shipped binary.
+data.yaml	darwin-arm64	unverified	ev.data.yaml.api-differential.v1,ev.data.yaml.bun-402.v1,ev.data.yaml.module-loading.v1	The public APIs execute, but the complete parser corpus is 204 pass / 198 fail and release-target receipts are incomplete.
+data.yaml	darwin-x64	unverified	ev.data.yaml.api-differential.v1,ev.data.yaml.bun-402.v1,ev.data.yaml.module-loading.v1	The public APIs execute, but the complete parser corpus is 204 pass / 198 fail and release-target receipts are incomplete.
+data.yaml	linux-arm64	unverified	ev.data.yaml.api-differential.v1,ev.data.yaml.bun-402.v1,ev.data.yaml.module-loading.v1	The public APIs execute, but the complete parser corpus is 204 pass / 198 fail and release-target receipts are incomplete.
+data.yaml	linux-x64	unverified	ev.data.yaml.api-differential.v1,ev.data.yaml.bun-402.v1,ev.data.yaml.module-loading.v1	The public APIs execute, but the complete parser corpus is 204 pass / 198 fail and release-target receipts are incomplete.
 database.redis	darwin-arm64	unsupported	-	Capability is not implemented.
 database.redis	darwin-x64	unsupported	-	Capability is not implemented.
 database.redis	linux-arm64	unsupported	-	Capability is not implemented.

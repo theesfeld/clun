@@ -17,6 +17,7 @@ FEATURE                    ?= all
 		bench-check compile-tier-ceiling test-installer test-release-live-check \
 		public-claims-check version-transition-check test-version-transition-check \
 		compat compat-validate docs-generate docs-check test-compat-tools \
+		test-yaml-upstream test-yaml-upstream-full \
 		roadmap-check roadmap-sync \
 		roadmap-verify-live \
 		conformance-exec-compare phase-25b-m5-check phase-25b-m6-check \
@@ -192,6 +193,16 @@ docs-check:
 
 test-compat-tools:
 	sh scripts/test-compat-tools.sh
+
+## test-yaml-upstream -- reproduce every current result in the pinned 402-case Bun YAML corpus.
+test-yaml-upstream: build
+	CLUN_COMPAT_EXECUTABLE="$(CURDIR)/build/clun" \
+		sh tests/compat/data.yaml/upstream/bun-c1076ce95effb909bfe9f596919b5dba5567d550/run.sh
+
+## test-yaml-upstream-full -- require the complete pinned Bun YAML corpus to pass.
+test-yaml-upstream-full: build
+	CLUN_YAML_REQUIRE_ALL=1 CLUN_COMPAT_EXECUTABLE="$(CURDIR)/build/clun" \
+		sh tests/compat/data.yaml/upstream/bun-c1076ce95effb909bfe9f596919b5dba5567d550/run.sh
 
 ## version-transition-check -- enforce actual-impact SemVer across the pushed range.
 version-transition-check:

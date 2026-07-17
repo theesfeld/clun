@@ -2701,3 +2701,17 @@ Issue #5 owns the coordinated release, platform, Pages, and installer receipts. 
 canonical source for password/hash behavior and is closed only after those shared dev.14 receipts exist.
 Neither compatibility cell becomes public before dev.13 publication and a fully green four-target dev.14
 gate; the ledger state is therefore evidence-backed candidate truth, not a claim about the live site.
+
+### 2026-07-17 - YAML returns to Partial against the complete pinned denominator
+
+Adversarial review replaced the narrow local YAML fixtures with Bun's exact generated
+`yaml-test-suite.test.ts` at engineering commit `c1076ce95e`, itself generated from
+`yaml-test-suite` revision `6e6c296ae9c9d2d5c4134b4b64d01b29ac19ff6f`. The denominator is 402 named
+cases. The shipped dev.14 candidate measures **204 pass / 198 fail**, with residuals spanning document and
+block continuation, collections, explicit keys, flow grammar, tabs, tags/directives, and scalar handling.
+
+`data.yaml` is therefore `Partial` until the complete 402-case gate, block-scalar matrix, public API/module
+corpus, security/resource gates, and four-target receipts pass. The pinned source, Bun license, deterministic
+Clun translation, and case-level baseline are committed together; no case can be dropped or reclassified
+silently. The dev.14 SemVer target remains valid because Phase 36's password/hash APIs are independent real
+backward-compatible functionality.

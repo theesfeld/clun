@@ -321,16 +321,18 @@ landed; this branch must not guess or reserve a tag. Version files, ledger state
 page, release metadata, and installer defaults change only in the final release-bearing unit after
 the implementation and evidence gates pass.
 
-The `data.yaml` row may become `Yes` only when all four supported release targets execute the
-registered public/module fixtures successfully. No design completion, source-only unit test, or
-Linux-only result is a public support claim.
+The `data.yaml` row may become `Yes` only when the complete pinned 402-case Bun-generated parser
+corpus passes without exclusions and all four supported release targets execute that gate plus the
+registered public/module fixtures successfully. No design completion, source-only unit test,
+partial corpus, or Linux-only result is a public support claim.
 
 ## 9. Acceptance gate
 
 Phase 31 is complete only when:
 
-1. `make compat FEATURE=data.yaml` passes the pinned parse/stringify and module differential corpus
-   through `build/clun`.
+1. `make test-yaml-upstream-full` passes all 402 cases in the byte-pinned Bun-generated corpus, and
+   `make compat FEATURE=data.yaml` passes the registered parse/stringify and module differential
+   corpus through `build/clun`.
 2. Serializer round trips, repeated-reference identity, supported cycles, duplicate-key policy,
    merge precedence, and block-scalar matrices pass.
 3. Alias/merge bombs, depth/source/node/output limits, unsafe tags, malformed input, and invalid

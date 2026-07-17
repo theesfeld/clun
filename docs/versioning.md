@@ -88,11 +88,13 @@ conversion, CSS, packed, object, tuple, hex, and ANSI output surface. It targets
 `0.1.0-dev.13` / `v0.1.0-dev.13`, with ASDF core `0.1.0`; that release also republishes the accepted Glob
 surface and uses aggregate allocation accounting without weakening its 2.75x threshold. Issue #8 owns the
 active release evidence and exact four-target receipts, while issue #4 remains the canonical Glob record.
-Phase 31 and Phase 36 add the seventh and eighth public compatibility-ledger `Yes` entries: bounded `Clun.YAML`
-parsing/stringification and YAML module loading, plus `Clun.password` and `Clun.hash` sync/async APIs. Both
-are backward-compatible public additions, so their coordinated release is SemVer `minor` and advances the
-selected train once to `0.1.0-dev.14` / `v0.1.0-dev.14`; the ASDF core remains `0.1.0`. Issue #5 owns the
-combined release receipts and issue #10 remains the canonical password/hash behavior record.
+Phase 36 adds the seventh public compatibility-ledger `Yes` with `Clun.password` and `Clun.hash` sync/async
+APIs. Phase 31's bounded `Clun.YAML` parsing/stringification and YAML module loading remain `Partial` at
+204 / 402 cases in the exact pinned Bun-generated parser corpus; they do not become the eighth `Yes` until
+the 402-case gate and all target receipts pass. Both surfaces are backward-compatible public additions, so
+their coordinated candidate remains SemVer `minor` and advances the selected train once to
+`0.1.0-dev.14` / `v0.1.0-dev.14`; the ASDF core remains `0.1.0`. Issue #5 owns the combined release receipts
+and issue #10 remains the canonical password/hash behavior record.
 
 ## Canonical record
 
