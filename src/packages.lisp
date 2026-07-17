@@ -106,7 +106,8 @@
            #:glob-scan-options-only-files
            #:glob-accessor #:make-glob-accessor
            #:glob-scan-token #:make-glob-scan-token #:cancel-glob-scan
-           #:glob-scan-cancelled #:scan-glob))
+           #:glob-scan-cancelled #:glob-scan-cancelled-p #:glob-js-path-to-native
+           #:glob-native-path-to-js #:scan-glob))
 
 ;; Defined before clun.engine so the engine's :lp local-nickname can target it.
 (defpackage :clun.loop
@@ -193,6 +194,7 @@
    #:to-number #:arg #:intrinsic #:function-name #:js-function-p #:js-native-function-p
    #:make-producer-generator #:make-producer-async-generator
    #:async-generator-producer-ready #:async-generator-producer-failed
+   #:async-generator-producer-cancelled
    #:js-nullish-p #:array-like->list #:array-length
    ;; object-API surface for node builtin modules (Phase 12)
    #:js-getv #:to-object #:to-boolean #:to-integer-or-infinity #:js-strict-eq

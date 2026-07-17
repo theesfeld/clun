@@ -43,10 +43,12 @@
              (:return (make-iter-result value t))
              (:throw (throw-js-value value))))
           ((eq mode :return)
-           (setf (js-generator-done gen) t)
+           (setf (js-generator-done gen) t
+                 (js-generator-producer gen) nil)
            (make-iter-result value t))
           ((eq mode :throw)
-           (setf (js-generator-done gen) t)
+           (setf (js-generator-done gen) t
+                 (js-generator-producer gen) nil)
            (throw-js-value value))
           (t
            (let ((index (generator-producer-index producer))
@@ -55,7 +57,8 @@
                  (prog1 (make-iter-result (aref values index) nil)
                    (incf (generator-producer-index producer)))
                  (progn
-                   (setf (js-generator-done gen) t)
+                   (setf (js-generator-done gen) t
+                         (js-generator-producer gen) nil)
                    (make-iter-result +undefined+ t)))))))))
   (let ((co (js-generator-coroutine gen)))
     (cond

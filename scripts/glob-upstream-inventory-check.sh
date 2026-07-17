@@ -30,8 +30,10 @@ emit_sites() {
       while (match(rest, /test([.]concurrent)?[[:space:]]*[(]/)) {
         occurrence++
         emit("test", occurrence,
-             suite == "match" ? "executed" : "translated", evidence,
-             "lexical upstream test site")
+             suite == "match" ? "executed" : "aggregate-mapped", evidence,
+             suite == "match" ?
+               "executed from exact pinned source through build/clun" :
+               "lexical source site is associated with an aggregate suite; this row does not claim one-to-one execution")
         rest = substr(rest, RSTART + RLENGTH)
       }
 
@@ -52,10 +54,10 @@ emit_sites() {
                "Windows-only separator branch; Phase 30 supports macOS and Linux")
         } else {
           emit("assertion", occurrence,
-               suite == "match" ? "executed" : "translated", evidence,
+               suite == "match" ? "executed" : "aggregate-mapped", evidence,
                suite == "match" ?
                  "executed from exact pinned source through build/clun" :
-                 "mapped to the named Clun translation suite")
+                 "associated with an aggregate suite; this row does not claim one-to-one execution")
         }
         rest = substr(rest, RSTART + RLENGTH)
       }
@@ -77,9 +79,9 @@ generate() {
     emit_sites "$baseline" "$commit" proto tests/compat/filesystem.glob/api.js
     emit_sites "$baseline" "$commit" scan tests/compat/filesystem.glob/scan.sh
     emit_sites "$baseline" "$commit" stress tests/compat/filesystem.glob/stress.sh
-    printf '%s.support.util\t%s\t%s\ttest/js/bun/glob/util.ts\tsupport\t0\t0\ttranslated\ttests/compat/filesystem.glob/scan.sh\tupstream fixture helper is represented by the hermetic scanner suite\n' \
+    printf '%s.support.util\t%s\t%s\ttest/js/bun/glob/util.ts\tsupport\t0\t0\taggregate-mapped\ttests/compat/filesystem.glob/scan.sh\tupstream fixture helper is associated with the hermetic scanner suite; this row does not claim one-to-one execution\n' \
       "$baseline" "$baseline" "$commit"
-    printf '%s.support.snapshot\t%s\t%s\ttest/js/bun/glob/__snapshots__/scan.test.ts.snap\tsupport\t0\t0\ttranslated\ttests/compat/filesystem.glob/scan.sh\tupstream fast-glob snapshots are represented by exact scanner sets\n' \
+    printf '%s.support.snapshot\t%s\t%s\ttest/js/bun/glob/__snapshots__/scan.test.ts.snap\tsupport\t0\t0\taggregate-mapped\ttests/compat/filesystem.glob/scan.sh\tupstream snapshot is associated with the scanner suite; this row does not claim one-to-one execution\n' \
       "$baseline" "$baseline" "$commit"
   done
 
@@ -144,7 +146,7 @@ check() {
   check_count engineering scan test 48
   check_count engineering stress test 2
 
-  awk -F "$TAB" 'NR > 1 && $8 != "executed" && $8 != "translated" && $8 != "not-applicable" { exit 1 }' \
+  awk -F "$TAB" 'NR > 1 && $8 != "executed" && $8 != "aggregate-mapped" && $8 != "not-applicable" { exit 1 }' \
     "$inventory" || {
       printf 'filesystem.glob inventory: invalid disposition\n' >&2
       exit 1
@@ -161,9 +163,7 @@ check() {
   }
 
   rows=$(awk 'END { print NR - 1 }' "$inventory")
-  pending=$(awk -F "$TAB" 'NR > 1 && $8 ~ /pending|partial/ { n++ } END { print n + 0 }' "$inventory")
-  [ "$pending" -eq 0 ]
-  printf 'filesystem.glob inventory: %s exact rows, zero pending dispositions\n' "$rows"
+  printf 'filesystem.glob inventory: %s pinned lexical sites have explicit coverage dispositions\n' "$rows"
 }
 
 case ${1:-check} in

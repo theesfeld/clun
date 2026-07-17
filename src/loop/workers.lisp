@@ -11,7 +11,7 @@
   (lock (sb-thread:make-mutex :name "clun-worker-pool")))
 
 (defstruct (worker-cancel-token (:constructor %make-worker-cancel-token))
-  (cancelled-p nil :type boolean))
+  (cancel-state 0 :type fixnum))
 
 (defstruct (worker-job (:constructor %make-worker-job))
   loop
@@ -23,7 +23,11 @@
   (lock (sb-thread:make-mutex :name "clun-worker-job")))
 
 (defun worker-cancelled-p (token)
-  (worker-cancel-token-cancelled-p token))
+  (plusp (worker-cancel-token-cancel-state token)))
+
+(defun %cancel-worker-token (token)
+  (sb-ext:compare-and-swap (worker-cancel-token-cancel-state token) 0 1)
+  token)
 
 (defun %terminal-worker-state-p (state)
   (member state '(:completed :failed :cancelled)))
@@ -52,13 +56,26 @@ cooperatively when their function observes WORKER-CANCELLED-P."
   (let ((queued nil))
     (sb-thread:with-mutex ((worker-job-lock job))
       (unless (%terminal-worker-state-p (worker-job-state job))
-        (setf (worker-cancel-token-cancelled-p (worker-job-token job)) t)
+        (%cancel-worker-token (worker-job-token job))
         (case (worker-job-state job)
           (:queued (setf queued t (worker-job-state job) :cancel-requested))
           (:running (setf (worker-job-state job) :cancel-requested)))))
     (when queued
       (%release-worker-job job (list :cancelled nil) :cancelled))
     job))
+
+(defun cancel-loop-worker-jobs (loop)
+  "Request cancellation for every worker job still owned by LOOP. The registry
+snapshot is taken under the lifecycle lock, but callbacks run outside it."
+  (let ((jobs
+          (with-loop-lifecycle-lock (loop)
+            (loop for resource in (el-resources loop)
+                  for owner = (loop-resource-owner resource)
+                  when (worker-job-p owner)
+                    collect owner))))
+    (dolist (job jobs)
+      (cancel-worker-job job)))
+  (values))
 
 (defparameter *lazy-worker-count* 4
   "Threads spawned on first blocking submit when the loop was created with :workers 0.")

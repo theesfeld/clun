@@ -27,6 +27,12 @@ ln -s ../shared "$root/cousin/a/link"
 ln -s ../shared "$root/cousin/b/link"
 ln -s .secret "$root/dots/.dotlink"
 ln -s missing "$root/broken"
+ln -s loop "$root/loop"
+
+case $(uname -s) in
+  Darwin) path_ceiling=1024 ;;
+  *) path_ceiling=4096 ;;
+esac
 
 segment=$(printf '%255s' '' | tr ' ' D)
 file_name=$(printf '%255s' '' | tr ' ' F)
@@ -43,9 +49,10 @@ broken_name=$(printf '%255s' '' | tr ' ' B)
   done
 )
 
-# Keep the parent openable while making the returned absolute leaf exceed 4096.
+# Keep the parent openable while making the returned absolute leaf exceed the
+# platform ceiling enforced by the scanner.
 long_root=$root/longleaf
-depth=$(( (4096 - ${#long_root}) / 256 ))
+depth=$(( (path_ceiling - ${#long_root}) / 256 ))
 (
   cd "$long_root"
   index=0
@@ -61,8 +68,9 @@ depth=$(( (4096 - ${#long_root}) / 256 ))
 chmod 000 "$root/locked"
 
 set +e
-actual=$(CLUN_GLOB_FIXTURE=$root "$clun" -e '
+actual=$(CLUN_GLOB_FIXTURE=$root CLUN_GLOB_PATH_CEILING=$path_ceiling "$clun" -e '
 const root = process.env.CLUN_GLOB_FIXTURE;
+const pathCeiling = Number(process.env.CLUN_GLOB_PATH_CEILING);
 function values(pattern, options) {
   return [...new Clun.Glob(pattern).scanSync(options)].join("|");
 }
@@ -76,6 +84,7 @@ console.log("wildcard-no-follow", values("*/l*/*.txt", { cwd: root + "/cousin" }
 console.log("wildcard-follow", values("*/l*/*.txt", { cwd: root + "/cousin", followSymlinks: true }));
 console.log("dot-link", values(".dotlink/*.txt", { cwd: root + "/dots" }));
 console.log("trailing-cwd", values("*.txt", { cwd: root + "/cousin/shared////" }));
+console.log("eloop", errorCode(function () { values("loop", { cwd: root, onlyFiles: false }); }));
 let deepResult;
 try {
   const deepValues = [...new Clun.Glob("**").scanSync({ cwd: root + "/deep", onlyFiles: false })];
@@ -86,7 +95,7 @@ const longLeaf = [...new Clun.Glob("**/*").scanSync({ cwd: root + "/longleaf", a
 console.log(
   "long-leaf",
   longLeaf.length,
-  longLeaf.length === 1 && longLeaf[0].length > 4096,
+  longLeaf.length === 1 && longLeaf[0].length > pathCeiling,
   longLeaf.length === 1 && longLeaf[0].endsWith("/" + "F".repeat(255)),
 );
 console.log("long-broken", errorCode(function () {
@@ -133,6 +142,7 @@ wildcard-no-follow 0
 wildcard-follow a/link/file.txt|b/link/file.txt
 dot-link .dotlink/secret.txt
 trailing-cwd file.txt
+eloop ELOOP
 deep ENAMETOOLONG
 long-leaf 1 true true
 long-broken ENOENT

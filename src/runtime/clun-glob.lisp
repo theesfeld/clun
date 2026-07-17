@@ -57,12 +57,13 @@
         (unless (%glob-string-brand-p value)
           (eng:throw-native-error
            :error (format nil "~a: invalid `cwd`, not a string" operation)))
-        (let ((converted (eng:to-string value)))
-          (if (zerop (length converted))
+        (let* ((converted (eng:to-string value))
+               (native (clun.glob:glob-js-path-to-native converted)))
+          (if (zerop (length native))
               captured-cwd
-              (if (sys:absolute-path-p converted)
-                  (sys:normalize-path converted)
-                  (sys:normalize-path (sys:path-join captured-cwd converted))))))))
+              (if (sys:absolute-path-p native)
+                  (sys:normalize-path native)
+                  (sys:normalize-path (sys:path-join captured-cwd native))))))))
 
 (defun %glob-scan-options (args operation)
   (let* ((captured-cwd (sys:normalize-path (sys:current-directory)))
@@ -134,8 +135,11 @@
           (lp:worker-submit-cancellable
            loop
            (lambda (worker-token)
-             (declare (ignore worker-token))
-             (clun.glob:scan-glob (js-clun-glob-compiled glob) options token))
+             (clun.glob:scan-glob
+              (js-clun-glob-compiled glob) options
+              (lambda ()
+                (or (clun.glob:glob-scan-cancelled-p token)
+                    (lp:worker-cancelled-p worker-token)))))
            (lambda (result)
              ;; Completion executes on the realm's event-loop thread. A producer
              ;; cleared by return()/throw() discards this late commit.
@@ -145,7 +149,8 @@
                  (:err
                   (eng:async-generator-producer-failed
                    generator (%glob-error-object global (second result))))
-                 (:cancelled nil))))))
+                 (:cancelled
+                  (eng:async-generator-producer-cancelled generator)))))))
     generator))
 
 (defun install-clun-glob (clun global realm)

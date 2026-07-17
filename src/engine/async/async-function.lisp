@@ -126,6 +126,17 @@ escaping synchronously from the async call."
       (%async-gen-resume-next generator)
       t)))
 
+(defun async-generator-producer-cancelled (generator)
+  "Acknowledge producer cancellation after its worker resource is released."
+  (let ((producer (and (js-async-generator-p generator)
+                       (js-async-generator-producer generator))))
+    (when (and producer
+               (member (async-generator-producer-state producer)
+                       '(:traversing :cancelling)))
+      (setf (async-generator-producer-state producer) :cancelled)
+      (%async-gen-resume-next generator)
+      t)))
+
 (defun %async-gen-enqueue-request (agen request)
   (let ((cell (list request)))
     (if (js-async-generator-request-tail agen)
@@ -172,9 +183,15 @@ escaping synchronously from the async call."
      (when (%producer-abrupt-request-p agen)
        (setf (async-generator-producer-state producer) :cancelling)
        (let ((cancel (async-generator-producer-cancel producer)))
-         (when cancel (funcall cancel)))
+         (if cancel
+             (funcall cancel)
+             (progn
+               (%complete-producer agen)
+               (%async-gen-resume-next agen))))))
+    (:cancelling nil)
+    (:cancelled
        (%complete-producer agen)
-       (%async-gen-resume-next agen)))
+       (%async-gen-resume-next agen))
     (:ready
      (loop while (js-async-generator-request-head agen) do
        (let* ((request (%async-gen-current-request agen))

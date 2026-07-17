@@ -16,10 +16,48 @@
       (run-rt
        "var nativeIterator=new Clun.Glob('__no_match__').scanSync({cwd:'.'});var ordinary=(function*(){})();console.log(Object.prototype.toString.call(nativeIterator),nativeIterator[Symbol.iterator]()===nativeIterator,Object.getPrototypeOf(nativeIterator)===Object.getPrototypeOf(Object.getPrototypeOf(ordinary)),Object.getPrototypeOf(nativeIterator)!==Object.getPrototypeOf(ordinary))")))
 
+(define-test glob-runtime/sync-producer-releases-values-on-completion
+  (let ((realm (eng:make-realm)))
+    (unwind-protect
+         (progn
+           (rt:install-runtime realm :argv (list :script "[glob-producer-release]")
+                                      :cwd "." :colors nil)
+           (let ((eng:*realm* realm))
+             (let ((returned (eng:make-producer-generator #(1 2 3)))
+                   (exhausted (eng:make-producer-generator #())))
+               (eng::%generator-step returned :return "done")
+               (eng::%generator-step exhausted :next eng:+undefined+)
+               (false (eng::js-generator-producer returned))
+               (false (eng::js-generator-producer exhausted)))))
+      (eng:teardown-realm realm))))
+
 (define-test glob-runtime/async-producer-brand-and-return-promise
   (is equal (format nil "[object AsyncGenerator] true true true~%")
       (run-rt
        "var iterator=new Clun.Glob('__no_match__').scan({cwd:'.'});var next=iterator.next();var returned=iterator.return('stopped');console.log(Object.prototype.toString.call(iterator),iterator[Symbol.asyncIterator]()===iterator,next instanceof Promise,returned instanceof Promise)")))
+
+(define-test glob-runtime/async-abrupt-request-waits-for-cancel-ack
+  (let ((realm (eng:make-realm))
+        (cancel-called nil))
+    (unwind-protect
+         (progn
+           (rt:install-runtime realm :argv (list :script "[glob-cancel-ack]")
+                                      :cwd "." :colors nil)
+           (let ((eng:*realm* realm))
+             (let* ((generator
+                      (eng:make-producer-async-generator
+                       :cancel (lambda () (setf cancel-called t))))
+                    (promise (eng::%async-gen-enqueue generator :return "stopped")))
+               (true cancel-called)
+               (is eq :pending (eng::js-promise-pstate promise))
+               (true (eng:async-generator-producer-cancelled generator))
+               ;; Cancellation acknowledgement releases the producer, then the
+               ;; normal async-generator return-value await settles on the job queue.
+               (is eq :pending (eng::js-promise-pstate promise))
+               (eng:drive-jobs realm)
+               (is eq :fulfilled (eng::js-promise-pstate promise))
+               (false (eng::js-async-generator-producer generator)))))
+      (eng:teardown-realm realm))))
 
 (define-test glob-runtime/thousand-scans-use-fixed-worker-pool
   (let* ((directory (sys:make-temp-dir
@@ -49,6 +87,48 @@
         (false (clun.loop::worker-pool-threads
                 (clun.loop::el-workers loop))))
       (sys:remove-recursive directory))))
+
+(define-test glob-runtime/teardown-cancels-active-scan-before-worker-join
+  (let* ((loop (lp:make-event-loop :workers 1))
+         (started (sb-thread:make-semaphore :count 0))
+         (visits 0)
+         (callback-ran nil)
+         (directory (glob-test-stat :directory 1))
+         (accessor
+           (glob:make-glob-accessor
+            :map-directory
+            (lambda (path callback)
+              (declare (ignore path))
+              (loop
+                (incf visits)
+                (when (= visits 1) (sb-thread:signal-semaphore started))
+                (funcall callback "entry")))
+            :stat (lambda (path) (declare (ignore path)) directory)
+            :lstat (lambda (path)
+                     (declare (ignore path))
+                     (error "nonmatching entry must not be classified"))))
+         (job
+           (lp:worker-submit-cancellable
+            loop
+            (lambda (token)
+              (glob:scan-glob
+               "absent" (glob:make-glob-scan-options :cwd "/virtual")
+               (lambda () (lp:worker-cancelled-p token)) accessor))
+            (lambda (result)
+              (declare (ignore result))
+              (setf callback-ran t)))))
+    (unwind-protect
+         (progn
+           (true (sb-thread:wait-on-semaphore started :timeout 2))
+           (lp:destroy-event-loop loop)
+           (is eq :cancelled (lp:worker-job-state job))
+           (false callback-ran)
+           (true (plusp visits))
+           (is = 0 (lp:el-ref-count loop))
+           (false (clun.loop::el-resources loop))
+           (false (clun.loop::worker-pool-threads
+                   (clun.loop::el-workers loop))))
+      (lp:destroy-event-loop loop))))
 
 (define-test glob-runtime/hundred-thousand-sync-scans-retain-under-limit
   (let* ((directory (sys:make-temp-dir

@@ -413,6 +413,51 @@ PATTERN is either a Common Lisp string or a vector of UTF-16 code units."
                         (coerce builder 'simple-vector)
                         program-start negated-p)))))
 
+(defun %explicit-dot-sequences (nodes)
+  "Return matcher sequences whose first consuming token is a literal dot.
+
+Brace alternatives are followed through, including empty branches that expose a
+dot in the suffix. Wildcards and character classes at the start remain hidden-
+entry barriers even when they could eventually match a dot."
+  (labels ((visit (sequence)
+             (when sequence
+               (let ((node (first sequence))
+                     (rest (rest sequence)))
+                 (case (pattern-node-kind node)
+                   (:literal
+                    (when (= (pattern-node-value node) #x2e)
+                      (list sequence)))
+                   (:brace
+                    (mapcan (lambda (branch)
+                              (visit (append branch rest)))
+                            (pattern-node-value node)))
+                   (otherwise nil))))))
+    (visit nodes)))
+
+(defun %compile-explicit-dot-glob (pattern)
+  "Compile only syntactic branches that explicitly consume a leading dot."
+  (let ((scalars (%decode-scalars pattern)))
+    ;; Leading ! is whole-pattern negation, not an explicit request for hidden
+    ;; entries. Escaped ! reaches the ordinary parser and remains literal.
+    (when (and (plusp (length scalars)) (= (aref scalars 0) #x21))
+      (return-from %compile-explicit-dot-glob nil))
+    (multiple-value-bind (nodes valid-p)
+        (%parse-sequence scalars 0 (length scalars) 0)
+      (unless valid-p
+        (return-from %compile-explicit-dot-glob nil))
+      (let ((sequences (%explicit-dot-sequences nodes)))
+        (when sequences
+          (let* ((builder (make-array (max 16 (1+ (length scalars)))
+                                      :adjustable t :fill-pointer 0))
+                 (accept (%emit builder :accept))
+                 (program-start
+                   (if (rest sequences)
+                       (%compile-alternatives sequences accept builder)
+                       (%compile-sequence (first sequences) accept builder))))
+            (%compiled-glob (copy-seq pattern)
+                            (coerce builder 'simple-vector)
+                            program-start nil)))))))
+
 (defun %class-match-p (class value)
   (let ((member-p
           (or (loop for single across (character-class-singles class)

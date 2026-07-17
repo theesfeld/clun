@@ -575,7 +575,7 @@ perform that check per entry and signal a private cancellation unwind; every ope
 closed by `unwind-protect`. If cancellation races a blocking entry read, that one in-flight call may
 finish, but no next accessor call begins.
 
-`tests/lisp/glob/synthetic-accessor-tests.lisp` supplies a virtual million-entry tree without
+`tests/lisp/glob/walker-tests.lisp` supplies a virtual million-entry tree without
 creating a million host files. A zero-match walk must keep peak retained working memory below
 64 MiB above the post-warmup baseline. A match-all walk is permitted `O(number-of-results)` output
 storage. In the deterministic cancellation fixture, accessor visit 128 flips the token before it

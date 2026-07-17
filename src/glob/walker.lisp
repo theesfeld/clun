@@ -17,7 +17,7 @@
   (only-files t :type boolean))
 
 (defstruct (glob-scan-token (:constructor make-glob-scan-token ()))
-  (cancelled-p nil :type boolean))
+  (cancel-state 0 :type fixnum))
 
 (define-condition glob-scan-cancelled (error) ())
 
@@ -36,21 +36,63 @@
 
 (defun cancel-glob-scan (token)
   "Request cooperative cancellation of a scanner using TOKEN."
-  (setf (glob-scan-token-cancelled-p token) t)
+  (sb-ext:compare-and-swap (glob-scan-token-cancel-state token) 0 1)
   token)
 
+(defun glob-scan-cancelled-p (token)
+  (plusp (glob-scan-token-cancel-state token)))
+
 (defun %check-cancelled (token)
-  (when (and token (glob-scan-token-cancelled-p token))
+  (when (and token
+             (if (functionp token)
+                 (funcall token)
+                 (glob-scan-cancelled-p token)))
     (error 'glob-scan-cancelled)))
 
 (defstruct scan-component
-  source compiled literal-p explicit-dot-p globstar-p)
+  source compiled literal-p explicit-dot-compiled globstar-p)
 
 (defstruct scan-entry
   name path lstat stat)
 
 (defstruct scan-state
   directory visible pattern-states ancestry)
+
+(defun glob-js-path-to-native (value)
+  "Convert a Clun UTF-16-code-unit string to an SBCL native scalar string."
+  (let ((output (make-array (length value) :element-type 'character
+                                           :adjustable t :fill-pointer 0))
+        (index 0))
+    (loop while (< index (length value)) do
+      (let ((first (char-code (char value index))))
+        (if (and (<= #xd800 first #xdbff)
+                 (< (1+ index) (length value))
+                 (<= #xdc00 (char-code (char value (1+ index))) #xdfff))
+            (let ((second (char-code (char value (1+ index)))))
+              (vector-push-extend
+               (code-char (+ #x10000 (ash (- first #xd800) 10)
+                             (- second #xdc00)))
+               output)
+              (incf index 2))
+            (progn
+              (vector-push-extend (char value index) output)
+              (incf index)))))
+    (coerce output 'simple-string)))
+
+(defun glob-native-path-to-js (value)
+  "Convert an SBCL native scalar string to Clun UTF-16 code units."
+  (let ((output (make-array (length value) :element-type 'character
+                                           :adjustable t :fill-pointer 0)))
+    (loop for char across value
+          for code = (char-code char)
+          do (if (>= code #x10000)
+                 (let ((offset (- code #x10000)))
+                   (vector-push-extend
+                    (code-char (+ #xd800 (ash offset -10))) output)
+                   (vector-push-extend
+                    (code-char (+ #xdc00 (logand offset #x3ff))) output))
+                 (vector-push-extend char output)))
+    (coerce output 'simple-string)))
 
 (defun %path-ceiling ()
   (if (string= (clun.sys:platform-name) "darwin")
@@ -105,21 +147,6 @@
         ((find char "*?[{") (return-from %component-literal-p nil))))
     (not escaped)))
 
-(defun %component-explicit-dot-p (source)
-  "True when at least one syntactic branch starts with a literal dot."
-  (labels ((branch-dot-p (start)
-             (and (< start (length source))
-                  (or (char= (char source start) #\.)
-                      (and (char= (char source start) #\\)
-                           (< (1+ start) (length source))
-                           (char= (char source (1+ start)) #\.))))))
-    (or (branch-dot-p 0)
-        (loop for index below (length source)
-              when (and (find (char source index) "{,")
-                        (branch-dot-p (1+ index)))
-                do (return t)
-              finally (return nil)))))
-
 (defun %compile-scan-components (sources)
   (when (some (lambda (source) (not (%component-balanced-p source))) sources)
     (return-from %compile-scan-components nil))
@@ -129,7 +156,7 @@
           :source source
           :compiled (compile-glob source)
           :literal-p (%component-literal-p source)
-          :explicit-dot-p (%component-explicit-dot-p source)
+          :explicit-dot-compiled (%compile-explicit-dot-glob source)
           :globstar-p (string= source "**")))
        sources))
 
@@ -158,7 +185,9 @@ the epsilon edge of a trailing /** from matching its parent directory."
           (when (and (or dot
                          (not (and (plusp (length name))
                                    (char= (char name 0) #\.)))
-                         (scan-component-explicit-dot-p component))
+                         (let ((explicit
+                                 (scan-component-explicit-dot-compiled component)))
+                           (and explicit (glob-match-p explicit name))))
                      (if (scan-component-globstar-p component)
                          t
                          (glob-match-p (scan-component-compiled component) name)))
@@ -199,11 +228,17 @@ the epsilon edge of a trailing /** from matching its parent directory."
                     (funcall (glob-accessor-lstat-entry accessor) directory name)
                     (funcall (glob-accessor-lstat accessor) path)))
          (stat (if (clun.sys:fstat-symlink-p lstat)
-                   (handler-case (if overlong-p
-                                     (funcall (glob-accessor-stat-entry accessor)
-                                              directory name)
-                                     (funcall (glob-accessor-stat accessor) path))
-                     (clun.sys:fs-error () nil))
+                   (handler-case
+                       (if overlong-p
+                           (funcall (glob-accessor-stat-entry accessor) directory name)
+                           (funcall (glob-accessor-stat accessor) path))
+                     (clun.sys:fs-error (condition)
+                       ;; Only a genuinely missing target is a broken symlink.
+                       ;; ELOOP, EACCES, ENOTDIR, and every other filesystem
+                       ;; failure remain observable.
+                       (if (string= (clun.sys:fs-error-code condition) "ENOENT")
+                           nil
+                           (error condition))))
                    lstat)))
     (%check-cancelled token)
     (make-scan-entry :name name :path path :lstat lstat :stat stat)))
@@ -252,6 +287,42 @@ the epsilon edge of a trailing /** from matching its parent directory."
              (%path-limit-check visible-prefix))
         finally (return (values sources root visible-prefix))))
 
+(defun %navigation-component-kind (component)
+  (let ((source (scan-component-source component)))
+    (cond ((string= source "") :empty)
+          ((string= source ".") :dot)
+          ((string= source "..") :dot-dot)
+          (t nil))))
+
+(defun %navigation-state (state next-index kind accessor token)
+  "Advance one explicit empty, dot, or dot-dot pattern component."
+  (%check-cancelled token)
+  (let* ((directory (scan-state-directory state))
+         (visible (scan-state-visible state))
+         (ancestry (scan-state-ancestry state))
+         (next-directory
+           (if (eq kind :dot-dot)
+               (clun.sys:normalize-path (clun.sys:path-join directory ".."))
+               directory))
+         (next-visible
+           (case kind
+             (:dot (%join-visible visible "."))
+             (:dot-dot (%join-visible visible ".."))
+             (otherwise visible)))
+         (next-ancestry
+           (if (eq kind :dot-dot)
+               (or (rest ancestry)
+                   (let ((key (%directory-key
+                               (funcall (glob-accessor-stat accessor)
+                                        next-directory))))
+                     (and key (list key))))
+               ancestry)))
+    (%path-limit-check next-directory)
+    (make-scan-state :directory next-directory
+                     :visible next-visible
+                     :pattern-states (list next-index)
+                     :ancestry next-ancestry)))
+
 (defun %map-directory-entry-names (accessor directory token function)
   "Deliver immediate entry names incrementally, retaining no directory-sized list."
   (%path-limit-check directory)
@@ -267,7 +338,7 @@ the epsilon edge of a trailing /** from matching its parent directory."
 
 (defun %result-path (entry-visible entry-path options absolute-pattern-p)
   (if (or absolute-pattern-p (glob-scan-options-absolute options))
-      entry-path
+      (glob-native-path-to-js entry-path)
       entry-visible))
 
 (defun scan-glob (pattern &optional (options (make-glob-scan-options)) token
@@ -307,7 +378,7 @@ child push. PATTERN may be a string or an immutable COMPILED-GLOB."
                    (or trailing-directory-p absolute-pattern-p))
               (vector (if (or absolute-pattern-p
                               (glob-scan-options-absolute options))
-                          root
+                          (glob-native-path-to-js root)
                           (if (string= visible-prefix "") "." visible-prefix)))
               #())))
       (let* ((root-key (%directory-key (funcall (glob-accessor-stat accessor) root)))
@@ -320,20 +391,56 @@ child push. PATTERN may be a string or an immutable COMPILED-GLOB."
             (loop while stack do
               (%check-cancelled token)
               (let* ((state (pop stack))
-                     (directory (scan-state-directory state)))
-                (%map-directory-entry-names
+                     (directory (scan-state-directory state))
+                     (closed-states
+                       (%state-closure components (scan-state-pattern-states state)))
+                     (navigation-states
+                       (remove-if-not
+                        (lambda (index)
+                          (and (< index (length components))
+                               (%navigation-component-kind
+                                (aref components index))))
+                        closed-states))
+                     (entry-states
+                       (remove-if
+                        (lambda (index)
+                          (or (= index (length components))
+                              (%navigation-component-kind
+                               (aref components index))))
+                        closed-states)))
+                ;; Explicit navigation is a pattern transition, never a fabricated
+                ;; directory entry. It can appear after wildcard components and
+                ;; therefore must be advanced for each live traversal state.
+                (dolist (index navigation-states)
+                  (let* ((kind (%navigation-component-kind (aref components index)))
+                         (next (%navigation-state state (1+ index) kind accessor token)))
+                    (if (= (1+ index) (length components))
+                        (when (and trailing-directory-p
+                                   (not (eq kind :empty))
+                                   (not (glob-scan-options-only-files options)))
+                          (setf (gethash
+                                 (%result-path (scan-state-visible next)
+                                               (scan-state-directory next)
+                                               options absolute-pattern-p)
+                                 results)
+                                t))
+                        (push next stack))))
+                (when entry-states
+                  (setf (scan-state-pattern-states state) entry-states)
+                  (%map-directory-entry-names
                  accessor directory token
                  (lambda (name)
                    (%check-cancelled token)
-                   (multiple-value-bind (next-states literal-transition-p terminal-p)
-                       (%advance-pattern components (scan-state-pattern-states state)
-                                         name (glob-scan-options-dot options))
+                   (let ((js-name (glob-native-path-to-js name)))
+                     (multiple-value-bind (next-states literal-transition-p terminal-p)
+                         (%advance-pattern components (scan-state-pattern-states state)
+                                           js-name (glob-scan-options-dot options))
                      ;; Classify only names with a live pattern transition. Apart
                      ;; from bounding retention, this prevents an irrelevant
                      ;; broken or inaccessible entry from changing scan results.
                      (when next-states
                        (let* ((entry (%scan-entry accessor directory name token))
-                              (visible (%join-visible (scan-state-visible state) name))
+                              (visible (%join-visible (scan-state-visible state) js-name))
                              (symlink-p (clun.sys:fstat-symlink-p
                                          (scan-entry-lstat entry)))
                              (target (scan-entry-stat entry))
@@ -370,7 +477,7 @@ child push. PATTERN may be a string or an immutable COMPILED-GLOB."
                                      :visible visible
                                      :pattern-states next-states
                                      :ancestry (if key (cons key ancestry) ancestry))
-                                    stack)))))))))))
+                                    stack)))))))))))))
           (glob-scan-cancelled (condition)
             (error condition)))
         (coerce (sort (loop for path being the hash-keys of results collect path)

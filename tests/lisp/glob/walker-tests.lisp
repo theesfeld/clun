@@ -64,25 +64,43 @@
 
 (define-test glob-walker/million-entry-zero-match-is-bounded
   (let ((visits 0)
+        (entry-count 16384)
+        (measure-peak-p nil)
+        (peak-bytes 0)
         (directory (glob-test-stat :directory 1)))
     (let ((accessor
             (glob:make-glob-accessor
              :map-directory
              (lambda (path callback)
                (declare (ignore path))
-               (dotimes (index 1000000)
-                 (declare (ignore index))
+               (dotimes (index entry-count)
                  (incf visits)
-                 (funcall callback "entry")))
+                 (funcall callback (format nil "entry-~d" index))
+                 (when (and measure-peak-p (zerop (logand index #x3fff)))
+                   (setf peak-bytes (max peak-bytes (sys:heap-bytes-used))))))
              :stat (lambda (path) (declare (ignore path)) directory)
              :lstat (lambda (path)
                       (declare (ignore path))
                       (error "zero-match walk classified an entry")))))
+      ;; Warm the compiler and allocator before establishing the measured baseline.
+      (is equalp #()
+          (glob:scan-glob "absent" (glob:make-glob-scan-options :cwd "/virtual")
+                          nil accessor))
+      (setf entry-count 1000000 visits 0)
       (sb-ext:gc :full t)
-      (let ((baseline (sys:heap-bytes-used)))
+      (let ((baseline (sys:heap-bytes-used))
+            (retained 0))
+        (setf peak-bytes baseline measure-peak-p t)
         (is equalp #()
             (glob:scan-glob "absent" (glob:make-glob-scan-options :cwd "/virtual")
                             nil accessor))
+        (setf peak-bytes (max peak-bytes (sys:heap-bytes-used)))
         (sb-ext:gc :full t)
-        (true (< (max 0 (- (sys:heap-bytes-used) baseline)) (* 64 1024 1024))))
+        (setf retained (sys:heap-bytes-used))
+        (format *trace-output*
+                "~&glob million-entry: sbcl=~a target=~a-~a entries=~d baseline=~d peak=~d retained=~d~%"
+                (lisp-implementation-version) (sys:platform-name) (sys:machine-arch)
+                entry-count baseline peak-bytes retained)
+        (true (< (max 0 (- peak-bytes baseline)) (* 64 1024 1024)))
+        (true (< (max 0 (- retained baseline)) (* 64 1024 1024))))
       (is = 1000000 visits))))

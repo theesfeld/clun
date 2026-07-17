@@ -22,6 +22,10 @@ self-pipe makes real signal/worker latency ~immediate, not cap-bound (Appendix C
   (when (begin-loop-destruction loop)
     (unwind-protect
          (progn
+           ;; Running blocking jobs must observe cancellation before this thread
+           ;; waits for their workers. In particular, filesystem traversals may
+           ;; otherwise keep realm destruction blocked until a full scan ends.
+           (cancel-loop-worker-jobs loop)
            (stop-worker-pool (el-workers loop))
            (clear-loop-timers loop)
            ;; Stop asynchronous signal writers before any descriptor can be recycled.
