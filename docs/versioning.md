@@ -60,6 +60,7 @@ resource does not exist with a 404 response:
 0.1.0-dev.26
 0.1.0-dev.27
 0.1.0-dev.28
+0.1.0-dev.29
 ```
 
 Phase 25b is the compatibility program for the planned `0.1.0` release. Its first behavioral
@@ -132,6 +133,11 @@ WebSocket options/APIs with SemVer impact is `minor`; ledger `server.websocket` 
 prerelease slot is allocated.
 
 Phase 28 stages `0.1.0-dev.22` / `v0.1.0-dev.22` under Issue #2 (transport PR #95) as the exact next prerelease on top of master `0.1.0-dev.21` (slot `dev.20` remains unused/unpublished). Phase 28 adds backward-compatible pure-CL TLS 1.2 registry transport, DNS and Happy Eyeballs, streaming Fetch, HTTP pooling, and proxy/CONNECT support and therefore its SemVer impact is `minor` within the selected `0.1.0` core. Until Phase 28 gates complete, `runtime.web-standard-apis` and `package-manager.npm` remain Partial and are not claimed as Yes.
+
+Phase 46 residual Issue #104 stages `0.1.0-dev.29` / `v0.1.0-dev.29` for the Phase 24 spawn residual (object form,
+AbortSignal, timeout/killSignal, killed, ref/unref). SemVer impact is `minor`. Spawn remains
+honest Partial (no IPC, ReadableStream stdout, #61 loop ownership). Master tip was `0.1.0-dev.28`
+after path.win32 #114; this unit takes free `0.1.0-dev.29` under the unpublished-intermediate gap policy.
 
 ## Canonical record
 

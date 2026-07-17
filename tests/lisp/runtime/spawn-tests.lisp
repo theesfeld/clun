@@ -139,3 +139,66 @@ down after (releases the loop + its fds)."
     }
     next();")))
     (true (search "total=1000 allzero=true" o) "1,000 sequential spawns all exit 0, none leak/hang")))
+
+;;; --- Issue #104 residual: object form, AbortSignal, timeout, killed, ref/unref ---
+
+(define-test spawn/object-form-cmd
+  (is string= "hello"
+      (%spawn-str "new TextDecoder().decode(Clun.spawnSync({cmd:['echo','hello']}).stdout).trim()"))
+  (is = 0 (%spawn-num "Clun.spawnSync({cmd:['true'], cwd:'/tmp'}).exitCode"))
+  (let ((o (%spawn-run "
+    const p = Clun.spawn({cmd:['echo','obj-form'], stdout:'pipe'});
+    p.stdout.then(b => console.log('obj=['+new TextDecoder().decode(b).trim()+']'));")))
+    (true (search "obj=[obj-form]" o) "async object form cmd drains stdout")))
+
+(define-test spawn/sync-timeout-kills
+  ;; sleep longer than timeout → killed via killSignal (default SIGTERM)
+  (is string= "SIGTERM"
+      (%spawn-str "Clun.spawnSync(['sleep','5'], {timeout:50}).signalCode"))
+  (is string= "true"
+      (%spawn-str "String(Clun.spawnSync(['sleep','5'], {timeout:50}).killed)"))
+  (is string= "SIGKILL"
+      (%spawn-str "Clun.spawnSync(['sleep','5'], {timeout:50, killSignal:'SIGKILL'}).signalCode")))
+
+(define-test spawn/sync-abort-signal
+  (is string= "SIGTERM"
+      (%spawn-str "(() => { const c = new AbortController(); c.abort(); return Clun.spawnSync(['sleep','5'], {signal:c.signal}).signalCode; })()"))
+  (is string= "true"
+      (%spawn-str "(() => { const c = new AbortController(); c.abort(); return String(Clun.spawnSync(['sleep','5'], {signal:c.signal}).killed); })()")))
+
+(define-test spawn/async-timeout-and-killed
+  (let ((o (%spawn-run "
+    const p = Clun.spawn(['sleep','30'], {timeout:40, stdout:'ignore', stderr:'ignore'});
+    p.exited.then(c => console.log('to exit='+c+' sig='+p.signalCode+' killed='+p.killed));")))
+    (true (search "to exit=null sig=SIGTERM killed=true" o)
+          "async timeout kills with SIGTERM and sets killed")))
+
+(define-test spawn/async-abort-signal
+  (let ((o (%spawn-run "
+    const c = new AbortController();
+    const p = Clun.spawn(['sleep','30'], {signal:c.signal, killSignal:'SIGKILL', stdout:'ignore', stderr:'ignore'});
+    setTimeout(() => c.abort(), 20);
+    p.exited.then(c => console.log('ab exit='+c+' sig='+p.signalCode+' killed='+p.killed));")))
+    (true (search "ab exit=null sig=SIGKILL killed=true" o)
+          "AbortSignal abort kills with killSignal")))
+
+(define-test spawn/async-kill-sets-killed
+  (let ((o (%spawn-run "
+    const k = Clun.spawn(['sh','-c','exec sleep 30'], {stdout:'ignore', stderr:'ignore'});
+    console.log('before='+k.killed);
+    k.kill();
+    k.exited.then(() => console.log('after='+k.killed+' sig='+k.signalCode));")))
+    (true (search "before=false" o) "killed is false before kill()")
+    (true (search "after=true sig=SIGTERM" o) "kill() sets killed true")))
+
+(define-test spawn/async-ref-unref-callable
+  ;; Smoke: ref/unref return the subprocess; unref does not prevent exit settlement when
+  ;; other work keeps the loop alive (the .exited chain).
+  (let ((o (%spawn-run "
+    const p = Clun.spawn(['true'], {stdout:'ignore', stderr:'ignore'});
+    const u = p.unref();
+    const r = p.ref();
+    console.log('same='+(u===p)+','+(r===p));
+    p.exited.then(c => console.log('refok='+c));")))
+    (true (search "same=true,true" o) "ref/unref return the subprocess")
+    (true (search "refok=0" o) "child still settles after ref/unref")))

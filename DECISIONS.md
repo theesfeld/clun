@@ -3258,3 +3258,9 @@ join, resolve, relative, parse, format, toNamespacedPath/`_makeLong`) with `/`�
 UNC/device roots. Cross-links match Node (`path.posix.win32 === path.win32`, self-`win32`/`posix`).
 Host cwd for resolve rewrites `/` → `\\` (Node-on-POSIX). Fixture: `tests/js/node/path-win32.js`.
 Does **not** promote `runtime.node-compatibility` to ledger Yes. SemVer: `0.1.0-dev.28` minor.
+
+### 2026-07-18 — Issue #104: Clun.spawn residual (AbortSignal, timeout, object form, ref/unref)
+Bounded pure-CL residual on Phase 24 spawn without #61 lifecycle ownership and without matrix Yes.
+`Clun.spawn`/`spawnSync` accept Bun object form `{cmd,...}`; `signal` (AbortSignal), `timeout`,
+and `killSignal` kill the child; async Subprocess exposes `killed`, `ref()`, and `unref()`.
+stdout/stderr remain Promise&lt;Uint8Array&gt; (Partial divergence). SemVer minor → `0.1.0-dev.29`.
