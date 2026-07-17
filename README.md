@@ -9,10 +9,10 @@ targets are workload-specific and published;
 Clun does not claim blanket speed parity with Bun.
 
 <!-- clun-generated:release:begin -->
-> **Status: pre-alpha, under active construction.** [Phase 50](https://github.com/theesfeld/clun/issues/24) is in progress.
-> Its release-bearing target is `0.1.0-dev.17` / `v0.1.0-dev.17` (SemVer impact: `minor`).
-> The verified release boundary is `v0.1.0-dev.16`, with four native archives, checksums, Pages,
-> and hosted-installer evidence.
+> **Status: pre-alpha, under active construction.** [Phase 50](https://github.com/theesfeld/clun/issues/24) is complete.
+> It shipped as `0.1.0-dev.17` / `v0.1.0-dev.17` (SemVer impact: `minor`).
+> The verified release boundary is `v0.1.0-dev.17`, with four native archives and checksums.
+> Release-gated Pages and hosted-installer results are recorded in the canonical issue.
 > Phase 26 remains deferred until after Phase 82 and will
 > be rewritten for the repository state that exists then.
 > Clun executes its scoped JS/TS surface, but it is not a drop-in Node.js or Bun replacement.
@@ -20,11 +20,6 @@ Clun does not claim blanket speed parity with Bun.
 > the local resume checklist.
 <!-- clun-generated:release:end -->
 
-Source on draft [PR #85](https://github.com/theesfeld/clun/pull/85) is the `0.1.0-dev.17` Phase 50
-candidate. Its evidence-backed router/static-file/FileSystemRouter row is staged as `Yes` and is under
-exact-head release and adversarial review. Its pinned inventory assigns all 254 upstream tests once across
-118 executable and five explicit non-applicable contract rows. The hosted installer correctly remains on
-published dev.16 until the candidate is merged, tagged, and released.
 
 ## Install
 
@@ -156,8 +151,7 @@ workflows are read-only and fail closed if the canonical issues, README, or site
 
 <!-- clun-generated:release-summary:begin -->
 Release versions follow the actual SemVer impact recorded in the canonical issue, not the number of pushes.
-The current source is the `0.1.0-dev.17` release candidate; the immutable tag and assets are not published yet.
-The last published prerelease remains [`v0.1.0-dev.16`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.16).
+The current source version and latest published prerelease are [`0.1.0-dev.17`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.17).
 [The versioning contract](docs/versioning.md) defines prerelease sequencing, synchronized surfaces, immutable tags, assets, and installer evidence.
 [Phase 50 issue #24](https://github.com/theesfeld/clun/issues/24) is the canonical live release record.
 <!-- clun-generated:release-summary:end -->

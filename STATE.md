@@ -7,7 +7,7 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **50 - Router, static files, and FileSystemRouter**  (YES CANDIDATE REVIEW)
+## Current phase: **50 - Router, static files, and FileSystemRouter**  (PUBLISHED)
 
 **Canonical issue:** https://github.com/theesfeld/clun/issues/24
 **Next phase issue:** https://github.com/theesfeld/clun/issues/11
