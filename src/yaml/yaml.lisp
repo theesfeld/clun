@@ -542,9 +542,21 @@
                  :offset (+ (fr-offset reader) (fr-position reader)))))
 
 (defun fr-skip-separation (reader)
-  (loop for character = (fr-peek reader)
-        while (and character (member character '(#\Space #\Tab #\Newline #\Return)))
-        do (incf (fr-position reader))))
+  (let ((separated nil)
+        (line-break nil))
+    (loop
+      (let ((character (fr-peek reader)))
+        (cond
+          ((and character (member character '(#\Space #\Tab #\Newline #\Return)))
+           (when (member character '(#\Newline #\Return))
+             (setf line-break t))
+           (setf separated t)
+           (incf (fr-position reader)))
+          ((and separated (eql character #\#))
+           (loop for current = (fr-peek reader)
+                 while (and current (not (member current '(#\Newline #\Return))))
+                 do (incf (fr-position reader))))
+          (t (return line-break)))))))
 
 (defun fr-location (reader)
   (values (fr-line reader)
@@ -874,9 +886,12 @@
       (let ((key (if (flow-value-indicator-p reader)
                      (scalar-node (fr-parser reader) "" line column offset)
                      (flow-parse-node reader (1+ depth) :key-p t))))
-        (fr-skip-separation reader)
-        (if (or explicit (flow-value-indicator-p reader))
-            (let ((has-value-indicator (flow-value-indicator-p reader)))
+        (let* ((line-break (fr-skip-separation reader))
+               (colon-p (and (eql (fr-peek reader) #\:)
+                             (or (not line-break)
+                                 (flow-value-indicator-p reader)))))
+          (if (or explicit colon-p)
+            (let ((has-value-indicator colon-p))
               (when has-value-indicator
                 (fr-next reader)
                 (fr-skip-separation reader))
@@ -895,7 +910,7 @@
                                  :line line :column column :offset offset)
                  (yaml-node-value mapping))
                 (finalize-mapping (fr-parser reader) mapping)))
-            key)))))
+            key))))))
 
 (defun flow-parse-mapping-entry (reader depth)
   (fr-skip-separation reader)
@@ -1049,33 +1064,46 @@
 
 (defun block-mapping-colon (text)
   "Return the first block mapping indicator outside quotes/flow collections."
-  (let ((single nil) (double nil) (escape nil) (depth 0))
-    (loop for index below (length text)
-          for character = (char text index) do
-      (cond
-        (double
-         (cond (escape (setf escape nil))
-               ((char= character #\\) (setf escape t))
-               ((char= character #\") (setf double nil))))
-        (single
-         (when (char= character #\')
-           (if (and (< (1+ index) (length text))
-                    (char= (char text (1+ index)) #\'))
-               (incf index)
-               (setf single nil))))
-        ((and (zerop depth)
-              (member character '(#\& #\! #\*))
-              (or (zerop index) (ascii-space-p (char text (1- index)))))
-         ;; Colons are legal inside node-property and alias names.
-         (setf index (1- (property-token-end text (1+ index)))))
-        ((char= character #\") (setf double t))
-        ((char= character #\') (setf single t))
-        ((member character '(#\[ #\{)) (incf depth))
-        ((member character '(#\] #\})) (when (plusp depth) (decf depth)))
-        ((and (zerop depth) (char= character #\:)
-              (or (= (1+ index) (length text))
-                  (ascii-space-p (char text (1+ index)))))
-         (return index))))))
+  (let ((start (trim-left-index text)))
+    ;; Node properties and aliases may contain colons in their names.
+    (loop while (and (< start (length text))
+                     (member (char text start) '(#\& #\!)))
+          do (setf start
+                   (trim-left-index text (property-token-end text (1+ start)))))
+    (when (and (< start (length text)) (char= (char text start) #\*))
+      (setf start
+            (trim-left-index text (property-token-end text (1+ start)))))
+    (let* ((first (and (< start (length text)) (char text start)))
+           (structured-p (member first '(#\" #\' #\[ #\{)))
+           (single (and first (char= first #\')))
+           (double (and first (char= first #\")))
+           (escape nil)
+           (depth 0))
+      (loop for index from start below (length text)
+            for character = (char text index) do
+        (cond
+          (double
+           (cond (escape (setf escape nil))
+                 ((char= character #\\) (setf escape t))
+                 ((and (> index start) (char= character #\"))
+                  (setf double nil))))
+          (single
+           (when (and (> index start) (char= character #\'))
+             (if (and (< (1+ index) (length text))
+                      (char= (char text (1+ index)) #\'))
+                 (incf index)
+                 (setf single nil))))
+          ((and structured-p (member character '(#\[ #\{))) (incf depth))
+          ((and structured-p (member character '(#\] #\})))
+           (when (plusp depth) (decf depth)))
+          ((and structured-p (plusp depth) (char= character #\"))
+           (setf double t))
+          ((and structured-p (plusp depth) (char= character #\'))
+           (setf single t))
+          ((and (zerop depth) (char= character #\:)
+                (or (= (1+ index) (length text))
+                    (ascii-space-p (char text (1+ index)))))
+           (return index)))))))
 
 (defun sequence-indicator-p (content)
   (and (plusp (length content))
@@ -1182,13 +1210,12 @@
            (incf (yp-index parser)))
           ((or (> indent parent-indent)
                (and allow-same-indent (= indent parent-indent)))
-           (when (or (sequence-indicator-p content)
-                     (block-explicit-key-p content)
+           (when (or (block-explicit-key-p content)
                      (block-mapping-colon content))
              (return))
            (let ((comment (comment-start (sl-text next) indent)))
              (push (if (plusp pending-empty-lines)
-                       (make-string (1+ pending-empty-lines)
+                       (make-string pending-empty-lines
                                     :initial-element #\Newline)
                        " ")
                    parts)
@@ -1390,6 +1417,16 @@
 (declaim (ftype (function (yaml-parser integer integer &optional integer) yaml-node)
                 parse-block-node))
 
+(defun block-plain-start-p (text)
+  (and (plusp (length text))
+       (let ((first (char text 0)))
+         (and (not (member first
+                           '(#\, #\[ #\] #\{ #\} #\# #\& #\* #\!
+                             #\| #\> #\' #\" #\% #\@ #\`)))
+              (not (and (member first '(#\- #\? #\:))
+                        (or (= (length text) 1)
+                            (ascii-space-p (char text 1)))))))))
+
 (defun parse-value-from-current (parser text parent-indent line column offset depth
                                  &key allow-same-indent allow-indentless-sequence
                                    allow-same-indent-plain allow-zero-indent-block)
@@ -1461,16 +1498,24 @@
                                   :style (if (char= (char rest 0) #\|)
                                              :literal :folded))))
            (register-anchor parser anchor node line column offset)))
+        ((char= (char rest 0) #\*)
+         (incf (yp-index parser))
+         (parse-inline-value parser text line column offset))
         (t
-         (let* ((plain-p (not (member (char rest 0) '(#\" #\' #\[ #\{ #\*))))
-                (gathered (if plain-p
-                              (gather-block-plain-lines
-                               parser text parent-indent allow-same-indent-plain)
-                              (gather-inline-lines
-                               parser (exact-open-inline-tail parser text column)
-                               line column offset)))
-                (node (parse-inline-value parser gathered line column offset)))
-           node))))))
+         (if (block-plain-start-p rest)
+             (let ((node
+                     (scalar-node
+                      parser
+                      (gather-block-plain-lines
+                       parser rest parent-indent allow-same-indent-plain)
+                      line rest-column rest-offset :tag tag :style :plain)))
+               (register-anchor parser anchor node line column offset))
+             (parse-inline-value
+              parser
+              (gather-inline-lines
+               parser (exact-open-inline-tail parser text column)
+               line column offset)
+              line column offset)))))))
 
 (defun block-explicit-key-p (content)
   (and (plusp (length content))
@@ -1493,13 +1538,31 @@
        (or (= (length content) 1)
            (ascii-space-p (char content 1)))))
 
+(defun parse-explicit-entry-node (parser text mapping-indent
+                                  line column offset depth)
+  (cond
+    ((sequence-indicator-p text)
+     (parse-block-sequence
+      parser (+ mapping-indent 2) depth
+      :first-content text :first-line line
+      :first-column column :first-offset offset))
+    ((and (plusp (length text)) (block-mapping-colon text))
+     (parse-block-mapping
+      parser (+ mapping-indent 2) depth
+      :first-content text :first-line line
+      :first-column column :first-offset offset))
+    (t
+     (parse-value-from-current parser text mapping-indent
+                               line column offset depth
+                               :allow-indentless-sequence t))))
+
 (defun parse-block-explicit-mapping-pair (parser mapping content mapping-indent
                                           line column offset depth)
   (let* ((key-start (trim-left-index content 1))
          (key-text (subseq content key-start))
-         (key (parse-value-from-current parser key-text mapping-indent
-                                        line (+ column key-start)
-                                        (+ offset key-start) depth)))
+         (key (parse-explicit-entry-node
+               parser key-text mapping-indent line
+               (+ column key-start) (+ offset key-start) depth)))
     (skip-ignorable-lines parser)
     (let ((value
             (if (and (< (yp-index parser) (length (yp-lines parser)))
@@ -1513,16 +1576,9 @@
                              (value-text (subseq current-content value-start))
                              (value-column (+ 1 current-indent value-start))
                              (value-offset (+ (sl-offset current) current-indent value-start)))
-                        (if (and (plusp (length value-text))
-                                 (block-mapping-colon value-text))
-                            (parse-block-mapping
-                             parser (+ mapping-indent 2) depth
-                             :first-content value-text :first-line current
-                             :first-column value-column :first-offset value-offset)
-                            (parse-value-from-current
-                             parser value-text mapping-indent
-                             (sl-number current) value-column value-offset depth
-                             :allow-indentless-sequence t)))
+                        (parse-explicit-entry-node
+                         parser value-text mapping-indent
+                         (sl-number current) value-column value-offset depth))
                       (scalar-node parser "" line column offset)))
                 (scalar-node parser "" line column offset))))
       (checked-edge parser line column offset)
@@ -1531,6 +1587,20 @@
                        :line line :column column :offset offset)
        (yaml-node-value mapping))
       mapping)))
+
+(defun parse-block-mapping-key (parser text line column offset)
+  (multiple-value-bind (rest-index anchor tag)
+      (parse-node-properties parser text 0 line column offset)
+    (let* ((rest (trim-ascii-space (subseq text rest-index)))
+           (rest-column (+ column rest-index))
+           (rest-offset (+ offset rest-index)))
+      (if (or (zerop (length rest))
+              (string= rest ":")
+              (block-plain-start-p rest))
+          (let ((node (scalar-node parser rest line rest-column rest-offset
+                                   :tag tag :style :plain)))
+            (register-anchor parser anchor node line column offset))
+          (parse-inline-value parser text line column offset :key-p t)))))
 
 (defun parse-block-mapping-pair (parser mapping content mapping-indent
                                  line column offset depth)
@@ -1543,7 +1613,7 @@
            (value-text (subseq content value-start))
            (key (if (zerop (length key-text))
                     (scalar-node parser "" line column offset)
-                    (parse-inline-value parser key-text line column offset :key-p t)))
+                    (parse-block-mapping-key parser key-text line column offset)))
            (value (parse-value-from-current parser value-text mapping-indent
                                             line (+ column value-start)
                                             (+ offset value-start) depth
@@ -1601,8 +1671,8 @@
                                         (+ (sl-offset current) current-indent) depth)))))
     (finalize-mapping parser mapping)))
 
-(defun parse-compact-mapping (parser content sequence-indent line column offset depth)
-  (parse-block-mapping parser (+ sequence-indent 2) depth
+(defun parse-compact-mapping (parser content mapping-indent line column offset depth)
+  (parse-block-mapping parser mapping-indent depth
                        :first-content content :first-line line
                        :first-column column :first-offset offset))
 
@@ -1614,13 +1684,13 @@
          (value
            (cond
              ((sequence-indicator-p rest)
-              (parse-block-sequence parser (+ indent 2) depth
+              (parse-block-sequence parser (+ indent value-start) depth
                                     :first-content rest :first-line line
                                     :first-column value-column :first-offset value-offset))
              ((and (plusp (length rest))
                    (or (block-explicit-key-p rest)
                        (block-mapping-colon rest)))
-              (parse-compact-mapping parser rest indent line
+              (parse-compact-mapping parser rest (+ indent value-start) line
                                      value-column value-offset depth))
              (t
               (parse-value-from-current parser rest indent line
