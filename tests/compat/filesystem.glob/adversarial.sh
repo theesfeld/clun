@@ -96,13 +96,15 @@ try {
   deepResult = "OK:" + deepValues.length + ":" + (deepValues.length ? deepValues[deepValues.length - 1].length : 0);
 } catch (error) { deepResult = error.code; }
 console.log("deep", deepResult);
-const longLeaf = [...new Clun.Glob("**/*").scanSync({ cwd: root + "/longleaf", absolute: true })];
-console.log(
-  "long-leaf",
-  longLeaf.length,
-  longLeaf.length === 1 && longLeaf[0].length > pathCeiling,
-  longLeaf.length === 1 && longLeaf[0].endsWith("/" + "F".repeat(255)),
-);
+try {
+  const longLeaf = [...new Clun.Glob("**/*").scanSync({ cwd: root + "/longleaf", absolute: true })];
+  console.log(
+    "long-leaf",
+    longLeaf.length,
+    longLeaf.length === 1 && longLeaf[0].length > pathCeiling,
+    longLeaf.length === 1 && longLeaf[0].endsWith("/" + "F".repeat(255)),
+  );
+} catch (error) { console.log("long-leaf", error.code); }
 console.log("long-broken", errorCode(function () {
   values("**/" + "B".repeat(255), {
     cwd: root + "/longleaf",
@@ -140,6 +142,13 @@ chmod 700 "$root/locked"
   exit "$status"
 }
 
+case $(uname -s) in
+  Darwin) long_expect='long-leaf ENAMETOOLONG
+long-broken ENAMETOOLONG' ;;
+  *) long_expect='long-leaf 1 true true
+long-broken ENOENT' ;;
+esac
+
 expected='self-cycle self|self/self
 cousins a/link/file.txt|a/own.txt|b/link/file.txt|b/own.txt|shared/file.txt
 literal-link a/link/file.txt
@@ -149,8 +158,7 @@ dot-link .dotlink/secret.txt
 trailing-cwd file.txt
 eloop ELOOP
 deep ENAMETOOLONG
-long-leaf 1 true true
-long-broken ENOENT
+'"$long_expect"'
 long-cwd ENAMETOOLONG
 nul-cwd EINVAL
 leading-dot ENAMETOOLONG

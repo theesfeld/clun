@@ -223,25 +223,31 @@ the epsilon edge of a trailing /** from matching its parent directory."
 (defun %scan-entry (accessor directory name token)
   (%check-cancelled token)
   (let* ((path (clun.sys:path-join directory name))
-         (overlong-p (> (%encoded-path-length path) (%path-ceiling)))
-         (lstat (if overlong-p
-                    (funcall (glob-accessor-lstat-entry accessor) directory name)
-                    (funcall (glob-accessor-lstat accessor) path)))
-         (stat (if (clun.sys:fstat-symlink-p lstat)
-                   (handler-case
-                       (if overlong-p
-                           (funcall (glob-accessor-stat-entry accessor) directory name)
-                           (funcall (glob-accessor-stat accessor) path))
-                     (clun.sys:fs-error (condition)
-                       ;; Only a genuinely missing target is a broken symlink.
-                       ;; ELOOP, EACCES, ENOTDIR, and every other filesystem
-                       ;; failure remain observable.
-                       (if (string= (clun.sys:fs-error-code condition) "ENOENT")
-                           nil
-                           (error condition))))
-                   lstat)))
-    (%check-cancelled token)
-    (make-scan-entry :name name :path path :lstat lstat :stat stat)))
+         (overlong-p (> (%encoded-path-length path) (%path-ceiling))))
+    ;; Bun's over-ceiling matched-leaf exception is Linux-only. On macOS,
+    ;; the 1024-byte walker buffer rejects the joined path before entry
+    ;; classification, including for a final regular file.
+    (when (and overlong-p
+               (string= (clun.sys:platform-name) "darwin"))
+      (%path-limit-check path))
+    (let* ((lstat (if overlong-p
+                      (funcall (glob-accessor-lstat-entry accessor) directory name)
+                      (funcall (glob-accessor-lstat accessor) path)))
+           (stat (if (clun.sys:fstat-symlink-p lstat)
+                     (handler-case
+                         (if overlong-p
+                             (funcall (glob-accessor-stat-entry accessor) directory name)
+                             (funcall (glob-accessor-stat accessor) path))
+                       (clun.sys:fs-error (condition)
+                         ;; Only a genuinely missing target is a broken symlink.
+                         ;; ELOOP, EACCES, ENOTDIR, and every other filesystem
+                         ;; failure remain observable.
+                         (if (string= (clun.sys:fs-error-code condition) "ENOENT")
+                             nil
+                             (error condition))))
+                     lstat)))
+      (%check-cancelled token)
+      (make-scan-entry :name name :path path :lstat lstat :stat stat))))
 
 (defun %entry-result-p (entry options directory-constraint)
   (let* ((lstat (scan-entry-lstat entry))

@@ -195,20 +195,23 @@ pathname list. Filesystem failures remain FS-ERROR conditions."
   "Classify immediate NAME relative to DIRECTORY without an OS-sized path join.
 
 The logical result path may exceed PATH_MAX while DIRECTORY is still openable.
-Linux and macOS expose an open descriptor through a short filesystem path, which
-lets the existing SB-POSIX boundary classify that final entry without a native
-extension or a process-global chdir. Errors retain the logical joined path."
+Linux exposes an open descriptor through a short filesystem path, which lets the
+existing SB-POSIX boundary classify that final entry without a native extension
+or a process-global chdir. Errors retain the logical joined path."
   (let ((logical-path (path-join directory name))
         (fd nil))
     (with-fs ((if lstat "lstat" "stat") logical-path)
       (unwind-protect
            (progn
              (setf fd (sb-posix:open (native->pathname directory) sb-posix:o-rdonly))
-             (let ((entry-path
-                     (format nil "~a/~d/~a"
-                             (if (string= (platform-name) "darwin")
-                                 "/dev/fd" "/proc/self/fd")
-                             fd name)))
+             (let* ((descriptor-root
+                      (cond ((directory-p "/dev/fd") "/dev/fd")
+                            ((directory-p "/proc/self/fd") "/proc/self/fd")
+                            (t nil)))
+                    (entry-path
+                      (if descriptor-root
+                          (format nil "~a/~d/~a" descriptor-root fd name)
+                          logical-path)))
                (%stat->fstat
                 (funcall (if lstat #'sb-posix:lstat #'sb-posix:stat)
                          (native->pathname entry-path)))))
