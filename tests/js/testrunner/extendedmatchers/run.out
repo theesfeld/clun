@@ -1,0 +1,18 @@
+(pass) nil and typeof predicates
+(pass) boolean predicates require booleans
+(pass) number predicates preserve NaN and finite boundaries
+(pass) positive and negative predicates follow Bun rounding boundaries
+(pass) object function and symbol predicates distinguish primitives
+(pass) array predicates validate exact array size
+(pass) even and odd predicates include BigInt
+(pass) date and string predicates handle wrappers and invalid dates
+(pass) within uses an inclusive start and exclusive end
+(pass) whitespace equality removes Bun ASCII whitespace
+(pass) string affix matchers preserve empty-string behavior
+(pass) repetition counts non-overlapping occurrences
+(pass) satisfy requires an exact boolean result
+
+ 13 pass
+ 0 fail
+ 103 expect() calls
+Ran 13 tests across 1 file.

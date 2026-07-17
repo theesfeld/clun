@@ -1,0 +1,13 @@
+(pass) reports source-aligned TypeScript coverage
+
+ 1 pass
+ 0 fail
+ 2 expect() calls
+Ran 1 test across 1 file.
+
+-------------|---------|---------|-------------------
+File         | % Funcs | % Lines | Uncovered Line #s
+-------------|---------|---------|-------------------
+All files    |   66.67 |   75.00 |
+subject.mts  |   66.67 |   75.00 | 9,13
+-------------|---------|---------|-------------------

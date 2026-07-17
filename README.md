@@ -23,10 +23,10 @@ Clun does not claim blanket speed parity with Bun.
 Source on draft [PR #95](https://github.com/theesfeld/clun/pull/95) is the `0.1.0-dev.20` Phase 28
 candidate. Public `runtime.web-standard-apis` and `package-manager.npm` remain honest `Partial` and are not
 claimed as `Yes`. Published `v0.1.0-dev.17` is the verified release boundary (router Yes). Shell
-(`0.1.0-dev.18`) is on `master` via #86; test-runner owns `0.1.0-dev.19`. This unit stages Partial
-transport as `0.1.0-dev.20` under the unpublished-intermediate prerelease gap policy and stays draft until
-the SemVer train order allows merge. The hosted installer correctly remains on published dev.17 until the
-candidate is merged, tagged, and released.
+(`0.1.0-dev.18`, #86) and test-runner (`0.1.0-dev.19`, #88) are on `master`. This unit stages Partial
+transport as the exact next prerelease `0.1.0-dev.20` and stays draft until CI is green on the rebased
+candidate and residual Phase 28 gates are decided. The hosted installer correctly remains on published
+dev.17 until the candidate is merged, tagged, and released.
 
 
 ## Install
@@ -128,7 +128,7 @@ July 16, 2026. Engineering references are separately pinned to Bun commit `c1076
 | npm package management | Partial: fixture-tested; a pinned public npm install smoke passes over verified TLS | Phases [28](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-28), [59](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-59), [60](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-60), [61](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-61) |
 | Bundler | No: not included in the v0.1 scope | Phases [62](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-62), [63](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-63), [64](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-64), [77](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-77) |
 | Cross-platform shell API | Partial: `Clun.$`, `clun exec`, standalone `.bun.sh` files with positional parameters, dollar and backtick command substitution, merged stdout/stderr pipelines, grouped subshells and brace groups nested across `if` control flow, Blob/Response I/O, positive extended-glob conditions, compound-word field splitting, 100-level arrays, Unicode, tilde and continuation expansion, builtins, and 1,247/1,630 pinned shell sites | [Phase 65](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-65) |
-| Jest-compatible test runner | Partial: 22 matchers; no snapshots, coverage, mocks, or concurrency | [Phase 66](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-66) |
+| Jest-compatible test runner | Partial: 62 core and extended matchers, snapshot lifecycles with stable property tokens and Bun-formatted core values, source-aligned ESM/CommonJS/TypeScript statement and function coverage with Bun-shaped text and LCOV reporters, filters, config, and thresholds, custom and Promise-settlement asymmetric matchers, per-realm ESM/CJS module mocks, CLI and bunfig setup preloads, realm-local Jest and vi fake timers with Date and performance clock control, seeded Bun-pinned randomization, deterministic file sharding, dots and JUnit reporters, function mocks/spies, callbacks, cleanup, parameterization, retries, and repeats | [Phase 66](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-66) |
 | Hot reloading | No | [Phase 67](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-67) |
 | Monorepo support | No: workspaces are unsupported | [Phase 60](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-60) |
 | Frontend development server | No | [Phase 68](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-68) |

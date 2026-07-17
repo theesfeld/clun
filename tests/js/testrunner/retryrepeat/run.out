@@ -1,0 +1,17 @@
+(pass) retry policy > passes on the third attempt
+(pass) retry reruns hooks for every attempt
+(pass) assertion contracts can trigger a retry
+(pass) assertion retry count
+(pass) repeat policy > runs the initial attempt plus repeats
+(pass) repeat reruns hooks for every attempt
+(fail) repeat retains a middle failure
+  Error: middle repeat failure
+(pass) repeat continues after a failed iteration
+(pass) expected failure stops retries
+(pass) expected failure attempt count
+(pass) retry and repeats are mutually exclusive
+
+ 10 pass
+ 1 fail
+ 9 expect() calls
+Ran 11 tests across 1 file.

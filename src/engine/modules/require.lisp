@@ -21,6 +21,7 @@
 via `.call(module.exports, …)`, so top-level `this` === module.exports."
   (let* ((path (mr-resolved-path mr))
          (source (or (mr-source mr) (read-source-for path)))
+         (*coverage-source-path* path)
          (*current-source-text* source)
          (program (parse-program source :source-type :script))
          (wrapper (make-cjs-wrapper (program-body program)))
@@ -33,6 +34,8 @@ via `.call(module.exports, …)`, so top-level `this` === module.exports."
 A record may already exist as an :unlinked placeholder (pre-created by the ESM graph
 loader) — evaluation is driven by status, not mere existence."
   (let ((mr (realm-module *realm* path)))
+    (when (and mr (mr-mock-exports mr))
+      (return-from load-cjs-module (mr-mock-exports mr)))
     (if (and mr (member (mr-status mr) '(:evaluated :evaluating)))
         ;; cache hit — for an :evaluating module this is the partial exports (cycle).
         (mr-cjs-exports mr)
@@ -65,6 +68,8 @@ loader) — evaluation is driven by status, not mere existence."
 
 (defun cjs-require (specifier referrer-dir)
   "The CommonJS require(SPECIFIER) from REFERRER-DIR: node builtin, else resolve + dispatch."
+  (let ((mock (find-module-mock specifier referrer-dir '("node" "require"))))
+    (when mock (return-from cjs-require (mr-mock-exports mock))))
   (let ((builtin (try-builtin-module specifier)))
     (when builtin (return-from cjs-require (mr-cjs-exports builtin))))
   (multiple-value-bind (path format) (resolve-specifier specifier referrer-dir '("node" "require"))

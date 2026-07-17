@@ -11,10 +11,19 @@
   (mode :normal))                       ; :normal :skip :todo :only
 
 (defstruct (t-test (:conc-name tt-) (:predicate tt-p))
-  name fn parent (mode :normal) (timeout nil))
+  name fn parent (args '()) (mode :normal) (failing nil)
+  (timeout nil) (retry nil) (repeats nil))
 
 (defstruct (test-context (:conc-name ctx-))
-  root current (default-timeout 5000) (has-only nil) (expect-calls 0))
+  root current path (default-timeout 5000) (has-only nil) (expect-calls 0)
+  (mocks '()) (invocation-order 0)
+  (snapshot nil)
+  (preloading nil)
+  (fake-timers nil)
+  (custom-matchers (make-hash-table :test #'equal)))
+
+(defvar *active-test* nil "The test whose hooks/body are currently executing.")
+(defvar *test-finished-callbacks* nil "Callbacks registered for the active test attempt.")
 
 (defun td-ordered-children (d)
   "Children in registration order (they are pushed, so reverse)."
@@ -29,7 +38,15 @@
               (let ((v (eng:js-get opts "timeout"))) (and (eng:js-number-p v) (truncate (eng:to-number v))))))
         (t nil)))
 
+(defun %opt-count (opts name)
+  (when (eng:js-object-p opts)
+    (let ((value (eng:js-get opts name)))
+      (when (eng:js-number-p value)
+        (max 0 (truncate (eng:to-number value)))))))
+
 (defun %register-describe (ctx name fn mode)
+  (when (ctx-preloading ctx)
+    (eng:throw-type-error "Cannot use describe() during preload."))
   (let ((d (make-t-describe :name name :parent (ctx-current ctx) :mode mode)))
     (push d (td-children (ctx-current ctx)))
     (when (eq mode :only) (setf (ctx-has-only ctx) t))
@@ -40,33 +57,101 @@
           (setf (ctx-current ctx) prev))))
     eng:+undefined+))
 
-(defun %register-test (ctx name fn mode opts)
-  (let ((tt (make-t-test :name name :fn (and (eng:callable-p fn) fn)
-                         :parent (ctx-current ctx) :mode mode :timeout (%opt-timeout opts))))
-    (push tt (td-children (ctx-current ctx)))
-    (when (eq mode :only) (setf (ctx-has-only ctx) t))
-    eng:+undefined+))
+(defun %register-test (ctx name fn mode opts &optional failing call-args)
+  (when (ctx-preloading ctx)
+    (eng:throw-type-error "Cannot use test() during preload."))
+  (when (and failing (not (eng:callable-p fn)))
+    (eng:throw-type-error "test.failing expects a function as the second argument"))
+  (let ((retry (%opt-count opts "retry"))
+        (repeats (%opt-count opts "repeats")))
+    (when (and retry repeats)
+      (eng:throw-type-error "Cannot set both retry and repeats on a test"))
+    (let ((tt (make-t-test :name name :fn (and (eng:callable-p fn) fn)
+                           :parent (ctx-current ctx) :args (or call-args '())
+                           :mode mode :failing failing
+                           :timeout (%opt-timeout opts) :retry retry :repeats repeats)))
+      (push tt (td-children (ctx-current ctx)))
+      (when (eq mode :only) (setf (ctx-has-only ctx) t))
+      eng:+undefined+)))
 
 (defun %each-rows (table)
   "The rows of a .each table (a JS array); each row is passed as args to the body."
   (if (eng:js-array-p table) (eng:array-like->list table) '()))
 
+(defun %each-format-value (directive value)
+  (case directive
+    (#\s (eng:to-string value))
+    ((#\d #\f) (eng:to-string (eng:to-number value)))
+    (#\i
+     (let ((number (eng:to-number value)))
+       (if (eng:js-finite-p number)
+           (princ-to-string (truncate number))
+           (eng:to-string number))))
+    (#\j
+     (let* ((json (eng:js-get (eng:realm-global eng:*realm*) "JSON"))
+            (stringify (eng:js-get json "stringify")))
+       (eng:to-string (eng:js-call stringify json (list value)))))
+    ((#\o #\p) (eng:inspect-value value))
+    (t (eng:to-string value))))
+
+(defun %each-path-value (root path)
+  (let ((value root) (start 0) (length (length path)))
+    (loop
+      for dot = (position #\. path :start start)
+      for end = (or dot length)
+      do (setf value (eng:js-get value (subseq path start end)))
+      when (null dot) return value
+      do (setf start (1+ dot)))))
+
+(defun %each-title-value (value)
+  (if (eng:js-object-p value) (eng:inspect-value value) (eng:to-string value)))
+
+(defun %each-path-char-p (char)
+  (or (alphanumericp char) (char= char #\_) (char= char #\.)))
+
 (defun %each-name (template row-args index)
-  "Substitute %s/%d/%i/%j/%o/%p (positional, consuming ROW-ARGS in order), %# (index),
-and %% in a .each name template. A documented subset of Bun's printf-style names."
+  "Substitute %s/%d/%i/%f/%j/%o/%p (positional, consuming ROW-ARGS in order), %# (index),
+%%, and object-row $property/$property.path/$# forms in a .each name template."
   (let ((out (make-string-output-stream)) (i 0) (n (length template)) (args row-args))
     (loop while (< i n) do
       (let ((c (char template i)))
-        (if (and (char= c #\%) (< (1+ i) n))
-            (let ((d (char template (1+ i))))
-              (case d
-                (#\# (write-string (princ-to-string index) out))
-                (#\% (write-char #\% out))
-                ((#\s #\d #\i #\j #\o #\p)
-                 (write-string (eng:to-string (if args (pop args) eng:+undefined+)) out))
-                (t (write-char c out) (write-char d out)))
-              (incf i 2))
-            (progn (write-char c out) (incf i)))))
+        (cond
+          ((and (char= c #\%) (< (1+ i) n))
+           (let ((d (char template (1+ i))))
+             (case d
+               (#\# (write-string (princ-to-string index) out))
+               (#\% (write-char #\% out))
+               ((#\s #\d #\i #\f #\j #\o #\p)
+                (write-string (%each-format-value
+                               d (if args (pop args) eng:+undefined+))
+                              out))
+               (t (write-char c out) (write-char d out)))
+             (incf i 2)))
+          ((and (char= c #\$) (< (1+ i) n))
+           (let ((next (char template (1+ i))))
+             (cond
+               ((char= next #\$)
+                (write-char #\$ out)
+                (incf i 2))
+               ((char= next #\#)
+                (write-string (princ-to-string index) out)
+                (incf i 2))
+               ((or (alpha-char-p next) (char= next #\_))
+                (let ((end (+ i 2)))
+                  (loop while (and (< end n) (%each-path-char-p (char template end)))
+                        do (incf end))
+                  (write-string
+                   (%each-title-value
+                    (%each-path-value (if row-args (first row-args) eng:+undefined+)
+                                      (subseq template (1+ i) end)))
+                   out)
+                  (setf i end)))
+               (t
+                (write-char c out)
+                (incf i)))))
+          (t
+           (write-char c out)
+           (incf i)))))
     (get-output-stream-string out)))
 
 ;;; --- the test()/describe() function objects (with .skip/.only/... variants) --
@@ -75,48 +160,154 @@ and %% in a .each name template. A documented subset of Bun's printf-style names
 
 (defun %make-test-callable (ctx)
   "Build the `test` function object with its modifier properties. `it` is an alias."
-  (labels ((reg (mode) (lambda (this args) (declare (ignore this))
-                         (%register-test ctx (eng:to-string (eng:arg args 0)) (eng:arg args 1)
-                                         mode (eng:arg args 2))))
-           (base (mode name) (%fn name 2 (reg mode)))
-           (cond-variant (name true-mode false-mode)
-             (%fn name 1 (lambda (this args) (declare (ignore this))
-                           (let ((m (if (eng:js-truthy (eng:arg args 0)) true-mode false-mode)))
-                             (base m ""))))))
-    (let ((test (base :normal "test")))
-      (eng:data-prop test "skip" (base :skip "skip"))
-      (eng:data-prop test "only" (base :only "only"))
-      (eng:data-prop test "todo"
-        (%fn "todo" 2 (lambda (this args) (declare (ignore this))
-                        (%register-test ctx (eng:to-string (eng:arg args 0)) (eng:arg args 1)
-                                        :todo (eng:arg args 2)))))
-      (eng:data-prop test "skipIf" (cond-variant "skipIf" :skip :normal))
-      (eng:data-prop test "todoIf" (cond-variant "todoIf" :todo :normal))
-      (eng:data-prop test "if" (cond-variant "if" :normal :skip))
-      (eng:data-prop test "each"
-        (%fn "each" 1 (lambda (this args) (declare (ignore this))
-                        (let ((rows (%each-rows (eng:arg args 0))))
-                          (%fn "" 2 (lambda (th a) (declare (ignore th))
-                                      (let ((tmpl (eng:to-string (eng:arg a 0))) (fn (eng:arg a 1)) (idx 0))
-                                        (dolist (row rows)
-                                          (let* ((rargs (if (eng:js-array-p row) (eng:array-like->list row) (list row)))
-                                                 (nm (%each-name tmpl rargs idx)))
-                                            (%register-test ctx nm
-                                              (%fn "" 0 (lambda (tt2 aa2) (declare (ignore tt2 aa2))
-                                                          (eng:js-call fn eng:+undefined+ rargs)))
-                                              :normal eng:+undefined+))
-                                          (incf idx))
-                                        eng:+undefined+)))))))
-      test)))
+  (labels
+      ((member-name (mode failing)
+         (if failing
+             "failing"
+             (ecase mode
+               (:normal "test") (:skip "skip") (:only "only") (:todo "todo"))))
+       (register-one (mode failing args)
+         (%register-test ctx (eng:to-string (eng:arg args 0)) (eng:arg args 1)
+                         mode (eng:arg args 2) failing))
+       (make-member (mode failing rows bound-p)
+         (%fn (member-name mode failing) 2
+           (lambda (this args)
+             (declare (ignore this))
+             (if (not bound-p)
+                 (register-one mode failing args)
+                 (let ((tmpl (eng:to-string (eng:arg args 0)))
+                       (fn (eng:arg args 1))
+                       (opts (eng:arg args 2))
+                       (idx 0))
+                   (when (and failing (not (eng:callable-p fn)))
+                     (eng:throw-type-error
+                      "test.failing expects a function as the second argument"))
+                   (dolist (row rows)
+                     (let* ((rargs (if (eng:js-array-p row)
+                                       (eng:array-like->list row)
+                                       (list row)))
+                            (nm (%each-name tmpl rargs idx)))
+                       (%register-test ctx nm fn mode opts failing rargs))
+                     (incf idx))
+                   eng:+undefined+)))))
+       (make-family (rows bound-p requested-mode requested-failing)
+         (let ((members (make-hash-table :test #'equal)))
+           (dolist (mode '(:normal :skip :only :todo))
+             (dolist (failing '(nil t))
+               (setf (gethash (list mode failing) members)
+                     (make-member mode failing rows bound-p))))
+           (flet ((lookup (mode failing)
+                    (gethash (list mode failing) members)))
+             (maphash
+              (lambda (key member)
+                (destructuring-bind (mode failing) key
+                  (eng:data-prop member "skip" (lookup :skip failing))
+                  (eng:data-prop member "only" (lookup :only failing))
+                  (eng:data-prop member "todo" (lookup :todo failing))
+                  (eng:data-prop member "failing" (lookup mode t))
+                  (eng:data-prop member "if"
+                    (%fn "if" 1
+                      (lambda (this args)
+                        (declare (ignore this))
+                        (if (eng:js-truthy (eng:arg args 0))
+                            member
+                            (lookup :skip failing)))))
+                  (eng:data-prop member "skipIf"
+                    (%fn "skipIf" 1
+                      (lambda (this args)
+                        (declare (ignore this))
+                        (if (eng:js-truthy (eng:arg args 0))
+                            (lookup :skip failing)
+                            member))))
+                  (eng:data-prop member "todoIf"
+                    (%fn "todoIf" 1
+                      (lambda (this args)
+                        (declare (ignore this))
+                        (if (eng:js-truthy (eng:arg args 0))
+                            (lookup :todo failing)
+                            member))))
+                  (eng:data-prop member "failingIf"
+                    (%fn "failingIf" 1
+                      (lambda (this args)
+                        (declare (ignore this))
+                        (if (eng:js-truthy (eng:arg args 0))
+                            (lookup mode t)
+                            member))))
+                  (eng:data-prop member "each"
+                    (%fn "each" 1
+                      (lambda (this args)
+                        (declare (ignore this))
+                        (make-family (%each-rows (eng:arg args 0)) t
+                                     mode failing))))))
+              members)
+             (lookup requested-mode requested-failing)))))
+    (make-family '() nil :normal nil)))
 
 (defun %make-describe-callable (ctx)
-  (labels ((reg (mode) (lambda (this args) (declare (ignore this))
-                         (%register-describe ctx (eng:to-string (eng:arg args 0)) (eng:arg args 1) mode))))
-    (let ((d (%fn "describe" 2 (reg :normal))))
-      (eng:data-prop d "skip" (%fn "skip" 2 (reg :skip)))
-      (eng:data-prop d "only" (%fn "only" 2 (reg :only)))
-      (eng:data-prop d "todo" (%fn "todo" 2 (reg :todo)))
-      d)))
+  (labels
+      ((member-name (mode)
+         (ecase mode
+           (:normal "describe") (:skip "skip") (:only "only") (:todo "todo")))
+       (make-member (mode rows bound-p)
+         (%fn (member-name mode) 2
+           (lambda (this args)
+             (declare (ignore this))
+             (if (not bound-p)
+                 (%register-describe ctx (eng:to-string (eng:arg args 0))
+                                     (eng:arg args 1) mode)
+                 (let ((tmpl (eng:to-string (eng:arg args 0)))
+                       (fn (eng:arg args 1))
+                       (idx 0))
+                   (unless (eng:callable-p fn)
+                     (eng:throw-type-error
+                      "describe.each expects a function as the second argument"))
+                   (dolist (row rows)
+                     (let* ((rargs (if (eng:js-array-p row)
+                                       (eng:array-like->list row)
+                                       (list row)))
+                            (nm (%each-name tmpl rargs idx)))
+                       (%register-describe
+                        ctx nm
+                        (%fn "" 0
+                          (lambda (tt2 aa2)
+                            (declare (ignore tt2 aa2))
+                            (eng:js-call fn eng:+undefined+ rargs)))
+                        mode))
+                     (incf idx))
+                   eng:+undefined+)))))
+       (make-family (rows bound-p requested-mode)
+         (let ((members (make-hash-table :test #'eq)))
+           (dolist (mode '(:normal :skip :only :todo))
+             (setf (gethash mode members) (make-member mode rows bound-p)))
+           (flet ((lookup (mode) (gethash mode members)))
+             (maphash
+              (lambda (mode member)
+                (eng:data-prop member "skip" (lookup :skip))
+                (eng:data-prop member "only" (lookup :only))
+                (eng:data-prop member "todo" (lookup :todo))
+                (eng:data-prop member "if"
+                  (%fn "if" 1
+                    (lambda (this args)
+                      (declare (ignore this))
+                      (if (eng:js-truthy (eng:arg args 0)) member (lookup :skip)))))
+                (eng:data-prop member "skipIf"
+                  (%fn "skipIf" 1
+                    (lambda (this args)
+                      (declare (ignore this))
+                      (if (eng:js-truthy (eng:arg args 0)) (lookup :skip) member))))
+                (eng:data-prop member "todoIf"
+                  (%fn "todoIf" 1
+                    (lambda (this args)
+                      (declare (ignore this))
+                      (if (eng:js-truthy (eng:arg args 0)) (lookup :todo) member))))
+                (eng:data-prop member "each"
+                  (%fn "each" 1
+                    (lambda (this args)
+                      (declare (ignore this))
+                      (make-family (%each-rows (eng:arg args 0)) t mode)))))
+              members)
+             (lookup requested-mode)))))
+    (make-family '() nil :normal)))
 
 (defun %hook (ctx slot)
   "A before*/after* hook global: append the callback to the CURRENT describe's list."
@@ -130,6 +321,19 @@ and %% in a .each name template. A documented subset of Bun's printf-style names
                     (:after-each (push fn (td-after-each d)))))
                 eng:+undefined+))))
 
+(defun %on-test-finished ()
+  (%fn "onTestFinished" 1
+    (lambda (this args)
+      (declare (ignore this))
+      (unless *active-test*
+        (eng:throw-type-error
+         "Cannot call onTestFinished() here. It must be called inside a test."))
+      (let ((callback (eng:arg args 0)))
+        (unless (eng:callable-p callback)
+          (eng:throw-type-error "onTestFinished() expects a callback function"))
+        (push callback *test-finished-callbacks*))
+      eng:+undefined+)))
+
 (defun install-test-globals (realm ctx)
   "Install describe/test/it + hooks + setDefaultTimeout on REALM's global, all
 registering into CTX's tree. expect is installed separately (install-expect)."
@@ -142,10 +346,12 @@ registering into CTX's tree. expect is installed separately (install-expect)."
     (eng:hidden-prop g "beforeEach" (%hook ctx :before-each))
     (eng:hidden-prop g "afterAll" (%hook ctx :after-all))
     (eng:hidden-prop g "afterEach" (%hook ctx :after-each))
+    (eng:hidden-prop g "onTestFinished" (%on-test-finished))
     (eng:hidden-prop g "setDefaultTimeout"
       (%fn "setDefaultTimeout" 1
         (lambda (this args) (declare (ignore this))
           (setf (ctx-default-timeout ctx) (max 0 (truncate (eng:to-number (eng:arg args 0)))))
           eng:+undefined+)))
+    (install-test-mocks realm ctx)
     (install-expect realm ctx)
     ctx))

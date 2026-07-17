@@ -1,0 +1,23 @@
+preload beforeAll
+file a beforeAll
+preload beforeEach
+file a beforeEach
+first body
+file a afterEach
+preload afterEach
+(pass) first file
+file a afterAll
+file b beforeAll
+preload beforeEach
+file b beforeEach
+second body
+file b afterEach
+preload afterEach
+(pass) second file
+file b afterAll
+preload afterAll
+
+ 2 pass
+ 0 fail
+ 8 expect() calls
+Ran 2 tests across 2 files.

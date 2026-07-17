@@ -1,0 +1,10 @@
+(pass) callbacks run after afterEach in registration order
+(pass) async and callback-style cleanup settle before the next test
+(pass) a body failure still runs cleanup
+(pass) cleanup from a failed body completed
+(pass) registration validates callbacks
+
+ 5 pass
+ 0 fail
+ 5 expect() calls
+Ran 5 tests across 1 file.

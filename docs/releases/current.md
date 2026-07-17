@@ -20,9 +20,9 @@ The canonical evidence and current limitations are in `compat/`; `make compat-va
 - Registers executable hermetic proxy contracts and DNS suite evidence under the real ledger IDs
   `runtime.web-standard-apis` and `package-manager.npm` (`make compat FEATURE=…` is valid).
 - Keeps both public rows `Partial` (not `Yes`). Router owns published `0.1.0-dev.17`; shell
-  (`0.1.0-dev.18`) is on master via #86; test-runner owns `0.1.0-dev.19`; this candidate allocates
-  `0.1.0-dev.20` under the unpublished-intermediate prerelease gap policy.
+  (`0.1.0-dev.18`, #86) and test-runner (`0.1.0-dev.19`, #88) are on master; this candidate is the
+  exact next prerelease `0.1.0-dev.20`.
 
 The release candidate stages honest Partial transport and package-manager surfaces. Merge,
 publication, and issue closure remain blocked on HTTPS proxy endpoints, pooling/stress breadth,
-four-target receipts, SemVer train order after #40/`dev.19`, and final review.
+four-target receipts, and final review.

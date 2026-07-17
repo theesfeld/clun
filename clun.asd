@@ -157,6 +157,7 @@
                                                          (:file "promise")
                                                          (:file "async-function")))
                                            (:file "inspect")
+                                           (:file "coverage")
                                            (:file "emitter")
                                            (:file "compile-source")
                                            (:file "eval")
@@ -224,10 +225,15 @@
                               :serial t
                               :components ((:file "diff")
                                            (:file "registry")
+                                           (:file "fake-timers")
+                                           (:file "mock")
+                                           (:file "snapshot")
                                            (:file "expect")
                                            (:file "scheduler")
                                            (:file "reporter")
                                            (:file "discovery")
+                                           (:file "coverage")
+                                           (:file "config")
                                            (:file "runner")))
                              ;; CLI (Phase 08): arg parsing, .env, dispatch.
                              (:module "cli"

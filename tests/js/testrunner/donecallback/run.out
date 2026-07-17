@@ -1,0 +1,14 @@
+(pass) done hooks > sync done
+(pass) done hooks > timer done
+(pass) done error is a callback failure
+(pass) async rejection is a callback failure
+(pass) async rejection after done is still a failure
+(pass) async completion waits for promise and done
+(pass) row done 1
+(pass) row done 2
+(pass) callback hooks completed in order
+
+ 9 pass
+ 0 fail
+ 6 expect() calls
+Ran 9 tests across 1 file.

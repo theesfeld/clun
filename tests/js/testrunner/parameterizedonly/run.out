@@ -1,0 +1,9 @@
+(skip) excluded by only mode
+(pass) only expected failure 1
+(pass) only expected failure 2
+
+ 2 pass
+ 0 fail
+ 1 skip
+ 2 expect() calls
+Ran 3 tests across 1 file.

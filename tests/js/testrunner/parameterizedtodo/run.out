@@ -1,0 +1,9 @@
+(todo) todo group > expected incomplete behavior
+(fail) todo group > unexpectedly complete behavior
+  this test is marked as todo but passed
+
+ 0 pass
+ 1 fail
+ 1 todo
+ 2 expect() calls
+Ran 2 tests across 1 file.

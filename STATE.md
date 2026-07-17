@@ -17,13 +17,13 @@ https://github.com/theesfeld/clun/issues/39, and https://github.com/theesfeld/cl
 registry fallback, A/AAAA DNS and Happy Eyeballs, streaming Fetch request/response bodies, HTTP
 connection pooling, and HTTP proxy / HTTPS CONNECT. Public `runtime.web-standard-apis` and
 `package-manager.npm` remain `Partial` (not Yes). Router is published on master as `0.1.0-dev.17`;
-shell (`0.1.0-dev.18`) is on `master` via #86; test-runner owns `0.1.0-dev.19`; this unit stages
-`0.1.0-dev.20` under the unpublished-intermediate prerelease gap policy and stays draft until SemVer
-train order allows merge.
+shell (`0.1.0-dev.18`, #86) and test-runner (`0.1.0-dev.19`, #88) are on `master`; this unit stages
+`0.1.0-dev.20` as the exact next prerelease and stays draft until CI is green on the rebased candidate
+and residual Phase 28 gates are decided.
 **SemVer impact:** `minor`
 **Candidate release:** `0.1.0-dev.20` / `v0.1.0-dev.20`
 **Published release:** `0.1.0-dev.17` / `v0.1.0-dev.17`
-**Entry boundary:** immutable `v0.1.0-dev.17` is tagged at exact master `909aafa090a21e247d22566361475f608bcaa7a8` with four native archives + checksums; installer defaults to that tag. Master source currently includes shell candidate `0.1.0-dev.18` (#86). Draft PR #95 is rebased onto that master and stages Partial transport as `0.1.0-dev.20`. Phase 26 remains after Phase 82.
+**Entry boundary:** immutable `v0.1.0-dev.17` is tagged at exact master `909aafa090a21e247d22566361475f608bcaa7a8` with four native archives + checksums; installer defaults to that tag. Master source currently includes shell `0.1.0-dev.18` (#86) and test-runner `0.1.0-dev.19` (#88). Draft PR #95 is rebased onto that master and stages Partial transport as `0.1.0-dev.20`. Phase 26 remains after Phase 82.
 **Next scope:** keep both transport-adjacent ledger rows Partial until HTTPS proxy endpoints, pooling/stress breadth, large-transfer/leak matrix, and four-target receipts complete; green exact-head CI on the rebased candidate; then reassess Yes readiness.
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
@@ -63,8 +63,8 @@ closed complete with exact asset digests. Phase 37 milestone 1 adds `Object.hasO
 well-formedness, `Error.isError`, and `Promise.withResolvers`, producing 173 measured execution-pass gains;
 its frozen inventory still has 708 residual failures and no full ledger row is claimed. Parallel durable
 checkpoints include transport request streaming plus origin-keyed HTTP pooling and shell parser/runtime,
-guarded filesystem builtins, bounded `yes`, and isolated pipeline state. Merged `master` is **8 Yes /
-6 Partial / 16 No** with the complete Phase 31 evidence attached.
+guarded filesystem builtins, bounded `yes`, and isolated pipeline state. Merged `master` is **9 Yes /
+7 Partial / 14 No** with the complete Phase 31 evidence attached.
 
 **Parallel Phase 65 checkpoint:** Issue [#39](https://github.com/theesfeld/clun/issues/39) remains open on
 `feat/issue-39-shell-tagged-templates`, rebased onto published dev.16 master with the current exact-coverage
@@ -1943,3 +1943,86 @@ Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-earl
 - [ ] replace this checklist with exact then-current stress, security, compatibility, docs, and release gates
 - [ ] complete the re-baselined final audit and publish the resulting immutable release
 - **Gate:** the Phase-26 design and issue must be rewritten from post-Phase-82 evidence before implementation.
+### Phase 66 checkpoint - function mocks and spies (2026-07-16)
+
+- Canonical issue #40 is `in-progress`; SemVer impact is `minor`, with release target
+  `0.1.0-dev.17` / `v0.1.0-dev.17` after the coordinated dev.16 recovery release.
+- Production implementation: host-owned callable mock records, default/FIFO one-shot implementations,
+  return/resolved/rejected/return-this behavior, call/result/context/instance/order history, `spyOn`, exact
+  restoration, Jest/Vi lifecycle operations, temporary implementations, and 11 canonical call/return
+  matchers plus 10 aliases.
+- Focused shipped-binary evidence: `tests/js/testrunner/mocks`, 9 tests across 3 files, 86 assertions, exact
+  output, with invocation order restarting at one in each independently torn-down file realm.
+- Milestone 66.2 adds `test.failing` / `it.failing`, `failingIf`, and chained `.failing.each`; only callback
+  throws/rejections invert, while unexpected passes, timeouts, hooks, and assertion-count contracts fail.
+- Milestone 66.3 adds deterministic array-backed `test.each` and `describe.each`, bound skip/only/todo/
+  failing and conditional qualifiers, inherited describe todo behavior, and all documented percent title
+  directives plus `$property` / nested `$property.path` / `$#` object-row interpolation. Focused fixtures
+  cover 40 registered tests with 27 passes, 5 deliberate fixture failures, 4 skips, 4 todos, and 29
+  expectations across expected-failure and parameterization boundaries.
+- Milestone 66.4 adds per-test retry/repeat policies and global `--retry`, rerunning hooks and assertion
+  contracts per attempt, retaining failed repetitions, honoring per-test zero, and rejecting both options
+  together. Focused fixtures cover 14 tests, 12 passes, 2 deliberate failures, and 11 expectations.
+- Milestone 66.6 adds callback-style tests and hooks, including parameterized callback arity, callback error
+  propagation, dual async-Promise plus `done()` completion, post-`done()` rejection, and timeout boundaries.
+  Focused fixtures cover 12 tests, 9 passes, 3 deliberate boundary failures, and 6 expectations.
+- Milestone 66.7 adds seven synchronous built-in asymmetric matcher factories and a generic
+  `asymmetricMatch` deep-equality protocol. Focused integration covers 7 tests and 56 expectations across
+  nested equality/subsets, mock calls and returns, thrown errors, symbol/inherited keys, negation, primitive
+  wrappers, factory validation, and close-to boundaries.
+- Milestone 66.8 adds per-file `expect.extend` registration with validation/replacement, matcher context
+  utilities, own/prototype/class/numeric/empty names, synchronous and Promise results, symmetric calls, and
+  custom asymmetric factories. Focused integration covers 6 tests and 39 expectations.
+- Milestone 66.9 propagates Promise-valued asymmetric results through nested loose equality and adds
+  `resolvesTo` / `rejectsTo` built-in/custom namespaces with whole-settlement negation. Focused integration
+  covers 3 tests and 11 expectations, including opposite settlement, non-Promises, nesting, and timers.
+- Milestone 66.10 freezes 52 Bun `c1076ce95e` result roots with paths, categories, and SHA-256 digests. Both
+  Bun and Clun pass/fail/skip fields remain explicitly pending; the digest gate passes against the checkout.
+- Milestone 66.11 adds `onTestFinished` per-attempt cleanup after `afterEach`, preserving registration order,
+  body-failure cleanup, Promise and `done` settlement, timeout ownership, and callback validation. Focused
+  integration covers 5 tests and 5 expectations; concurrent registration remains tied to real concurrency.
+- Milestone 66.12 adds 27 Bun/Jest Extended matchers across type, numeric, array, date, string, range,
+  whitespace, repetition, and exact-boolean predicate contracts. Focused shipped-binary integration covers
+  13 tests and 103 expectations, including validation, negation, wrappers, invalid dates, and BigInt parity;
+  Promise-aware deep equality also distinguishes repeated aliases from active recursion cycles.
+- Milestone 66.13 adds file-owned Bun v1 external snapshots, inline call-site creation/update, CI creation
+  denial, `--update-snapshots` / `-u`, hints, per-attempt counters, async-settlement source ownership, and
+  deferred writes. The checked shipped-binary lifecycle proves creation, byte-stable reuse, mismatch
+  immutability, explicit updates, async inline edits, and property-matcher validation.
+- Milestone 66.14 serializes matched snapshot properties as stable asymmetric tokens such as `Any<String>`
+  while recursively preserving the received object/array shape. Checked reuse changes the dynamic property
+  value without changing the external snapshot, and the original property-validation gate remains intact.
+- Milestone 66.15 implements `--randomize` and `--seed` with the pinned Bun splitmix64-seeded xoshiro256++
+  generator, Bun's distinct file and nested-scope Fisher-Yates reductions, basename-derived per-file state,
+  generated seed reporting, deterministic replay, and strict unsigned-32-bit seed validation.
+- Milestone 66.16 adds the pinned `dot`/`dots`/`--dots` reporter aliases and console-preserving JUnit XML
+  output with per-file metrics, per-test assertion counts, failure/skip/todo records, CI/commit properties,
+  XML-safe hostile names, deterministic overwrite, atomic writes, and CLI/write-error validation.
+- Milestone 66.17 adds strict `--shard INDEX/COUNT` file partitioning after deterministic discovery and
+  before optional seeded shuffling. The round-robin shards are ordered, disjoint, exhaustive, independent
+  of worker timing, and accept both separated and equals CLI spellings.
+- Milestone 66.18 adds per-realm `mock.module`, `jest.mock`, and `vi.mock` replacement across synchronous and
+  Promise factories, unresolved modules, builtin aliases, loaded CommonJS identity, ESM live bindings,
+  namespaces, re-exports, repeated updates, validation, `mock.restore`, and cross-file isolation. Focused
+  shipped-binary evidence covers 8 tests and 46 assertions across four independently torn-down file realms.
+- Milestone 66.19 adds repeated CLI and bunfig setup preloads with fresh-realm evaluation, config-before-CLI
+  ordering, suite-wide beforeAll/afterAll, per-file beforeEach/afterEach placement, globals, custom matchers,
+  module mocks, bail teardown, CLI aliases, strict configuration errors, and preload-phase registration
+  guards. Exact-output and checked-script evidence exercise the shipped binary end to end.
+- Milestone 66.20 adds realm-local `jest`/`vi` fake timers: activate/restore, next/by-time/pending/all
+  advancement, count/clear/state controls, custom wall time, `jest.now`, Date and performance coupling,
+  ordered timeout/interval execution, handle refresh/ref state, strict errors, a 100k runaway bound, and
+  automatic teardown. Exact shipped-binary evidence covers 10 tests and 58 assertions across three realms.
+- Milestone 66.21 replaces console inspection in snapshots with a dedicated Bun formatter. Thirty-three exact
+  inline receipts cover sorted nested containers, collections, dates, errors, promises, regexps, typed/binary
+  values, circular references, functions, wrappers, classes, weak collections, numeric edges, symbols, and
+  Buffer JSON shape while preserving lifecycle and asymmetric property-token behavior.
+- Milestone 66.22 adds engine-level source probes and runner-owned Bun-shaped text and LCOV reports for ESM,
+- Milestone 66.23 fills all 52 frozen root Bun/Clun pass/fail/skip counts (Bun 1.3.14 stable vs c1076ce sources; Clun 0.1.0-dev.19). Aggregates Bun 849/18/32 vs Clun 0/52/0; gap-catalog.tsv residual owners recorded. Ledger stays Partial; not Yes.
+  CommonJS, JavaScript, and length-preserving stripped TypeScript. Coverage filtering, test-file inclusion,
+  output directories, reporters, and aggregate line/function/statement thresholds are available through CLI
+  and bunfig, with exact-output and checked shipped-binary receipts.
+- Ledger stays `Partial`. Remaining Phase 66 scope: Bun-exact serialization for the remaining exotic
+  descriptor and string edge cases, JSX coverage mapping, parallelism/concurrency,
+  watch hooks, exact 52-root Bun/Clun counts, four-target receipts,
+  serial/parallel agreement, and 10k RSS.

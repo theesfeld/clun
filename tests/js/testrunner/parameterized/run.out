@@ -1,0 +1,31 @@
+(pass) 1 + 2 = 3
+(pass) 3 + 4 = 7
+(skip) skip row 1
+(skip) skip row 2
+(todo) todo row 1
+(todo) todo row 2
+(pass) bound row alpha
+(pass) bound row beta
+(pass) expected failure 10
+(pass) expected failure 20
+(pass) format 1.5 null
+(pass) format 2.25 true
+(pass) non-finite integer NaN
+(pass) non-finite integer Infinity
+(pass) object 1 + 2 = 3 [first] row 0
+(pass) object 3 + 4 = 7 [second] row 1
+(pass) suite A > case 0 1
+(pass) suite A > case 1 2
+(pass) suite B > case 0 1
+(pass) suite B > case 1 2
+(todo) todo suite > never runs
+(pass) normal suite > runs
+(skip) skipped suite > never runs
+(pass) all rows executed in registration order
+
+ 18 pass
+ 0 fail
+ 3 skip
+ 3 todo
+ 18 expect() calls
+Ran 24 tests across 1 file.
