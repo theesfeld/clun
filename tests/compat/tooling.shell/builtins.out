@@ -1,0 +1,13 @@
+basename
+dirname
+echo
+exit
+seq
+yes
+builtin-pipelines
+conditional-expressions
+filesystem-builtins
+rm
+mv
+ls
+cp

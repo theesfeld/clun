@@ -300,6 +300,16 @@ created. Non-recursive returns NIL (Node returns undefined there)."
 (defun read-symlink (path) (with-fs ("readlink" path) (sb-posix:readlink (native->pathname path))))
 (defun change-mode (path mode) (with-fs ("chmod" path) (sb-posix:chmod (native->pathname path) mode)))
 (defun truncate-file (path len) (with-fs ("truncate" path) (sb-posix:truncate (native->pathname path) len)))
+(defun touch-file (path &key no-create)
+  "Set PATH's access and modification times to now, creating an empty file unless NO-CREATE."
+  (cond
+    ((path-exists-p path)
+     (with-fs ("utime" path) (sb-posix:utime (native->pathname path)))
+     t)
+    (no-create nil)
+    (t
+     (write-file-octets path (make-array 0 :element-type '(unsigned-byte 8)))
+     t)))
 (defun make-temp-dir (prefix)
   "mkdtemp: PREFIX + 'XXXXXX' -> a created unique dir path (POSIX string)."
   (with-fs ("mkdtemp" prefix)
@@ -331,11 +341,109 @@ Reading a directory is EISDIR (opening a dir stream signals a non-file-error oth
 
 (defun write-file-octets (path octets &key append (mode #o666))
   "Write OCTETS (a byte vector) to PATH (truncate or :append)."
-  (declare (ignore mode))
-  (with-fs ("open" path)
-    (with-open-file (out (native->pathname path) :direction :output :element-type '(unsigned-byte 8)
-                         :if-exists (if append :append :supersede) :if-does-not-exist :create)
-      (write-sequence octets out)))
+  (let ((fd nil))
+    (unwind-protect
+         (with-fs ("open" path)
+           (setf fd
+                 (sb-posix:open
+                  (native->pathname path)
+                  (logior sb-posix:o-wronly sb-posix:o-creat
+                          (if append sb-posix:o-append sb-posix:o-trunc))
+                  mode))
+           (loop with offset = 0
+                 while (< offset (length octets))
+                 do (multiple-value-bind (written errno)
+                        (sb-unix:unix-write
+                         fd octets offset (- (length octets) offset))
+                      (cond
+                        ((and written (plusp written)) (incf offset written))
+                        ((eql errno sb-unix:eintr))
+                        (t
+                         (let* ((number (or errno (%errno-of-name "EIO")))
+                                (code (%errno-name number)))
+                           (error 'fs-error :code code :errno number
+                                            :syscall "write" :path path)))))))
+      (when fd (ignore-errors (sb-posix:close fd)))))
+  (length octets))
+
+(defun write-fd-octets (fd octets)
+  "Write all OCTETS to an already-open descriptor without closing it."
+  (loop with offset = 0
+        while (< offset (length octets))
+        do (multiple-value-bind (written errno)
+               (sb-unix:unix-write fd octets offset (- (length octets) offset))
+             (cond
+               ((and written (plusp written)) (incf offset written))
+               ((eql errno sb-unix:eintr))
+               (t
+                (let* ((number (or errno (%errno-of-name "EIO")))
+                       (code (%errno-name number)))
+                  (error 'fs-error :code code :errno number
+                                   :syscall "write" :path (format nil "fd ~d" fd)))))))
   (length octets))
 
 (defun copy-file* (src dst) (write-file-octets dst (read-file-octets src)))
+
+(defun copy-file-stream (src dst &key (buffer-size 65536) mode)
+  "Copy a regular file with bounded memory, replacing DST. Return bytes copied."
+  (unless (plusp buffer-size) (error "BUFFER-SIZE must be positive"))
+  (let* ((nofollow (find-symbol "O-NOFOLLOW" :sb-posix))
+         (nofollow-flag (if (and nofollow (boundp nofollow))
+                            (symbol-value nofollow) 0))
+         (source-fd nil)
+         (input nil))
+    (unwind-protect
+         (with-fs ("open" src)
+           (setf source-fd
+                 (sb-posix:open (native->pathname src)
+                                (logior sb-posix:o-rdonly sb-posix:o-nonblock
+                                        nofollow-flag)))
+           (let ((source-stat (sb-posix:fstat source-fd)))
+             (unless (= (logand (sb-posix:stat-mode source-stat) +s-ifmt+) +s-ifreg+)
+               (error 'fs-error :code "EISDIR" :errno (%errno-of-name "EISDIR")
+                                :syscall "copyfile" :path src))
+             (setf input
+                   (sb-sys:make-fd-stream
+                    source-fd :input t :element-type '(unsigned-byte 8)
+                    :buffering :full :auto-close t :name "clun bounded copy source"))
+             (let ((destination-fd nil)
+                   (output nil))
+               (unwind-protect
+                    (with-fs ("open" dst)
+                      ;; Delay truncation until both open descriptors prove
+                      ;; they do not name the same inode.
+                      (setf destination-fd
+                            (sb-posix:open
+                             (native->pathname dst)
+                             (logior sb-posix:o-wronly sb-posix:o-creat nofollow-flag)
+                             #o666))
+                      (let ((destination-stat (sb-posix:fstat destination-fd)))
+                        (when (and (= (sb-posix:stat-dev source-stat)
+                                      (sb-posix:stat-dev destination-stat))
+                                   (= (sb-posix:stat-ino source-stat)
+                                      (sb-posix:stat-ino destination-stat)))
+                          (error 'fs-error :code "EINVAL"
+                                           :errno (%errno-of-name "EINVAL")
+                                           :syscall "copyfile" :path dst)))
+                      (sb-posix:ftruncate destination-fd 0)
+                      (setf output
+                            (sb-sys:make-fd-stream
+                             destination-fd :output t :element-type '(unsigned-byte 8)
+                             :buffering :full :auto-close t
+                             :name "clun bounded copy destination"))
+                      (let ((buffer (make-array buffer-size
+                                                :element-type '(unsigned-byte 8)))
+                            (total 0))
+                        (loop for count = (read-sequence buffer input)
+                              while (plusp count)
+                              do (write-sequence buffer output :end count)
+                                 (incf total count))
+                        (when mode (sb-posix:fchmod destination-fd mode))
+                        total))
+                 (if output
+                     (close output)
+                     (when destination-fd
+                       (ignore-errors (sb-posix:close destination-fd))))))))
+      (if input
+          (close input)
+          (when source-fd (ignore-errors (sb-posix:close source-fd)))))))

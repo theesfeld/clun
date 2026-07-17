@@ -1208,11 +1208,19 @@ Headers, Request, Response, and cookie state never use this mechanism."
             (%normalize-blob-type (eng:to-string value))))
       ""))
 
-(defun %new-blob (parts options)
+(defun %new-blob-from-octets (octets &optional (type ""))
+  "Construct a Blob from raw octets for shell ShellOutput / $.blob helpers."
   (%make-js-blob
    :proto (web-http-realm-state-blob-prototype (%http-state))
-   :bytes (%blob-parts-octets parts)
-   :type (%blob-type-option options)))
+   :bytes (coerce (copy-seq octets) '(simple-array (unsigned-byte 8) (*)))
+   :type (%normalize-blob-type type)))
+
+(defun %new-blob (parts options)
+  (%new-blob-from-octets (%blob-parts-octets parts) (%blob-type-option options)))
+
+(defun %blob-octets-copy (blob)
+  "Return a fresh octet vector for BLOB (shell redirections and body copies)."
+  (copy-seq (js-blob-bytes (%require-blob blob))))
 
 (defun %blob-response-content-type (blob)
   (let ((type (js-blob-type blob)))

@@ -79,15 +79,30 @@ Historical train notes (keep accurate via Issues): active `0.1.0-dev.N` work; Ph
 
 Process law remains `~/.config/agents/AGENTS.md`. This section is **how to staff Clun**, not a second constitution.
 
+### Parallel issue trains (mandatory rule)
+
+**Multiple Issues run at once.** Under-staffing is a process failure.
+
+| Rule | Requirement |
+|------|-------------|
+| **Min open trains** | Keep **≥3 concurrent open issue trains** whenever unblocked Issues or ready Partial/Yes work exists (each train = Issue + worktree + `feat/issue-N-…` branch + PR when code exists) |
+| **Team per train** | Each train has its own small agent team: implementer, gates/tests, **CI babysitter for that PR only**, adversarial review before any ledger `Yes` |
+| **PM never waits alone** | The primary agent must not block the session on one babysitter or one CI poll. Empty slots → spawn the next train |
+| **Actions vs agents** | **GitHub Actions** verify (CI / Compatibility / Docs / Pages / Release). **Agents implement.** Do not invent a mega Actions job that codes features |
+| **Parallel impl, ordered merge** | Implementation is parallel. Release-bearing prerelease slots (`0.1.0-dev.N`) may open in parallel under unpublished-gap policy, but **merge/publish order** follows the SemVer train so later slots do not land before earlier ones without re-slotting |
+| **Cap** | Prefer **3–5** open trains so rebases stay sane; raise only when independence is clear |
+
+Slamming ledger rows means parallel **implementation** of independent features/phases. Ledger **`Yes`** still requires four-target receipts and adversarial review per unit—no promotion spam.
+
 ### Never-stall rule
 
-The primary (PM) agent **must not** block the session on a single long waiter (CI, builds, one subagent). If a lane is waiting, spawn or resume another lane. Always keep **≥2** live implementation lanes when unblocked Issues exist.
+The primary (PM) agent **must not** block the session on a single long waiter (CI, builds, one subagent). If a lane is waiting, spawn or resume another lane. The parallel-train minimum above supersedes any weaker “≥2 lanes” habit.
 
 ### Roles
 
 | Role | Job |
 |------|-----|
-| **PM (primary)** | Issue selection, spawn lanes, merge when gates green, SemVer disposition, refuse silent scope expansion |
+| **PM (primary)** | Issue selection, spawn trains, merge when gates green, SemVer disposition, refuse silent scope expansion |
 | **Issue controller** | Labels, evidence comments, status flips, queue next Issue from roadmap/ledger cost order |
 | **Lane implementer** | One Issue → one worktree → one branch → code/tests/local gates |
 | **CI babysitter** | Per open PR: watch checks, fetch failure logs, fix reds on that branch only |
@@ -105,7 +120,7 @@ Implementers set `cwd` to their worktree. **Never** `git checkout` another Issue
 
 ### Yes queue discipline
 
-Prefer dependency-ready ledger conversions easiest→hardest. Do not promote `Yes` without four-target receipts and review. Partial checkpoints may merge with SemVer `none` when honest.
+Prefer dependency-ready ledger conversions easiest→hardest. Do not promote `Yes` without four-target receipts and review. Partial checkpoints may merge when honest (and release-bearing when SemVer policy requires a prerelease advance).
 
 ### Issue controller cadence
 

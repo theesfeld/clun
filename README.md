@@ -22,10 +22,11 @@ Clun does not claim blanket speed parity with Bun.
 
 Source on draft [PR #95](https://github.com/theesfeld/clun/pull/95) is the `0.1.0-dev.20` Phase 28
 candidate. Public `runtime.web-standard-apis` and `package-manager.npm` remain honest `Partial` and are not
-claimed as `Yes`. Published `v0.1.0-dev.17` is the verified release boundary (router Yes). Shell owns
-`0.1.0-dev.18` and test-runner owns `0.1.0-dev.19`; this unit stages Partial transport as `0.1.0-dev.20`
-under the unpublished-intermediate prerelease gap policy. The hosted installer correctly remains on
-published dev.17 until the candidate is merged, tagged, and released.
+claimed as `Yes`. Published `v0.1.0-dev.17` is the verified release boundary (router Yes). Shell
+(`0.1.0-dev.18`) is on `master` via #86; test-runner owns `0.1.0-dev.19`. This unit stages Partial
+transport as `0.1.0-dev.20` under the unpublished-intermediate prerelease gap policy and stays draft until
+the SemVer train order allows merge. The hosted installer correctly remains on published dev.17 until the
+candidate is merged, tagged, and released.
 
 
 ## Install
@@ -73,18 +74,18 @@ package transport receipts remain unfinished.
 - `clun test` with hooks, modifiers, filters, async tests, timeouts, and about 22 matchers.
 - `clun install`, `add`, `remove`, and package scripts with a deterministic lockfile and cache.
 
-The checked-in curated test262 pass list contains 25,647 tests. The current
-40,654-row off-mode execution ledger measures 25,647 passes and 2,516 gaps across 28,163 eligible tests
-(91.06%), with 12,491 skips and zero crashes. Phase 25b's 90% target is met: the 25,347-pass target has
-zero remaining lift. The pass list gained 596 tests from milestone 5 and 3,004 from the Phase 25b entry.
+The checked-in curated test262 pass list contains 25,688 tests. The current
+40,654-row off-mode execution ledger measures 25,688 passes and 2,475 gaps across 28,163 eligible tests
+(91.21%), with 12,491 skips and zero crashes. Phase 25b's 90% target is met: the 25,347-pass target has
+zero remaining lift. The pass list gained 637 tests from milestone 5 and 3,045 from the Phase 25b entry.
 Its focused m6 slice contains 509 tests: 407 pass and 102 fail, with zero skips, timeouts, and crashes.
 All 407 milestone-owned rows pass; the 102 deliberate controls remain assigned to m11 (7) and Phase 37
 (95), leaving m6 with no owned residual. Three additional `Promise.prototype.finally` rows passed
 incidentally: `species-constructor.js`, `subclass-reject-count.js`, and `subclass-resolve-count.js`.
 Phase 32's supporting Proxy infrastructure adds 13 newly frozen passes without making a blanket Proxy
 compatibility claim. Phase 37 milestone 1 adds 173 more frozen passes without claiming complete modern
-ECMAScript parity. The full gap inventory assigns 1,808 residuals to Phase 25b and 708 to Phase 37.
-The canonical execution ledger digest is `505954B27BF44A08`.
+ECMAScript parity. The full gap inventory assigns 1,767 residuals to Phase 25b and 708 to Phase 37.
+The canonical execution ledger digest is `C69927D3946A20FB`.
 The off/eager ledgers are byte-identical; eager mode compiled
 1,030,545 forms, classified 56,018 as ineligible, fell back zero times, and executed zero interpreter
 fallbacks. The parse gate classifies
@@ -126,7 +127,7 @@ July 16, 2026. Engineering references are separately pinned to Bun commit `c1076
 | Encrypted secrets storage | No | [Phase 58](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-58) |
 | npm package management | Partial: fixture-tested; a pinned public npm install smoke passes over verified TLS | Phases [28](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-28), [59](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-59), [60](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-60), [61](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-61) |
 | Bundler | No: not included in the v0.1 scope | Phases [62](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-62), [63](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-63), [64](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-64), [77](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-77) |
-| Cross-platform shell API | No: spawn and package scripts only | [Phase 65](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-65) |
+| Cross-platform shell API | Partial: `Clun.$`, `clun exec`, standalone `.bun.sh` files with positional parameters, dollar and backtick command substitution, merged stdout/stderr pipelines, grouped subshells and brace groups nested across `if` control flow, Blob/Response I/O, positive extended-glob conditions, compound-word field splitting, 100-level arrays, Unicode, tilde and continuation expansion, builtins, and 1,247/1,630 pinned shell sites | [Phase 65](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-65) |
 | Jest-compatible test runner | Partial: 22 matchers; no snapshots, coverage, mocks, or concurrency | [Phase 66](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-66) |
 | Hot reloading | No | [Phase 67](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-67) |
 | Monorepo support | No: workspaces are unsupported | [Phase 60](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-60) |
@@ -167,6 +168,7 @@ The last published prerelease remains [`v0.1.0-dev.17`](https://github.com/thees
 [The versioning contract](docs/versioning.md) defines prerelease sequencing, synchronized surfaces, immutable tags, assets, and installer evidence.
 [Phase 28 issue #2](https://github.com/theesfeld/clun/issues/2) is the canonical live release record.
 <!-- clun-generated:release-summary:end -->
+
 
 ## The purity contract
 
