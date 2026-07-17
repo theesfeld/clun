@@ -11,7 +11,7 @@
   (mode :normal))                       ; :normal :skip :todo :only
 
 (defstruct (t-test (:conc-name tt-) (:predicate tt-p))
-  name fn parent (mode :normal) (failing nil) (timeout nil))
+  name fn parent (mode :normal) (failing nil) (timeout nil) (retry nil) (repeats nil))
 
 (defstruct (test-context (:conc-name ctx-))
   root current (default-timeout 5000) (has-only nil) (expect-calls 0)
@@ -30,6 +30,12 @@
               (let ((v (eng:js-get opts "timeout"))) (and (eng:js-number-p v) (truncate (eng:to-number v))))))
         (t nil)))
 
+(defun %opt-count (opts name)
+  (when (eng:js-object-p opts)
+    (let ((value (eng:js-get opts name)))
+      (when (eng:js-number-p value)
+        (max 0 (truncate (eng:to-number value)))))))
+
 (defun %register-describe (ctx name fn mode)
   (let ((d (make-t-describe :name name :parent (ctx-current ctx) :mode mode)))
     (push d (td-children (ctx-current ctx)))
@@ -44,12 +50,16 @@
 (defun %register-test (ctx name fn mode opts &optional failing)
   (when (and failing (not (eng:callable-p fn)))
     (eng:throw-type-error "test.failing expects a function as the second argument"))
-  (let ((tt (make-t-test :name name :fn (and (eng:callable-p fn) fn)
-                         :parent (ctx-current ctx) :mode mode :failing failing
-                         :timeout (%opt-timeout opts))))
-    (push tt (td-children (ctx-current ctx)))
-    (when (eq mode :only) (setf (ctx-has-only ctx) t))
-    eng:+undefined+))
+  (let ((retry (%opt-count opts "retry"))
+        (repeats (%opt-count opts "repeats")))
+    (when (and retry repeats)
+      (eng:throw-type-error "Cannot set both retry and repeats on a test"))
+    (let ((tt (make-t-test :name name :fn (and (eng:callable-p fn) fn)
+                           :parent (ctx-current ctx) :mode mode :failing failing
+                           :timeout (%opt-timeout opts) :retry retry :repeats repeats)))
+      (push tt (td-children (ctx-current ctx)))
+      (when (eq mode :only) (setf (ctx-has-only ctx) t))
+      eng:+undefined+)))
 
 (defun %each-rows (table)
   "The rows of a .each table (a JS array); each row is passed as args to the body."

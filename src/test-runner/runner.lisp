@@ -5,7 +5,8 @@
 (in-package :clun.test-runner)
 
 (defstruct (test-opts (:conc-name to-))
-  (positionals '()) (name-pattern nil) (timeout 5000) (bail nil) (todo nil) (ci nil))
+  (positionals '()) (name-pattern nil) (timeout 5000) (retry 0)
+  (bail nil) (todo nil) (ci nil))
 
 (defun %parse-test-args (argv)
   "ARGV = the tokens after `clun test`. Returns a test-opts."
@@ -17,6 +18,9 @@
            (setf (to-name-pattern o) (next)))
           ((string= tok "--timeout")
            (let ((v (next))) (when v (setf (to-timeout o) (max 0 (or (parse-integer v :junk-allowed t) 5000))))))
+          ((string= tok "--retry")
+           (let ((v (next)))
+             (when v (setf (to-retry o) (max 0 (or (parse-integer v :junk-allowed t) 0))))))
           ((string= tok "--todo") (setf (to-todo o) t))
           ((string= tok "--ci") (setf (to-ci o) t))
           ((string= tok "--bail") (setf (to-bail o) 1))
@@ -24,6 +28,8 @@
            (setf (to-bail o) (max 1 (or (parse-integer (subseq tok 7) :junk-allowed t) 1))))
           ((and (>= (length tok) 10) (string= (subseq tok 0 10) "--timeout="))
            (setf (to-timeout o) (max 0 (or (parse-integer (subseq tok 10) :junk-allowed t) 5000))))
+          ((and (>= (length tok) 8) (string= (subseq tok 0 8) "--retry="))
+           (setf (to-retry o) (max 0 (or (parse-integer (subseq tok 8) :junk-allowed t) 0))))
           ((and (plusp (length tok)) (char= (char tok 0) #\-)) nil) ; ignore unknown flags
           (t (push tok (to-positionals o))))))
     (setf (to-positionals o) (nreverse (to-positionals o)))
@@ -58,6 +64,7 @@ error (syntax / top-level throw) is reported as a fail. Always tears the realm d
                  ;; (run-module-file only binds it internally, then returns).
                  (let ((eng:*realm* realm))
                    (let ((cfg (make-run-cfg :default-timeout (ctx-default-timeout ctx)
+                                            :retry (to-retry opts)
                                             :todo (to-todo opts) :ci (%ci-active-p opts)
                                             :name-re (%build-regexp realm (to-name-pattern opts))
                                             :bail (to-bail opts))))

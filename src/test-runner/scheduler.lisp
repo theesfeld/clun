@@ -7,7 +7,7 @@
 (in-package :clun.test-runner)
 
 (defstruct (run-cfg (:conc-name cfg-))
-  (default-timeout 5000) (todo nil) (ci nil) (name-re nil) (bail nil))
+  (default-timeout 5000) (retry 0) (todo nil) (ci nil) (name-re nil) (bail nil))
 
 (defstruct (run-stats (:conc-name st-))
   (pass 0) (fail 0) (skip 0) (todo 0) (matched 0) (bailed nil))
@@ -183,7 +183,8 @@ with beforeAll/afterEach — Bun counts a failing afterAll)."
       ((not (%name-matches cfg full)) nil) ; filtered out by -t: no line, not counted
       (t
        (incf (st-matched stats))
-       (multiple-value-bind (ok detail failure-kind) (%execute test realm cfg)
+       (multiple-value-bind (ok detail failure-kind)
+           (%execute-with-attempts test realm cfg todo-mode)
          (cond
            (todo-mode                     ; ran under --todo
             (if ok
@@ -210,6 +211,39 @@ with beforeAll/afterEach — Bun counts a failing afterAll)."
 (defun %maybe-bail (stats cfg)
   (when (and (cfg-bail cfg) (>= (st-fail stats) (cfg-bail cfg)))
     (setf (st-bailed stats) t)))
+
+(defun %attempt-passes-p (test todo-mode ok failure-kind)
+  (if (and (tt-failing test) (not todo-mode))
+      (and (not ok) (eq failure-kind :body))
+      ok))
+
+(defun %execute-with-attempts (test realm cfg todo-mode)
+  "Execute TEST with its repeat or retry policy and return the representative result.
+Retries stop on the first semantic pass. Repeats always run N+1 attempts and retain
+the first semantic failure while still completing later attempts."
+  (let ((repeats (and (not todo-mode) (tt-repeats test)))
+        (retry (if todo-mode 0 (or (tt-retry test) (cfg-retry cfg)))))
+    (if repeats
+        (let ((failed nil) (failed-ok nil) (failed-detail nil) (failed-kind nil)
+              (last-ok t) (last-detail nil) (last-kind nil))
+          (dotimes (attempt (1+ repeats))
+            (declare (ignore attempt))
+            (multiple-value-bind (ok detail failure-kind) (%execute test realm cfg)
+              (setf last-ok ok last-detail detail last-kind failure-kind)
+              (when (and (not failed)
+                         (not (%attempt-passes-p test todo-mode ok failure-kind)))
+                (setf failed t failed-ok ok
+                      failed-detail detail failed-kind failure-kind))))
+          (if failed
+              (values failed-ok failed-detail failed-kind)
+              (values last-ok last-detail last-kind)))
+        (let ((last-ok nil) (last-detail nil) (last-kind nil))
+          (dotimes (attempt (1+ retry) (values last-ok last-detail last-kind))
+            (declare (ignore attempt))
+            (multiple-value-bind (ok detail failure-kind) (%execute test realm cfg)
+              (setf last-ok ok last-detail detail last-kind failure-kind)
+              (when (%attempt-passes-p test todo-mode ok failure-kind)
+                (return (values ok detail failure-kind)))))))))
 
 (defun %execute (test realm cfg)
   "Run beforeEach chain → the body → afterEach chain.

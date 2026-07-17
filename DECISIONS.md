@@ -2911,3 +2911,11 @@ Selection mode and expected-failure state are stored separately on each register
 the same deterministic row expansion during tree construction, while inherited todo state is carried by the
 scheduler rather than rewriting every descendant node. This representation is the base for later independent
 concurrent/serial state without another single-mode combinatorial rewrite.
+
+### 2026-07-17 - Phase 66 attempt policies operate on semantic results
+
+Retry termination uses the test's semantic result rather than the callback's raw settlement. A normal test
+stops on a successful execution, while an expected-failure test stops when its callback throws or rejects.
+Repeats always execute every requested iteration and retain the first semantic failure. Both policies rerun
+the complete beforeEach/body/afterEach sequence with fresh assertion-count state; this keeps hook-visible
+attempts deterministic and prevents a failed assertion contract from leaking into the recovery attempt.

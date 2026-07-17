@@ -1935,7 +1935,10 @@ Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-earl
   failing and conditional qualifiers, inherited describe todo behavior, and all documented percent title
   directives. Focused fixtures cover 38 registered tests with 25 passes, 5 deliberate fixture failures,
   4 skips, 4 todos, and 27 expectations across expected-failure and parameterization boundaries.
+- Milestone 66.4 adds per-test retry/repeat policies and global `--retry`, rerunning hooks and assertion
+  contracts per attempt, retaining failed repetitions, honoring per-test zero, and rejecting both options
+  together. Focused fixtures cover 14 tests, 12 passes, 2 deliberate failures, and 11 expectations.
 - Ledger stays `Partial`. Remaining Phase 66 scope: snapshots/inline updates, module mocks, fake timers,
-  coverage/source maps, asymmetric/custom matchers, retries, parallelism/concurrency, setup/reporters/JUnit,
+  coverage/source maps, asymmetric/custom matchers, parallelism/concurrency, setup/reporters/JUnit,
   done callbacks, object-path parameterized titles, sharding/randomization/watch hooks, frozen complete
   upstream manifest, four-target receipts, and 10k RSS.

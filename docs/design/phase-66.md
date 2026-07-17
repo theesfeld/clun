@@ -81,3 +81,16 @@ inversion to each child. Name formatting covers `%s`, `%d`, `%i`, `%f`, `%j`, `%
 
 This milestone does not yet claim the entire parameterization category. Done-callback injection and object
 `$path` title interpolation remain explicit residuals, together with concurrent/serial qualifier state.
+
+## Milestone 66.4 - retry and repeat policies
+
+Test options now accept mutually exclusive non-negative `retry` and `repeats` counts. A retry count permits
+that many attempts after the initial run and stops at the first semantic success. `--retry N` supplies the
+file-wide default, while an explicit per-test count, including zero, overrides it. A repeat count always runs
+the initial attempt plus N more iterations and retains the first failure after completing every iteration.
+
+Every attempt executes the full beforeEach/body/afterEach sequence and gets a fresh assertion-count contract.
+For expected-failure tests, a callback throw/rejection is semantic success and therefore stops retries; runner
+failures and unexpected callback success remain retryable. Todo execution does not retry. The shipped fixtures
+cover hook counts, assertion-contract recovery, global and local policy precedence, failed middle repeats,
+continued repetition, expected failures, and conflicting-option rejection.
