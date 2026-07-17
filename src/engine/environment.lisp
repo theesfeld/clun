@@ -51,6 +51,7 @@
   (modules nil)                  ; module registry: resolved-path(string) -> module-record (Phase 07)
   (template-registry (make-hash-table :test 'eq))
                                  ; TemplateLiteral parse node -> frozen template object
+  (module-mocks nil)             ; test-only lookup keys -> mocked module-record (Phase 66)
   (entry-module nil))            ; the graph's entry module (import.meta.main, Phase 07)
 
 (defun realm-module (realm path)

@@ -3032,3 +3032,16 @@ File sharding applies to the canonical sorted discovery result, assigning file o
 shard union exhaustive and non-overlapping, keeps membership independent of random seeds and future worker
 timing, and still lets operators randomize execution within one shard reproducibly. The CLI uses the
 portable Jest-style one-based `INDEX/COUNT` contract and rejects invalid u32 values before loading code.
+
+### 2026-07-17 - Phase 66 module mocks belong to the realm module registry
+
+Module replacement is engine-owned registry state rather than a source transform or JavaScript shim. The
+test runner validates and settles the factory, then registers its object under unresolved lexical identity
+and every resolved import/require path. Existing ESM import thunks consult the record's current mock export,
+namespace objects are refreshed, and CommonJS object exports are changed in place so previously returned
+references keep their identity. Repeated replacements therefore have one cache-coherent path across ESM,
+CommonJS, builtins, and missing modules, while normal realm teardown provides the isolation boundary.
+
+`mock.restore()` intentionally restores function spies only, matching Bun's documented boundary; it does not
+remove `mock.module()` replacements. Dynamic import remains a separate core-engine feature and is not claimed
+by this milestone.

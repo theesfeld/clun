@@ -229,6 +229,7 @@
    ;; runtime hooks (Phase 08): completion capture for -p, error introspection,
    ;; realm accessors the runtime/CLI need
    #:run-module-file #:run-module-source #:eval-source #:realm-global
+   #:register-module-mock
    #:teardown-realm #:run-callback-to-settlement #:drive-jobs #:current-loop
    #:promise-and-caps
    #:js-promise-p #:js-promise-pstate #:js-promise-value #:to-string #:js-object-class

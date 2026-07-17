@@ -36,6 +36,128 @@
   "A function (name) -> a fresh exports js-object for the current *realm*, or NIL if
 NAME is not a node builtin. Installed by clun.runtime; NIL in a bare realm.")
 
+;;; --- module mocks -----------------------------------------------------------
+
+(defun module-mock-table (realm)
+  (or (realm-module-mocks realm)
+      (setf (realm-module-mocks realm) (make-hash-table :test 'equal))))
+
+(defun module-mock-strip-file-url (specifier)
+  (cond
+    ((and (>= (length specifier) 7) (string= specifier "file://" :end1 7))
+     (subseq specifier 7))
+    ((and (>= (length specifier) 5) (string= specifier "file:" :end1 5))
+     (subseq specifier 5))
+    (t specifier)))
+
+(defun module-mock-specifier-key (specifier referrer-dir)
+  "A stable pre-resolution key. Relative missing modules remain mockable because this
+key does not require the target to exist."
+  (let ((plain (module-mock-strip-file-url specifier)))
+    (cond
+      ((and (>= (length plain) 5) (string= plain "node:" :end1 5))
+       (concatenate 'string "builtin:" (subseq plain 5)))
+      ((or (clun.sys:absolute-path-p plain)
+           (and (>= (length plain) 2)
+                (char= (char plain 0) #\.)
+                (member (char plain 1) '(#\/ #\.) :test #'char=)))
+       (concatenate 'string "path:"
+                    (clun.sys:normalize-path
+                     (if (clun.sys:absolute-path-p plain)
+                         plain
+                         (clun.sys:path-join referrer-dir plain)))))
+      (t (concatenate 'string "specifier:" plain)))))
+
+(defun module-mock-resolved-key (path)
+  (concatenate 'string "resolved:" path))
+
+(defun module-mock-builtin-key (specifier)
+  (let ((plain (if (and (>= (length specifier) 5)
+                        (string= specifier "node:" :end1 5))
+                   (subseq specifier 5)
+                   specifier)))
+    (concatenate 'string "builtin:" plain)))
+
+(defun replace-enumerable-properties (target source)
+  "Replace TARGET's configurable own enumerable string properties with SOURCE's.
+Used for already-required CommonJS objects so existing references observe a mock."
+  (unless (eq target source)
+    (dolist (key (copy-list (own-enumerable-string-keys target)))
+      (js-delete target key nil))
+    (dolist (key (own-enumerable-string-keys source))
+      (data-prop target key (js-get source key))))
+  target)
+
+(defun refresh-module-namespace (mr)
+  (let ((namespace (mr-namespace mr))
+        (exports (mr-mock-exports mr)))
+    (when (and namespace exports)
+      (dolist (key (copy-list (own-enumerable-string-keys namespace)))
+        (js-delete namespace key nil))
+      (dolist (key (own-enumerable-string-keys exports))
+        (data-prop namespace key (js-get exports key)))))
+  mr)
+
+(defun apply-module-mock (record exports)
+  (let ((effective exports))
+    ;; CommonJS callers retain module.exports by identity. Preserve that identity when
+    ;; it is an object while replacing its public enumerable surface.
+    (when (and (eq (mr-format record) :cjs)
+               (js-object-p (mr-cjs-exports record)))
+      (setf effective (replace-enumerable-properties (mr-cjs-exports record) exports)))
+    (setf (mr-mock-exports record) effective
+          (mr-cjs-exports record) effective
+          (mr-status record) :evaluated
+          (mr-eval-error record) nil)
+    (refresh-module-namespace record)))
+
+(defun resolve-module-mock-path (specifier referrer-dir conditions)
+  (handler-case
+      (multiple-value-bind (path format)
+          (clun.resolver:resolve specifier referrer-dir :conditions conditions)
+        (declare (ignore format))
+        path)
+    (clun.resolver:resolution-error () nil)))
+
+(defun find-module-mock (specifier referrer-dir conditions)
+  "Return a per-realm mock without requiring SPECIFIER to resolve."
+  (let ((table (realm-module-mocks *realm*)))
+    (when table
+      (or (gethash (module-mock-specifier-key specifier referrer-dir) table)
+          (gethash (module-mock-builtin-key specifier) table)
+          (let ((path (resolve-module-mock-path specifier referrer-dir conditions)))
+            (and path (gethash (module-mock-resolved-key path) table)))))))
+
+(defun register-module-mock (realm specifier referrer-dir exports)
+  "Install EXPORTS as SPECIFIER's module namespace in REALM. Existing ESM bindings,
+namespace objects, and CommonJS object references are updated; unresolved specifiers
+remain available through their stable pre-resolution key."
+  (unless (js-object-p exports)
+    (throw-type-error "mock(module, fn) must return an object"))
+  (let* ((*realm* realm)
+         (table (module-mock-table realm))
+         (raw-key (module-mock-specifier-key specifier referrer-dir))
+         (records '())
+         (builtin (try-builtin-module specifier)))
+    (when builtin (pushnew builtin records :test #'eq))
+    (dolist (conditions '(("node" "import") ("node" "require")))
+      (let ((path (resolve-module-mock-path specifier referrer-dir conditions)))
+        (when path
+          (let ((record (or (realm-module realm path)
+                            (make-module-record :resolved-path path :format :cjs
+                                                :status :evaluated))))
+            (setf (realm-module realm path) record
+                  (gethash (module-mock-resolved-key path) table) record)
+            (pushnew record records :test #'eq)))))
+    (unless records
+      (push (make-module-record :resolved-path raw-key :format :cjs
+                                :status :evaluated)
+            records))
+    (dolist (record records) (apply-module-mock record exports))
+    (setf (gethash raw-key table) (car records)
+          (gethash (module-mock-builtin-key specifier) table) (car records))
+    exports))
+
 (defun try-builtin-module (specifier)
   "If SPECIFIER names a node builtin, return its (per-realm cached) :cjs module-record,
 else NIL. A `node:`-prefixed specifier that is not a known builtin throws (as Node does)."
@@ -148,11 +270,15 @@ placeholder is evaluated lazily by its format-specific loader)."
     (compile-esm-module mr)
     (let ((dir (clun.sys:path-dirname path)))
       (dolist (spec (mr-requested mr))
-        (let ((builtin (try-builtin-module spec)))
-          (if builtin
-              (setf (gethash spec (mr-requested-map mr)) builtin)
-              (multiple-value-bind (dep-path dep-format) (resolve-import spec dir)
-                (setf (gethash spec (mr-requested-map mr)) (load-any dep-path dep-format)))))))
+        (let ((mock (find-module-mock spec dir '("node" "import"))))
+          (if mock
+              (setf (gethash spec (mr-requested-map mr)) mock)
+              (let ((builtin (try-builtin-module spec)))
+                (if builtin
+                    (setf (gethash spec (mr-requested-map mr)) builtin)
+                    (multiple-value-bind (dep-path dep-format) (resolve-import spec dir)
+                      (setf (gethash spec (mr-requested-map mr))
+                            (load-any dep-path dep-format)))))))))
     (setf (mr-status mr) :loaded)
     mr))
 
@@ -161,6 +287,9 @@ placeholder is evaluated lazily by its format-specific loader)."
 (defun evaluate-module (mr)
   "Evaluate MR after its dependencies. Data and CJS formats own their status handling;
 ESM uses the guard below."
+  (when (mr-mock-exports mr)
+    (setf (mr-status mr) :evaluated)
+    (return-from evaluate-module mr))
   (ecase (mr-format mr)
     (:cjs  (load-cjs-module (mr-resolved-path mr)))
     (:json (load-json-value (mr-resolved-path mr)))
@@ -220,40 +349,54 @@ already-loaded dep for DESC's source specifier."
 (defun module-default-thunk (dep)
   "Thunk for the DEFAULT import of DEP (ESM default binding / CJS module.exports /
 JSON/YAML value)."
-  (ecase (mr-format dep)
-    (:esm  (let ((thunk (gethash "default" (mr-exports dep))))
-             (or thunk (lambda () +undefined+))))
-    (:cjs  (lambda () (mr-cjs-exports dep)))          ; interop: default = module.exports
-    (:json (lambda () (mr-cjs-exports dep)))
-    (:yaml (lambda () (mr-cjs-exports dep)))))
+  (let ((ordinary
+          (ecase (mr-format dep)
+            (:esm  (or (gethash "default" (mr-exports dep))
+                       (lambda () +undefined+)))
+            (:cjs  (lambda () (mr-cjs-exports dep))) ; interop default = module.exports
+            (:json (lambda () (mr-cjs-exports dep)))
+            (:yaml (lambda () (mr-cjs-exports dep))))))
+    (lambda ()
+      (if (mr-mock-exports dep)
+          (js-get (mr-mock-exports dep) "default")
+          (funcall ordinary)))))
 
 (defun module-named-thunk (dep name)
   "Thunk for a NAMED import of DEP. ESM: a live binding thunk; CJS: a property of
 module.exports (best-effort 🟡); `default` = the whole value for CJS/JSON/YAML. JSON
 has only a default export; YAML mappings also expose their own top-level keys."
-  (ecase (mr-format dep)
-    (:esm  (or (gethash name (mr-exports dep))
-               (throw-syntax-error
-                (format nil "The requested module '~a' does not provide an export named '~a'"
-                        (mr-resolved-path dep) name))))
-    (:cjs  (if (string= name "default")
-               (lambda () (mr-cjs-exports dep))           ; {default as X} = module.exports
-               (lambda () (js-get (mr-cjs-exports dep) name))))
-    (:json (if (string= name "default")
-               (lambda () (mr-cjs-exports dep))           ; {default as X} = the JSON value
-               (throw-syntax-error
-                (format nil "The requested module '~a' does not provide an export named '~a'"
-                        (mr-resolved-path dep) name))))
-    (:yaml
-     (if (string= name "default")
-         (lambda () (mr-cjs-exports dep))
-         (let ((value (mr-cjs-exports dep)))
-           (if (and (mr-yaml-named-exports-p dep)
-                    (has-own-property value name))
-               (lambda () (js-get value name))
-               (throw-syntax-error
-                (format nil "The requested module '~a' does not provide an export named '~a'"
-                        (mr-resolved-path dep) name))))))))
+  (let ((ordinary
+          (ecase (mr-format dep)
+            (:esm  (or (gethash name (mr-exports dep))
+                       (and (mr-mock-exports dep) (lambda () +undefined+))
+                       (throw-syntax-error
+                        (format nil
+                                "The requested module '~a' does not provide an export named '~a'"
+                                (mr-resolved-path dep) name))))
+            (:cjs  (if (string= name "default")
+                       (lambda () (mr-cjs-exports dep))
+                       (lambda () (js-get (mr-cjs-exports dep) name))))
+            (:json (if (string= name "default")
+                       (lambda () (mr-cjs-exports dep))
+                       (throw-syntax-error
+                        (format nil
+                                "The requested module '~a' does not provide an export named '~a'"
+                                (mr-resolved-path dep) name))))
+            (:yaml
+             (if (string= name "default")
+                 (lambda () (mr-cjs-exports dep))
+                 (let ((value (mr-cjs-exports dep)))
+                   (if (and (mr-yaml-named-exports-p dep)
+                            (has-own-property value name))
+                       (lambda () (js-get value name))
+                       (throw-syntax-error
+                        (format nil
+                                "The requested module '~a' does not provide an export named '~a'"
+                                (mr-resolved-path dep) name)))))))))
+    (lambda ()
+      (if (mr-mock-exports dep)
+          (js-get (mr-mock-exports dep) name)
+          (funcall ordinary)))))
 
 (defun json-as-object (v) (if (js-object-p v) v (new-object)))
 
@@ -301,20 +444,28 @@ splices the source's names."
 
 (defun module-export-thunk (mr name)
   "A getter thunk for export NAME of MR, across formats."
-  (ecase (mr-format mr)
-    (:esm  (or (gethash name (mr-exports mr)) (lambda () +undefined+)))
-    (:cjs  (if (string= name "default")
-               (lambda () (mr-cjs-exports mr))
-               (lambda () (js-get (mr-cjs-exports mr) name))))
-    (:json (if (string= name "default")
-               (lambda () (mr-cjs-exports mr))
-               (lambda () (js-get (json-as-object (mr-cjs-exports mr)) name))))
-    (:yaml (if (string= name "default")
-               (lambda () (mr-cjs-exports mr))
-               (lambda () (js-get (json-as-object (mr-cjs-exports mr)) name))))))
+  (let ((ordinary
+          (ecase (mr-format mr)
+            (:esm  (or (gethash name (mr-exports mr)) (lambda () +undefined+)))
+            (:cjs  (if (string= name "default")
+                       (lambda () (mr-cjs-exports mr))
+                       (lambda () (js-get (mr-cjs-exports mr) name))))
+            (:json (if (string= name "default")
+                       (lambda () (mr-cjs-exports mr))
+                       (lambda () (js-get (json-as-object (mr-cjs-exports mr)) name))))
+            (:yaml (if (string= name "default")
+                       (lambda () (mr-cjs-exports mr))
+                       (lambda () (js-get (json-as-object (mr-cjs-exports mr)) name)))))))
+    (lambda ()
+      (if (mr-mock-exports mr)
+          (js-get (mr-mock-exports mr) name)
+          (funcall ordinary)))))
 
 (defun module-export-names (mr)
   "The exported names of MR (for `export *` splicing / namespace)."
+  (when (mr-mock-exports mr)
+    (return-from module-export-names
+      (own-enumerable-string-keys (mr-mock-exports mr))))
   (ecase (mr-format mr)
     (:esm  (loop for k being the hash-keys of (mr-exports mr) collect k))
     (:cjs  (cons "default" (own-enumerable-string-keys (mr-cjs-exports mr))))
@@ -334,7 +485,10 @@ values (🟡: not a live exotic object) plus, for CJS, a `default`."
   (or (mr-namespace mr)
       (setf (mr-namespace mr)
             (let ((ns (new-object)))
-              (ecase (mr-format mr)
+              (if (mr-mock-exports mr)
+                  (dolist (name (own-enumerable-string-keys (mr-mock-exports mr)))
+                    (data-prop ns name (js-get (mr-mock-exports mr) name)))
+                  (ecase (mr-format mr)
                 (:esm (dolist (name (module-export-names mr))
                         (data-prop ns name (funcall (module-export-thunk mr name)))))
                 (:cjs (data-prop ns "default" (mr-cjs-exports mr))
@@ -347,7 +501,7 @@ values (🟡: not a live exotic object) plus, for CJS, a `default`."
                    (dolist (key (remove "default"
                                         (own-enumerable-string-keys (mr-cjs-exports mr))
                                         :test #'string=))
-                     (data-prop ns key (js-get (mr-cjs-exports mr) key))))))
+                     (data-prop ns key (js-get (mr-cjs-exports mr) key)))))))
               ns))))
 
 ;;; --- drive path -------------------------------------------------------------
@@ -396,11 +550,15 @@ Used by run-source for `:source-type :module` and the CLI's -e/[eval] modules."
                  (mr-ast mr) (parse-program source :source-type :module))
            (compile-esm-module mr)
            (dolist (spec (mr-requested mr))
-             (let ((builtin (try-builtin-module spec)))
-               (if builtin
-                   (setf (gethash spec (mr-requested-map mr)) builtin)
-                   (multiple-value-bind (dp fmt) (resolve-import spec dir)
-                     (setf (gethash spec (mr-requested-map mr)) (load-any dp fmt))))))
+             (let ((mock (find-module-mock spec dir '("node" "import"))))
+               (if mock
+                   (setf (gethash spec (mr-requested-map mr)) mock)
+                   (let ((builtin (try-builtin-module spec)))
+                     (if builtin
+                         (setf (gethash spec (mr-requested-map mr)) builtin)
+                         (multiple-value-bind (dp fmt) (resolve-import spec dir)
+                           (setf (gethash spec (mr-requested-map mr))
+                                 (load-any dp fmt))))))))
            (setf (mr-status mr) :loaded)
            (evaluate-module mr)
            (drive-jobs realm)

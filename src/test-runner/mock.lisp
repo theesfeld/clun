@@ -285,6 +285,27 @@
   (setf (ctx-mocks ctx) '())
   ctx)
 
+(defun %module-mock (realm ctx specifier factory)
+  ;; Validate both arguments before resolution. This is observable for missing package
+  ;; names because an invalid call must not enter the resolver or registry client.
+  (unless (eng:js-string-p specifier)
+    (eng:throw-type-error "mock(module, fn) requires a module name string"))
+  (unless (eng:callable-p factory)
+    (eng:throw-type-error "mock(module, fn) requires a function"))
+  (multiple-value-bind (kind value)
+      (eng:run-callback-to-settlement
+       (lambda () (eng:js-call factory eng:+undefined+ '()))
+       realm :timeout-ms (ctx-default-timeout ctx))
+    (case kind
+      (:rejected (eng:throw-js-value value))
+      (:timeout (eng:throw-type-error "mock(module, fn) factory timed out"))
+      (:fulfilled
+       (unless (eng:js-object-p value)
+         (eng:throw-type-error "mock(module, fn) must return an object"))
+       (eng:register-module-mock realm specifier
+                                 (sys:path-dirname (ctx-path ctx)) value)
+       eng:+undefined+))))
+
 (defun install-test-mocks (realm ctx)
   (let* ((eng:*realm* realm)
          (global (eng:realm-global realm))
@@ -296,9 +317,21 @@
                    (lambda (this args)
                      (declare (ignore this))
                      (%spy-on ctx (eng:arg args 0) (eng:arg args 1)))))
+         (module-fn (%fn "module" 2
+                      (lambda (this args)
+                        (declare (ignore this))
+                        (%module-mock realm ctx (eng:arg args 0) (eng:arg args 1)))))
          (jest (eng:new-object)))
+    (eng:hidden-prop mock-fn "module" module-fn)
+    (eng:install-method mock-fn "restore" 0
+      (lambda (this args)
+        (declare (ignore this args))
+        (%for-each-mock ctx (lambda (record)
+                              (when (mock-spy-owner record) (%mock-restore record))))
+        eng:+undefined+))
     (eng:data-prop jest "fn" mock-fn)
     (eng:data-prop jest "spyOn" spy-fn)
+    (eng:data-prop jest "mock" module-fn)
     (eng:install-method jest "clearAllMocks" 0
       (lambda (this args)
         (declare (ignore this args))

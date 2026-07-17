@@ -168,7 +168,7 @@ error (syntax / top-level throw) is reported as a fail. Always tears the realm d
                        (make-file-snapshot-state path (to-update-snapshots opts)
                                                 (%ci-active-p opts)))
                  (let ((root (make-t-describe :name nil :parent nil)))
-                   (setf ctx (make-test-context :root root :current root
+                   (setf ctx (make-test-context :root root :current root :path path
                                                 :default-timeout (to-timeout opts)
                                                 :snapshot snapshot))
                    (install-test-globals realm ctx))

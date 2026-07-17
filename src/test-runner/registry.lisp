@@ -15,7 +15,7 @@
   (timeout nil) (retry nil) (repeats nil))
 
 (defstruct (test-context (:conc-name ctx-))
-  root current (default-timeout 5000) (has-only nil) (expect-calls 0)
+  root current path (default-timeout 5000) (has-only nil) (expect-calls 0)
   (mocks '()) (invocation-order 0)
   (snapshot nil)
   (custom-matchers (make-hash-table :test #'equal)))

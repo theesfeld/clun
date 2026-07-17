@@ -269,3 +269,24 @@ Checked shipped-binary evidence freezes the exact membership of three shards ove
 union and non-overlap, covers both CLI spellings and argument order with randomization, and exercises the
 invalid matrix. Sharding is therefore no longer a Phase 66 residual. Real parallel workers and their
 serial/parallel agreement gate remain open, so the compatibility row remains `Partial`.
+
+## Milestone 66.18 - per-realm module mocks
+
+`mock.module(specifier, factory)` now installs a replacement module namespace in the current test-file
+realm. Argument validation precedes resolution, so missing or non-callable factories cannot trigger package
+lookup. Synchronous and Promise factories must fulfill with an object; throws, rejections, timeouts, and
+primitive results remain ordinary test failures with stable diagnostics. `jest.mock` and `vi.mock` share the
+same registration path, while `mock.restore()` restores function spies without removing module overrides.
+
+Resolved import and require condition paths, builtin aliases, lexical relative paths, and unresolved bare or
+relative specifiers map to the same realm-owned registry. Already-required CommonJS objects retain identity
+while their enumerable surface changes in place. Existing ESM default and named binding thunks consult the
+current replacement, namespace objects refresh, and re-export thunks remain live across repeated mocks.
+Every test file still receives a fresh module registry, so neither replacement values nor synthetic missing
+modules cross a file boundary.
+
+Checked shipped-binary evidence covers 8 tests and 46 assertions across CommonJS, ESM, builtin, missing,
+Promise, validation, replacement, restoration, and isolation paths. Module mocking is therefore no longer a
+Phase 66 residual. Setup/preload, dynamic import in the core module engine, fake timers, coverage/source maps,
+watch integration, real concurrent/parallel scheduling, and the remaining quantitative gates stay open, so
+the compatibility row remains `Partial`.

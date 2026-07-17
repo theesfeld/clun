@@ -1977,8 +1977,12 @@ Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-earl
 - Milestone 66.17 adds strict `--shard INDEX/COUNT` file partitioning after deterministic discovery and
   before optional seeded shuffling. The round-robin shards are ordered, disjoint, exhaustive, independent
   of worker timing, and accept both separated and equals CLI spellings.
+- Milestone 66.18 adds per-realm `mock.module`, `jest.mock`, and `vi.mock` replacement across synchronous and
+  Promise factories, unresolved modules, builtin aliases, loaded CommonJS identity, ESM live bindings,
+  namespaces, re-exports, repeated updates, validation, `mock.restore`, and cross-file isolation. Focused
+  shipped-binary evidence covers 8 tests and 46 assertions across four independently torn-down file realms.
 - Ledger stays `Partial`. Remaining Phase 66 scope: Bun-exact snapshot serialization across every supported
   value kind,
-  module mocks, fake timers, coverage/source maps, parallelism/concurrency, setup/preload,
+  fake timers, coverage/source maps, parallelism/concurrency, setup/preload,
   watch hooks, exact 52-root Bun/Clun counts, four-target receipts,
   serial/parallel agreement, and 10k RSS.
