@@ -352,6 +352,8 @@ engineering.test_js_bun_shell_commands_ls_test_ts.L240.1.test-call	covered	tests
 engineering.test_js_bun_shell_commands_ls_test_ts.L251.1.test-call	covered	tests/compat/tooling.shell/upstream-ls.js	exact pinned deterministic ls behavior executes through the shipped binary
 engineering.test_js_bun_shell_commands_ls_test_ts.L260.1.test-call	covered	tests/compat/tooling.shell/upstream-ls.js	exact pinned deterministic ls behavior executes through the shipped binary
 engineering.test_js_bun_shell_commands_ls_test_ts.L267.1.test-call	covered	tests/compat/tooling.shell/upstream-ls.js	exact pinned deterministic ls behavior executes through the shipped binary
+engineering.test_js_bun_shell_commands_ls_test_ts.L274.1.test-call	covered	tests/compat/tooling.shell/upstream-ls.js	exact pinned permission-sensitive ls behavior executes through the shipped binary
+engineering.test_js_bun_shell_commands_ls_test_ts.L285.1.test-call	covered	tests/compat/tooling.shell/upstream-ls.js	exact pinned permission-sensitive ls behavior executes through the shipped binary
 engineering.test_js_bun_shell_commands_ls_test_ts.L309.1.test-call	covered	tests/compat/tooling.shell/upstream-ls.js	exact pinned deterministic ls behavior executes through the shipped binary
 engineering.test_js_bun_shell_commands_ls_test_ts.L319.1.test-call	covered	tests/compat/tooling.shell/upstream-ls.js	exact pinned deterministic ls behavior executes through the shipped binary
 engineering.test_js_bun_shell_commands_ls_test_ts.L329.1.test-call	covered	tests/compat/tooling.shell/upstream-ls.js	exact pinned deterministic ls behavior executes through the shipped binary
@@ -377,6 +379,8 @@ stable.test_js_bun_shell_commands_ls_test_ts.L240.1.test-call	covered	tests/comp
 stable.test_js_bun_shell_commands_ls_test_ts.L251.1.test-call	covered	tests/compat/tooling.shell/upstream-ls.js	exact pinned deterministic ls behavior executes through the shipped binary
 stable.test_js_bun_shell_commands_ls_test_ts.L260.1.test-call	covered	tests/compat/tooling.shell/upstream-ls.js	exact pinned deterministic ls behavior executes through the shipped binary
 stable.test_js_bun_shell_commands_ls_test_ts.L267.1.test-call	covered	tests/compat/tooling.shell/upstream-ls.js	exact pinned deterministic ls behavior executes through the shipped binary
+stable.test_js_bun_shell_commands_ls_test_ts.L274.1.test-call	covered	tests/compat/tooling.shell/upstream-ls.js	exact pinned permission-sensitive ls behavior executes through the shipped binary
+stable.test_js_bun_shell_commands_ls_test_ts.L285.1.test-call	covered	tests/compat/tooling.shell/upstream-ls.js	exact pinned permission-sensitive ls behavior executes through the shipped binary
 stable.test_js_bun_shell_commands_ls_test_ts.L309.1.test-call	covered	tests/compat/tooling.shell/upstream-ls.js	exact pinned deterministic ls behavior executes through the shipped binary
 stable.test_js_bun_shell_commands_ls_test_ts.L319.1.test-call	covered	tests/compat/tooling.shell/upstream-ls.js	exact pinned deterministic ls behavior executes through the shipped binary
 stable.test_js_bun_shell_commands_ls_test_ts.L329.1.test-call	covered	tests/compat/tooling.shell/upstream-ls.js	exact pinned deterministic ls behavior executes through the shipped binary

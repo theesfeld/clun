@@ -3113,3 +3113,24 @@ binary for that commit). Clun counts come from `0.1.0-dev.19` single-file absolu
 `bun:test` ESM resolve, `bun` namespace imports, parser tier gaps, and upstream harness/host-spawn meta
 tests. Numeric coincidence of failing 0/1/0 roots is not treated as a closed residual. Ledger remains
 Partial; re-measure under a true `c1076ce95e` engineering binary when available.
+
+### 2026-07-17 — language.typescript Partial: ambient declare enum strip
+
+Erasable-strip gap close (not Phase 39 Yes): ambient `declare enum` / `declare const enum` /
+`export declare enum` now erase under the existing declare branch (`scan-enum-ambient`), matching
+Node/amaro erasable ambient semantics. Value `enum` / `const enum` still hard-error (need emit —
+Phase 39). `namespace-type-only-p` now treats bare `enum` as a runtime leader so
+`namespace N { enum E { A } }` errors instead of silently erasing the value object. Ledger stays
+`Partial`. Corpus: strip declare-enum / declare-const-enum / export-declare-enum; error
+enum-in-namespace; runtime declare-enum; parachute `ts/ambient-enum-strip`.
+
+### 2026-07-17 - Phase 51 WebSocket is pure-CL feasible (not a purity No)
+
+Constitutional checkpoint on issue #25: RFC 6455 handshake/framing, Bun-shaped
+`ServerWebSocket`, topic Pub/Sub, and optional permessage-deflate can be built on the
+existing reactor sockets, HTTP parser/serve path, Ironclad SHA-1 (accept key only), and
+Chipz deflate — without CFFI, uWebSockets, OpenSSL, or system zlib. The ledger row
+`server.websocket` stays **No** until Autobahn-style and Bun-differential four-target
+evidence exist. M0 ships package/types scaffold plus fail-closed `Clun.serve` errors
+when `websocket` options or `upgrade`/`publish`/`subscriberCount` are used, so absence
+is explicit rather than a silent half-shim. Design: `docs/design/phase-51.md`.
