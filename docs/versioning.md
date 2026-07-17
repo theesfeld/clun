@@ -119,7 +119,7 @@ stages `0.1.0-dev.20` / `v0.1.0-dev.20` under Issue #2 (transport PR #95) as the
 on top of master `0.1.0-dev.19`. Phase 28 adds backward-compatible pure-CL TLS 1.2 registry transport,
 DNS and Happy Eyeballs, streaming Fetch, HTTP pooling, and proxy/CONNECT support and therefore its
 SemVer impact is `minor` within the selected `0.1.0` core. Until gates complete, the installer and
-immutable published boundary remain dev.17; `runtime.web-standard-apis` and `package-manager.npm`
+immutable published boundary remain dev.18; `runtime.web-standard-apis` and `package-manager.npm`
 remain Partial and are not claimed as Yes.
 
 ## Canonical record

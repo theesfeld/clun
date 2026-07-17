@@ -11,7 +11,7 @@ Clun does not claim blanket speed parity with Bun.
 <!-- clun-generated:release:begin -->
 > **Status: pre-alpha, under active construction.** [Phase 28](https://github.com/theesfeld/clun/issues/2) is in progress.
 > Its release-bearing target is `0.1.0-dev.20` / `v0.1.0-dev.20` (SemVer impact: `minor`).
-> The verified release boundary is `v0.1.0-dev.17`, with four native archives, checksums, Pages,
+> The verified release boundary is `v0.1.0-dev.18`, with four native archives, checksums, Pages,
 > and hosted-installer evidence.
 > Phase 26 remains deferred until after Phase 82 and will
 > be rewritten for the repository state that exists then.
@@ -22,11 +22,10 @@ Clun does not claim blanket speed parity with Bun.
 
 Source on draft [PR #95](https://github.com/theesfeld/clun/pull/95) is the `0.1.0-dev.20` Phase 28
 candidate. Public `runtime.web-standard-apis` and `package-manager.npm` remain honest `Partial` and are not
-claimed as `Yes`. Published `v0.1.0-dev.17` is the verified release boundary (router Yes). Shell
-(`0.1.0-dev.18`, #86) and test-runner (`0.1.0-dev.19`, #88) are on `master`. This unit stages Partial
-transport as the exact next prerelease `0.1.0-dev.20` and stays draft until CI is green on the rebased
-candidate and residual Phase 28 gates are decided. The hosted installer correctly remains on published
-dev.17 until the candidate is merged, tagged, and released.
+claimed as `Yes`. Published `v0.1.0-dev.18` is the verified release boundary (shell Partial). Test-runner
+(`0.1.0-dev.19`, #88) is on `master`. This unit stages Partial transport as the exact next prerelease
+`0.1.0-dev.20` and stays draft until residual Phase 28 gates are decided. The hosted installer correctly
+remains on published dev.18 until the candidate is merged, tagged, and released.
 
 
 ## Install
@@ -164,7 +163,7 @@ workflows are read-only and fail closed if the canonical issues, README, or site
 <!-- clun-generated:release-summary:begin -->
 Release versions follow the actual SemVer impact recorded in the canonical issue, not the number of pushes.
 The current source is the `0.1.0-dev.20` release candidate; the immutable tag and assets are not published yet.
-The last published prerelease remains [`v0.1.0-dev.17`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.17).
+The last published prerelease remains [`v0.1.0-dev.18`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.18).
 [The versioning contract](docs/versioning.md) defines prerelease sequencing, synchronized surfaces, immutable tags, assets, and installer evidence.
 [Phase 28 issue #2](https://github.com/theesfeld/clun/issues/2) is the canonical live release record.
 <!-- clun-generated:release-summary:end -->

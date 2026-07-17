@@ -16,14 +16,13 @@ https://github.com/theesfeld/clun/issues/39, and https://github.com/theesfeld/cl
 **Current implementation unit:** Phase 28 transport foundation on draft PR #95 — pure-CL TLS 1.2
 registry fallback, A/AAAA DNS and Happy Eyeballs, streaming Fetch request/response bodies, HTTP
 connection pooling, and HTTP proxy / HTTPS CONNECT. Public `runtime.web-standard-apis` and
-`package-manager.npm` remain `Partial` (not Yes). Router is published on master as `0.1.0-dev.17`;
-shell (`0.1.0-dev.18`, #86) and test-runner (`0.1.0-dev.19`, #88) are on `master`; this unit stages
-`0.1.0-dev.20` as the exact next prerelease and stays draft until CI is green on the rebased candidate
-and residual Phase 28 gates are decided.
+`package-manager.npm` remain `Partial` (not Yes). Shell Partial is published as `v0.1.0-dev.18`
+(#86 / #98); test-runner Partial is on master as `0.1.0-dev.19` (#88); this unit stages
+`0.1.0-dev.20` as the exact next prerelease and stays draft until residual Phase 28 gates are decided.
 **SemVer impact:** `minor`
 **Candidate release:** `0.1.0-dev.20` / `v0.1.0-dev.20`
-**Published release:** `0.1.0-dev.17` / `v0.1.0-dev.17`
-**Entry boundary:** immutable `v0.1.0-dev.17` is tagged at exact master `909aafa090a21e247d22566361475f608bcaa7a8` with four native archives + checksums; installer defaults to that tag. Master source currently includes shell `0.1.0-dev.18` (#86) and test-runner `0.1.0-dev.19` (#88). Draft PR #95 is rebased onto that master and stages Partial transport as `0.1.0-dev.20`. Phase 26 remains after Phase 82.
+**Published release:** `0.1.0-dev.18` / `v0.1.0-dev.18`
+**Entry boundary:** immutable `v0.1.0-dev.18` is tagged at exact master `b5ecdb5defeef8ddede72ef794e41f14fb423b86` with four native archives + checksums (release run 29596302229). Installer defaults to that tag. Master source includes test-runner `0.1.0-dev.19` (#88). Draft PR #95 stages Partial transport as `0.1.0-dev.20`. Phase 26 remains after Phase 82.
 **Next scope:** keep both transport-adjacent ledger rows Partial until HTTPS proxy endpoints, pooling/stress breadth, large-transfer/leak matrix, and four-target receipts complete; green exact-head CI on the rebased candidate; then reassess Yes readiness.
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
