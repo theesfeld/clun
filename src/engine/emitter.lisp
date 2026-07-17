@@ -852,9 +852,92 @@ base and computed key exactly once, before evaluating a right-hand side."
           (write-string q out)
           (when (< i (length exprs)) (write-string (to-string (funcall (nth i exprs) env)) out)))))))
 
+(defun normalize-template-raw (string)
+  "Apply Template Raw Value's CR and CRLF normalization without cooking escapes."
+  (with-output-to-string (out)
+    (loop with index = 0
+          while (< index (length string))
+          for character = (char string index)
+          do (cond
+               ((char= character #\Return)
+                (write-char #\Newline out)
+                (incf index)
+                (when (and (< index (length string))
+                           (char= (char string index) #\Newline))
+                  (incf index)))
+               (t
+                (write-char character out)
+                (incf index))))))
+
+(defun make-template-object (template)
+  "Create the frozen cooked/raw arrays for one TemplateLiteral parse node."
+  (let* ((quasis (template-literal-quasis template))
+         (raw (new-array
+               (mapcar (lambda (quasi)
+                         (normalize-template-raw (template-element-raw quasi)))
+                       quasis)))
+         (cooked (new-array
+                  (mapcar (lambda (quasi)
+                            (or (template-element-cooked quasi) +undefined+))
+                          quasis))))
+    (unless (set-integrity-level raw :frozen)
+      (throw-type-error "cannot freeze template raw strings"))
+    (obj-set-desc cooked "raw"
+                  (data-pd raw :writable nil :enumerable nil :configurable nil))
+    (unless (set-integrity-level cooked :frozen)
+      (throw-type-error "cannot freeze template strings"))
+    cooked))
+
+(defun get-template-object (template)
+  "Return the realm-local cached template object for TEMPLATE's parse-node identity."
+  (let ((registry (realm-template-registry *realm*)))
+    (multiple-value-bind (object present-p) (gethash template registry)
+      (if present-p
+          object
+          (setf (gethash template registry) (make-template-object template))))))
+
+(defun compile-tagged-template-callee (comp tag)
+  "Compile TAG as a call reference and preserve a member reference's receiver."
+  (cond
+    ((super-member-p tag)
+     (let ((reference (compile-super-reference comp tag)))
+       (lambda (env)
+         (multiple-value-bind (base property receiver) (funcall reference env)
+           (values (jm-get base (to-property-key property) receiver) receiver)))))
+    ((member-expression-p tag)
+     (let ((object-fn (compile-node comp (member-expression-object tag))))
+       (if (member-expression-computed tag)
+           (let ((property-fn (compile-node comp (member-expression-property tag))))
+             (lambda (env)
+               (let* ((object (funcall object-fn env))
+                      (property (to-property-key (funcall property-fn env))))
+                 (values (js-getv object property) object))))
+           (let ((property (identifier-name (member-expression-property tag)))
+                 (cache (%make-ic)))
+             (lambda (env)
+               (let ((object (funcall object-fn env)))
+                 (values (%ic-read object property cache) object)))))))
+    (t
+     (let ((function-fn (compile-node comp tag)))
+       (lambda (env) (values (funcall function-fn env) +undefined+))))))
+
 (defun compile-tagged-template (comp node)
-  (declare (ignore comp node))
-  (lambda (env) (declare (ignore env)) (throw-type-error "tagged templates not supported yet")))
+  (let* ((template (tagged-template-quasi node))
+         (callee-fn (compile-tagged-template-callee comp (tagged-template-tag node)))
+         (expression-fns
+           (mapcar (lambda (expression) (compile-node comp expression))
+                   (template-literal-expressions template))))
+    (lambda (env)
+      (multiple-value-bind (function receiver) (funcall callee-fn env)
+        ;; IsCallable precedes GetTemplateObject and substitution evaluation.
+        (unless (callable-p function)
+          (throw-type-error "tagged template target is not callable"))
+        (let ((arguments
+                (cons (get-template-object template)
+                      (mapcar (lambda (expression-fn)
+                                (funcall expression-fn env))
+                              expression-fns))))
+          (js-call function receiver arguments))))))
 
 ;;; --- binding targets (params, declarations, destructuring) ------------------
 

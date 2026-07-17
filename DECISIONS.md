@@ -2715,3 +2715,17 @@ corpus, security/resource gates, and four-target receipts pass. The pinned sourc
 Clun translation, and case-level baseline are committed together; no case can be dropped or reclassified
 silently. The dev.14 SemVer target remains valid because Phase 36's password/hash APIs are independent real
 backward-compatible functionality.
+### 2026-07-16 - Phase 65 starts at the tagged-template call boundary
+
+The shell API will use ordinary ECMAScript tagged-template semantics rather than a shell-specific parser
+shortcut at the JavaScript call boundary. Each realm therefore owns an identity-keyed template registry:
+syntactic sites receive distinct frozen cooked/raw arrays, repeated evaluation of one site reuses identity,
+and objects never cross realms. Callability is checked before template-object creation or substitution
+evaluation, and member references retain their receiver. These order rules are security-relevant groundwork
+for keeping future shell interpolations as data.
+
+This is an internal engine prerequisite, not completion of the `$` API. It has no release or public-ledger
+disposition by itself, and the existing version remains unchanged. Phase 65 and `tooling.shell` stay open
+until the public API, shell language, execution, portability, injection, backpressure, signal, and stress
+contracts pass. The exact 27-file tagged-template Test262 gate records 23 pass, the existing direct-eval
+lexical-environment failure, three policy skips, and zero timeout or crash without hiding those residuals.
