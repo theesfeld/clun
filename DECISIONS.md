@@ -2746,7 +2746,8 @@ no bytes beyond the response boundary. EOF-framed responses, `Connection: close`
 bytes, idle EOF, and unsolicited idle data all close or evict the socket. One-shot HTTP and TLS callers keep
 their existing `Connection: close` serializer behavior; only the pooling path advertises keep-alive.
 
-The implementation gate is 111 network tests / 3,678 assertions with zero failures, plus a clean build,
-718-file purity scan, exact TCP identity reuse evidence, and parser rejection tests. This is still an
+The implementation gate is 113 network tests / 3,694 assertions with zero failures, plus a clean build,
+718-file purity scan, exact TCP identity reuse, stale-peer eviction/reconnect, cross-origin isolation,
+and parser rejection evidence. This is still an
 internal Phase 28 slice: TLS pooling, proxy support, the remaining stress/cancellation matrix, four-target
 receipts, and the public compatibility promotion remain open.

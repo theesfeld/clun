@@ -154,6 +154,45 @@ then the final chunk after 75ms.  __tailSent exposes whether fetch waited for EO
              (net:listener-close ,listener)
              (eng:teardown-realm ,realm)))))))
 
+(defun %start-stale-pool-server (loop accepted-count)
+  "Serve a persistent response, then send FIN after the client can cache the socket."
+  (net:tcp-listen
+   loop "127.0.0.1" 0
+   :on-connection
+   (lambda (connection)
+     (incf (car accepted-count))
+     (let ((responded nil))
+       (setf
+        (net:tcp-on-data connection)
+        (lambda (peer data)
+          (declare (ignore data))
+          (unless responded
+            (setf responded t)
+            (net:tcp-write
+             peer
+             (sb-ext:string-to-octets
+              (format nil
+                      "HTTP/1.1 200 OK~c~cContent-Length: 2~c~cConnection: keep-alive~c~c~c~cok"
+                      #\Return #\Newline #\Return #\Newline
+                      #\Return #\Newline #\Return #\Newline)
+              :external-format :latin-1))
+            (lp:set-timer loop 5 (lambda () (net:tcp-shutdown peer))))))))))
+
+(defmacro with-stale-pool-server ((g port accepted-count) &body body)
+  (let ((realm (gensym)) (loop (gensym)) (listener (gensym)))
+    `(let ((,realm (eng:make-realm)))
+       (rt:install-runtime ,realm :argv '(:script "[test]" :rest nil) :cwd "/tmp")
+       (let ((eng:*realm* ,realm))
+         (let* ((,g (eng:realm-global ,realm))
+                (,loop (eng:current-loop))
+                (,accepted-count (list 0))
+                (,listener (%start-stale-pool-server ,loop ,accepted-count))
+                (,port (net:listener-port ,listener)))
+           (eng:run-program (eng:parse-program +fetch-info-src+) ,realm)
+           (unwind-protect (progn ,@body)
+             (net:listener-close ,listener)
+             (eng:teardown-realm ,realm)))))))
+
 (defun %append-upload-capture (capture octets)
   (let* ((old (fill-pointer capture))
          (new (+ old (length octets))))
@@ -256,6 +295,73 @@ then the final chunk after 75ms.  __tailSent exposes whether fetch waited for EO
     (is = 0
         (length (net::%http-pool-idle-tcps
                  (eng:current-loop) "127.0.0.1" port)))))
+
+(define-test net/fetch-evicts-peer-closed-idle-connections
+  (with-stale-pool-server (g port accepted-count)
+    (multiple-value-bind (kind info) (fetch-info g eng:*realm* port "/first")
+      (is eq :fulfilled kind)
+      (is string= "ok" (info-str info "body")))
+    (let* ((loop (eng:current-loop))
+           (idle (net::%http-pool-idle-tcps loop "127.0.0.1" port))
+           (first-connection (first idle)))
+      (is = 1 (length idle))
+      (multiple-value-bind (kind value)
+          (eng:run-callback-to-settlement
+           (lambda ()
+             (jseval eng:*realm*
+                     "new Promise(resolve => setTimeout(resolve, 30))"))
+           eng:*realm* :timeout-ms 1000)
+        (declare (ignore value))
+        (is eq :fulfilled kind))
+      (is eq :closed (net:tcp-state first-connection))
+      (is = 0 (length (net::%http-pool-idle-tcps
+                       loop "127.0.0.1" port)))
+      (multiple-value-bind (kind info) (fetch-info g eng:*realm* port "/second")
+        (is eq :fulfilled kind)
+        (is string= "ok" (info-str info "body")))
+      (is = 2 (car accepted-count)))))
+
+(define-test net/fetch-pool-isolates-distinct-origins
+  (with-fetch-server (g first-port)
+    (let* ((loop (eng:current-loop))
+           (fetch-handler
+             (eng:make-native-function
+              "fetch" 1
+              (lambda (this args)
+                (declare (ignore this))
+                (%fetch-route g (eng:arg args 0)))))
+           (options (eng:new-object)))
+      (eng:data-prop options "port" 0d0)
+      (eng:data-prop options "hostname" "127.0.0.1")
+      (eng:data-prop options "fetch" fetch-handler)
+      (let* ((second-server (rt::%clun-serve g options))
+             (second-port (truncate (eng:js-get second-server "port"))))
+        (declare (ignore second-server))
+        (multiple-value-bind (kind info)
+            (fetch-info g eng:*realm* first-port "/first")
+          (declare (ignore info))
+          (is eq :fulfilled kind))
+        (multiple-value-bind (kind info)
+            (fetch-info g eng:*realm* second-port "/second")
+          (declare (ignore info))
+          (is eq :fulfilled kind))
+        (let* ((first-idle
+                 (net::%http-pool-idle-tcps
+                  loop "127.0.0.1" first-port))
+               (second-idle
+                 (net::%http-pool-idle-tcps
+                  loop "127.0.0.1" second-port))
+               (first-connection (first first-idle)))
+          (is = 1 (length first-idle))
+          (is = 1 (length second-idle))
+          (isnt eq first-connection (first second-idle))
+          (multiple-value-bind (kind info)
+              (fetch-info g eng:*realm* first-port "/again")
+            (declare (ignore info))
+            (is eq :fulfilled kind))
+          (is eq first-connection
+              (first (net::%http-pool-idle-tcps
+                      loop "127.0.0.1" first-port))))))))
 
 (define-test net/fetch-json
   (with-fetch-server (g port)

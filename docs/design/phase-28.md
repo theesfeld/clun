@@ -165,9 +165,11 @@ worker-to-loop pull bridge.
 
 The plain HTTP pool tests prove that two sequential fetches to one origin return
 the same TCP wrapper to the idle pool, while an explicit `Connection: close`
-request is never pooled. Parser tests separately reject EOF-delimited bodies,
+request is never pooled. A peer FIN while idle evicts the stale wrapper before a
+later request reconnects, and simultaneous same-host/different-port origins retain
+distinct TCP identities. Parser tests separately reject EOF-delimited bodies,
 close responses, and bytes trailing a complete message as reusable. The complete
-network subset currently passes 111 tests and 3,678 assertions.
+network subset currently passes 113 tests and 3,694 assertions.
 
 `make test-tls12` runs that focused suite, then starts OpenSSL TLS 1.2-only peers
 with `ECDHE-RSA-AES128-GCM-SHA256` and forces `rsa_pkcs1_sha256`. It proves a
