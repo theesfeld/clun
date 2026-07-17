@@ -22,6 +22,7 @@ FEATURE                    ?= all
 		roadmap-verify-live \
 		conformance-exec-compare phase-25b-m5-check phase-25b-m6-check phase-37-m1-check \
 		phase-65-tagged-templates-check \
+		phase-65-shell-core-check \
 		conformance-buckets conformance-buckets-check \
 		conformance-buckets-verify clean
 
@@ -116,6 +117,12 @@ phase-37-m1-check:
 phase-65-tagged-templates-check:
 	CLUN_EXEC=1 $(SBCL) --dynamic-space-size 2048 $(SBCL_FLAGS) \
 		--load scripts/phase-65-tagged-templates.lisp
+
+## phase-65-shell-core-check -- exercise the application-facing parser and
+## executor through the shipped binary; full Phase 65 parity has broader gates.
+phase-65-shell-core-check: build
+	$(SBCL) $(SBCL_FLAGS) --load scripts/test-shell.lisp
+	sh scripts/compat.sh run tooling.shell
 
 ## conformance-exec-compare -- run the complete execution corpus with the COMPILE
 ## tier off and eager, then require byte-identical per-file classifications.

@@ -1,0 +1,104 @@
+function assert(condition, message) {
+  if (!condition) throw new Error(message);
+}
+
+const hostile = "safe; printf INJECTED $(printf BAD) *";
+const outputPath = "clun-shell-core-output.tmp";
+
+Clun.$`printf "%s\n" ${hostile}`.text()
+  .then(text => {
+    assert(text === hostile + "\n", "interpolation must be one inert argument");
+    console.log("safe-interpolation");
+    return Clun.$`printf "[%s]\n" ${["a b", "c"]}`.text();
+  })
+  .then(text => {
+    assert(text === "[a b]\n[c]\n", "array interpolation must preserve argument boundaries");
+    console.log("array-interpolation");
+    return Clun.$`printf hello | tr a-z A-Z`.text();
+  })
+  .then(text => {
+    assert(text === "HELLO", "pipeline output");
+    console.log("pipeline");
+    return Clun.$`yes x | head -c 1048576`.bytes();
+  })
+  .then(bytes => {
+    assert(bytes.length === 1048576, "pipeline must drain output beyond pipe capacity");
+    console.log("pipeline-backpressure");
+    return Clun.$`false || echo recovered`.text();
+  })
+  .then(text => {
+    assert(text === "recovered\n", "logical OR");
+    console.log("logical-operators");
+    return Clun.$`echo $(printf sub)`.text();
+  })
+  .then(text => {
+    assert(text === "sub\n", "command substitution");
+    console.log("command-substitution");
+    return Clun.$`echo $CLUN_SHELL_VALUE`.env({ CLUN_SHELL_VALUE: "from-env" }).text();
+  })
+  .then(text => {
+    assert(text === "from-env\n", "per-command environment");
+    return Clun.$`pwd`.cwd(".").text();
+  })
+  .then(text => {
+    assert(text.length > 1 && text.endsWith("tooling.shell\n"), "relative cwd");
+    console.log("env-and-cwd");
+    return Clun.$`printf redirected > ${outputPath}`;
+  })
+  .then(() => Clun.$`cat ${outputPath}`.text())
+  .then(text => {
+    assert(text === "redirected", "output redirection");
+    console.log("redirection");
+    return Clun.$`rm ${outputPath}`.nothrow();
+  })
+  .then(result => {
+    assert(result.exitCode === 0, "cleanup command");
+    return Clun.$`false`.nothrow();
+  })
+  .then(result => {
+    assert(result.exitCode === 1, "nothrow exit code");
+    assert(result.text() === "", "ShellOutput text helper");
+    console.log("structured-output");
+    return Clun.$`false`.text();
+  }, error => {
+    throw error;
+  })
+  .then(() => {
+    throw new Error("nonzero shell command must reject");
+  }, error => {
+    assert(error.name === "ShellError", "ShellError name");
+    assert(error.exitCode === 1, "ShellError exit code");
+    assert(error.text() === "", "ShellError text helper");
+    assert(error instanceof Clun.$.ShellError, "ShellError constructor brand");
+    assert(error instanceof Error, "ShellError must inherit Error");
+    console.log("structured-error");
+    assert(Clun.$.escape("a b") === '"a b"', "escape helper");
+    assert(Clun.$.braces("x{a,b}y").join(",") === "xay,xby", "brace helper");
+    console.log("helpers");
+    const manual = new Clun.$.ShellError("manual");
+    assert(manual instanceof Clun.$.ShellError && manual instanceof Error,
+      "manual ShellError prototype chain");
+    const chain = Clun.$`true`.quiet().then(result => result.exitCode);
+    assert(chain instanceof Promise, "ShellPromise.then must return a Promise");
+    return chain;
+  })
+  .then(exitCode => {
+    assert(exitCode === 0, "ShellPromise.then result");
+    return Clun.$`false`.quiet().catch(error => error.exitCode);
+  })
+  .then(exitCode => {
+    assert(exitCode === 1, "ShellPromise.catch result");
+    let finalized = 0;
+    return Clun.$`true`.quiet().finally(() => { finalized++; })
+      .then(() => finalized);
+  })
+  .then(finalized => {
+    assert(finalized === 1, "ShellPromise.finally result");
+    console.log("promise-chain");
+    return Clun.$`printf nope`
+      .env({ PATH: "/definitely/missing" }).quiet().nothrow();
+  })
+  .then(result => {
+    assert(result.exitCode === 127, "job PATH must control executable lookup");
+    console.log("path-lookup");
+  });
