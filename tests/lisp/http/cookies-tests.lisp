@@ -41,11 +41,16 @@
       (when (plusp index) (write-string "; " output))
       (format output "k~d=v~d" index index))))
 
-(defun cookie-map-measured-bytes (thunk)
+(defun cookie-map-measured-bytes (thunk &key (iterations 8))
   (sb-ext:gc :full t)
-  (let ((before (sys:bytes-consed)))
-    (let ((result (funcall thunk)))
-      (values (- (sys:bytes-consed) before) result))))
+  (let ((before (sys:bytes-consed))
+        (result nil))
+    ;; Aggregate several constructions so allocator-region granularity cannot
+    ;; dominate one sample on arm64 SBCL builds.
+    (dotimes (iteration iterations)
+      (declare (ignore iteration))
+      (setf result (funcall thunk)))
+    (values (floor (- (sys:bytes-consed) before) iterations) result)))
 
 (defun cookie-map-best-parse-nanoseconds (header &key (samples 5) (iterations 8))
   (let ((best nil))
@@ -666,8 +671,10 @@
   (let* ((header-n (cookie-map-resource-header 1024))
          (header-2n (cookie-map-resource-header 2048))
          (header-4n (cookie-map-resource-header 4096)))
-    ;; Warm the direct path before taking checked allocation samples.
-    (cookies:make-cookie-map-state-from-header "warm=up")
+    ;; Warm every checked size before taking aggregate allocation samples.
+    (cookies:make-cookie-map-state-from-header header-n)
+    (cookies:make-cookie-map-state-from-header header-2n)
+    (cookies:make-cookie-map-state-from-header header-4n)
     (multiple-value-bind (direct-bytes direct-state)
         (cookie-map-measured-bytes
          (lambda () (cookies:make-cookie-map-state-from-header header-n)))
