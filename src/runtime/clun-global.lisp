@@ -43,6 +43,11 @@
     (eng:install-method clun "nanoseconds" 0
       (lambda (this args) (declare (ignore this args))
         (coerce (clun.sys:monotonic-nanoseconds) 'double-float)))
+    (eng:install-method clun "gc" 1
+      (lambda (this args)
+        (declare (ignore this))
+        (sb-ext:gc :full (eq (eng:to-boolean (eng:arg args 0)) eng:+true+))
+        eng:+undefined+))
     (eng:install-method clun "which" 1
       (lambda (this args) (declare (ignore this)) (%which (eng:to-string (eng:arg args 0)))))
     (eng:install-method clun "fileURLToPath" 1

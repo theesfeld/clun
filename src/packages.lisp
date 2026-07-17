@@ -28,7 +28,8 @@
            ;; Phase 08 — platform primitives for the runtime (process/console)
            #:stream-fd #:tty-p #:environ-alist #:getenv #:getpid
            #:current-directory #:change-directory #:machine-arch #:platform-name
-           #:monotonic-nanoseconds #:unix-milliseconds #:heap-bytes-used #:bytes-consed
+           #:monotonic-nanoseconds #:unix-milliseconds #:heap-bytes-used
+           #:resident-set-bytes #:bytes-consed
            ;; Phase 12 — OS info + CSPRNG bytes for node:os / crypto
            #:os-random-bytes #:hostname #:os-release #:os-type #:tmpdir #:homedir
            #:total-memory #:free-memory #:uptime-seconds #:cpu-count

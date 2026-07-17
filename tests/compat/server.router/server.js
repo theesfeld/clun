@@ -170,6 +170,10 @@ const routes = {
   "/skip": false,
   "/reload-target": () => new Response("original"),
   "/reload-control/:stage": reloadControl,
+  "/gc": () => {
+    Clun.gc(true);
+    return new Response("gc");
+  },
 };
 
 routes[manyPattern] = request => new Response(

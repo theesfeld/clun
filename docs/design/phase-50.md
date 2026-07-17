@@ -120,7 +120,7 @@ byte-preserving native-name boundary and publishes replacement-decoded JavaScrip
 
 Exact exports of the stable and engineering Bun route, static, file-response, and FileSystemRouter sources
 are vendored with SHA-256 verification. The deterministic inventory accounts for 981 lexical test/assertion
-sites: 952 map to shipped Clun evidence and 29 are explicitly upstream-inactive, platform-excluded, or owned
+sites: 949 map to shipped Clun evidence and 32 are explicitly upstream-inactive, platform-excluded, or owned
 by another feature such as `Bun.build`. Aggregate mappings identify semantic evidence clusters and do not
 claim that Bun's TypeScript sources execute unchanged under Clun.
 
@@ -133,9 +133,13 @@ argument, normalizes relative strings against `server.url`, and rejects route-on
 Resource evidence constructs and compiles 100,000 routes, validates first/middle/last/missing lookup, and
 performs 10,000 repeated matches. The recorded local receipt was 0.031 seconds to create the JavaScript
 inventory, 0.057 seconds to compile it, 0.009 seconds for the lookup loop, 119,071,136 retained bytes, and
-160,987,360 allocated bytes. A separate FileSystemRouter stress fixture inventories 129 routes and retains
-30,000 four-parameter matches under a 128 MiB heap bound. Four-target receipts and final adversarial review
-remain required before promotion; this checkpoint does not change the public ledger.
+160,987,360 allocated bytes. A separate FileSystemRouter stress fixture inventories 129 routes, forces full
+collection around 30,000 four-parameter matches, and enforces the pinned non-ASAN 20 MiB RSS bound; the local
+receipt grew by 192,512 bytes. File-backed static responses also run the pinned five-request warmup and 50
+measured cycles under the 100 MiB delta bound (340 KiB local), while 50 in-memory 4 MiB static cycles finish
+under the pinned 4,092 MiB absolute ceiling (139,276 KiB local). `Clun.gc(true)` supplies the explicit full-GC
+boundary used by these shipped-binary gates. Four-target receipts and final adversarial review remain required
+before promotion; this checkpoint does not change the public ledger.
 
 Only M4 may change `server.router` to `Yes` or close the canonical phase issue.
 

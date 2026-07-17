@@ -30,12 +30,14 @@ assert(second.params.d === segmentB && second.pathname.includes(segmentB), "seco
 
 const stressUrl = `/${"x".repeat(512)}/${"y".repeat(512)}/${"z".repeat(512)}/${"w".repeat(512)}`;
 for (let index = 0; index < 1000; index++) router.match(stressUrl).params;
+Clun.gc(true);
 const before = process.memoryUsage().rss;
 for (let index = 0; index < 30000; index++) {
   const params = router.match(stressUrl).params;
   if (params.a.length !== 512 || params.d.length !== 512) throw new Error("stress params mismatch");
 }
+Clun.gc(true);
 const growth = process.memoryUsage().rss - before;
-assert(growth <= 128 * 1024 * 1024, `30,000 matches retained ${growth} bytes`);
+assert(growth <= 20 * 1024 * 1024, `30,000 matches retained ${growth} RSS bytes`);
 
-console.log("filesystem.router: 129-route pressure, retained matches, and 30,000-match memory bound passed");
+console.log(`filesystem.router: 129-route pressure, retained matches, and 30,000-match RSS bound passed (${growth} bytes)`);

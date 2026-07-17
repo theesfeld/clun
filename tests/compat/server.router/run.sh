@@ -6,6 +6,7 @@ repo_root=$(CDPATH='' cd -- "$(dirname -- "$0")/../../.." && pwd)
 clun=${CLUN_COMPAT_EXECUTABLE:-$repo_root/build/clun}
 [ -x "$clun" ] || { printf 'server.router: %s is missing\n' "$clun" >&2; exit 2; }
 command -v curl >/dev/null 2>&1 || { printf 'server.router: curl is required\n' >&2; exit 2; }
+command -v ps >/dev/null 2>&1 || { printf 'server.router: ps is required\n' >&2; exit 2; }
 
 scratch=$(mktemp -d "${TMPDIR:-/tmp}/clun-compat-router.XXXXXX")
 printf '0123456789ABCDEF' >"$scratch/file.txt"
@@ -103,6 +104,17 @@ assert_body() {
     printf 'server.router: %s %s: expected %s, got %s\n' "$method" "$path" "$expected" "$actual" >&2
     exit 1
   }
+}
+
+server_rss_kib() {
+  rss=$(LC_ALL=C ps -o rss= -p "$server_pid" | awk 'NF { print $1; exit }')
+  case "$rss" in
+    ''|*[!0-9]*)
+      printf 'server.router: could not measure server RSS: %s\n' "$rss" >&2
+      exit 1
+      ;;
+  esac
+  printf '%s\n' "$rss"
 }
 
 assert_body static static
@@ -451,6 +463,42 @@ dynamic_content_range=$(curl --silent --show-error --dump-header "$scratch/dynam
   }
 
 curl --silent --show-error --output /dev/null "${url}large-file"
+index=0
+while [ "$index" -lt 5 ]; do
+  curl --fail --silent --show-error --output /dev/null "${url}large-file"
+  index=$((index + 1))
+done
+assert_body gc gc
+large_rss_before=$(server_rss_kib)
+index=0
+while [ "$index" -lt 50 ]; do
+  curl --fail --silent --show-error --output /dev/null "${url}large-file"
+  index=$((index + 1))
+done
+assert_body gc gc
+large_rss_after=$(server_rss_kib)
+large_rss_growth=$((large_rss_after - large_rss_before))
+[ "$large_rss_growth" -lt $((100 * 1024)) ] || {
+  printf 'server.router: 50 large file responses grew RSS by %s KiB (limit <102400 KiB)\n' \
+    "$large_rss_growth" >&2
+  exit 1
+}
+
+index=0
+while [ "$index" -lt 50 ]; do
+  curl --fail --silent --show-error --output /dev/null "${url}static-big"
+  index=$((index + 1))
+done
+assert_body gc gc
+static_rss=$(server_rss_kib)
+[ "$static_rss" -lt $((4092 * 1024)) ] || {
+  printf 'server.router: static response RSS was %s KiB (limit <4190208 KiB)\n' \
+    "$static_rss" >&2
+  exit 1
+}
+printf 'server.router resources: 50 large-file cycles RSS delta=%s KiB; 50 static cycles RSS=%s KiB\n' \
+  "$large_rss_growth" "$static_rss"
+
 pids=
 index=1
 while [ "$index" -le 16 ]; do

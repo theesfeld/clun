@@ -56,6 +56,17 @@ emit_sites() {
         disposition = "not-applicable"
         proof = "-"
         note = "commented upstream site is not executable"
+      } else if (suite == "filesystem_router" && NR >= 497 &&
+                 ((baseline == "stable" && NR <= 537) ||
+                  (baseline == "engineering" && NR <= 539))) {
+        proof = "tests/compat/server.router/filesystem-stress.js"
+        note = "exact 1000-warmup and 30000-match full-GC RSS gate enforces the upstream non-ASAN 20 MiB limit"
+      } else if (suite == "bun-serve-file" &&
+                 ((baseline == "stable" && NR >= 445 && NR <= 469) ||
+                  (baseline == "engineering" && NR >= 520 && NR <= 546))) {
+        note = "exact 5-warmup and 50-request full-GC server RSS gate enforces the upstream non-ASAN 100 MiB delta"
+      } else if (suite == "bun-serve-static" && NR >= 106 && NR <= 168) {
+        note = "large static responses run 50 measured cycles and enforce the upstream non-ASAN 4092 MiB RSS ceiling"
       } else if (suite == "filesystem_router" && NR == 475) {
         note = "Linux-only raw-filename case is exercised by filesystem-raw-filenames.js; macOS excludes the upstream case"
         proof = "tests/compat/server.router/filesystem-raw-filenames.js"
