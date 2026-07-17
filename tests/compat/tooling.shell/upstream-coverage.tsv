@@ -1149,3 +1149,15 @@ stable.test_js_bun_shell_bunshell_test_ts.L2525.1.builder-test	covered	tests/com
 stable.test_js_bun_shell_bunshell_test_ts.L2534.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned brace-group behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L2542.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned brace-group behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L2562.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned brace-group behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2181.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned brace-group control-flow behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2187.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned brace-group control-flow behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2193.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned brace-group control-flow behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2199.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned brace-group control-flow behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2205.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned brace-group control-flow behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2211.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned brace-group control-flow behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L1966.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned brace-group control-flow behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L1972.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned brace-group control-flow behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L1978.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned brace-group control-flow behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L1984.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned brace-group control-flow behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L1990.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned brace-group control-flow behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L1996.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned brace-group control-flow behavior executes through the shipped binary
