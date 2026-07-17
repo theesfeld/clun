@@ -1033,29 +1033,24 @@
                  (return path)))))
 
 (defun %shell-which (name env cwd)
-  (labels ((usable (path)
-             (let ((resolved (if (clun.sys:absolute-path-p path)
-                                 path (clun.sys:path-join cwd path))))
-               (and (ignore-errors
-                      (and (clun.sys:file-p resolved)
-                           (clun.sys:check-access resolved 1)))
-                    resolved)))
-           (search-path (path-value)
-             (loop with path = (or path-value "")
-                   with start = 0
-                   for colon = (position #\: path :start start)
-                   for directory = (subseq path start (or colon (length path)))
-                   for candidate = (clun.sys:path-join
-                                    (if (string= directory "") cwd directory)
-                                    name)
-                   when (usable candidate) return candidate
-                   while colon do (setf start (1+ colon)))))
+  (flet ((usable (path)
+           (let ((resolved (if (clun.sys:absolute-path-p path)
+                               path (clun.sys:path-join cwd path))))
+             (and (ignore-errors
+                    (and (clun.sys:file-p resolved)
+                         (clun.sys:check-access resolved 1)))
+                  resolved))))
     (if (find #\/ name)
         (usable name)
-        (or (search-path (%shell-env-get env "PATH" ""))
-            ;; Fallback when PATH is stripped or incomplete (observed on some
-            ;; Darwin CI shells): still resolve ordinary POSIX utilities.
-            (search-path "/usr/bin:/bin:/usr/sbin:/sbin")
+        (or (loop with path = (%shell-env-get env "PATH" "")
+                  with start = 0
+                  for colon = (position #\: path :start start)
+                  for directory = (subseq path start (or colon (length path)))
+                  for candidate = (clun.sys:path-join
+                                   (if (string= directory "") cwd directory)
+                                   name)
+                  when (usable candidate) return candidate
+                  while colon do (setf start (1+ colon)))
             (and (string= name "clun") (%shell-current-executable))))))
 
 (defun %shell-path-separator-p (character)
