@@ -80,7 +80,7 @@ types, fixtures, and upstream licenses. `upstream-files.tsv` binds every file to
 
 `upstream-corpus.tsv` enumerates 1,630 lexical test sites from those exact snapshots. The initial conservative
 disposition was 1,598 pending and 32 explicitly inactive at the pinned revisions. The current executable
-mapping is 311 covered, 1,287 pending, and 32 upstream-inactive. `upstream-coverage.tsv` binds each credited
+mapping is 331 covered, 1,267 pending, and 32 upstream-inactive. `upstream-coverage.tsv` binds each credited
 inventory ID to a checked-in shipped-binary fixture; regeneration rejects duplicate, stale, or unknown IDs,
 and the corpus validator rejects missing evidence. `shell-upstream-corpus-check.sh` rejects inventory drift
 or an unexplained disposition. Its `--yes` mode is the finite closure gate: it rejects any pending row and
@@ -117,6 +117,8 @@ command-substitution output. No aggregate credit is used.
 including invalid flags as data and the engineering two-or-more-trailing-newline regressions.
 `tests/compat/tooling.shell/upstream-cp.js` executes all 32 exact `cp` IDs through hermetic file, overwrite,
 multi-source, same-file, directory, verbose, repeated-source, and recursive cases.
+`tests/compat/tooling.shell/upstream-mv-rm.js` executes 20 exact `mv` and `rm` IDs. The engineering concurrent
+directory-to-symlink swap race remains pending until the actual mutation race is exercised.
 The conditional fixture freezes the active `shell-seq-condexpr.test.ts` empty-path regressions and the
 non-todo `bunshell.test.ts` unary/string cases, including both conditional pipeline positions. It additionally
 freezes the pinned GNU-bash-derived compound-expression cases for repeated negation, short-circuit operators,

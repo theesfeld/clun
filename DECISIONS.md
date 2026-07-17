@@ -2789,3 +2789,10 @@ The shipped `cp` fixture binds all 32 stable and engineering IDs to independent 
 diagnostics. It covers overwrite, directory destinations, repeated sources, multi-source failures, same-file
 rejection, verbose paths, and recursive copies without relying on the host `cp`. This evidence-only closure
 changes the public count but not runtime behavior or the allocated `0.1.0-dev.18` boundary.
+
+### 2026-07-16 - Phase 65 separates deterministic mv/rm coverage from the open rm mutation race
+
+The shipped filesystem fixture binds all 12 `mv` IDs and eight deterministic `rm` IDs to exact outcomes.
+The engineering recursive directory-to-symlink swap site is deliberately still pending: a pre-existing
+symlink-boundary test is not credited as equivalent to its concurrent mutation race. This evidence-only
+closure changes the public count but not runtime behavior or the allocated `0.1.0-dev.18` boundary.
