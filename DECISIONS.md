@@ -2842,3 +2842,17 @@ an unrelated JavaScript rejection. Input-open failures use the same status bound
 The shipped-binary file-I/O fixture closes all 51 exact stable and engineering IDs, moving the finite corpus
 to 676 covered, 922 pending, and 32 upstream-inactive. The shell row stays `Partial`; this SemVer-minor behavior
 remains inside the allocated `0.1.0-dev.18` Phase 65 boundary.
+
+### 2026-07-17 - Phase 65 makes buffered Blob and write errors first-class shell I/O
+
+Blob data is held in a private runtime subtype rather than a forgeable JavaScript property bag. Construction
+copies strings, typed-array views, ArrayBuffers, and existing Blobs into a bounded 256 MiB byte vector, and
+text, bytes, ArrayBuffer, size, and type are exposed through the branded prototype. Shell input recognizes
+Blob and Response bodies directly, bounded typed-array output retains view boundaries, and `.blob()` is
+available on job promises, successful output, and ShellError.
+
+The filesystem byte writer now uses an errno-preserving descriptor loop. A synchronous ENOSPC or other write
+failure therefore becomes an `fs-error`, then a shell status, and can drive `||` recovery even through nested
+command substitutions. The shipped public API fixture closes 50 exact IDs across seven pinned files, moving
+the corpus to 726 covered, 872 pending, and 32 upstream-inactive. `exec` and unexercised lifecycle sites remain
+pending; the shell row stays `Partial` within the allocated `0.1.0-dev.18` Phase 65 boundary.
