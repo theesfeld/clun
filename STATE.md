@@ -17,8 +17,10 @@ Bun-generated parser baseline while Phase 31 production work continues independe
 **SemVer impact:** `minor`
 **Release target:** `0.1.0-dev.14` / `v0.1.0-dev.14`
 **Entry boundary:** Phase 34 Color is published in immutable dev.13 at exact commit
-`9663ac388bda16e986a9196880e6e43b634fa385`; evidence-only publication reconciliation is in PR #78.
-Phases 31 and 36 have completed prerequisites, and Phase 26 remains after Phase 82.
+`9663ac388bda16e986a9196880e6e43b634fa385`; its evidence-only publication reconciliation is merged
+at exact master `53a7bc9183f9b93f739356ba918dabe25c050b6a`. Exact-head CI, Documentation, and Pages passed; the live
+page and hosted installer serve dev.13; and issue #8 is closed complete. Phases 31 and 36 have completed
+prerequisites, and Phase 26 remains after Phase 82.
 **Current scope:** land the honest dev.14 checkpoint with the complete password/hash surface and executable
 YAML baseline, collect exact-master CI and all four native compatibility receipts, publish the seventh Yes,
 then continue the 198 classified YAML parser failures on Phase 31's separate production branch.
@@ -31,7 +33,7 @@ queue is password/hash publication, YAML, transport streaming, shell, and test-r
 canonical ledger IDs are
 frozen in `PLAN.md`.
 
-**Current checkpoint:** PR #77 head `4182ccc1e3754f7d0f463cb59626845c86ba843c` implements the public
+**Current checkpoint:** PR #77 pre-merge head `0f7ebaababf4bda86287097f24e06711d6414521` implements the public
 password/hash APIs, exact hash vectors, bounded password formats and costs, worker-backed slow operations,
 and synchronous invalid-encoding admission. Focused password/YAML evidence passes **232 / 0 / 0**, crypto
 passes **42 / 0 / 0**, JS/TS passes **79 / 0**, and purity is **726 files / 0 violations**. The exact
