@@ -11,7 +11,7 @@ Clun does not claim blanket speed parity with Bun.
 <!-- clun-generated:release:begin -->
 > **Status: pre-alpha, under active construction.** [Phase 28](https://github.com/theesfeld/clun/issues/2) is in progress.
 > Its release-bearing target is `0.1.0-dev.22` / `v0.1.0-dev.22` (SemVer impact: `minor`).
-> The verified release boundary is `v0.1.0-dev.18`, with four native archives, checksums, Pages,
+> The verified release boundary is `v0.1.0-dev.21`, with four native archives, checksums, Pages,
 > and hosted-installer evidence.
 > Phase 26 remains deferred until after Phase 82 and will
 > be rewritten for the repository state that exists then.
@@ -20,7 +20,7 @@ Clun does not claim blanket speed parity with Bun.
 > the local resume checklist.
 <!-- clun-generated:release:end -->
 
-Source on draft [PR #95](https://github.com/theesfeld/clun/pull/95) is the `0.1.0-dev.22` Phase 28 candidate. Public `runtime.web-standard-apis` and `package-manager.npm` remain honest `Partial` and are not claimed as `Yes`. Published `v0.1.0-dev.18` is the verified release boundary. Master tip remains `0.1.0-dev.21` after #96/#100/#101/#105/#103/#102/#107 (shell residual, WebSocket M0 fail-closed). This unit stages Partial transport as `0.1.0-dev.22` (slot 23+ left for other trains). The hosted installer remains on published dev.18 until the candidate is merged, tagged, and released.
+Source on draft [PR #95](https://github.com/theesfeld/clun/pull/95) is the `0.1.0-dev.22` Phase 28 candidate. Public `runtime.web-standard-apis` and `package-manager.npm` remain honest `Partial` and are not claimed as `Yes`. Published [`v0.1.0-dev.21`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.21) is the verified release boundary (Phase 37 m2; intermediate `v0.1.0-dev.19` also published for Phase 66 Partial). Master tip remains `0.1.0-dev.21` after #96/#100/#101/#105/#103/#102/#107 (shell residual, WebSocket M0 fail-closed). This unit stages Partial transport as `0.1.0-dev.22` (slot 23+ left for other trains). The hosted installer defaults to published `v0.1.0-dev.21` while this unit remains a candidate.
 
 ## Install
 
@@ -154,7 +154,7 @@ workflows are read-only and fail closed if the canonical issues, README, or site
 <!-- clun-generated:release-summary:begin -->
 Release versions follow the actual SemVer impact recorded in the canonical issue, not the number of pushes.
 The current source is the `0.1.0-dev.22` release candidate; the immutable tag and assets are not published yet.
-The last published prerelease remains [`v0.1.0-dev.18`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.18).
+The last published prerelease remains [`v0.1.0-dev.21`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.21).
 [The versioning contract](docs/versioning.md) defines prerelease sequencing, synchronized surfaces, immutable tags, assets, and installer evidence.
 [Phase 28 issue #2](https://github.com/theesfeld/clun/issues/2) is the canonical live release record.
 <!-- clun-generated:release-summary:end -->
