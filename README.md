@@ -64,7 +64,8 @@ interoperability gap.
   values, reject incompatible receivers, and support async `yield*`. Async iteration includes
   AsyncFromSync fallback and completion-correct `for await...of` close behavior.
 - Timers, promises, files, buffered HTTP serving, `fetch`, URL APIs, and process spawning.
-- `clun test` with hooks, modifiers, filters, async tests, timeouts, and about 22 matchers.
+- `clun test` with hooks, filters, async tests, timeouts, 33 core matchers, function mocks/spies,
+  expected-failure modifiers, and array-parameterized tests and suites.
 - `clun install`, `add`, `remove`, and package scripts with a deterministic lockfile and cache.
 
 The checked-in curated test262 pass list contains 25,688 tests. The current
@@ -121,7 +122,7 @@ July 16, 2026. Engineering references are separately pinned to Bun commit `c1076
 | npm package management | Partial: fixture-tested; public npm is blocked by TLS interop | Phases [28](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-28), [59](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-59), [60](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-60), [61](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-61) |
 | Bundler | No: not included in the v0.1 scope | Phases [62](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-62), [63](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-63), [64](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-64), [77](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-77) |
 | Cross-platform shell API | Partial: `Clun.$`, `clun exec`, standalone `.bun.sh` files with positional parameters, dollar and backtick command substitution, merged stdout/stderr pipelines, grouped subshells and brace groups nested across `if` control flow, Blob/Response I/O, positive extended-glob conditions, compound-word field splitting, 100-level arrays, Unicode, tilde and continuation expansion, builtins, and 1,247/1,630 pinned shell sites | [Phase 65](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-65) |
-| Jest-compatible test runner | Partial: 33 core matchers plus function mocks and spies | [Phase 66](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-66) |
+| Jest-compatible test runner | Partial: 33 core matchers, function mocks/spies, expected-failure tests, and array-parameterized suites | [Phase 66](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-66) |
 | Hot reloading | No | [Phase 67](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-67) |
 | Monorepo support | No: workspaces are unsupported | [Phase 60](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-60) |
 | Frontend development server | No | [Phase 68](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-68) |

@@ -65,3 +65,19 @@ behavior otherwise. `test.failing.each(table)` applies the same semantics indepe
 row. Unlike `test.todo`, an expected-failure test requires a callable second argument and rejects an invalid
 registration immediately. Executable fixtures cover synchronous, asynchronous, conditional, parameterized,
 unexpected-pass, timeout, hook, and assertion-contract paths.
+
+## Milestone 66.3 - array parameterization and qualifier binding
+
+Every test qualifier now belongs to a bound family rather than returning a bare registration function.
+Selection mode (`normal`, `skip`, `only`, or `todo`) and expected-failure state are independent, so chains
+such as `test.only.failing.each(table)` preserve both behaviors. A bound `test.each(table)` retains its rows
+through `if`, `skipIf`, `todoIf`, `failingIf`, and direct skip/only/todo/failing qualifiers. Generated tests
+retain per-test options and execute in deterministic table order.
+
+`describe.each(table)` creates one real suite per scalar or tuple row, passes row values into the registration
+callback, and supports the same selection and conditional suite qualifiers. A todo suite propagates its mode
+to every descendant: it is inert by default and, under `--todo`, runs hooks/tests while applying todo result
+inversion to each child. Name formatting covers `%s`, `%d`, `%i`, `%f`, `%j`, `%o`, `%p`, `%#`, and `%%`.
+
+This milestone does not yet claim the entire parameterization category. Done-callback injection and object
+`$path` title interpolation remain explicit residuals, together with concurrent/serial qualifier state.

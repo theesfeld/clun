@@ -82,7 +82,7 @@ Returns STATS (mutated). Honours .only (per-file), .skip/.todo, -t, timeouts, --
       (funcall report :fail "" "test.only is not allowed when CI=true")
       (incf (st-fail stats))
       (return-from run-file-tree stats))
-    (%run-describe (ctx-root ctx) realm cfg stats report has-only nil)
+    (%run-describe (ctx-root ctx) realm cfg stats report has-only nil nil)
     stats))
 
 (defun %runnable-in-subtree (node has-only under-only cfg)
@@ -92,13 +92,19 @@ Returns STATS (mutated). Honours .only (per-file), .skip/.todo, -t, timeouts, --
                 ((td-p c) (%runnable-in-subtree c has-only (or under-only (eq (td-mode c) :only)) cfg))))
         (td-children node)))
 
-(defun %run-describe (node realm cfg stats report has-only under-only)
-  "Run describe NODE. UNDER-ONLY = an ancestor (or NODE) is :only."
+(defun %run-describe (node realm cfg stats report has-only under-only under-todo)
+  "Run describe NODE. UNDER-ONLY and UNDER-TODO carry inherited suite modifiers."
   (let* ((uo (or under-only (eq (td-mode node) :only)))
          (skip-all (eq (td-mode node) :skip))
-         (runs (and (not skip-all) (%runnable-in-subtree node has-only uo cfg))))
+         (todo-all (or under-todo (eq (td-mode node) :todo)))
+         (runs (and (not skip-all)
+                    (or (cfg-todo cfg) (not todo-all))
+                    (%runnable-in-subtree node has-only uo cfg))))
     (when skip-all                        ; describe.skip: every descendant test → (skip)
       (%skip-subtree node cfg stats report)
+      (return-from %run-describe))
+    (when (and todo-all (not (cfg-todo cfg)))
+      (%todo-subtree node cfg stats report)
       (return-from %run-describe))
     (when (and runs (td-before-all node))
       (let ((err (%run-hooks (td-before-all node) realm (cfg-default-timeout cfg))))
@@ -112,8 +118,10 @@ Returns STATS (mutated). Honours .only (per-file), .skip/.todo, -t, timeouts, --
     (dolist (child (td-ordered-children node))
       (when (st-bailed stats) (return))
       (cond
-        ((td-p child) (%run-describe child realm cfg stats report has-only uo))
-        ((tt-p child) (%run-test child realm cfg stats report has-only uo))))
+        ((td-p child)
+         (%run-describe child realm cfg stats report has-only uo todo-all))
+        ((tt-p child)
+         (%run-test child realm cfg stats report has-only uo todo-all))))
     (when runs (%run-afterall node realm cfg stats report))))
 
 (defun %run-afterall (node realm cfg stats report)
@@ -134,6 +142,19 @@ with beforeAll/afterEach — Bun counts a failing afterAll)."
     (cond ((tt-p child) (funcall report :skip (%full-name child) nil) (incf (st-skip stats)))
           ((td-p child) (%skip-subtree child cfg stats report)))))
 
+(defun %todo-subtree (node cfg stats report)
+  "Report every descendant test as todo without running suite hooks or test bodies."
+  (dolist (child (td-ordered-children node))
+    (cond
+      ((tt-p child)
+       (if (eq (tt-mode child) :skip)
+           (progn (funcall report :skip (%full-name child) nil) (incf (st-skip stats)))
+           (progn (funcall report :todo (%full-name child) nil) (incf (st-todo stats)))))
+      ((td-p child)
+       (if (eq (td-mode child) :skip)
+           (%skip-subtree child cfg stats report)
+           (%todo-subtree child cfg stats report))))))
+
 (defun %full-name (test)
   (let ((p (%describe-path (tt-parent test))))
     (if (string= p "") (tt-name test) (concatenate 'string p " > " (tt-name test)))))
@@ -145,15 +166,17 @@ with beforeAll/afterEach — Bun counts a failing afterAll)."
         (if (string= msg "") name (format nil "~a: ~a" name msg)))
       (eng:inspect-value v)))
 
-(defun %run-test (test realm cfg stats report has-only under-only)
-  (let ((full (%full-name test)) (mode (tt-mode test)))
+(defun %run-test (test realm cfg stats report has-only under-only under-todo)
+  (let* ((full (%full-name test))
+         (mode (tt-mode test))
+         (todo-mode (or under-todo (eq mode :todo))))
     ;; -t filter: a non-matching test is simply not counted/run (Bun) — but skip/only
     ;; still apply first.
     (cond
       ((eq mode :skip) (funcall report :skip full nil) (incf (st-skip stats)))
       ((and has-only (not under-only) (not (eq mode :only)))
        (funcall report :skip full nil) (incf (st-skip stats)))
-      ((and (eq mode :todo) (not (cfg-todo cfg)))
+      ((and todo-mode (not (cfg-todo cfg)))
        (funcall report :todo full nil) (incf (st-todo stats)))
       ((null (tt-fn test))                 ; test('name') with no body → todo
        (funcall report :todo full nil) (incf (st-todo stats)))
@@ -162,12 +185,12 @@ with beforeAll/afterEach — Bun counts a failing afterAll)."
        (incf (st-matched stats))
        (multiple-value-bind (ok detail failure-kind) (%execute test realm cfg)
          (cond
-           ((eq mode :todo)               ; ran under --todo
+           (todo-mode                     ; ran under --todo
             (if ok
                 (progn (funcall report :fail full "this test is marked as todo but passed")
                        (incf (st-fail stats)) (%maybe-bail stats cfg))
                 (progn (funcall report :todo full nil) (incf (st-todo stats)))))
-           ((eq mode :failing)
+           ((tt-failing test)
             (cond
               (ok
                (funcall report :fail full

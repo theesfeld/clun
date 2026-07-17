@@ -2902,3 +2902,12 @@ that settles successfully fails with Bun's remove-`.failing` diagnostic. Timeout
 and assertion-count contract failures remain runner failures; allowing the modifier to hide those conditions
 would produce false positives and diverge from the pinned Bun fixtures. The same mode is available through
 `it.failing`, `failingIf`, and `.failing.each`, and missing callbacks are rejected during registration.
+
+### 2026-07-17 - Phase 66 qualifier binding keeps orthogonal test state
+
+Parameterized callables retain their table in a host-owned closure and return a complete qualifier family.
+Selection mode and expected-failure state are stored separately on each registered test; this prevents a later
+`.only`, `.skip`, or conditional qualifier from erasing `.failing` semantics. Describe parameterization uses
+the same deterministic row expansion during tree construction, while inherited todo state is carried by the
+scheduler rather than rewriting every descendant node. This representation is the base for later independent
+concurrent/serial state without another single-mode combinatorial rewrite.

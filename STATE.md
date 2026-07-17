@@ -1929,6 +1929,13 @@ Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-earl
   matchers plus 10 aliases.
 - Focused shipped-binary evidence: `tests/js/testrunner/mocks`, 9 tests across 3 files, 86 assertions, exact
   output, with invocation order restarting at one in each independently torn-down file realm.
+- Milestone 66.2 adds `test.failing` / `it.failing`, `failingIf`, and chained `.failing.each`; only callback
+  throws/rejections invert, while unexpected passes, timeouts, hooks, and assertion-count contracts fail.
+- Milestone 66.3 adds deterministic array-backed `test.each` and `describe.each`, bound skip/only/todo/
+  failing and conditional qualifiers, inherited describe todo behavior, and all documented percent title
+  directives. Focused fixtures cover 38 registered tests with 25 passes, 5 deliberate fixture failures,
+  4 skips, 4 todos, and 27 expectations across expected-failure and parameterization boundaries.
 - Ledger stays `Partial`. Remaining Phase 66 scope: snapshots/inline updates, module mocks, fake timers,
   coverage/source maps, asymmetric/custom matchers, retries, parallelism/concurrency, setup/reporters/JUnit,
-  sharding/randomization/watch hooks, frozen complete upstream manifest, four-target receipts, and 10k RSS.
+  done callbacks, object-path parameterized titles, sharding/randomization/watch hooks, frozen complete
+  upstream manifest, four-target receipts, and 10k RSS.
