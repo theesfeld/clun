@@ -1,6 +1,6 @@
 # generator: scripts/test262-buckets.lisp
 # vendor-test262-commit: d1d583db95a521218f3eb8341a887fd63eda8ff1
-# source-revision: working-tree@132d7b711e0cdef712fa41ed832e26b917d6e650
+# source-revision: d0bb438914a9b8aea35c357e19952e836a5306d5
 # classification-ledger: tmp-test/test262-exec-classifications.tsv
 # frozen-passlist: tests/conformance/exec-passlist.txt
 # classification-ledger-fnv-1a-64: C69927D3946A20FB
