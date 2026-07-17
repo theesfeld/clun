@@ -46,6 +46,7 @@ resource does not exist with a 404 response:
 0.1.0-dev.12
 0.1.0-dev.13
 0.1.0-dev.14
+0.1.0-dev.15
 ```
 
 Phase 25b is the compatibility program for the planned `0.1.0` release. Its first behavioral
@@ -89,13 +90,15 @@ conversion, CSS, packed, object, tuple, hex, and ANSI output surface. It targets
 surface and uses aggregate allocation accounting without weakening its 2.75x threshold. Issue #8 owns the
 active release evidence and exact four-target receipts, while issue #4 remains the canonical Glob record.
 Phase 36 adds the seventh public compatibility-ledger `Yes` with `Clun.password` and `Clun.hash` sync/async
-APIs. Phase 31's bounded `Clun.YAML` parsing/stringification and YAML module loading remain `Partial` at
-204 / 402 cases in the exact pinned Bun-generated parser corpus; they do not become the eighth `Yes` until
-the 402-case gate and all target receipts pass. The password/hash surface is a backward-compatible public
-addition, so its candidate is SemVer `minor` and advances the selected train once to
-`0.1.0-dev.14` / `v0.1.0-dev.14`; the ASDF core remains `0.1.0`. Issue #10 owns the dev.14 release receipts.
-Issue #5 remains the canonical YAML behavior record and owns its later promotion from measured `Partial` to
-an evidence-backed eighth `Yes`.
+APIs. The password/hash surface is a backward-compatible public addition published as SemVer `minor` at
+`0.1.0-dev.14` / `v0.1.0-dev.14`; the ASDF core remains `0.1.0`. Issue #10 owns the immutable dev.14
+release receipts.
+Phase 31 completes bounded `Clun.YAML` parsing/stringification and YAML module loading at 402 / 402 cases in
+the exact pinned Bun-generated parser corpus, converting YAML to the eighth public compatibility-ledger
+`Yes`. The backward-compatible completed capability advances the prerelease train once to
+`0.1.0-dev.15` / `v0.1.0-dev.15`, with ASDF core `0.1.0`; Issue #5 owns its behavior, target receipts,
+publication, and hosted-installer evidence. The same candidate includes Phase 37 milestone 1's reviewed
+modern built-ins, but Phase 37 and Issue #11 remain in progress and make no full language-parity claim.
 
 ## Canonical record
 

@@ -443,6 +443,16 @@ object/array result reaches its prototype's toString only inside its realm)."
   (is string= "true:2" (evj "var o=[]; Promise.any([Promise.reject(1),Promise.reject(2)]).catch(e=>o.push((e instanceof AggregateError)+':'+e.errors.length)); o"))
   (is string= "function" (evj "typeof AggregateError")))
 
+(define-test promise/with-resolvers
+  (is string= "true,function,function,promise,resolve,reject"
+      (evj "var c=Promise.withResolvers();[c.promise instanceof Promise,typeof c.resolve,typeof c.reject,Object.keys(c)].join(',')"))
+  (is string= "withResolvers,0,false"
+      (evj "var f=Promise.withResolvers;[f.name,f.length,Object.prototype.hasOwnProperty.call(f,'prototype')].join(',')"))
+  (is string= "true,true,promise,resolve,reject"
+      (evj "var calls=0;class P extends Promise{constructor(executor){calls++;super(executor)}}var c=Promise.withResolvers.call(P);[c.promise instanceof P,calls===1,Object.keys(c)].join(',')"))
+  (is eq eng:+true+
+      (ev "(()=>{function Bad(executor){executor({},function(){});return {}};try{Promise.withResolvers.call(Bad)}catch(e){return e instanceof TypeError}})()")))
+
 (define-test promise/subclass-is-real-promise
   ;; class extends Promise: derived default ctor binds `this` to super()'s Promise
   (is string= "true,t9" (evj "var o=[]; class P extends Promise{} var x=new P((res)=>res(9)); o.push(x instanceof P); x.then(v=>o.push('t'+v)); o"))

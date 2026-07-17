@@ -7,25 +7,27 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **36 - Password and hash APIs**  (COMPLETE)
+## Current phase: **31 - YAML API and module loading**  (RELEASE CANDIDATE)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/10
+**Canonical issue:** https://github.com/theesfeld/clun/issues/5
 **Next phase issue:** https://github.com/theesfeld/clun/issues/11
-**Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/5,
-https://github.com/theesfeld/clun/issues/2, https://github.com/theesfeld/clun/issues/39, and
-https://github.com/theesfeld/clun/issues/40
-**Current implementation unit:** published dev.14 is fully reconciled and Phase 36 is closed. The next atomic
-release-ledger transition will create the Phase 37/dev.15 candidate around its reviewed 173-pass milestone.
+**Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/2,
+https://github.com/theesfeld/clun/issues/39, and https://github.com/theesfeld/clun/issues/40
+**Current implementation unit:** Phase 31 now passes the complete exact pinned 402-case Bun-generated YAML
+corpus with zero failures. The dev.15 candidate combines that eighth compatibility-ledger `Yes` with the
+reviewed 173-pass Phase 37 milestone-1 unit; Phase 37 remains explicitly incomplete.
 **SemVer impact:** `minor`
 **Published release:** `0.1.0-dev.14` / `v0.1.0-dev.14`
+**Candidate release:** `0.1.0-dev.15` / `v0.1.0-dev.15`
 **Entry boundary:** Phase 36 is published in immutable dev.14 at exact commit
 `002292cbcad064a0da7c2879f9d03b44659a8f59`; release reconciliation is merged at exact master
-`f028dbfc596e81ce1fd56b845fade7b4c42adef5`. Exact-head CI, Documentation, and Pages passed; live
-`clun.sh` and its hosted installer serve dev.14; and issue #10 is closed complete. Phase 26 remains after
-Phase 82.
-**Next scope:** reapply the reviewed Phase 37 milestone-1 unit onto `f028dbfc`, pass its focused and monotonic
-conformance gates, and atomically synchronize the dev.15 candidate ledger, `STATE.md`, README, site, and
-issue #11 while the compatibility-Yes lanes advance independently.
+`f2fe6aa7ec255a98baabb73b865fdec66608c44d`. Exact-head CI, Documentation, Pages, and four-target
+Compatibility passed; live `clun.sh` and its hosted installer serve dev.14; and issue #10 is closed
+complete. Phase 26 remains after Phase 82.
+**Next scope:** finish every Phase 31 local gate, merge the dev.15 candidate through review, require exact-SHA
+master CI/Documentation/Compatibility, publish the immutable four-platform release, reconcile the release
+ledger, close issue #5 with receipts, and verify the live page and hosted installer before moving the active
+release slot.
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
 easiest to hardest among dependency-ready rows. Core engine/runtime/network/tooling changes are expected.
@@ -34,13 +36,15 @@ four-target evidence, synchronized public surfaces, and the correct SemVer trans
 queue is YAML, transport streaming, shell, test-runner parity, and the dependency-enabling modern ECMAScript
 wave; exact canonical ledger IDs are frozen in `PLAN.md`.
 
-**Current checkpoint:** Phase 37 milestone-1 source commit `21ec1152df42919cb027be2a3778eeb6d80c1615`
-and reviewed integration object `64ad11815a66311fa6c309b6d5584cd60c5c1592` add `Object.hasOwn`, array
-copy-by-change methods, String well-formedness, `Error.isError`, and `Promise.withResolvers`, producing 173
-measured execution-pass gains. The frozen Phase 37 inventory still has 708 residual failures; no full ledger
-row is claimed. Parallel durable checkpoints are YAML `b0a39263` at **246 / 402**, transport `0e00a513`
-with HTTP/HTTPS streaming plus clone/tee, and shell `35319dab` with its parser/runtime and guarded filesystem
-builtins. Published master remains **7 Yes / 7 Partial / 16 No** until a complete declared row gate passes.
+**Current checkpoint:** the integrated YAML parser reports **402 pass / 0 fail / 402 total** and **408
+assertions** in the exact pinned corpus; deterministic baseline and full Phase 31 gates are being frozen on
+the candidate branch. Phase 37 milestone 1 adds `Object.hasOwn`, array copy-by-change methods, String
+well-formedness, `Error.isError`, and `Promise.withResolvers`, producing 173 measured execution-pass gains;
+its frozen inventory still has 708 residual failures and no full ledger row is claimed. Parallel durable
+checkpoints include transport request streaming plus origin-keyed HTTP pooling and shell parser/runtime,
+guarded filesystem builtins, bounded `yes`, and isolated pipeline state. Published master remains **7 Yes /
+7 Partial / 16 No**; the candidate ledger becomes **8 Yes / 6 Partial / 16 No** only with the complete Phase
+31 evidence attached.
 
 **M5 entry boundary:** immutable dev.4 diagnostic set **56 total / 0 pass / 56 fail / 0 skip / 0 crash**:
 **43 m5-owned** (32 intrinsic/prototype, 7 parser, 4 raw delegation), **12 m11** direct-eval/`with`

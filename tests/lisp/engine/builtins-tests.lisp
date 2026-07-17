@@ -67,6 +67,16 @@
   (true (ev-throws "'ab'.repeat(1e9)"))
   (is eq eng:+true+ (ev "(function(){ try { '5'.padStart(1e9,'0') } catch(e) { return e instanceof RangeError } })()")))
 
+(define-test builtins/string-well-formed
+  (is string= "true,false,false,true"
+      (ev "['abc'.isWellFormed(),'\\uD800'.isWellFormed(),'\\uDC00'.isWellFormed(),'\\uD83D\\uDE00'.isWellFormed()].join(',')"))
+  (is string= "65533,65,65533,2"
+      (ev "var a='\\uD800A'.toWellFormed(),b='\\uDC00'.toWellFormed(),p='\\uD83D\\uDE00'.toWellFormed();[a.charCodeAt(0),a.charCodeAt(1),b.charCodeAt(0),p.length].join(',')"))
+  (is string= "isWellFormed,0,toWellFormed,0"
+      (ev "[String.prototype.isWellFormed.name,String.prototype.isWellFormed.length,String.prototype.toWellFormed.name,String.prototype.toWellFormed.length].join(',')"))
+  (is eq eng:+true+
+      (ev "(()=>{var marker={},o={toString(){throw marker}};try{String.prototype.toWellFormed.call(o)}catch(e){return e===marker}})()")))
+
 (define-test builtins/array-methods
   (is string= "1,2,3" (ev "[3,1,2].sort().join(',')"))
   (is string= "2,4" (ev "[1,2,3,4].filter(x=>x%2==0).join(',')"))
@@ -78,6 +88,37 @@
   (is string= "1,2,3" (ev "[[1],[2,[3]]].flat(2).join(',')"))
   (is eql 3d0 (ev "Array.from('abc').length"))
   (is eq eng:+true+ (ev "Array.isArray([])")))
+
+(define-test builtins/array-copy-by-change
+  (is string= "3,undefined,1,true,true"
+      (ev "var a=[1,,3],b=a.toReversed();[b[0],String(b[1]),b[2],1 in b,a!==b].join(',')"))
+  (is string= "3,1,2,undefined,undefined"
+      (ev "var a=[{k:1,n:1},{k:1,n:2},{k:0,n:3},undefined,,];a.toSorted((x,y)=>x.k-y.k).map(x=>x===undefined?'undefined':x.n).join(',')"))
+  (is string= "0,a,b,3:0,1,2,3"
+      (ev "var a=[0,1,2,3],b=a.toSpliced(1,2,'a','b');b.join(',')+':'+a.join(',')"))
+  (is string= "0,1,9:0,1,2"
+      (ev "var a=[0,1,2],b=a.with(-1,9);b.join(',')+':'+a.join(',')"))
+  (is string= "type"
+      (ev "var log=[],o={get length(){log.push('length');return 0}};try{Array.prototype.toSorted.call(o,{})}catch(e){log.push(e instanceof TypeError?'type':'bad')}log.join(',')"))
+  (is string= "RangeError,0"
+      (ev "var reads=0,o={length:2**32,get 0(){reads++}};var name;try{Array.prototype.toReversed.call(o)}catch(e){name=e.name}[name,reads].join(',')"))
+  (is string= "true,true,true,true"
+      (ev "var speciesGets=0,a=[1,2];a.constructor={[Symbol.species]:function(){speciesGets++}};[a.toReversed() instanceof Array,a.toSorted() instanceof Array,a.toSpliced() instanceof Array,a.with(0,3) instanceof Array].join(',')"))
+  (is eql 0d0 (ev "var speciesGets=0,a=[1,2];Object.defineProperty(a,'constructor',{get(){speciesGets++;return {}}});a.toReversed();a.toSorted();a.toSpliced();a.with(0,3);speciesGets"))
+  (is string= "b,a:length,1,0"
+      (ev "var log=[],p=new Proxy({0:'a',1:'b',length:2},{get(t,k){log.push(k);return Reflect.get(t,k)}});Array.prototype.toReversed.call(p).join(',')+':'+log.join(',')")))
+
+(define-test builtins/object-has-own-and-error-brand
+  (is string= "true,false,true,false"
+      (ev "var s=Symbol(),o=Object.create({x:1});o[s]=2;[Object.hasOwn(o,s),Object.hasOwn(o,'x'),Object.hasOwn({x:1},'x'),Object.hasOwn({},'x')].join(',')"))
+  (is eql 0d0
+      (ev "var calls=0,key={toString(){calls++;return 'x'}};try{Object.hasOwn(null,key)}catch(e){}calls"))
+  (is string= "true,false,x:y"
+      (ev "var log=[],p=new Proxy({x:1},{getOwnPropertyDescriptor(t,k){log.push(k);return Reflect.getOwnPropertyDescriptor(t,k)}});[Object.hasOwn(p,'x'),Object.hasOwn(p,'y'),log.join(':')].join(',')"))
+  (is string= "true,true,false,false,false"
+      (ev "var e=new Error(),p=new Proxy(e,{}),r=Proxy.revocable(e,{});r.revoke();[Error.isError(e),Error.isError(new TypeError()),Error.isError({name:'Error'}),Error.isError(p),Error.isError(r.proxy)].join(',')"))
+  (is string= "hasOwn,2,isError,1"
+      (ev "[Object.hasOwn.name,Object.hasOwn.length,Error.isError.name,Error.isError.length].join(',')")))
 
 (define-test builtins/array-reduce-near-integer-limit
   ;; Both directions must start immediately without materializing every possible index.

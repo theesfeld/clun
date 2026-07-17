@@ -1,0 +1,3 @@
+case	bun_1_3_14	clun	intended	disposition
+common_observables	m1.bun-1.3.14.out:lines-1-8	m1.out:lines-1-8	exact-match	matched
+Promise.withResolvers-own-key-order	resolve,reject,promise	promise,resolve,reject	promise,resolve,reject	spec-correctness-improvement-backed-by-Test262-result.js

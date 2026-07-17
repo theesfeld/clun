@@ -70,6 +70,16 @@
   (let ((tagged (yaml-document "!!int \"42\"")))
     (is eq :string (yaml:yaml-node-kind tagged))
     (is equal "42" (yaml:yaml-node-value tagged)))
+  (let ((tagged (yaml-document "!private value")))
+    (is eq :string (yaml:yaml-node-kind tagged))
+    (is equal "value" (yaml:yaml-node-value tagged)))
+  (let ((tagged (yaml-document "! 12")))
+    (is eq :string (yaml:yaml-node-kind tagged))
+    (is equal "12" (yaml:yaml-node-value tagged)))
+  (let ((tagged (yaml-document
+                 (format nil "%TAG !! tag:example.com,2000:app/~%---~%!!int 1 - 3~%"))))
+    (is eq :string (yaml:yaml-node-kind tagged))
+    (is equal "1 - 3" (yaml:yaml-node-value tagged)))
   (let ((astral (yaml:yaml-node-value (yaml-document "\"\\uD83D\\uDE00\""))))
     (is = 2 (length astral))
     (is = #xd83d (char-code (char astral 0)))
@@ -101,7 +111,13 @@
     (is equal "new" (yaml:yaml-node-value (yaml-map-node root "dup")))
     (is = 4 (length (yaml:yaml-node-value root))))
   (let ((root (yaml-document (format nil "&root~%self: *root~%"))))
-    (true (eq root (yaml-map-node root "self")))))
+    (true (eq root (yaml-map-node root "self"))))
+  (let* ((root (yaml-document (format nil "? &key [*key]~%: value~%")))
+         (pair (aref (yaml:yaml-node-value root) 0))
+         (key (yaml:yaml-pair-key pair)))
+    (is eq :sequence (yaml:yaml-node-kind key))
+    (true (eq key (aref (yaml:yaml-node-value key) 0)))
+    (is equal "value" (yaml:yaml-node-value (yaml:yaml-pair-value pair)))))
 
 (define-test yaml/quoted-block-and-documents
   (let* ((root (yaml-document
@@ -127,15 +143,14 @@
     (is = 2 (yaml:yaml-node-value (yaml-map-node (aref documents 1) "b")))))
 
 (define-test yaml/rejects-invalid-and-unsafe-input
-  (fail (yaml:parse-yaml "!private value") yaml:yaml-error)
   (fail (yaml:parse-yaml "*missing") yaml:yaml-error)
-  (fail (yaml:parse-yaml (format nil "a: &same 1~%b: &same 2~%")) yaml:yaml-error)
   (fail (yaml:parse-yaml (format nil "a:~%~cb: 1~%" #\Tab)) yaml:yaml-error)
   (fail (yaml:parse-yaml (format nil "a: ~c~%" (code-char 1))) yaml:yaml-error)
   (fail (yaml:parse-yaml "[1, 2") yaml:yaml-error)
   (fail (yaml:parse-yaml "\"\\uD83D\"") yaml:yaml-error)
   (fail (yaml:parse-yaml "\"\\uDE00\"") yaml:yaml-error)
-  (fail (yaml:parse-yaml (format nil "%YAML 1.1~%---~%a: 1~%")) yaml:yaml-error)
+  (let ((root (yaml-document (format nil "%YAML 1.1~%---~%a: 1~%"))))
+    (is = 1 (yaml:yaml-node-value (yaml-map-node root "a"))))
   (fail (yaml:parse-yaml
          (concatenate 'string (make-string 258 :initial-element #\[)
                       "0" (make-string 258 :initial-element #\])))
