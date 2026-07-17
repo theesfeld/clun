@@ -129,6 +129,22 @@
         (stdout "16777216" "16777218"))
     (is equal (format nil "1~%") (stdout "1" "0.00000001" "2"))))
 
+(define-test shell/yes-bounded-pattern-fill
+  (let ((target (make-array 9 :element-type '(unsigned-byte 8)
+                            :initial-element 46))
+        (pattern (eng:code-units->utf8 (format nil "ab~%"))))
+    (is = 5 (clun.runtime::%shell-fill-pattern target 2 5 pattern))
+    (is equal (format nil "..ab~%ab..") (eng:utf8->code-units target))))
+
+(define-test shell/yes-requires-bounded-target
+  (let ((result (clun.runtime::%shell-run-yes nil nil)))
+    (is = 1 (clun.runtime::shell-result-exit-code result))
+    (is equal "" (eng:utf8->code-units
+                   (clun.runtime::shell-result-stdout result)))
+    (is equal (format nil "yes: unbounded output requires a streaming sink~%")
+        (eng:utf8->code-units
+         (clun.runtime::shell-result-stderr result)))))
+
 (define-test shell/lines-preserve-string-split-boundaries
   (is equal '() (clun.runtime::%shell-lines ""))
   (is equal '("hello") (clun.runtime::%shell-lines "hello"))

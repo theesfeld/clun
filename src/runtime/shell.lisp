@@ -521,7 +521,7 @@
 
 (defparameter *shell-builtins*
   '("echo" "pwd" "cd" "true" "false" ":" "export" "unset" "which" "exit"
-    "basename" "dirname" "seq" "cat" "mkdir" "touch" "rm" "mv" "ls" "cp"))
+    "basename" "dirname" "seq" "cat" "mkdir" "touch" "rm" "mv" "ls" "cp" "yes"))
 
 (defun %shell-relative-path (path state)
   (if (clun.sys:absolute-path-p path)
@@ -1692,6 +1692,51 @@ integer conversions are deliberately rejected because seq values are f32."
         (%shell-result-from-strings (get-output-stream-string stdout)
                                     (get-output-stream-string stderr) exit-code)))))
 
+(defun %shell-fill-pattern (array offset length pattern)
+  (let ((pattern-length (length pattern)))
+    (loop for index below length
+          do (setf (aref array (+ offset index))
+                   (aref pattern (mod index pattern-length)))))
+  length)
+
+(defun %shell-fill-byte-target (target pattern)
+  (cond
+    ((eng:js-typed-array-p target)
+     (multiple-value-bind (array offset length) (eng:ta-octets target)
+       (%shell-fill-pattern array offset length pattern)))
+    ((eng:js-array-buffer-p target)
+     (let ((array (eng:js-array-buffer-bytes target)))
+       (%shell-fill-pattern array 0 (length array) pattern)))
+    (t nil)))
+
+(defun %shell-bounded-output-target (redirections state g)
+  ;; The frozen yes corpus has one direct byte-buffer stdout redirect. Keep the
+  ;; eligibility strict until ordered descriptor redirects are generalized.
+  (let ((stdout-redirections
+          (remove-if-not
+           (lambda (redirection)
+             (member (shell-redirection-kind redirection)
+                     '(:output :output-append :both :both-append)))
+           redirections)))
+    (when (= (length stdout-redirections) 1)
+      (let ((target (%shell-word-raw-target
+                     (shell-redirection-target (first stdout-redirections)) state g)))
+        (when (or (eng:js-typed-array-p target) (eng:js-array-buffer-p target))
+          target)))))
+
+(defun %shell-yes-pattern (arguments)
+  (let ((line (if arguments (format nil "~{~a~^ ~}" arguments) "y")))
+    (%shell-octets (concatenate 'string line (string #\Newline)))))
+
+(defun %shell-run-yes (arguments target)
+  (unless target
+    (return-from %shell-run-yes
+      (%shell-result-from-strings
+       "" (format nil "yes: unbounded output requires a streaming sink~%") 1)))
+  (let ((pattern (%shell-yes-pattern arguments)))
+    (%shell-fill-byte-target target pattern)
+    (make-shell-result)))
+
 (defun %shell-run-builtin (argv state env stdin)
   "Return RESULT and true when ARGV names a builtin."
   (let ((name (first argv)) (args (rest argv)))
@@ -1729,6 +1774,10 @@ integer conversions are deliberately rejected because seq values are f32."
        (values (%shell-run-ls args state) t))
       ((string= name "cp")
        (values (%shell-run-cp args state) t))
+      ((string= name "yes")
+       ;; YES needs its bounded target and is dispatched by
+       ;; %SHELL-EXECUTE-COMMAND before the ordinary builtin path.
+       (values (%shell-run-yes args nil) t))
       ((string= name "pwd")
        (values (%shell-result-from-strings
                 (concatenate 'string (shell-state-cwd state) (string #\Newline)) "" 0) t))
@@ -1927,19 +1976,29 @@ integer conversions are deliberately rejected because seq values are f32."
               (multiple-value-bind (input output-redirections)
                   (%shell-command-redirections command state g stdin)
                 (multiple-value-bind (builtin handled)
-                    (%shell-run-builtin argv state env input)
+                    (if (string= (first argv) "yes")
+                        (values
+                         (%shell-run-yes
+                          (rest argv)
+                          (%shell-bounded-output-target
+                           output-redirections state g))
+                         t)
+                        (%shell-run-builtin argv state env input))
                   (%shell-apply-output-redirections
                    (if handled builtin
                        (%shell-run-external argv env (shell-state-cwd state) input))
                    output-redirections state g))))))))
 
-(defun %shell-static-builtin-p (command)
+(defun %shell-static-command-name (command)
   (let* ((word (first (shell-command-words command)))
          (fragments (and word (shell-word-fragments word))))
     (and (= (length fragments) 1)
          (eq (shell-fragment-kind (first fragments)) :literal)
-         (member (shell-fragment-value (first fragments)) *shell-builtins*
-                 :test #'string=))))
+         (shell-fragment-value (first fragments)))))
+
+(defun %shell-static-builtin-p (command)
+  (let ((name (%shell-static-command-name command)))
+    (and name (member name *shell-builtins* :test #'string=))))
 
 (defun %shell-concurrent-pipeline-p (pipeline)
   (let ((commands (shell-pipeline-commands pipeline)))
@@ -1949,6 +2008,17 @@ integer conversions are deliberately rejected because seq values are f32."
                        (null (shell-command-redirections command))
                        (not (%shell-static-builtin-p command))))
                 commands))))
+
+(defun %shell-yes-pipeline-p (pipeline)
+  (let ((commands (shell-pipeline-commands pipeline)))
+    (and (> (length commands) 1)
+         (string= (or (%shell-static-command-name (first commands)) "") "yes")
+         (null (shell-command-redirections (first commands)))
+         (every (lambda (command)
+                  (and (shell-command-words command)
+                       (null (shell-command-redirections command))
+                       (not (%shell-static-builtin-p command))))
+                (rest commands)))))
 
 (defun %shell-prepare-external (command state g)
   (let ((env (%shell-env-copy (shell-state-env state))))
@@ -1965,6 +2035,90 @@ integer conversions are deliberately rejected because seq values are f32."
       (ignore-errors (sb-ext:process-kill process 9 :pid)))
     (ignore-errors (sb-ext:process-wait process))
     (ignore-errors (sb-ext:process-close process))))
+
+(defun %shell-stream-yes-pattern (stream pattern)
+  "Write a fixed-size repeated pattern until the consumer closes its pipe."
+  (let* ((fd (clun.sys:stream-fd stream))
+         (block (make-array 65536 :element-type '(unsigned-byte 8))))
+    (unless fd (error "yes pipeline input is not an fd stream"))
+    (%shell-fill-pattern block 0 (length block) pattern)
+    (loop with offset = 0
+          for written = (%write-fd fd block offset)
+          do (cond
+               ((and (integerp written) (plusp written))
+                (if (= written (- (length block) offset))
+                    (setf offset 0)
+                    (incf offset written)))
+               ((eq written :again) (sleep 0.001))
+               (t (return))))))
+
+(defun %shell-execute-yes-pipeline (pipeline state g)
+  "Stream the internal YES producer into an otherwise external pipeline."
+  (let ((directory (%shell-temp-directory)) (processes '())
+        (previous nil) (producer nil))
+    (unwind-protect
+         (let ((stdout-path (clun.sys:path-join directory "stdout"))
+               (stderr-path (clun.sys:path-join directory "stderr"))
+               (commands (shell-pipeline-commands pipeline)))
+           (clun.sys:write-file-octets stderr-path *shell-empty-octets*)
+           (handler-case
+               (multiple-value-bind (yes-argv yes-env)
+                   (%shell-prepare-external (first commands) state g)
+                 (declare (ignore yes-env))
+                 (unless (and yes-argv (string= (first yes-argv) "yes"))
+                   (%shell-syntax "yes pipeline command expanded unexpectedly"))
+                 (loop for command in (rest commands)
+                       for index from 0
+                       for last = (= index (- (length commands) 2))
+                       do (multiple-value-bind (argv env)
+                              (%shell-prepare-external command state g)
+                            (when (null argv)
+                              (%shell-syntax "pipeline command expanded to no arguments"))
+                            (let* ((program (%shell-which (first argv) env
+                                                         (shell-state-cwd state)))
+                                   (input (or previous :stream))
+                                   (process
+                                     (progn
+                                       (unless program
+                                         (error "command not found: ~a" (first argv)))
+                                       (sb-ext:run-program
+                                        program (rest argv) :search nil :wait nil
+                                        :input input
+                                        :output (if last stdout-path :stream)
+                                        :error stderr-path
+                                        :if-output-exists :supersede
+                                        :if-error-exists :append
+                                        :directory (shell-state-cwd state)
+                                        :environment (%shell-env-vector env)))))
+                              (push process processes)
+                              (unless producer
+                                (setf producer (sb-ext:process-input process)))
+                              (when previous (ignore-errors (close previous)))
+                              (setf previous
+                                    (unless last (sb-ext:process-output process))))))
+                 (%shell-stream-yes-pattern producer (%shell-yes-pattern (rest yes-argv)))
+                 (ignore-errors (close producer))
+                 (setf producer nil processes (nreverse processes))
+                 (dolist (process processes) (sb-ext:process-wait process))
+                 (let* ((last (car (last processes)))
+                        (status (sb-ext:process-status last))
+                        (raw-code (or (sb-ext:process-exit-code last) 1)))
+                   (make-shell-result
+                    :stdout (if (clun.sys:path-exists-p stdout-path)
+                                (clun.sys:read-file-octets stdout-path)
+                                *shell-empty-octets*)
+                    :stderr (if (clun.sys:path-exists-p stderr-path)
+                                (clun.sys:read-file-octets stderr-path)
+                                *shell-empty-octets*)
+                    :exit-code (if (eq status :signaled) (+ 128 raw-code) raw-code))))
+             (error (condition)
+               (%shell-kill-processes processes)
+               (%shell-result-from-strings
+                "" (format nil "clun: pipeline failed: ~a~%" condition) 127))))
+      (when producer (ignore-errors (close producer)))
+      (when previous (ignore-errors (close previous)))
+      (dolist (process processes) (ignore-errors (sb-ext:process-close process)))
+      (ignore-errors (clun.sys:remove-recursive directory)))))
 
 (defun %shell-execute-concurrent-pipeline (pipeline state g)
   "Spawn an external-only pipeline at once and connect adjacent process streams.
@@ -2036,9 +2190,12 @@ deadlock even when commands produce output larger than kernel pipe capacity."
                        :exit-code (shell-result-exit-code result))))
 
 (defun %shell-execute-pipeline (pipeline state g)
-  (if (%shell-concurrent-pipeline-p pipeline)
-      (%shell-execute-concurrent-pipeline pipeline state g)
-      (%shell-execute-sequential-pipeline pipeline state g)))
+  (cond
+    ((%shell-yes-pipeline-p pipeline)
+     (%shell-execute-yes-pipeline pipeline state g))
+    ((%shell-concurrent-pipeline-p pipeline)
+     (%shell-execute-concurrent-pipeline pipeline state g))
+    (t (%shell-execute-sequential-pipeline pipeline state g))))
 
 (defun %shell-execute-script (script state g)
   (let ((stdout *shell-empty-octets*) (stderr *shell-empty-octets*)
