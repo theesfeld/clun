@@ -6,10 +6,13 @@ function stderr(result) {
   return new TextDecoder().decode(result.stderr);
 }
 
-function check(job, expectedCode, expectedOut, expectedErr, label) {
+function check(job, expectedCode, expectedOut, expectedErr, label, normalizeOutput) {
   return job.quiet().nothrow().then(result => {
+    const actualOut = normalizeOutput ? words(result.text()) : result.text();
+    const wantedOut = normalizeOutput ? words(expectedOut) : expectedOut;
     assert(result.exitCode === expectedCode, label + " exit code");
-    assert(result.text() === expectedOut, label + " stdout");
+    assert(actualOut === wantedOut,
+      label + " stdout " + JSON.stringify(actualOut) + " !== " + JSON.stringify(wantedOut));
     assert(stderr(result) === expectedErr, label + " stderr");
     return result;
   });
@@ -19,19 +22,22 @@ function words(text) {
   return text.split("\n").map(line => line.trim()).filter(line => line.length > 0).sort().join("|");
 }
 
+assert(words("b\na\n") === words("a\nb\n"), "source-normalized output order");
+
 const root = "clun-shell-upstream-mv-rm.tmp";
 let absoluteRoot = "";
 let chain = Clun.$`pwd`.text().then(text => {
   absoluteRoot = text.trim() + "/" + root;
 });
 
-function queue(jobFactory, code, outFactory, err, label) {
+function queue(jobFactory, code, outFactory, err, label, normalizeOutput = false) {
   chain = chain.then(() => check(
     jobFactory(),
     code,
     typeof outFactory === "function" ? outFactory() : outFactory,
     err,
     label,
+    normalizeOutput,
   ));
 }
 
@@ -42,11 +48,11 @@ queue(() => Clun.$`mkdir -p mv1; echo foo > mv1/a; mv mv1/a mv1/b; cat mv1/b`.cw
 queue(() => Clun.$`mkdir -p mv2/foo; touch mv2/a; mv mv2/a mv2/foo; ls mv2/foo`.cwd(root),
   0, "a\n", "", "move file into directory");
 queue(() => Clun.$`mkdir -p mv3/d; echo -n file > mv3/a; echo -n file > mv3/b; echo -n file > mv3/c; mv mv3/a mv3/b mv3/c mv3/d; ls mv3/d`.cwd(root),
-  0, "a\nb\nc\n", "", "move multiple files");
+  0, "a\nb\nc\n", "", "move multiple files", true);
 queue(() => Clun.$`mkdir -p mv4; echo -n hi > mv4/file1.txt; echo -n hello > mv4/file2.txt; mv mv4/file1.txt mv4/file2.txt mv4/does_not_exist/`.cwd(root),
   1, "", "mv: mv4/does_not_exist/: No such file or directory\n", "missing destination directory");
 queue(() => Clun.$`mkdir -p mv5/foo mv5/bar; echo hi > mv5/foo/inside_foo; echo hi > mv5/bar/inside_bar; mv mv5/foo mv5/bar; ls -R mv5/bar`.cwd(root),
-  0, "foo\ninside_bar\nmv5/bar/foo:\ninside_foo\n", "", "move directory into directory");
+  0, "foo\ninside_bar\nmv5/bar/foo:\ninside_foo\n", "", "move directory into directory", true);
 queue(() => Clun.$`mkdir -p mv6/foo; touch mv6/a; mv mv6/foo/ mv6/a`.cwd(root),
   20, "", "mv: mv6/a: Not a directory\n", "move directory onto file");
 
@@ -66,11 +72,11 @@ queue(() => Clun.$`mkdir -p rm3/folder/sub; echo -n test > rm3/folder/sub/file.t
   0,
   () => absoluteRoot + "/rm3/folder/sub/file.txt\n" + absoluteRoot + "/rm3/folder/sub\n" +
     absoluteRoot + "/rm3/folder\n",
-  "", "recursive directory removal");
+  "", "recursive directory removal", true);
 queue(() => Clun.$`mkdir -p rm3cwd`.cwd(root), 0, "", "", "recursive cwd setup");
 queue(() => Clun.$`mkdir -p foo/bar; touch foo/lol foo/nice foo/lmao foo/bar/great foo/bar/wow; rm -rfv foo/`.cwd(root + "/rm3cwd"),
   0, "foo/bar/great\nfoo/bar/wow\nfoo/bar\nfoo/lol\nfoo/nice\nfoo/lmao\nfoo/\n", "",
-  "recursive cwd removal");
+  "recursive cwd removal", true);
 
 queue(() => Clun.$`mkdir -p rm4/sub_dir rm4/sub_dir_files; touch rm4/existent.txt rm4/sub_dir_files/file.txt; rm -d rm4/existent.txt`.cwd(root),
   0, "", "", "rm dir flag file");
