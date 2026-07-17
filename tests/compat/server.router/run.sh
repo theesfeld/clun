@@ -136,6 +136,65 @@ if [ "$status" != 201 ] || [ "$(cat "$scratch/created-body")" != created ] || \
   exit 1
 fi
 
+tr -d '\r' <"$scratch/static-headers-1" | \
+  grep -i -x 'content-type: text/plain;charset=utf-8' >/dev/null
+assert_body static-explicit-type typed
+curl --silent --show-error --head "${url}static-explicit-type" >"$scratch/static-type-head"
+tr -d '\r' <"$scratch/static-type-head" | grep -i -x 'content-type: text/foo' >/dev/null
+assert_body static-json '{"a":1}'
+curl --silent --show-error --head "${url}static-json" >"$scratch/static-json-head"
+tr -d '\r' <"$scratch/static-json-head" | \
+  grep -i -x 'content-type: application/json;charset=utf-8' >/dev/null
+curl --fail --silent --show-error --output "$scratch/static-bytes-body" "${url}static-bytes"
+printf '\001\002\003' >"$scratch/static-bytes-expected"
+cmp "$scratch/static-bytes-expected" "$scratch/static-bytes-body"
+curl --silent --show-error --head "${url}static-bytes" >"$scratch/static-bytes-head"
+if tr -d '\r' <"$scratch/static-bytes-head" | grep -i '^content-type:' >/dev/null; then
+  printf 'server.router: byte static response invented a Content-Type\n' >&2
+  exit 1
+fi
+assert_body shared-a shared-static
+assert_body shared-b shared-static
+
+status=$(curl --silent --show-error --dump-header "$scratch/redirect-headers" \
+  --output "$scratch/redirect-body" --write-out '%{http_code}' "${url}redirect")
+if [ "$status" != 302 ] || [ -s "$scratch/redirect-body" ] || \
+    ! tr -d '\r' <"$scratch/redirect-headers" | grep -i -x 'location: /foo/bar' >/dev/null; then
+  printf 'server.router: static redirect metadata/body mismatch\n' >&2
+  exit 1
+fi
+assert_body foo/bar /foo/bar
+redirected=$(curl --fail --silent --show-error --location "${url}redirect")
+[ "$redirected" = /foo/bar ] || {
+  printf 'server.router: static redirect did not follow to another route\n' >&2
+  exit 1
+}
+redirected=$(curl --fail --silent --show-error --location "${url}redirect/fallback")
+[ "$redirected" = "fallback:GET:${url}foo/bar/fallback" ] || {
+  printf 'server.router: redirect target did not fall through to fetch\n' >&2
+  exit 1
+}
+
+curl --silent --show-error --head "${url}static-big" >"$scratch/static-big-head"
+tr -d '\r' <"$scratch/static-big-head" | grep -i -x 'content-length: 4194304' >/dev/null
+pids=
+index=1
+while [ "$index" -le 12 ]; do
+  curl --fail --silent --show-error --output "$scratch/static-big-$index" \
+    "${url}static-big" &
+  pids="$pids $!"
+  index=$((index + 1))
+done
+for pid in $pids; do wait "$pid"; done
+index=1
+while [ "$index" -le 12 ]; do
+  [ "$(wc -c <"$scratch/static-big-$index" | tr -d ' ')" = 4194304 ] || {
+    printf 'server.router: concurrent large static response was truncated\n' >&2
+    exit 1
+  }
+  index=$((index + 1))
+done
+
 for _ in 1 2 3 4 5 6 7 8 9 10; do
   assert_body static static
 done
@@ -407,6 +466,7 @@ tr -d '\r' <"$scratch/head" | grep -i -x 'content-length: 8' >/dev/null || {
 
 assert_body reload reloaded
 assert_body after after
+assert_body shared-a shared-static
 status=$(curl --silent --show-error --output "$scratch/missing" --write-out '%{http_code}' \
   "${url}missing")
 [ "$status" = 404 ] && [ "$(cat "$scratch/missing")" = 'Not Found' ] || {

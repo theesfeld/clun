@@ -30,5 +30,8 @@ throws("requires a fetch function or at least one active route", () => {
 throws("requires a fetch function or at least one active route", () => {
   Clun.serve({ routes: undefined });
 });
+throws("Invalid redirect status code", () => {
+  Response.redirect("/target", 200);
+});
 
 console.log("server.router: validation matrix passed");

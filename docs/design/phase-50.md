@@ -124,6 +124,12 @@ sites: 952 map to shipped Clun evidence and 29 are explicitly upstream-inactive,
 by another feature such as `Bun.build`. Aggregate mappings identify semantic evidence clusters and do not
 claim that Bun's TypeScript sources execute unchanged under Clun.
 
+Static-route evidence also covers `Response.redirect()` validation and manual/follow/fallback behavior,
+stable implicit/explicit/JSON/byte content types, a Response shared by multiple paths and across reload,
+static-only reload, and twelve concurrent 4 MiB representations with exact lengths. The branded server
+object exposes `server.fetch(Request|string)`: it dispatches the configured fetch handler with the server
+argument, normalizes relative strings against `server.url`, and rejects route-only use with a TypeError.
+
 Resource evidence constructs and compiles 100,000 routes, validates first/middle/last/missing lookup, and
 performs 10,000 repeated matches. The recorded local receipt was 0.031 seconds to create the JavaScript
 inventory, 0.057 seconds to compile it, 0.009 seconds for the lookup loop, 119,071,136 retained bytes, and

@@ -1,4 +1,6 @@
 let server;
+const sharedStatic = new Response("shared-static");
+const largeStatic = new Uint8Array(4 * 1024 * 1024);
 
 let manyPattern = "/many";
 for (let index = 1; index <= 65; index++) manyPattern += `/:p${index}`;
@@ -10,6 +12,17 @@ const routes = {
     statusText: "Created",
     headers: { "x-created": "yes" },
   }),
+  "/static-explicit-type": new Response("typed", {
+    headers: { "content-type": "text/foo" },
+  }),
+  "/static-json": Response.json({ a: 1 }),
+  "/static-bytes": new Response(new Uint8Array([1, 2, 3])),
+  "/static-big": new Response(largeStatic),
+  "/shared-a": sharedStatic,
+  "/shared-b": sharedStatic,
+  "/redirect": Response.redirect("/foo/bar", 302),
+  "/foo/bar": new Response("/foo/bar", { headers: { "x-foo": "bar" } }),
+  "/redirect/fallback": Response.redirect("/foo/bar/fallback", 302),
   "/file": new Response(Clun.file(process.env.CLUN_ROUTER_FILE)),
   "/file-direct": Clun.file(process.env.CLUN_ROUTER_FILE),
   "/file-slice": Clun.file(process.env.CLUN_ROUTER_FILE).slice(5, 10),
@@ -83,8 +96,9 @@ const routes = {
   "/skip": false,
   "/reload": () => {
     server.reload({
-      routes: {
+      static: {
         "/after": new Response("after"),
+        "/shared-a": sharedStatic,
       },
     });
     return new Response("reloaded");

@@ -713,6 +713,23 @@ but an ordinary object is never promoted into the Response brand."
                         (list "content-type"
                               "application/json;charset=utf-8")))
          response)))
+    (%install-prototype-method
+     constructor "redirect" 2
+     (lambda (this args)
+       (declare (ignore this))
+       (let* ((url (eng:to-string (eng:arg args 0)))
+              (status-value (eng:arg args 1))
+              (status (if (eng:js-undefined-p status-value)
+                          302
+                          (truncate (eng:to-number status-value)))))
+         (unless (member status '(301 302 303 307 308))
+           (eng:throw-range-error "Invalid redirect status code"))
+         (let ((init (eng:new-object))
+               (headers (eng:new-object)))
+           (eng:data-prop init "status" (coerce status 'double-float))
+           (eng:data-prop headers "Location" url)
+           (eng:data-prop init "headers" headers)
+           (%new-response eng:+null+ init)))))
     constructor))
 
 (defun install-web-http (realm)
