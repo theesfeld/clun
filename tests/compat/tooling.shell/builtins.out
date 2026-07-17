@@ -6,3 +6,4 @@ seq
 filesystem-builtins
 rm
 mv
+ls

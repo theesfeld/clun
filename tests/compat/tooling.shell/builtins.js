@@ -156,9 +156,49 @@ check(Clun.$`basename`, 1, "", "usage: basename string\n", "basename usage")
     "mv: clun-shell-builtins.tmp/move/file-target: Not a directory\n",
     "mv directory onto file",
   ))
+  .then(() => check(Clun.$`mkdir -p clun-shell-builtins.tmp/list/foo/sub`, 0, "", "", "ls setup"))
+  .then(() => check(Clun.$`touch clun-shell-builtins.tmp/list/a clun-shell-builtins.tmp/list/b clun-shell-builtins.tmp/list/.hidden clun-shell-builtins.tmp/list/foo/c clun-shell-builtins.tmp/list/foo/.secret clun-shell-builtins.tmp/list/foo/sub/d`, 0, "", "", "ls files"))
+  .then(() => check(Clun.$`ls clun-shell-builtins.tmp/list`, 0, "a\nb\nfoo\n", "", "ls directory"))
+  .then(() => Clun.$`ls -l clun-shell-builtins.tmp/list/a`.quiet().nothrow().then(result => {
+    assert(result.exitCode === 0, "ls long exit code");
+    assert(stderr(result) === "", "ls long stderr");
+    assert(
+      /^-[rwxSsTt-]{9}\s+\d+\s+\d+\s+\d+\s+\d+\s+[A-Z][a-z]{2} \d{2} (?:\d{2}:\d{2}| \d{4}) clun-shell-builtins\.tmp\/list\/a\n$/.test(result.text()),
+      "ls long metadata",
+    );
+  }))
+  .then(() => check(Clun.$`ls -a clun-shell-builtins.tmp/list`, 0, ".\n..\n.hidden\na\nb\nfoo\n", "", "ls all"))
+  .then(() => check(Clun.$`ls -A clun-shell-builtins.tmp/list`, 0, ".hidden\na\nb\nfoo\n", "", "ls almost all"))
+  .then(() => check(Clun.$`ls -d clun-shell-builtins.tmp/list/foo`, 0, "clun-shell-builtins.tmp/list/foo\n", "", "ls directory itself"))
+  .then(() => check(Clun.$`ls clun-shell-builtins.tmp/list/a clun-shell-builtins.tmp/list/b`, 0, "clun-shell-builtins.tmp/list/a\nclun-shell-builtins.tmp/list/b\n", "", "ls multiple files"))
+  .then(() => check(
+    Clun.$`ls -R clun-shell-builtins.tmp/list`,
+    0,
+    "a\nb\nfoo\nclun-shell-builtins.tmp/list/foo:\nc\nsub\nclun-shell-builtins.tmp/list/foo/sub:\nd\n",
+    "",
+    "ls recursive",
+  ))
+  .then(() => check(
+    Clun.$`ls clun-shell-builtins.tmp/list/a clun-shell-builtins.tmp/list/missing`,
+    1,
+    "clun-shell-builtins.tmp/list/a\n",
+    "ls: clun-shell-builtins.tmp/list/missing: No such file or directory\n",
+    "ls partial error",
+  ))
+  .then(() => check(Clun.$`ls -az`, 1, "", "ls: illegal option -- z\n", "ls illegal option"))
+  .then(() => check(Clun.$`ls ${""}`, 1, "", "ls: : No such file or directory\n", "ls empty path"))
+  .then(() => check(Clun.$`ln -s nowhere clun-shell-builtins.tmp/list/broken`, 0, "", "", "ls broken link setup"))
+  .then(() => check(
+    Clun.$`ls clun-shell-builtins.tmp/list/broken`,
+    1,
+    "",
+    "ls: clun-shell-builtins.tmp/list/broken: No such file or directory\n",
+    "ls broken link",
+  ))
   .then(() => check(Clun.$`rm -rf clun-shell-builtins.tmp`, 0, "", "", "filesystem cleanup"))
   .then(() => {
     console.log("filesystem-builtins");
     console.log("rm");
     console.log("mv");
+    console.log("ls");
   });

@@ -13,14 +13,15 @@ their contents cannot create operators, substitutions, redirects, globs, or extr
   operators, sequences, assignments, tilde expansion, and `Clun.Glob` expansion into an explicit AST.
 - Treat scalar interpolation as one inert argument and flatten array interpolation into inert arguments with
   a bounded nesting depth. Only an explicit `{ raw: source }` interpolation opts source text into grammar.
-- Execute `echo`, `basename`, `dirname`, `seq`, `cat`, `mkdir`, `touch`, `rm`, `mv`, `pwd`, `cd`, `true`, `false`,
+- Execute `echo`, `basename`, `dirname`, `seq`, `cat`, `mkdir`, `touch`, `rm`, `mv`, `ls`, `pwd`, `cd`, `true`, `false`,
   `:`, `export`, `unset`, `which`, and `exit` internally. `seq` uses Bun-compatible f32 accumulation and
   non-advance termination, bounds output to one million items, and additionally supports fixed-width and
   one floating printf conversion. The filesystem builtins provide bounded binary concatenation, stdin,
   display/numbering controls, parents/verbose/octal-mode creation, create-or-update timestamps, guarded
   recursive deletion, symlink boundaries, force/verbose flags, root preservation, atomic same-filesystem
   moves, multi-source directory targets, no-overwrite, and verbose move output. None of these paths delegates
-  to an external command.
+  to an external command. `ls` provides deterministic hidden-entry policy, multi-path and recursive output,
+  symlink-safe recursion, partial failures, reverse ordering, and lstat-based long metadata.
 - Resolve external programs against the job's `PATH`, require executable permission, and use
   `sb-ext:run-program` directly. The implementation does not invoke `sh`, `bash`, or another command parser.
 - Spawn every command in an external-only pipeline before waiting. Intermediate streams are connected while
@@ -40,6 +41,8 @@ cwd and environment, redirects, output/error objects, Promise chaining, helper m
 executable lookup. `tests/compat/tooling.shell/builtins.js` freezes exact application behavior for path,
 echo, exit, sequence, binary cat, mkdir, touch, guarded recursive rm, and mv builtins. The mv fixture covers
 all six active scenarios in the pinned `commands/mv.test.ts`, plus usage, flags, and no-overwrite behavior.
+It also freezes ls directory, hidden, long, recursive, multi-file, partial-error, invalid-option, and broken-link
+behavior.
 `tests/lisp/runtime/shell-tests.lisp` separately
 owns parser and built-in behavior without an external process dependency.
 
