@@ -58,12 +58,18 @@ EOF
 [ -z "${extra:-}" ] && [ -n "${release_id:-}" ] || fail 'compat/release.tsv must contain one complete release row'
 [ "$release_version" = "$version" ] || fail "release ledger version $release_version disagrees with source $version"
 [ "$release_asdf" = "$asdf_version" ] || fail "release ledger ASDF core disagrees with clun.asd"
-[ "$installer_tag" = "v$version" ] || fail "release ledger installer default disagrees with source version"
 [ "$release_tag" = "v$version" ] || fail "release ledger tag disagrees with source version"
 [ "$release_license" = GPL-3.0-or-later ] || fail 'release ledger license must be GPL-3.0-or-later'
 [ "$version_source:$asdf_source:$installer_source" = 'src/version.lisp:clun.asd:site/install' ] ||
   fail 'release ledger source paths drifted'
 case "$release_state" in candidate|published) ;; *) fail "invalid release state: $release_state" ;; esac
+if [ "$release_state" = candidate ]; then
+  expected_installer_tag="v$previous_version"
+else
+  expected_installer_tag="v$version"
+fi
+[ "$installer_tag" = "$expected_installer_tag" ] ||
+  fail "release ledger installer default $installer_tag disagrees with $release_state expectation $expected_installer_tag"
 case "$active_phase:$active_issue" in *[!0-9:]*|:*|*:|*::* ) fail 'release ledger has invalid phase or issue' ;; esac
 case "$semver_impact" in major|minor|patch|none) ;; *) fail 'release ledger has invalid SemVer impact' ;; esac
 if [ "$release_state" = candidate ]; then
@@ -845,9 +851,9 @@ require_text site/index.html "$deno_source"
 require_text site/index.html "Snapshot checked $baseline_date"
 require_text site/index.html "$bun_source"
 require_text site/index.html "$bun_engineering_source"
-installer_default="requested_version=\${CLUN_VERSION:-v$version}"
+installer_default="requested_version=\${CLUN_VERSION:-$installer_tag}"
 [ "$(grep -Fxc "$installer_default" site/install)" -eq 1 ] ||
-  fail "site/install default CLUN_VERSION is not v$version"
+  fail "site/install default CLUN_VERSION is not $installer_tag"
 
 if [ "${GITHUB_REF_TYPE:-}" = tag ]; then
   [ "${GITHUB_REF_NAME:-}" = "v$version" ] ||
