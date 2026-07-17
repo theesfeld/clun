@@ -11,8 +11,8 @@ response decoding, and hermetic plus live public-registry evidence.
 
 This is an implementation slice of Phase 28, not completion of the phase. The
 canonical Phase 28 GitHub issue remains open. In particular, this series does not
-claim the issue's connection pooling, proxy support, complete cancellation and
-timeout matrix, 1 GiB transfer, leak/stress, or four-target acceptance
+claim the issue's proxy support, complete cancellation and timeout matrix, TLS
+pooling, incremental decompression, 1 GiB transfer, leak/stress, or four-target acceptance
 requirements. It does not promote a compatibility-ledger row or a public
 landing-page claim.
 

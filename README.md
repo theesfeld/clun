@@ -33,9 +33,10 @@ The installer detects x86-64 or arm64, verifies the release SHA-256 checksum, an
 both architectures. macOS archives target macOS 13.0 or newer, but are runtime-tested on macOS 15.
 Windows is not supported.
 
-Clun is still pre-alpha. In particular, `clun install` is verified against the hermetic registry
-fixture, but the default public npm registry currently hits a TLS `protocol_version`
-interoperability gap.
+Clun is still pre-alpha. `clun install` is verified against the hermetic registry fixture, and an
+opt-in live smoke installs and executes pinned `is-number@7.0.0` from the public npm registry with
+SRI verification. Publishing, workspaces, broader dependency specifications, and complete four-target
+package transport receipts remain unfinished.
 
 ## What works
 
@@ -43,7 +44,7 @@ interoperability gap.
   v0.1; JSX/TSX is planned for Phase 40).
 - Object integrity and legacy accessor operations including `Object.seal`, `Object.isSealed`,
   `__defineGetter__`, `__defineSetter__`, `__lookupGetter__`, and `__lookupSetter__`. Proxy remains
-  unsupported.
+  a scoped compatibility surface rather than a blanket modern-ECMAScript claim.
 - Shared iterator operations now drive lazy `for...of`, destructuring, `Array.from`, collection
   constructors, and Promise combinators, including iterator close on abrupt completion.
 - Parameter defaults, catch patterns, and the covered destructuring paths enforce temporal dead
@@ -57,7 +58,9 @@ interoperability gap.
 - Async generators serialize `next`, `return`, and `throw` requests, await yielded and returned
   values, reject incompatible receivers, and support async `yield*`. Async iteration includes
   AsyncFromSync fallback and completion-correct `for await...of` close behavior.
-- Timers, promises, files, buffered HTTP serving, `fetch`, URL APIs, and process spawning.
+- Timers, promises, files, buffered HTTP serving, URL APIs, process spawning, and streaming `fetch`.
+  Fetch exposes bounded response readers and async iteration, `Response.clone()`/body tee, bounded
+  half-duplex streaming uploads, dual-stack DNS/Happy Eyeballs, and reusable plain HTTP connections.
 - `clun test` with hooks, modifiers, filters, async tests, timeouts, and about 22 matchers.
 - `clun install`, `add`, `remove`, and package scripts with a deterministic lockfile and cache.
 
@@ -97,7 +100,7 @@ July 16, 2026. Engineering references are separately pinned to Bun commit `c1076
 | Capability | Current pre-alpha state | Evidence-backed target |
 |---|---|---|
 | Node.js compatibility | Partial: selected globals and module subsets | Phases [42](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-42), [43](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-43), [44](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-44), [45](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-45), [46](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-46), [47](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-47) |
-| Web Standard APIs | Partial: buffered fetch and a scoped Web API surface | [Phase 38](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-38) |
+| Web Standard APIs | Partial: streaming `fetch`, clone/tee, plain HTTP pooling, and a scoped Web API surface | [Phase 38](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-38) |
 | Native addons | No: excluded by the current purity contract | [Phase 48](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-48) |
 | TypeScript | Partial: erasable syntax stripping only | [Phase 39](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-39) |
 | JSX | No: not included in the v0.1 scope | [Phase 40](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-40) |
@@ -112,7 +115,7 @@ July 16, 2026. Engineering references are separately pinned to Bun commit `c1076
 | YAML | Yes: `Clun.YAML` parser/stringifier and `.yaml`/`.yml` module loading | [Phase 31](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-31) |
 | Cookies API | Yes: `Clun.Cookie` and `Clun.CookieMap` with request/response integration | [Phase 32](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-32) |
 | Encrypted secrets storage | No | [Phase 58](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-58) |
-| npm package management | Partial: fixture-tested; public npm is blocked by TLS interop | Phases [28](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-28), [59](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-59), [60](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-60), [61](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-61) |
+| npm package management | Partial: fixture-tested; a pinned public npm install smoke passes over verified TLS | Phases [28](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-28), [59](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-59), [60](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-60), [61](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-61) |
 | Bundler | No: not included in the v0.1 scope | Phases [62](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-62), [63](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-63), [64](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-64), [77](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-77) |
 | Cross-platform shell API | No: spawn and package scripts only | [Phase 65](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-65) |
 | Jest-compatible test runner | Partial: 22 matchers; no snapshots, coverage, mocks, or concurrency | [Phase 66](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-66) |
@@ -178,10 +181,11 @@ pure-tls verification gap recorded in `DECISIONS.md`. Trust anchors resolve from
 `$SSL_CERT_DIR`, else the system CA bundle; if none is found, verification rejects rather than
 trusting nothing.
 
-Known limitations (see `STATE.md`): pure-tls does not yet interoperate with every server frontend
-(e.g. `registry.npmjs.org` currently returns a `protocol_version` alert); DNS resolution is blocking;
-each in-flight HTTPS request uses one worker thread. Package tarballs are additionally protected by
-SRI SHA-512 verification before extraction, so a TLS compromise cannot by itself corrupt an install.
+Known limitations (see `STATE.md`): each in-flight HTTPS request still uses one worker thread; TLS
+connections are not yet pooled; proxy and complete timeout semantics remain open; compressed Fetch
+bodies are bounded but decoded at completion rather than incrementally. Package tarballs are additionally
+protected by SRI SHA-512 verification before extraction, so a TLS compromise cannot by itself corrupt an
+install.
 
 ## Building from source
 

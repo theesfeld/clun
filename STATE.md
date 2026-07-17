@@ -35,6 +35,16 @@ four-target evidence, synchronized public surfaces, and the correct SemVer trans
 queue is YAML, transport streaming, shell, test-runner parity, and the dependency-enabling modern ECMAScript
 wave; exact canonical ledger IDs are frozen in `PLAN.md`.
 
+**Parallel Phase 28 checkpoint (Issue #2, release lane dev.19):** branch
+`feat/issue-2-transport-foundation` contains a per-loop plain HTTP pool keyed by origin, family, and
+transport. Earlier durable checkpoints add pure-CL TLS 1.2 registry fallback, A/AAAA DNS and Happy
+Eyeballs, exact Fetch abort lifecycle, bounded incremental HTTP and authenticated HTTPS response bodies,
+`Response.clone()` and bounded tee, and `duplex: "half"` streaming request bodies. The checkpoint's
+isolated network gate, `make build`, purity gate, exact TCP reuse, `Connection: close` exclusion, idle
+peer-FIN eviction/reconnect, and cross-origin isolation pass. Issue #2 remains open for proxy and complete
+timeout semantics, TLS pooling, incremental decompression, the 1 GiB/leak matrix, valid compatibility gate
+IDs, and all four release-target receipts. The related public rows remain `Partial` until those gates pass.
+
 **Current checkpoint:** the integrated YAML parser reports **402 pass / 0 fail / 402 total** and **408
 assertions** in the exact pinned corpus. Exact master CI **29560539473**, Documentation **29560539481**,
 Pages validation **29560539500**, and four-target Compatibility plus receipt aggregation **29560539518**
