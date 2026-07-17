@@ -2673,3 +2673,19 @@ differentials and exhaustive shipped-binary evidence rather than prose-only comp
 The phase follows immutable dev.12 and therefore targets `0.1.0-dev.13` / `v0.1.0-dev.13`; it cannot merge,
 tag, or publish while dev.12 remains unverified. The ASDF core remains `0.1.0`, and issue #8 owns the exact
 four-target release, Pages, and hosted-installer receipts.
+
+### 2026-07-17 - Failed immutable dev.12 advances publication to dev.13
+
+Annotated tag `v0.1.0-dev.12` peels to exact master
+`ba20edbbb05a7c84b58ec555347b7f3cb858610a`. CI `29548648405`, Documentation `29548648430`,
+Compatibility `29548648403`, and candidate Pages `29548648413` passed for that commit. Release run
+`29549077422` then passed both x64 builders but failed the same single-sample CookieMap N-to-2N
+allocation assertion on Linux arm64 and Darwin arm64 after **9,127** other Lisp assertions passed. The
+publish job did not run, so no dev.12 GitHub release or assets exist.
+
+The tag cannot be moved, deleted, or reused. The constructor already performs an exact-capacity layout
+prepass and is linear; the failing measurement came from `bytes-consed` allocation-region granularity on
+arm64. Dev.13 measures eight warmed constructions per size and retains the unchanged 2.75x acceptance
+threshold. That correction ships with the already-complete Phase 34 Color surface. Because dev.11 and
+dev.12 never published assets, the generated candidate README and site continue to identify immutable
+dev.10 as the last published prerelease.

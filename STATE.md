@@ -15,14 +15,16 @@ compatibility-ledger `Yes` through the complete `Clun.color` parse, conversion, 
 terminal-palette surface.
 **SemVer impact:** `minor`
 **Release target:** `0.1.0-dev.13` / `v0.1.0-dev.13`
-**Entry boundary:** Phase 30 dev.12 is the required predecessor and carries the CookieMap arm64 correction
-plus the fifth ledger `Yes`, `Clun.Glob`. The Color implementation is stacked on exact dev.12 candidate
-`056bc811`; PR #75 is now rerunning its exact-head four-target publication gate, and dev.13 cannot merge or tag before the
-immutable dev.12 release and hosted installer are verified. Phase 34 depends only on completed Phase 27.
-Phase 26 remains after Phase 82.
-**Current scope:** publish the accepted Color implementation and evidence as dev.13, collect exact-master
-CI plus all four native compatibility receipts, then reconcile Pages and verify the hosted installer before
-handing the release lane to Phase 31 YAML.
+**Entry boundary:** Phase 30 and its fifth ledger `Yes`, `Clun.Glob`, are merged at exact master
+`ba20edbbb05a7c84b58ec555347b7f3cb858610a`. Exact-master CI, Documentation, Compatibility, and
+candidate Pages passed. Immutable dev.12 release run `29549077422` then exposed architecture-sensitive
+single-sample CookieMap allocation accounting on both arm64 builders, so no release or assets were
+published and the tag will not be moved or reused. The last published prerelease remains dev.10. Phase 34
+depends only on completed Phase 27, and Phase 26 remains after Phase 82.
+**Current scope:** publish the accepted Glob and Color implementations together as dev.13 with the
+architecture-stable aggregate allocation gate, collect exact-master CI plus all four native compatibility
+receipts, then reconcile Pages and verify the hosted installer before handing the release lane to Phase 31
+YAML.
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
 easiest to hardest among dependency-ready rows. Core engine/runtime/network/tooling changes are expected.
@@ -39,7 +41,10 @@ tuple/ANSI serialization, observable option access, and runtime wiring. The focu
 vectors**, and all **256 alpha values**; registered shipped-binary corpus/public/stress evidence and the
 structured differential trace pass. Build, purity (**718 files / 0 violations**), compatibility validation,
 roadmap, docs, public claims, and diff check pass on the implementation branch. The stacked source candidate
-is **6 Yes / 6 Partial / 18 No**; public release receipts, Pages, and hosted installation remain pending.
+is **6 Yes / 6 Partial / 18 No**. Commit `9b074e11` replaces the allocator-region-sensitive single
+construction sample with eight-construction aggregate accounting after warming every checked size; its
+focused resource gate passes **13 / 13** locally without weakening the unchanged 2.75x linearity threshold.
+Public release receipts, Pages, and hosted installation remain pending.
 
 **M5 entry boundary:** immutable dev.4 diagnostic set **56 total / 0 pass / 56 fail / 0 skip / 0 crash**:
 **43 m5-owned** (32 intrinsic/prototype, 7 parser, 4 raw delegation), **12 m11** direct-eval/`with`

@@ -11,7 +11,7 @@ Clun does not claim blanket speed parity with Bun.
 <!-- clun-generated:release:begin -->
 > **Status: pre-alpha, under active construction.** [Phase 34](https://github.com/theesfeld/clun/issues/8) is in progress.
 > Its release-bearing target is `0.1.0-dev.13` / `v0.1.0-dev.13` (SemVer impact: `minor`).
-> The verified release boundary is `v0.1.0-dev.12`, with four native archives, checksums, Pages,
+> The verified release boundary is `v0.1.0-dev.10`, with four native archives, checksums, Pages,
 > and hosted-installer evidence.
 > Phase 26 remains deferred until after Phase 82 and will
 > be rewritten for the repository state that exists then.
@@ -150,7 +150,7 @@ workflows are read-only and fail closed if the canonical issues, README, or site
 <!-- clun-generated:release-summary:begin -->
 Release versions follow the actual SemVer impact recorded in the canonical issue, not the number of pushes.
 The current source is the `0.1.0-dev.13` release candidate; the immutable tag and assets are not published yet.
-The last published prerelease remains [`v0.1.0-dev.12`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.12).
+The last published prerelease remains [`v0.1.0-dev.10`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.10).
 [The versioning contract](docs/versioning.md) defines prerelease sequencing, synchronized surfaces, immutable tags, assets, and installer evidence.
 [Phase 34 issue #8](https://github.com/theesfeld/clun/issues/8) is the canonical live release record.
 <!-- clun-generated:release-summary:end -->
