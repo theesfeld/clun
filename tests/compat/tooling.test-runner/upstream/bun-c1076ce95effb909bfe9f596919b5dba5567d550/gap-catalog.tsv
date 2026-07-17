@@ -1,53 +1,53 @@
 source_path	category	bun_pass	bun_fail	bun_skip	clun_pass	clun_fail	clun_skip	residual_owner	blocker
-test/js/bun/test/bun-test.test.ts	lifecycle	2	1	0	0	1	0	engine:using-or-typescript-syntax+cli-meta-spawn	Parser rejects using/TS form (missing semicolon before ident); many roots spawn bunExe/host subprocesses or depend on Bun CLI output
-test/js/bun/test/bun_test.test.ts	lifecycle	5	0	0	0	1	0	test-runner:bun-test-esm-resolve+cli-meta-spawn	TS/ESM import of bun:test fails to resolve under clun test; many roots spawn bunExe/host subprocesses or depend on Bun CLI output
-test/js/bun/test/ci-restrictions.test.ts	cli-output	12	0	0	0	1	0	engine:using-or-typescript-syntax+cli-meta-spawn	Parser rejects using/TS form (missing semicolon before ident); many roots spawn bunExe/host subprocesses or depend on Bun CLI output
-test/js/bun/test/concurrent.test.ts	concurrency	6	0	0	0	1	0	test-runner:bun-test-esm-resolve+concurrent-parallel	TS/ESM import of bun:test fails to resolve under clun test
-test/js/bun/test/concurrent_immediate.test.ts	concurrency	2	0	0	0	1	0	test-runner:bun-test-esm-resolve+concurrent-parallel	TS/ESM import of bun:test fails to resolve under clun test
-test/js/bun/test/describe.test.ts	lifecycle	13	0	0	0	1	0	runtime:bun-namespace-module	import from 'bun' package/namespace not provided
-test/js/bun/test/done-async.test.ts	lifecycle	1	0	0	0	1	0	test-runner:bun-test-esm-resolve	TS/ESM import of bun:test fails to resolve under clun test
-test/js/bun/test/dots.test.ts	cli-output	2	0	0	0	1	0	test-runner:bun-test-esm-resolve+cli-meta-spawn	TS/ESM import of bun:test fails to resolve under clun test; many roots spawn bunExe/host subprocesses or depend on Bun CLI output
-test/js/bun/test/expect-assertions.test.ts	expect	1	0	0	0	1	0	test-runner:bun-test-esm-resolve+cli-meta-spawn	TS/ESM import of bun:test fails to resolve under clun test; many roots spawn bunExe/host subprocesses or depend on Bun CLI output
-test/js/bun/test/expect-extend-asymmetric-match-throw.test.ts	custom-matchers	1	0	0	0	1	0	test-runner:bun-test-esm-resolve	TS/ESM import of bun:test fails to resolve under clun test
-test/js/bun/test/expect-extend-preload.test.ts	custom-matchers	1	0	0	0	1	0	runtime:bun-namespace-module	import from 'bun' package/namespace not provided
-test/js/bun/test/expect-extend.test.js	custom-matchers	28	0	0	0	1	0	upstream-meta:bun-harness	Bun test harness module not part of Clun surface
-test/js/bun/test/expect-label.test.ts	expect	0	1	0	0	1	0	test-runner:bun-test-esm-resolve+cli-meta-spawn	TS/ESM import of bun:test fails to resolve under clun test; many roots spawn bunExe/host subprocesses or depend on Bun CLI output
-test/js/bun/test/expect-stack-overflow-crash.test.ts	expect	1	0	0	0	1	0	engine:using-or-typescript-syntax+cli-meta-spawn	Parser rejects using/TS form (missing semicolon before ident); many roots spawn bunExe/host subprocesses or depend on Bun CLI output
-test/js/bun/test/expect-symbol-toPrimitive-crash.test.ts	expect	1	0	0	0	1	0	engine:using-or-typescript-syntax+cli-meta-spawn	Parser rejects using/TS form (missing semicolon before ident); many roots spawn bunExe/host subprocesses or depend on Bun CLI output
-test/js/bun/test/expect-toHaveReturnedWith.test.js	mocks	13	0	0	0	1	0	test-runner:bun-test-esm-resolve	TS/ESM import of bun:test fails to resolve under clun test
-test/js/bun/test/expect-type-doctest.test.ts	expect	0	0	0	0	1	0	test-runner:bun-test-esm-resolve	TS/ESM import of bun:test fails to resolve under clun test
-test/js/bun/test/expect-type-global.test.ts	expect	1	0	0	0	1	0	test-runner:expectTypeOf	expectTypeOf / type-level API residual
-test/js/bun/test/expect-type.test.ts	expect	1	0	0	0	1	0	test-runner:bun-test-esm-resolve	TS/ESM import of bun:test fails to resolve under clun test
-test/js/bun/test/expect-unreaachable.test.ts	expect	1	0	0	0	1	0	test-runner:bun-test-esm-resolve	TS/ESM import of bun:test fails to resolve under clun test
+test/js/bun/test/bun-test.test.ts	lifecycle	2	1	0	0	1	0	engine:using-or-typescript-syntax	Parser rejects using/TS form (missing semicolon before ident)
+test/js/bun/test/bun_test.test.ts	lifecycle	5	0	0	0	1	0	upstream-meta:bun-harness+cli-meta-spawn	Upstream harness module / host-spawn residual after bun:test resolve
+test/js/bun/test/ci-restrictions.test.ts	cli-output	12	0	0	0	1	0	engine:using-or-typescript-syntax	Parser rejects using/TS form (missing semicolon before ident)
+test/js/bun/test/concurrent.test.ts	concurrency	6	0	0	0	1	0	upstream-meta:bun-harness+cli-meta-spawn+concurrent-parallel	Upstream harness module / host-spawn residual after bun:test resolve
+test/js/bun/test/concurrent_immediate.test.ts	concurrency	2	0	0	0	1	0	upstream-meta:bun-harness+cli-meta-spawn+concurrent-parallel	Upstream harness module / host-spawn residual after bun:test resolve
+test/js/bun/test/describe.test.ts	lifecycle	13	0	0	0	1	0	runtime:bun-namespace-module	import from bun package/namespace not provided
+test/js/bun/test/done-async.test.ts	lifecycle	1	0	0	0	1	0	upstream-meta:bun-harness+cli-meta-spawn	Upstream harness module / host-spawn residual after bun:test resolve
+test/js/bun/test/dots.test.ts	cli-output	2	0	0	0	1	0	upstream-meta:bun-harness+cli-meta-spawn	Upstream harness module / host-spawn residual after bun:test resolve
+test/js/bun/test/expect-assertions.test.ts	expect	1	0	0	0	1	0	upstream-meta:bun-harness+cli-meta-spawn	Upstream harness module / host-spawn residual after bun:test resolve
+test/js/bun/test/expect-extend-asymmetric-match-throw.test.ts	custom-matchers	1	0	0	1	0	0	closed	bun:test ESM resolve closed; root matches Bun pass set on this measurement
+test/js/bun/test/expect-extend-preload.test.ts	custom-matchers	1	0	0	0	1	0	runtime:bun-namespace-module	import from bun package/namespace not provided
+test/js/bun/test/expect-extend.test.js	custom-matchers	28	0	0	0	1	0	upstream-meta:bun-harness+cli-meta-spawn	Upstream harness module / host-spawn residual after bun:test resolve
+test/js/bun/test/expect-label.test.ts	expect	0	1	0	0	1	0	upstream-meta:strip-ansi-dep	strip-ansi dependency not resolved under clun test
+test/js/bun/test/expect-stack-overflow-crash.test.ts	expect	1	0	0	0	1	0	engine:using-or-typescript-syntax	Parser rejects using/TS form (missing semicolon before ident)
+test/js/bun/test/expect-symbol-toPrimitive-crash.test.ts	expect	1	0	0	0	1	0	engine:using-or-typescript-syntax	Parser rejects using/TS form (missing semicolon before ident)
+test/js/bun/test/expect-toHaveReturnedWith.test.js	mocks	13	0	0	12	1	0	test-runner:partial-assert-gap	bun:test resolves; residual assertion/behavior gap vs Bun
+test/js/bun/test/expect-type-doctest.test.ts	expect	0	0	0	0	1	0	test-runner:expectTypeOf-or-api-gap	expectTypeOf / type-level or related API residual after bun:test resolve
+test/js/bun/test/expect-type-global.test.ts	expect	1	0	0	0	1	0	test-runner:loaded-zero-pass	bun:test resolves and file loads; residual failure at runtime
+test/js/bun/test/expect-type.test.ts	expect	1	0	0	0	1	0	test-runner:loaded-zero-pass	bun:test resolves and file loads; residual failure at runtime
+test/js/bun/test/expect-unreaachable.test.ts	expect	1	0	0	0	1	0	test-runner:loaded-zero-pass	bun:test resolves and file loads; residual failure at runtime
 test/js/bun/test/expect.test.js	expect	398	8	10	0	1	0	engine:class-fields	ES2017+ class fields required by root source
-test/js/bun/test/expect/toHaveReturnedWith.test.ts	mocks	41	0	0	0	1	0	test-runner:bun-test-esm-resolve	TS/ESM import of bun:test fails to resolve under clun test
-test/js/bun/test/failure-skip.test.ts	lifecycle	11	0	0	0	1	0	test-runner:bun-test-esm-resolve+cli-meta-spawn	TS/ESM import of bun:test fails to resolve under clun test; many roots spawn bunExe/host subprocesses or depend on Bun CLI output
+test/js/bun/test/expect/toHaveReturnedWith.test.ts	mocks	41	0	0	41	0	0	closed	bun:test ESM resolve closed; root matches Bun pass set on this measurement
+test/js/bun/test/failure-skip.test.ts	lifecycle	11	0	0	0	1	0	upstream-meta:bun-harness+cli-meta-spawn	Upstream harness module / host-spawn residual after bun:test resolve
 test/js/bun/test/fake-timers/fake-timers.test.ts	timers	30	0	0	0	1	0	engine:class-fields	ES2017+ class fields required by root source
-test/js/bun/test/jest-each-gc-root.test.ts	parameterization	1	0	0	0	1	0	engine:numeric-separators-or-bigint-literal	Parser rejects numeric form (bigint/separators) in root
+test/js/bun/test/jest-each-gc-root.test.ts	parameterization	1	0	0	0	1	0	engine:using-or-typescript-syntax	Parser rejects using/TS form (missing semicolon before ident)
 test/js/bun/test/jest-each.test.ts	parameterization	25	0	0	0	1	0	engine:optional-chaining-or-arrow	Parser rejects optional chaining or arrow form used by root
-test/js/bun/test/jest-extended.test.js	core	57	0	1	0	1	0	engine:chained-optional-or-call	Parser rejects chained . form at load (often optional call)
-test/js/bun/test/jest-hooks.test.ts	lifecycle	17	0	1	0	1	0	test-runner:bun-test-esm-resolve	TS/ESM import of bun:test fails to resolve under clun test
+test/js/bun/test/jest-extended.test.js	core	57	0	1	0	1	0	engine:chained-optional-or-call	Parser rejects optional chaining or arrow form used by root
+test/js/bun/test/jest-hooks.test.ts	lifecycle	17	0	1	17	0	1	closed	bun:test ESM resolve closed; root matches Bun pass set on this measurement
 test/js/bun/test/mock-disposable.test.ts	mocks	3	0	0	0	1	0	engine:using-or-typescript-syntax	Parser rejects using/TS form (missing semicolon before ident)
-test/js/bun/test/mock-fn.test.js	mocks	72	4	0	0	1	0	engine:chained-optional-or-call	Parser rejects chained . form at load (often optional call)
+test/js/bun/test/mock-fn.test.js	mocks	72	4	0	0	1	0	engine:chained-optional-or-call	Parser rejects optional chaining or arrow form used by root
 test/js/bun/test/mock/mock-module-non-string.test.ts	mocks	5	0	0	0	1	0	engine:esm-import-in-test-files	ESM import syntax rejected in this test-file load path
 test/js/bun/test/mock/mock-module-resolve-log.test.ts	mocks	1	0	0	0	1	0	engine:esm-import-in-test-files	ESM import syntax rejected in this test-file load path
 test/js/bun/test/mock/mock-module.test.ts	mocks	9	0	1	0	1	0	engine:esm-import-in-test-files	ESM import syntax rejected in this test-file load path
-test/js/bun/test/nested-describes.test.ts	lifecycle	3	0	0	0	1	0	test-runner:bun-test-esm-resolve	TS/ESM import of bun:test fails to resolve under clun test
-test/js/bun/test/only-failures.test.ts	lifecycle	3	0	0	0	1	0	engine:using-or-typescript-syntax+cli-meta-spawn	Parser rejects using/TS form (missing semicolon before ident); many roots spawn bunExe/host subprocesses or depend on Bun CLI output
-test/js/bun/test/only-inside-only.test.ts	lifecycle	1	0	0	0	1	0	test-runner:bun-test-esm-resolve+cli-meta-spawn	TS/ESM import of bun:test fails to resolve under clun test; many roots spawn bunExe/host subprocesses or depend on Bun CLI output
-test/js/bun/test/preload-test.test.js	setup	0	0	2	0	1	0	runtime:bun-namespace-module+cli-meta-spawn	import from 'bun' package/namespace not provided; many roots spawn bunExe/host subprocesses or depend on Bun CLI output
-test/js/bun/test/pretty-format-overflow.test.ts	cli-output	1	0	0	0	1	0	test-runner:bun-test-esm-resolve+cli-meta-spawn	TS/ESM import of bun:test fails to resolve under clun test; many roots spawn bunExe/host subprocesses or depend on Bun CLI output
-test/js/bun/test/printing/diffexample.test.ts	cli-output	2	0	0	0	1	0	test-runner:bun-test-esm-resolve+cli-meta-spawn	TS/ESM import of bun:test fails to resolve under clun test; many roots spawn bunExe/host subprocesses or depend on Bun CLI output
-test/js/bun/test/snapshot-tests/bun-snapshots.test.ts	snapshots	5	0	0	0	1	0	test-runner:bun-test-esm-resolve	TS/ESM import of bun:test fails to resolve under clun test
-test/js/bun/test/snapshot-tests/existing-snapshots.test.ts	snapshots	1	0	0	0	1	0	test-runner:bun-test-esm-resolve	TS/ESM import of bun:test fails to resolve under clun test
-test/js/bun/test/snapshot-tests/new-snapshot.test.ts	snapshots	1	0	0	0	1	0	test-runner:bun-test-esm-resolve	TS/ESM import of bun:test fails to resolve under clun test
-test/js/bun/test/spyMatchers.test.ts	mocks	0	1	0	0	1	0	engine:optional-chaining-or-arrow+cli-meta-spawn	Parser rejects optional chaining or arrow form used by root; many roots spawn bunExe/host subprocesses or depend on Bun CLI output
-test/js/bun/test/stack.test.ts	cli-output	6	0	1	0	1	0	runtime:bun-namespace-module+cli-meta-spawn	import from 'bun' package/namespace not provided; many roots spawn bunExe/host subprocesses or depend on Bun CLI output
+test/js/bun/test/nested-describes.test.ts	lifecycle	3	0	0	3	0	0	closed	bun:test ESM resolve closed; root matches Bun pass set on this measurement
+test/js/bun/test/only-failures.test.ts	lifecycle	3	0	0	0	1	0	engine:using-or-typescript-syntax	Parser rejects using/TS form (missing semicolon before ident)
+test/js/bun/test/only-inside-only.test.ts	lifecycle	1	0	0	0	1	0	upstream-meta:bun-harness+cli-meta-spawn	Upstream harness module / host-spawn residual after bun:test resolve
+test/js/bun/test/preload-test.test.js	setup	0	0	2	0	1	0	runtime:bun-namespace-module	import from bun package/namespace not provided
+test/js/bun/test/pretty-format-overflow.test.ts	cli-output	1	0	0	0	1	0	upstream-meta:bun-harness+cli-meta-spawn	Upstream harness module / host-spawn residual after bun:test resolve
+test/js/bun/test/printing/diffexample.test.ts	cli-output	2	0	0	0	1	0	upstream-meta:bun-harness+cli-meta-spawn	Upstream harness module / host-spawn residual after bun:test resolve
+test/js/bun/test/snapshot-tests/bun-snapshots.test.ts	snapshots	5	0	0	5	0	0	closed	bun:test ESM resolve closed; root matches Bun pass set on this measurement
+test/js/bun/test/snapshot-tests/existing-snapshots.test.ts	snapshots	1	0	0	1	0	0	closed	bun:test ESM resolve closed; root matches Bun pass set on this measurement
+test/js/bun/test/snapshot-tests/new-snapshot.test.ts	snapshots	1	0	0	0	1	0	upstream-meta:bun-harness+cli-meta-spawn	Upstream harness module / host-spawn residual after bun:test resolve
+test/js/bun/test/spyMatchers.test.ts	mocks	0	1	0	0	1	0	engine:optional-chaining-or-arrow+cli-meta-spawn	Parser rejects optional chaining or arrow form used by root
+test/js/bun/test/stack.test.ts	cli-output	6	0	1	0	1	0	runtime:bun-namespace-module	import from bun package/namespace not provided
 test/js/bun/test/test-auto-import-jest-globals.test.js	setup	2	0	0	0	1	0	engine:esm-import-in-test-files	ESM import syntax rejected in this test-file load path
-test/js/bun/test/test-error-code-done-callback.test.ts	lifecycle	1	0	0	0	1	0	test-runner:bun-test-esm-resolve	TS/ESM import of bun:test fails to resolve under clun test
-test/js/bun/test/test-failing.test.ts	lifecycle	8	0	0	0	1	0	runtime:bun-namespace-module	import from 'bun' package/namespace not provided
-test/js/bun/test/test-on-test-finished.test.ts	core	12	0	0	0	1	0	test-runner:bun-test-esm-resolve	TS/ESM import of bun:test fails to resolve under clun test
-test/js/bun/test/test-only.test.ts	lifecycle	4	0	0	0	1	0	runtime:bun-namespace-module+cli-meta-spawn	import from 'bun' package/namespace not provided; many roots spawn bunExe/host subprocesses or depend on Bun CLI output
-test/js/bun/test/test-retry-repeats-basic.test.ts	lifecycle	12	0	0	0	1	0	test-runner:bun-test-esm-resolve	TS/ESM import of bun:test fails to resolve under clun test
-test/js/bun/test/test-test.test.ts	lifecycle	24	0	16	0	1	0	runtime:bun-namespace-module	import from 'bun' package/namespace not provided
-test/js/bun/test/test-timers.test.ts	timers	1	3	0	0	1	0	engine:numeric-separators-or-bigint-literal	Parser rejects numeric form (bigint/separators) in root
+test/js/bun/test/test-error-code-done-callback.test.ts	lifecycle	1	0	0	0	1	0	upstream-meta:bun-harness+cli-meta-spawn	Upstream harness module / host-spawn residual after bun:test resolve
+test/js/bun/test/test-failing.test.ts	lifecycle	8	0	0	0	1	0	runtime:bun-namespace-module	import from bun package/namespace not provided
+test/js/bun/test/test-on-test-finished.test.ts	core	12	0	0	0	1	0	test-runner:expectTypeOf-or-api-gap	expectTypeOf / type-level or related API residual after bun:test resolve
+test/js/bun/test/test-only.test.ts	lifecycle	4	0	0	0	1	0	runtime:bun-namespace-module	import from bun package/namespace not provided
+test/js/bun/test/test-retry-repeats-basic.test.ts	lifecycle	12	0	0	11	1	0	test-runner:partial-assert-gap	bun:test resolves; residual assertion/behavior gap vs Bun
+test/js/bun/test/test-test.test.ts	lifecycle	24	0	16	0	1	0	runtime:bun-namespace-module	import from bun package/namespace not provided
+test/js/bun/test/test-timers.test.ts	timers	1	3	0	0	1	0	engine:using-or-typescript-syntax	Parser rejects using/TS form (missing semicolon before ident)

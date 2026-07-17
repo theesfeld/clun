@@ -21,9 +21,10 @@ are recorded in [`measurement-receipt.md`](measurement-receipt.md). Per-root res
 against that checkout because no engineering binary built from `c1076ce95e` is available on this host.
 Re-run under a true `c1076ce95e` binary when available and refresh counts with a new receipt.
 
-**Clun status:** `0.1.0-dev.19` currently loads almost none of the frozen meta-roots as-is (0 pass / 52
-file-level fails). Dominant blockers are `bun:test` ESM resolve, `bun` namespace imports, parser tier gaps,
-and upstream harness / host-spawn dependencies. Ledger remains **Partial** — counts measure the gap; they
+**Clun status (post `bun:test` resolve):** pure-CL `bun:test` virtual-module resolve is landed. Clun now
+records **91 pass / 46 fail / 1 skip** across the 52 roots, with **8 roots** showing any pass and **6**
+matching Bun counts (`closed` residual). Dominant remaining blockers are upstream harness/host-spawn,
+`bun` namespace imports, and parser tier gaps. Ledger remains **Partial** — counts measure the gap; they
 do not promote Yes.
 
 No root may be deleted, renamed, recategorized, or replaced in place after implementation; an upstream
