@@ -15,14 +15,12 @@ Update when work completes; keep consistent with the Issue, README, and site.
 https://github.com/theesfeld/clun/issues/24, and https://github.com/theesfeld/clun/issues/40
 **Current implementation unit:** Phase 65 implements the pure-Common-Lisp `Clun.$` application shell with
 parser/evaluator, builtins, substitutions, pipelines, control flow, and a finite Bun-pinned corpus. Public
-`tooling.shell` remains `Partial` (1,247/1,630 pinned sites); `Yes` is not claimed. Router PR #85 owns
-`0.1.0-dev.17`; this unit stages `0.1.0-dev.18` after that allocation.
+`tooling.shell` remains `Partial` (1,247/1,630 pinned sites); `Yes` is not claimed. This unit stages the next legal prerelease from published master (`0.1.0-dev.17`). Router PR #85 also stages that number; first merge wins and the other rebases to the following sequence.
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.18` / `v0.1.0-dev.18`
+**Candidate release:** `0.1.0-dev.17` / `v0.1.0-dev.17`
 **Published release:** `0.1.0-dev.16` / `v0.1.0-dev.16`
 **Entry boundary:** immutable dev.16 is published and reconciled at exact master
-`0212be64283549d03864fa7e01a793c1cee8ac33`. Draft PR #86 stages the Phase 65 Partial checkpoint as
-`0.1.0-dev.18` after router owns `0.1.0-dev.17`. Phase 26 remains after Phase 82.
+`0212be64283549d03864fa7e01a793c1cee8ac33`. Draft PR #86 stages the Phase 65 Partial checkpoint as the next legal prerelease `0.1.0-dev.17` from published master. Phase 26 remains after Phase 82.
 **Next scope:** keep `tooling.shell` Partial until residual corpus, lifecycle/stress, and four-target
 receipts complete; green exact-head CI on the stacked/rebased candidate; then reassess Yes readiness.
 

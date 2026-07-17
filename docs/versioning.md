@@ -29,7 +29,12 @@ unless its actual completed work requires a higher-impact core. A release-bearin
 retain the selected version only while that version remains unpublished. A local tag, remote tag,
 or GitHub release named `v<version>` establishes publication; after any one exists, the correction
 must select the next version. Publication lookups fail closed unless GitHub confirms that the
-resource does not exist with a 404 response:
+resource does not exist with a 404 response.
+
+Same-core prerelease units normally advance the numeric sequence by exactly one. A draft unit may
+advance by more than one only while every skipped intermediate remains unpublished (no local tag,
+remote tag, or GitHub release). Once any intermediate is published, the multi-step skip is rejected
+and the branch must rebase onto the published train before it can land.
 
 ```text
 0.1.0-dev.1
@@ -49,7 +54,8 @@ resource does not exist with a 404 response:
 0.1.0-dev.15
 0.1.0-dev.16
 0.1.0-dev.17
-0.1.0-dev.18
+0.1.0-dev.17
+0.1.0-dev.17
 ```
 
 Phase 25b is the compatibility program for the planned `0.1.0` release. Its first behavioral
@@ -105,12 +111,12 @@ the published installer remains dev.14. The dispatchable-gate recovery advances 
 `0.1.0-dev.16` / `v0.1.0-dev.16`; Issue #5 owns its behavior, target receipts, publication, and
 hosted-installer evidence. The same candidate includes Phase 37 milestone 1's reviewed modern built-ins,
 but Phase 37 and Issue #11 remain in progress and make no full language-parity claim.
-Phase 50 advances the prerelease train exactly once to the `0.1.0-dev.17` / `v0.1.0-dev.17`
-candidate under Issue #24 (router PR #85). Phase 65 then advances exactly once to the
-`0.1.0-dev.18` / `v0.1.0-dev.18` candidate. It adds the backward-compatible public `Clun.$`
-application shell and therefore its SemVer impact is `minor` within the selected `0.1.0` core.
-Issue #39 owns the exact pinned shell inventory, Partial public claims, cross-target receipts, merge,
-and publication evidence. Until those gates complete, the installer and immutable published boundary
+Phase 65 stages the next legal prerelease from published master as the `0.1.0-dev.17` / `v0.1.0-dev.17`
+candidate. It adds the backward-compatible public `Clun.$` application shell and therefore its SemVer
+impact is `minor` within the selected `0.1.0` core. Issue #39 owns the exact pinned shell inventory,
+Partial public claims, cross-target receipts, merge, and publication evidence. Parallel router work
+(Issue #24 / PR #85) may also stage the same next number; first merge takes `dev.17` and the other
+rebases to the following sequence. Until gates complete, the installer and immutable published boundary
 remain dev.16; `tooling.shell` remains Partial and is not claimed as Yes.
 
 ## Canonical record

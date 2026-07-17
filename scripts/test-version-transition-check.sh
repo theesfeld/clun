@@ -142,6 +142,13 @@ run_case() (
   write_fake_gh "$fake_gh"
   if [ "$publication_mode" = local-tag ]; then
     git -C "$fixture" tag "v$current_version" "$fixture_base"
+  elif [ "$publication_mode" = intermediate-tag ]; then
+    # Publish exactly one intermediate same-core prerelease so a multi-step
+    # skip must fail closed (base.N -> base.N+2 with N+1 tagged).
+    intermediate_prefix=${base_version%.*}
+    intermediate_base=${base_version##*.}
+    intermediate_version="$intermediate_prefix.$((intermediate_base + 1))"
+    git -C "$fixture" tag "v$intermediate_version" "$fixture_base"
   fi
 
   set +e
@@ -469,10 +476,14 @@ run_case new-core-prerelease-skip 1.2.3 1.3.0-dev.2 src/version.lisp fail \
 run_case new-core-prerelease-unnumbered 1.2.3 1.3.0-dev src/version.lisp fail \
   'new-core prerelease must start a numeric .1 sequence' minor
 
-run_case prerelease-skip 1.3.0-dev.1 1.3.0-dev.3 src/runtime.lisp fail \
-  'same-core prerelease must advance exactly once' minor
+# Skipping an unpublished intermediate is allowed for parallel draft allocation.
+run_case prerelease-skip-unpublished 1.3.0-dev.1 1.3.0-dev.3 src/runtime.lisp pass \
+  '(prerelease;' minor
+# Skipping a published intermediate remains forbidden.
+run_case prerelease-skip-published 1.3.0-dev.1 1.3.0-dev.3 src/runtime.lisp fail \
+  'same-core prerelease skips a published intermediate' minor explicit intermediate-tag
 run_case prerelease-regression 1.3.0-dev.2 1.3.0-dev.1 src/runtime.lisp fail \
-  'same-core prerelease must advance exactly once' minor
+  'same-core prerelease must advance' minor
 run_case prerelease-large-sequence \
   1.3.0-dev.999999999999999999999999 \
   1.3.0-dev.1000000000000000000000000 \
@@ -528,4 +539,4 @@ run_publication_reconciliation_case publication-remote-tag remote-tag pass \
   'publication reconciliation for v1.3.0-dev.2'
 run_publication_reconciliation_case publication-remote-annotated-tag remote-annotated-tag pass \
   'publication reconciliation for v1.3.0-dev.2'
-printf 'version-transition fixtures: 56 passed\n'
+printf 'version-transition fixtures: 57 passed\n'
