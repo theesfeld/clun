@@ -26,7 +26,13 @@ describe("snapshot suite", () => {
     expect({
       stable: "fixed",
       dynamic: process.env.PROPERTY_VALUE,
-    }).toMatchSnapshot({ dynamic: expect.any(String) }, "properties");
+      nested: { dynamic: process.env.PROPERTY_VALUE },
+      list: [process.env.PROPERTY_VALUE],
+    }).toMatchSnapshot({
+      dynamic: expect.any(String),
+      nested: { dynamic: expect.any(String) },
+      list: [expect.any(String)],
+    }, "properties");
     expect(process.env.INLINE_VALUE).toMatchInlineSnapshot();
     await expect(Promise.resolve(process.env.ASYNC_VALUE)).resolves.toMatchInlineSnapshot();
   });
@@ -39,11 +45,12 @@ run_values() {
   hint=$3
   inline=$4
   async=$5
-  shift 5
-  env CI="$ci" SNAP_VALUE="$snap" HINT_VALUE="$hint" PROPERTY_VALUE=dynamic-stable INLINE_VALUE="$inline" ASYNC_VALUE="$async" "$clun" test "$@" "$test_file"
+  property=$6
+  shift 6
+  env CI="$ci" SNAP_VALUE="$snap" HINT_VALUE="$hint" PROPERTY_VALUE="$property" INLINE_VALUE="$inline" ASYNC_VALUE="$async" "$clun" test "$@" "$test_file"
 }
 
-if ! run_values 0 external-one hint-one inline-one async-one > "$work/create.out" 2>&1; then
+if ! run_values 0 external-one hint-one inline-one async-one property-one > "$work/create.out" 2>&1; then
   cat "$work/create.out" >&2
   printf 'test-runner snapshots: initial creation failed\n' >&2
   exit 1
@@ -57,16 +64,22 @@ grep -F 'snapshot suite lifecycle: named 1' "$snapshot_file" >/dev/null
 grep -F 'snapshot suite lifecycle: properties 1' "$snapshot_file" >/dev/null
 grep -F '"external-one"' "$snapshot_file" >/dev/null
 grep -F '"hint-one"' "$snapshot_file" >/dev/null
+grep -F '"dynamic": Any<String>' "$snapshot_file" >/dev/null
+[ "$(grep -F -c 'Any<String>' "$snapshot_file")" -eq 3 ]
+if grep -F 'property-one' "$snapshot_file" >/dev/null; then
+  printf 'test-runner snapshots: property matcher serialized the dynamic value\n' >&2
+  exit 1
+fi
 grep -F 'toMatchInlineSnapshot(`"inline-one"`)' "$test_file" >/dev/null
 grep -F 'toMatchInlineSnapshot(`"async-one"`)' "$test_file" >/dev/null
 cp "$test_file" "$work/source.created"
 cp "$snapshot_file" "$work/snapshots.created"
 
-run_values 1 external-one hint-one inline-one async-one > "$work/reuse.out" 2>&1
+run_values 1 external-one hint-one inline-one async-one property-two > "$work/reuse.out" 2>&1
 cmp -s "$work/source.created" "$test_file"
 cmp -s "$work/snapshots.created" "$snapshot_file"
 
-if run_values 1 external-two hint-two inline-two async-two > "$work/mismatch.out" 2>&1; then
+if run_values 1 external-two hint-two inline-two async-two property-three > "$work/mismatch.out" 2>&1; then
   printf 'test-runner snapshots: mismatched snapshots unexpectedly passed\n' >&2
   exit 1
 fi
@@ -74,7 +87,7 @@ grep -F 'did not match' "$work/mismatch.out" >/dev/null
 cmp -s "$work/source.created" "$test_file"
 cmp -s "$work/snapshots.created" "$snapshot_file"
 
-run_values 1 external-two hint-two inline-two async-two --update-snapshots > "$work/update.out" 2>&1
+run_values 1 external-two hint-two inline-two async-two property-four --update-snapshots > "$work/update.out" 2>&1
 grep -F '"external-two"' "$snapshot_file" >/dev/null
 grep -F '"hint-two"' "$snapshot_file" >/dev/null
 grep -F 'toMatchInlineSnapshot(`"inline-two"`)' "$test_file" >/dev/null
@@ -82,7 +95,7 @@ grep -F 'toMatchInlineSnapshot(`"async-two"`)' "$test_file" >/dev/null
 cp "$test_file" "$work/source.updated"
 cp "$snapshot_file" "$work/snapshots.updated"
 
-run_values 1 external-two hint-two inline-two async-two > "$work/reuse-updated.out" 2>&1
+run_values 1 external-two hint-two inline-two async-two property-five > "$work/reuse-updated.out" 2>&1
 cmp -s "$work/source.updated" "$test_file"
 cmp -s "$work/snapshots.updated" "$snapshot_file"
 
@@ -134,4 +147,4 @@ fi
 grep -F 'toMatchSnapshot(propertyMatchers)' "$work/bad-property.out" >/dev/null
 [ ! -e "$work/__snapshots__/bad-property.test.js.snap" ]
 
-printf 'test-runner snapshots: create, reuse, mismatch, CI denial, update, async inline, hints, and property validation passed\n'
+printf 'test-runner snapshots: create, reuse, mismatch, CI denial, update, async inline, hints, property validation, and stable property tokens passed\n'

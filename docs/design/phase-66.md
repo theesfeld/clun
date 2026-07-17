@@ -210,5 +210,18 @@ files byte-identical. Property matcher objects are validated before snapshot sta
 Focused checked-script evidence drives the shipped binary through local creation, CI reuse, immutable
 mismatch failure, CI creation denial, long and short update flags, external hints, synchronous and
 `.resolves` inline edits, and property validation. The public row remains `Partial`: Clun currently uses
-its deterministic inspector rather than Bun's exact pretty-format representation, and property matchers
-validate received values without yet substituting `Any<Type>` tokens into serialized snapshots.
+its deterministic inspector rather than Bun's exact pretty-format representation. At this milestone,
+property matchers validated received values without yet substituting `Any<Type>` tokens into snapshots.
+
+## Milestone 66.14 - stable snapshot property tokens
+
+Snapshot property matchers now traverse the received object or array together with the property matcher
+shape after validation. A matched asymmetric value is serialized with its stable matcher label, including
+constructor-aware labels such as `Any<String>`, while unmatched fields retain their received values. Nested
+property objects and arrays are handled structurally instead of by replacing text in an already rendered
+snapshot, so equal-looking values in unrelated fields cannot be changed accidentally.
+
+The checked lifecycle creates an external snapshot with a dynamic string property, verifies the stored
+token rather than the runtime string, then reuses the snapshot with a different runtime value. The row
+remains `Partial`: ordinary snapshots still use Clun's deterministic inspector, and Bun-exact formatting
+across the complete supported-value corpus remains open.

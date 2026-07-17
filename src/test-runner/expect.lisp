@@ -299,7 +299,8 @@ the length property), or NIL when V has no numeric length."
   (unless (eng:callable-p constructor)
     (eng:throw-type-error
      "any() expects to be passed a constructor function. Please pass one or use anything() to match any object."))
-  (%make-asymmetric "Any" negated
+  (%make-asymmetric (format nil "Any<~a>" (eng:to-string (eng:js-get constructor "name")))
+                    negated
                     (lambda (received) (%any-match-p received constructor))))
 
 (defun %asymmetric-anything (negated)
@@ -637,35 +638,48 @@ the length property), or NIL when V has no numeric length."
       (%fail "expect(received).~a(propertyMatchers)~%~%~a"
              matcher-name (%deep-msg matcher-name actual properties)))))
 
+(defun %snapshot-matcher-label (value)
+  (when (%asymmetric-matcher-p value)
+    (let ((to-asymmetric (eng:js-get value "toAsymmetricMatcher"))
+          (to-string (eng:js-get value "toString")))
+      (cond ((eng:callable-p to-asymmetric)
+             (eng:to-string (eng:js-call to-asymmetric value '())))
+            ((eng:callable-p to-string)
+             (eng:to-string (eng:js-call to-string value '())))
+            (t "AsymmetricMatcher")))))
+
 (defun %apply-snapshot-matcher (name actual negated args ctx call-span)
   (when negated (%fail "Snapshot matchers cannot be used with .not"))
-  (let ((state (ctx-snapshot ctx))
-        (serialized (snapshot-format-value actual)))
+  (let ((state (ctx-snapshot ctx)))
     (handler-case
         (if (string= name "toMatchSnapshot")
             (multiple-value-bind (properties hint) (%snapshot-external-args args)
               (%snapshot-check-properties actual properties name)
-              (multiple-value-bind (status expected key)
-                  (snapshot-match-external state *active-test* hint serialized)
-                (case status
-                  ((:matched :added :updated) eng:+undefined+)
-                  (:mismatch
-                   (%fail "Snapshot ~s did not match~%~%~a"
-                          key (line-diff expected serialized)))
-                  (:ci-denied
-                   (%fail "Snapshot ~s is missing; new snapshots are disabled in CI" key)))))
+              (let ((serialized
+                      (snapshot-format-value actual properties #'%snapshot-matcher-label)))
+                (multiple-value-bind (status expected key)
+                    (snapshot-match-external state *active-test* hint serialized)
+                  (case status
+                    ((:matched :added :updated) eng:+undefined+)
+                    (:mismatch
+                     (%fail "Snapshot ~s did not match~%~%~a"
+                            key (line-diff expected serialized)))
+                    (:ci-denied
+                     (%fail "Snapshot ~s is missing; new snapshots are disabled in CI" key))))))
             (multiple-value-bind (properties expected) (%snapshot-inline-args args)
               (%snapshot-check-properties actual properties name)
-              (multiple-value-bind (status old)
-                  (snapshot-match-inline state serialized expected (not (null properties))
-                                         call-span)
-                (case status
-                  ((:matched :added :updated) eng:+undefined+)
-                  (:mismatch
-                   (%fail "Inline snapshot did not match~%~%~a"
-                          (line-diff old serialized)))
-                  (:ci-denied
-                   (%fail "Inline snapshot is missing; new snapshots are disabled in CI"))))))
+              (let ((serialized
+                      (snapshot-format-value actual properties #'%snapshot-matcher-label)))
+                (multiple-value-bind (status old)
+                    (snapshot-match-inline state serialized expected (not (null properties))
+                                           call-span)
+                  (case status
+                    ((:matched :added :updated) eng:+undefined+)
+                    (:mismatch
+                     (%fail "Inline snapshot did not match~%~%~a"
+                            (line-diff old serialized)))
+                    (:ci-denied
+                     (%fail "Inline snapshot is missing; new snapshots are disabled in CI")))))))
       (snapshot-error (condition)
         (%fail "~a" (snapshot-error-message condition))))))
 

@@ -143,9 +143,105 @@
     (setf (gethash base (ss-counts state)) count)
     (format nil "~a ~a" base count)))
 
-(defun snapshot-format-value (value)
-  "Return Clun's deterministic snapshot representation for VALUE."
-  (eng:inspect-value value))
+(defun %snapshot-indent (count)
+  (make-string count :initial-element #\Space))
+
+(defun %snapshot-key-equal-p (left right)
+  (if (and (stringp left) (stringp right))
+      (string= left right)
+      (eq left right)))
+
+(defun %snapshot-own-enumerable-keys (object)
+  (remove-if-not
+   (lambda (key)
+     (let ((descriptor (eng:obj-own-desc object key)))
+       (and descriptor (eq (eng:pd-enumerable descriptor) t))))
+   (eng:jm-own-property-keys object)))
+
+(defun %snapshot-property-spec (properties key)
+  (when (eng:js-object-p properties)
+    (dolist (candidate (eng:jm-own-property-keys properties))
+      (when (%snapshot-key-equal-p candidate key)
+        (return-from %snapshot-property-spec
+          (values (eng:js-getv properties candidate) t)))))
+  (values nil nil))
+
+(defun %snapshot-format-key (key)
+  (if (eng:js-symbol-p key)
+      (format nil "[~a]" (eng:inspect-value key))
+      (eng:inspect-value key)))
+
+(defun %snapshot-structural-properties-p (value)
+  (and (eng:js-object-p value)
+       (not (eng:callable-p value))
+       (or (eng:js-array-p value)
+           (eq (eng:js-object-class value) :object))))
+
+(defun %snapshot-format-array (value properties matcher-label indent seen)
+  (if (zerop (eng:array-length value))
+      "[]"
+      (with-output-to-string (output)
+        (write-string "[" output)
+        (write-char #\Newline output)
+        (dotimes (index (eng:array-length value))
+          (multiple-value-bind (child-spec present-p)
+              (%snapshot-property-spec properties (princ-to-string index))
+            (write-string (%snapshot-indent (+ indent 2)) output)
+            (write-string
+             (%snapshot-format-matched
+              (eng:js-getv value (princ-to-string index))
+              (and present-p child-spec) matcher-label (+ indent 2) seen)
+             output)
+            (write-string "," output)
+            (write-char #\Newline output)))
+        (write-string (%snapshot-indent indent) output)
+        (write-string "]" output))))
+
+(defun %snapshot-format-object (value properties matcher-label indent seen)
+  (let ((keys (%snapshot-own-enumerable-keys value)))
+    (if (null keys)
+        "{}"
+        (with-output-to-string (output)
+          (write-string "{" output)
+          (write-char #\Newline output)
+          (dolist (key keys)
+            (multiple-value-bind (child-spec present-p)
+                (%snapshot-property-spec properties key)
+              (write-string (%snapshot-indent (+ indent 2)) output)
+              (write-string (%snapshot-format-key key) output)
+              (write-string ": " output)
+              (write-string
+               (%snapshot-format-matched
+                (eng:js-getv value key) (and present-p child-spec)
+                matcher-label (+ indent 2) seen)
+               output)
+              (write-string "," output)
+              (write-char #\Newline output)))
+          (write-string (%snapshot-indent indent) output)
+          (write-string "}" output)))))
+
+(defun %snapshot-format-matched (value properties matcher-label indent seen)
+  (let ((token (and properties matcher-label (funcall matcher-label properties))))
+    (cond
+      (token token)
+      ((and properties (%snapshot-structural-properties-p properties)
+            (eng:js-object-p value))
+       (when (gethash value seen)
+         (return-from %snapshot-format-matched "[Circular]"))
+       (setf (gethash value seen) t)
+       (unwind-protect
+            (if (eng:js-array-p value)
+                (%snapshot-format-array value properties matcher-label indent seen)
+                (%snapshot-format-object value properties matcher-label indent seen))
+         (remhash value seen)))
+      (t (eng:inspect-value value)))))
+
+(defun snapshot-format-value (value &optional property-matchers matcher-label)
+  "Return a deterministic snapshot representation, substituting matcher tokens."
+  (if property-matchers
+      (%snapshot-format-matched value property-matchers matcher-label 0
+                                (make-hash-table :test #'eq))
+      (eng:inspect-value value)))
 
 (defun %snapshot-record-output (state key value)
   (multiple-value-bind (old present-p) (gethash key (ss-output-values state))

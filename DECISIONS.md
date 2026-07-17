@@ -2996,3 +2996,12 @@ reuse and failure. This milestone does not claim Bun-exact value serialization o
 substitution: property matcher objects are validated before mutation, while serialized values still use
 Clun's deterministic inspector. Those boundaries remain public residuals while the compatibility row is
 `Partial`.
+
+### 2026-07-17 - Phase 66 snapshot property tokens use structural traversal
+
+After a snapshot property object validates, serialization traverses the received object or array alongside
+that matcher shape. Asymmetric matches render their public `toAsymmetricMatcher` label, with `toString` as a
+fallback; ordinary fields keep their received representation. This avoids unsafe string replacement when
+two fields contain equal values and preserves nested property ownership. Snapshots without property
+matchers continue to use Clun's deterministic inspector, so this closes stable property substitution but
+does not claim Bun-exact formatting for the complete value corpus.

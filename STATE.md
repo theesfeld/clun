@@ -1965,7 +1965,11 @@ Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-earl
   denial, `--update-snapshots` / `-u`, hints, per-attempt counters, async-settlement source ownership, and
   deferred writes. The checked shipped-binary lifecycle proves creation, byte-stable reuse, mismatch
   immutability, explicit updates, async inline edits, and property-matcher validation.
-- Ledger stays `Partial`. Remaining Phase 66 scope: Bun-exact snapshot serialization/property substitution,
+- Milestone 66.14 serializes matched snapshot properties as stable asymmetric tokens such as `Any<String>`
+  while recursively preserving the received object/array shape. Checked reuse changes the dynamic property
+  value without changing the external snapshot, and the original property-validation gate remains intact.
+- Ledger stays `Partial`. Remaining Phase 66 scope: Bun-exact snapshot serialization across every supported
+  value kind,
   module mocks, fake timers, coverage/source maps, parallelism/concurrency, setup/reporters/JUnit,
   sharding/randomization/watch hooks, exact 52-root Bun/Clun counts, four-target receipts,
   serial/parallel agreement, and 10k RSS.
