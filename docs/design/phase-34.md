@@ -132,9 +132,12 @@ Byte outputs convert through clipped sRGB. `number` is `(r << 16) | (g << 8) | b
 emits `rgba(r, g, b, a)`. `{rgb}` and `{rgba}` create ordinary own enumerable properties in `r`, `g`, `b`,
 `a` order. `[rgb]` and `[rgba]` create ordinary arrays; array alpha is the byte while object alpha is `[0,1]`.
 
-`hsl` emits `hsl(h, s%, l%)`; `lab` emits `lab(l% a b)`. Concrete missing components print as zero. Numeric
-formatting uses the shortest finite decimal that round-trips through Clun's double parser, normalizes `-0`
-to `0`, and does not emit implementation exponent markers.
+`hsl` emits `hsl(h, s%, l%)`; `lab` emits `lab(l% a b)`. Concrete missing components print as zero. Bun's
+bridge exposes single-precision conversion components here; Clun deliberately retains its pure converter's
+double precision and records the resulting last-place spelling differences as an accuracy improvement in
+the differential evidence. Byte-derived `rgba` alpha strings and `{rgba}.a` retain Bun's exact f32 boundary.
+Numeric formatting emits a finite round-trippable decimal, normalizes `-0` to `0`, and never leaks a Common
+Lisp exponent marker.
 
 `css` preserves modern wide-gamut/Lab space when it is the compact valid representation and otherwise emits
 Bun-compatible compact CSS: shortest named spelling or compressible hex for opaque sRGB, and compact
@@ -166,10 +169,10 @@ string, so parsing precedes automatic-depth early return.
 
 ## Evidence And Promotion Gate
 
-`tests/compat/web.css-color` contains shipped-binary fixtures for descriptors, coercion order, all input and
-output families, named colors, format aliases, stable and engineering regressions, invalid input, ANSI
-shape/range, published CSS vectors, round trips, gamut edges, and bounded stress. Evidence is registered in
-`compat/evidence.tsv` only after it executes successfully.
+The registered shipped-binary fixtures under `tests/compat/web.css-color` and `tests/js/color` cover
+descriptors, coercion order, all input and output families, named colors, format aliases, stable and
+engineering regressions, invalid input, ANSI shape/range, published CSS vectors, round trips, gamut edges,
+and bounded stress. Evidence is registered in `compat/evidence.tsv` only after it executes successfully.
 
 Promotion to `Yes` requires all of the following:
 

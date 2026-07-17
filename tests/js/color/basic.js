@@ -13,6 +13,14 @@ console.log(
 );
 console.log("arrays", JSON.stringify(Clun.color("#1234", "[rgb]")), JSON.stringify(Clun.color("#1234", "[rgba]")));
 console.log("objects", JSON.stringify(Clun.color("#1234", "{rgb}")), JSON.stringify(Clun.color("#1234", "{rgba}")));
+console.log(
+  "rgba-alpha",
+  Clun.color("#0001", "rgba"),
+  Clun.color("#1234", "rgba"),
+  Clun.color("#12345678", "rgba"),
+  Clun.color("rgba(0,0,0,.1)", "rgba"),
+  Clun.color("rgba(0,0,0,.5)", "rgba"),
+);
 
 console.log(
   "aliases",
@@ -80,6 +88,12 @@ console.log(
   Clun.color("rgb(1.4 0 0)", "hsl"),
   Clun.color("lab(25% -150 -150)", "hex"),
   Clun.color("lab(50% 100 100)", "hex"),
+);
+console.log(
+  "precision-projections",
+  Clun.color("rgb(1,2,3)", "hsl"),
+  Clun.color("rgb(1,2,3)", "lab"),
+  Clun.color("red", "lab"),
 );
 console.log(
   "none",
