@@ -7,26 +7,25 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **31 - YAML API and module loading**  (PUBLICATION RECONCILIATION)
+## Current phase: **50 - Router, static files, and FileSystemRouter**  (M4 REVIEW)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/5
+**Canonical issue:** https://github.com/theesfeld/clun/issues/24
 **Next phase issue:** https://github.com/theesfeld/clun/issues/11
 **Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/2,
 https://github.com/theesfeld/clun/issues/39, and https://github.com/theesfeld/clun/issues/40
-**Current implementation unit:** Phase 31 passes the complete exact pinned 402-case Bun-generated YAML
-corpus with zero failures. The published dev.16 release combines that eighth compatibility-ledger `Yes`
-with the reviewed 173-pass Phase 37 milestone-1 unit; Phase 37 remains explicitly incomplete.
+**Current implementation unit:** Phase 50 implements first-party routes, the legacy static alias,
+regular-file response streaming, server.fetch, and FileSystemRouter. The exact stable/engineering Bun
+inventory accounts for 981 lexical sites; four-target receipts and final adversarial review remain before
+the public `server.router` row can change from No to Yes.
 **SemVer impact:** `minor`
+**Candidate release:** `0.1.0-dev.17` / `v0.1.0-dev.17`
 **Published release:** `0.1.0-dev.16` / `v0.1.0-dev.16`
-**Entry boundary:** The dev.16 recovery is merged and tagged at exact master
-`7c7377780413b98da1396f5d8e5d84611cf6cca3`. Exact-master CI `29560539473`, Documentation
-`29560539481`, Pages/publication validation `29560539500`, and four-target Compatibility plus receipt
-aggregation `29560539518` passed. The immutable `v0.1.0-dev.15` tag remains the failed pre-build
-attempt with no release or assets. Live `clun.sh` and its hosted installer still serve dev.14 until this
-reconciliation deploys. Phase 26 remains after Phase 82.
-**Next scope:** merge this publication reconciliation, wait for the exact-commit Pages deployment, verify
-the live page and hosted installer, add those receipts to closed-complete issue #5, and move the active
-release slot without interrupting the parallel compatibility implementation lanes.
+**Entry boundary:** immutable dev.16 is published and reconciled at exact master
+`0212be64283549d03864fa7e01a793c1cee8ac33`. Phase 50 draft PR #85 targets `master`; local `make
+test-router` passes with 981/981 pinned lexical sites accounted and 100,000-route resource bounds.
+Phase 26 remains after Phase 82.
+**Next scope:** pass four-target PR compatibility receipts, resolve final adversarial findings, synchronize
+the public ledger/README/site as one reviewed Yes promotion, squash-merge to master, and release dev.17.
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
 easiest to hardest among dependency-ready rows. Core engine/runtime/network/tooling changes are expected.
