@@ -127,6 +127,7 @@ const routes = {
   "/special-file": new Response(Clun.file(process.env.CLUN_ROUTER_SPECIAL)),
   "/api/users": () => new Response("exact"),
   "/api/users/:id": request => new Response(`param:${request.params.id}`),
+  "/api/users/:id/posts": request => new Response(`posts:${request.params.id}`),
   "/api/multi/:postId/comments/:commentId": request =>
     new Response(`${request.params.postId}:${request.params.commentId}`),
   "/api/*": request => new Response(`wild:${request.params["*"]}`),

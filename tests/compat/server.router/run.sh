@@ -117,7 +117,8 @@ server_rss_kib() {
   printf '%s\n' "$rss"
 }
 
-assert_body static static
+assert_body static static # contract:serve.static.response
+assert_body static static # contract:static.string.unchanged
 assert_body legacy-static legacy-static
 curl --silent --show-error --head "${url}legacy-static" >"$scratch/legacy-static-head"
 tr -d '\r' <"$scratch/legacy-static-head" | grep -i -x 'content-length: 13' >/dev/null
@@ -171,7 +172,7 @@ if tr -d '\r' <"$scratch/static-bytes-head" | grep -i '^content-type:' >/dev/nul
   printf 'server.router: byte static response invented a Content-Type\n' >&2
   exit 1
 fi
-assert_body shared-a shared-static
+assert_body shared-a shared-static # contract:static.get
 assert_body shared-b shared-static
 for blob_path in static-blob-a static-blob-b; do
   assert_body "$blob_path" '<h1>hi</h1>'
@@ -179,7 +180,7 @@ for blob_path in static-blob-a static-blob-b; do
   tr -d '\r' <"$scratch/$blob_path-head" | \
     grep -i -x 'content-type: text/html;charset=utf-8' >/dev/null
 done
-assert_body static-blob-touched touched
+assert_body static-blob-touched touched # contract:static.blob.headers-read
 curl --silent --show-error --head "${url}static-blob-touched" >"$scratch/static-blob-touched-head"
 tr -d '\r' <"$scratch/static-blob-touched-head" | \
   grep -i -x 'content-type: text/html;charset=utf-8' >/dev/null
@@ -243,7 +244,11 @@ last_modified=$(printf '%s\n' "$file_headers" | awk '
   printf 'server.router: file route omitted Last-Modified\n' >&2
   exit 1
 }
-assert_body file-direct 0123456789ABCDEF
+curl --silent --show-error --head "${url}file-custom" >"$scratch/file-custom-head"
+tr -d '\r' <"$scratch/file-custom-head" | \
+  grep -i -x 'x-file: custom' >/dev/null # contract:file.custom-headers
+assert_body file-direct 0123456789ABCDEF # contract:file.get
+assert_body file-direct 0123456789ABCDEF # contract:file.slice.complete
 status=$(curl --silent --show-error --dump-header "$scratch/empty-headers" \
   --output "$scratch/empty-body" --write-out '%{http_code}' "${url}file-empty")
 if [ "$status" != 200 ] || [ -s "$scratch/empty-body" ] || \
@@ -278,7 +283,9 @@ tr -d '\r' <"$scratch/binary-head" | grep -i -x 'content-type: application/octet
 assert_body file-json '{"message":"test","number":42}'
 curl --silent --show-error --head "${url}file-json" >"$scratch/json-head"
 tr -d '\r' <"$scratch/json-head" | grep -i -x 'content-type: application/json;charset=utf-8' >/dev/null
-assert_body file-unicode 'Hello 世界 🌍 émojis'
+tr -d '\r' <"$scratch/json-head" | \
+  grep -i -x 'content-type: application/json;charset=utf-8' >/dev/null # contract:file.mime.json
+assert_body file-unicode 'Hello 世界 🌍 émojis' # contract:file.unicode
 assert_body file-nested nested-file
 assert_body file-special-name special-file
 status=$(curl --silent --show-error --dump-header "$scratch/slice-headers" \
@@ -462,6 +469,10 @@ dynamic_content_range=$(curl --silent --show-error --dump-header "$scratch/dynam
     exit 1
   }
 
+CLUN_ROUTER_URL="$url" "$clun" \
+  "$repo_root/tests/compat/server.router/static-contracts.js" |
+  grep -x 'server.router: static clone and concurrent body API matrix passed' >/dev/null
+
 curl --silent --show-error --output /dev/null "${url}large-file"
 index=0
 while [ "$index" -lt 5 ]; do
@@ -515,10 +526,11 @@ while [ "$index" -le 16 ]; do
   }
   index=$((index + 1))
 done
+[ "$(wc -c <"$scratch/large-file-1" | tr -d ' ')" = 16777216 ] # contract:file.concurrent
 curl --silent --show-error --limit-rate 32768 --max-time 0.2 \
   --output /dev/null "${url}large-file" 2>/dev/null || true
 sleep 0.1
-assert_body api/users exact
+assert_body api/users exact # contract:serve.precedence.exact
 
 printf 'updated-file' >"$scratch/file.txt"
 assert_body file updated-file
@@ -541,10 +553,13 @@ for unsafe_path in missing-file symlink-file special-file; do
     }
 done
 
-assert_body api/users exact
-assert_body api/users/alice%40example.com 'param:alice@example.com'
-assert_body api/users/%C3%A9 'param:é'
+assert_body api/users exact # contract:serve.precedence.any
+assert_body api/users/alice%40example.com 'param:alice@example.com' # contract:serve.params.single
+assert_body api/users/%61lice%40example.com 'param:alice@example.com' # contract:serve.params.encoded
+assert_body api/users/42 'param:42' # contract:serve.precedence.parameter
+assert_body api/users/%C3%A9 'param:é' # contract:serve.params.unicode
 assert_body api/multi/456/comments/789 '456:789'
+assert_body api/users/alice/posts 'posts:alice'
 assert_body api/unknown/deep 'wild:unknown/deep'
 assert_body method 'get:GET'
 assert_body method post POST

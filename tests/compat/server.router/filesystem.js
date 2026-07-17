@@ -42,7 +42,7 @@ assert(router.routes["/escape"] === undefined, "directory symlink filtering");
 let match = router.match("/posts/hey");
 assert(match.name === "/posts/hey" && match.kind === "exact", "exact precedence");
 const stableMatch = router.match("/posts/" + "%61".repeat(64) + "?hello=world&second=2");
-assert(stableMatch.name === "/posts/[id]" && stableMatch.params.id === "a".repeat(64), "dynamic decoding");
+assert(stableMatch.name === "/posts/[id]" && stableMatch.params.id === "a".repeat(64), "dynamic decoding"); // contract:fsr.params
 assert(stableMatch.pathname === "/posts/" + "a".repeat(64), "decoded pathname");
 assert(stableMatch.query.id === "a".repeat(64) && stableMatch.query.hello === "world" && stableMatch.query.second === "2", "query and params");
 assert(stableMatch.src === "https://clun.sh/_next/static/posts/[id].tsx", "public source path");
@@ -77,7 +77,7 @@ for (const current of [
 }
 
 match = router.match("/posts/hey/there");
-assert(match.name === "/posts/[...rest]" && match.params.rest === "hey/there", "catch-all");
+assert(match.name === "/posts/[...rest]" && match.params.rest === "hey/there", "catch-all"); // contract:fsr.catchall
 match = router.match("/optional/hey/there");
 assert(match.name === "/optional/[[...parts]]" && match.params.parts === "hey/there", "optional catch-all");
 match = router.match("/posts/wow/hey/there");

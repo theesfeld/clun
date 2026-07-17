@@ -482,6 +482,19 @@ Headers, Request, Response, and cookie state never use this mechanism."
         (setf (js-request-headers-object request)
               (%new-headers (js-request-headers-alist request))))))
 
+(defun %normalize-blob-type (type)
+  (if (every (lambda (character)
+               (<= #x20 (char-code character) #x7e))
+             type)
+      (string-downcase type)
+      ""))
+
+(defun %body-content-type (value)
+  (let ((headers (eng:js-get value "headers")))
+    (if (js-headers-p headers)
+        (or (car (%header-values headers "content-type")) "")
+        "")))
+
 (defun %install-body-methods (prototype require-function body-function)
   (let ((global (eng:realm-global eng:*realm*)))
     (%install-prototype-method
@@ -490,6 +503,16 @@ Headers, Request, Response, and cookie state never use this mechanism."
        (funcall require-function this)
        (%resolved-promise global
                           (%body-text-decode (funcall body-function this)))))
+    (%install-prototype-method
+     prototype "blob" 0
+     (lambda (this args) (declare (ignore args))
+       (funcall require-function this)
+       (%resolved-promise
+        global
+        (%make-js-blob
+         :proto (web-http-realm-state-blob-prototype (%http-state))
+         :bytes (copy-seq (funcall body-function this))
+         :type (%normalize-blob-type (%body-content-type this))))))
     (%install-prototype-method
      prototype "bytes" 0
      (lambda (this args) (declare (ignore args))
@@ -612,12 +635,7 @@ Headers, Request, Response, and cookie state never use this mechanism."
       (let ((value (eng:js-get options "type")))
         (if (eng:js-undefined-p value)
             ""
-            (let ((type (eng:to-string value)))
-              (if (every (lambda (character)
-                           (<= #x20 (char-code character) #x7e))
-                         type)
-                  (string-downcase type)
-                  ""))))
+            (%normalize-blob-type (eng:to-string value))))
       ""))
 
 (defun %new-blob (parts options)
@@ -724,8 +742,40 @@ Headers, Request, Response, and cookie state never use this mechanism."
 (defun %response-body-vector (response)
   (%body->octets (%response-body-value response)))
 
+(defun %clone-response-body (body)
+  (cond
+    ((eng:js-typed-array-p body)
+     (eng:u8-from-octets (%body->octets body)))
+    ((eng:js-array-buffer-p body)
+     (eng:js-get (eng:u8-from-octets (%body->octets body)) "buffer"))
+    ((js-blob-p body)
+     (%make-js-blob
+      :proto (web-http-realm-state-blob-prototype (%http-state))
+      :bytes (copy-seq (js-blob-bytes body))
+      :type (js-blob-type body)))
+    ;; Strings are immutable and file bodies retain their deferred stat/open plan.
+    (t body)))
+
+(defun %clone-response (response)
+  (let* ((response (%require-response response))
+         (init (eng:new-object))
+         (url (eng:js-get response "url")))
+    (eng:data-prop init "status" (eng:js-get response "status"))
+    (eng:data-prop init "statusText" (eng:js-get response "statusText"))
+    (eng:data-prop init "headers" (eng:js-get response "headers"))
+    (let ((clone (%new-response
+                  (%clone-response-body (%response-body-value response)) init)))
+      (unless (eng:js-undefined-p url)
+        (eng:data-prop clone "url" url))
+      clone)))
+
 (defun %install-response-prototype (prototype)
   (%install-body-methods prototype #'%require-response #'%response-body-vector)
+  (%install-prototype-method
+   prototype "clone" 0
+   (lambda (this args)
+     (declare (ignore args))
+     (%clone-response this)))
   prototype)
 
 (defun %init-response (object body init)
