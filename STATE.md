@@ -7,27 +7,23 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **50 - Router, static files, and FileSystemRouter**  (PUBLISHED)
+## Current phase: **28 - Transport Foundation**  (PARTIAL CHECKPOINT)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/24
+**Canonical issue:** https://github.com/theesfeld/clun/issues/2
 **Next phase issue:** https://github.com/theesfeld/clun/issues/11
-**Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/2,
+**Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/24,
 https://github.com/theesfeld/clun/issues/39, and https://github.com/theesfeld/clun/issues/40
-**Current implementation unit:** Phase 50 implements first-party routes, the legacy static alias,
-regular-file response streaming, server.fetch, and FileSystemRouter. Exact stable/engineering sources trace
-981 lexical sites to 254 tests, each assigned exactly once across 123 semantic contract rows: 118 executable
-and five explicit non-applicable. Final exact-head four-target receipts and two accepted adversarial reviews
-remain before the staged `server.router` Yes can merge and publish.
+**Current implementation unit:** Phase 28 transport foundation on draft PR #95 — pure-CL TLS 1.2
+registry fallback, A/AAAA DNS and Happy Eyeballs, streaming Fetch request/response bodies, HTTP
+connection pooling, and HTTP proxy / HTTPS CONNECT. Public `runtime.web-standard-apis` and
+`package-manager.npm` remain `Partial` (not Yes). Router is published on master as `0.1.0-dev.17`;
+shell owns `0.1.0-dev.18`; test-runner owns `0.1.0-dev.19`; this unit stages `0.1.0-dev.20` under the
+unpublished-intermediate prerelease gap policy.
 **SemVer impact:** `minor`
+**Candidate release:** `0.1.0-dev.20` / `v0.1.0-dev.20`
 **Published release:** `0.1.0-dev.17` / `v0.1.0-dev.17`
-**Entry boundary:** immutable dev.17 tagged at exact master `909aafa090a21e247d22566361475f608bcaa7a8` with four native archives + checksums.
-**Entry boundary:** immutable dev.16 is published and reconciled at exact master
-`0212be64283549d03864fa7e01a793c1cee8ac33`. Phase 50 draft PR #85 targets `master`; exact `a36047e2`
-four-target compatibility receipts pass, and integrated contract-map head `dde7c3e4` makes every pinned test
-disposition executable or explicitly non-applicable. Fresh exact-head gates and reviews remain.
-Phase 26 remains after Phase 82.
-**Next scope:** run focused and four-target gates on the synchronized exact head, resolve two independent
-adversarial reviews, reconcile Issue #24 and PR #85, squash-merge to master, and release dev.17.
+**Entry boundary:** immutable `v0.1.0-dev.17` is tagged at exact master `909aafa090a21e247d22566361475f608bcaa7a8` with four native archives + checksums; installer defaults to that tag. Draft PR #95 is rebased onto master (including docs release reconcile #92) and stages Partial transport as `0.1.0-dev.20`. Phase 26 remains after Phase 82.
+**Next scope:** keep both transport-adjacent ledger rows Partial until HTTPS proxy endpoints, pooling/stress breadth, large-transfer/leak matrix, and four-target receipts complete; green exact-head CI on the rebased candidate; then reassess Yes readiness.
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
 easiest to hardest among dependency-ready rows. Core engine/runtime/network/tooling changes are expected.
@@ -36,7 +32,7 @@ four-target evidence, synchronized public surfaces, and the correct SemVer trans
 queue is YAML, transport streaming, shell, test-runner parity, and the dependency-enabling modern ECMAScript
 wave; exact canonical ledger IDs are frozen in `PLAN.md`.
 
-**Parallel Phase 28 checkpoint (Issue #2, release lane dev.19):** branch
+**Phase 28 checkpoint (Issue #2, release lane dev.20):** branch
 `feat/issue-2-transport-foundation` contains a per-loop plain HTTP pool keyed by origin, family, and
 transport. Earlier durable checkpoints add pure-CL TLS 1.2 registry fallback, A/AAAA DNS and Happy
 Eyeballs, exact Fetch abort lifecycle, bounded incremental HTTP and authenticated HTTPS response bodies,

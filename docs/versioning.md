@@ -49,6 +49,9 @@ resource does not exist with a 404 response:
 0.1.0-dev.15
 0.1.0-dev.16
 0.1.0-dev.17
+0.1.0-dev.18
+0.1.0-dev.19
+0.1.0-dev.20
 ```
 
 Phase 25b is the compatibility program for the planned `0.1.0` release. Its first behavioral
@@ -104,11 +107,16 @@ the published installer remains dev.14. The dispatchable-gate recovery advances 
 `0.1.0-dev.16` / `v0.1.0-dev.16`; Issue #5 owns its behavior, target receipts, publication, and
 hosted-installer evidence. The same candidate includes Phase 37 milestone 1's reviewed modern built-ins,
 but Phase 37 and Issue #11 remain in progress and make no full language-parity claim.
-Phase 50 advances the prerelease train exactly once to the `0.1.0-dev.17` / `v0.1.0-dev.17`
-candidate. It adds backward-compatible first-party route/static/file/FileSystemRouter APIs and therefore
-retains SemVer impact `minor` within the selected `0.1.0` core. Issue #24 owns the exact pinned-source
-inventory, cross-target receipts, public Yes decision, merge, and publication evidence. Until those gates
-complete, the installer and immutable published boundary remain dev.16.
+Phase 50 stages `0.1.0-dev.17` / `v0.1.0-dev.17` under Issue #24 (router PR #85) and is published on
+master. Phase 65 stages `0.1.0-dev.18` / `v0.1.0-dev.18` under Issue #39. Phase 66 stages
+`0.1.0-dev.19` / `v0.1.0-dev.19` under Issue #40. Phase 28 stages `0.1.0-dev.20` / `v0.1.0-dev.20`
+under Issue #2 (transport PR #95). Version-transition allows multi-step prerelease advances only while
+every skipped intermediate remains unpublished, so parallel drafts may allocate later slots without
+claiming each other's tags. Phase 28 adds backward-compatible pure-CL TLS 1.2 registry transport, DNS
+and Happy Eyeballs, streaming Fetch, HTTP pooling, and proxy/CONNECT support and therefore its SemVer
+impact is `minor` within the selected `0.1.0` core. Until gates complete, the installer and immutable
+published boundary remain dev.17; `runtime.web-standard-apis` and `package-manager.npm` remain Partial
+and are not claimed as Yes.
 
 ## Canonical record
 
