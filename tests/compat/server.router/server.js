@@ -72,7 +72,7 @@ const routes = {
   "/echo-header": request => new Response(request.headers.get("x-test") || "missing"),
   "/echo-body": async request => new Response(await request.text()),
   "/echo-query": request => new Response(request.url),
-  "/absolute/secret": () => new Response("absolute-route"),
+  "/absolute/secret": request => new Response(request.url),
   "/async": () => Promise.resolve(new Response("async")),
   "/error": () => {
     throw new Error("route-failure");
@@ -99,6 +99,10 @@ server = Clun.serve({
   hostname: "127.0.0.1",
   port: 0,
   routes,
+  static: {
+    "/legacy-static": new Response("legacy-static"),
+    "/static": new Response("legacy-must-not-win"),
+  },
   fetch: request => new Response(`fallback:${request.method}:${request.url}`, { status: 202 }),
   error: error => new Response(`error:${error.message}`, { status: 500 }),
 });

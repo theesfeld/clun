@@ -95,6 +95,9 @@ assert_body() {
 }
 
 assert_body static static
+assert_body legacy-static legacy-static
+curl --silent --show-error --head "${url}legacy-static" >"$scratch/legacy-static-head"
+tr -d '\r' <"$scratch/legacy-static-head" | grep -i -x 'content-length: 13' >/dev/null
 
 curl --silent --show-error --dump-header "$scratch/static-headers-1" \
   --output "$scratch/static-body-1" "${url}static"
@@ -295,7 +298,7 @@ assert_body file updated-file
 rm "$scratch/file.txt"
 status=$(curl --silent --show-error --output "$scratch/deleted-file" --write-out '%{http_code}' \
   "${url}file")
-[ "$status" = 202 ] && [ "$(cat "$scratch/deleted-file")" = 'fallback:GET:/file' ] || {
+[ "$status" = 202 ] && [ "$(cat "$scratch/deleted-file")" = "fallback:GET:${url}file" ] || {
   printf 'server.router: deleted file route did not re-stat and fall through\n' >&2
   exit 1
 }
@@ -305,7 +308,7 @@ for unsafe_path in missing-file symlink-file special-file; do
   status=$(curl --silent --show-error --output "$scratch/unsafe-body" --write-out '%{http_code}' \
     "${url}${unsafe_path}")
   [ "$status" = 202 ] && \
-    [ "$(cat "$scratch/unsafe-body")" = "fallback:GET:/${unsafe_path}" ] || {
+    [ "$(cat "$scratch/unsafe-body")" = "fallback:GET:${url}${unsafe_path}" ] || {
       printf 'server.router: %s did not fall through safely\n' "$unsafe_path" >&2
       exit 1
     }
@@ -343,7 +346,7 @@ actual=$(curl --fail --silent --show-error -H 'x-test: present' "${url}echo-head
 actual=$(curl --fail --silent --show-error -X POST --data-binary 'body-content' "${url}echo-body")
 [ "$actual" = body-content ] || { printf 'server.router: request body was not preserved\n' >&2; exit 1; }
 actual=$(curl --fail --silent --show-error "${url}echo-query?foo=bar&baz=qux")
-[ "$actual" = '/echo-query?foo=bar&baz=qux' ] || {
+[ "$actual" = "${url}echo-query?foo=bar&baz=qux" ] || {
   printf 'server.router: request query was not preserved: %s\n' "$actual" >&2
   exit 1
 }
@@ -359,14 +362,15 @@ assert_body "$many_path" '65:value1:value65'
 absolute_body=$(curl --fail --silent --show-error \
   --request-target 'https://spoofed.example/absolute/secret?x=1' \
   -H "Host: 127.0.0.1" "$url")
-[ "$absolute_body" = absolute-route ] || {
-  printf 'server.router: absolute-form target did not route by path\n' >&2
+[ "$absolute_body" = 'http://127.0.0.1/absolute/secret?x=1' ] || {
+  printf 'server.router: absolute-form target routing/Host URL derivation failed: %s\n' \
+    "$absolute_body" >&2
   exit 1
 }
 
 status=$(curl --silent --show-error --output "$scratch/put" --write-out '%{http_code}' \
   -X PUT "${url}method")
-[ "$status" = 202 ] && [ "$(cat "$scratch/put")" = 'fallback:PUT:/method' ] || {
+[ "$status" = 202 ] && [ "$(cat "$scratch/put")" = "fallback:PUT:${url}method" ] || {
   printf 'server.router: method miss did not reach fetch fallback\n' >&2
   exit 1
 }
@@ -387,7 +391,7 @@ status=$(curl --silent --show-error --output "$scratch/async-error" --write-out 
 
 status=$(curl --silent --show-error --output "$scratch/skip" --write-out '%{http_code}' \
   "${url}skip")
-[ "$status" = 202 ] && [ "$(cat "$scratch/skip")" = 'fallback:GET:/skip' ] || {
+[ "$status" = 202 ] && [ "$(cat "$scratch/skip")" = "fallback:GET:${url}skip" ] || {
   printf 'server.router: false route did not reach fetch fallback\n' >&2
   exit 1
 }

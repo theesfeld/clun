@@ -33,8 +33,8 @@ another's `request.params` keys.
 Incoming request targets are split before decoding. Each segment is decoded independently using the
 runtime's bounded WHATWG replacement-mode UTF-8 decoder, so encoded `/` never changes route structure and
 malformed bytes become U+FFFD. Query and fragment text never participates in matching. Absolute-form
-request targets use only their path for routing; request URL authority handling remains owned by the HTTP
-server contract.
+request targets use only their path for routing. The JavaScript `Request.url` is always absolute and derives
+its authority from the validated inbound `Host` header, never an absolute-form request-target authority.
 
 Compiled tables are replaced atomically on `server.reload(options)`. Existing connections read the table,
 fallback, and error-handler cells at dispatch time; no request observes a half-compiled options object.
@@ -49,6 +49,8 @@ engine-independent except for the frozen JavaScript action values at terminal en
 ### M1 - First-party route table
 
 - `Clun.serve({ routes })` accepts exact, `:parameter`, and terminal `*` patterns.
+- The legacy Bun `static` option compiles into the same immutable table. `routes` wins an identical
+  path/method tie, while an otherwise absent method can fall through to `static`.
 - Route values may be a handler, a static `Response`, a direct `Clun.file(...)`, `false`, or a per-method
   object. Direct files are materialized by M2's bounded file-response path.
 - `fetch` is optional when at least one active route exists; an unmatched request receives 404 when absent.
@@ -116,12 +118,18 @@ metadata, live file mutation, cancellation, and validation failures. FileSystemR
 POSIX filename bytes without losing valid sibling entries: Linux directory enumeration retries through a
 byte-preserving native-name boundary and publishes replacement-decoded JavaScript route names.
 
+Exact exports of the stable and engineering Bun route, static, file-response, and FileSystemRouter sources
+are vendored with SHA-256 verification. The deterministic inventory accounts for 981 lexical test/assertion
+sites: 952 map to shipped Clun evidence and 29 are explicitly upstream-inactive, platform-excluded, or owned
+by another feature such as `Bun.build`. Aggregate mappings identify semantic evidence clusters and do not
+claim that Bun's TypeScript sources execute unchanged under Clun.
+
 Resource evidence constructs and compiles 100,000 routes, validates first/middle/last/missing lookup, and
 performs 10,000 repeated matches. The recorded local receipt was 0.031 seconds to create the JavaScript
 inventory, 0.057 seconds to compile it, 0.009 seconds for the lookup loop, 119,071,136 retained bytes, and
 160,987,360 allocated bytes. A separate FileSystemRouter stress fixture inventories 129 routes and retains
-30,000 four-parameter matches under a 128 MiB heap bound. Exact pinned-manifest accounting and four-target
-receipts remain required before promotion; this checkpoint does not change the public ledger.
+30,000 four-parameter matches under a 128 MiB heap bound. Four-target receipts and final adversarial review
+remain required before promotion; this checkpoint does not change the public ledger.
 
 Only M4 may change `server.router` to `Yes` or close the canonical phase issue.
 

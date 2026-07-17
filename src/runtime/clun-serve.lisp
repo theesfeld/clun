@@ -485,6 +485,27 @@ Date/Content-Length/Connection are set by us (user copies of those are dropped).
     (eng:data-prop init "status" 404d0)
     (%new-response "Not Found" init)))
 
+(defun %request-target-query (target)
+  (let ((query (position #\? target))
+        (fragment (position #\# target)))
+    (if query
+        (subseq target query (or (and fragment (> fragment query) fragment)
+                                 (length target)))
+        "")))
+
+(defun %server-request-url (request)
+  "Derive the public Request URL from Host, never absolute-form authority.
+
+The listener is HTTP-only at this layer. Route matching retains the raw target,
+while the JavaScript Request receives an absolute URL as required by the web API."
+  (let* ((headers (net:hr-headers request))
+         (host (or (cdr (assoc "host" headers :test #'string-equal))
+                   "localhost"))
+         (target (net:hr-target request)))
+    (concatenate 'string "http://" host
+                 (%request-target-path target)
+                 (%request-target-query target))))
+
 (defun %default-error-octets (method request)
   (handler-case
       (%serialize-response (%default-error-response) method nil request)
@@ -498,7 +519,7 @@ Date/Content-Length/Connection are set by us (user copies of those are dropped).
 COMMIT is connection-owned, so late Promise settlement cannot write after teardown."
   (let* ((context (%make-serve-request-context))
          (request (%make-server-request
-                   (net:hr-method req) (net:hr-target req)
+                   (net:hr-method req) (%server-request-url req)
                    (net:hr-headers req) (net:hr-body req) context))
          (keep-alive (net:hr-keep-alive req))
          (method (net:hr-method req))
@@ -780,7 +801,8 @@ COMMIT is connection-owned, so late Promise settlement cannot write after teardo
     (eng:throw-type-error "Clun.serve requires an options object"))
   (let* ((fetch (%serve-callable-option opts "fetch"))
          (err-handler (%serve-callable-option opts "error"))
-         (routes (%compile-route-table (eng:js-get opts "routes"))))
+         (routes (%compile-serve-route-table
+                  (eng:js-get opts "routes") (eng:js-get opts "static"))))
     (unless (or fetch (and routes (plusp (route-table-count routes))))
       (eng:throw-type-error
        "Clun.serve requires a fetch function or at least one active route"))

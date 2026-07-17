@@ -129,25 +129,39 @@
               (nconc (route-node-entries node) (list entry))))
     (incf (route-table-count table))))
 
+(defun %compile-route-object-into (table routes option-name)
+  (unless (eng:js-object-p routes)
+    (%route-pattern-error
+     (format nil "Clun.serve: `~a` must be an object" option-name)))
+  (dolist (pattern (eng:jm-own-property-keys routes) table)
+    (when (stringp pattern)
+      (let ((descriptor (eng:jm-get-own-property routes pattern)))
+        (when (and descriptor (eq (eng:pd-enumerable descriptor) t))
+          (multiple-value-bind (segments parameter-names wildcard-p)
+              (%compile-route-pattern pattern)
+            (let ((entry (%compile-route-value (eng:js-getv routes pattern))))
+              (when (%route-entry-active-p entry)
+                (setf (route-entry-parameter-names entry) parameter-names)
+                (when (>= (route-table-count table) +route-max-count+)
+                  (%route-pattern-error "Clun.serve: too many routes"))
+                (%route-table-insert table segments entry wildcard-p)))))))))
+
 (defun %compile-route-table (routes)
-  (cond
-    ((eng:js-undefined-p routes) nil)
-    ((not (eng:js-object-p routes))
-     (%route-pattern-error "Clun.serve: `routes` must be an object"))
-    (t
-     (let ((table (%make-route-table)))
-       (dolist (pattern (eng:jm-own-property-keys routes) table)
-         (when (stringp pattern)
-           (let ((descriptor (eng:jm-get-own-property routes pattern)))
-             (when (and descriptor (eq (eng:pd-enumerable descriptor) t))
-               (multiple-value-bind (segments parameter-names wildcard-p)
-                   (%compile-route-pattern pattern)
-                 (let ((entry (%compile-route-value (eng:js-getv routes pattern))))
-                   (when (%route-entry-active-p entry)
-                     (setf (route-entry-parameter-names entry) parameter-names)
-                     (when (>= (route-table-count table) +route-max-count+)
-                       (%route-pattern-error "Clun.serve: too many routes"))
-                     (%route-table-insert table segments entry wildcard-p))))))))))))
+  (unless (eng:js-undefined-p routes)
+    (%compile-route-object-into (%make-route-table) routes "routes")))
+
+(defun %compile-serve-route-table (routes static-routes)
+  "Compile current ROUTES and the legacy STATIC alias into one immutable table.
+
+ROUTES are inserted first and therefore win an identical path/method tie. A
+method absent from ROUTES may still fall through to a matching STATIC entry."
+  (let ((table nil))
+    (dolist (source (list (cons "routes" routes)
+                          (cons "static" static-routes))
+                    table)
+      (unless (eng:js-undefined-p (cdr source))
+        (unless table (setf table (%make-route-table)))
+        (%compile-route-object-into table (cdr source) (car source))))))
 
 (defun %request-target-path (target)
   (let* ((query (position #\? target))

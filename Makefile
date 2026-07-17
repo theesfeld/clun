@@ -58,6 +58,7 @@ test-router: build
 	$(SBCL) $(SBCL_FLAGS) --load scripts/test-router.lisp
 	CLUN_COMPAT_EXECUTABLE="$(CURDIR)/build/clun" sh tests/compat/server.router/run.sh
 	$(SBCL) --dynamic-space-size 4096 $(SBCL_FLAGS) --load scripts/test-router-resources.lisp
+	sh scripts/router-upstream-inventory-check.sh
 
 ## test-js — run the tests/js + tests/ts/runtime fixtures against build/clun.
 test-js: build
