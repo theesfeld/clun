@@ -7,44 +7,37 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **34 - CSS Color API**  (IN PROGRESS)
+## Current phase: **31 - YAML API and module loading**  (IN PROGRESS)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/8
-**Current implementation unit:** convert `web.css-color` from `No` to the sixth evidence-backed
-compatibility-ledger `Yes` through the complete `Clun.color` parse, conversion, serialization, and
-terminal-palette surface.
+**Canonical issue:** https://github.com/theesfeld/clun/issues/5
+**Co-release issue:** https://github.com/theesfeld/clun/issues/10
+**Current implementation unit:** convert `data.yaml` and `security.password-hashing` to the seventh and
+eighth evidence-backed compatibility-ledger `Yes` entries through complete `Clun.YAML`, YAML module loading,
+`Clun.password`, and `Clun.hash` public surfaces.
 **SemVer impact:** `minor`
-**Release target:** `0.1.0-dev.13` / `v0.1.0-dev.13`
-**Entry boundary:** Phase 30 and its fifth ledger `Yes`, `Clun.Glob`, are merged at exact master
-`ba20edbbb05a7c84b58ec555347b7f3cb858610a`. Exact-master CI, Documentation, Compatibility, and
-candidate Pages passed. Immutable dev.12 release run `29549077422` then exposed architecture-sensitive
-single-sample CookieMap allocation accounting on both arm64 builders, so no release or assets were
-published and the tag will not be moved or reused. The last published prerelease remains dev.10. Phase 34
-depends only on completed Phase 27, and Phase 26 remains after Phase 82.
-**Current scope:** publish the accepted Glob and Color implementations together as dev.13 with the
-architecture-stable aggregate allocation gate, collect exact-master CI plus all four native compatibility
-receipts, then reconcile Pages and verify the hosted installer before handing the release lane to Phase 31
-YAML.
+**Release target:** `0.1.0-dev.14` / `v0.1.0-dev.14`
+**Entry boundary:** Phase 34 Color and the architecture-stable CookieMap allocation gate are in PR #76 as
+the dev.13 candidate. Dev.14 cannot merge or tag before dev.13 is published, reconciled, and verified by the
+hosted installer. Phases 31 and 36 depend on completed prerequisite work; Phase 26 remains after Phase 82.
+**Current scope:** publish YAML and password/hash together as one backward-compatible minor release, collect
+exact-master CI and all four native compatibility receipts, then reconcile Pages and verify the hosted
+installer before advancing to the next complete ledger row.
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
 easiest to hardest among dependency-ready rows. Core engine/runtime/network/tooling changes are expected.
 Every conversion requires a legitimate canonical issue, accepted design, full declared behavior, executable
 four-target evidence, synchronized public surfaces, and the correct SemVer transition. The active parallel
-queue is CSS Color, YAML, password/hash, transport, and modern ECMAScript; exact canonical ledger IDs are
+queue is YAML, password/hash, transport, and modern ECMAScript; exact canonical ledger IDs are
 frozen in `PLAN.md`.
 
-**Current checkpoint:** integrated production commits `6b58ad73` and `7ac12aca` (from reviewed source
-commits `01ab1f9c` and `a0183dfc`) implement every selected input and
-output space, strict grammar and bounds, color conversion and gamut mapping, exact CSS/hex/number/object/
-tuple/ANSI serialization, observable option access, and runtime wiring. The focused suite passes
-**8,638 / 0 / 0**. Exact Bun 1.3.14 differentials pass **5,392 ordinary vectors**, **5,392 missing-alpha
-vectors**, and all **256 alpha values**; registered shipped-binary corpus/public/stress evidence and the
-structured differential trace pass. Build, purity (**718 files / 0 violations**), compatibility validation,
-roadmap, docs, public claims, and diff check pass on the implementation branch. The stacked source candidate
-is **6 Yes / 6 Partial / 18 No**. Commit `9b074e11` replaces the allocator-region-sensitive single
-construction sample with eight-construction aggregate accounting after warming every checked size; its
-focused resource gate passes **13 / 13** locally without weakening the unchanged 2.75x linearity threshold.
-Public release receipts, Pages, and hosted installation remain pending.
+**Current checkpoint:** commits `a91b5999` and `528eaa94` implement the bounded YAML graph parser,
+stringifier, `Clun.YAML`, `.yaml`/`.yml` ESM/CJS loading, compatible password formats, sync/async password
+work, and the pinned general hash family. The combined focused suite passes **232 / 0 / 0**; JS/TS passes
+**79 / 0**, crypto passes **42 / 0 / 0**, YAML executable evidence passes **2** with one static trace,
+password/hash evidence passes **1** with one static trace, build passes, and purity is **726 files / 0
+violations**. The source candidate is **8 Yes / 6 Partial / 16 No**. The full local Lisp aggregate reaches
+only unrelated fixtures that hardcode unavailable `/tmp`; GitHub CI remains the authoritative clean-run
+gate. Public release receipts, Pages, and hosted installation remain pending.
 
 **M5 entry boundary:** immutable dev.4 diagnostic set **56 total / 0 pass / 56 fail / 0 skip / 0 crash**:
 **43 m5-owned** (32 intrinsic/prototype, 7 parser, 4 raw delegation), **12 m11** direct-eval/`with`
