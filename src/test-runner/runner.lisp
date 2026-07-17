@@ -67,6 +67,10 @@ error (syntax / top-level throw) is reported as a fail. Always tears the realm d
                         (%err-detail (eng:js-condition-value c)))
                (incf (st-fail stats))))
            (if ctx (ctx-expect-calls ctx) 0))
+      ;; Spies may have replaced properties in the realm. Restore them and release the
+      ;; host-side mock registry before tearing the realm down so no file can retain
+      ;; mock history or implementation state from an earlier file.
+      (when ctx (restore-test-mocks ctx))
       (eng:teardown-realm realm))))
 
 (defun run-test-command (argv cwd)

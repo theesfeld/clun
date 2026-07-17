@@ -1919,3 +1919,16 @@ Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-earl
 - [ ] replace this checklist with exact then-current stress, security, compatibility, docs, and release gates
 - [ ] complete the re-baselined final audit and publish the resulting immutable release
 - **Gate:** the Phase-26 design and issue must be rewritten from post-Phase-82 evidence before implementation.
+### Phase 66 checkpoint - function mocks and spies (2026-07-16)
+
+- Canonical issue #40 is `in-progress`; SemVer impact is `minor`, with release target
+  `0.1.0-dev.16` / `v0.1.0-dev.16` after the earlier queued compatibility units.
+- Production implementation: host-owned callable mock records, default/FIFO one-shot implementations,
+  return/resolved/rejected/return-this behavior, call/result/context/instance/order history, `spyOn`, exact
+  restoration, Jest/Vi lifecycle operations, temporary implementations, and 11 canonical call/return
+  matchers plus 10 aliases.
+- Focused shipped-binary evidence: `tests/js/testrunner/mocks`, 9 tests across 3 files, 86 assertions, exact
+  output, with invocation order restarting at one in each independently torn-down file realm.
+- Ledger stays `Partial`. Remaining Phase 66 scope: snapshots/inline updates, module mocks, fake timers,
+  coverage/source maps, asymmetric/custom matchers, retries, parallelism/concurrency, setup/reporters/JUnit,
+  sharding/randomization/watch hooks, frozen complete upstream manifest, four-target receipts, and 10k RSS.

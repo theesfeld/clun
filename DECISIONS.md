@@ -2883,3 +2883,14 @@ and the existing escaping, inert interpolation, compact operator, Unicode, Latin
 substitution surfaces. The corpus is now 907 covered, 691 pending, and 32 upstream-inactive. This is SemVer
 minor behavior inside the allocated `0.1.0-dev.18` Phase 65 boundary; the row remains `Partial` until the
 finite pending set and four platform receipts close.
+### 2026-07-16 - Phase 66 milestone 1: host-owned function mocks and spies
+
+The first Phase 66 implementation unit adds mock functions and spies as native Common Lisp engine
+functions rather than JavaScript framework code. A per-file mock record owns FIFO one-shot/default behavior,
+calls, results, contexts, constructor instances, invocation order, naming, and optional spy restoration data.
+`mock`, `jest.fn`, and `vi.fn` are the same callable; `spyOn`, lifecycle operations, implementation/return/
+Promise controls, and the call/return matcher families use that shared record. File cleanup restores own or
+inherited spy properties, removes every host registry entry, and only then tears down the realm. Executable
+evidence proves 86 assertions across three isolated files. The ledger remains `Partial`: this milestone does
+not satisfy snapshots, module mocks, fake timers, coverage, asymmetric/custom matchers, retries, concurrency,
+reporters, sharding, the full pinned manifest, four-target receipts, or stress gates.

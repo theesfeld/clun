@@ -14,7 +14,8 @@
   name fn parent (mode :normal) (timeout nil))
 
 (defstruct (test-context (:conc-name ctx-))
-  root current (default-timeout 5000) (has-only nil) (expect-calls 0))
+  root current (default-timeout 5000) (has-only nil) (expect-calls 0)
+  (mocks '()) (invocation-order 0))
 
 (defun td-ordered-children (d)
   "Children in registration order (they are pushed, so reverse)."
@@ -147,5 +148,6 @@ registering into CTX's tree. expect is installed separately (install-expect)."
         (lambda (this args) (declare (ignore this))
           (setf (ctx-default-timeout ctx) (max 0 (truncate (eng:to-number (eng:arg args 0)))))
           eng:+undefined+)))
+    (install-test-mocks realm ctx)
     (install-expect realm ctx)
     ctx))
