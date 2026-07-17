@@ -83,16 +83,136 @@ CRLFCRLF (and optionally its terminal chunk), writes RESPONSE-BYTES, and closes 
           (ignore-errors (sb-bsd-sockets:socket-close lsock))))
       :name "https-fixture"))))
 
-(defun %http-response-bytes (status body &optional (content-type "application/json"))
+(defun %http-response-bytes (status body &optional (content-type "application/json")
+                                         &key (connection "close"))
   (let ((hdr (with-output-to-string (s)
                (format s "HTTP/1.1 ~d OK~c~c" status #\Return #\Newline)
                (format s "Content-Type: ~a~c~c" content-type #\Return #\Newline)
                (format s "Content-Length: ~d~c~c" (length body) #\Return #\Newline)
-               (format s "Connection: close~c~c" #\Return #\Newline)
+               (format s "Connection: ~a~c~c" connection #\Return #\Newline)
                (format s "~c~c" #\Return #\Newline))))
     (concatenate '(vector (unsigned-byte 8))
                  (sb-ext:string-to-octets hdr :external-format :latin-1)
                  (sb-ext:string-to-octets body :external-format :utf-8))))
+
+(defun %https-persistent-fixture-server
+    (cert-file key-file
+     &key (accepted-count (list 0))
+          (request-count (list 0))
+          (response-fn
+           (lambda (request-index)
+             (declare (ignore request-index))
+             (%http-response-bytes 200 "ok" "text/plain"
+                                   :connection "keep-alive")))
+          (close-after-request-n nil)
+          (stop-box (list nil)))
+  "Multi-connection pure-tls HTTPS fixture that serves sequential keep-alive requests.
+
+Each accepted TCP connection may handle many HTTP requests until the client closes
+or CLOSE-AFTER-REQUEST-N forces a one-shot close after that 1-based request index.
+Returns (values port thread stop-box accepted-count request-count)."
+  (let ((lsock (make-instance 'sb-bsd-sockets:inet-socket :type :stream :protocol :tcp)))
+    (setf (sb-bsd-sockets:sockopt-reuse-address lsock) t)
+    (sb-bsd-sockets:socket-bind lsock (sb-bsd-sockets:make-inet-address "127.0.0.1") 0)
+    (sb-bsd-sockets:socket-listen lsock 16)
+    (values
+     (nth-value 1 (sb-bsd-sockets:socket-name lsock))
+     (sb-thread:make-thread
+      (lambda ()
+        (labels
+            ((serve-connection (child)
+               (handler-case
+                   (let* ((raw (sb-bsd-sockets:socket-make-stream
+                                child :input t :output t
+                                :element-type '(unsigned-byte 8)))
+                          (tls (pure-tls:make-tls-server-stream
+                                raw :certificate cert-file :key key-file)))
+                     (unwind-protect
+                          (block connection
+                            (loop
+                              (when (car stop-box) (return-from connection))
+                              (let ((w 0) (x 0) (y 0) (z 0)
+                                    (header
+                                      (make-array 256
+                                                  :element-type '(unsigned-byte 8)
+                                                  :adjustable t
+                                                  :fill-pointer 0)))
+                                (loop
+                                  (let ((b (read-byte tls nil nil)))
+                                    (unless b (return-from connection))
+                                    (vector-push-extend b header)
+                                    (setf w x x y y z z b)
+                                    (when (and (= w 13) (= x 10)
+                                               (= y 13) (= z 10))
+                                      (return))))
+                                (let* ((index
+                                         (incf (car request-count)))
+                                       (response (funcall response-fn index))
+                                       (wire
+                                         (sb-ext:octets-to-string
+                                          (subseq header 0 (fill-pointer header))
+                                          :external-format :latin-1))
+                                       (client-close
+                                         (search "connection: close" wire
+                                                 :test #'char-equal)))
+                                  (write-sequence response tls)
+                                  (force-output tls)
+                                  (when (or client-close
+                                            (and close-after-request-n
+                                                 (>= index close-after-request-n)))
+                                    (return-from connection))))))
+                       (ignore-errors (close tls))
+                       (ignore-errors (sb-bsd-sockets:socket-close child))))
+                 (error ()
+                   (ignore-errors (sb-bsd-sockets:socket-close child))))))
+          (unwind-protect
+               (handler-case
+                   (loop until (car stop-box) do
+                     (setf (sb-bsd-sockets:non-blocking-mode lsock) t)
+                     (let ((child
+                             (handler-case (sb-bsd-sockets:socket-accept lsock)
+                               (sb-bsd-sockets:interrupted-error () nil)
+                               (error () nil))))
+                       (cond
+                         (child
+                          (setf (sb-bsd-sockets:non-blocking-mode child) nil)
+                          (incf (car accepted-count))
+                          (serve-connection child))
+                         (t (sleep 0.01)))))
+                 (error () nil))
+            (ignore-errors (sb-bsd-sockets:socket-close lsock)))))
+      :name "https-persistent-fixture")
+     stop-box accepted-count request-count)))
+
+(defun %https-pooled-request
+    (loop host port path
+     &key (method "GET") headers body (timeout 5000) (verify nil)
+          (on-headers nil) (on-data nil))
+  "One pooled HTTPS request on LOOP; returns (values status body error-code complete-p)."
+  (let ((status nil)
+        (chunks '())
+        (complete-p nil)
+        (error-code nil))
+    (rt::%https-request-stream-async
+     loop :host host :port port :method method :path path
+     :headers headers :body body :verify verify :timeout timeout
+     :on-headers
+     (lambda (head)
+       (setf status (net:hres-status head))
+       (when on-headers (funcall on-headers head)))
+     :on-data
+     (lambda (chunk)
+       (push chunk chunks)
+       (when on-data (funcall on-data chunk)))
+     :on-complete (lambda () (setf complete-p t))
+     :on-error (lambda (code) (setf error-code code)))
+    (lp:run-loop loop)
+    (values status
+            (apply #'concatenate
+                   '(vector (unsigned-byte 8))
+                   (nreverse chunks))
+            error-code
+            complete-p)))
 
 (defun %http-marker-response-bytes (body)
   (let ((header
@@ -623,3 +743,154 @@ net:https-request's make-tls-client-stream makes)."
                     (is eq eng:+false+ (eng:js-get info "ok")))      ; and the fetch REJECTED (fail closed)
                (ignore-errors (sb-thread:join-thread thread :timeout 5)))))
       (eng:teardown-realm realm))))
+
+;;; --- Phase 28: origin-keyed HTTPS idle pool (fail-closed) --------------------
+
+(defun %tls-pool-idle (loop host port)
+  "Snapshot idle TLS streams using the same key defaults as the HTTPS client."
+  (net::%tls-pool-idle-transports
+   loop host port
+   :ca-file (net::%system-ca-file)
+   :verify nil))
+
+(define-test net/https-reuses-an-idle-origin-connection
+  (multiple-value-bind (port thread stop accepted requests)
+      (%https-persistent-fixture-server
+       (%cert "localhost-leaf.crt") (%cert "localhost-leaf.key")
+       :response-fn
+       (lambda (index)
+         (%http-response-bytes 200 (format nil "body-~d" index) "text/plain"
+                               :connection "keep-alive")))
+    (declare (ignore requests))
+    (let ((loop (lp:make-event-loop :workers 1)))
+      (unwind-protect
+           (progn
+             (multiple-value-bind (status body error complete)
+                 (%https-pooled-request loop "localhost" port "/one")
+               (false error)
+               (true complete)
+               (is = 200 status)
+               (is string= "body-1"
+                   (sb-ext:octets-to-string body :external-format :utf-8)))
+             (let ((first-idle (%tls-pool-idle loop "localhost" port)))
+               (is = 1 (length first-idle))
+               (is = 1 (car accepted))
+               (multiple-value-bind (status body error complete)
+                   (%https-pooled-request loop "localhost" port "/two")
+                 (false error)
+                 (true complete)
+                 (is = 200 status)
+                 (is string= "body-2"
+                     (sb-ext:octets-to-string body :external-format :utf-8)))
+               (let ((second-idle (%tls-pool-idle loop "localhost" port)))
+                 (is = 1 (length second-idle))
+                 (is eq (first first-idle) (first second-idle))
+                 (is = 1 (car accepted)))))
+        (setf (car stop) t)
+        (lp:destroy-event-loop loop)
+        (ignore-errors (sb-thread:join-thread thread :timeout 5))))))
+
+(define-test net/https-connection-close-is-never-pooled
+  (multiple-value-bind (port thread stop accepted requests)
+      (%https-persistent-fixture-server
+       (%cert "localhost-leaf.crt") (%cert "localhost-leaf.key"))
+    (declare (ignore accepted requests))
+    (let ((loop (lp:make-event-loop :workers 1)))
+      (unwind-protect
+           (progn
+             (multiple-value-bind (status body error complete)
+                 (%https-pooled-request
+                  loop "localhost" port "/close"
+                  :headers '(("connection" . "close")))
+               (declare (ignore body))
+               (false error)
+               (true complete)
+               (is = 200 status))
+             (is = 0 (length (%tls-pool-idle loop "localhost" port))))
+        (setf (car stop) t)
+        (lp:destroy-event-loop loop)
+        (ignore-errors (sb-thread:join-thread thread :timeout 5))))))
+
+(define-test net/https-pool-isolates-distinct-origins
+  (multiple-value-bind (port-a thread-a stop-a accepted-a requests-a)
+      (%https-persistent-fixture-server
+       (%cert "localhost-leaf.crt") (%cert "localhost-leaf.key")
+       :response-fn
+       (lambda (index)
+         (declare (ignore index))
+         (%http-response-bytes 200 "a" "text/plain" :connection "keep-alive")))
+    (declare (ignore requests-a))
+    (multiple-value-bind (port-b thread-b stop-b accepted-b requests-b)
+        (%https-persistent-fixture-server
+         (%cert "localhost-leaf.crt") (%cert "localhost-leaf.key")
+         :response-fn
+         (lambda (index)
+           (declare (ignore index))
+           (%http-response-bytes 200 "b" "text/plain" :connection "keep-alive")))
+      (declare (ignore requests-b))
+      (let ((loop (lp:make-event-loop :workers 1)))
+        (unwind-protect
+             (progn
+               (multiple-value-bind (status body error complete)
+                   (%https-pooled-request loop "localhost" port-a "/a")
+                 (declare (ignore body))
+                 (false error) (true complete) (is = 200 status))
+               (multiple-value-bind (status body error complete)
+                   (%https-pooled-request loop "localhost" port-b "/b")
+                 (declare (ignore body))
+                 (false error) (true complete) (is = 200 status))
+               (let* ((idle-a (%tls-pool-idle loop "localhost" port-a))
+                      (idle-b (%tls-pool-idle loop "localhost" port-b))
+                      (first-a (first idle-a)))
+                 (is = 1 (length idle-a))
+                 (is = 1 (length idle-b))
+                 (is = 1 (car accepted-a))
+                 (is = 1 (car accepted-b))
+                 (isnt eq first-a (first idle-b))
+                 (multiple-value-bind (status body error complete)
+                     (%https-pooled-request loop "localhost" port-a "/a2")
+                   (declare (ignore body))
+                   (false error) (true complete) (is = 200 status))
+                 (is = 1 (car accepted-a))
+                 (is eq first-a
+                     (first (%tls-pool-idle loop "localhost" port-a)))))
+          (setf (car stop-a) t (car stop-b) t)
+          (lp:destroy-event-loop loop)
+          (ignore-errors (sb-thread:join-thread thread-a :timeout 5))
+          (ignore-errors (sb-thread:join-thread thread-b :timeout 5)))))))
+
+(define-test net/https-evicts-peer-closed-idle-connections
+  (multiple-value-bind (port thread stop accepted requests)
+      (%https-persistent-fixture-server
+       (%cert "localhost-leaf.crt") (%cert "localhost-leaf.key")
+       :close-after-request-n 1
+       :response-fn
+       (lambda (index)
+         (declare (ignore index))
+         (%http-response-bytes 200 "once" "text/plain"
+                               :connection "keep-alive")))
+    (declare (ignore requests))
+    (let ((loop (lp:make-event-loop :workers 1)))
+      (unwind-protect
+           (progn
+             (multiple-value-bind (status body error complete)
+                 (%https-pooled-request loop "localhost" port "/first")
+               (false error)
+               (true complete)
+               (is = 200 status)
+               (is string= "once"
+                   (sb-ext:octets-to-string body :external-format :utf-8)))
+             (is = 1 (car accepted))
+             ;; Give the fixture time to close after the keep-alive response.
+             (sleep 0.05)
+             (multiple-value-bind (status body error complete)
+                 (%https-pooled-request loop "localhost" port "/second")
+               (false error)
+               (true complete)
+               (is = 200 status)
+               (is string= "once"
+                   (sb-ext:octets-to-string body :external-format :utf-8)))
+             (is = 2 (car accepted)))
+        (setf (car stop) t)
+        (lp:destroy-event-loop loop)
+        (ignore-errors (sb-thread:join-thread thread :timeout 5))))))

@@ -2789,6 +2789,24 @@ large-transfer/leak evidence, and four-target receipts remain open on Issue #2.
 Checkpoint receipts: `make test-proxy` passes all nine inventory contracts across six suites,
 `make test-net` passes 124 top-level network suites / 3,764 assertions, and `make test-tls12` passes 15
 focused suites plus the existing OpenSSL TLS 1.2 interoperability matrix.
+
+### 2026-07-17 - Phase 28 pools pure-tls HTTPS connections with HTTP fail-closed rules
+
+HTTPS idle reuse is loop-owned and mutexed for worker access. The key is normalized host, port,
+address family, `:tls`, CA file path, and verify flag so plaintext HTTP, distinct origins, and
+mismatched trust configuration never share a session. Idle entries are capped at eight per key and
+expire after 30 seconds via unref'd loop timers; each idle entry is registered as a loop resource so
+destruction closes descriptors.
+
+Reuse requires a completed request upload, persistent semantics on the request and response, a clean
+Content-Length / chunked / HEAD / no-body framing, no trailing application bytes, an open pure-tls
+stream with an empty decrypt buffer, and a TCP peer that has neither closed nor sent unsolicited idle
+data. `Connection: close`, EOF-framed bodies, parse errors, proxy CONNECT tunnels, and TLS 1.2
+fallback transports remain one-shot. Only the pooling path advertises `Connection: keep-alive`.
+
+This is still an internal Phase 28 slice: HTTPS proxy endpoints, proxy object options, broader
+stress/leak evidence, and four-target receipts remain open on Issue #2.
+
 ### 2026-07-16 - Phase 65 starts at the tagged-template call boundary
 
 The shell API will use ordinary ECMAScript tagged-template semantics rather than a shell-specific parser

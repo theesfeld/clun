@@ -18,7 +18,11 @@
                clun-test::net/fetch-https-connect-redirect-is-not-followed
                clun-test::net/https-transport-streams-request-body
                clun-test::net/https-async-stream-bridge-pulls-request-body
-               clun-test::net/http-content-decoding-is-bounded-and-fail-closed)))
+               clun-test::net/http-content-decoding-is-bounded-and-fail-closed
+               clun-test::net/https-reuses-an-idle-origin-connection
+               clun-test::net/https-connection-close-is-never-pooled
+               clun-test::net/https-pool-isolates-distinct-origins
+               clun-test::net/https-evicts-peer-closed-idle-connections)))
   (dolist (test tests)
     (unless (eq (parachute:status (parachute:test test)) :passed)
       (setf failed t)))

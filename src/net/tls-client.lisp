@@ -335,9 +335,205 @@ an abort can close it to unblock the blocking read."
                    (%parse-http-response-octets (%read-to-eof tls))))))
       (close-transport)))))
 
+;;; --- per-loop HTTPS/TLS connection pool ------------------------------------
+;;;
+;;; Mirrors the plain HTTP pool's fail-closed reuse rules on the worker-side
+;;; pure-tls transport. Keys include TLS configuration so a verified and an
+;;; unverified session never mix. Proxy CONNECT tunnels stay one-shot.
+
+(defparameter *tls-pool-max-idle-per-key* 8)
+(defparameter *tls-pool-idle-timeout-ms* 30000)
+(defconstant +tls-pool-extension-key+ 'tls-connection-pool)
+
+(defstruct (tls-connection-pool (:constructor %make-tls-connection-pool (loop)))
+  loop
+  (lock (sb-thread:make-mutex :name "clun-tls-connection-pool"))
+  (buckets (make-hash-table :test #'equal)))
+
+(defstruct (tls-pool-entry
+            (:constructor %make-tls-pool-entry
+                (pool key sock raw tls family)))
+  pool key sock raw tls family timer resource
+  (idle-p t)
+  (idle-since-ms 0 :type integer))
+
+(defun %tls-pool (loop)
+  (or (lp:loop-extension loop +tls-pool-extension-key+)
+      (setf (lp:loop-extension loop +tls-pool-extension-key+)
+            (%make-tls-connection-pool loop))))
+
+(defun %socket-address-family (sock)
+  (typecase sock
+    (sb-bsd-sockets:inet6-socket :ipv6)
+    (sb-bsd-sockets:inet-socket :ipv4)
+    (t :unknown)))
+
+(defun %tls-pool-key (host port family ca-file verify)
+  ;; Unverified transports ignore the CA path so test fixtures and callers that
+  ;; pass :verify nil do not fragment the idle pool by ambient SSL_CERT_FILE.
+  (list (string-downcase host) port family :tls
+        (and verify (or ca-file ""))
+        (and verify t)))
+
+(defun %tls-transport-close (sock raw tls &key abort)
+  (ignore-errors (when tls (close tls :abort abort)))
+  (ignore-errors
+    (when (and raw (open-stream-p raw))
+      (close raw :abort abort)))
+  (ignore-errors
+    (when sock
+      (sb-bsd-sockets:socket-close sock :abort abort)))
+  (values))
+
+(defun %tls-socket-idle-dead-p (sock)
+  "True when the idle TCP peer has data or has closed (fail-closed for reuse)."
+  (handler-case
+      (let ((buffer (make-array 1 :element-type '(unsigned-byte 8))))
+        (multiple-value-bind (result length)
+            (sb-bsd-sockets:socket-receive
+             sock buffer 1
+             :element-type '(unsigned-byte 8)
+             :peek t
+             :dontwait t)
+          (declare (ignore result))
+          ;; length 0 → peer FIN; positive → unsolicited idle bytes.
+          (and length (not (minusp length)))))
+    (sb-bsd-sockets:interrupted-error () nil)
+    (error () t)))
+
+(defun %tls-stream-pending-input-p (tls)
+  (and tls
+       (open-stream-p tls)
+       (plusp (pure-tls::tls-stream-buffer-remaining tls))))
+
+(defun %tls-pool-drop-entry-locked (entry &key close)
+  (when (tls-pool-entry-idle-p entry)
+    (setf (tls-pool-entry-idle-p entry) nil)
+    (let* ((pool (tls-pool-entry-pool entry))
+           (key (tls-pool-entry-key entry))
+           (bucket (gethash key (tls-connection-pool-buckets pool)))
+           (timer (tls-pool-entry-timer entry))
+           (resource (tls-pool-entry-resource entry)))
+      (setf (gethash key (tls-connection-pool-buckets pool))
+            (delete entry bucket :test #'eq))
+      (unless (gethash key (tls-connection-pool-buckets pool))
+        (remhash key (tls-connection-pool-buckets pool)))
+      (when timer
+        (setf (tls-pool-entry-timer entry) nil)
+        (ignore-errors (lp:clear-timer timer)))
+      (when resource
+        (setf (tls-pool-entry-resource entry) nil)
+        (ignore-errors (lp:unregister-loop-resource resource)))
+      (when close
+        (%tls-transport-close (tls-pool-entry-sock entry)
+                              (tls-pool-entry-raw entry)
+                              (tls-pool-entry-tls entry))
+        (setf (tls-pool-entry-sock entry) nil
+              (tls-pool-entry-raw entry) nil
+              (tls-pool-entry-tls entry) nil))))
+  (values))
+
+(defun %tls-pool-drop-entry (entry &key close)
+  (let ((pool (tls-pool-entry-pool entry)))
+    (sb-thread:with-mutex ((tls-connection-pool-lock pool))
+      (%tls-pool-drop-entry-locked entry :close close)))
+  (values))
+
+(defun %tls-pool-release (loop host port ca-file verify sock raw tls)
+  "Return an authenticated TLS transport to LOOP's origin/config pool.
+Call only after a clean keep-alive response with no trailing application bytes.
+Returns true when the transport was accepted into the idle pool."
+  (unless (and loop sock raw tls
+               (open-stream-p tls)
+               (not (%tls-stream-pending-input-p tls))
+               (not (%tls-socket-idle-dead-p sock)))
+    (return-from %tls-pool-release nil))
+  (let* ((pool (%tls-pool loop))
+         (family (%socket-address-family sock))
+         (key (%tls-pool-key host port family ca-file verify)))
+    (sb-thread:with-mutex ((tls-connection-pool-lock pool))
+      (let ((bucket (gethash key (tls-connection-pool-buckets pool))))
+        (when (>= (length bucket) *tls-pool-max-idle-per-key*)
+          (return-from %tls-pool-release nil))
+        (let ((entry (%make-tls-pool-entry pool key sock raw tls family)))
+          (setf (tls-pool-entry-idle-since-ms entry) (%monotonic-ms))
+          (handler-case
+              (setf (tls-pool-entry-resource entry)
+                    (lp:register-loop-resource
+                     loop entry
+                     (lambda ()
+                       (%tls-pool-drop-entry entry :close t))))
+            (error ()
+              (return-from %tls-pool-release nil)))
+          (push entry (gethash key (tls-connection-pool-buckets pool)))
+          (handler-case
+              (setf (tls-pool-entry-timer entry)
+                    (lp:set-timer
+                     loop *tls-pool-idle-timeout-ms*
+                     (lambda () (%tls-pool-drop-entry entry :close t))
+                     :refd nil))
+            (error ()
+              (%tls-pool-drop-entry-locked entry :close t)
+              (return-from %tls-pool-release nil)))
+          t)))))
+
+(defun %tls-pool-acquire (loop host port ca-file verify)
+  "Take one live idle TLS transport for HOST:PORT and TLS config, preferring IPv6."
+  (unless loop
+    (return-from %tls-pool-acquire (values nil nil nil nil)))
+  (let ((pool (%tls-pool loop)))
+    (sb-thread:with-mutex ((tls-connection-pool-lock pool))
+      (dolist (family '(:ipv6 :ipv4 :unknown))
+        (let* ((key (%tls-pool-key host port family ca-file verify))
+               (bucket (gethash key (tls-connection-pool-buckets pool)))
+               (now (%monotonic-ms)))
+          (loop while bucket do
+            (let ((entry (pop bucket)))
+              (setf (gethash key (tls-connection-pool-buckets pool)) bucket)
+              (unless bucket
+                (remhash key (tls-connection-pool-buckets pool)))
+              (when (tls-pool-entry-idle-p entry)
+                (setf (tls-pool-entry-idle-p entry) nil)
+                (let ((timer (tls-pool-entry-timer entry))
+                      (resource (tls-pool-entry-resource entry))
+                      (sock (tls-pool-entry-sock entry))
+                      (raw (tls-pool-entry-raw entry))
+                      (tls (tls-pool-entry-tls entry))
+                      (idle-since (tls-pool-entry-idle-since-ms entry)))
+                  (when timer
+                    (setf (tls-pool-entry-timer entry) nil)
+                    (ignore-errors (lp:clear-timer timer)))
+                  (when resource
+                    (setf (tls-pool-entry-resource entry) nil)
+                    (ignore-errors (lp:unregister-loop-resource resource)))
+                  (cond
+                    ((or (null sock) (null raw) (null tls)
+                         (not (open-stream-p tls))
+                         (>= (- now idle-since) *tls-pool-idle-timeout-ms*)
+                         (%tls-stream-pending-input-p tls)
+                         (%tls-socket-idle-dead-p sock))
+                     (%tls-transport-close sock raw tls))
+                    (t
+                     (return-from %tls-pool-acquire
+                       (values sock raw tls family))))))))))))
+  (values nil nil nil nil))
+
+(defun %tls-pool-idle-transports (loop host port &key ca-file (verify t))
+  "Internal test probe: snapshot idle pure-tls streams for one HTTPS origin/config."
+  (let ((pool (and loop (lp:loop-extension loop +tls-pool-extension-key+)))
+        (result '()))
+    (when pool
+      (sb-thread:with-mutex ((tls-connection-pool-lock pool))
+        (dolist (family '(:ipv6 :ipv4 :unknown))
+          (dolist (entry (gethash (%tls-pool-key host port family ca-file verify)
+                                  (tls-connection-pool-buckets pool)))
+            (when (tls-pool-entry-idle-p entry)
+              (push (tls-pool-entry-tls entry) result))))))
+    result))
+
 (defun %make-https-response-stream-dispatcher
     (method on-headers on-data on-complete)
-  "Return FEED and EOF closures for one authenticated HTTPS response."
+  "Return FEED, EOF, and REUSABLE-P closures for one authenticated HTTPS response."
   (let ((parser (make-http-response-stream-parser
                  :head-request-p (string-equal method "HEAD")))
         (content-format nil)
@@ -391,80 +587,166 @@ an abort can close it to unblock the blocking read."
            (deliver (response-stream-finish parser))
            (unless message-complete-p
              (error "connection closed before a full response"))
-           message-complete-p))
-      (values #'feed #'eof))))
+           message-complete-p)
+         (reusable ()
+           (response-stream-reusable-p parser)))
+      (values #'feed #'eof #'reusable))))
 
 (defun https-request-stream
     (&key host port method path headers body host-header
           proxy-host proxy-port proxy-authorization
           (ca-file (%system-ca-file)) (verify t) socket-box
           (connect-timeout-ms 30000) cancelled-p request-body-source
+          pool-loop (pooling-p t)
           on-headers on-data on-complete)
   "Issue one blocking HTTPS request and deliver its response incrementally.
 
 This preserves HTTPS-REQUEST's DNS, Happy Eyeballs, TLS 1.3-to-1.2 fallback,
 certificate/hostname verification, authenticated records, decompression bounds,
 and abort socket. The caller must run it off the event-loop thread. Callbacks run
-on that worker thread; an asynchronous caller is responsible for loop marshalling."
+on that worker thread; an asynchronous caller is responsible for loop marshalling.
+
+When POOL-LOOP is supplied and POOLING-P is true (and no proxy is used), a clean
+Content-Length/chunked/HEAD keep-alive response may return the pure-tls transport
+to LOOP's origin-keyed idle pool under the same fail-closed rules as plain HTTP."
   (let* ((dial-host (or proxy-host host))
          (dial-port (or proxy-port port))
-         (addresses (resolve-hostname-all dial-host :cancelled-p cancelled-p))
-        (sock nil)
-        (raw nil)
-        (tls nil)
-        (request (%serialize-request method path (or host-header host)
-                                     headers body "identity"
-                                     (not (null request-body-source)))))
+         (pool-eligible-p (and pooling-p pool-loop (null proxy-host)))
+         (request-keep-alive-p
+           (and pool-eligible-p (%request-keep-alive-p headers)))
+         (request-finished-p (null request-body-source))
+         (addresses nil)
+         (sock nil)
+         (raw nil)
+         (tls nil)
+         (pooled-p nil)
+         (poolable-p nil)
+         (request
+           (%serialize-request method path (or host-header host)
+                               headers body "identity"
+                               (not (null request-body-source))
+                               request-keep-alive-p)))
     (labels ((close-transport ()
-               (ignore-errors (when tls (close tls)))
-               (ignore-errors (when raw (close raw)))
-               (ignore-errors (when sock (sb-bsd-sockets:socket-close sock)))
-               (setf tls nil raw nil sock nil))
+               (%tls-transport-close sock raw tls)
+               (setf tls nil raw nil sock nil pooled-p nil))
+             (install-abort ()
+               (when socket-box
+                 (let ((held-sock sock))
+                   (setf (car socket-box)
+                         (lambda ()
+                           (ignore-errors
+                             (when held-sock
+                               (sb-bsd-sockets:socket-close held-sock :abort t))))))))
+             (adopt-transport (next-sock next-raw next-tls from-pool-p)
+               (setf sock next-sock
+                     raw next-raw
+                     tls next-tls
+                     pooled-p from-pool-p)
+               (install-abort))
              (connect-transport ()
-               (setf sock (%connect-happy-blocking addresses dial-port socket-box
-                                                   connect-timeout-ms))
-               (setf raw
-                     (sb-bsd-sockets:socket-make-stream
-                      sock :input t :output t
-                      :element-type '(unsigned-byte 8)))
-               (if proxy-host
-                   (multiple-value-bind (status head)
-                       (%establish-http-connect
-                        raw host port proxy-authorization cancelled-p)
-                     (when (= status 101)
-                       (error "proxy CONNECT returned an unrequested protocol upgrade"))
-                     (values (<= 200 status 299) head))
-                   (values t nil)))
+               (unless addresses
+                 (setf addresses
+                       (resolve-hostname-all dial-host :cancelled-p cancelled-p)))
+               (let ((next-sock
+                       (%connect-happy-blocking addresses dial-port socket-box
+                                                 connect-timeout-ms))
+                     (next-raw nil))
+                 (setf next-raw
+                       (sb-bsd-sockets:socket-make-stream
+                        next-sock :input t :output t
+                        :element-type '(unsigned-byte 8)))
+                 (setf sock next-sock raw next-raw tls nil pooled-p nil)
+                 (install-abort)
+                 (if proxy-host
+                     (multiple-value-bind (status head)
+                         (%establish-http-connect
+                          raw host port proxy-authorization cancelled-p)
+                       (when (= status 101)
+                         (error "proxy CONNECT returned an unrequested protocol upgrade"))
+                       (values (<= 200 status 299) head))
+                     (values t nil))))
              (deliver-proxy-response (head)
                (%deliver-proxy-connect-response
-                raw head cancelled-p on-headers on-data on-complete)))
+                raw head cancelled-p on-headers on-data on-complete))
+             (write-request-body ()
+               (when request-body-source
+                 (let ((total 0))
+                   (loop
+                     (multiple-value-bind (chunk done-p)
+                         (funcall request-body-source)
+                       (when done-p
+                         (write-sequence +chunked-request-end+ tls)
+                         (force-output tls)
+                         (setf request-finished-p t)
+                         (return))
+                       (when (plusp (length chunk))
+                         (incf total (length chunk))
+                         (when (> total *max-body-bytes*)
+                           (error
+                            "streaming request body exceeded the size limit"))
+                         (write-sequence
+                          (%chunked-request-frame chunk) tls)
+                         (force-output tls)))))))
+             (read-tls-response (feed finish-at-eof reusable)
+               (let ((buffer
+                       (make-array 65536 :element-type '(unsigned-byte 8))))
+                 (loop
+                   (let ((count (read-sequence buffer tls)))
+                     (when (zerop count)
+                       (funcall finish-at-eof t)
+                       (return))
+                     (when (funcall feed (subseq buffer 0 count))
+                       (return)))))
+               (setf poolable-p
+                     (and request-keep-alive-p
+                          request-finished-p
+                          (funcall reusable)
+                          tls
+                          (open-stream-p tls)
+                          (not (%tls-stream-pending-input-p tls)))))
+             (run-on-tls (feed finish-at-eof reusable)
+               (write-sequence request tls)
+               (force-output tls)
+               (write-request-body)
+               (read-tls-response feed finish-at-eof reusable))
+             (handshake-tls13 (context)
+               (pure-tls:make-tls-client-stream
+                raw :hostname host
+                    :verify (if verify
+                                pure-tls:+verify-required+
+                                pure-tls:+verify-none+)
+                    :alpn-protocols '("http/1.1")
+                    :context context)))
       (unwind-protect
-           (multiple-value-bind (tunnel-ready-p proxy-head)
-               (connect-transport)
-             (if (not tunnel-ready-p)
-                 (deliver-proxy-response proxy-head)
-                 (multiple-value-bind (feed finish-at-eof)
-                     (%make-https-response-stream-dispatcher
-                      method on-headers on-data on-complete)
+           (multiple-value-bind (feed finish-at-eof reusable)
+               (%make-https-response-stream-dispatcher
+                method on-headers on-data on-complete)
+             (when pool-eligible-p
+               (multiple-value-bind (pooled-sock pooled-raw pooled-tls)
+                   (%tls-pool-acquire pool-loop host port ca-file verify)
+                 (when pooled-tls
+                   (adopt-transport pooled-sock pooled-raw pooled-tls t)
+                   (run-on-tls feed finish-at-eof reusable)
+                   (return-from https-request-stream t))))
+             (multiple-value-bind (tunnel-ready-p proxy-head)
+                 (connect-transport)
+               (if (not tunnel-ready-p)
+                   (deliver-proxy-response proxy-head)
                    (let ((fallback-p nil)
                          (context (if ca-file
                                       (pure-tls:make-tls-context :ca-file ca-file)
                                       (pure-tls:make-tls-context))))
                      (handler-case
-                         (setf tls
-                               (pure-tls:make-tls-client-stream
-                                raw :hostname host
-                                    :verify (if verify
-                                                pure-tls:+verify-required+
-                                                pure-tls:+verify-none+)
-                                    :alpn-protocols '("http/1.1")
-                                    :context context))
+                         (setf tls (handshake-tls13 context)
+                               pooled-p nil)
                        (pure-tls:tls-alert-error (condition)
                          (unless (%protocol-version-alert-p condition)
                            (error condition))
                          (setf fallback-p t)))
                      (if fallback-p
                          (progn
+                           ;; TLS 1.2 fallback remains one-shot: a fresh CONNECT
+                           ;; (when proxied) and a fresh TCP socket, never pooled.
                            (close-transport)
                            (multiple-value-bind (fallback-ready-p fallback-head)
                                (connect-transport)
@@ -474,6 +756,8 @@ on that worker thread; an asynchronous caller is responsible for loop marshallin
                                       raw host request feed
                                       :ca-file ca-file :verify verify
                                       :request-body-source request-body-source)
+                                   (when request-body-source
+                                     (setf request-finished-p t))
                                    (case termination
                                      (:message-complete t)
                                      (:close-notify
@@ -481,34 +765,19 @@ on that worker thread; an asynchronous caller is responsible for loop marshallin
                                      (:eof
                                       (funcall finish-at-eof clean-eof-p))))
                                  (deliver-proxy-response fallback-head))))
-                         (progn
-                           (write-sequence request tls)
-                           (force-output tls)
-                           (when request-body-source
-                             (let ((total 0))
-                               (loop
-                                 (multiple-value-bind (chunk done-p)
-                                     (funcall request-body-source)
-                                   (when done-p
-                                     (write-sequence +chunked-request-end+ tls)
-                                     (force-output tls)
-                                     (return))
-                                   (when (plusp (length chunk))
-                                     (incf total (length chunk))
-                                     (when (> total *max-body-bytes*)
-                                       (error
-                                        "streaming request body exceeded the size limit"))
-                                     (write-sequence
-                                      (%chunked-request-frame chunk) tls)
-                                     (force-output tls))))))
-                           (let ((buffer
-                                   (make-array 65536
-                                               :element-type '(unsigned-byte 8))))
-                             (loop
-                               (let ((count (read-sequence buffer tls)))
-                                 (when (zerop count)
-                                   (funcall finish-at-eof t)
-                                   (return))
-                                 (when (funcall feed (subseq buffer 0 count))
-                                   (return)))))))))))
-        (close-transport)))))
+                         (run-on-tls feed finish-at-eof reusable))))))
+        (cond
+          ((and poolable-p sock raw tls pool-eligible-p)
+           (let ((held-sock sock)
+                 (held-raw raw)
+                 (held-tls tls))
+             ;; Detach the abort thunk before parking the transport so a
+             ;; settled Fetch cancel cannot close a pooled idle socket.
+             (when socket-box (setf (car socket-box) nil))
+             (setf sock nil raw nil tls nil)
+             (unless (%tls-pool-release pool-loop host port ca-file verify
+                                        held-sock held-raw held-tls)
+               (%tls-transport-close held-sock held-raw held-tls))))
+          (t
+           (when socket-box (setf (car socket-box) nil))
+           (close-transport)))))))

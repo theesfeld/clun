@@ -340,6 +340,8 @@ thunks matching NET:HTTP-REQUEST-STREAM-ASYNC."
                 :cancelled-p (lambda () (lp:worker-cancelled-p token))
                 :request-body-source
                 (and request-body-reader #'request-next)
+                :pool-loop loop
+                :pooling-p (null proxy-host)
                 :verify verify
                 :on-headers
                 (lambda (head)
