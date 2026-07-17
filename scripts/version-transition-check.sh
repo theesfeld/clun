@@ -295,6 +295,131 @@ published_version_exists() {
   return 1
 }
 
+materialize_checked_path() {
+  checked_path=$1
+  checked_output=$2
+  if [ "$include_dirty" -eq 1 ]; then
+    [ -f "$checked_path" ] || return 1
+    cp "$checked_path" "$checked_output"
+  else
+    git show "$head_sha:$checked_path" >"$checked_output" 2>/dev/null || return 1
+  fi
+}
+
+release_field() {
+  release_file=$1
+  release_column=$2
+  awk -F '\t' -v column="$release_column" 'NR == 2 { print $column }' "$release_file"
+}
+
+published_tag_commit() {
+  published_tag=$1
+  if git show-ref --verify --quiet "refs/tags/$published_tag"; then
+    git rev-parse "refs/tags/$published_tag^{commit}" 2>/dev/null
+    return
+  fi
+
+  resolve_repository
+  command -v "$gh_bin" >/dev/null 2>&1 || return 1
+  tag_object=$("$gh_bin" api "repos/$canonical_repo/git/ref/tags/$published_tag" \
+    --jq '.object.type + "\t" + .object.sha' 2>/dev/null) || return 1
+  tag_depth=0
+  while :; do
+    tag_type=$(printf '%s\n' "$tag_object" | awk -F '\t' '{ print $1 }')
+    tag_sha=$(printf '%s\n' "$tag_object" | awk -F '\t' '{ print $2 }')
+    case $tag_type in
+      commit)
+        printf '%s\n' "$tag_sha"
+        return 0
+        ;;
+      tag)
+        tag_depth=$((tag_depth + 1))
+        [ "$tag_depth" -le 8 ] || return 1
+        tag_object=$("$gh_bin" api "repos/$canonical_repo/git/tags/$tag_sha" \
+          --jq '.object.type + "\t" + .object.sha' 2>/dev/null) || return 1
+        ;;
+      *) return 1 ;;
+    esac
+  done
+}
+
+is_publication_reconciliation() {
+  # This is the sole unchanged-version exception after publication. It permits
+  # only the documented candidate -> published handoff once the immutable tag
+  # proves that the release assets were built from the comparison base.
+  for required_path in README.md STATE.md compat/release.tsv site/index.html site/install; do
+    grep -Fxq "$required_path" "$changed_files" || return 1
+  done
+  while IFS= read -r reconciliation_path; do
+    case $reconciliation_path in
+      README.md|STATE.md|compat/release.tsv|site/index.html|site/install|scripts/version-transition-check.sh|scripts/test-version-transition-check.sh) ;;
+      *) return 1 ;;
+    esac
+  done <"$changed_files"
+
+  base_release=$scratch_dir/base-release.tsv
+  current_release=$scratch_dir/current-release.tsv
+  base_installer=$scratch_dir/base-install
+  current_installer=$scratch_dir/current-install
+  git show "$base_sha:compat/release.tsv" >"$base_release" 2>/dev/null || return 1
+  git show "$base_sha:site/install" >"$base_installer" 2>/dev/null || return 1
+  materialize_checked_path compat/release.tsv "$current_release" || return 1
+  materialize_checked_path site/install "$current_installer" || return 1
+
+  [ "$(awk 'END { print NR + 0 }' "$base_release")" -eq 2 ] || return 1
+  [ "$(awk 'END { print NR + 0 }' "$current_release")" -eq 2 ] || return 1
+  [ "$(awk -F '\t' 'NR == 2 { print NF + 0 }' "$base_release")" -eq 15 ] || return 1
+  [ "$(awk -F '\t' 'NR == 2 { print NF + 0 }' "$current_release")" -eq 15 ] || return 1
+  [ "$(sed -n '1p' "$base_release")" = "$(sed -n '1p' "$current_release")" ] || return 1
+
+  base_installer_tag=$(release_field "$base_release" 4)
+  release_tag=$(release_field "$base_release" 5)
+  previous_version=$(release_field "$base_release" 11)
+  canonical_base=$(git rev-parse "$base_sha^{commit}" 2>/dev/null) || return 1
+  [ "$(release_field "$base_release" 2)" = "$current_version" ] || return 1
+  [ "$base_installer_tag" = "v$previous_version" ] || return 1
+  [ "$release_tag" = "v$current_version" ] || return 1
+  [ "$(release_field "$base_release" 6)" = candidate ] || return 1
+  [ "$(release_field "$base_release" 15)" = pending ] || return 1
+  [ "$(release_field "$current_release" 4)" = "$release_tag" ] || return 1
+  [ "$(release_field "$current_release" 6)" = published ] || return 1
+  [ "$(release_field "$current_release" 15)" = "$canonical_base" ] || return 1
+
+  release_column=1
+  while [ "$release_column" -le 15 ]; do
+    case $release_column in
+      4|6|15) ;;
+      *)
+        [ "$(release_field "$base_release" "$release_column")" = \
+          "$(release_field "$current_release" "$release_column")" ] || return 1
+        ;;
+    esac
+    release_column=$((release_column + 1))
+  done
+
+  base_default="requested_version=\${CLUN_VERSION:-$base_installer_tag}"
+  current_default="requested_version=\${CLUN_VERSION:-$release_tag}"
+  [ "$(grep -Fxc "$base_default" "$base_installer")" -eq 1 ] || return 1
+  [ "$(grep -Fxc "$current_default" "$current_installer")" -eq 1 ] || return 1
+  expected_installer=$scratch_dir/expected-install
+  awk -v before="$base_default" -v after="$current_default" \
+    '{ if ($0 == before) print after; else print }' "$base_installer" >"$expected_installer"
+  cmp -s "$expected_installer" "$current_installer" || return 1
+
+  tag_commit=$(published_tag_commit "$release_tag") || return 1
+  [ "$tag_commit" = "$canonical_base" ] || return 1
+  return 0
+}
+
+publication_reconciliation_requested() {
+  grep -Fxq compat/release.tsv "$changed_files" || return 1
+  grep -Fxq site/install "$changed_files" || return 1
+  requested_release=$scratch_dir/requested-release.tsv
+  materialize_checked_path compat/release.tsv "$requested_release" || return 1
+  [ "$(release_field "$requested_release" 2)" = "$current_version" ] || return 1
+  [ "$(release_field "$requested_release" 6)" = published ]
+}
+
 git rev-parse --git-dir >/dev/null 2>&1 ||
   fail "repository root is not a Git worktree: $repo_root"
 
@@ -403,6 +528,15 @@ if [ "$current_version" = "$base_version" ]; then
     printf 'version-transition-check: version %s unchanged; no release-bearing paths changed\n' \
       "$current_version"
     exit 0
+  fi
+
+  if is_publication_reconciliation; then
+    printf 'version-transition-check: %s publication reconciliation for %s\n' \
+      "$current_version" "$release_tag"
+    exit 0
+  fi
+  if publication_reconciliation_requested; then
+    fail "invalid publication reconciliation for v$current_version"
   fi
 
   transition='correction'
