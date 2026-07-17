@@ -1,5 +1,5 @@
 <!-- clun-generated:release-notes:begin -->
-# Clun 0.1.0-dev.23
+# Clun 0.1.0-dev.26
 
 Phase 58: Operating-system secrets constitutional checkpoint.
 
@@ -21,9 +21,9 @@ The canonical evidence and current limitations are in `compat/`; `make compat-va
   fail-closed `ERR_SECRETS_NOT_AVAILABLE` for every store operation.
 - Ledger row `security.encrypted-secrets` remains **No** (excluded by the purity contract).
   A pure file vault is explicitly not OS-keychain parity and is not claimed.
-- Slot map: published base `0.1.0-dev.18`; master tip `0.1.0-dev.21` (Phase 37 m2); transport
-  holds unpublished `0.1.0-dev.22`; this candidate allocates `0.1.0-dev.23` under the
-  unpublished-intermediate prerelease gap policy.
+- Slot map: published base `0.1.0-dev.18`; master tip `0.1.0-dev.21`; parallel trains claim
+  unpublished 22–25; this candidate allocates free `0.1.0-dev.26` under the
+  unpublished-intermediate prerelease gap policy (transition `0.1.0-dev.21` → `0.1.0-dev.26`).
 
 The release candidate stages an honest constitutional disposition with tested clear errors and
 does not promote any matrix row to `Yes` or `Partial`.

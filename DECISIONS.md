@@ -3114,6 +3114,16 @@ binary for that commit). Clun counts come from `0.1.0-dev.19` single-file absolu
 tests. Numeric coincidence of failing 0/1/0 roots is not treated as a closed residual. Ledger remains
 Partial; re-measure under a true `c1076ce95e` engineering binary when available.
 
+### 2026-07-17 — language.typescript Partial: ambient declare enum strip
+
+Erasable-strip gap close (not Phase 39 Yes): ambient `declare enum` / `declare const enum` /
+`export declare enum` now erase under the existing declare branch (`scan-enum-ambient`), matching
+Node/amaro erasable ambient semantics. Value `enum` / `const enum` still hard-error (need emit —
+Phase 39). `namespace-type-only-p` now treats bare `enum` as a runtime leader so
+`namespace N { enum E { A } }` errors instead of silently erasing the value object. Ledger stays
+`Partial`. Corpus: strip declare-enum / declare-const-enum / export-declare-enum; error
+enum-in-namespace; runtime declare-enum; parachute `ts/ambient-enum-strip`.
+
 ### 2026-07-17 - Phase 58 OS secrets remain No — constitutional
 
 Bun.secrets stores credentials in OS keychains (macOS Security.framework, Linux libsecret /

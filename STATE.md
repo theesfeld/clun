@@ -18,11 +18,11 @@ cannot access macOS Keychain, libsecret, or Windows Credential Manager without C
 **No — constitutional**. Ship `Clun.secrets` with Bun-shaped validation and fail-closed
 `ERR_SECRETS_NOT_AVAILABLE`. Ledger row `security.encrypted-secrets` stays **No** (not Yes/Partial).
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.23` / `v0.1.0-dev.23`
+**Candidate release:** `0.1.0-dev.26` / `v0.1.0-dev.26`
 **Published release:** `0.1.0-dev.18` / `v0.1.0-dev.18`
 **Entry boundary:** immutable `v0.1.0-dev.18` is tagged and published; installer defaults to that tag.
-Master tip is `0.1.0-dev.21` (Phase 37 m2). Transport holds unpublished `0.1.0-dev.22`; this unit
-stages `0.1.0-dev.23` under the unpublished-intermediate prerelease gap policy. Phase 26 remains after Phase 82.
+Master tip is `0.1.0-dev.21`. Parallel trains claim unpublished slots through `0.1.0-dev.25`;
+this unit stages free `0.1.0-dev.26` under the unpublished-intermediate prerelease gap policy. Phase 26 remains after Phase 82.
 **Next scope:** keep `security.encrypted-secrets` at No with tested fail-closed evidence; no purity
 amendment; no file-vault relabel as OS secrets.
 
