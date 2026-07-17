@@ -227,6 +227,7 @@
                                            (:file "scheduler")
                                            (:file "reporter")
                                            (:file "discovery")
+                                           (:file "config")
                                            (:file "runner")))
                              ;; CLI (Phase 08): arg parsing, .env, dispatch.
                              (:module "cli"

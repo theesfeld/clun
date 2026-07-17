@@ -18,6 +18,7 @@
   root current path (default-timeout 5000) (has-only nil) (expect-calls 0)
   (mocks '()) (invocation-order 0)
   (snapshot nil)
+  (preloading nil)
   (custom-matchers (make-hash-table :test #'equal)))
 
 (defvar *active-test* nil "The test whose hooks/body are currently executing.")
@@ -43,6 +44,8 @@
         (max 0 (truncate (eng:to-number value)))))))
 
 (defun %register-describe (ctx name fn mode)
+  (when (ctx-preloading ctx)
+    (eng:throw-type-error "Cannot use describe() during preload."))
   (let ((d (make-t-describe :name name :parent (ctx-current ctx) :mode mode)))
     (push d (td-children (ctx-current ctx)))
     (when (eq mode :only) (setf (ctx-has-only ctx) t))
@@ -54,6 +57,8 @@
     eng:+undefined+))
 
 (defun %register-test (ctx name fn mode opts &optional failing call-args)
+  (when (ctx-preloading ctx)
+    (eng:throw-type-error "Cannot use test() during preload."))
   (when (and failing (not (eng:callable-p fn)))
     (eng:throw-type-error "test.failing expects a function as the second argument"))
   (let ((retry (%opt-count opts "retry"))

@@ -1,0 +1,6 @@
+test
+--preload
+./first.mjs
+--preload=./second.mjs
+a.test.mjs
+b.test.mjs

@@ -3045,3 +3045,18 @@ CommonJS, builtins, and missing modules, while normal realm teardown provides th
 `mock.restore()` intentionally restores function spies only, matching Bun's documented boundary; it does not
 remove `mock.module()` replacements. Dynamic import remains a separate core-engine feature and is not claimed
 by this milestone.
+
+### 2026-07-17 - Phase 66 preloads re-execute per realm while suite hooks bracket files
+
+Setup modules run inside every fresh file realm before the file module, preserving Clun's existing isolation
+boundary while making setup globals, matcher extensions, and module mocks visible to that file. The runner
+captures preload hooks before collecting file hooks: preload beforeAll runs in the first executable realm,
+preload afterAll runs in the last or bailed realm, and preload beforeEach/afterEach are merged around each
+file's hooks in registration order. Host-side suite state records only lifecycle completion, never JS values
+or functions, so no realm-owned object crosses teardown.
+
+The bunfig reader owns only the structured `test.preload` field and ignores unrelated TOML configuration.
+It accepts the documented string and string-array forms, including multiline arrays, comments, literal
+strings, and basic escapes, while rejecting malformed or duplicate declarations instead of guessing. An
+explicit context phase permits lifecycle registration during setup but rejects test/describe registration,
+matching the pinned Bun separation between preload configuration and test collection.

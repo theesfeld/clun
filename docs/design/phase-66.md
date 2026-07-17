@@ -290,3 +290,25 @@ Promise, validation, replacement, restoration, and isolation paths. Module mocki
 Phase 66 residual. Setup/preload, dynamic import in the core module engine, fake timers, coverage/source maps,
 watch integration, real concurrent/parallel scheduling, and the remaining quantitative gates stay open, so
 the compatibility row remains `Partial`.
+
+## Milestone 66.19 - setup and preload lifecycle
+
+`clun test` now accepts repeated `--preload`, `--require`, and `-r` module paths in separated or equals form.
+The runner also reads `test.preload` and `[test] preload` from the working directory's `bunfig.toml`, accepting
+a string or an ordered, multiline array of basic and literal strings. Configuration preloads execute before
+CLI additions. Invalid values, duplicate declarations, missing arguments, and unresolved modules fail before
+ordinary test execution with deterministic diagnostics.
+
+Every setup module executes in each test file's fresh realm before the file module loads. This makes setup
+globals, `expect.extend`, and `mock.module` replacements visible to imports without allowing state to leak to
+the next file. Preload `beforeAll` and `afterAll` callbacks bracket the complete selected suite, while preload
+`beforeEach` and `afterEach` callbacks wrap each file's own hooks in Bun order. Bail still runs the suite
+teardown. The explicit preload phase rejects test and describe registration while continuing to allow global
+lifecycle hooks.
+
+Exact-output evidence covers two isolated file realms, two ordered CLI preloads, lifecycle placement, eight
+assertions, custom matchers, mocked ESM imports, and fresh-realm state. Checked shipped-binary evidence adds
+multiline and dotted-key bunfig forms, CLI aliases and config ordering, bail teardown, and the validation
+matrix. Setup/preload is therefore no longer a Phase 66 residual. Dynamic import, fake timers,
+coverage/source maps, watch integration, real concurrent/parallel scheduling, exact 52-root counts, target
+receipts, serial/parallel agreement, and the quantitative RSS gate remain open, so the row stays `Partial`.

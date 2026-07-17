@@ -8,7 +8,7 @@
   (positionals '()) (name-pattern nil) (timeout 5000) (retry 0)
   (bail nil) (todo nil) (ci nil) (update-snapshots nil)
   (randomize nil) (seed nil) (reporter :console) (reporter-outfile nil)
-  (shard-index nil) (shard-count nil) (error-message nil))
+  (shard-index nil) (shard-count nil) (preloads '()) (error-message nil))
 
 (defun %test-seed (value)
   (when (and value (plusp (length value)) (<= (length value) 10)
@@ -64,6 +64,25 @@
           ((string= tok "--todo") (setf (to-todo o) t))
           ((string= tok "--ci") (setf (to-ci o) t))
           ((string= tok "--randomize") (setf (to-randomize o) t))
+          ((member tok '("--preload" "--require" "-r") :test #'string=)
+           (let ((value (next)))
+             (if (and value (plusp (length value)))
+                 (push value (to-preloads o))
+                 (setf (to-error-message o)
+                       (format nil "~a requires a module path" tok)))))
+          ((or (and (>= (length tok) 10)
+                    (string= (subseq tok 0 10) "--preload="))
+               (and (>= (length tok) 10)
+                    (string= (subseq tok 0 10) "--require=")))
+           (let ((value (subseq tok 10)))
+             (if (plusp (length value))
+                 (push value (to-preloads o))
+                 (setf (to-error-message o) "--preload requires a module path"))))
+          ((and (>= (length tok) 3) (string= (subseq tok 0 3) "-r="))
+           (let ((value (subseq tok 3)))
+             (if (plusp (length value))
+                 (push value (to-preloads o))
+                 (setf (to-error-message o) "-r requires a module path"))))
           ((string= tok "--dots") (setf (to-reporter o) :dots))
           ((string= tok "--reporter")
            (let ((value (next)))
@@ -110,6 +129,7 @@
           ((and (plusp (length tok)) (char= (char tok 0) #\-)) nil) ; ignore unknown flags
           (t (push tok (to-positionals o))))))
     (setf (to-positionals o) (nreverse (to-positionals o)))
+    (setf (to-preloads o) (nreverse (to-preloads o)))
     (when (and (eq (to-reporter o) :junit) (null (to-reporter-outfile o)))
       (setf (to-error-message o)
             "--reporter=junit requires --reporter-outfile [file] to specify where to save the XML report"))
@@ -154,7 +174,64 @@
     (incf (st-snapshot-updated stats) (ss-updated snapshot))
     (incf (st-snapshot-failed stats) (ss-failed snapshot))))
 
-(defun %run-one-file (path opts stats report cwd)
+(defstruct (preload-hook-set (:conc-name ph-))
+  (before-all '()) (before-each '()) (after-all '()) (after-each '()))
+
+(defstruct (preload-suite-state (:conc-name ps-))
+  (before-all-ran nil) (before-all-ok t) (after-all-ran nil))
+
+(defun %test-preload-path (specifier cwd)
+  (sys:normalize-path
+   (if (sys:absolute-path-p specifier)
+       specifier
+       (sys:path-join cwd specifier))))
+
+(defun %load-test-preloads (realm ctx preloads cwd)
+  "Evaluate PRELOADS in order, then detach their hooks from the file-local root."
+  (setf (ctx-preloading ctx) t)
+  (unwind-protect
+       (dolist (specifier preloads)
+         (eng:run-module-file (%test-preload-path specifier cwd)
+                              :realm realm :teardown nil))
+    (setf (ctx-preloading ctx) nil))
+  (let* ((root (ctx-root ctx))
+         (hooks (make-preload-hook-set
+                 :before-all (td-before-all root)
+                 :before-each (td-before-each root)
+                 :after-all (td-after-all root)
+                 :after-each (td-after-each root))))
+    (setf (td-before-all root) '()
+          (td-before-each root) '()
+          (td-after-all root) '()
+          (td-after-each root) '())
+    hooks))
+
+(defun %merge-preload-per-test-hooks (root hooks)
+  ;; Hook lists are stored in reverse registration order and %run-hooks reverses
+  ;; them. Preload beforeEach runs before file hooks; preload afterEach runs after.
+  (setf (td-before-each root)
+        (append (td-before-each root) (ph-before-each hooks))
+        (td-after-each root)
+        (append (ph-after-each hooks) (td-after-each root))))
+
+(defun %run-preload-before-all (hooks realm cfg stats report)
+  (let ((failure (%run-hooks (ph-before-all hooks) realm (cfg-default-timeout cfg))))
+    (if failure
+        (progn
+          (funcall report :fail "beforeAll" (%err-detail failure))
+          (incf (st-fail stats))
+          (%maybe-bail stats cfg)
+          nil)
+        t)))
+
+(defun %run-preload-after-all (hooks realm cfg stats report)
+  (let ((failure (%run-hooks (ph-after-all hooks) realm (cfg-default-timeout cfg))))
+    (when failure
+      (funcall report :fail "afterAll" (%err-detail failure))
+      (incf (st-fail stats))
+      (%maybe-bail stats cfg))))
+
+(defun %run-one-file (path opts stats report cwd suite-state last-file-p)
   "Load + run one test file in a fresh realm. Returns the file's expect() count. A load
 error (syntax / top-level throw) is reported as a fail. Always tears the realm down."
   (let ((realm (eng:make-realm)) (ctx nil) (snapshot nil))
@@ -172,22 +249,38 @@ error (syntax / top-level throw) is reported as a fail. Always tears the realm d
                                                 :default-timeout (to-timeout opts)
                                                 :snapshot snapshot))
                    (install-test-globals realm ctx))
-                 (eng:run-module-file path :realm realm :teardown nil)
+                 (let ((preload-hooks
+                         (%load-test-preloads realm ctx (to-preloads opts) cwd)))
+                   (eng:run-module-file path :realm realm :teardown nil)
+                   (%merge-preload-per-test-hooks (ctx-root ctx) preload-hooks)
                  ;; bind *realm* around regexp build + the scheduler: %build-regexp and
                  ;; %name-matches do js-construct/js-call, which need the intrinsics realm
                  ;; (run-module-file only binds it internally, then returns).
-                 (let ((eng:*realm* realm))
-                   (let ((cfg (make-run-cfg :default-timeout (ctx-default-timeout ctx)
-                                            :retry (to-retry opts)
-                                            :todo (to-todo opts) :ci (%ci-active-p opts)
-                                            :name-re (%build-regexp realm (to-name-pattern opts))
-                                            :bail (to-bail opts)
-                                            :snapshot snapshot
-                                            :random-state
-                                            (and (to-randomize opts)
-                                                 (%test-file-prng path (to-seed opts))))))
-                     (run-file-tree ctx realm cfg stats report))
-                   (snapshot-finalize snapshot)))
+                   (let ((eng:*realm* realm))
+                     (let ((cfg (make-run-cfg :default-timeout (ctx-default-timeout ctx)
+                                              :retry (to-retry opts)
+                                              :todo (to-todo opts) :ci (%ci-active-p opts)
+                                              :name-re (%build-regexp realm (to-name-pattern opts))
+                                              :bail (to-bail opts)
+                                              :snapshot snapshot
+                                              :random-state
+                                              (and (to-randomize opts)
+                                                   (%test-file-prng path (to-seed opts))))))
+                       (let ((setup-ok (ps-before-all-ok suite-state)))
+                         (unless (ps-before-all-ran suite-state)
+                           (setf (ps-before-all-ran suite-state) t)
+                           (setf setup-ok
+                                 (%run-preload-before-all
+                                  preload-hooks realm cfg stats report)
+                                 (ps-before-all-ok suite-state) setup-ok))
+                         (if setup-ok
+                             (run-file-tree ctx realm cfg stats report)
+                             (%skip-subtree (ctx-root ctx) cfg stats report)))
+                       (when (and (not (ps-after-all-ran suite-state))
+                                  (or last-file-p (st-bailed stats)))
+                         (setf (ps-after-all-ran suite-state) t)
+                         (%run-preload-after-all preload-hooks realm cfg stats report)))
+                     (snapshot-finalize snapshot))))
              (eng:js-condition (c)
                (funcall report :fail (format nil "~a (failed to load)" path)
                         (%err-detail (eng:js-condition-value c)))
@@ -217,6 +310,12 @@ process exit code (1 on any failure, on zero tests, or on a 0-match -t filter)."
     (when (to-error-message opts)
       (format *error-output* "clun test: ~a~%" (to-error-message opts))
       (return-from run-test-command 1))
+    (handler-case
+        (setf (to-preloads opts)
+              (append (read-test-preloads-from-bunfig cwd*) (to-preloads opts)))
+      (test-config-error (condition)
+        (format *error-output* "clun test: ~a~%" condition)
+        (return-from run-test-command 1)))
     (when (and (to-randomize opts) (null (to-seed opts)))
       (setf (to-seed opts) (%fresh-test-seed)))
     (let* ((discovered (discover-files (to-positionals opts) cwd*))
@@ -236,14 +335,18 @@ process exit code (1 on any failure, on zero tests, or on a 0-match -t filter)."
                 (push (make-test-report-record current-file status name detail assertions)
                       records))))
            (expect-total 0)
+           (suite-state (make-preload-suite-state))
            (report-error nil))
       (when (null files)
         (format *standard-output* "No test files found.~%")
         (return-from run-test-command 1))
-      (dolist (f files)
-        (when (st-bailed stats) (return))
-        (setf current-file f)
-        (incf expect-total (%run-one-file f opts stats report cwd*)))
+      (loop for remaining on files
+            for f = (car remaining)
+            for last-file-p = (null (cdr remaining))
+            do (when (st-bailed stats) (return))
+               (setf current-file f)
+               (incf expect-total
+                     (%run-one-file f opts stats report cwd* suite-state last-file-p)))
       (print-summary *standard-output* stats (length files) expect-total
                      (and (to-randomize opts) (to-seed opts)))
       (when (eq (to-reporter opts) :junit)

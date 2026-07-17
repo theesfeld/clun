@@ -1981,8 +1981,12 @@ Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-earl
   Promise factories, unresolved modules, builtin aliases, loaded CommonJS identity, ESM live bindings,
   namespaces, re-exports, repeated updates, validation, `mock.restore`, and cross-file isolation. Focused
   shipped-binary evidence covers 8 tests and 46 assertions across four independently torn-down file realms.
+- Milestone 66.19 adds repeated CLI and bunfig setup preloads with fresh-realm evaluation, config-before-CLI
+  ordering, suite-wide beforeAll/afterAll, per-file beforeEach/afterEach placement, globals, custom matchers,
+  module mocks, bail teardown, CLI aliases, strict configuration errors, and preload-phase registration
+  guards. Exact-output and checked-script evidence exercise the shipped binary end to end.
 - Ledger stays `Partial`. Remaining Phase 66 scope: Bun-exact snapshot serialization across every supported
   value kind,
-  fake timers, coverage/source maps, parallelism/concurrency, setup/preload,
+  fake timers, coverage/source maps, parallelism/concurrency,
   watch hooks, exact 52-root Bun/Clun counts, four-target receipts,
   serial/parallel agreement, and 10k RSS.
