@@ -9,7 +9,7 @@ targets are workload-specific and published;
 Clun does not claim blanket speed parity with Bun.
 
 <!-- clun-generated:release:begin -->
-> **Status: pre-alpha, under active construction.** [Phase 37](https://github.com/theesfeld/clun/issues/11) is in progress.
+> **Status: pre-alpha, under active construction.** [Phase 51](https://github.com/theesfeld/clun/issues/25) is in progress.
 > Its release-bearing target is `0.1.0-dev.21` / `v0.1.0-dev.21` (SemVer impact: `minor`).
 > The verified release boundary is `v0.1.0-dev.18`, with four native archives, checksums, Pages,
 > and hosted-installer evidence.
@@ -20,13 +20,12 @@ Clun does not claim blanket speed parity with Bun.
 > the local resume checklist.
 <!-- clun-generated:release:end -->
 
-Source on draft [PR #96](https://github.com/theesfeld/clun/pull/96) is the `0.1.0-dev.21` Phase 37
-milestone 2 candidate (`Array.fromAsync`). No compatibility-table `Yes` is claimed. Published
-[`v0.1.0-dev.18`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.18) is the verified release
-boundary (shell PR #86). Master source is `0.1.0-dev.19` after test-runner (#88); transport holds
-unpublished `0.1.0-dev.20`; this unit stages `0.1.0-dev.21` under the unpublished-intermediate
-prerelease gap policy (transition 19→21). The hosted installer correctly remains on published
-dev.18 until the candidate is merged, tagged, and released.
+Source on [PR #107](https://github.com/theesfeld/clun/pull/107) is the `0.1.0-dev.21` Phase 51 WebSocket
+M0 constitutional checkpoint (fail-closed refusal + design notebook). Ledger `server.websocket` remains
+`No`. Published [`v0.1.0-dev.18`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.18) is the
+verified release boundary. Master source remains `0.1.0-dev.21` (unpublished); this unit **retains**
+that version as an unpublished release-bearing correction (no new prerelease slot). The hosted installer
+correctly remains on published dev.18 until a candidate is tagged and released.
 
 ## Install
 
@@ -162,7 +161,7 @@ Release versions follow the actual SemVer impact recorded in the canonical issue
 The current source is the `0.1.0-dev.21` release candidate; the immutable tag and assets are not published yet.
 The last published prerelease remains [`v0.1.0-dev.18`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.18).
 [The versioning contract](docs/versioning.md) defines prerelease sequencing, synchronized surfaces, immutable tags, assets, and installer evidence.
-[Phase 37 issue #11](https://github.com/theesfeld/clun/issues/11) is the canonical live release record.
+[Phase 51 issue #25](https://github.com/theesfeld/clun/issues/25) is the canonical live release record.
 <!-- clun-generated:release-summary:end -->
 
 ## The purity contract
