@@ -2814,6 +2814,19 @@ pipeline input, and returns output and status to its surrounding pipeline. Paren
 remain operand bytes, preserving regex and arithmetic behavior. No source is reparsed by a host shell.
 
 The shipped binary closes the final two grouped assignment IDs and 118 stable and engineering pipeline-stack
-IDs, including all nested-group sites. The six `if` IDs and the two `pwd | cd / | pwd` IDs remain pending;
-their assertions were not weakened. This is a SemVer-minor behavior increment within the allocated
+IDs, including all nested-group sites. At this checkpoint the six `if` IDs and the two `pwd | cd / | pwd` IDs
+remained pending; the conditional decision below subsequently closes the six `if` IDs. This is a SemVer-minor
+behavior increment within the allocated `0.1.0-dev.18` Phase 65 boundary.
+
+### 2026-07-17 - Phase 65 models conditionals as compound commands
+
+`if`, `elif`, `else`, and `fi` are reserved only at command boundaries and compile into recursive branch
+nodes. Conditions and bodies reuse the existing script and pipeline AST, so nested conditionals, condition
+pipelines, linebreaks, status propagation, command negation, and whole-compound redirects do not need a
+second evaluator or source rewrite. A false condition with no selected branch returns zero, matching the
+upstream contract. The implementation remains pure Common Lisp and does not delegate parsing to a host shell.
+
+The shipped-binary control-flow fixture closes 124 exact IDs across both pinned baselines, moving the finite
+corpus to 625 covered, 973 pending, and 32 upstream-inactive. Background and brace-group sites remain pending;
+no credit is inferred from related syntax. This SemVer-minor behavior remains inside the allocated
 `0.1.0-dev.18` Phase 65 boundary.

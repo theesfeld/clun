@@ -56,11 +56,13 @@ mapping. The production
 pipelines, ordered descriptor redirects, callable isolated `Shell` instances, signed-64 conditional
 arithmetic, bounded nested brace expansion, and brace-plus-glob composition with protected interpolation.
 Assignment-only pipeline stages now forward stdin without leaking their environment, and grouped subshells
-parse recursively with isolated state and buffered stdin propagation.
-`make phase-65-shell-core-check` passes **206 / 0 / 0** plus
-**11/11** shipped `tooling.shell` evidence records; `make build`, `make purity` (**728 / 0**), and diff check
+parse recursively with isolated state and buffered stdin propagation. Compound `if` / `elif` / `else`
+commands, command negation, branch status, linebreak grammar, and whole-compound redirects execute from the
+same recursive AST.
+`make phase-65-shell-core-check` passes **221 / 0 / 0** plus
+**12/12** shipped `tooling.shell` evidence records; `make build`, `make purity` (**728 / 0**), and diff check
 pass. The exact stable and engineering Bun boundary is now frozen at **211 source/docs/types/test files** and
-**1,630 lexical test sites**: **501 covered / 1,097 pending / 32 upstream-inactive**. The checked-in coverage
+**1,630 lexical test sites**: **625 covered / 973 pending / 32 upstream-inactive**. The checked-in coverage
 overlay binds every credited site to executable shipped-binary evidence and rejects stale or unknown IDs.
 The row is honestly **Partial**, not `Yes`: remaining language/API/lifecycle cases, four permission-sensitive
 `ls` sites, 1,000-job stress, and Linux/macOS x64/arm64 receipts are still open.

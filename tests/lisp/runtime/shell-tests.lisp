@@ -68,6 +68,12 @@
   (fail (clun.runtime::%shell-parse (shell-test-units "echo no)"))
         clun.runtime::shell-syntax-error)
   (fail (clun.runtime::%shell-parse (shell-test-units "()"))
+        clun.runtime::shell-syntax-error)
+  (fail (clun.runtime::%shell-parse (shell-test-units "if true; echo no; fi"))
+        clun.runtime::shell-syntax-error)
+  (fail (clun.runtime::%shell-parse (shell-test-units "if true; then echo no"))
+        clun.runtime::shell-syntax-error)
+  (fail (clun.runtime::%shell-parse (shell-test-units "if true; then; fi"))
         clun.runtime::shell-syntax-error))
 
 (define-test shell/path-builtins
@@ -214,6 +220,36 @@
       (shell-test-output "(false || echo recovered); (exit 7); echo outside")
     (is equal (format nil "recovered~%outside~%") output)
     (is = 0 exit-code)))
+
+(define-test shell/if-elif-else-compound-command
+  (multiple-value-bind (output exit-code)
+      (shell-test-output
+       "if true | true; then echo yes; else echo no; fi")
+    (is equal (format nil "yes~%") output)
+    (is = 0 exit-code))
+  (multiple-value-bind (output exit-code)
+      (shell-test-output
+       "if false; then echo no; elif echo condition; then echo yes; else echo no; fi")
+    (is equal (format nil "condition~%yes~%") output)
+    (is = 0 exit-code))
+  (multiple-value-bind (output exit-code)
+      (shell-test-output
+       "if ! echo first; then echo no; elif ! false; then echo second; else echo final; fi")
+    (is equal (format nil "first~%second~%") output)
+    (is = 0 exit-code))
+  (multiple-value-bind (output exit-code)
+      (shell-test-output
+       "if true; then if false; then echo no; else echo nested; fi; fi | cat")
+    (is equal (format nil "nested~%") output)
+    (is = 0 exit-code))
+  (multiple-value-bind (output exit-code)
+      (shell-test-output "if false; then echo no; fi && echo after")
+    (is equal (format nil "after~%") output)
+    (is = 0 exit-code))
+  (multiple-value-bind (output exit-code)
+      (shell-test-output "if true; then false; else true; fi")
+    (is equal "" output)
+    (is = 1 exit-code)))
 
 (define-test shell/yes-to-immediate-builtin-sink
   (multiple-value-bind (output exit-code) (shell-test-output "yes | true")

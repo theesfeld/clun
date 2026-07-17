@@ -21,7 +21,10 @@
 (defstruct shell-word (fragments '()))
 (defstruct shell-token kind value)
 (defstruct shell-redirection kind target)
-(defstruct shell-command (words '()) (assignments '()) (redirections '()) group)
+(defstruct shell-if-branch condition body)
+(defstruct shell-if-form (branches '()) alternative)
+(defstruct shell-command
+  (words '()) (assignments '()) (redirections '()) group if-form negated)
 (defstruct shell-pipeline (commands '()))
 (defstruct shell-script (pipelines '()) (operators '()))
 (defstruct shell-result
@@ -346,7 +349,120 @@
                 ("2>&1" . :error-to-output) ("1>&2" . :output-to-error))
               :test #'string=)))
 
+(defun %shell-static-token-word (token)
+  (when (eq (shell-token-kind token) :word)
+    (let ((fragments (shell-word-fragments (shell-token-value token))))
+      (when (and (= (length fragments) 1)
+                 (eq (shell-fragment-kind (first fragments)) :literal)
+                 (not (shell-fragment-quoted (first fragments))))
+        (shell-fragment-value (first fragments))))))
+
+(defun %shell-command-start-after-token-p (token)
+  (and (eq (shell-token-kind token) :operator)
+       (member (shell-token-value token) '(";" "&&" "||" "|" "(")
+               :test #'string=)))
+
+(defun %shell-control-state-after-token (token control-depth at-command-start)
+  (let ((word (and at-command-start (%shell-static-token-word token))))
+    (cond
+      ((and word (string= word "if"))
+       (values (1+ control-depth) t))
+      ((and word (string= word "fi"))
+       (when (zerop control-depth) (%shell-syntax "unexpected fi"))
+       (values (1- control-depth) nil))
+      ((and word
+            (member word '("then" "elif" "else") :test #'string=))
+       (when (zerop control-depth) (%shell-syntax "unexpected ~a" word))
+       (values control-depth t))
+      (t
+       (values control-depth
+               (%shell-command-start-after-token-p token))))))
+
+(defun %shell-parse-if-command (tokens)
+  (let ((branches '()) (alternative nil) (condition nil)
+        (phase :condition) (start 1) (depth 1) (at-command-start t)
+        (close nil))
+    (labels ((parse-section (end label)
+               (let ((section (subseq tokens start end)))
+                 (when (null section)
+                   (%shell-syntax "if has an empty ~a section" label))
+                 (let ((script (%shell-parse-tokens section)))
+                   (when (null (shell-script-pipelines script))
+                     (%shell-syntax "if has an empty ~a section" label))
+                   script)))
+             (finish-branch (end)
+               (unless condition (%shell-syntax "if branch is missing then"))
+               (push (make-shell-if-branch
+                      :condition condition
+                      :body (parse-section end "body"))
+                     branches)
+               (setf condition nil)))
+      (loop for index from 1 below (length tokens)
+            for token = (nth index tokens)
+            for word = (and at-command-start (%shell-static-token-word token))
+            do (cond
+                 ((and word (string= word "if"))
+                  (incf depth)
+                  (setf at-command-start t))
+                 ((and word (string= word "fi"))
+                  (if (> depth 1)
+                      (progn
+                        (decf depth)
+                        (setf at-command-start nil))
+                      (progn
+                        (case phase
+                          (:condition (%shell-syntax "if is missing then"))
+                          (:body (finish-branch index))
+                          (:else
+                           (setf alternative (parse-section index "else body"))))
+                        (setf close index)
+                        (loop-finish))))
+                 ((and (= depth 1) word (string= word "then"))
+                  (unless (eq phase :condition)
+                    (%shell-syntax "unexpected then in if"))
+                  (setf condition (parse-section index "condition")
+                        phase :body
+                        start (1+ index)
+                        at-command-start t))
+                 ((and (= depth 1) word (string= word "elif"))
+                  (unless (eq phase :body)
+                    (%shell-syntax "unexpected elif in if"))
+                  (finish-branch index)
+                  (setf phase :condition
+                        start (1+ index)
+                        at-command-start t))
+                 ((and (= depth 1) word (string= word "else"))
+                  (unless (eq phase :body)
+                    (%shell-syntax "unexpected else in if"))
+                  (finish-branch index)
+                  (setf phase :else
+                        start (1+ index)
+                        at-command-start t))
+                 (t
+                  (setf at-command-start
+                        (%shell-command-start-after-token-p token)))))
+      (unless close (%shell-syntax "unterminated if"))
+      (let* ((suffix (nthcdr (1+ close) tokens))
+             (redirections
+               (when suffix
+                 (let ((parsed (%shell-parse-command suffix)))
+                   (when (or (shell-command-group parsed)
+                             (shell-command-if-form parsed)
+                             (shell-command-words parsed)
+                             (shell-command-assignments parsed)
+                             (shell-command-negated parsed))
+                     (%shell-syntax "unexpected token after fi"))
+                   (shell-command-redirections parsed)))))
+        (make-shell-command
+         :if-form (make-shell-if-form
+                   :branches (nreverse branches)
+                   :alternative alternative)
+         :redirections redirections)))))
+
 (defun %shell-parse-command (tokens)
+  (when (and tokens
+             (string= (or (%shell-static-token-word (first tokens)) "") "if"))
+    (return-from %shell-parse-command (%shell-parse-if-command tokens)))
   (when (and tokens
              (eq (shell-token-kind (first tokens)) :operator)
              (string= (shell-token-value (first tokens)) "("))
@@ -367,8 +483,10 @@
                (when suffix
                  (let ((parsed (%shell-parse-command suffix)))
                    (when (or (shell-command-group parsed)
+                             (shell-command-if-form parsed)
                              (shell-command-words parsed)
-                             (shell-command-assignments parsed))
+                             (shell-command-assignments parsed)
+                             (shell-command-negated parsed))
                      (%shell-syntax "unexpected token after subshell group"))
                    (shell-command-redirections parsed)))))
         (when (null inner) (%shell-syntax "empty subshell group"))
@@ -376,7 +494,12 @@
           (make-shell-command :group (%shell-parse-tokens inner)
                               :redirections redirections)))))
   (let ((words '()) (assignments '()) (redirections '()) (command-seen nil)
-        (index 0))
+        (negated nil) (index 0))
+    (when (and tokens
+               (string= (or (%shell-static-token-word (first tokens)) "") "!"))
+      (setf negated t index 1)
+      (when (= index (length tokens))
+        (%shell-syntax "! has no command")))
     (loop while (< index (length tokens)) do
       (let ((token (nth index tokens)))
         (cond
@@ -408,10 +531,12 @@
           (t (%shell-syntax "invalid command token")))))
     (make-shell-command :words (nreverse words)
                         :assignments (nreverse assignments)
-                        :redirections (nreverse redirections))))
+                        :redirections (nreverse redirections)
+                        :negated negated)))
 
 (defun %shell-split-tokens (tokens separator)
-  (let ((groups '()) (current '()) (depth 0))
+  (let ((groups '()) (current '()) (depth 0) (control-depth 0)
+        (at-command-start t))
     (dolist (token tokens)
       (when (eq (shell-token-kind token) :operator)
         (cond
@@ -419,7 +544,10 @@
           ((string= (shell-token-value token) ")")
            (decf depth)
            (when (minusp depth) (%shell-syntax "unexpected )")))))
+      (multiple-value-setq (control-depth at-command-start)
+        (%shell-control-state-after-token token control-depth at-command-start))
       (if (and (zerop depth)
+               (zerop control-depth)
                (eq (shell-token-kind token) :operator)
                (string= (shell-token-value token) separator))
           (progn
@@ -427,20 +555,13 @@
             (push (nreverse current) groups) (setf current '()))
           (push token current)))
     (unless (zerop depth) (%shell-syntax "unterminated subshell group"))
+    (unless (zerop control-depth) (%shell-syntax "unterminated if"))
     (when (null current) (%shell-syntax "empty command after ~a" separator))
     (nreverse (cons (nreverse current) groups))))
 
 (defun %shell-parse-pipeline (tokens)
   (make-shell-pipeline
    :commands (mapcar #'%shell-parse-command (%shell-split-tokens tokens "|"))))
-
-(defun %shell-static-token-word (token)
-  (when (eq (shell-token-kind token) :word)
-    (let ((fragments (shell-word-fragments (shell-token-value token))))
-      (when (and (= (length fragments) 1)
-                 (eq (shell-fragment-kind (first fragments)) :literal)
-                 (not (shell-fragment-quoted (first fragments))))
-        (shell-fragment-value (first fragments))))))
 
 (defun %shell-operator-word-token (operator)
   (make-shell-token
@@ -451,7 +572,8 @@
 
 (defun %shell-parse-tokens (tokens)
   (let ((pipelines '()) (operators '()) (current '())
-        (in-condition nil) (depth 0))
+        (in-condition nil) (depth 0) (control-depth 0)
+        (at-command-start t))
     (labels ((flush (operator)
                (when current
                  (push (%shell-parse-pipeline (nreverse current)) pipelines)
@@ -459,6 +581,8 @@
                  (when operator (push operator operators)))))
       (dolist (token tokens)
         (let ((word (%shell-static-token-word token)))
+          (multiple-value-setq (control-depth at-command-start)
+            (%shell-control-state-after-token token control-depth at-command-start))
           (cond
             ((and (not in-condition) word (string= word "[["))
              (setf in-condition t)
@@ -484,6 +608,7 @@
              (push token current))
             ((and (not in-condition)
                   (zerop depth)
+                  (zerop control-depth)
                   (eq (shell-token-kind token) :operator)
                   (member (shell-token-value token) '(";" "&&" "||") :test #'string=))
              (flush (cond ((string= (shell-token-value token) "&&") :and)
@@ -491,6 +616,7 @@
                           (t :sequence))))
             (t (push token current)))))
       (unless (zerop depth) (%shell-syntax "unterminated subshell group"))
+      (unless (zerop control-depth) (%shell-syntax "unterminated if"))
       (flush nil))
     ;; A trailing separator records one extra operator; it has no right-hand side.
     (when (>= (length operators) (length pipelines))
@@ -2702,57 +2828,104 @@ integer conversions are deliberately rejected because seq values are f32."
       (mapcan (lambda (word) (%shell-word-values word state g))
               (shell-command-words command))))
 
-(defun %shell-execute-command (command state g stdin)
+(defun %shell-append-results (left right &optional exit-code)
+  (make-shell-result
+   :stdout (%shell-concat-octets (shell-result-stdout left)
+                                  (shell-result-stdout right))
+   :stderr (%shell-concat-octets (shell-result-stderr left)
+                                  (shell-result-stderr right))
+   :exit-code (or exit-code (shell-result-exit-code right))))
+
+(defun %shell-execute-if-form (form state g stdin)
+  (let ((result (make-shell-result)) (pending-input stdin))
+    (dolist (branch (shell-if-form-branches form))
+      (let ((condition-result
+              (%shell-execute-script
+               (shell-if-branch-condition branch) state g pending-input)))
+        (setf pending-input *shell-empty-octets*
+              result (%shell-append-results result condition-result))
+        (when (shell-state-terminated state)
+          (return-from %shell-execute-if-form result))
+        (when (zerop (shell-result-exit-code condition-result))
+          (let ((body-result
+                  (%shell-execute-script (shell-if-branch-body branch) state g)))
+            (return-from %shell-execute-if-form
+              (%shell-append-results result body-result))))))
+    (if (shell-if-form-alternative form)
+        (%shell-append-results
+         result (%shell-execute-script (shell-if-form-alternative form) state g))
+        (make-shell-result :stdout (shell-result-stdout result)
+                           :stderr (shell-result-stderr result)
+                           :exit-code 0))))
+
+(defun %shell-execute-command-core (command state g stdin)
   (let ((env (%shell-env-copy (shell-state-env state))))
     (dolist (assignment (shell-command-assignments command))
       (setf env (%shell-env-set env (car assignment)
                                 (%shell-assignment-value (cdr assignment) state g))))
-    (if (shell-command-group command)
-        (multiple-value-bind (input output-redirections)
-            (%shell-command-redirections command state g stdin)
-          (let ((sub-state (copy-shell-state state)))
-            (setf (shell-state-env sub-state) (%shell-env-copy env)
-                  (shell-state-terminated sub-state) nil)
-            (%shell-apply-output-redirections
-             (%shell-execute-script (shell-command-group command) sub-state g input)
-             output-redirections state g)))
-        (if (null (shell-command-words command))
+    (cond
+      ((shell-command-if-form command)
+       (multiple-value-bind (input output-redirections)
+           (%shell-command-redirections command state g stdin)
+         (%shell-apply-output-redirections
+          (%shell-execute-if-form (shell-command-if-form command) state g input)
+          output-redirections state g)))
+      ((shell-command-group command)
+       (multiple-value-bind (input output-redirections)
+           (%shell-command-redirections command state g stdin)
+         (let ((sub-state (copy-shell-state state)))
+           (setf (shell-state-env sub-state) (%shell-env-copy env)
+                 (shell-state-terminated sub-state) nil)
+           (%shell-apply-output-redirections
+            (%shell-execute-script (shell-command-group command) sub-state g input)
+            output-redirections state g))))
+      ((null (shell-command-words command))
         (progn
           (setf (shell-state-env state) env)
           ;; Bun treats an assignment-only pipeline stage as an environment
           ;; boundary that forwards the pipe unchanged. Outside a pipeline the
           ;; input is empty, so a plain assignment remains silent.
-          (make-shell-result :stdout stdin))
-        (let* ((condition-p (%shell-condition-command-p command))
-               (condition-arguments
-                 (when condition-p
-                   (mapcar (lambda (word)
-                             (%shell-condition-word-operand word state g))
-                           (rest (shell-command-words command)))))
-               (argv (if condition-p
-                         (cons "[[" (mapcar #'%shell-condition-operand-text
-                                             condition-arguments))
-                         (%shell-command-argv command state g))))
-          (if (null argv)
-              (make-shell-result)
-              (multiple-value-bind (input output-redirections)
-                  (%shell-command-redirections command state g stdin)
-                (multiple-value-bind (builtin handled)
-                    (cond
-                      (condition-p
-                       (values (%shell-run-condition condition-arguments state) t))
-                      ((string= (first argv) "yes")
-                       (values
-                        (%shell-run-yes
-                         (rest argv)
-                         (%shell-bounded-output-target
-                          output-redirections state g))
-                        t))
-                      (t (%shell-run-builtin argv state env input)))
-                  (%shell-apply-output-redirections
-                   (if handled builtin
-                       (%shell-run-external argv env (shell-state-cwd state) input))
-                   output-redirections state g)))))))))
+          (make-shell-result :stdout stdin)))
+      (t
+       (let* ((condition-p (%shell-condition-command-p command))
+              (condition-arguments
+                (when condition-p
+                  (mapcar (lambda (word)
+                            (%shell-condition-word-operand word state g))
+                          (rest (shell-command-words command)))))
+              (argv (if condition-p
+                        (cons "[[" (mapcar #'%shell-condition-operand-text
+                                            condition-arguments))
+                        (%shell-command-argv command state g))))
+         (if (null argv)
+             (make-shell-result)
+             (multiple-value-bind (input output-redirections)
+                 (%shell-command-redirections command state g stdin)
+               (multiple-value-bind (builtin handled)
+                   (cond
+                     (condition-p
+                      (values (%shell-run-condition condition-arguments state) t))
+                     ((string= (first argv) "yes")
+                      (values
+                       (%shell-run-yes
+                        (rest argv)
+                        (%shell-bounded-output-target
+                         output-redirections state g))
+                       t))
+                     (t (%shell-run-builtin argv state env input)))
+                 (%shell-apply-output-redirections
+                  (if handled builtin
+                      (%shell-run-external argv env (shell-state-cwd state) input))
+                  output-redirections state g)))))))))
+
+(defun %shell-execute-command (command state g stdin)
+  (let ((result (%shell-execute-command-core command state g stdin)))
+    (if (shell-command-negated command)
+        (make-shell-result
+         :stdout (shell-result-stdout result)
+         :stderr (shell-result-stderr result)
+         :exit-code (if (zerop (shell-result-exit-code result)) 1 0))
+        result)))
 
 (defun %shell-static-command-name (command)
   (let* ((word (and command (first (shell-command-words command))))
@@ -2770,6 +2943,7 @@ integer conversions are deliberately rejected because seq values are f32."
     (and (> (length commands) 1)
          (every (lambda (command)
                   (and (shell-command-words command)
+                       (not (shell-command-negated command))
                        (null (shell-command-redirections command))
                        (not (%shell-static-builtin-p command))))
                 commands))))
@@ -2778,9 +2952,11 @@ integer conversions are deliberately rejected because seq values are f32."
   (let ((commands (shell-pipeline-commands pipeline)))
     (and (> (length commands) 1)
          (string= (or (%shell-static-command-name (first commands)) "") "yes")
+         (not (shell-command-negated (first commands)))
          (null (shell-command-redirections (first commands)))
          (every (lambda (command)
                   (and (shell-command-words command)
+                       (not (shell-command-negated command))
                        (null (shell-command-redirections command))
                        (not (%shell-static-builtin-p command))))
                 (rest commands)))))
