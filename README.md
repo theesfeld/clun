@@ -20,15 +20,7 @@ Clun does not claim blanket speed parity with Bun.
 > the local resume checklist.
 <!-- clun-generated:release:end -->
 
-Source on draft [PR #95](https://github.com/theesfeld/clun/pull/95) is the `0.1.0-dev.22` Phase 28 candidate. Public `runtime.web-standard-apis` and `package-manager.npm` remain honest `Partial` and are not claimed as `Yes`. Published `v0.1.0-dev.18` is the verified release boundary. Test-runner (`0.1.0-dev.19`, #88) and Phase 37 m2 (`0.1.0-dev.21`, #96) are on `master`. This unit stages Partial transport as `0.1.0-dev.22` and stays draft until residual Phase 28 gates are decided. The hosted installer remains on published dev.18 until the candidate is merged, tagged, and released.
-
-Source on draft [PR #96](https://github.com/theesfeld/clun/pull/96) is the `0.1.0-dev.21` Phase 37
-milestone 2 candidate (`Array.fromAsync`). No compatibility-table `Yes` is claimed. Published
-[`v0.1.0-dev.18`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.18) is the verified release
-boundary (shell PR #86). Master source is `0.1.0-dev.19` after test-runner (#88); transport holds
-unpublished `0.1.0-dev.20`; this unit stages `0.1.0-dev.21` under the unpublished-intermediate
-prerelease gap policy (transition 19→21). The hosted installer correctly remains on published
-dev.18 until the candidate is merged, tagged, and released.
+Source on draft [PR #95](https://github.com/theesfeld/clun/pull/95) is the `0.1.0-dev.22` Phase 28 candidate. Public `runtime.web-standard-apis` and `package-manager.npm` remain honest `Partial` and are not claimed as `Yes`. Published `v0.1.0-dev.18` is the verified release boundary. Master tip is `0.1.0-dev.21` after Phase 37 m2 (#96), node:url residual (#100), TypeScript declare-enum strip (#101), Web Streams Partial (#105), and bun:test resolve (#103). This unit stages Partial transport as `0.1.0-dev.22` (slot 23+ left for other trains). The hosted installer remains on published dev.18 until the candidate is merged, tagged, and released.
 
 ## Install
 
@@ -108,7 +100,7 @@ July 16, 2026. Engineering references are separately pinned to Bun commit `c1076
 | Capability | Current pre-alpha state | Evidence-backed target |
 |---|---|---|
 | Node.js compatibility | Partial: selected globals and module subsets | Phases [42](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-42), [43](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-43), [44](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-44), [45](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-45), [46](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-46), [47](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-47) |
-| Web Standard APIs | Partial: streaming `fetch`, clone/tee, operation-wide timeouts, HTTP proxy and HTTPS CONNECT support, plain HTTP pooling, origin-keyed pure-tls HTTPS idle pooling, and a scoped Web API surface | [Phase 38](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-38) |
+| Web Standard APIs | Partial: streaming `fetch`, clone/tee, operation-wide timeouts, HTTP proxy and HTTPS CONNECT support, plain HTTP pooling, origin-keyed pure-tls HTTPS idle pooling, one-chunk Response/Request.body ReadableStream consumers, and a scoped Web API surface | [Phase 38](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-38) |
 | Native addons | No: excluded by the current purity contract | [Phase 48](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-48) |
 | TypeScript | Partial: erasable syntax stripping only | [Phase 39](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-39) |
 | JSX | No: not included in the v0.1 scope | [Phase 40](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-40) |

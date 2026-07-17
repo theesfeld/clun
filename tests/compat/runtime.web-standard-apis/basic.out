@@ -1,4 +1,9 @@
 https://example.com/items?limit=2
 201
 present
+function
+true
+true
+stream-chunk
+true
 web-body

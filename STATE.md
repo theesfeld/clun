@@ -11,7 +11,7 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 **Canonical issue:** https://github.com/theesfeld/clun/issues/2
 **Parallel issues:** #24, #39, #40, #11
-**Current implementation unit:** Phase 28 transport foundation on draft PR #95 — pure-CL TLS 1.2, DNS/Happy Eyeballs, streaming Fetch, HTTP pooling, origin-keyed pure-tls HTTPS idle pooling, proxy/CONNECT. Public `runtime.web-standard-apis` and `package-manager.npm` remain `Partial` (not Yes). Master has published shell `v0.1.0-dev.18`, test-runner `0.1.0-dev.19` (#88), and Phase 37 m2 `0.1.0-dev.21` (#96). This unit stages `0.1.0-dev.22`.
+**Current implementation unit:** Phase 28 transport foundation on draft PR #95 — pure-CL TLS 1.2, DNS/Happy Eyeballs, streaming Fetch, HTTP pooling, origin-keyed pure-tls HTTPS idle pooling, proxy/CONNECT. Public `runtime.web-standard-apis` and `package-manager.npm` remain `Partial` (not Yes). Master tip is `0.1.0-dev.21` after #96/#100/#101/#105/#103 (published shell `v0.1.0-dev.18`). This unit stages `0.1.0-dev.22`.
 **SemVer impact:** `minor`
 **Candidate release:** `0.1.0-dev.22` / `v0.1.0-dev.22`
 **Published release:** `0.1.0-dev.18` / `v0.1.0-dev.18`
