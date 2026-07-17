@@ -47,6 +47,15 @@ checkpoints include transport request streaming plus origin-keyed HTTP pooling a
 guarded filesystem builtins, bounded `yes`, and isolated pipeline state. Merged `master` is **8 Yes /
 6 Partial / 16 No** with the complete Phase 31 evidence attached.
 
+**Parallel Phase 65 checkpoint:** Issue [#39](https://github.com/theesfeld/clun/issues/39) remains open on
+`feat/issue-39-shell-tagged-templates` at `160510ce052dc7edc7eccfa22bc8b2bb87fd5b35`. The production
+`Clun.$` shell now includes inert interpolation, a pure-CL parser and evaluator, builtins, concurrent external
+pipelines, ordered descriptor redirects, callable isolated `Shell` instances, signed-64 conditional
+arithmetic, and bounded nested brace expansion. `make phase-65-shell-core-check` passes **185 / 0 / 0** plus
+**3/3** shipped `tooling.shell` evidence records; `make build`, `make purity` (**716 / 0**), and diff check
+pass. The row is honestly **Partial**, not `Yes`: the exact stable and engineering Bun source/corpus inventory,
+remaining language/API/lifecycle cases, 1,000-job stress, and Linux/macOS x64/arm64 receipts are still open.
+
 **M5 entry boundary:** immutable dev.4 diagnostic set **56 total / 0 pass / 56 fail / 0 skip / 0 crash**:
 **43 m5-owned** (32 intrinsic/prototype, 7 parser, 4 raw delegation), **12 m11** direct-eval/`with`
 controls, and **1 Phase-37** control. The unrelated mixed-feature async-iteration row remains m6. No
