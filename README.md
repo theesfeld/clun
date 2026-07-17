@@ -24,8 +24,8 @@ This unit is the Phase 58 OS-secrets constitutional checkpoint (`0.1.0-dev.26`):
 validates Bun-shaped arguments and fails closed with `ERR_SECRETS_NOT_AVAILABLE`. Ledger row
 `security.encrypted-secrets` stays **No** (not Yes/Partial). Published
 [`v0.1.0-dev.21`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.21) remains the verified
-release boundary. Master tip is `0.1.0-dev.22` after transport #95; parallel trains claim unpublished
-slots `0.1.0-dev.23`–`0.1.0-dev.25`; this unit takes free `0.1.0-dev.26` under the
+release boundary. Master tip is `0.1.0-dev.23` after m3 #109 / transport #95; parallel trains may claim unpublished
+slots `0.1.0-dev.24`–`0.1.0-dev.25`; this unit takes free `0.1.0-dev.26` under the
 unpublished-intermediate prerelease gap policy. The hosted installer correctly remains on published
 dev.21 until the candidate is merged, tagged, and released.
 
@@ -71,18 +71,18 @@ interoperability gap.
   expected-failure modifiers, array-parameterized tests and suites, retries, and repeats.
 - `clun install`, `add`, `remove`, and package scripts with a deterministic lockfile and cache.
 
-The checked-in curated test262 pass list contains 25,793 tests. The current
-40,654-row off-mode execution ledger measures 25,793 passes and 2,370 gaps across 28,163 eligible tests
-(91.58%), with 12,491 skips and zero crashes. Phase 25b's 90% target is met: the 25,347-pass target has
-zero remaining lift. The pass list gained 742 tests from milestone 5 and 3,150 from the Phase 25b entry.
+The checked-in curated test262 pass list contains 25,944 tests. The current
+40,654-row off-mode execution ledger measures 25,944 passes and 2,219 gaps across 28,163 eligible tests
+(92.12%), with 12,491 skips and zero crashes. Phase 25b's 90% target is met: the 25,347-pass target has
+zero remaining lift. The pass list gained 893 tests from milestone 5 and 3,301 from the Phase 25b entry.
 Its focused m6 slice contains 509 tests: 407 pass and 102 fail, with zero skips, timeouts, and crashes.
 All 407 milestone-owned rows pass; the 102 deliberate controls remain assigned to m11 (7) and Phase 37
 (95), leaving m6 with no owned residual. Three additional `Promise.prototype.finally` rows passed
 incidentally: `species-constructor.js`, `subclass-reject-count.js`, and `subclass-resolve-count.js`.
 Phase 32's supporting Proxy infrastructure adds 13 newly frozen passes without making a blanket Proxy
 compatibility claim. Phase 37 milestone 1 adds 173 more frozen passes without claiming complete modern
-ECMAScript parity. The full gap inventory assigns 1,767 residuals to Phase 25b and 603 to Phase 37.
-The canonical execution ledger digest is `B74BA9D0C45F150C`.
+ECMAScript parity. The full gap inventory assigns 1,767 residuals to Phase 25b and 452 to Phase 37.
+The canonical execution ledger digest is `8FCFC569AA653BF1`.
 The off/eager ledgers are byte-identical; eager mode compiled
 1,030,545 forms, classified 56,018 as ineligible, fell back zero times, and executed zero interpreter
 fallbacks. The parse gate classifies
