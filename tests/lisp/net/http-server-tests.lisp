@@ -5,9 +5,10 @@
 
 (in-package :clun-test)
 
-(defun serve-and (handler drive)
+(defun serve-and (handler drive &key idle-timeout max-request-body-size)
   "Start Clun.serve on 127.0.0.1:0 with a fetch handler = (HANDLER g request loop) → a
-Response js value (or a Promise). Then call (DRIVE loop port g). Tears the realm down."
+Response js value (or a Promise). Then call (DRIVE loop port g). Tears the realm down.
+Optional keyword options map to Bun.serve lifecycle fields."
   (let ((realm (eng:make-realm)))
     (rt:install-runtime realm :argv '(:script "[test]" :rest nil) :cwd "/tmp")
     (let ((eng:*realm* realm))
@@ -20,6 +21,11 @@ Response js value (or a Promise). Then call (DRIVE loop port g). Tears the realm
         (eng:data-prop opts "port" 0d0)
         (eng:data-prop opts "hostname" "127.0.0.1")
         (eng:data-prop opts "fetch" fetch)
+        (when idle-timeout
+          (eng:data-prop opts "idleTimeout" (coerce idle-timeout 'double-float)))
+        (when max-request-body-size
+          (eng:data-prop opts "maxRequestBodySize"
+                         (coerce max-request-body-size 'double-float)))
         (let* ((server (clun.runtime::%clun-serve g opts))
                (port (truncate (eng:js-get server "port"))))
           (unwind-protect (funcall drive loop port g server)
@@ -247,6 +253,107 @@ until the server closes, loop-stop, and return the response as a latin-1 string.
        (lp:set-timer loop 4000 (lambda () (lp:loop-stop loop)))
        (lp:run-loop loop)
        (true stopped)))))                             ; stop() resolved after the connection closed
+
+(define-test net/server-max-request-body-size-413
+  "Phase 49: maxRequestBodySize rejects oversized Content-Length with 413."
+  (serve-and
+   (lambda (g req loop)
+     (declare (ignore req loop))
+     (%resp g "should-not-run"))
+   (lambda (loop port g server)
+     (declare (ignore g server))
+     (let ((resp (client-request
+                  loop port
+                  (req (format nil "POST /big HTTP/1.1~c~cHost: x~c~cContent-Length: 8~c~cConnection: close~c~c~c~ctoobig!!"
+                               #\Return #\Newline #\Return #\Newline #\Return #\Newline
+                               #\Return #\Newline #\Return #\Newline)))))
+       (true (search "413" resp))
+       (true (search "Payload Too Large" resp))
+       (false (search "should-not-run" resp))))
+   :max-request-body-size 4))
+
+(define-test net/server-idle-timeout-closes-quiet-connection
+  "Phase 49: idleTimeout closes a connection that sends no bytes."
+  (serve-and
+   (lambda (g req loop)
+     (declare (ignore req loop))
+     (%resp g "never"))
+   (lambda (loop port g server)
+     (declare (ignore g server))
+     (let ((closed nil)
+           (got-data nil))
+       (net:tcp-connect
+        loop "127.0.0.1" port
+        :on-connect (lambda (c) (declare (ignore c)) nil) ; open, stay quiet
+        :on-data (lambda (c data)
+                   (declare (ignore c data))
+                   (setf got-data t))
+        :on-close (lambda (c code)
+                    (declare (ignore c code))
+                    (setf closed t)
+                    (lp:loop-stop loop)))
+       (lp:set-timer loop 3000 (lambda () (lp:loop-stop loop)))
+       (lp:run-loop loop)
+       (true closed)
+       (false got-data)))
+   :idle-timeout 1))
+
+(define-test net/server-force-stop-closes-active-connection
+  "Phase 49: stop(true) aborts in-flight keep-alive sockets immediately."
+  (serve-and
+   (lambda (g req loop)
+     (declare (ignore req))
+     ;; Hang: never settle the Promise so the connection stays open.
+     (eng:js-construct
+      (eng:js-get g "Promise")
+      (list (eng:make-native-function
+             "" 2
+             (lambda (this args)
+               (declare (ignore this args))
+               (lp:set-timer loop 10000 (lambda () nil))
+               eng:+undefined+)))))
+   (lambda (loop port g server)
+     (declare (ignore g))
+     (let ((client-closed nil)
+           (stop-resolved nil)
+           (got-response nil))
+       (net:tcp-connect
+        loop "127.0.0.1" port
+        :on-connect
+        (lambda (c)
+          (net:tcp-write c (req (crlf "GET /hang HTTP/1.1" "Host: x")))
+          ;; After the request is in flight, force-stop the server.
+          (lp:set-timer
+           loop 20
+           (lambda ()
+             (let ((p (eng:js-call (eng:js-get server "stop") server
+                                   (list eng:+true+))))
+               (eng:js-call
+                (eng:js-get p "then") p
+                (list (eng:make-native-function
+                       "" 1
+                       (lambda (th a)
+                         (declare (ignore th a))
+                         (setf stop-resolved t)
+                         (when client-closed
+                           (lp:loop-stop loop))
+                         eng:+undefined+))))))))
+        :on-data
+        (lambda (c data)
+          (declare (ignore c data))
+          (setf got-response t))
+        :on-close
+        (lambda (c code)
+          (declare (ignore c code))
+          (setf client-closed t)
+          (when stop-resolved
+            (lp:loop-stop loop))))
+       (lp:set-timer loop 4000 (lambda () (lp:loop-stop loop)))
+       (lp:run-loop loop)
+       (true client-closed)
+       (true stop-resolved)
+       (false got-response)))
+   :idle-timeout 0))
 
 (defun %measure-server-rps ()
   "One throughput run: 50k pipelined keep-alive requests over a single connection;

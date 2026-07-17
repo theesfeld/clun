@@ -7,19 +7,24 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **46 - Processes, VM, workers, and async hooks**  (spawn residual #104)
+## Current phase: **49 - HTTP server parity**  (LIFECYCLE PARTIAL SLICE)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/104
-**Next phase issue:** https://github.com/theesfeld/clun/issues/20
+**Canonical issue:** https://github.com/theesfeld/clun/issues/23
 **Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/2,
-https://github.com/theesfeld/clun/issues/39, and https://github.com/theesfeld/clun/issues/40
-**Current implementation unit:** Issue #104 spawn residual — object form, AbortSignal, timeout/killSignal, killed, ref/unref on Clun.spawn/spawnSync. Pure CL only; ledger Partial only (no IPC, no ReadableStream stdout, no #61 loop ownership).
+https://github.com/theesfeld/clun/issues/11, https://github.com/theesfeld/clun/issues/39,
+and https://github.com/theesfeld/clun/issues/40
+**Current implementation unit:** Phase 49 bounded Bun-compatible `Clun.serve` lifecycle slice —
+`idleTimeout`, `maxRequestBodySize`, and `server.stop(true)`. `server.http` remains **Partial**
+(streaming bodies, TLS serve, HTTP/2, Unix sockets, and full inventory stay open). No matrix Yes.
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.29` / `v0.1.0-dev.29`
+**Candidate release:** `0.1.0-dev.30` / `v0.1.0-dev.30`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
 **Entry boundary:** immutable `v0.1.0-dev.21` is tagged and published; installer defaults to that tag.
-Master tip is `0.1.0-dev.28` after path.win32 #114. This unit stages free `0.1.0-dev.29` under the unpublished-intermediate prerelease gap policy. Phase 26 remains after Phase 82.
-**Next scope:** keep spawn Partial; optional maxBuffer/IPC/ReadableStream and #61 lifecycle remain future units.
+Master tip is `0.1.0-dev.29` after spawn residual #112. This unit stages free `0.1.0-dev.30` under the
+unpublished-intermediate prerelease gap policy (transition 29→30). Phase 26 remains after Phase 82.
+**Next scope:** continue Phase 49 residuals without Yes; full `make compat FEATURE=http-server` remains open.
+
+
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
 easiest to hardest among dependency-ready rows. Core engine/runtime/network/tooling changes are expected.
 Every conversion requires a legitimate canonical issue, accepted design, full declared behavior, executable

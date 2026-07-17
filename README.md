@@ -9,8 +9,9 @@ targets are workload-specific and published;
 Clun does not claim blanket speed parity with Bun.
 
 <!-- clun-generated:release:begin -->
-> **Status: pre-alpha, under active construction.** [Phase 46](https://github.com/theesfeld/clun/issues/104) is in progress.
-> Its release-bearing target is `0.1.0-dev.29` / `v0.1.0-dev.29` (SemVer impact: `minor`).
+> **Status: pre-alpha, under active construction.** [Phase 49](https://github.com/theesfeld/clun/issues/23) HTTP server lifecycle Partial is in progress.
+> Its release-bearing target is `0.1.0-dev.30` / `v0.1.0-dev.30` (SemVer impact: `minor`).
+> The verified release boundary is `v0.1.0-dev.21`, with four native archives, checksums, Pages,
 > The verified release boundary is `v0.1.0-dev.21`, with four native archives, checksums, Pages,
 > and hosted-installer evidence.
 > Phase 26 remains deferred until after Phase 82 and will
@@ -20,11 +21,12 @@ Clun does not claim blanket speed parity with Bun.
 > the local resume checklist.
 <!-- clun-generated:release:end -->
 
-This unit is the Phase 46 spawn residual (`0.1.0-dev.29`): object form, AbortSignal, timeout/killSignal, `killed`, ref/unref on `Clun.spawn` / `Clun.spawnSync`. Spawn stays **Partial** — no IPC, ReadableStream stdout/stderr, or #61 loop-owned destroy. No compatibility-table `Yes` is claimed. Published
-[`v0.1.0-dev.21`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.21) remains the verified
-release boundary. Master tip is `0.1.0-dev.28` after path.win32 #114; this unit stages free `0.1.0-dev.29`
-under the unpublished-intermediate prerelease gap policy. The hosted installer correctly remains on published
-dev.21 until the candidate is merged, tagged, and released.
+Source stages the `0.1.0-dev.30` Phase 49 HTTP server lifecycle Partial (`idleTimeout`,
+`maxRequestBodySize`, `server.stop(true)`). `server.http` remains Partial — no matrix `Yes`.
+Published [`v0.1.0-dev.21`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.21) is the
+verified release boundary. Master tip is `0.1.0-dev.30` (shell inventory #111 after secrets #106); this
+unit allocates free `0.1.0-dev.30` under the unpublished-intermediate prerelease gap policy. The hosted
+installer correctly remains on published dev.21 until the candidate is merged, tagged, and released.
 
 ## Install
 
@@ -113,7 +115,7 @@ July 16, 2026. Engineering references are separately pinned to Bun commit `c1076
 | S3 cloud storage | No | [Phase 53](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-53) |
 | Redis client | No | [Phase 54](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-54) |
 | WebSocket server | No: pure-CL path feasible; fail-closed stubs only (design docs/design/phase-51.md) | [Phase 51](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-51) |
-| HTTP server | Partial: HTTP/1.1 with buffered bodies | [Phase 49](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-49) |
+| HTTP server | Partial: buffered bodies + idleTimeout/maxRequestBodySize/stop(force) | [Phase 49](https://github.com/theesfeld/clun/issues/23) |
 | HTTP router | Yes: `Clun.serve({ routes })` and `Clun.FileSystemRouter` | [Phase 50](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-50) |
 | Single-file executables | No: Clun ships a runtime executable only | Phases [52](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-52), [77](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-77) |
 | YAML | Yes: `Clun.YAML` parser/stringifier and `.yaml`/`.yml` module loading | [Phase 31](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-31) |
@@ -200,7 +202,7 @@ vendored under `vendor/` and located via `scripts/registry.lisp`.
 make build     # compile everything, save build/clun (save-lisp-and-die)
 make test      # run the CL suites and JS/TS fixture harnesses
 make purity    # fail on any CFFI/foreign-code token
-./build/clun --version   # => clun 0.1.0-dev.29
+./build/clun --version   # => clun 0.1.0-dev.30
 ```
 
 A fresh clone builds with `make build` alone: ASDF compiles the vendored closure and `src/` into

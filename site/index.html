@@ -22,7 +22,7 @@
 <!-- clun-generated:release:begin -->
 <a href="https://github.com/theesfeld/clun/issues/104">
   <span>In development</span>
-  v0.1.0-dev.29 / Phase 46
+  v0.1.0-dev.30 / Phase 49
   <span aria-hidden="true">-&gt;</span>
 </a>
 <!-- clun-generated:release:end -->
@@ -118,7 +118,8 @@
             CI, Documentation, all four native archives and checksums, the exact-candidate Pages deployment,
             and the hosted installer are verified. Phase 25b and its handoff are closed.
 <!-- clun-generated:phase-status:begin -->
-Phase 46 is active: <a href="https://github.com/theesfeld/clun/issues/104">Processes, VM, workers, and async hooks in issue #104</a>.
+Phase 49 is active: <a href="https://github.com/theesfeld/clun/issues/23">HTTP server parity lifecycle Partial in issue #23</a>
+(candidate <code>0.1.0-dev.30</code>; <code>server.http</code> stays Partial).
 Phase 26 remains deferred until after Phase 82 and will be re-baselined for the system state at that time.
 <!-- clun-generated:phase-status:end -->
             The issue is the canonical live record; <a href="https://github.com/theesfeld/clun/blob/master/PLAN.md">PLAN</a>
@@ -448,7 +449,7 @@ Linked phase labels are planned acceptance gates, not capabilities available tod
     </tr>
     <tr data-compat-feature="server.http">
       <th scope="row"><strong>HTTP server</strong><span>First-party server API</span></th>
-      <td class="clun-col"><b class="state partial">Partial</b> HTTP/1.1 with buffered bodies<a class="phase-link" data-roadmap-phase="49" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-49">Phase 49</a></td>
+      <td class="clun-col"><b class="state partial">Partial</b> HTTP/1.1 buffered bodies; idleTimeout/maxRequestBodySize/stop(force)<a class="phase-link" data-roadmap-phase="49" href="https://github.com/theesfeld/clun/issues/23">Phase 49</a></td>
       <td><b class="state yes">Yes</b> <code>Bun.serve</code></td>
       <td><b class="state yes">Yes</b> <code>node:http</code> and <code>node:http2</code></td>
       <td><b class="state yes">Yes</b> <code>Deno.serve</code></td>
