@@ -531,6 +531,20 @@
     (is = 2 (exit-code "[[ value =~ ( ]]"))
     (is = 0 (exit-code "[[ value || value =~ ( ]]"))))
 
+(define-test shell/conditional-extended-glob
+  (flet ((exit-code (source)
+           (nth-value 1 (shell-test-output source))))
+    (is = 0 (exit-code "shopt -s extglob"))
+    (is = 0 (exit-code "arg=-7; [[ $arg == -+([0-9]) ]]"))
+    (is = 1 (exit-code "arg=-H; [[ $arg == -+([0-9]) ]]"))
+    (is = 0 (exit-code "arg=+4; [[ $arg == ++([0-9]) ]]"))
+    (is = 0 (exit-code "[[ 123abc == *?(a)bc ]]"))
+    (is = 0 (exit-code "[[ abbbc == a+(b)c ]]"))
+    (is = 0 (exit-code "[[ foo == @(foo|bar) ]]"))
+    (is = 1 (exit-code "[[ baz == @(foo|bar) ]]"))
+    (is = 0 (exit-code "[[ '+([0-9])' == '+([0-9])' ]]"))
+    (is = 1 (exit-code "[[ +7 == '+([0-9])' ]]"))))
+
 (define-test shell/conditional-arithmetic
   (flet ((result (source)
            (clun.runtime::%shell-execute-units
