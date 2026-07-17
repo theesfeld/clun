@@ -118,7 +118,7 @@ while every skipped intermediate remains unpublished, so parallel drafts may all
 without claiming each other's tags. Phase 66 adds backward-compatible test-runner APIs (mocks,
 snapshots, coverage, reporters, sharding, fake timers, preloads) and therefore its SemVer impact is
 `minor` within the selected `0.1.0` core. Until gates complete, the installer and immutable published
-boundary remain dev.16; `tooling.test-runner` remains Partial and is not claimed as Yes.
+boundary remain dev.17; `tooling.test-runner` remains Partial and is not claimed as Yes. Shell Partial source on master is `0.1.0-dev.18` (tag pending).
 
 ## Canonical record
 

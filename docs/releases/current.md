@@ -1,7 +1,4 @@
 <!-- clun-generated:release-notes:begin -->
-# Clun 0.1.0-dev.18
-
-Phase 65: Cross-platform shell API.
 # Clun 0.1.0-dev.19
 
 Phase 66: Jest-compatible test-runner parity.
@@ -17,24 +14,15 @@ The canonical evidence and current limitations are in `compat/`; `make compat-va
 
 ## Highlights
 
-- Adds the pure-Common-Lisp `Clun.$` application shell with tagged-template interpolation, parser/AST,
-  variables, substitutions, pipelines, redirects, compound control flow, and internal builtins.
-- Supports standalone `.bun.sh` files, positional parameters, dollar and backtick command substitution,
-  isolated `Shell` instances, Blob/Response I/O, and brace-plus-glob composition.
-- Freezes a digest-pinned Bun shell inventory and 1,630-site corpus with an honest Partial checkpoint.
-  `tooling.shell` remains `Partial`, not `Yes`.
-- Follows master `0.1.0-dev.17` router Yes (`server.router`).
-
-The release candidate stages an honest Partial public shell surface. Merge, publication, and issue closure
-remain blocked on residual corpus work, lifecycle stress, four-target receipts, and final review.
 - Stages Phase 66 Jest-compatible test-runner parity as an honest Partial surface: core and extended
   matchers, snapshot lifecycles with Bun-formatted values, source-aligned coverage (text/LCOV),
   function and module mocks, setup preloads, realm-local fake timers, reporters, sharding, and
   deterministic randomization.
 - Freezes a 52-root Bun denominator manifest; exact Bun/Clun pass/fail/skip counts, concurrent
   scheduling, JSX coverage mapping, and four-target Yes receipts remain open.
-- Keeps the public ledger row `Partial` (not `Yes`). Router owns dev.17 and shell owns dev.18; this
-  candidate allocates `0.1.0-dev.19` under the unpublished-intermediate prerelease gap policy.
+- Keeps the public ledger row `Partial` (not `Yes`). Shell Partial is on master as source
+  `0.1.0-dev.18`; published boundary remains `v0.1.0-dev.17`; this candidate allocates
+  `0.1.0-dev.19` as the next prerelease after master.
 
 The release candidate stages an honest Partial public test-runner surface. Merge, publication, and
 issue closure remain blocked on residual PLAN gates, four-target receipts, and final review.

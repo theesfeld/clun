@@ -7,21 +7,6 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **65 - Cross-platform shell API**  (PARTIAL CHECKPOINT)
-
-**Canonical issue:** https://github.com/theesfeld/clun/issues/39
-**Next phase issue:** https://github.com/theesfeld/clun/issues/11
-**Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/2,
-https://github.com/theesfeld/clun/issues/24, and https://github.com/theesfeld/clun/issues/40
-**Current implementation unit:** Phase 65 implements the pure-Common-Lisp `Clun.$` application shell with
-parser/evaluator, builtins, substitutions, pipelines, control flow, and a finite Bun-pinned corpus. Public
-`tooling.shell` remains `Partial` (1,247/1,630 pinned sites); `Yes` is not claimed. Router #85 is published on master as `0.1.0-dev.17`; this unit stages exact next prerelease `0.1.0-dev.18`.
-**SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.18` / `v0.1.0-dev.18`
-**Published release:** `0.1.0-dev.17` / `v0.1.0-dev.17`
-**Entry boundary:** immutable `v0.1.0-dev.17` is tagged at exact master `909aafa090a21e247d22566361475f608bcaa7a8` with four native archives + checksums; installer defaults to that tag. Draft PR #86 is rebased onto master (including docs release reconcile #92) and stages Partial shell as `0.1.0-dev.18`. Phase 26 remains after Phase 82.
-**Next scope:** keep `tooling.shell` Partial until residual corpus, lifecycle/stress, and four-target
-receipts complete; green exact-head CI on the stacked/rebased candidate; then reassess Yes readiness.
 ## Current phase: **66 - Jest-compatible test-runner parity**  (PARTIAL CHECKPOINT)
 
 **Canonical issue:** https://github.com/theesfeld/clun/issues/40
@@ -30,12 +15,11 @@ receipts complete; green exact-head CI on the stacked/rebased candidate; then re
 https://github.com/theesfeld/clun/issues/24, and https://github.com/theesfeld/clun/issues/39
 **Current implementation unit:** Phase 66 Partial landing pad on draft PR #88 — mocks, snapshots, coverage,
 reporters, sharding, fake timers, and preloads. Ledger `tooling.test-runner` remains **Partial** (not Yes).
-Router owns `0.1.0-dev.17`; shell owns `0.1.0-dev.18`; this unit stages `0.1.0-dev.19` for release-bearing
-source under parallel unpublished-gap policy.
+Shell Partial is on `master` as source `0.1.0-dev.18`; published boundary remains `v0.1.0-dev.17`; this unit stages `0.1.0-dev.19` for release-bearing source (transition 18→19).
 **SemVer impact:** `minor`
 **Candidate release:** `0.1.0-dev.19` / `v0.1.0-dev.19`
-**Published release:** `0.1.0-dev.16` / `v0.1.0-dev.16`
-**Entry boundary:** immutable dev.16 is published at exact master `0212be64283549d03864fa7e01a793c1cee8ac33`.
+**Published release:** `0.1.0-dev.17` / `v0.1.0-dev.17`
+**Entry boundary:** immutable `v0.1.0-dev.17` is published; shell Partial is on `master` as source `0.1.0-dev.18` (PR #86, tag pending). Installer defaults to `v0.1.0-dev.17`. This branch stages `0.1.0-dev.19` on draft PR #88.
 **Next scope:** post-66.23 residual close (bun:test ESM resolve, concurrent/parallel, host-meta roots); Yes only
 with full PLAN gate and four-target receipts.
 
@@ -55,8 +39,8 @@ closed complete with exact asset digests. Phase 37 milestone 1 adds `Object.hasO
 well-formedness, `Error.isError`, and `Promise.withResolvers`, producing 173 measured execution-pass gains;
 its frozen inventory still has 708 residual failures and no full ledger row is claimed. Parallel durable
 checkpoints include transport request streaming plus origin-keyed HTTP pooling and shell parser/runtime,
-guarded filesystem builtins, bounded `yes`, and isolated pipeline state. Merged `master` is **8 Yes /
-6 Partial / 16 No** with the complete Phase 31 evidence attached.
+guarded filesystem builtins, bounded `yes`, and isolated pipeline state. Merged `master` is **9 Yes /
+7 Partial / 14 No** with the complete Phase 31 evidence attached.
 
 **Parallel Phase 65 checkpoint:** Issue [#39](https://github.com/theesfeld/clun/issues/39) remains open on
 `feat/issue-39-shell-tagged-templates`, rebased onto published dev.16 master with the current exact-coverage
