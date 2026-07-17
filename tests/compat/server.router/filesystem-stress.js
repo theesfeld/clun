@@ -1,4 +1,7 @@
+const fs = require("node:fs");
 const path = require("node:path");
+
+const pagesRoot = fs.realpathSync(process.env.CLUN_ROUTER_STRESS_PAGES);
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -15,7 +18,7 @@ for (let iteration = 0; iteration < 10; iteration++) {
   assert(Object.keys(routes).length === 129, "stable 129-route inventory under allocation pressure");
   for (let index = 0; index < 128; index++) {
     assert(
-      routes[`/route${index}`] === path.join(process.env.CLUN_ROUTER_STRESS_PAGES, `route${index}/index.tsx`),
+      routes[`/route${index}`] === path.join(pagesRoot, `route${index}/index.tsx`),
       `route${index} inventory entry`,
     );
   }

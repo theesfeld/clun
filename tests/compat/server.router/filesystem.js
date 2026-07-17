@@ -1,6 +1,8 @@
 const fs = require("node:fs");
 const path = require("node:path");
 
+const pagesRoot = fs.realpathSync(process.env.CLUN_ROUTER_PAGES);
+
 function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
@@ -32,8 +34,8 @@ assert(
   routeNames.length === 74,
   `complete filtered inventory: expected 74, got ${routeNames.length}: ${JSON.stringify(routeNames)}`,
 );
-assert(router.routes["/"] === path.join(process.env.CLUN_ROUTER_PAGES, "index.tsx"), "root route");
-assert(router.routes["/files/a64"] === path.join(process.env.CLUN_ROUTER_PAGES, "files/a64.tsx"), "large inventory");
+assert(router.routes["/"] === path.join(pagesRoot, "index.tsx"), "root route");
+assert(router.routes["/files/a64"] === path.join(pagesRoot, "files/a64.tsx"), "large inventory");
 assert(router.routes["/ignored"] === undefined, "extension filtering");
 assert(router.routes["/escape"] === undefined, "directory symlink filtering");
 
@@ -61,7 +63,7 @@ for (const current of [
 ]) {
   match = router.match(current);
   assert(match.name === "/posts/[id]", "object-form Request route");
-  assert(match.filePath === path.join(process.env.CLUN_ROUTER_PAGES, "posts/[id].tsx"), "object-form Request file");
+  assert(match.filePath === path.join(pagesRoot, "posts/[id].tsx"), "object-form Request file");
   assert(match.params.id === "hello-world", "object-form Request param");
 }
 for (const current of [
@@ -71,7 +73,7 @@ for (const current of [
   match = router.match(current);
   assert(match.name === "/posts/[id]", "object-form Request origin route");
   assert(match.src === "https://clun.sh/_next/static/posts/[id].tsx", "object-form Request public source");
-  assert(match.filePath === path.join(process.env.CLUN_ROUTER_PAGES, "posts/[id].tsx"), "object-form Request origin file");
+  assert(match.filePath === path.join(pagesRoot, "posts/[id].tsx"), "object-form Request origin file");
 }
 
 match = router.match("/posts/hey/there");
