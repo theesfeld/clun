@@ -817,6 +817,22 @@
   (make-shell-result :stdout (%shell-octets stdout) :stderr (%shell-octets stderr)
                      :exit-code code))
 
+(defun %shell-current-executable ()
+  (loop for candidate in
+          (list (ignore-errors
+                  (clun.sys:pathname->native (truename sb-ext:*runtime-pathname*)))
+                (first sb-ext:*posix-argv*))
+        when candidate
+          do (let ((path (if (clun.sys:absolute-path-p candidate)
+                             candidate
+                             (clun.sys:path-join
+                              (clun.sys:current-directory) candidate))))
+               (when (ignore-errors
+                       (and (string= (clun.sys:path-basename path) "clun")
+                            (clun.sys:file-p path)
+                            (clun.sys:check-access path 1)))
+                 (return path)))))
+
 (defun %shell-which (name env cwd)
   (flet ((usable (path)
            (let ((resolved (if (clun.sys:absolute-path-p path)
@@ -827,14 +843,16 @@
                   resolved))))
     (if (find #\/ name)
         (usable name)
-        (loop with path = (%shell-env-get env "PATH" "")
-              with start = 0
-              for colon = (position #\: path :start start)
-              for directory = (subseq path start (or colon (length path)))
-              for candidate = (clun.sys:path-join (if (string= directory "") cwd directory)
-                                                   name)
-              when (usable candidate) return candidate
-              while colon do (setf start (1+ colon))))))
+        (or (loop with path = (%shell-env-get env "PATH" "")
+                  with start = 0
+                  for colon = (position #\: path :start start)
+                  for directory = (subseq path start (or colon (length path)))
+                  for candidate = (clun.sys:path-join
+                                   (if (string= directory "") cwd directory)
+                                   name)
+                  when (usable candidate) return candidate
+                  while colon do (setf start (1+ colon)))
+            (and (string= name "clun") (%shell-current-executable))))))
 
 (defun %shell-path-separator-p (character)
   (or (char= character #\/) (char= character #\\)))
@@ -1306,7 +1324,7 @@ integer conversions are deliberately rejected because seq values are f32."
             ((string= argument "-m") (take-mode))
             ((and (> (length argument) 2)
                   (string= argument "--" :end1 2))
-             (illegal argument))
+             (illegal (subseq argument 2)))
             (t
              (loop for option across (subseq argument 1) do
                (case option
@@ -1347,6 +1365,10 @@ integer conversions are deliberately rejected because seq values are f32."
     (labels ((usage ()
                (return-from %shell-run-touch
                  (%shell-result-from-strings "" *shell-touch-usage* 1)))
+             (illegal (option)
+               (return-from %shell-run-touch
+                 (%shell-result-from-strings
+                  "" (format nil "touch: illegal option -- ~a~%" option) 1)))
              (unsupported (option)
                (return-from %shell-run-touch
                  (%shell-result-from-strings
@@ -1366,7 +1388,7 @@ integer conversions are deliberately rejected because seq values are f32."
             ((string= argument "--no-create") (setf no-create t))
             ((and (> (length argument) 2)
                   (string= argument "--" :end1 2))
-             (unsupported argument))
+             (illegal (subseq argument 2)))
             (t
              (loop for option across (subseq argument 1) do
                (case option
@@ -2582,8 +2604,12 @@ integer conversions are deliberately rejected because seq values are f32."
       ((string= name "[[")
        (values (%shell-run-condition args state) t))
       ((string= name "pwd")
-       (values (%shell-result-from-strings
-                (concatenate 'string (shell-state-cwd state) (string #\Newline)) "" 0) t))
+       (values (if args
+                   (%shell-result-from-strings
+                    "" (format nil "pwd: too many arguments~%") 1)
+                   (%shell-result-from-strings
+                    (concatenate 'string (shell-state-cwd state) (string #\Newline)) "" 0))
+               t))
       ((string= name "cd")
        (let* ((argument (or (first args) (%shell-env-get env "HOME" "")))
               (destination (if (string= argument "-")
@@ -3230,6 +3256,17 @@ deadlock even when commands produce output larger than kernel pipe capacity."
 
 (defun %shell-execute-units (units state &optional (g (eng:realm-global eng:*realm*)))
   (%shell-execute-script (%shell-parse units) state g))
+
+(defun execute-shell-script (source &key (cwd (clun.sys:current-directory))
+                                         (env (clun.sys:environ-alist)))
+  "Execute SOURCE with Clun's shell engine and return stdout, stderr, and status values."
+  (unless (stringp source)
+    (error 'type-error :datum source :expected-type 'string))
+  (let* ((state (make-shell-state :cwd cwd :env (%shell-env-copy env)))
+         (result (%shell-execute-units (coerce source 'vector) state nil)))
+    (values (copy-seq (shell-result-stdout result))
+            (copy-seq (shell-result-stderr result))
+            (shell-result-exit-code result))))
 
 ;;; --- JavaScript API --------------------------------------------------------
 

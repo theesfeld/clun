@@ -725,3 +725,21 @@ stable.test_js_bun_shell_throw_test_ts.L21.1.test-call	covered	tests/compat/tool
 stable.test_js_bun_shell_throw_test_ts.L32.1.test-call	covered	tests/compat/tooling.shell/upstream-public-api.js	exact pinned public shell API behavior executes through the shipped binary
 stable.test_js_bun_shell_throw_test_ts.L42.1.test-call	covered	tests/compat/tooling.shell/upstream-public-api.js	exact pinned public shell API behavior executes through the shipped binary
 stable.test_js_bun_shell_yield_test_ts.L10.1.builder-test	covered	tests/compat/tooling.shell/upstream-public-api.js	exact pinned public shell API behavior executes through the shipped binary
+engineering.test_js_bun_shell_exec_test_ts.L12.1.builder-test	covered	tests/compat/tooling.shell/upstream-exec.js	exact pinned clun exec behavior executes through the shipped binary
+engineering.test_js_bun_shell_exec_test_ts.L17.1.builder-test	covered	tests/compat/tooling.shell/upstream-exec.js	exact pinned clun exec behavior executes through the shipped binary
+engineering.test_js_bun_shell_exec_test_ts.L24.1.builder-test	covered	tests/compat/tooling.shell/upstream-exec.js	exact pinned clun exec behavior executes through the shipped binary
+engineering.test_js_bun_shell_exec_test_ts.L28.1.builder-test	covered	tests/compat/tooling.shell/upstream-exec.js	exact pinned clun exec behavior executes through the shipped binary
+engineering.test_js_bun_shell_exec_test_ts.L43.1.builder-test	covered	tests/compat/tooling.shell/upstream-exec.js	exact pinned clun exec behavior executes through the shipped binary
+engineering.test_js_bun_shell_exec_test_ts.L70.1.builder-test	covered	tests/compat/tooling.shell/upstream-exec.js	exact pinned clun exec behavior executes through the shipped binary
+engineering.test_js_bun_shell_exec_test_ts.L79.1.builder-test	covered	tests/compat/tooling.shell/upstream-exec.js	exact pinned clun exec behavior executes through the shipped binary
+engineering.test_js_bun_shell_exec_test_ts.L81.1.test-call	covered	tests/compat/tooling.shell/upstream-exec.js	exact pinned clun exec behavior executes through the shipped binary
+engineering.test_js_bun_shell_exec_test_ts.L87.1.test-call	covered	tests/compat/tooling.shell/upstream-exec.js	exact pinned clun exec behavior executes through the shipped binary
+stable.test_js_bun_shell_exec_test_ts.L12.1.builder-test	covered	tests/compat/tooling.shell/upstream-exec.js	exact pinned clun exec behavior executes through the shipped binary
+stable.test_js_bun_shell_exec_test_ts.L17.1.builder-test	covered	tests/compat/tooling.shell/upstream-exec.js	exact pinned clun exec behavior executes through the shipped binary
+stable.test_js_bun_shell_exec_test_ts.L24.1.builder-test	covered	tests/compat/tooling.shell/upstream-exec.js	exact pinned clun exec behavior executes through the shipped binary
+stable.test_js_bun_shell_exec_test_ts.L28.1.builder-test	covered	tests/compat/tooling.shell/upstream-exec.js	exact pinned clun exec behavior executes through the shipped binary
+stable.test_js_bun_shell_exec_test_ts.L43.1.builder-test	covered	tests/compat/tooling.shell/upstream-exec.js	exact pinned clun exec behavior executes through the shipped binary
+stable.test_js_bun_shell_exec_test_ts.L70.1.builder-test	covered	tests/compat/tooling.shell/upstream-exec.js	exact pinned clun exec behavior executes through the shipped binary
+stable.test_js_bun_shell_exec_test_ts.L79.1.builder-test	covered	tests/compat/tooling.shell/upstream-exec.js	exact pinned clun exec behavior executes through the shipped binary
+stable.test_js_bun_shell_exec_test_ts.L81.1.test-call	covered	tests/compat/tooling.shell/upstream-exec.js	exact pinned clun exec behavior executes through the shipped binary
+stable.test_js_bun_shell_exec_test_ts.L87.1.test-call	covered	tests/compat/tooling.shell/upstream-exec.js	exact pinned clun exec behavior executes through the shipped binary

@@ -88,7 +88,7 @@ types, fixtures, and upstream licenses. `upstream-files.tsv` binds every file to
 
 `upstream-corpus.tsv` enumerates 1,630 lexical test sites from those exact snapshots. The initial conservative
 disposition was 1,598 pending and 32 explicitly inactive at the pinned revisions. The current executable
-mapping is 726 covered, 872 pending, and 32 upstream-inactive. `upstream-coverage.tsv` binds each credited
+mapping is 744 covered, 854 pending, and 32 upstream-inactive. `upstream-coverage.tsv` binds each credited
 inventory ID to a checked-in shipped-binary fixture; regeneration rejects duplicate, stale, or unknown IDs,
 and the corpus validator rejects missing evidence. `shell-upstream-corpus-check.sh` rejects inventory drift
 or an unexplained disposition. Its `--yes` mode is the finite closure gate: it rejects any pending row and
@@ -153,6 +153,12 @@ available on ShellPromise, ShellOutput, and ShellError. The same fixture freezes
 lazy start, local/global throw policy, Clun.file interpolation, 10,000-value expansion, and applicable
 `/dev/full` recovery. The underlying filesystem writer preserves write errno instead of leaking raw stream
 conditions across the JavaScript boundary.
+`tests/compat/tooling.shell/upstream-exec.js` closes all 18 exact IDs from both pinned `exec.test.ts`
+baselines. The `clun exec <script>` CLI dispatches through the same Common Lisp parser and executor as
+`Clun.$`, with no host shell. It preserves cwd and environment, writes arbitrary stdout and stderr bytes,
+normalizes command lookup failure to the CLI contract, resolves the current Clun executable when `PATH` is
+empty, and freezes help, large output, builtin diagnostics, default `cd`, and a non-ASCII cwd through the
+shipped binary.
 The conditional fixture freezes the active `shell-seq-condexpr.test.ts` empty-path regressions and the
 non-todo `bunshell.test.ts` unary/string cases, including both conditional pipeline positions. It additionally
 freezes the pinned GNU-bash-derived compound-expression cases for repeated negation, short-circuit operators,

@@ -403,6 +403,22 @@
           (eng:utf8->code-units (clun.runtime::shell-result-stdout result)))
       (is = 0 (clun.runtime::shell-result-exit-code result)))))
 
+(define-test shell/cli-execution-entrypoint
+  (multiple-value-bind (stdout stderr status)
+      (rt:execute-shell-script "echo hello; false || echo recovered"
+                               :cwd (sys:current-directory)
+                               :env (sys:environ-alist))
+    (is equal (format nil "hello~%recovered~%") (eng:utf8->code-units stdout))
+    (is = 0 (length stderr))
+    (is = 0 status))
+  (multiple-value-bind (stdout stderr status)
+      (rt:execute-shell-script "pwd --help"
+                               :cwd (sys:current-directory)
+                               :env (sys:environ-alist))
+    (is = 0 (length stdout))
+    (is equal (format nil "pwd: too many arguments~%") (eng:utf8->code-units stderr))
+    (is = 1 status)))
+
 (define-test shell/conditional-expression-core
   (let* ((directory (clun.runtime::%shell-temp-directory))
          (state (shell-test-state)))

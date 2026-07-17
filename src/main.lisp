@@ -15,6 +15,7 @@
                   ~8@Tclun run <file>          run a file (package scripts: Phase 24)~%~
                   ~8@Tclun -e '<code>'         evaluate code~%~
                   ~8@Tclun -p '<code>'         evaluate and print the (awaited) result~%~
+                  ~8@Tclun exec '<script>'      execute a Clun shell script~%~
                   ~8@Tclun install            install package.json deps into node_modules~%~
                   ~8@Tclun add <pkg>          add a dependency (-d dev, -E exact) + install~%~
                   ~8@Tclun remove <pkg>       remove a dependency + reinstall~%~
@@ -97,6 +98,34 @@ rejected."
   (let ((cwd (resolve-cwd r))
         (argv (remove nil (cons (cli:cli-get r :file) (cli:cli-get r :args)))))
     (clun.test-runner:run-test-command argv cwd)))
+
+(defun print-exec-help (&optional (stream *standard-output*))
+  (format stream "Usage: clun exec <script>~%~
+                  ~%~
+                  Execute a shell script directly from Clun.~%~
+                  ~%~
+                  Note: If executing this from a shell, make sure to escape the string!~%~
+                  ~%~
+                  Examples:~%~
+                  ~2@Tclun exec \"echo hi\"~%~
+                  ~2@Tclun exec \"echo \\\"hey friends\\\"!\"~%"))
+
+(defun run-exec (r)
+  "Execute the `clun exec` source through Clun's in-process shell engine."
+  (let ((parts (remove nil (cons (cli:cli-get r :file) (cli:cli-get r :args)))))
+    (when (null parts)
+      (print-exec-help)
+      (return-from run-exec 0))
+    (multiple-value-bind (stdout stderr status)
+        (rt:execute-shell-script
+         (format nil "~{~a~^ ~}" parts)
+         :cwd (resolve-cwd r)
+         :env (sys:environ-alist))
+      (when (plusp (length stdout))
+        (sys:write-fd-octets 1 stdout))
+      (when (plusp (length stderr))
+        (sys:write-fd-octets 2 stderr))
+      (if (= status 127) 1 status))))
 
 ;;; --- install / add / remove -------------------------------------------------
 
@@ -306,6 +335,7 @@ npm_* env, arg passthrough); if <name> is not a script, fall through to running 
               (cond
                 ((equal sub "test") (run-test r))
                 ((member sub '("install" "add" "remove") :test #'equal) (run-install-command r))
+                ((equal sub "exec") (run-exec r))
                 ((equal sub "run") (run-script r))
                 (t (run-file r (cli:cli-get r :file)))))))))
 

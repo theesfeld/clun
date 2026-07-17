@@ -366,6 +366,22 @@ Reading a directory is EISDIR (opening a dir stream signals a non-file-error oth
       (when fd (ignore-errors (sb-posix:close fd)))))
   (length octets))
 
+(defun write-fd-octets (fd octets)
+  "Write all OCTETS to an already-open descriptor without closing it."
+  (loop with offset = 0
+        while (< offset (length octets))
+        do (multiple-value-bind (written errno)
+               (sb-unix:unix-write fd octets offset (- (length octets) offset))
+             (cond
+               ((and written (plusp written)) (incf offset written))
+               ((eql errno sb-unix:eintr))
+               (t
+                (let* ((number (or errno (%errno-of-name "EIO")))
+                       (code (%errno-name number)))
+                  (error 'fs-error :code code :errno number
+                                   :syscall "write" :path (format nil "fd ~d" fd)))))))
+  (length octets))
+
 (defun copy-file* (src dst) (write-file-octets dst (read-file-octets src)))
 
 (defun copy-file-stream (src dst &key (buffer-size 65536) mode)
