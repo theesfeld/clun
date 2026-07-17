@@ -154,6 +154,58 @@ then the final chunk after 75ms.  __tailSent exposes whether fetch waited for EO
              (net:listener-close ,listener)
              (eng:teardown-realm ,realm)))))))
 
+(defun %append-upload-capture (capture octets)
+  (let* ((old (fill-pointer capture))
+         (new (+ old (length octets))))
+    (when (> new (array-total-size capture))
+      (adjust-array capture (max new (* 2 (array-total-size capture)))
+                    :fill-pointer old))
+    (setf (fill-pointer capture) new)
+    (replace capture octets :start1 old)))
+
+(defun %start-upload-capture-server (loop capture)
+  (let ((terminal
+          (sb-ext:string-to-octets
+           (format nil "0~c~c~c~c" #\Return #\Newline #\Return #\Newline)
+           :external-format :latin-1)))
+    (net:tcp-listen
+     loop "127.0.0.1" 0
+     :on-connection
+     (lambda (connection)
+       (let ((responded nil))
+         (setf
+          (net:tcp-on-data connection)
+          (lambda (peer data)
+            (%append-upload-capture capture data)
+            (when (and (not responded)
+                       (search terminal capture :end2 (fill-pointer capture)))
+              (setf responded t)
+              (net:tcp-write
+               peer
+               (sb-ext:string-to-octets
+                (format nil
+                        "HTTP/1.1 200 OK~c~cContent-Length: 2~c~cConnection: close~c~c~c~cok"
+                        #\Return #\Newline #\Return #\Newline
+                        #\Return #\Newline #\Return #\Newline)
+                :external-format :latin-1))
+              (net:tcp-shutdown peer)))))))))
+
+(defmacro with-upload-capture-server ((g port capture) &body body)
+  (let ((realm (gensym)) (loop (gensym)) (listener (gensym)))
+    `(let ((,realm (eng:make-realm)))
+       (rt:install-runtime ,realm :argv '(:script "[test]" :rest nil) :cwd "/tmp")
+       (let ((eng:*realm* ,realm))
+         (let* ((,g (eng:realm-global ,realm))
+                (,loop (eng:current-loop))
+                (,capture
+                  (make-array 1024 :element-type '(unsigned-byte 8)
+                                   :adjustable t :fill-pointer 0))
+                (,listener (%start-upload-capture-server ,loop ,capture))
+                (,port (net:listener-port ,listener)))
+           (unwind-protect (progn ,@body)
+             (net:listener-close ,listener)
+             (eng:teardown-realm ,realm)))))))
+
 (defun fetch-info (g realm port path &optional opts-src)
   "fetch http://127.0.0.1:PORT/PATH and return the settled info object (or throw kind)."
   (let ((url (format nil "http://127.0.0.1:~d~a" port path)))
@@ -511,6 +563,81 @@ then the final chunk after 75ms.  __tailSent exposes whether fetch waited for EO
         (fetch-info g eng:*realm* port "/text" "{method:'GET', body:'nope'}")
       (is eq :rejected kind)
       (is string= "TypeError" (eng:to-string (eng:js-get value "name"))))))
+
+(define-test net/fetch-streaming-request-body-is-chunked-and-bounded
+  (with-upload-capture-server (g port capture)
+    (let ((stream (rt::%new-body-stream)))
+      (eng:data-prop g "__uploadBody" stream)
+      (rt::%body-stream-enqueue
+       stream (make-array 3 :element-type '(unsigned-byte 8)
+                           :initial-contents '(97 98 99)))
+      (rt::%body-stream-enqueue
+       stream (make-array 2 :element-type '(unsigned-byte 8)
+                           :initial-contents '(100 101)))
+      (rt::%body-stream-close stream)
+      (multiple-value-bind (kind value)
+          (eng:run-callback-to-settlement
+           (lambda ()
+             (jseval
+              eng:*realm*
+              (format nil
+                      "(async () => {
+                         const response = await fetch('http://127.0.0.1:~d/upload', {
+                           method: 'POST', body: globalThis.__uploadBody, duplex: 'half'
+                         });
+                         return { body: await response.text(), locked: globalThis.__uploadBody.locked };
+                       })()"
+                      port)))
+           eng:*realm* :timeout-ms 4000)
+        (is eq :fulfilled kind)
+        (is string= "ok" (eng:to-string (eng:js-get value "body")))
+        (is eq eng:+false+ (eng:js-get value "locked"))
+        (let ((wire
+                (sb-ext:octets-to-string
+                 (subseq capture 0 (fill-pointer capture))
+                 :external-format :latin-1)))
+          (true (search "Transfer-Encoding: chunked" wire))
+          (false (search "Content-Length:" wire))
+          (true
+           (search
+            (format nil "3~c~cabc~c~c2~c~cde~c~c0~c~c~c~c"
+                    #\Return #\Newline #\Return #\Newline
+                    #\Return #\Newline #\Return #\Newline
+                    #\Return #\Newline #\Return #\Newline)
+            wire)))))))
+
+(define-test net/fetch-streaming-request-validates-duplex-and-framing
+  (with-fetch-server (g port)
+    (dolist (options
+             (list
+              "{ method: 'POST', body: new Response('x').body }"
+              "{ method: 'POST', body: new Response('x').body, duplex: 'full' }"
+              "{ method: 'POST', body: new Response('x').body, duplex: 'half', headers: { 'content-length': '1' } }"
+              "{ method: 'GET', body: new Response('x').body, duplex: 'half' }"))
+      (multiple-value-bind (kind value)
+          (fetch-info g eng:*realm* port "/text" options)
+        (is eq :rejected kind)
+        (is string= "TypeError"
+            (eng:to-string (eng:js-get value "name")))))))
+
+(define-test net/fetch-streaming-request-preserves-source-error
+  (with-upload-capture-server (g port capture)
+    (let ((stream (rt::%new-body-stream)))
+      (eng:data-prop g "__failedUpload" stream)
+      (rt::%body-stream-error stream "upload-broke")
+      (multiple-value-bind (kind value)
+          (eng:run-callback-to-settlement
+           (lambda ()
+             (jseval
+              eng:*realm*
+              (format nil
+                      "fetch('http://127.0.0.1:~d/upload', {
+                         method: 'POST', body: globalThis.__failedUpload, duplex: 'half'
+                       })"
+                      port)))
+           eng:*realm* :timeout-ms 4000)
+        (is eq :rejected kind)
+        (is string= "upload-broke" (eng:to-string value))))))
 
 (define-test net/fetch-connection-refused
   (with-fetch-server (g port)

@@ -27,10 +27,11 @@
 ;;; --- (1) transport round-trip ------------------------------------------------
 
 (defun %https-fixture-server
-    (cert-file key-file response-bytes &key split-at tail-sent-box)
+    (cert-file key-file response-bytes
+     &key split-at tail-sent-box request-capture read-request-body-p)
   "Start a ONE-SHOT blocking pure-tls HTTPS server on 127.0.0.1:0 presenting CERT-FILE/KEY-FILE.
 Returns (values port thread): accepts one connection, handshakes, reads the request headers to
-CRLFCRLF, writes RESPONSE-BYTES, closes (close_notify → the client sees EOF)."
+CRLFCRLF (and optionally its terminal chunk), writes RESPONSE-BYTES, and closes with close_notify."
   (let ((lsock (make-instance 'sb-bsd-sockets:inet-socket :type :stream :protocol :tcp)))
     (setf (sb-bsd-sockets:sockopt-reuse-address lsock) t)
     (sb-bsd-sockets:socket-bind lsock (sb-bsd-sockets:make-inet-address "127.0.0.1") 0)
@@ -45,10 +46,29 @@ CRLFCRLF, writes RESPONSE-BYTES, closes (close_notify → the client sees EOF)."
                         (raw (sb-bsd-sockets:socket-make-stream child :input t :output t
                                                                     :element-type '(unsigned-byte 8)))
                         (tls (pure-tls:make-tls-server-stream raw :certificate cert-file :key key-file)))
-                   (let ((w 0) (x 0) (y 0) (z 0))
+                   (let ((w 0) (x 0) (y 0) (z 0)
+                         (header-seen-p nil)
+                         (captured
+                           (or request-capture
+                               (make-array 1024
+                                           :element-type '(unsigned-byte 8)
+                                           :adjustable t :fill-pointer 0))))
                      (loop for b = (read-byte tls nil nil) while b do
+                       (vector-push-extend b captured)
                        (setf w x x y y z z b)
-                       (when (and (= w 13) (= x 10) (= y 13) (= z 10)) (return))))
+                       (cond
+                         ((and (not header-seen-p)
+                               (= w 13) (= x 10) (= y 13) (= z 10))
+                          (setf header-seen-p t)
+                          (unless read-request-body-p (return)))
+                         ((and header-seen-p read-request-body-p
+                               (>= (fill-pointer captured) 5)
+                               (= 48 (aref captured (- (fill-pointer captured) 5)))
+                               (= 13 (aref captured (- (fill-pointer captured) 4)))
+                               (= 10 (aref captured (- (fill-pointer captured) 3)))
+                               (= 13 (aref captured (- (fill-pointer captured) 2)))
+                               (= 10 (aref captured (1- (fill-pointer captured)))))
+                          (return)))))
                    (if split-at
                        (progn
                          (write-sequence response-bytes tls :end split-at)
@@ -123,6 +143,52 @@ CRLFCRLF, writes RESPONSE-BYTES, closes (close_notify → the client sees EOF)."
                 :external-format :utf-8)))
       (ignore-errors (sb-thread:join-thread thread :timeout 5)))))
 
+(define-test net/https-transport-streams-request-body
+  (let ((capture
+          (make-array 1024 :element-type '(unsigned-byte 8)
+                           :adjustable t :fill-pointer 0))
+        (parts
+          (list (sb-ext:string-to-octets "tls-" :external-format :utf-8)
+                (sb-ext:string-to-octets "upload" :external-format :utf-8)))
+        (pulls 0))
+    (multiple-value-bind (fport thread)
+        (%https-fixture-server
+         (%cert "localhost-leaf.crt") (%cert "localhost-leaf.key")
+         (%http-response-bytes 200 "ok" "text/plain")
+         :request-capture capture :read-request-body-p t)
+      (unwind-protect
+           (let ((status nil)
+                 (complete-p nil))
+             (net:https-request-stream
+              :host "localhost" :port fport :method "POST" :path "/upload"
+              :verify nil
+              :request-body-source
+              (lambda ()
+                (incf pulls)
+                (if parts
+                    (values (pop parts) nil)
+                    (values nil t)))
+              :on-headers (lambda (head) (setf status (net:hres-status head)))
+              :on-data (lambda (chunk) (declare (ignore chunk)))
+              :on-complete (lambda () (setf complete-p t)))
+             (is = 200 status)
+             (true complete-p)
+             (is = 3 pulls)
+             (let ((wire
+                     (sb-ext:octets-to-string
+                      (subseq capture 0 (fill-pointer capture))
+                      :external-format :latin-1)))
+               (true (search "Transfer-Encoding: chunked" wire))
+               (false (search "Content-Length:" wire))
+               (true
+                (search
+                 (format nil "4~c~ctls-~c~c6~c~cupload~c~c0~c~c~c~c"
+                         #\Return #\Newline #\Return #\Newline
+                         #\Return #\Newline #\Return #\Newline
+                         #\Return #\Newline #\Return #\Newline)
+                 wire))))
+        (ignore-errors (sb-thread:join-thread thread :timeout 5))))))
+
 (define-test net/https-async-stream-bridge-pauses-worker
   (let* ((body (make-string 40000 :initial-element #\x))
          (response (%http-response-bytes 200 body "text/plain"))
@@ -170,6 +236,69 @@ CRLFCRLF, writes RESPONSE-BYTES, closes (close_notify → the client sees EOF)."
                    (reduce #'+ chunks :key #'length :initial-value 0)))
           (lp:destroy-event-loop loop)
           (ignore-errors (sb-thread:join-thread thread :timeout 5)))))))
+
+(define-test net/https-async-stream-bridge-pulls-request-body
+  (let ((realm (eng:make-realm))
+        (capture
+          (make-array 1024 :element-type '(unsigned-byte 8)
+                           :adjustable t :fill-pointer 0)))
+    (rt:install-runtime realm :argv '(:script "[test]" :rest nil) :cwd "/tmp")
+    (unwind-protect
+         (let* ((eng:*realm* realm)
+                (loop (eng:current-loop))
+                (stream (rt::%new-body-stream))
+                (reader nil)
+                (status nil)
+                (complete-p nil)
+                (upload-complete-p nil)
+                (error-code nil))
+           (rt::%body-stream-enqueue
+            stream (sb-ext:string-to-octets "async-" :external-format :utf-8))
+           (rt::%body-stream-enqueue
+            stream (sb-ext:string-to-octets "upload" :external-format :utf-8))
+           (rt::%body-stream-close stream)
+           (setf reader (rt::%body-stream-reader stream))
+           (multiple-value-bind (fport thread)
+               (%https-fixture-server
+                (%cert "localhost-leaf.crt") (%cert "localhost-leaf.key")
+                (%http-response-bytes 200 "ok" "text/plain")
+                :request-capture capture :read-request-body-p t)
+             (unwind-protect
+                  (progn
+                    (rt::%https-request-stream-async
+                     loop :host "localhost" :port fport
+                     :method "POST" :path "/async-upload" :verify nil
+                     :request-body-reader reader
+                     :on-request-complete
+                     (lambda ()
+                       (setf upload-complete-p t)
+                       (rt::%body-reader-release reader))
+                     :on-headers
+                     (lambda (head) (setf status (net:hres-status head)))
+                     :on-data (lambda (chunk) (declare (ignore chunk)))
+                     :on-complete (lambda () (setf complete-p t))
+                     :on-error (lambda (code) (setf error-code code)))
+                    (lp:run-loop loop)
+                    (false error-code)
+                    (is = 200 status)
+                    (true complete-p)
+                    (true upload-complete-p)
+                    (false (rt::js-body-stream-locked-p stream))
+                    (let ((wire
+                            (sb-ext:octets-to-string
+                             (subseq capture 0 (fill-pointer capture))
+                             :external-format :latin-1)))
+                      (true (search "Transfer-Encoding: chunked" wire))
+                      (true
+                       (search
+                        (format nil
+                                "6~c~casync-~c~c6~c~cupload~c~c0~c~c~c~c"
+                                #\Return #\Newline #\Return #\Newline
+                                #\Return #\Newline #\Return #\Newline
+                                #\Return #\Newline #\Return #\Newline)
+                        wire))))
+               (ignore-errors (sb-thread:join-thread thread :timeout 5)))))
+      (eng:teardown-realm realm))))
 
 ;;; --- (2) verification matrix (direct verify functions vs the test PKI) --------
 

@@ -2715,3 +2715,19 @@ corpus, security/resource gates, and four-target receipts pass. The pinned sourc
 Clun translation, and case-level baseline are committed together; no case can be dropped or reclassified
 silently. The dev.14 SemVer target remains valid because Phase 36's password/hash APIs are independent real
 backward-compatible functionality.
+### 2026-07-17 - Phase 28 streams fetch request bodies with bounded half-duplex flow
+
+Fetch normalization preserves runtime-owned `ReadableStream` bodies instead of collecting them. Streaming
+requests require `duplex: "half"`, reject user-controlled `Content-Length` and `Transfer-Encoding`, and use
+HTTP/1.1 chunked coding. Plain HTTP keeps at most one chunk in flight and resumes the producer only on the
+socket drain edge; it does not expose inbound bytes until the terminal chunk is queued. HTTPS permits one
+outstanding JavaScript reader promise across the worker boundary and applies the same aggregate body bound
+before authenticated TLS 1.3 or TLS 1.2 record writes. Abort wakes both upload and response wait sites.
+
+The TLS 1.2 fallback remains replay-safe: the preferred TLS 1.3 handshake must fail with the exact
+`protocol_version` alert before the source is pulled, then the source is consumed once on a fresh connection.
+Source rejection values are preserved as fetch rejection reasons, successful completion releases the reader
+lock, GET/HEAD stream bodies fail, redirects that change to GET drop the stream, and method-preserving
+redirects reject rather than replay a disturbed source. This is a Phase 28 implementation slice only;
+pooling, proxy support, the complete cancellation/timeout and large-transfer matrix, four-target receipts,
+and any compatibility-ledger promotion remain open.

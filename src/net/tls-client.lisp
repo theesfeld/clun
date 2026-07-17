@@ -318,7 +318,8 @@ an abort can close it to unblock the blocking read."
 (defun https-request-stream
     (&key host port method path headers body host-header
           (ca-file (%system-ca-file)) (verify t) socket-box
-          (connect-timeout-ms 30000) on-headers on-data on-complete)
+          (connect-timeout-ms 30000) request-body-source
+          on-headers on-data on-complete)
   "Issue one blocking HTTPS request and deliver its response incrementally.
 
 This preserves HTTPS-REQUEST's DNS, Happy Eyeballs, TLS 1.3-to-1.2 fallback,
@@ -330,7 +331,8 @@ on that worker thread; an asynchronous caller is responsible for loop marshallin
         (raw nil)
         (tls nil)
         (request (%serialize-request method path (or host-header host)
-                                     headers body "identity")))
+                                     headers body "identity"
+                                     (not (null request-body-source)))))
     (labels ((close-transport ()
                (ignore-errors (when tls (close tls)))
                (ignore-errors (when raw (close raw)))
@@ -373,7 +375,8 @@ on that worker thread; an asynchronous caller is responsible for loop marshallin
                        (multiple-value-bind (termination clean-eof-p)
                            (https-request-tls12-stream
                             raw host request feed
-                            :ca-file ca-file :verify verify)
+                            :ca-file ca-file :verify verify
+                            :request-body-source request-body-source)
                          (case termination
                            (:message-complete t)
                            (:close-notify (funcall finish-at-eof clean-eof-p))
@@ -381,6 +384,23 @@ on that worker thread; an asynchronous caller is responsible for loop marshallin
                      (progn
                        (write-sequence request tls)
                        (force-output tls)
+                       (when request-body-source
+                         (let ((total 0))
+                           (loop
+                             (multiple-value-bind (chunk done-p)
+                                 (funcall request-body-source)
+                               (when done-p
+                                 (write-sequence +chunked-request-end+ tls)
+                                 (force-output tls)
+                                 (return))
+                               (when (plusp (length chunk))
+                                 (incf total (length chunk))
+                                 (when (> total *max-body-bytes*)
+                                   (error
+                                    "streaming request body exceeded the size limit"))
+                                 (write-sequence
+                                  (%chunked-request-frame chunk) tls)
+                                 (force-output tls))))))
                        (let ((buffer
                                (make-array 65536
                                            :element-type '(unsigned-byte 8))))

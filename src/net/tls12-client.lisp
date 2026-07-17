@@ -615,7 +615,8 @@ are mandatory unless VERIFY is explicitly NIL for a hermetic fixture."
       (%tls12-close-notify state))))
 
 (defun https-request-tls12-stream
-    (stream hostname request-bytes on-data &key ca-file (verify t))
+    (stream hostname request-bytes on-data
+     &key ca-file (verify t) request-body-source)
   "Perform a TLS 1.2 exchange and deliver authenticated HTTP wire chunks.
 
 This is the streaming counterpart to HTTPS-REQUEST-TLS12. It preserves the
@@ -624,5 +625,21 @@ same handshake, certificate, hostname, record-MAC, and close-notify behavior."
     (unwind-protect
          (progn
            (%tls12-write-application-data state request-bytes)
+           (when request-body-source
+             (let ((total 0))
+               (loop
+                 (multiple-value-bind (chunk done-p)
+                     (funcall request-body-source)
+                   (when done-p
+                     (%tls12-write-application-data
+                      state +chunked-request-end+)
+                     (return))
+                   (when (plusp (length chunk))
+                     (incf total (length chunk))
+                     (when (> total *max-body-bytes*)
+                       (%tls12-fail
+                        "streaming request body exceeded the size limit"))
+                     (%tls12-write-application-data
+                      state (%chunked-request-frame chunk)))))))
            (%tls12-read-application-data-stream state on-data))
       (%tls12-close-notify state))))

@@ -25,8 +25,8 @@ an AbortSignal (e.g. AbortSignal.timeout(ms)).")
     (t (eng:to-string input))))
 
 (defun %fetch-normalize (input init)
-  "Return a plist (:url :method :headers alist :body octets :signal :redirect) from
-INPUT + INIT (INIT overrides). A Request INPUT contributes method/headers/body."
+  "Normalize INPUT + INIT. Buffered and streaming bodies remain distinct so fetch can
+preserve bounded pull/backpressure instead of eagerly collecting a ReadableStream."
   (let* ((req-input (and (js-request-p input) input))
          (io (and (eng:js-object-p init) init))
          (method (let ((m (or (and io (eng:js-get init "method"))
@@ -42,11 +42,69 @@ INPUT + INIT (INIT overrides). A Request INPUT contributes method/headers/body."
          (body-val (cond ((and io (not (eng:js-undefined-p (eng:js-get init "body")))) (eng:js-get init "body"))
                          (req-input (%request-body-value req-input))
                          (t nil)))
+         (body-stream (and (js-body-stream-p body-val) body-val))
+         (duplex (and io
+                      (let ((value (eng:js-get init "duplex")))
+                        (and (eng:js-string-p value)
+                             (eng:to-string value)))))
          (signal (and io (let ((s (eng:js-get init "signal"))) (and (eng:js-object-p s) s))))
          (redirect (if (and io (eng:js-string-p (eng:js-get init "redirect")))
                        (eng:to-string (eng:js-get init "redirect")) "follow")))
     (list :url (%fetch-url-of input) :method method :headers headers
-          :body (if body-val (%body->octets body-val) nil) :signal signal :redirect redirect)))
+          :body (if (and body-val (not body-stream)) (%body->octets body-val) nil)
+          :body-stream body-stream :duplex duplex
+          :signal signal :redirect redirect)))
+
+(defun %fetch-request-framing-header-p (headers)
+  (or (assoc "content-length" headers :test #'string-equal)
+      (assoc "transfer-encoding" headers :test #'string-equal)))
+
+(defun %pump-fetch-request-body
+    (reader write finish on-complete on-error)
+  "Pull one Uint8Array at a time from READER and never outrun transport WRITE.
+
+WRITE returns true for an immediate next pull or arranges the supplied continuation
+on its drain edge. Promise rejection is preserved as the fetch rejection reason."
+  (let ((active-p t))
+    (labels
+        ((fail (reason)
+           (when active-p
+             (setf active-p nil)
+             (funcall on-error reason)))
+         (complete ()
+           (when active-p
+             (setf active-p nil)
+             (funcall on-complete)
+             (funcall finish)))
+         (pull ()
+           (when active-p
+             (handler-case
+                 (%promise-then
+                  (%body-reader-read reader)
+                  (lambda (result)
+                    (when active-p
+                      (handler-case
+                          (if (eng:js-truthy (eng:js-get result "done"))
+                              (complete)
+                              (let ((chunk
+                                      (%body->octets
+                                       (eng:js-get result "value"))))
+                                (when (funcall write chunk #'pull)
+                                  (pull))))
+                        (eng:js-condition (condition)
+                          (fail (eng:js-condition-value condition)))
+                        (error (condition)
+                          (fail
+                           (%body-stream-error-object
+                            (princ-to-string condition)))))))
+                  #'fail)
+               (eng:js-condition (condition)
+                 (fail (eng:js-condition-value condition)))
+               (error (condition)
+                 (fail
+                  (%body-stream-error-object (princ-to-string condition))))))))
+      (pull)))
+  (values))
 
 (defun %build-fetch-response (resp final-url)
   (let ((u8 (eng:u8-from-octets (net:hres-body resp)))
@@ -97,6 +155,7 @@ they describe a body that no longer exists (Content-Type/Length/Encoding/Languag
 
 (defun %https-request-stream-async
     (loop &key host port method path headers body host-header timeout
+               request-body-reader on-request-complete
                (verify t) on-headers on-data on-complete on-error)
   "Run the blocking authenticated TLS transport on a worker with bounded loop delivery.
 
@@ -110,13 +169,22 @@ thunks matching NET:HTTP-REQUEST-STREAM-ASYNC."
         (control-lock (sb-thread:make-mutex :name "clun-https-stream-control"))
         (control-wake (sb-thread:make-semaphore :name "clun-https-stream-wake"))
         (paused-p nil)
-        (cancelled-p nil))
+        (cancelled-p nil)
+        (upload-waiter nil)
+        (upload-failure nil)
+        (upload-failed-p nil)
+        (upload-total 0))
     (labels ((abort-socket ()
                (when (car box) (ignore-errors (funcall (car box)))))
              (cancel-control ()
-               (sb-thread:with-mutex (control-lock)
-                 (setf cancelled-p t
-                       paused-p nil))
+               (let ((waiter nil))
+                 (sb-thread:with-mutex (control-lock)
+                   (setf cancelled-p t
+                         paused-p nil
+                         waiter upload-waiter))
+                 ;; The worker may be waiting for an asynchronous body read rather
+                 ;; than for response backpressure. Wake both possible wait sites.
+                 (when waiter (sb-thread:signal-semaphore waiter)))
                (sb-thread:signal-semaphore control-wake))
              (pause-control ()
                (sb-thread:with-mutex (control-lock)
@@ -166,9 +234,91 @@ thunks matching NET:HTTP-REQUEST-STREAM-ASYNC."
                  (when (car failure) (error (car failure)))
                  (unless (wait-ready)
                    (error 'net:socket-open-error :code "ECANCELED" :op "https"))))
-             (cancel ()
+             (request-next ()
+               (let ((ack
+                       (sb-thread:make-semaphore
+                        :name "clun-https-upload-read"))
+                     (result (list nil nil)))
+                 (sb-thread:with-mutex (control-lock)
+                   (when cancelled-p
+                     (error 'net:socket-open-error
+                            :code "ECANCELED" :op "https upload"))
+                   (setf upload-waiter ack))
+                 (unless
+                     (lp:loop-post
+                      loop
+                      (lambda ()
+                        (labels ((finish-result (kind &optional value)
+                                   (setf (first result) kind
+                                         (second result) value)
+                                   (sb-thread:signal-semaphore ack))
+                                 (fail-result (reason)
+                                   (setf upload-failed-p t
+                                         upload-failure reason)
+                                   (finish-result :error reason)))
+                          (handler-case
+                              (%promise-then
+                               (%body-reader-read request-body-reader)
+                               (lambda (read-result)
+                                 (handler-case
+                                     (if (eng:js-truthy
+                                          (eng:js-get read-result "done"))
+                                         (progn
+                                           (when on-request-complete
+                                             (funcall on-request-complete))
+                                           (finish-result :done))
+                                         (let ((chunk
+                                                 (%body->octets
+                                                  (eng:js-get
+                                                   read-result "value"))))
+                                           (incf upload-total (length chunk))
+                                           (if (> upload-total
+                                                  net:*max-body-bytes*)
+                                               (fail-result
+                                                (%body-stream-error-object
+                                                 "streaming request body exceeded the size limit"))
+                                               (finish-result :chunk chunk))))
+                                   (eng:js-condition (condition)
+                                     (fail-result
+                                      (eng:js-condition-value condition)))
+                                   (error (condition)
+                                     (fail-result
+                                      (%body-stream-error-object
+                                       (princ-to-string condition))))))
+                               #'fail-result)
+                            (eng:js-condition (condition)
+                              (fail-result
+                               (eng:js-condition-value condition)))
+                            (error (condition)
+                              (fail-result
+                               (%body-stream-error-object
+                                (princ-to-string condition))))))))
+                   (sb-thread:with-mutex (control-lock)
+                     (when (eq upload-waiter ack)
+                       (setf upload-waiter nil)))
+                   (error 'net:socket-open-error
+                          :code "ECANCELED" :op "https upload"))
+                 (sb-thread:wait-on-semaphore ack)
+                 (let ((cancelled nil))
+                   (sb-thread:with-mutex (control-lock)
+                     (setf cancelled cancelled-p)
+                     (when (eq upload-waiter ack)
+                       (setf upload-waiter nil)))
+                   (when cancelled
+                     (error 'net:socket-open-error
+                            :code "ECANCELED" :op "https upload")))
+                 (case (first result)
+                   (:chunk (values (second result) nil))
+                   (:done (values nil t))
+                   (:error
+                    (error 'net:socket-open-error
+                           :code "request-body" :op "https upload"))
+                   (otherwise
+                    (error 'net:socket-open-error
+                           :code "ECANCELED" :op "https upload")))))
+             (cancel (&optional (code "abort"))
                (cancel-control)
-               (settle (lambda () (funcall on-error "abort"))
+               (settle (lambda () (funcall on-error code))
                        :cancel-worker t)))
       (setf job
             (lp:worker-submit-cancellable
@@ -180,6 +330,8 @@ thunks matching NET:HTTP-REQUEST-STREAM-ASYNC."
                 :host host :port port :method method :path path
                 :headers headers :body body :host-header host-header
                 :socket-box box :connect-timeout-ms (or timeout 30000)
+                :request-body-source
+                (and request-body-reader #'request-next)
                 :verify verify
                 :on-headers
                 (lambda (head)
@@ -200,11 +352,15 @@ thunks matching NET:HTTP-REQUEST-STREAM-ASYNC."
                      (funcall on-error
                               "connection closed before a full response"))))
                  (:cancelled
-                  (settle (lambda () (funcall on-error "abort"))))
+                 (settle (lambda () (funcall on-error "abort"))))
                  (t
                   (settle
                    (lambda ()
-                     (funcall on-error (net:tls-error-message (second result))))))))))
+                     (funcall
+                      on-error
+                      (if upload-failed-p
+                          (cons :request-body upload-failure)
+                          (net:tls-error-message (second result)))))))))))
       (when (and timeout (plusp timeout))
         (setf timer
               (lp:set-timer
@@ -316,6 +472,7 @@ thunks matching NET:HTTP-REQUEST-STREAM-ASYNC."
         (when (%redirect-to-get-p status (getf info :method))
           (setf (getf redirected :method) "GET"
                 (getf redirected :body) nil
+                (getf redirected :body-stream) nil
                 (getf redirected :headers)
                 (%strip-body-headers (getf info :headers))))
         redirected))))
@@ -340,8 +497,31 @@ thunks matching NET:HTTP-REQUEST-STREAM-ASYNC."
          (%fetch-error g "TypeError"
                        (format nil "fetch: unsupported scheme ~a"
                                (ur-scheme record))))))
+    (when (getf info :body-stream)
+      (cond
+        ((not (string= (or (getf info :duplex) "") "half"))
+         (return-from %do-fetch
+           (%fetch-operation-settle
+            operation :reject
+            (%fetch-error
+             g "TypeError"
+             "fetch: streaming request body requires duplex: \"half\""))))
+        ((or (js-body-stream-locked-p (getf info :body-stream))
+             (js-body-stream-disturbed-p (getf info :body-stream)))
+         (return-from %do-fetch
+           (%fetch-operation-settle
+            operation :reject
+            (%fetch-error g "TypeError"
+                          "fetch: request body stream is locked or disturbed"))))
+        ((%fetch-request-framing-header-p (getf info :headers))
+         (return-from %do-fetch
+           (%fetch-operation-settle
+            operation :reject
+            (%fetch-error
+             g "TypeError"
+             "fetch: streaming body cannot set Content-Length or Transfer-Encoding"))))))
     (when (and (member (getf info :method) '("GET" "HEAD") :test #'string=)
-               (getf info :body))
+               (or (getf info :body) (getf info :body-stream)))
       (return-from %do-fetch
         (%fetch-operation-settle
          operation :reject
@@ -367,9 +547,44 @@ thunks matching NET:HTTP-REQUEST-STREAM-ASYNC."
             (cancel nil)
             (pause nil)
             (resume nil)
+            (upload-stream (getf info :body-stream))
+            (upload-reader nil)
+            (upload-finished-p nil)
             (redirecting-p nil))
+        (when upload-stream
+          (handler-case
+              (setf upload-reader (%body-stream-reader upload-stream))
+            (eng:js-condition (condition)
+              (return-from %do-fetch
+                (%fetch-operation-settle
+                 operation :reject (eng:js-condition-value condition))))
+            (error (condition)
+              (return-from %do-fetch
+                (%fetch-operation-settle
+                 operation :reject
+                 (%fetch-error g "TypeError" (princ-to-string condition)))))))
         (labels
-            ((stop-current-hop ()
+            ((finish-upload ()
+               (unless upload-finished-p
+                 (setf upload-finished-p t)
+                 (when upload-reader
+                   (ignore-errors (%body-reader-release upload-reader)))))
+             (cancel-upload (reason)
+               (unless upload-finished-p
+                 (setf upload-finished-p t)
+                 (when upload-stream
+                   (%body-stream-cancel-now upload-stream reason))
+                 (when upload-reader
+                   (ignore-errors (%body-reader-release upload-reader)))))
+             (fail-upload (reason)
+               (cancel-upload reason)
+               (if cancel
+                   (funcall cancel (cons :request-body reason))
+                   (%fetch-operation-fail operation reason)))
+             (start-upload (write finish)
+               (%pump-fetch-request-body
+                upload-reader write finish #'finish-upload #'fail-upload))
+             (stop-current-hop ()
                ;; Suppress the cancellation callback only while deliberately
                ;; abandoning a redirect response before starting the next hop.
                (setf redirecting-p t
@@ -393,7 +608,17 @@ thunks matching NET:HTTP-REQUEST-STREAM-ASYNC."
                  (cond
                    ((and (%redirect-p status) location
                          (string= (getf info :redirect) "follow"))
-                    (if (>= hops 20)
+                    (if (and upload-stream
+                             (not (%redirect-to-get-p
+                                   status (getf info :method))))
+                        (progn
+                          (stop-current-hop)
+                          (%fetch-operation-settle
+                           operation :reject
+                           (%fetch-error
+                            g "TypeError"
+                            "fetch: cannot replay a streaming body across a redirect")))
+                        (if (>= hops 20)
                         (progn
                           (stop-current-hop)
                           (%fetch-operation-settle
@@ -406,7 +631,7 @@ thunks matching NET:HTTP-REQUEST-STREAM-ASYNC."
                               (progn
                                 (stop-current-hop)
                                 (%do-fetch operation redirected (1+ hops)))
-                              (expose-response head)))))
+                              (expose-response head))))))
                    ((and (%redirect-p status)
                          (string= (getf info :redirect) "error"))
                     (stop-current-hop)
@@ -425,18 +650,27 @@ thunks matching NET:HTTP-REQUEST-STREAM-ASYNC."
              (on-error (code)
                (setf (fetch-operation-active-cancel operation) nil)
                (unless redirecting-p
-                 (%fetch-operation-fail
-                  operation
-                  (if (string= code "abort")
-                      (%abort-reason g signal)
-                      (%fetch-error
-                       g "TypeError" (format nil "fetch failed: ~a" code)))))))
+                 (let ((reason
+                         (cond
+                           ((and (consp code)
+                                 (eq (car code) :request-body))
+                            (cdr code))
+                           ((equal code "abort")
+                            (%abort-reason g signal))
+                           (t
+                            (%fetch-error
+                             g "TypeError"
+                             (format nil "fetch failed: ~a" code))))))
+                   (cancel-upload reason)
+                   (%fetch-operation-fail operation reason)))))
           (multiple-value-setq (cancel pause resume)
             (if https
                 (%https-request-stream-async
                  loop :host raw-host :port port :host-header host-header
                  :method (getf info :method) :path path
                  :headers (getf info :headers) :body (getf info :body)
+                 :request-body-reader upload-reader
+                 :on-request-complete #'finish-upload
                  :timeout *fetch-connect-timeout-ms*
                  :on-headers #'on-headers :on-data #'on-data
                  :on-complete #'on-complete :on-error #'on-error)
@@ -444,6 +678,8 @@ thunks matching NET:HTTP-REQUEST-STREAM-ASYNC."
                  loop :host raw-host :port port :host-header host-header
                  :method (getf info :method) :path path
                  :headers (getf info :headers) :body (getf info :body)
+                 :request-body-stream-p (not (null upload-reader))
+                 :on-request-ready (and upload-reader #'start-upload)
                  :timeout *fetch-connect-timeout-ms*
                  :on-headers #'on-headers :on-data #'on-data
                  :on-complete #'on-complete :on-error #'on-error)))

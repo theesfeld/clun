@@ -2,18 +2,19 @@
 
 ## 1. Scope of this unit
 
-This unit removes two concrete transport blockers: TLS 1.2 interoperability with
-the public npm registry and blocking libc IPv4-only hostname resolution. It adds
-a pure Common Lisp TLS 1.2 fallback beneath the existing TLS 1.3 client, a
-bounded DNS A/AAAA resolver, dual-stack connection racing, hardened response
-decoding, and hermetic plus live public-registry evidence.
+This implementation series removes concrete transport blockers around TLS 1.2
+interoperability, blocking libc IPv4-only hostname resolution, and buffered-only
+fetch bodies. It adds a pure Common Lisp TLS 1.2 fallback beneath the existing
+TLS 1.3 client, a bounded DNS A/AAAA resolver, dual-stack connection racing,
+incremental authenticated response delivery, streaming request bodies, hardened
+response decoding, and hermetic plus live public-registry evidence.
 
 This is an implementation slice of Phase 28, not completion of the phase. The
-canonical Phase 28 GitHub issue remains open. In particular, this unit does not
-claim the issue's connection pooling, streaming bodies, backpressure, complete
-cancellation/proxy/timeout matrix, 1 GiB transfer, leak/stress, or four-target
-acceptance requirements. It does not promote a compatibility-ledger row or a
-public landing-page claim.
+canonical Phase 28 GitHub issue remains open. In particular, this series does not
+claim the issue's connection pooling, proxy support, complete cancellation and
+timeout matrix, 1 GiB transfer, leak/stress, or four-target acceptance
+requirements. It does not promote a compatibility-ledger row or a public
+landing-page claim.
 
 ## 2. Architecture
 
@@ -96,6 +97,23 @@ content and decoded output beyond `*max-decoded-body-bytes*` signal
 `http-content-decoding-error`; compressed bytes are never returned as though
 decoding had succeeded.
 
+Identity response bodies now leave the HTTP parser incrementally. Plain HTTP
+pauses reactor reads when the JavaScript stream crosses its high-water mark;
+HTTPS permits only one worker-to-loop delivery at a time and blocks the worker
+while the consumer is paused. Response cloning uses a bounded tee instead of
+collecting the source before either branch can read.
+
+ReadableStream request bodies remain streams through fetch normalization and
+require `duplex: "half"`. Plain HTTP pulls at most one body chunk ahead of the
+socket, waits for the drain edge before the next pull, and leaves inbound reads
+paused until the sole terminal chunk is queued. HTTPS crosses the worker boundary
+with one outstanding reader promise and writes each chunk as an authenticated TLS
+record before pulling again. Both TLS 1.3 and the fresh-connection TLS 1.2 fallback
+use the same bounded source contract. User-provided `Content-Length` and
+`Transfer-Encoding` are rejected for stream bodies; aggregate request bytes are
+bounded by `*max-body-bytes*`; cancellation wakes upload and response wait sites;
+and a source rejection remains the fetch rejection reason.
+
 ## 4. Trust and signature policy
 
 The trust bundle follows the established `SSL_CERT_FILE` override and system CA
@@ -130,11 +148,17 @@ listener.
 
 The fetch integration suite covers pre-aborted signals, primitive abort reasons,
 and a multi-hop redirect that installs and removes exactly one listener without
-leaving it attached after settlement.
+leaving it attached after settlement. Streaming coverage additionally verifies
+byte-exact HTTP chunk framing, mandatory half-duplex validation, framing-header
+rejection, source-error identity, reader lock release, and the HTTPS
+worker-to-loop pull bridge.
 
-`make test-tls12` runs that focused suite, then starts an OpenSSL TLS 1.2-only server with
-`ECDHE-RSA-AES128-GCM-SHA256` and forces `rsa_pkcs1_sha256`. It proves a trusted
-HTTP round trip and a real wrong-host rejection using the same listener.
+`make test-tls12` runs that focused suite, then starts OpenSSL TLS 1.2-only peers
+with `ECDHE-RSA-AES128-GCM-SHA256` and forces `rsa_pkcs1_sha256`. It proves a
+trusted HTTP round trip, incremental response delivery, a streamed POST whose
+decrypted request has exact chunk framing, and a real wrong-host rejection. The
+upload oracle accepts the TLS 1.3 probe and the fresh TLS 1.2 fallback connection,
+which also proves that the non-replayable source is not consumed before fallback.
 
 `make smoke-npm` is an opt-in live check. It installs exact public package
 `is-number@7.0.0`, verifies the registry SRI path used by the package manager,
@@ -146,8 +170,7 @@ Before Phase 28 can close, the canonical issue still requires implementation and
 evidence for at least:
 
 - reusable origin-keyed connection pooling;
-- streaming request and response bodies with bounded memory;
-- backpressure, cancellation, proxy, and timeout semantics;
+- proxy support and the complete cancellation/timeout matrix;
 - the issue's large-transfer and adversarial transport fixtures;
 - required Linux and macOS x64/arm64 evidence; and
 - valid compatibility-ledger gate identifiers for the issue acceptance commands.

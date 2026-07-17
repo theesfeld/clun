@@ -12,6 +12,8 @@
                clun-test::net/tls12-server-hello-rejects-downgrade
                clun-test::net/tls12-rejects-oversized-authenticated-plaintext
                clun-test::net/tls12-eof-framing-requires-close-notify
+               clun-test::net/https-transport-streams-request-body
+               clun-test::net/https-async-stream-bridge-pulls-request-body
                clun-test::net/http-content-decoding-is-bounded-and-fail-closed)))
   (dolist (test tests)
     (unless (eq (parachute:status (parachute:test test)) :passed)

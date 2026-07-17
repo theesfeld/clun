@@ -19,11 +19,20 @@ gzip or deflate response from expanding beyond the parser's body budget.")
   (let ((v (make-array (length s) :element-type '(unsigned-byte 8))))
     (dotimes (i (length s) v) (setf (aref v i) (logand (char-code (char s i)) #xff)))))
 
+(defun %request-framing-header-p (headers)
+  (or (assoc "content-length" headers :test #'string-equal)
+      (assoc "transfer-encoding" headers :test #'string-equal)))
+
 (defun %serialize-request (method path host-header headers body
-                           &optional (default-accept-encoding "gzip"))
+                           &optional (default-accept-encoding "gzip")
+                                     stream-body-p)
   "Build the request bytes: request line + Host + user headers + framing + Accept-Encoding
 + Connection: close (v1 does not pool) + body. HOST-HEADER is the ORIGIN authority
 (hostname + non-default port) for the Host: line — NOT the resolved dotted-quad we dial."
+  (when (and stream-body-p body)
+    (error "a request cannot have both buffered and streaming bodies"))
+  (when (and stream-body-p (%request-framing-header-p headers))
+    (error "streaming request bodies cannot set Content-Length or Transfer-Encoding"))
   (let ((head (make-string-output-stream))
         (blen (if body (length body) 0)))
     (format head "~a ~a HTTP/1.1~c~c" method (if (plusp (length path)) path "/") #\Return #\Newline)
@@ -35,7 +44,11 @@ gzip or deflate response from expanding beyond the parser's body budget.")
     (unless (assoc "accept-encoding" headers :test #'string-equal)
       (format head "Accept-Encoding: ~a~c~c" default-accept-encoding
               #\Return #\Newline))
-    (when (plusp blen) (format head "Content-Length: ~d~c~c" blen #\Return #\Newline))
+    (cond
+      (stream-body-p
+       (format head "Transfer-Encoding: chunked~c~c" #\Return #\Newline))
+      ((plusp blen)
+       (format head "Content-Length: ~d~c~c" blen #\Return #\Newline)))
     (format head "Connection: close~c~c" #\Return #\Newline)
     (format head "~c~c" #\Return #\Newline)
     (let ((hbytes (%client-ascii-octets (get-output-stream-string head))))
@@ -43,6 +56,27 @@ gzip or deflate response from expanding beyond the parser's body budget.")
           (let ((out (make-array (+ (length hbytes) blen) :element-type '(unsigned-byte 8))))
             (replace out hbytes) (replace out body :start1 (length hbytes)) out)
           hbytes))))
+
+(defun %chunked-request-frame (octets)
+  "Frame one non-empty request-body chunk using HTTP/1.1 chunked coding."
+  (when (zerop (length octets))
+    (return-from %chunked-request-frame
+      (make-array 0 :element-type '(unsigned-byte 8))))
+  (let* ((prefix
+           (%client-ascii-octets
+            (format nil "~x~c~c" (length octets) #\Return #\Newline)))
+         (suffix (%client-ascii-octets (format nil "~c~c" #\Return #\Newline)))
+         (result
+           (make-array (+ (length prefix) (length octets) (length suffix))
+                       :element-type '(unsigned-byte 8))))
+    (replace result prefix)
+    (replace result octets :start1 (length prefix))
+    (replace result suffix :start1 (+ (length prefix) (length octets)))
+    result))
+
+(defparameter +chunked-request-end+
+  (%client-ascii-octets (format nil "0~c~c~c~c" #\Return #\Newline
+                                #\Return #\Newline)))
 
 (defun %decompress-body-bounded (format octets &key (max-bytes *max-decoded-body-bytes*))
   "Decode OCTETS in FORMAT without ever retaining more than MAX-BYTES of output."
@@ -183,6 +217,7 @@ for the Host: line) defaults to HOST when the caller does not pass a distinct va
 
 (defun http-request-stream-async
     (loop &key host port method path headers body timeout host-header
+               request-body-stream-p on-request-ready
                on-headers on-data on-complete on-error)
   "Issue one HTTP request and deliver its response incrementally.
 
@@ -194,7 +229,12 @@ providing end-to-end inbound backpressure instead of merely bounding a user queu
 
 Identity bodies stream directly. If a peer sends gzip/deflate despite the default
 identity request, encoded bytes remain bounded and are decoded at completion so
-callers never observe compressed bytes as response data."
+callers never observe compressed bytes as response data.
+
+When REQUEST-BODY-STREAM-P is true, ON-REQUEST-READY receives WRITE and FINISH
+callbacks after connect. WRITE accepts (octets continuation), sends one chunked
+frame, and returns true when the socket accepted it without backpressure; otherwise
+CONTINUATION runs on the drain edge. FINISH emits the sole terminal chunk."
   (let ((parser (make-http-response-stream-parser
                  :head-request-p (string-equal method "HEAD")))
         (conn nil)
@@ -203,6 +243,8 @@ callers never observe compressed bytes as response data."
         (dns-job nil)
         (connect-cancel nil)
         (paused nil)
+        (request-body-bytes 0)
+        (request-finished-p (not request-body-stream-p))
         (content-format nil)
         (encoded-body nil)
         (hh (or host-header host)))
@@ -277,9 +319,56 @@ callers never observe compressed bytes as response data."
                     :on-connect
                     (lambda (connection)
                       (setf conn connection)
+                      ;; Fetch duplex "half" does not expose a response until the
+                      ;; upload is complete. The kernel may receive it, but the
+                      ;; reactor leaves it unread until the terminal chunk is queued.
+                      (when (or paused request-body-stream-p)
+                        (tcp-pause connection))
                       (tcp-write
                        connection
-                       (%serialize-request method path hh headers body "identity"))
+                       (%serialize-request method path hh headers body "identity"
+                                           request-body-stream-p))
+                      (when request-body-stream-p
+                        (handler-case
+                            (if on-request-ready
+                                (funcall
+                                 on-request-ready
+                                 (lambda (chunk continuation)
+                                   (if (or done request-finished-p)
+                                       nil
+                                       (let ((framed
+                                               (%chunked-request-frame chunk)))
+                                         (if (zerop (length framed))
+                                             t
+                                             (progn
+                                               (incf request-body-bytes
+                                                     (length chunk))
+                                               (when (> request-body-bytes
+                                                        *max-body-bytes*)
+                                                 (error
+                                                  "streaming request body exceeded the size limit"))
+                                               (setf
+                                                (tcp-on-drain connection)
+                                                (lambda (drained)
+                                                  (declare (ignore drained))
+                                                  (setf (tcp-on-drain connection) nil)
+                                                  (unless done
+                                                    (funcall continuation))))
+                                               (let ((queued
+                                                       (tcp-write connection framed)))
+                                                 (when (zerop queued)
+                                                   (setf (tcp-on-drain connection) nil))
+                                                 (zerop queued)))))))
+                                 (lambda ()
+                                   (unless (or done request-finished-p)
+                                     (setf request-finished-p t)
+                                     (setf (tcp-on-drain connection) nil)
+                                     (tcp-write connection +chunked-request-end+)
+                                     (unless paused
+                                       (tcp-resume connection)))))
+                                (fail "streaming request body has no producer"))
+                          (error (condition)
+                            (fail (princ-to-string condition)))))
                       (when paused (tcp-pause connection)))
                     :on-data
                     (lambda (connection data)
@@ -297,7 +386,7 @@ callers never observe compressed bytes as response data."
                     (lambda (connection code)
                       (declare (ignore connection))
                       (fail code))))))
-         (cancel () (fail "abort"))
+         (cancel (&optional (code "abort")) (fail code))
          (pause ()
            (unless done
              (setf paused t)
@@ -305,7 +394,7 @@ callers never observe compressed bytes as response data."
          (resume ()
            (unless done
              (setf paused nil)
-             (when conn (tcp-resume conn)))))
+             (when (and conn request-finished-p) (tcp-resume conn)))))
       (setf dns-job
             (lp:worker-submit-cancellable
              loop
