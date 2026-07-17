@@ -2796,3 +2796,12 @@ The shipped filesystem fixture binds all 12 `mv` IDs and eight deterministic `rm
 The engineering recursive directory-to-symlink swap site is deliberately still pending: a pre-existing
 symlink-boundary test is not credited as equivalent to its concurrent mutation race. This evidence-only
 closure changes the public count but not runtime behavior or the allocated `0.1.0-dev.18` boundary.
+
+### 2026-07-16 - Phase 65 credits deterministic ls behavior and preserves permission residuals
+
+The shipped `ls` fixture binds 50 stable and engineering inventory IDs to exact status, output, diagnostics,
+and filesystem outcomes. Recursive and hidden listings, option combinations, multiple operands, unusual
+filenames, missing paths, invalid options, and broken symlinks execute through `build/clun`. The four
+`chmod 000` cases remain pending because privileged runners and filesystem policy can legitimately change
+their outcome; no deterministic approximation receives credit. This evidence-only closure changes the public
+count but not runtime behavior or the allocated `0.1.0-dev.18` boundary.
