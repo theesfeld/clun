@@ -47,21 +47,18 @@
         (result nil))
     ;; Aggregate several constructions so allocator-region granularity cannot
     ;; dominate one sample on arm64 SBCL builds.
-    (dotimes (iteration iterations)
-      (declare (ignore iteration))
-      (setf result (funcall thunk)))
+    (loop repeat iterations
+          do (setf result (funcall thunk)))
     (values (floor (- (sys:bytes-consed) before) iterations) result)))
 
-(defun cookie-map-best-parse-nanoseconds (header &key (samples 5) (iterations 8))
-  (let ((best nil))
-    (dotimes (sample samples best)
-      (declare (ignore sample))
-      (let ((start (sys:monotonic-nanoseconds)))
-        (dotimes (iteration iterations)
-          (declare (ignore iteration))
-          (cookies:make-cookie-map-state-from-header header))
-        (let ((elapsed (- (sys:monotonic-nanoseconds) start)))
-          (setf best (if best (min best elapsed) elapsed)))))))
+(defun cookie-map-median-parse-nanoseconds (header &key (samples 7) (iterations 16))
+  (let ((measurements '()))
+    (loop repeat samples
+          do (let ((start (sys:monotonic-nanoseconds)))
+               (loop repeat iterations
+                     do (cookies:make-cookie-map-state-from-header header))
+               (push (- (sys:monotonic-nanoseconds) start) measurements)))
+    (nth (floor samples 2) (sort measurements #'<))))
 
 (define-test cookie-core)
 
@@ -711,11 +708,13 @@
     (cookies:make-cookie-map-state-from-header header-n)
     (cookies:make-cookie-map-state-from-header header-2n)
     (cookies:make-cookie-map-state-from-header header-4n)
-    (let ((time-n (cookie-map-best-parse-nanoseconds header-n))
-          (time-2n (cookie-map-best-parse-nanoseconds header-2n))
-          (time-4n (cookie-map-best-parse-nanoseconds header-4n)))
+    (let ((time-n (cookie-map-median-parse-nanoseconds header-n))
+          (time-2n (cookie-map-median-parse-nanoseconds header-2n))
+          (time-4n (cookie-map-median-parse-nanoseconds header-4n)))
+      (format t "~&CookieMap median timing (ns): N=~d 2N=~d 4N=~d~%"
+              time-n time-2n time-4n)
       (true (plusp time-n))
       (true (< time-2n (* 3.25d0 time-n))
-            "N to 2N best-of warmed elapsed time remains linear")
+            "N to 2N median warmed elapsed time remains linear")
       (true (< time-4n (* 3.25d0 time-2n))
-            "2N to 4N best-of warmed elapsed time remains linear"))))
+            "2N to 4N median warmed elapsed time remains linear"))))
