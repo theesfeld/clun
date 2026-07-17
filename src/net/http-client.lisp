@@ -19,7 +19,8 @@ gzip or deflate response from expanding beyond the parser's body budget.")
   (let ((v (make-array (length s) :element-type '(unsigned-byte 8))))
     (dotimes (i (length s) v) (setf (aref v i) (logand (char-code (char s i)) #xff)))))
 
-(defun %serialize-request (method path host-header headers body)
+(defun %serialize-request (method path host-header headers body
+                           &optional (default-accept-encoding "gzip"))
   "Build the request bytes: request line + Host + user headers + framing + Accept-Encoding
 + Connection: close (v1 does not pool) + body. HOST-HEADER is the ORIGIN authority
 (hostname + non-default port) for the Host: line — NOT the resolved dotted-quad we dial."
@@ -32,7 +33,8 @@ gzip or deflate response from expanding beyond the parser's body budget.")
       (format head "~a: ~a~c~c" (car h)
               (remove-if (lambda (c) (member c '(#\Return #\Newline))) (cdr h)) #\Return #\Newline))
     (unless (assoc "accept-encoding" headers :test #'string-equal)
-      (format head "Accept-Encoding: gzip~c~c" #\Return #\Newline))
+      (format head "Accept-Encoding: ~a~c~c" default-accept-encoding
+              #\Return #\Newline))
     (when (plusp blen) (format head "Content-Length: ~d~c~c" blen #\Return #\Newline))
     (format head "Connection: close~c~c" #\Return #\Newline)
     (format head "~c~c" #\Return #\Newline)
@@ -158,3 +160,171 @@ for the Host: line) defaults to HOST when the caller does not pass a distinct va
       (when (and timeout (plusp timeout))
         (setf timer (lp:set-timer loop timeout (lambda () (fail "timeout")))))
       (lambda () (fail "abort")))))
+
+(defun %stream-append-bounded (buffer octets max-bytes)
+  "Append OCTETS to adjustable BUFFER without crossing MAX-BYTES."
+  (let* ((old (fill-pointer buffer))
+         (next (+ old (length octets))))
+    (when (> next max-bytes)
+      (error 'http-content-decoding-error
+             :message "encoded HTTP body exceeded the size limit"))
+    (when (> next (array-total-size buffer))
+      (adjust-array buffer
+                    (min max-bytes
+                         (max next (* 2 (max 1 (array-total-size buffer)))))
+                    :fill-pointer old))
+    (setf (fill-pointer buffer) next)
+    (replace buffer octets :start1 old)
+    buffer))
+
+(defun %response-content-encoding (response)
+  (let ((value (%header (hres-headers response) "content-encoding")))
+    (and value (string-downcase value))))
+
+(defun http-request-stream-async
+    (loop &key host port method path headers body timeout host-header
+               on-headers on-data on-complete on-error)
+  "Issue one HTTP request and deliver its response incrementally.
+
+ON-HEADERS receives a bodyless HTTP-RESPONSE as soon as framing is validated.
+ON-DATA receives bounded decoded octet chunks, and ON-COMPLETE marks clean body
+completion. ON-ERROR may run before or after headers. The three return values are
+idempotent CANCEL, PAUSE, and RESUME thunks. PAUSE/RESUME control reactor reads,
+providing end-to-end inbound backpressure instead of merely bounding a user queue.
+
+Identity bodies stream directly. If a peer sends gzip/deflate despite the default
+identity request, encoded bytes remain bounded and are decoded at completion so
+callers never observe compressed bytes as response data."
+  (let ((parser (make-http-response-stream-parser
+                 :head-request-p (string-equal method "HEAD")))
+        (conn nil)
+        (done nil)
+        (timer nil)
+        (dns-job nil)
+        (connect-cancel nil)
+        (paused nil)
+        (content-format nil)
+        (encoded-body nil)
+        (hh (or host-header host)))
+    (labels
+        ((cleanup ()
+           (setf done t)
+           (when timer
+             (lp:clear-timer timer)
+             (setf timer nil))
+           (when dns-job
+             (lp:cancel-worker-job dns-job)
+             (setf dns-job nil))
+           (when connect-cancel
+             (funcall connect-cancel)
+             (setf connect-cancel nil))
+           (when conn
+             (tcp-close conn)
+             (setf conn nil)))
+         (fail (code)
+           (unless done
+             (cleanup)
+             (when on-error (funcall on-error code))))
+         (finish ()
+           (unless done
+             (handler-case
+                 (progn
+                   (when encoded-body
+                     (let ((decoded
+                             (%decompress-body-bounded
+                              content-format
+                              (subseq encoded-body 0
+                                      (fill-pointer encoded-body)))))
+                       (when (plusp (length decoded))
+                         (funcall on-data decoded))))
+                   (cleanup)
+                   (when on-complete (funcall on-complete)))
+               (http-content-decoding-error (condition)
+                 (fail (princ-to-string condition))))))
+         (deliver-events (events)
+           (dolist (event events)
+             (unless done
+               (case (car event)
+                 (:headers
+                  (let ((encoding (%response-content-encoding (cdr event))))
+                    (cond
+                      ((and encoding (search "gzip" encoding))
+                       (setf content-format :gzip))
+                      ((and encoding (search "deflate" encoding))
+                       (setf content-format :zlib)))
+                    (when content-format
+                      (setf encoded-body
+                            (make-array (* 64 1024)
+                                        :element-type '(unsigned-byte 8)
+                                        :adjustable t :fill-pointer 0)))
+                    (when on-headers (funcall on-headers (cdr event)))))
+                 (:data
+                  (handler-case
+                      (if encoded-body
+                          (%stream-append-bounded
+                           encoded-body (cdr event) *max-body-bytes*)
+                          (when on-data (funcall on-data (cdr event))))
+                    (http-content-decoding-error (condition)
+                      (fail (princ-to-string condition)))))
+                 (:complete (finish))
+                 (:error
+                  (fail (format nil "HTTP parse error ~a" (car (cdr event)))))))))
+         (start-connect (addresses)
+           (unless done
+             (setf connect-cancel
+                   (tcp-connect-happy
+                    loop addresses port
+                    :on-connect
+                    (lambda (connection)
+                      (setf conn connection)
+                      (tcp-write
+                       connection
+                       (%serialize-request method path hh headers body "identity"))
+                      (when paused (tcp-pause connection)))
+                    :on-data
+                    (lambda (connection data)
+                      (declare (ignore connection))
+                      (deliver-events (response-stream-feed parser data)))
+                    :on-close
+                    (lambda (connection code)
+                      (declare (ignore connection))
+                      (unless done
+                        (let ((events (response-stream-finish parser)))
+                          (if events
+                              (deliver-events events)
+                              (fail (or code "connection closed"))))))
+                    :on-error
+                    (lambda (connection code)
+                      (declare (ignore connection))
+                      (fail code))))))
+         (cancel () (fail "abort"))
+         (pause ()
+           (unless done
+             (setf paused t)
+             (when conn (tcp-pause conn))))
+         (resume ()
+           (unless done
+             (setf paused nil)
+             (when conn (tcp-resume conn)))))
+      (setf dns-job
+            (lp:worker-submit-cancellable
+             loop
+             (lambda (token)
+               (when (lp:worker-cancelled-p token)
+                 (error 'socket-open-error :code "ECANCELED" :op "resolve"))
+               (resolve-hostname-all host))
+             (lambda (result)
+               (unless done
+                 (case (first result)
+                   (:ok (start-connect (second result)))
+                   (:cancelled nil)
+                   (t
+                    (fail
+                     (if (and (second result)
+                              (typep (second result) 'socket-open-error))
+                         (socket-open-error-code (second result))
+                         "ENOTFOUND"))))))))
+      (when (and timeout (plusp timeout))
+        (setf timer
+              (lp:set-timer loop timeout (lambda () (fail "timeout")))))
+      (values #'cancel #'pause #'resume))))

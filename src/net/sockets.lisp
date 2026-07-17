@@ -104,9 +104,29 @@
                 ((zerop n) (%finish-close tcp nil) (return))   ; orderly EOF (peer closed)
                 (t (when (tcp-on-data tcp)
                      (funcall (tcp-on-data tcp) tcp (subseq buf 0 n)))
-                   (unless (eq (tcp-state tcp) :open) (return))))))
+                   ;; ON-DATA may apply inbound backpressure. Stop this readiness
+                   ;; drain immediately so one hot fd cannot outrun its consumer.
+                   (unless (and (eq (tcp-state tcp) :open)
+                                (tcp-reading tcp))
+                     (return))))))
         (sb-bsd-sockets:interrupted-error ())    ; EINTR — try again next readiness
         (sb-bsd-sockets:socket-error (e) (%fail tcp e))))))
+
+(defun tcp-pause (tcp)
+  "Stop delivering inbound bytes until TCP-RESUME. Idempotent and loop-affine."
+  (lp:run-on-loop (tcp-loop tcp)
+    (lambda ()
+      (when (eq (tcp-state tcp) :open)
+        (%stop-reading tcp))))
+  (values))
+
+(defun tcp-resume (tcp)
+  "Resume inbound delivery after TCP-PAUSE. Idempotent and loop-affine."
+  (lp:run-on-loop (tcp-loop tcp)
+    (lambda ()
+      (when (eq (tcp-state tcp) :open)
+        (%start-reading tcp))))
+  (values))
 
 ;;; --- writing (queue + backpressure) -----------------------------------------
 

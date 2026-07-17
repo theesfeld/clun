@@ -273,6 +273,7 @@
   (:documentation "Sockets, HTTP parser/server/client, fetch, TLS integration.")
   (:export ;; Phase 16 — TCP handle layer on the reactor
    #:tcp-listen #:tcp-connect #:tcp-connect-happy #:tcp-write #:tcp-close #:tcp-shutdown
+   #:tcp-pause #:tcp-resume
    #:tcp #:tcp-p #:tcp-state #:tcp-queued-bytes #:tcp-peer #:tcp-local
    #:tcp-on-data #:tcp-on-close #:tcp-on-error #:tcp-on-drain
    #:listener #:listener-p #:listener-port #:listener-close #:listener-address
@@ -286,8 +287,9 @@
    #:*max-header-bytes* #:*max-body-bytes*
    #:make-http-response-parser #:response-finish #:http-response #:http-response-p
    #:hres-status #:hres-reason #:hres-version #:hres-headers #:hres-body #:hres-keep-alive
+   #:make-http-response-stream-parser #:response-stream-feed #:response-stream-finish
    ;; Phase 18 — reactor HTTP client
-   #:http-request-async #:resolve-hostname #:%header
+   #:http-request-async #:http-request-stream-async #:resolve-hostname #:%header
    #:http-content-decoding-error #:http-content-decoding-error-message
    #:*max-decoded-body-bytes*
    ;; TLS client (Phase 20): blocking HTTPS request for the worker pool + error mapping.

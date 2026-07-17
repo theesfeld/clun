@@ -336,3 +336,116 @@ to terminate a chunk trailer section."
       (is eq :request ev1) (is string= "/1" (net:hr-target r1))
       (multiple-value-bind (ev2 r2) (net:parser-feed p (%raw ""))
         (is eq :request ev2) (is string= "/2" (net:hr-target r2))))))
+
+;;; --- response streaming ----------------------------------------------------
+
+(defun %stream-response-events (parser wire &key one-byte-p)
+  (let ((events '()))
+    (if one-byte-p
+        (loop for index below (length wire)
+              do (setf events
+                       (nconc events
+                              (net:response-stream-feed
+                               parser (subseq wire index (1+ index))))))
+        (setf events (net:response-stream-feed parser wire)))
+    events))
+
+(defun %stream-data-string (events)
+  (sb-ext:octets-to-string
+   (apply #'concatenate '(vector (unsigned-byte 8))
+          (or (loop for event in events
+                    when (eq (car event) :data)
+                      collect (cdr event))
+              (list (make-array 0 :element-type '(unsigned-byte 8)))))
+   :external-format :latin-1))
+
+(define-test net/response-stream-content-length-emits-in-order
+  (let* ((parser (net:make-http-response-stream-parser))
+         (wire (%raw (format nil
+                             "HTTP/1.1 200 OK~c~cContent-Length: 11~c~c~c~chello world"
+                             #\Return #\Newline #\Return #\Newline
+                             #\Return #\Newline)))
+         (events (%stream-response-events parser wire)))
+    (is equal '(:headers :data :complete) (mapcar #'car events))
+    (is = 200 (net:hres-status (cdar events)))
+    (is string= "hello world" (%stream-data-string events))
+    (is = 0 (fill-pointer (net::hrs-buf parser)))))
+
+(define-test net/response-stream-chunked-fragments-without-body-buffer
+  (let* ((parser (net:make-http-response-stream-parser
+                  :max-header 128 :max-body 32 :max-framing 64))
+         (wire (concatenate
+                '(vector (unsigned-byte 8))
+                (%raw (format nil
+                              "HTTP/1.1 200 OK~c~cTransfer-Encoding: chunked~c~c~c~c"
+                              #\Return #\Newline #\Return #\Newline
+                              #\Return #\Newline))
+                (%raw-lines "5" "hello" "6" " world" "0" "X-End: yes" "")))
+         (events (%stream-response-events parser wire :one-byte-p t)))
+    (is eq :headers (caar events))
+    (is eq :complete (car (car (last events))))
+    (is string= "hello world" (%stream-data-string events))
+    (true (> (count :data events :key #'car) 1))
+    ;; Only framing bytes are retained; decoded body bytes are handed off.
+    (is = 0 (fill-pointer (net::hrs-buf parser)))
+    (is = 11 (net::hrs-body-bytes parser))))
+
+(define-test net/response-stream-until-close-finishes-at-eof
+  (let* ((parser (net:make-http-response-stream-parser))
+         (head (%raw (format nil "HTTP/1.1 200 OK~c~cConnection: close~c~c~c~c"
+                             #\Return #\Newline #\Return #\Newline
+                             #\Return #\Newline)))
+         (events (append (net:response-stream-feed parser head)
+                         (net:response-stream-feed parser (%raw "abc"))
+                         (net:response-stream-feed parser (%raw "def"))
+                         (net:response-stream-finish parser))))
+    (is equal '(:headers :data :data :complete) (mapcar #'car events))
+    (is string= "abcdef" (%stream-data-string events))))
+
+(define-test net/response-stream-head-completes-without-wire-body
+  (let* ((parser (net:make-http-response-stream-parser :head-request-p t))
+         (wire (%raw (format nil
+                             "HTTP/1.1 200 OK~c~cContent-Length: 4096~c~c~c~c"
+                             #\Return #\Newline #\Return #\Newline
+                             #\Return #\Newline)))
+         (events (net:response-stream-feed parser wire)))
+    (is equal '(:headers :complete) (mapcar #'car events))
+    (is = 200 (net:hres-status (cdar events)))
+    (is = 0 (net::hrs-body-bytes parser))))
+
+(define-test net/response-stream-skips-informational-response
+  (let* ((parser (net:make-http-response-stream-parser))
+         (wire (concatenate
+                '(vector (unsigned-byte 8))
+                (%raw (format nil "HTTP/1.1 103 Early Hints~c~cLink: </app.css>~c~c~c~c"
+                              #\Return #\Newline #\Return #\Newline
+                              #\Return #\Newline))
+                (%raw (format nil "HTTP/1.1 200 OK~c~cContent-Length: 2~c~c~c~cok"
+                              #\Return #\Newline #\Return #\Newline
+                              #\Return #\Newline))))
+         (events (net:response-stream-feed parser wire)))
+    (is equal '(:headers :data :complete) (mapcar #'car events))
+    (is = 200 (net:hres-status (cdar events)))
+    (is string= "ok" (%stream-data-string events))))
+
+(define-test net/response-stream-rejects-oversized-input-before-retaining-it
+  (let* ((parser (net:make-http-response-stream-parser :max-header 64))
+         (attack (make-array (* 1024 1024) :element-type '(unsigned-byte 8)
+                             :initial-element (char-code #\a)))
+         (initial-capacity (array-total-size (net::hrs-buf parser)))
+         (events (net:response-stream-feed parser attack)))
+    (is eq :error (caar events))
+    (is = 431 (car (cdar events)))
+    (is = 0 (fill-pointer (net::hrs-buf parser)))
+    (is = initial-capacity (array-total-size (net::hrs-buf parser)))))
+
+(define-test net/response-stream-incomplete-framing-fails-at-eof
+  (let ((parser (net:make-http-response-stream-parser)))
+    (net:response-stream-feed
+     parser
+     (%raw (format nil "HTTP/1.1 200 OK~c~cContent-Length: 4~c~c~c~cab"
+                   #\Return #\Newline #\Return #\Newline
+                   #\Return #\Newline)))
+    (let ((events (net:response-stream-finish parser)))
+      (is eq :error (caar events))
+      (is = 400 (car (cdar events))))))
