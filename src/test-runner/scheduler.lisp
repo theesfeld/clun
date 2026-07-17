@@ -6,9 +6,85 @@
 
 (in-package :clun.test-runner)
 
+(defconstant +test-u64-mask+ #xffffffffffffffff)
+
+(defstruct (test-prng (:constructor %make-test-prng (state)))
+  state)
+
+(defun %test-u64 (value)
+  (logand value +test-u64-mask+))
+
+(defun %test-rotl64 (value count)
+  (let ((word (%test-u64 value)))
+    (%test-u64 (logior (ash word count) (ash word (- count 64))))))
+
+(defun make-test-prng (seed)
+  "Construct Bun's pinned splitmix64-seeded xoshiro256++ state."
+  (let ((splitmix (%test-u64 seed))
+        (state (make-array 4)))
+    (dotimes (index 4)
+      (setf splitmix (%test-u64 (+ splitmix #x9e3779b97f4a7c15)))
+      (let ((value splitmix))
+        (setf value (%test-u64 (* (logxor value (ash value -30))
+                                   #xbf58476d1ce4e5b9))
+              value (%test-u64 (* (logxor value (ash value -27))
+                                   #x94d049bb133111eb))
+              (aref state index) (%test-u64 (logxor value (ash value -31))))))
+    (%make-test-prng state)))
+
+(defun %test-prng-next (prng)
+  (let* ((state (test-prng-state prng))
+         (s0 (aref state 0))
+         (s1 (aref state 1))
+         (s2 (aref state 2))
+         (s3 (aref state 3))
+         (result (%test-u64 (+ (%test-rotl64 (+ s0 s3) 23) s0)))
+         (shifted (%test-u64 (ash s1 17))))
+    (setf s2 (%test-u64 (logxor s2 s0))
+          s3 (%test-u64 (logxor s3 s1))
+          s1 (%test-u64 (logxor s1 s2))
+          s0 (%test-u64 (logxor s0 s3))
+          s2 (%test-u64 (logxor s2 shifted))
+          s3 (%test-rotl64 s3 45)
+          (aref state 0) s0
+          (aref state 1) s1
+          (aref state 2) s2
+          (aref state 3) s3)
+    result))
+
+(defun %test-prng-less-than (prng limit)
+  "Bun's pinned Lemire reduction for a uniform integer below LIMIT."
+  (let* ((value (%test-prng-next prng))
+         (product (* value limit))
+         (low (%test-u64 product))
+         (threshold (mod (1+ +test-u64-mask+) limit)))
+    (loop while (< low threshold)
+          do (setf value (%test-prng-next prng)
+                   product (* value limit)
+                   low (%test-u64 product)))
+    (ash product -64)))
+
+(defun %shuffle-test-entries (entries prng)
+  "Forward Fisher-Yates used by Bun inside each describe scope."
+  (let* ((items (coerce entries 'vector))
+         (length (length items)))
+    (dotimes (index (max 0 (1- length)))
+      (let ((other (+ index (%test-prng-less-than prng (- length index)))))
+        (rotatef (aref items index) (aref items other))))
+    (coerce items 'list)))
+
+(defun %shuffle-test-files (files prng)
+  "Descending Fisher-Yates used by Bun for the discovered file list."
+  (let* ((items (coerce files 'vector))
+         (length (length items)))
+    (loop for index downfrom (1- length) above 0
+          for other = (ash (* (%test-prng-next prng) (1+ index)) -64)
+          do (rotatef (aref items index) (aref items other)))
+    (coerce items 'list)))
+
 (defstruct (run-cfg (:conc-name cfg-))
   (default-timeout 5000) (retry 0) (todo nil) (ci nil) (name-re nil) (bail nil)
-  (snapshot nil))
+  (snapshot nil) (random-state nil))
 
 (defstruct (run-stats (:conc-name st-))
   (pass 0) (fail 0) (skip 0) (todo 0) (matched 0) (bailed nil)
@@ -187,7 +263,7 @@ Returns STATS (mutated). Honours .only (per-file), .skip/.todo, -t, timeouts, --
           (%skip-subtree node cfg stats report)
           (%run-afterall node realm cfg stats report)
           (return-from %run-describe))))
-    (dolist (child (td-ordered-children node))
+    (dolist (child (%run-ordered-children node cfg))
       (when (st-bailed stats) (return))
       (cond
         ((td-p child)
@@ -209,14 +285,20 @@ with beforeAll/afterEach — Bun counts a failing afterAll)."
 (defun %prefix (node)
   (let ((p (%describe-path node))) (if (string= p "") "" (concatenate 'string p " > "))))
 
+(defun %run-ordered-children (node cfg)
+  (let ((children (td-ordered-children node)))
+    (if (cfg-random-state cfg)
+        (%shuffle-test-entries children (cfg-random-state cfg))
+        children)))
+
 (defun %skip-subtree (node cfg stats report)
-  (dolist (child (td-ordered-children node))
+  (dolist (child (%run-ordered-children node cfg))
     (cond ((tt-p child) (funcall report :skip (%full-name child) nil) (incf (st-skip stats)))
           ((td-p child) (%skip-subtree child cfg stats report)))))
 
 (defun %todo-subtree (node cfg stats report)
   "Report every descendant test as todo without running suite hooks or test bodies."
-  (dolist (child (td-ordered-children node))
+  (dolist (child (%run-ordered-children node cfg))
     (cond
       ((tt-p child)
        (if (eq (tt-mode child) :skip)

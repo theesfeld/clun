@@ -225,3 +225,17 @@ The checked lifecycle creates an external snapshot with a dynamic string propert
 token rather than the runtime string, then reuses the snapshot with a different runtime value. The row
 remains `Partial`: ordinary snapshots still use Clun's deterministic inspector, and Bun-exact formatting
 across the complete supported-value corpus remains open.
+
+## Milestone 66.15 - reproducible randomized execution
+
+`clun test --randomize` now chooses and prints an unsigned 32-bit seed, while `--seed N` and `--seed=N`
+imply randomization and reproduce the same run. Seed parsing rejects missing, non-decimal, negative, and
+out-of-range values instead of silently falling back. File order uses Bun's pinned descending Fisher-Yates
+reduction. Each test file derives independent state from the wrapping sum of its basename wyhash and the
+printed seed, then every describe scope uses Bun's forward Fisher-Yates with Lemire's debiased range
+reduction. The independent per-file state keeps a file reproducible when parallel scheduling arrives.
+
+Checked shipped-binary evidence locks a pinned nested two-file order, both seed spellings, generated-seed
+replay, distinct-seed order divergence, summary output, and validation failure. Randomization is therefore
+no longer a Phase 66 residual. Sharding, watch integration, real concurrent/parallel scheduling, and the
+other published blockers remain open, so the compatibility row remains `Partial`.

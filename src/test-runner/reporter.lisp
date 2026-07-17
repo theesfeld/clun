@@ -26,11 +26,12 @@ DETAIL indented beneath it."
 
 (defun %plural (n word) (if (= n 1) word (concatenate 'string word "s")))
 
-(defun print-summary (stream stats file-count expect-calls)
+(defun print-summary (stream stats file-count expect-calls &optional random-seed)
   "Bun-shaped summary block. Counts: pass/fail always; skip/todo when > 0; expect()
 calls; then the `Ran N tests across M files.` line (timing omitted for determinism)."
   (let ((total (+ (st-pass stats) (st-fail stats) (st-skip stats) (st-todo stats))))
     (format stream "~%")
+    (when random-seed (format stream " --seed=~a~%" random-seed))
     (format stream " ~a pass~%" (st-pass stats))
     (format stream " ~a fail~%" (st-fail stats))
     (when (plusp (st-skip stats)) (format stream " ~a skip~%" (st-skip stats)))

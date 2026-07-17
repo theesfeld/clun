@@ -3005,3 +3005,12 @@ fallback; ordinary fields keep their received representation. This avoids unsafe
 two fields contain equal values and preserves nested property ownership. Snapshots without property
 matchers continue to use Clun's deterministic inspector, so this closes stable property substitution but
 does not claim Bun-exact formatting for the complete value corpus.
+
+### 2026-07-17 - Phase 66 randomization derives state per file
+
+Randomized execution ports the pinned Bun generator and reductions instead of using Common Lisp's
+implementation-defined `random-state`. The printed u32 seed drives descending file shuffling. Each file
+then receives a fresh splitmix64-seeded xoshiro256++ state derived from `wyhash(basename) + seed` with u64
+wrapping, and nested describe scopes consume that state through forward Fisher-Yates with Lemire rejection.
+This preserves replay when later parallel workers change file assignment. An omitted seed comes from the
+vendored OS-backed PRNG; explicit seeds are decimal u32 values and invalid input is a command failure.

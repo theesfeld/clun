@@ -1968,8 +1968,11 @@ Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-earl
 - Milestone 66.14 serializes matched snapshot properties as stable asymmetric tokens such as `Any<String>`
   while recursively preserving the received object/array shape. Checked reuse changes the dynamic property
   value without changing the external snapshot, and the original property-validation gate remains intact.
+- Milestone 66.15 implements `--randomize` and `--seed` with the pinned Bun splitmix64-seeded xoshiro256++
+  generator, Bun's distinct file and nested-scope Fisher-Yates reductions, basename-derived per-file state,
+  generated seed reporting, deterministic replay, and strict unsigned-32-bit seed validation.
 - Ledger stays `Partial`. Remaining Phase 66 scope: Bun-exact snapshot serialization across every supported
   value kind,
   module mocks, fake timers, coverage/source maps, parallelism/concurrency, setup/reporters/JUnit,
-  sharding/randomization/watch hooks, exact 52-root Bun/Clun counts, four-target receipts,
+  sharding/watch hooks, exact 52-root Bun/Clun counts, four-target receipts,
   serial/parallel agreement, and 10k RSS.
