@@ -71,6 +71,19 @@ their contents cannot create operators, substitutions, redirects, globs, or extr
 
 ## Evidence
 
+The finite upstream boundary is checked in under `tests/compat/tooling.shell/upstream/`: Bun 1.3.14 at
+`0d9b296af33f2b851fcbf4df3e9ec89751734ba4` and Bun 1.4.0-dev at
+`c1076ce95effb909bfe9f596919b5dba5567d550`. The snapshots contain 211 exact files spanning both complete
+shell test trees, stable and engineering runtime/parser source roots, public bridge files, documentation,
+types, fixtures, and upstream licenses. `upstream-files.tsv` binds every file to a SHA-256 digest and
+`shell-upstream-inventory-check.sh` verifies the boundary offline.
+
+`upstream-corpus.tsv` enumerates 1,630 lexical test sites from those exact snapshots. The initial conservative
+disposition is 1,598 pending and 32 explicitly inactive at the pinned revisions; existing Clun fixtures are
+not credited until their observable cases are mapped to exact rows. `shell-upstream-corpus-check.sh` rejects
+inventory drift or an unexplained disposition. Its `--yes` mode is the finite closure gate: it rejects any
+pending row and also requires supported evidence receipts on Linux/macOS x64/arm64.
+
 `tests/compat/tooling.shell/core.js` drives the shipped binary and freezes exact results for hostile scalar
 interpolation, array boundaries, a 1 MiB producer/consumer pipeline, logical operators, command substitution,
 cwd and environment, ordered descriptor redirects, output/error objects, Promise chaining, helper methods, and job-local
@@ -99,13 +112,17 @@ owns parser and built-in behavior without an external process dependency.
 ```sh
 make phase-65-tagged-templates-check
 make phase-65-shell-core-check
+make shell-upstream-corpus-check
+make shell-upstream-yes-check # intentionally blocked until the phase is complete
 make purity
 ```
 
 ## Remaining Phase 65 work
 
 This milestone is substantial application behavior, but it is not the complete frozen Bun contract. The
-ledger must not report `Yes` until the pinned source inventory and full applicable corpus are mapped and pass,
+source and lexical-site inventories are now finite and immutable; their pending rows still require exact
+mapping, production closure, and executable evidence. The ledger must not report `Yes` until the full
+applicable corpus is mapped and passes,
 including remaining control/background forms and builtins, exact redirect open/error timing, shared-stream
 interleaving and coercion behavior, async
 line and blob surfaces, signal/exit ordering, cancellation, 1,000-job child/fd

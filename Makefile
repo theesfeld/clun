@@ -22,6 +22,8 @@ FEATURE                    ?= all
 		roadmap-verify-live \
 		conformance-exec-compare phase-25b-m5-check phase-25b-m6-check phase-37-m1-check \
 		phase-65-tagged-templates-check \
+		shell-upstream-inventory-check \
+		shell-upstream-corpus-check shell-upstream-yes-check \
 		phase-65-shell-core-check \
 		conformance-buckets conformance-buckets-check \
 		conformance-buckets-verify clean
@@ -123,6 +125,23 @@ phase-65-tagged-templates-check:
 phase-65-shell-core-check: build
 	$(SBCL) $(SBCL_FLAGS) --load scripts/test-shell.lisp
 	sh scripts/compat.sh run tooling.shell
+	sh scripts/shell-upstream-inventory-check.sh
+	sh scripts/shell-upstream-corpus-check.sh
+
+## shell-upstream-inventory-check -- verify the exact stable and engineering
+## Bun source/docs/types/test snapshots that bound the finite Phase 65 target.
+shell-upstream-inventory-check:
+	sh scripts/shell-upstream-inventory-check.sh
+
+## shell-upstream-corpus-check -- require a disposition for every frozen Bun
+## shell test site while allowing explicit pending work during Phase 65.
+shell-upstream-corpus-check:
+	sh scripts/shell-upstream-corpus-check.sh
+
+## shell-upstream-yes-check -- finite final gate: zero pending pinned sites and
+## supported evidence receipts on Linux/macOS x64/arm64.
+shell-upstream-yes-check:
+	sh scripts/shell-upstream-corpus-check.sh --yes
 
 ## conformance-exec-compare -- run the complete execution corpus with the COMPILE
 ## tier off and eager, then require byte-identical per-file classifications.

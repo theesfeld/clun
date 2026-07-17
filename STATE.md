@@ -53,8 +53,10 @@ guarded filesystem builtins, bounded `yes`, and isolated pipeline state. Merged 
 pipelines, ordered descriptor redirects, callable isolated `Shell` instances, signed-64 conditional
 arithmetic, and bounded nested brace expansion. `make phase-65-shell-core-check` passes **185 / 0 / 0** plus
 **3/3** shipped `tooling.shell` evidence records; `make build`, `make purity` (**716 / 0**), and diff check
-pass. The row is honestly **Partial**, not `Yes`: the exact stable and engineering Bun source/corpus inventory,
-remaining language/API/lifecycle cases, 1,000-job stress, and Linux/macOS x64/arm64 receipts are still open.
+pass. The exact stable and engineering Bun boundary is now frozen at **211 source/docs/types/test files** and
+**1,630 lexical test sites**: **1,598 pending / 32 upstream-inactive / 0 credited** until existing evidence is
+mapped row by row. The row is honestly **Partial**, not `Yes`: remaining language/API/lifecycle cases,
+1,000-job stress, and Linux/macOS x64/arm64 receipts are still open.
 
 **M5 entry boundary:** immutable dev.4 diagnostic set **56 total / 0 pass / 56 fail / 0 skip / 0 crash**:
 **43 m5-owned** (32 intrinsic/prototype, 7 parser, 4 raw delegation), **12 m11** direct-eval/`with`
