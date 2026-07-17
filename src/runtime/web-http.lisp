@@ -38,10 +38,6 @@
             (:include eng:js-object (class :response))
             (:constructor %make-js-response))
   body
-(defstruct (js-response
-            (:include eng:js-object (class :response))
-            (:constructor %make-js-response))
-  body
   (body-used-p nil)
   body-stream
   (body-null-p nil))
@@ -1015,25 +1011,28 @@ Rejects when the body stream is locked by getReader()."
 Access alone does not mark bodyUsed or materialize Clun.file bodies;
 getReader/read or mixin consumers do."
   (let ((existing (%body-stream-slot value)))
-    (when (js-readable-stream-p existing)
-      (return-from %body-stream-for existing)))
-  (when (and (%body-used-p value) (not (js-readable-stream-p existing)))
-    (return-from %body-stream-for eng:+null+))
-  (when (%body-is-absent-p value)
-    (return-from %body-stream-for eng:+null+))
-  (let* ((kind (cond ((js-response-p value) :response)
-                     ((js-request-p value) :request)
-                     (t nil)))
-         (stream
-           (%new-readable-stream
-            :queue '()
-            :closed-p nil
-            :owner value
-            :owner-kind kind
-            :lazy-body-p t
-            :lazy-body-function body-function)))
-    (%set-body-stream-slot value stream)
-    stream))
+    (cond
+      ((js-readable-stream-p existing)
+       (return-from %body-stream-for existing))
+      ((js-body-stream-p existing)
+       (return-from %body-stream-for existing))
+      ((%body-used-p value)
+       (return-from %body-stream-for eng:+null+))
+      ((%body-is-absent-p value)
+       (return-from %body-stream-for eng:+null+)))
+    (let* ((kind (cond ((js-response-p value) :response)
+                       ((js-request-p value) :request)
+                       (t nil)))
+           (stream
+             (%new-readable-stream
+              :queue '()
+              :closed-p nil
+              :owner value
+              :owner-kind kind
+              :lazy-body-p t
+              :lazy-body-function body-function)))
+      (%set-body-stream-slot value stream)
+      stream)))
 
 (defun %install-body-methods (prototype require-function body-function)
   (let ((global (eng:realm-global eng:*realm*)))
