@@ -170,6 +170,21 @@ supported, the test timeout remains authoritative, and all completion work settl
 starts. Registration outside an active test and non-callable callbacks fail immediately. Real concurrent
 test scheduling is still residual scope, so the pinned concurrent-registration diagnostic is not claimed.
 
+## Milestone 66.12 - extended matcher family
+
+The matcher engine now provides 27 additional Bun and Jest Extended contracts: nil/type/boolean/number/
+integer/object/finite/positive/negative/symbol/function/date/string predicates; array and exact-size checks;
+BigInt-aware even/odd checks; exact-boolean `toSatisfy`; half-open `toBeWithin`; ASCII-whitespace-insensitive
+equality; substring, prefix, suffix, and non-overlapping repetition matching.
+
+Argument validation follows the pinned behavior, including the finite-integer array-size boundary, the eight
+valid `typeof` strings, numeric range endpoints, string-only expected values, non-empty repeated substrings,
+and rejection of fractional, infinite, NaN, negative, and negative-zero repetition counts. Focused evidence
+covers every matcher, negation, wrapper/date behavior, BigInt parity, validation failures, and 103 assertions.
+The same milestone closes an asynchronous deep-equality traversal defect: its cycle map now tracks only the
+active recursion path and remains live until Promise-backed asymmetric matching settles, so shared aliases do
+not become false cycles. A dedicated nested-alias regression receipt covers that Promise cleanup boundary.
+
 The row remains `Partial`. Snapshot/inline updates, module mocks, fake timers, coverage/source maps,
 concurrency/parallel files, setup/reporters/JUnit, sharding/randomization/watch behavior, exact 52-root Bun
 and Clun counts, four-target receipts, serial/parallel agreement, and the 10k-test RSS gate remain explicit

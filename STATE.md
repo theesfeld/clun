@@ -1957,6 +1957,10 @@ Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-earl
 - Milestone 66.11 adds `onTestFinished` per-attempt cleanup after `afterEach`, preserving registration order,
   body-failure cleanup, Promise and `done` settlement, timeout ownership, and callback validation. Focused
   integration covers 5 tests and 5 expectations; concurrent registration remains tied to real concurrency.
+- Milestone 66.12 adds 27 Bun/Jest Extended matchers across type, numeric, array, date, string, range,
+  whitespace, repetition, and exact-boolean predicate contracts. Focused shipped-binary integration covers
+  13 tests and 103 expectations, including validation, negation, wrappers, invalid dates, and BigInt parity;
+  Promise-aware deep equality also distinguishes repeated aliases from active recursion cycles.
 - Ledger stays `Partial`. Remaining Phase 66 scope: snapshots/inline updates, module mocks, fake timers,
   coverage/source maps, parallelism/concurrency, setup/reporters/JUnit, sharding/randomization/watch hooks,
   exact 52-root Bun/Clun counts, four-target receipts, serial/parallel agreement, and 10k RSS.

@@ -36,3 +36,11 @@ test('settlement asymmetric matchers wait for timer-driven promises', async () =
     delayed: expect.resolvesTo.stringMatching(/^ready$/),
   });
 });
+
+test('async nested equality distinguishes aliases from cycles', async () => {
+  const shared = { value: Promise.resolve(42) };
+  await expect({ first: shared, second: shared }).toEqual({
+    first: { value: expect.resolvesTo.any(Number) },
+    second: { value: expect.resolvesTo.any(Number) },
+  });
+});

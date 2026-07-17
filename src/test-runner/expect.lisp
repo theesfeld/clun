@@ -30,6 +30,51 @@
 (defun %num (v) (eng:to-number v))
 (defun %nan (v) (or (eng:js-nan-p v) (not (eng:js-number-p v))))
 
+(defun %boxed-class-p (value class)
+  (and (eng:js-object-p value) (eq (eng:js-object-class value) class)))
+
+(defun %string-value-p (value)
+  (or (eng:js-string-p value) (%boxed-class-p value :string)))
+
+(defun %date-value-p (value)
+  (%boxed-class-p value :date))
+
+(defun %integer-number-p (value)
+  (and (eng:js-number-p value) (eng:js-finite-p value)
+       (= value (ftruncate value))))
+
+(defun %integer-numeric-p (value)
+  (or (eng:js-bigint-p value) (%integer-number-p value)))
+
+(defun %round-away-from-zero (value)
+  (if (minusp value)
+      (ceiling (- value 0.5d0))
+      (floor (+ value 0.5d0))))
+
+(defun %bun-whitespace-p (character)
+  "The ASCII whitespace set used by Bun's toEqualIgnoringWhitespace matcher."
+  (and (member (char-code character) '(#x09 #x0a #x0b #x0c #x0d #x20)) t))
+
+(defun %without-bun-whitespace (string)
+  (remove-if #'%bun-whitespace-p string))
+
+(defun %string-starts-with-p (string prefix)
+  (let ((position (search prefix string)))
+    (and position (zerop position))))
+
+(defun %string-ends-with-p (string suffix)
+  (let ((position (search suffix string :from-end t)))
+    (and position (= position (- (length string) (length suffix))))))
+
+(defun %non-overlapping-count (string substring)
+  (loop with start = 0
+        with count = 0
+        for position = (search substring string :start2 start)
+        while position
+        do (incf count)
+           (setf start (+ position (length substring)))
+        finally (return count)))
+
 (defun %asymmetric-matcher-p (value)
   (and (eng:js-object-p value)
        (eng:callable-p (eng:js-get value "asymmetricMatch"))))
@@ -128,6 +173,37 @@ the length property), or NIL when V has no numeric length."
   "%loose-equal with asynchronous asymmetricMatch results propagated as a Promise."
   (%ler a b (make-hash-table :test 'eq)))
 
+(defun %ler-node (a b seen)
+  (let ((ca (eng:js-object-class a)) (cb (eng:js-object-class b)))
+    (cond
+      ((and (eq ca :date) (eq cb :date))
+       (= (%num (eng:js-call (eng:js-get a "getTime") a '()))
+          (%num (eng:js-call (eng:js-get b "getTime") b '()))))
+      ((and (eq ca :regexp) (eq cb :regexp))
+       (and (string= (eng:to-string (eng:js-get a "source"))
+                     (eng:to-string (eng:js-get b "source")))
+            (string= (eng:to-string (eng:js-get a "flags"))
+                     (eng:to-string (eng:js-get b "flags")))))
+      ((and (eng:js-array-p a) (eng:js-array-p b))
+       (let ((la (eng:array-length a)) (lb (eng:array-length b)))
+         (and (= la lb)
+              (%match-items-and
+               (loop for i below la collect i)
+               (lambda (i)
+                 (%ler (eng:js-getv a (princ-to-string i))
+                       (eng:js-getv b (princ-to-string i)) seen))))))
+      ((or (eng:js-array-p a) (eng:js-array-p b)) nil)
+      (t
+       (let* ((ka (%own-string-keys a)) (kb (%own-string-keys b))
+              (keys (remove-duplicates (append ka kb) :test #'string=)))
+         (%match-items-and
+          keys
+          (lambda (key)
+            (let ((va (eng:js-getv a key)) (vb (eng:js-getv b key)))
+              (or (and (eng:js-undefined-p va)
+                       (eng:js-undefined-p vb))
+                  (%ler va vb seen))))))))))
+
 (defun %ler (a b seen)
   (cond
     ((%svz a b) t)
@@ -137,35 +213,22 @@ the length property), or NIL when V has no numeric length."
     ((gethash a seen) (eq (gethash a seen) b))
     (t
      (setf (gethash a seen) b)
-     (let ((ca (eng:js-object-class a)) (cb (eng:js-object-class b)))
-       (cond
-         ((and (eq ca :date) (eq cb :date))
-          (= (%num (eng:js-call (eng:js-get a "getTime") a '()))
-             (%num (eng:js-call (eng:js-get b "getTime") b '()))))
-         ((and (eq ca :regexp) (eq cb :regexp))
-          (and (string= (eng:to-string (eng:js-get a "source"))
-                        (eng:to-string (eng:js-get b "source")))
-               (string= (eng:to-string (eng:js-get a "flags"))
-                        (eng:to-string (eng:js-get b "flags")))))
-         ((and (eng:js-array-p a) (eng:js-array-p b))
-          (let ((la (eng:array-length a)) (lb (eng:array-length b)))
-            (and (= la lb)
-                 (%match-items-and
-                  (loop for i below la collect i)
-                  (lambda (i)
-                    (%ler (eng:js-getv a (princ-to-string i))
-                          (eng:js-getv b (princ-to-string i)) seen))))))
-         ((or (eng:js-array-p a) (eng:js-array-p b)) nil)
-         (t
-          (let* ((ka (%own-string-keys a)) (kb (%own-string-keys b))
-                 (keys (remove-duplicates (append ka kb) :test #'string=)))
-            (%match-items-and
-             keys
-             (lambda (key)
-               (let ((va (eng:js-getv a key)) (vb (eng:js-getv b key)))
-                 (or (and (eng:js-undefined-p va)
-                          (eng:js-undefined-p vb))
-                     (%ler va vb seen))))))))))))
+     (let ((async-cleanup-p nil))
+       (unwind-protect
+            (let ((result (%ler-node a b seen)))
+              (if (eng:js-promise-p result)
+                  (let ((chained
+                          (eng:js-call
+                           (eng:js-get result "finally") result
+                           (list (%fn "" 0
+                                   (lambda (this args)
+                                     (declare (ignore this args))
+                                     (remhash a seen)
+                                     eng:+undefined+))))))
+                    (setf async-cleanup-p t)
+                    chained)
+                  result))
+         (unless async-cleanup-p (remhash a seen)))))))
 
 (defun %match-object (actual expected)
   "Recursive subset: every own key of EXPECTED matches (loose) in ACTUAL."
@@ -415,9 +478,9 @@ the length property), or NIL when V has no numeric length."
 
 ;;; --- toThrow ---------------------------------------------------------------
 
-(defun %call-catching (fn)
-  "Call FN with no args; return (values threw-p thrown-value)."
-  (handler-case (progn (eng:js-call fn eng:+undefined+ '()) (values nil nil))
+(defun %call-catching (fn &optional (args '()))
+  "Call FN with ARGS; return (values threw-p result-or-thrown-value)."
+  (handler-case (values nil (eng:js-call fn eng:+undefined+ args))
     (eng:js-condition (c) (values t (eng:js-condition-value c)))))
 
 (defun %thrown-message (v)
@@ -443,8 +506,14 @@ the length property), or NIL when V has no numeric length."
 
 (defparameter *matcher-names*
   '("toBe" "toEqual" "toStrictEqual" "toBeTruthy" "toBeFalsy" "toBeNull" "toBeUndefined"
-    "toBeDefined" "toBeNaN" "toBeInstanceOf" "toBeGreaterThan" "toBeGreaterThanOrEqual"
+    "toBeDefined" "toBeNaN" "toBeNil" "toBeTypeOf" "toBeBoolean" "toBeTrue" "toBeFalse"
+    "toBeNumber" "toBeInteger" "toBeObject" "toBeFinite" "toBePositive" "toBeNegative"
+    "toBeSymbol" "toBeFunction" "toBeDate" "toBeValidDate" "toBeString"
+    "toBeArray" "toBeArrayOfSize" "toBeEven" "toBeOdd" "toSatisfy"
+    "toBeInstanceOf" "toBeGreaterThan" "toBeGreaterThanOrEqual"
     "toBeLessThan" "toBeLessThanOrEqual" "toBeCloseTo" "toMatch" "toContain" "toContainEqual"
+    "toBeWithin" "toEqualIgnoringWhitespace" "toInclude" "toIncludeRepeated"
+    "toStartWith" "toEndWith"
     "toHaveLength" "toHaveProperty" "toMatchObject" "toThrow"
     "toHaveBeenCalled" "toHaveBeenCalledOnce" "toHaveBeenCalledTimes"
     "toHaveBeenCalledWith" "toHaveBeenLastCalledWith" "toHaveBeenNthCalledWith"
@@ -571,6 +640,50 @@ on the wrong outcome (honouring NEGATED). Returns undefined on success."
         ((string= name "toBeUndefined") (chk (eng:js-undefined-p actual)))
         ((string= name "toBeDefined") (chk (not (eng:js-undefined-p actual))))
         ((string= name "toBeNaN") (chk (and (eng:js-number-p actual) (eng:js-nan-p actual))))
+        ((string= name "toBeNil") (chk (eng:js-nullish-p actual)))
+        ((string= name "toBeTypeOf")
+         (unless (eng:js-string-p e0)
+           (%fail "toBeTypeOf() requires a string argument"))
+         (unless (member e0 '("function" "object" "bigint" "boolean" "number"
+                              "string" "symbol" "undefined") :test #'string=)
+           (%fail "toBeTypeOf() requires a valid type string argument ('function', 'object', 'bigint', 'boolean', 'number', 'string', 'symbol', 'undefined')"))
+         (chk (string= (eng:js-typeof actual) e0)))
+        ((string= name "toBeBoolean") (chk (eng:js-boolean-p actual)))
+        ((string= name "toBeTrue") (chk (eq actual eng:+true+)))
+        ((string= name "toBeFalse") (chk (eq actual eng:+false+)))
+        ((string= name "toBeNumber") (chk (eng:js-number-p actual)))
+        ((string= name "toBeInteger") (chk (%integer-number-p actual)))
+        ((string= name "toBeObject") (chk (eng:js-object-p actual)))
+        ((string= name "toBeFinite")
+         (chk (and (eng:js-number-p actual) (eng:js-finite-p actual))))
+        ((string= name "toBePositive")
+         (chk (and (eng:js-number-p actual) (eng:js-finite-p actual)
+                   (plusp (%round-away-from-zero actual)))))
+        ((string= name "toBeNegative")
+         (chk (and (eng:js-number-p actual) (eng:js-finite-p actual)
+                   (minusp (%round-away-from-zero actual)))))
+        ((string= name "toBeSymbol") (chk (eng:js-symbol-p actual)))
+        ((string= name "toBeFunction") (chk (eng:callable-p actual)))
+        ((string= name "toBeDate") (chk (%date-value-p actual)))
+        ((string= name "toBeValidDate")
+         (chk (and (%date-value-p actual)
+                   (let ((time (eng:js-call (eng:js-get actual "getTime") actual '())))
+                     (and (eng:js-number-p time) (not (eng:js-nan-p time)))))))
+        ((string= name "toBeString") (chk (%string-value-p actual)))
+        ((string= name "toBeArray") (chk (eng:js-array-p actual)))
+        ((string= name "toBeArrayOfSize")
+         (unless (%integer-number-p e0)
+           (%fail "toBeArrayOfSize() requires the first argument to be a number"))
+         (chk (and (eng:js-array-p actual) (= (eng:array-length actual) (truncate e0)))))
+        ((string= name "toBeEven")
+         (chk (and (%integer-numeric-p actual) (zerop (mod actual 2)))))
+        ((string= name "toBeOdd")
+         (chk (and (%integer-numeric-p actual) (= (mod actual 2) 1))))
+        ((string= name "toSatisfy")
+         (unless (eng:callable-p e0) (%fail "toSatisfy() argument must be a function"))
+         (multiple-value-bind (threw result) (%call-catching e0 (list actual))
+           (when threw (%fail "toSatisfy() predicate threw an exception"))
+           (chk (eq result eng:+true+))))
         ((string= name "toBeInstanceOf") (chk (and (eng:callable-p e0) (eng:js-instanceof actual e0))))
         ((string= name "toBeGreaterThan") (num-cmp #'>))
         ((string= name "toBeGreaterThanOrEqual") (num-cmp #'>=))
@@ -586,6 +699,35 @@ on the wrong outcome (honouring NEGATED). Returns undefined on success."
                       ((or (eng:js-infinite-p na) (eng:js-infinite-p ne)) (= na ne))
                       (t (< (abs (- na ne)) tol)))
                 (format nil "expect(~a).~:[~;not.~]toBeCloseTo(~a, ~a)" (%insp actual) negated (%insp e0) p))))
+        ((string= name "toBeWithin")
+         (unless (eng:js-number-p e0)
+           (%fail "toBeWithin() requires the first argument to be a number"))
+         (unless (eng:js-number-p e1)
+           (%fail "toBeWithin() requires the second argument to be a number"))
+         (chk (and (eng:js-number-p actual) (>= actual e0) (< actual e1))))
+        ((string= name "toEqualIgnoringWhitespace")
+         (unless (eng:js-string-p e0)
+           (%fail "toEqualIgnoringWhitespace() requires argument to be a string"))
+         (chk (and (eng:js-string-p actual)
+                   (string= (%without-bun-whitespace actual)
+                            (%without-bun-whitespace e0)))))
+        ((member name '("toInclude" "toStartWith" "toEndWith") :test #'string=)
+         (unless (eng:js-string-p e0)
+           (%fail "~a() requires the first argument to be a string" name))
+         (chk (and (eng:js-string-p actual)
+                   (cond ((string= name "toInclude") (and (search e0 actual) t))
+                         ((string= name "toStartWith") (%string-starts-with-p actual e0))
+                         (t (%string-ends-with-p actual e0))))))
+        ((string= name "toIncludeRepeated")
+         (unless (eng:js-string-p e0)
+           (%fail "toIncludeRepeated() requires the first argument to be a string"))
+         (unless (and (%integer-number-p e1) (not (eng:js-neg-zero-p e1)) (>= e1 0))
+           (%fail "toIncludeRepeated() requires the second argument to be a number"))
+         (when (zerop (length e0))
+           (%fail "toIncludeRepeated() requires the first argument to be a non-empty string"))
+         (unless (eng:js-string-p actual)
+           (%fail "toIncludeRepeated() requires the expect(value) to be a string"))
+         (chk (= (%non-overlapping-count actual e0) (truncate e1))))
         ((string= name "toMatch")
          (let ((s (eng:to-string actual)))
            (chk (if (and (eng:js-object-p e0) (eq (eng:js-object-class e0) :regexp))

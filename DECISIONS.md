@@ -2969,3 +2969,14 @@ therefore start empty, while a failed test body still drains its registered call
 attempt result. The scheduler runs them in registration order after inherited `afterEach` hooks through the
 existing synchronous, Promise, callback, and timeout settlement path. Concurrent registration remains
 unclaimed until the runner has real concurrent scheduling rather than serial qualifier aliases.
+
+### 2026-07-17 - Phase 66 extended matchers stay in the native dispatcher
+
+The 27 additional Bun and Jest Extended contracts use the same native matcher object and assertion counter as
+the original matchers, so `.not`, `.resolves`, and `.rejects` do not require a parallel JavaScript framework.
+Predicate matching intentionally accepts only the boolean `true`, repetition counts non-overlapping matches,
+`toBeWithin` keeps its inclusive-start/exclusive-end boundary, and even/odd matching handles both Number and
+BigInt values. Type and argument errors remain matcher-owned failures rather than coercing unsupported input.
+The asynchronous deep-equality traversal now scopes its identity map to the active recursion path and defers
+cleanup with `Promise.prototype.finally`; repeated aliases may match distinct equal objects without weakening
+cycle termination while an asynchronous asymmetric matcher is still pending.
