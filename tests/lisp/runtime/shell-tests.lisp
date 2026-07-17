@@ -276,6 +276,32 @@
     (is = 2 (exit-code "[[ value =~ ( ]]"))
     (is = 0 (exit-code "[[ value || value =~ ( ]]"))))
 
+(define-test shell/conditional-arithmetic
+  (flet ((result (source)
+           (clun.runtime::%shell-execute-units
+            (shell-test-units source) (shell-test-state) nil)))
+    (is = 0 (clun.runtime::shell-result-exit-code (result "[[ 7 -eq 4+3 ]]")))
+    (is = 0 (clun.runtime::shell-result-exit-code (result "[[ 14 -eq 2+3*4 ]]")))
+    (is = 0 (clun.runtime::shell-result-exit-code (result "[[ 20 -eq (2+3)*4 ]]")))
+    (is = 0 (clun.runtime::shell-result-exit-code
+             (result "IVAR=4+3; [[ $IVAR -eq 7 ]]")))
+    (is = 0 (clun.runtime::shell-result-exit-code
+             (result "A=7; [[ 7 -eq A ]]")))
+    (is = 0 (clun.runtime::shell-result-exit-code
+             (result "UNSET=; [[ 7 -gt $UNSET ]]")))
+    (is = 0 (clun.runtime::shell-result-exit-code (result "[[ 255 -eq 16#ff ]]")))
+    (is = 0 (clun.runtime::shell-result-exit-code
+             (result "EXPR='1|2'; [[ 3 -eq $EXPR ]]")))
+    (is = 0 (clun.runtime::shell-result-exit-code
+             (result "[[ -1 -eq 18446744073709551615 ]]")))
+    (let ((invalid (result "[[ 7 -eq 4+ ]]")))
+      (is = 1 (clun.runtime::shell-result-exit-code invalid))
+      (is equal (format nil "clun: conditional expression: invalid arithmetic expression~%")
+          (eng:utf8->code-units (clun.runtime::shell-result-stderr invalid))))
+    (is = 1 (clun.runtime::shell-result-exit-code
+             (result "A=B; B=A; [[ 0 -eq A ]]")))
+    (is = 1 (clun.runtime::shell-result-exit-code (result "[[ 1 -eq 1/0 ]]")))))
+
 (define-test shell/lines-preserve-string-split-boundaries
   (is equal '() (clun.runtime::%shell-lines ""))
   (is equal '("hello") (clun.runtime::%shell-lines "hello"))

@@ -39,7 +39,11 @@ their contents cannot create operators, substitutions, redirects, globs, or extr
   per-character protection mask, so quoted/escaped metacharacters and ordinary template interpolations remain
   literal while unquoted literal or variable-supplied patterns remain active. The same protection contract
   applies to the unanchored `=~` regular-expression operator. Malformed evaluated regex operands return status
-  2, while a malformed operand in a short-circuited branch is not compiled.
+  2, while a malformed operand in a short-circuited branch is not compiled. Integer comparison operands use a
+  bounded signed-64-bit arithmetic parser with literals through base 64, unset-as-zero recursive environment
+  names, parentheses, unary operators, exponentiation, multiplication/division/remainder, addition/subtraction,
+  shifts, comparisons, bitwise operators, and logical operators. Syntax errors, variable cycles, invalid shifts,
+  and zero division return status 1 without invoking a language evaluator.
 - Resolve external programs against the job's `PATH`, require executable permission, and use
   `sb-ext:run-program` directly. The implementation does not invoke `sh`, `bash`, or another command parser.
 - Spawn every command in an external-only pipeline before waiting. Intermediate streams are connected while
@@ -76,6 +80,8 @@ non-todo `bunshell.test.ts` unary/string cases, including both conditional pipel
 freezes the pinned GNU-bash-derived compound-expression cases for repeated negation, short-circuit operators,
 operator precedence, compact/spaced grouping, lexical string ordering, glob equality, quoted and escaped
 patterns, variable-supplied patterns, regex matching and syntax failures, and inert template interpolation.
+It also freezes expression precedence, parentheses, based numbers, variable recursion, signed wrapping, bitwise
+operators, malformed arithmetic, cycles, and zero division for integer comparisons.
 `tests/lisp/runtime/shell-tests.lisp` separately
 owns parser and built-in behavior without an external process dependency.
 
