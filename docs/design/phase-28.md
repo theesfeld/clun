@@ -7,15 +7,15 @@ interoperability, blocking libc IPv4-only hostname resolution, and buffered-only
 fetch bodies. It adds a pure Common Lisp TLS 1.2 fallback beneath the existing
 TLS 1.3 client, a bounded DNS A/AAAA resolver, dual-stack connection racing,
 incremental authenticated response delivery, streaming request bodies, hardened
-response decoding, HTTP proxy routing, HTTPS CONNECT tunnels, and hermetic plus
-live public-registry evidence.
+response decoding, HTTP proxy routing, HTTPS CONNECT tunnels, origin-keyed
+pure-tls HTTPS idle pooling, and hermetic plus live public-registry evidence.
 
 This is an implementation slice of Phase 28, not completion of the phase. The
 canonical Phase 28 GitHub issue remains open. In particular, this series does not
-claim the issue's complete proxy matrix, TLS pooling, incremental decompression,
-1 GiB transfer, remaining HTTPS cancellation-race/leak stress, or four-target
-acceptance requirements. It does not promote a compatibility-ledger row to
-`Yes`.
+claim the issue's complete proxy matrix, broader pool stress, incremental
+decompression, 1 GiB transfer, remaining HTTPS cancellation-race/leak stress, or
+four-target acceptance requirements. It does not promote a compatibility-ledger
+row to `Yes`.
 
 ## 2. Architecture
 
@@ -234,7 +234,7 @@ and executes the installed package with the shipped Clun binary.
 Before Phase 28 can close, the canonical issue still requires implementation and
 evidence for at least:
 
-- TLS connection reuse and broader pool stress/eviction coverage;
+- origin-keyed pure-tls HTTPS idle pooling is landed; broader TLS/HTTP pool stress and eviction matrix remains;
 - HTTPS proxy endpoints, proxy object options and pooling, the broader proxy
   stress/error matrix, and the remaining HTTPS cancellation-race/leak matrix;
 - the issue's large-transfer and adversarial transport fixtures; and

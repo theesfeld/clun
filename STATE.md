@@ -11,12 +11,12 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 **Canonical issue:** https://github.com/theesfeld/clun/issues/2
 **Parallel issues:** #24, #39, #40, #11
-**Current implementation unit:** Phase 28 transport foundation on draft PR #95 — pure-CL TLS 1.2, DNS/Happy Eyeballs, streaming Fetch, HTTP pooling, proxy/CONNECT. Public `runtime.web-standard-apis` and `package-manager.npm` remain `Partial` (not Yes). Master has published shell `v0.1.0-dev.18`, test-runner `0.1.0-dev.19` (#88), and Phase 37 m2 `0.1.0-dev.21` (#96). This unit stages `0.1.0-dev.22`.
+**Current implementation unit:** Phase 28 transport foundation on draft PR #95 — pure-CL TLS 1.2, DNS/Happy Eyeballs, streaming Fetch, HTTP pooling, origin-keyed pure-tls HTTPS idle pooling, proxy/CONNECT. Public `runtime.web-standard-apis` and `package-manager.npm` remain `Partial` (not Yes). Master has published shell `v0.1.0-dev.18`, test-runner `0.1.0-dev.19` (#88), and Phase 37 m2 `0.1.0-dev.21` (#96). This unit stages `0.1.0-dev.22`.
 **SemVer impact:** `minor`
 **Candidate release:** `0.1.0-dev.22` / `v0.1.0-dev.22`
 **Published release:** `0.1.0-dev.18` / `v0.1.0-dev.18`
 **Entry boundary:** immutable `v0.1.0-dev.18` with four native archives + checksums; installer defaults to that tag. Draft PR #95 stages Partial transport as `0.1.0-dev.22`.
-**Next scope:** HTTPS proxy endpoints, pooling/stress breadth, 1 GiB/leak matrix, four-target receipts; keep ledger Partial.
+**Next scope:** HTTPS proxy endpoints, broader pooling/stress breadth, 1 GiB/leak matrix, four-target receipts; TLS idle pool checkpoint landed; keep ledger Partial.
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
 easiest to hardest among dependency-ready rows. Core engine/runtime/network/tooling changes are expected.
