@@ -67,6 +67,7 @@ Clun.$`printf "%s\n" ${hostile}`.text()
     throw new Error("nonzero shell command must reject");
   }, error => {
     assert(error.name === "ShellError", "ShellError name");
+    assert(error.message === "Failed with exit code 1", "ShellError message");
     assert(error.exitCode === 1, "ShellError exit code");
     assert(error.text() === "", "ShellError text helper");
     assert(error instanceof Clun.$.ShellError, "ShellError constructor brand");
@@ -101,4 +102,22 @@ Clun.$`printf "%s\n" ${hostile}`.text()
   .then(result => {
     assert(result.exitCode === 127, "job PATH must control executable lookup");
     console.log("path-lookup");
+    const running = Clun.$`echo run-once`.quiet();
+    assert(running.run() === running, "run returns the same ShellPromise");
+    return running;
+  })
+  .then(result => {
+    assert(result.text() === "run-once\n", "run starts the shell job");
+    const iterator = Clun.$`echo hello`.lines();
+    assert(iterator[Symbol.asyncIterator]() === iterator, "lines async iterator identity");
+    return iterator.next().then(first => {
+      assert(first.value === "hello" && first.done === false, "lines first value");
+      return iterator.next();
+    }).then(second => {
+      assert(second.value === "" && second.done === false, "lines trailing empty value");
+      return iterator.next();
+    }).then(last => {
+      assert(last.done === true, "lines completion");
+      console.log("shell-promise-api");
+    });
   });

@@ -21,8 +21,10 @@ their contents cannot create operators, substitutions, redirects, globs, or extr
   `sb-ext:run-program` directly. The implementation does not invoke `sh`, `bash`, or another command parser.
 - Spawn every command in an external-only pipeline before waiting. Intermediate streams are connected while
   the final stdout and all stderr are file-backed, preventing parent-side pipe-capacity deadlocks.
-- Expose lazy job methods for cwd, environment, quiet/nothrow/throws, Promise chaining, text, JSON, bytes,
-  array buffers, and lines. Results and failures carry stdout, stderr, exit code, and conversion methods.
+- Expose lazy job methods for cwd, environment, quiet/nothrow/throws, explicit one-shot `run`, Promise
+  chaining, text, JSON, bytes, array buffers, and lines. `lines()` is a lazy async iterator with JavaScript
+  split boundaries, including a trailing empty line after a final newline. Results and failures carry stdout,
+  stderr, exit code, and conversion methods.
 - Give `Clun.$.ShellError` its own Error-derived constructor and prototype, including meaningful
   `instanceof` behavior.
 

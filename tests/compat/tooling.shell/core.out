@@ -11,3 +11,4 @@ structured-error
 helpers
 promise-chain
 path-lookup
+shell-promise-api

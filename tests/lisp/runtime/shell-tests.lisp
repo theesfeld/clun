@@ -128,3 +128,12 @@
     (is equal (format nil "16777216~%")
         (stdout "16777216" "16777218"))
     (is equal (format nil "1~%") (stdout "1" "0.00000001" "2"))))
+
+(define-test shell/lines-preserve-string-split-boundaries
+  (is equal '() (clun.runtime::%shell-lines ""))
+  (is equal '("hello") (clun.runtime::%shell-lines "hello"))
+  (is equal '("hello" "")
+      (clun.runtime::%shell-lines (format nil "hello~%")))
+  (is equal '("" "") (clun.runtime::%shell-lines (format nil "~%")))
+  (is equal (list (format nil "a~c" #\Return) "b")
+      (clun.runtime::%shell-lines (format nil "a~c~%b" #\Return))))
