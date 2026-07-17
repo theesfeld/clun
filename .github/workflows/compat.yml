@@ -132,6 +132,9 @@ jobs:
       - name: Build Clun
         run: make build
 
+      - name: Verify CookieMap allocation scaling
+        run: make test-cookie-resources
+
       - name: Validate compatibility ledger
         run: make compat-validate
 
