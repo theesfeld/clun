@@ -7,16 +7,22 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **28 - Transport Foundation**  (PARTIAL CHECKPOINT)
+## Current phase: **37 - Modern ECMAScript gap wave**  (M3 CHECKPOINT)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/2
-**Parallel issues:** #24, #39, #40, #11
-**Current implementation unit:** Phase 28 transport foundation on draft PR #95 — pure-CL TLS 1.2, DNS/Happy Eyeballs, streaming Fetch, HTTP pooling, origin-keyed pure-tls HTTPS idle pooling, proxy/CONNECT. Public `runtime.web-standard-apis` and `package-manager.npm` remain `Partial` (not Yes). Master tip is `0.1.0-dev.21` after #96/#100/#101/#105/#103 (published shell `v0.1.0-dev.18`). This unit stages `0.1.0-dev.22`.
+**Canonical issue:** https://github.com/theesfeld/clun/issues/11
+**Next phase issue:** https://github.com/theesfeld/clun/issues/11
+**Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/2,
+https://github.com/theesfeld/clun/issues/39, and https://github.com/theesfeld/clun/issues/40
+**Current implementation unit:** Phase 37 milestone 3 — pure-CL ES2025 `Set.prototype` set-methods
+(`union` / `intersection` / `difference` / `symmetricDifference` / `isSubsetOf` / `isSupersetOf` /
+`isDisjointFrom`) via `GetSetRecord`. Converts 151 frozen `set-methods` failures. No compatibility-table
+`Yes` is claimed; Phase 37 remains open with residual ownership after reclassification.
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.22` / `v0.1.0-dev.22`
+**Candidate release:** `0.1.0-dev.23` / `v0.1.0-dev.23`
 **Published release:** `0.1.0-dev.18` / `v0.1.0-dev.18`
-**Entry boundary:** immutable `v0.1.0-dev.18` with four native archives + checksums; installer defaults to that tag. Draft PR #95 stages Partial transport as `0.1.0-dev.22`.
-**Next scope:** HTTPS proxy endpoints, broader pooling/stress breadth, 1 GiB/leak matrix, four-target receipts; TLS idle pool checkpoint landed; keep ledger Partial.
+**Entry boundary:** immutable `v0.1.0-dev.21` is the verified published release boundary with four native archives + checksums; installer defaults to that tag. Master tip is `0.1.0-dev.22` after Phase 28 transport foundation (#95, merge `ba2e998b`, unpublished). This unit stages `0.1.0-dev.23` as the next free prerelease under the unpublished-intermediate gap policy (transition 22→23; previous_version = published `0.1.0-dev.21`). Phase 26 remains after Phase 82.
+**Next scope:** keep Phase 37 open (no matrix Yes); green exact-head CI on the staged candidate; residual
+modern ECMAScript inventory continues after m3; pass-list reclassification is owned by the release unit.
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
 easiest to hardest among dependency-ready rows. Core engine/runtime/network/tooling changes are expected.
@@ -32,7 +38,7 @@ pass at `7c7377780413b98da1396f5d8e5d84611cf6cca3`; annotated tag `v0.1.0-dev.16
 release run **29561031150** published the immutable four-platform archives plus checksums. Issue #5 is
 closed complete with exact asset digests. Phase 37 milestone 1 adds `Object.hasOwn`, array copy-by-change methods, String
 well-formedness, `Error.isError`, and `Promise.withResolvers`, producing 173 measured execution-pass gains;
-its frozen inventory still has 603 residual failures after m2 and no full ledger row is claimed. Parallel durable
+its frozen inventory still has 452 residual failures after m3 and no full ledger row is claimed. Parallel durable
 checkpoints include transport request streaming plus origin-keyed HTTP pooling and shell parser/runtime,
 guarded filesystem builtins, bounded `yes`, and isolated pipeline state. Merged `master` is **9 Yes /
 7 Partial / 14 No** with shell Partial (PR #86) and test-runner Partial (PR #88) on master; this unit
