@@ -25,7 +25,7 @@
 (defstruct shell-if-form (branches '()) alternative)
 (defstruct shell-command
   (words '()) (assignments '()) (redirections '()) group if-form negated)
-(defstruct shell-pipeline (commands '()))
+(defstruct shell-pipeline (commands '()) (merge-stderr '()))
 (defstruct shell-script (pipelines '()) (operators '()))
 (defstruct shell-result
   (stdout #() :type vector)
@@ -139,7 +139,7 @@
                       for unit = (aref units (+ index offset))
                       always (and (characterp unit)
                                   (char= unit (char text offset)))))))
-    (or (find-if #'matches '("2>&1" "1>&2" "&>>" "2>>" "1>>" "&&" "||"
+    (or (find-if #'matches '("2>&1" "1>&2" "&>>" "2>>" "1>>" "&&" "||" "|&"
                              ">>" "&>" "2>" "1>" "|" ";" "<" ">" "&"
                              "(" ")")))))
 
@@ -377,7 +377,7 @@
 
 (defun %shell-command-start-after-token-p (token)
   (and (eq (shell-token-kind token) :operator)
-       (member (shell-token-value token) '(";" "&&" "||" "|" "(")
+       (member (shell-token-value token) '(";" "&&" "||" "|" "|&" "(")
                :test #'string=)))
 
 (defun %shell-control-state-after-token (token control-depth at-command-start)
@@ -552,9 +552,9 @@
                         :redirections (nreverse redirections)
                         :negated negated)))
 
-(defun %shell-split-tokens (tokens separator)
-  (let ((groups '()) (current '()) (depth 0) (control-depth 0)
-        (at-command-start t))
+(defun %shell-split-pipeline-tokens (tokens)
+  (let ((groups '()) (merge-stderr '()) (current '())
+        (depth 0) (control-depth 0) (at-command-start t))
     (dolist (token tokens)
       (when (eq (shell-token-kind token) :operator)
         (cond
@@ -567,19 +567,28 @@
       (if (and (zerop depth)
                (zerop control-depth)
                (eq (shell-token-kind token) :operator)
-               (string= (shell-token-value token) separator))
+               (member (shell-token-value token) '("|" "|&")
+                       :test #'string=))
           (progn
-            (when (null current) (%shell-syntax "empty command before ~a" separator))
-            (push (nreverse current) groups) (setf current '()))
+            (when (null current)
+              (%shell-syntax "empty command before ~a"
+                             (shell-token-value token)))
+            (push (nreverse current) groups)
+            (push (string= (shell-token-value token) "|&") merge-stderr)
+            (setf current '()))
           (push token current)))
     (unless (zerop depth) (%shell-syntax "unterminated subshell group"))
     (unless (zerop control-depth) (%shell-syntax "unterminated if"))
-    (when (null current) (%shell-syntax "empty command after ~a" separator))
-    (nreverse (cons (nreverse current) groups))))
+    (when (null current) (%shell-syntax "empty command after pipeline operator"))
+    (values (nreverse (cons (nreverse current) groups))
+            (nreverse merge-stderr))))
 
 (defun %shell-parse-pipeline (tokens)
-  (make-shell-pipeline
-   :commands (mapcar #'%shell-parse-command (%shell-split-tokens tokens "|"))))
+  (multiple-value-bind (commands merge-stderr)
+      (%shell-split-pipeline-tokens tokens)
+    (make-shell-pipeline
+     :commands (mapcar #'%shell-parse-command commands)
+     :merge-stderr merge-stderr)))
 
 (defun %shell-operator-word-token (operator)
   (make-shell-token
@@ -760,25 +769,51 @@
 
 (defun %shell-word-values (word state g)
   (let ((fields (list "")) (patterns (list "")) (has-value nil))
+    (labels ((append-scalar (current value)
+               (if current
+                   (append (butlast current)
+                           (list (concatenate 'string
+                                              (car (last current)) value)))
+                   (list value)))
+             (append-split (current values)
+               (cond
+                 ((null current) values)
+                 (values
+                   (append (butlast current)
+                           (list (concatenate 'string
+                                              (car (last current))
+                                              (first values)))
+                           (rest values)))
+                 (t current)))
+             (append-values (current values split-p)
+               (cond
+                 (split-p (append-split current values))
+                 ((= (length values) 1)
+                  (append-scalar current (first values)))
+                 (t
+                 ;; Array interpolation intentionally creates one argument per
+                 ;; element; retain the established Cartesian composition for
+                 ;; that explicit multi-value form.
+                  (if current
+                      (loop for prefix in current append
+                        (loop for value in values
+                              collect (concatenate 'string prefix value)))
+                      values)))))
     (dolist (fragment (shell-word-fragments word))
       (multiple-value-bind (values split-p) (%shell-fragment-values fragment state g)
-        (declare (ignore split-p))
         (if values
             (let ((pattern-values
                     (if (and (eq (shell-fragment-kind fragment) :literal)
                              (not (shell-fragment-quoted fragment)))
                         values
                         (mapcar #'%shell-protect-pattern-value values))))
-              (setf fields
-                    (loop for prefix in fields append
-                      (loop for value in values
-                            collect (concatenate 'string prefix value)))
-                    patterns
-                    (loop for prefix in patterns append
-                      (loop for value in pattern-values
-                            collect (concatenate 'string prefix value)))
+              (setf fields (append-values fields values split-p)
+                    patterns (append-values patterns pattern-values split-p)
                     has-value t))
-            (setf fields nil patterns nil))))
+            ;; An empty unquoted expansion removes only itself. Any literal or
+            ;; quoted fragment in the same word still preserves the argument.
+            (unless split-p
+              (setf fields nil patterns nil)))))
     (when (and (null fields)
                (some #'shell-fragment-quoted (shell-word-fragments word)))
       (setf fields (list "") patterns (list "")))
@@ -804,7 +839,7 @@
               (loop for value in fields
                     for pattern in patterns
                     append (%shell-expand-glob pattern value state)))))
-    (if (or has-value (shell-word-fragments word)) fields nil)))
+    (if has-value fields nil))))
 
 (defun %shell-word-raw-target (word state g)
   (let ((fragments (shell-word-fragments word)))
@@ -813,7 +848,7 @@
         (shell-fragment-value (first fragments))
         (let ((values (%shell-word-values word state g)))
           (unless (= (length values) 1)
-            (%shell-syntax "redirection target must expand to exactly one value"))
+            (%shell-syntax "ambiguous redirect"))
           (first values)))))
 
 (defun %shell-assignment-value (word state g)
@@ -3138,7 +3173,11 @@ integer conversions are deliberately rejected because seq values are f32."
   (let ((result
           (handler-case (%shell-execute-command-core command state g stdin)
             (clun.sys:fs-error (condition)
-              (%shell-redirection-error-result condition)))))
+              (%shell-redirection-error-result condition))
+            (shell-syntax-error (condition)
+              (%shell-result-from-strings
+               "" (format nil "clun: ~a~%"
+                          (shell-syntax-error-message condition)) 1)))))
     (if (shell-command-negated command)
         (make-shell-result
          :stdout (shell-result-stdout result)
@@ -3157,19 +3196,29 @@ integer conversions are deliberately rejected because seq values are f32."
   (let ((name (%shell-static-command-name command)))
     (and name (member name *shell-builtins* :test #'string=))))
 
-(defun %shell-concurrent-pipeline-p (pipeline)
+(defun %shell-concurrent-pipeline-p (pipeline state)
   (let ((commands (shell-pipeline-commands pipeline)))
     (and (> (length commands) 1)
+         (notany #'identity (shell-pipeline-merge-stderr pipeline))
          (every (lambda (command)
-                  (and (shell-command-words command)
-                       (not (shell-command-negated command))
-                       (null (shell-command-redirections command))
-                       (not (%shell-static-builtin-p command))))
+                  (let ((name (%shell-static-command-name command)))
+                    (and (shell-command-words command)
+                         (not (shell-command-negated command))
+                         (null (shell-command-redirections command))
+                         (not (%shell-static-builtin-p command))
+                         ;; A missing literal stage must behave like an ordinary
+                         ;; shell command failure while later stages still run.
+                         ;; Dynamic command words remain eligible and resolve in
+                         ;; the concurrent executor after expansion.
+                         (or (null name)
+                             (%shell-which name (shell-state-env state)
+                                           (shell-state-cwd state))))))
                 commands))))
 
 (defun %shell-yes-pipeline-p (pipeline)
   (let ((commands (shell-pipeline-commands pipeline)))
     (and (> (length commands) 1)
+         (notany #'identity (shell-pipeline-merge-stderr pipeline))
          (string= (or (%shell-static-command-name (first commands)) "") "yes")
          (not (shell-command-negated (first commands)))
          (null (shell-command-redirections (first commands)))
@@ -3359,10 +3408,12 @@ deadlock even when commands produce output larger than kernel pipe capacity."
 (defun %shell-execute-sequential-pipeline (pipeline state g
                                            &optional (initial-input *shell-empty-octets*))
   (let* ((commands (shell-pipeline-commands pipeline))
+         (edges (append (shell-pipeline-merge-stderr pipeline) '(nil)))
          (isolated (> (length commands) 1))
          (input initial-input) (stderr *shell-empty-octets*)
          (result (make-shell-result)))
-    (dolist (command commands)
+    (loop for command in commands
+          for merge-stderr in edges do
       (let ((command-state (if isolated (copy-shell-state state) state)))
         (when isolated
           (setf (shell-state-env command-state)
@@ -3370,10 +3421,17 @@ deadlock even when commands produce output larger than kernel pipe capacity."
         (setf result
               (if (%shell-discarded-yes-producer-p commands command)
                   (make-shell-result)
-                  (%shell-execute-command command command-state g input))
-              input (shell-result-stdout result)
-              stderr (%shell-concat-octets stderr
-                                            (shell-result-stderr result)))))
+                  (%shell-execute-command command command-state g input)))
+        (let ((command-stderr (shell-result-stderr result)))
+          (setf input
+                (if merge-stderr
+                    (%shell-concat-octets (shell-result-stdout result)
+                                          command-stderr)
+                    (shell-result-stdout result))
+                stderr
+                (if merge-stderr
+                    stderr
+                    (%shell-concat-octets stderr command-stderr))))))
     (make-shell-result :stdout (shell-result-stdout result) :stderr stderr
                        :exit-code (shell-result-exit-code result))))
 
@@ -3384,7 +3442,7 @@ deadlock even when commands produce output larger than kernel pipe capacity."
      (%shell-execute-sequential-pipeline pipeline state g initial-input))
     ((%shell-yes-pipeline-p pipeline)
      (%shell-execute-yes-pipeline pipeline state g))
-    ((%shell-concurrent-pipeline-p pipeline)
+    ((%shell-concurrent-pipeline-p pipeline state)
      (%shell-execute-concurrent-pipeline pipeline state g))
     (t (%shell-execute-sequential-pipeline pipeline state g))))
 
