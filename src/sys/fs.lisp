@@ -290,11 +290,29 @@ Reading a directory is EISDIR (opening a dir stream signals a non-file-error oth
 
 (defun write-file-octets (path octets &key append (mode #o666))
   "Write OCTETS (a byte vector) to PATH (truncate or :append)."
-  (declare (ignore mode))
-  (with-fs ("open" path)
-    (with-open-file (out (native->pathname path) :direction :output :element-type '(unsigned-byte 8)
-                         :if-exists (if append :append :supersede) :if-does-not-exist :create)
-      (write-sequence octets out)))
+  (let ((fd nil))
+    (unwind-protect
+         (with-fs ("open" path)
+           (setf fd
+                 (sb-posix:open
+                  (native->pathname path)
+                  (logior sb-posix:o-wronly sb-posix:o-creat
+                          (if append sb-posix:o-append sb-posix:o-trunc))
+                  mode))
+           (loop with offset = 0
+                 while (< offset (length octets))
+                 do (multiple-value-bind (written errno)
+                        (sb-unix:unix-write
+                         fd octets offset (- (length octets) offset))
+                      (cond
+                        ((and written (plusp written)) (incf offset written))
+                        ((eql errno sb-unix:eintr))
+                        (t
+                         (let* ((number (or errno (%errno-of-name "EIO")))
+                                (code (%errno-name number)))
+                           (error 'fs-error :code code :errno number
+                                            :syscall "write" :path path)))))))
+      (when fd (ignore-errors (sb-posix:close fd)))))
   (length octets))
 
 (defun copy-file* (src dst) (write-file-octets dst (read-file-octets src)))

@@ -88,7 +88,7 @@ types, fixtures, and upstream licenses. `upstream-files.tsv` binds every file to
 
 `upstream-corpus.tsv` enumerates 1,630 lexical test sites from those exact snapshots. The initial conservative
 disposition was 1,598 pending and 32 explicitly inactive at the pinned revisions. The current executable
-mapping is 676 covered, 922 pending, and 32 upstream-inactive. `upstream-coverage.tsv` binds each credited
+mapping is 726 covered, 872 pending, and 32 upstream-inactive. `upstream-coverage.tsv` binds each credited
 inventory ID to a checked-in shipped-binary fixture; regeneration rejects duplicate, stale, or unknown IDs,
 and the corpus validator rejects missing evidence. `shell-upstream-corpus-check.sh` rejects inventory drift
 or an unexplained disposition. Its `--yes` mode is the finite closure gate: it rejects any pending row and
@@ -145,6 +145,14 @@ Redirect targets are expanded and opened before command execution, so an open fa
 side effects and produces a status `1` result instead of an unrelated JavaScript rejection. The fixture also
 freezes empty and large writes, truncation, append, quoted filenames, pipeline delivery, `/dev/null`, merged
 stdout/stderr targets, and completion after the redirect writer's last external reference is dropped.
+`tests/compat/tooling.shell/upstream-public-api.js` executes 50 exact IDs across `bunshell-instance`,
+`bunshell-default`, `bunshell-file`, `shelloutput`, `throw`, `lazy`, and `yield` in both frozen baselines. A
+runtime-branded Blob owns bounded copied bytes and Promise-based text/bytes/ArrayBuffer conversion. Shell
+stdin accepts Blob, Buffer, Uint8Array, and Response bodies; bounded typed arrays accept stdout; `.blob()` is
+available on ShellPromise, ShellOutput, and ShellError. The same fixture freezes isolated Shell defaults,
+lazy start, local/global throw policy, Clun.file interpolation, 10,000-value expansion, and applicable
+`/dev/full` recovery. The underlying filesystem writer preserves write errno instead of leaking raw stream
+conditions across the JavaScript boundary.
 The conditional fixture freezes the active `shell-seq-condexpr.test.ts` empty-path regressions and the
 non-todo `bunshell.test.ts` unary/string cases, including both conditional pipeline positions. It additionally
 freezes the pinned GNU-bash-derived compound-expression cases for repeated negation, short-circuit operators,

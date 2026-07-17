@@ -2705,6 +2705,8 @@ integer conversions are deliberately rejected because seq values are f32."
        (subseq array offset (+ offset length))))
     ((eng:js-array-buffer-p target)
      (copy-seq (eng:js-array-buffer-bytes target)))
+    ((js-blob-p target) (%blob-octets-copy target))
+    ((js-response-p target) (%response-body-vector target))
     (t (clun.sys:read-file-octets (%shell-target-path target state)))))
 
 (defun %shell-write-target (target state octets append)
@@ -3260,6 +3262,9 @@ deadlock even when commands produce output larger than kernel pipe capacity."
   (eng:install-method object "arrayBuffer" 0
     (lambda (this args) (declare (ignore this args))
       (eng:js-get (eng:u8-from-octets (copy-seq stdout)) "buffer")))
+  (eng:install-method object "blob" 0
+    (lambda (this args) (declare (ignore this args))
+      (%new-blob-from-octets stdout)))
   object)
 
 (defun %shell-output-object (result g)
@@ -3506,6 +3511,12 @@ deadlock even when commands produce output larger than kernel pipe capacity."
                                    (eng:u8-from-octets
                                     (copy-seq (shell-result-stdout result)))
                                    "buffer")))))
+    (eng:install-method object "blob" 0
+      (lambda (this args) (declare (ignore this args))
+        (setf (shell-state-quiet state) t)
+        (%shell-job-promise
+         job (lambda (result)
+               (%new-blob-from-octets (shell-result-stdout result))))))
     (eng:install-method object "lines" 0
       (lambda (this args) (declare (ignore this args))
         (setf (shell-state-quiet state) t)

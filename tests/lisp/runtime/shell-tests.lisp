@@ -392,6 +392,17 @@
                          (sys:path-join directory "must-not-exist")))))
       (ignore-errors (sys:remove-recursive directory)))))
 
+(define-test shell/synchronous-redirection-write-errors-are-statuses
+  (when (sys:path-exists-p "/dev/full")
+    (let ((result
+            (clun.runtime::%shell-execute-units
+             (shell-test-units
+              "echo a > /dev/full || echo recovered; echo b > /dev/full || echo again")
+             (shell-test-state) nil)))
+      (is equal (format nil "recovered~%again~%")
+          (eng:utf8->code-units (clun.runtime::shell-result-stdout result)))
+      (is = 0 (clun.runtime::shell-result-exit-code result)))))
+
 (define-test shell/conditional-expression-core
   (let* ((directory (clun.runtime::%shell-temp-directory))
          (state (shell-test-state)))

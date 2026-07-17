@@ -3,7 +3,13 @@
 (in-package :clun.runtime)
 
 ;;; Runtime-owned slots are deliberately not JavaScript properties.  Prototype
-;;; spoofing therefore cannot forge a Headers, Request, or Response brand.
+;;; spoofing therefore cannot forge a Blob, Headers, Request, or Response brand.
+
+(defstruct (js-blob
+            (:include eng:js-object (class :blob))
+            (:constructor %make-js-blob))
+  (octets #() :type vector)
+  (type "" :type string))
 
 (defstruct (js-headers
             (:include eng:js-object (class :headers))
@@ -39,6 +45,8 @@
 
 (defstruct (web-http-realm-state
             (:constructor %make-web-http-realm-state))
+  blob-constructor
+  blob-prototype
   headers-constructor
   headers-prototype
   headers-iterator-prototype
@@ -109,6 +117,110 @@ Headers, Request, Response, and cookie state never use this mechanism."
                 message)))
     (when code (eng:js-set error "code" code nil))
     (eng:throw-js-value error)))
+
+;;; --- Blob -------------------------------------------------------------------
+
+(defconstant +blob-max-bytes+ (* 256 1024 1024))
+
+(defun %require-blob (value)
+  (if (js-blob-p value)
+      value
+      (eng:throw-type-error "Illegal invocation")))
+
+(defun %blob-part-octets (part)
+  (cond
+    ((js-blob-p part) (copy-seq (js-blob-octets part)))
+    ((eng:js-typed-array-p part)
+     (multiple-value-bind (vector offset length) (eng:ta-octets part)
+       (subseq vector offset (+ offset length))))
+    ((eng:js-array-buffer-p part)
+     (copy-seq (eng:js-array-buffer-bytes part)))
+    (t (eng:code-units->utf8 (eng:to-string part)))))
+
+(defun %blob-parts-octets (parts)
+  (when (and (not (eng:js-undefined-p parts))
+             (not (eng:js-array-p parts)))
+    (eng:throw-type-error "Blob parts must be an array"))
+  (let ((output (make-array 0 :element-type '(unsigned-byte 8)
+                              :adjustable t :fill-pointer 0)))
+    (unless (eng:js-undefined-p parts)
+      (loop for index below (eng:array-length parts)
+            for octets = (%blob-part-octets
+                          (eng:js-getv parts (princ-to-string index)))
+            do (when (> (+ (length output) (length octets)) +blob-max-bytes+)
+                 (eng:throw-range-error "Blob exceeds the 256 MiB buffered limit"))
+               (loop for byte across octets do (vector-push-extend byte output))))
+    (copy-seq output)))
+
+(defun %blob-type (options)
+  (if (eng:js-object-p options)
+      (let ((value (eng:js-get options "type")))
+        (if (eng:js-undefined-p value)
+            ""
+            (let ((type (eng:to-string value)))
+              (if (every (lambda (character)
+                           (<= #x20 (char-code character) #x7e))
+                         type)
+                  (string-downcase type)
+                  ""))))
+      ""))
+
+(defun %new-blob-from-octets (octets &optional (type ""))
+  (let ((blob (%make-js-blob
+               :proto (web-http-realm-state-blob-prototype (%http-state))
+               :octets (copy-seq octets) :type type)))
+    blob))
+
+(defun %new-blob (parts options)
+  (%new-blob-from-octets (%blob-parts-octets parts) (%blob-type options)))
+
+(defun %blob-octets-copy (blob)
+  (copy-seq (js-blob-octets (%require-blob blob))))
+
+(defun %install-blob-prototype (prototype)
+  (%define-accessor
+   prototype "size"
+   (lambda (this args) (declare (ignore args))
+     (coerce (length (js-blob-octets (%require-blob this))) 'double-float))
+   nil)
+  (%define-accessor
+   prototype "type"
+   (lambda (this args) (declare (ignore args))
+     (js-blob-type (%require-blob this)))
+   nil)
+  (%install-prototype-method
+   prototype "text" 0
+   (lambda (this args) (declare (ignore args))
+     (%resolved-promise
+      (eng:realm-global eng:*realm*)
+      (%body-text-decode (js-blob-octets (%require-blob this))))))
+  (%install-prototype-method
+   prototype "bytes" 0
+   (lambda (this args) (declare (ignore args))
+     (%resolved-promise
+      (eng:realm-global eng:*realm*)
+      (eng:u8-from-octets (%blob-octets-copy this)))))
+  (%install-prototype-method
+   prototype "arrayBuffer" 0
+   (lambda (this args) (declare (ignore args))
+     (%resolved-promise
+      (eng:realm-global eng:*realm*)
+      (eng:js-get (eng:u8-from-octets (%blob-octets-copy this)) "buffer"))))
+  prototype)
+
+(defun %make-blob-constructor (prototype)
+  (let ((constructor
+          (eng:make-native-function
+           "Blob" 0
+           (lambda (this args)
+             (declare (ignore this args))
+             (eng:throw-type-error "Blob requires 'new'"))
+           :construct
+           (lambda (args new-target)
+             (declare (ignore new-target))
+             (%new-blob (eng:arg args 0) (eng:arg args 1))))))
+    (%set-constructor-prototype constructor prototype)
+    constructor))
 
 ;;; --- Headers ----------------------------------------------------------------
 
@@ -581,6 +693,7 @@ Headers, Request, Response, and cookie state never use this mechanism."
        (subseq vector offset (+ offset length))))
     ((eng:js-array-buffer-p body)
      (copy-seq (eng:js-array-buffer-bytes body)))
+    ((js-blob-p body) (%blob-octets-copy body))
     ((and (eng:js-object-p body)
           (eng:js-string-p (eng:js-get body "name")))
      (handler-case
@@ -719,6 +832,7 @@ but an ordinary object is never promoted into the Response brand."
         (global (eng:realm-global realm)))
     (or (gethash realm *web-http-realm-states*)
         (let* ((headers-prototype (eng:new-object))
+               (blob-prototype (eng:new-object))
                (headers-iterator-prototype
                  (eng:js-make-object (eng:intrinsic :iterator-prototype)))
                (request-prototype (eng:new-object))
@@ -728,17 +842,21 @@ but an ordinary object is never promoted into the Response brand."
                (state
                  (%make-web-http-realm-state
                   :headers-prototype headers-prototype
+                  :blob-prototype blob-prototype
                   :headers-iterator-prototype headers-iterator-prototype
                   :request-prototype request-prototype
                   :server-request-prototype server-request-prototype
                   :response-prototype response-prototype)))
           ;; Install state before helpers allocate branded instances.
           (setf (gethash realm *web-http-realm-states*) state)
+          (%install-blob-prototype blob-prototype)
           (%install-headers-prototype headers-prototype)
           (%install-headers-iterator-prototype headers-iterator-prototype)
           (%install-request-prototype request-prototype)
           (%install-response-prototype response-prototype)
-          (setf (web-http-realm-state-headers-constructor state)
+          (setf (web-http-realm-state-blob-constructor state)
+                (%make-blob-constructor blob-prototype)
+                (web-http-realm-state-headers-constructor state)
                 (%make-headers-constructor headers-prototype)
                 (web-http-realm-state-request-constructor state)
                 (%make-request-constructor request-prototype)
@@ -746,6 +864,8 @@ but an ordinary object is never promoted into the Response brand."
                 (%make-response-constructor response-prototype))
           state))
     (let ((state (%http-state realm)))
+      (eng:hidden-prop global "Blob"
+                       (web-http-realm-state-blob-constructor state))
       (eng:hidden-prop global "Headers"
                        (web-http-realm-state-headers-constructor state))
       (eng:hidden-prop global "Request"
