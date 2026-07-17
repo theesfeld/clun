@@ -237,10 +237,11 @@ evidence for at least:
 - TLS connection reuse and broader pool stress/eviction coverage;
 - HTTPS proxy endpoints, proxy object options and pooling, the broader proxy
   stress/error matrix, and the remaining HTTPS cancellation-race/leak matrix;
-- the issue's large-transfer and adversarial transport fixtures;
-- required Linux and macOS x64/arm64 evidence; and
-- valid compatibility-ledger gate identifiers for the issue acceptance commands.
+- the issue's large-transfer and adversarial transport fixtures; and
+- required Linux and macOS x64/arm64 evidence.
 
-Until those requirements pass, the public compatibility state must remain at its
-current non-`Yes` value even though public npm TLS interoperability is now proven
-on the development host.
+Compatibility gate identifiers are the real ledger IDs
+`runtime.web-standard-apis` and `package-manager.npm` (not the historical
+aliases `transport` / `fetch` / `public-npm`). `make compat FEATURE=…` for those
+IDs is valid and executable; rows remain **Partial** until the remaining
+acceptance matrix and four-target receipts pass.

@@ -48,8 +48,10 @@ reader cancellation, and interrupts silent DNS waits for both HTTP and HTTPS wor
 environment and `NO_PROXY` selection, percent-decoded Basic credentials, and HTTPS CONNECT tunnels now pass
 the exact pinned-Bun gate, including split envelopes and non-2xx response delivery. Issue #2 remains open
 for HTTPS proxy endpoints, proxy object options/pooling and broader stress coverage, TLS pooling, incremental
-decompression, HTTPS race/leak stress, the 1 GiB matrix, valid compatibility gate IDs, and all four
-release-target receipts. The related public rows remain `Partial` until those gates pass.
+decompression, HTTPS race/leak stress, the 1 GiB matrix, and all four release-target receipts.
+Compatibility gate IDs are the real ledger features `runtime.web-standard-apis` and
+`package-manager.npm` (`make compat FEATURE=…` is valid for both). Public rows remain `Partial`
+until those remaining gates and four-target receipts pass.
 
 Current executable receipts for this proxy checkpoint: `make test-proxy` passes 9 pinned contracts across
 6 hermetic suites; `make test-net` passes 124 top-level suites / 3,764 assertions; and `make test-tls12`
