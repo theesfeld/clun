@@ -68,5 +68,6 @@ queue(Clun.$`A=1 B=2 | false | C=3 | echo continue`, "continue\n", "failed middl
 queue(Clun.$`A=a B=b C=c D=d E=e F=f G=g H=h I=i J=j | echo singles`, "singles\n",
   "single character names");
 queue(Clun.$`TAB="	" SPACE=" " | echo whitespace`, "whitespace\n", "whitespace values");
+queue(Clun.$`(A=1 | echo inner) | B=2 | echo outer`, "outer\n", "grouped assignments");
 
-chain.then(() => console.log("upstream-assignments: 74 exact sites"));
+chain.then(() => console.log("upstream-assignments: 76 exact sites"));

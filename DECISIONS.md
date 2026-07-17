@@ -2805,3 +2805,15 @@ filenames, missing paths, invalid options, and broken symlinks execute through `
 `chmod 000` cases remain pending because privileged runners and filesystem policy can legitimately change
 their outcome; no deterministic approximation receives credit. This evidence-only closure changes the public
 count but not runtime behavior or the allocated `0.1.0-dev.18` boundary.
+
+### 2026-07-17 - Phase 65 makes grouped subshells first-class AST nodes
+
+Unquoted parentheses are now depth-aware syntax in the pure-Common-Lisp lexer and parser. A group owns a
+recursive shell script, executes with copied environment, cwd, termination, and status state, accepts bounded
+pipeline input, and returns output and status to its surrounding pipeline. Parentheses inside `[[ ... ]]`
+remain operand bytes, preserving regex and arithmetic behavior. No source is reparsed by a host shell.
+
+The shipped binary closes the final two grouped assignment IDs and 118 stable and engineering pipeline-stack
+IDs, including all nested-group sites. The six `if` IDs and the two `pwd | cd / | pwd` IDs remain pending;
+their assertions were not weakened. This is a SemVer-minor behavior increment within the allocated
+`0.1.0-dev.18` Phase 65 boundary.

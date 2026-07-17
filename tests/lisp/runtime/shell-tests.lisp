@@ -62,6 +62,12 @@
   (fail (clun.runtime::%shell-parse (shell-test-units "echo ok |"))
         clun.runtime::shell-syntax-error)
   (fail (clun.runtime::%shell-parse (shell-test-units "| echo no"))
+        clun.runtime::shell-syntax-error)
+  (fail (clun.runtime::%shell-parse (shell-test-units "(echo no"))
+        clun.runtime::shell-syntax-error)
+  (fail (clun.runtime::%shell-parse (shell-test-units "echo no)"))
+        clun.runtime::shell-syntax-error)
+  (fail (clun.runtime::%shell-parse (shell-test-units "()"))
         clun.runtime::shell-syntax-error))
 
 (define-test shell/path-builtins
@@ -188,6 +194,26 @@
     (false (assoc "B" (clun.runtime::shell-state-env state) :test #'string=))
     (false (assoc "C" (clun.runtime::shell-state-env state) :test #'string=))
     (false (assoc "D" (clun.runtime::shell-state-env state) :test #'string=))))
+
+(define-test shell/grouped-subshells-parse-pipe-and-isolate-state
+  (multiple-value-bind (output exit-code)
+      (shell-test-output
+       "A=outer; (A=inner; echo $A) | cat; echo $A")
+    (is equal (format nil "inner~%outer~%") output)
+    (is = 0 exit-code))
+  (multiple-value-bind (output exit-code)
+      (shell-test-output
+       "(echo a | echo b) | (echo c | echo d) | (echo e | echo f)")
+    (is equal (format nil "f~%") output)
+    (is = 0 exit-code))
+  (multiple-value-bind (output exit-code)
+      (shell-test-output "echo input | (cat)")
+    (is equal (format nil "input~%") output)
+    (is = 0 exit-code))
+  (multiple-value-bind (output exit-code)
+      (shell-test-output "(false || echo recovered); (exit 7); echo outside")
+    (is equal (format nil "recovered~%outside~%") output)
+    (is = 0 exit-code)))
 
 (define-test shell/yes-to-immediate-builtin-sink
   (multiple-value-bind (output exit-code) (shell-test-output "yes | true")
