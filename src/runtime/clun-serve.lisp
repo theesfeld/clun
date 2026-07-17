@@ -135,6 +135,11 @@ Date/Content-Length/Connection are set by us (user copies of those are dropped).
     (eng:data-prop init "status" 500d0)
     (%new-response "Internal Server Error" init)))
 
+(defun %not-found-response ()
+  (let ((init (eng:new-object)))
+    (eng:data-prop init "status" 404d0)
+    (%new-response "Not Found" init)))
+
 (defun %default-error-octets (method request)
   (handler-case
       (%serialize-response (%default-error-response) method nil request)
@@ -143,7 +148,7 @@ Date/Content-Length/Connection are set by us (user copies of those are dropped).
       ;; connection fail-closed if an internal invariant is ever violated.
       (%simple-response-octets 500 "Internal Server Error" nil))))
 
-(defun %dispatch (req fetch err-handler commit)
+(defun %dispatch (req fetch err-handler routes commit)
   "Run one request and call COMMIT exactly once with (octets keep-alive context).
 COMMIT is connection-owned, so late Promise settlement cannot write after teardown."
   (let* ((context (%make-serve-request-context))
@@ -192,10 +197,20 @@ COMMIT is connection-owned, so late Promise settlement cannot write after teardo
                            (finish-error-handler result)))
                    (condition () (commit-default)))))))
       (handler-case
-          (let ((result (eng:js-call fetch eng:+undefined+ (list request))))
-            (if (eng:js-promise-p result)
-                (%promise-then result #'commit-response #'route-error)
-                (commit-response result)))
+          (multiple-value-bind (route-action params)
+              (%match-route-table routes (net:hr-target req) method)
+            (when route-action
+              (%install-request-route-params request params))
+            (let ((action (or route-action fetch)))
+              (cond
+                ((%response-like-p action) (commit-response action))
+                ((eng:callable-p action)
+                 (let ((result
+                         (eng:js-call action eng:+undefined+ (list request))))
+                   (if (eng:js-promise-p result)
+                       (%promise-then result #'commit-response #'route-error)
+                       (commit-response result))))
+                (t (commit-response (%not-found-response))))))
         (eng:js-condition (condition)
           (route-error (eng:js-condition-value condition)))
         (condition () (route-error eng:+undefined+))))
@@ -203,7 +218,7 @@ COMMIT is connection-owned, so late Promise settlement cannot write after teardo
 
 ;;; --- connection driver ------------------------------------------------------
 
-(defun %serve-connection (conn fetch err-handler)
+(defun %serve-connection (conn fetch-cell err-handler-cell routes-cell)
   (let ((parser (net:make-http-parser))
         (next-sequence 0)
         (next-commit 0)
@@ -267,7 +282,8 @@ COMMIT is connection-owned, so late Promise settlement cannot write after teardo
                                 (progn
                                   (incf next-sequence)
                                   (%dispatch
-                                   data fetch err-handler
+                                   data (car fetch-cell) (car err-handler-cell)
+                                   (car routes-cell)
                                    (lambda (bytes keep-alive request-context)
                                      (queue-response sequence bytes keep-alive
                                                      request-context))))))
@@ -290,50 +306,92 @@ COMMIT is connection-owned, so late Promise settlement cannot write after teardo
 
 ;;; --- Clun.serve -------------------------------------------------------------
 
+(defun %serve-callable-option (opts name)
+  (let ((value (eng:js-get opts name)))
+    (cond
+      ((eng:js-undefined-p value) nil)
+      ((eng:callable-p value) value)
+      (t (eng:throw-type-error
+          (format nil "Clun.serve: `~a` must be a function" name))))))
+
+(defun %compile-serve-dispatch-options (opts)
+  (unless (eng:js-object-p opts)
+    (eng:throw-type-error "Clun.serve requires an options object"))
+  (let* ((fetch (%serve-callable-option opts "fetch"))
+         (err-handler (%serve-callable-option opts "error"))
+         (routes (%compile-route-table (eng:js-get opts "routes"))))
+    (unless (or fetch (and routes (plusp (route-table-count routes))))
+      (eng:throw-type-error
+       "Clun.serve requires a fetch function or at least one active route"))
+    (values fetch err-handler routes)))
+
 (defun %clun-serve (g opts)
-  (unless (eng:js-object-p opts) (eng:throw-type-error "Clun.serve requires an options object"))
-  (let* ((fetch (eng:js-get opts "fetch"))
-         (err-handler (eng:js-get opts "error"))
-         (port (let ((p (eng:js-get opts "port"))) (if (eng:js-number-p p) (truncate (eng:to-number p)) 3000)))
-         (host (let ((h (eng:js-get opts "hostname"))) (if (eng:js-string-p h) (eng:to-string h) "0.0.0.0")))
-         (loop (eng:current-loop))
-         (conns (list 0))                    ; box: live connection count
-         (stopping (list nil)) (stop-resolve (list nil))
-         (server (eng:new-object)))
-    (unless (eng:callable-p fetch) (eng:throw-type-error "Clun.serve: `fetch` must be a function"))
-    (let ((listener
-            (net:tcp-listen loop host port :backlog 1024
-              :on-connection
-              (lambda (conn)
-                (cond
-                  ((or (car stopping) (>= (car conns) *serve-max-connections*))
-                   (%write-simple conn 503 "Service Unavailable" nil) (net:tcp-shutdown conn))
-                  (t
-                   (incf (car conns))
-                   (setf (net:tcp-on-close conn)
-                         (lambda (c code) (declare (ignore c code))
-                           (decf (car conns))
-                           (when (and (car stopping) (zerop (car conns)) (car stop-resolve))
-                             (funcall (car stop-resolve)))))
-                   (setf (net:tcp-on-error conn) (lambda (c code) (declare (ignore c code)) nil))
-                   (%serve-connection conn fetch err-handler)))))))
-      (eng:data-prop server "port" (coerce (net:listener-port listener) 'double-float))
-      (eng:data-prop server "hostname" host)
-      (eng:data-prop server "url"
-        (format nil "http://~a:~a/" (if (string= host "0.0.0.0") "localhost" host) (net:listener-port listener)))
-      (eng:install-method server "stop" 1
-        (lambda (this args) (declare (ignore this args))
-          (setf (car stopping) t)
-          (net:listener-close listener)
-          (if (zerop (car conns))
-              (%resolved-promise g eng:+undefined+)
-              (eng:js-construct (eng:js-get g "Promise")
-                (list (eng:make-native-function "" 2
-                        (lambda (th a) (declare (ignore th))
-                          (let ((res (eng:arg a 0)))
-                            (setf (car stop-resolve)
-                                  (lambda () (eng:js-call res eng:+undefined+ (list eng:+undefined+)))))
-                          eng:+undefined+)))))))
-      (eng:install-method server "ref" 0 (lambda (th a) (declare (ignore th a)) eng:+undefined+))
-      (eng:install-method server "unref" 0 (lambda (th a) (declare (ignore th a)) eng:+undefined+))
-      server)))
+  (multiple-value-bind (fetch err-handler routes)
+      (%compile-serve-dispatch-options opts)
+    (let* ((port (let ((p (eng:js-get opts "port")))
+                   (if (eng:js-number-p p) (truncate (eng:to-number p)) 3000)))
+           (host (let ((h (eng:js-get opts "hostname")))
+                   (if (eng:js-string-p h) (eng:to-string h) "0.0.0.0")))
+           (loop (eng:current-loop))
+           (conns (list 0))                  ; box: live connection count
+           (stopping (list nil)) (stop-resolve (list nil))
+           (fetch-cell (list fetch))
+           (err-handler-cell (list err-handler))
+           (routes-cell (list routes))
+           (server (eng:new-object)))
+      (let ((listener
+              (net:tcp-listen loop host port :backlog 1024
+                :on-connection
+                (lambda (conn)
+                  (cond
+                    ((or (car stopping) (>= (car conns) *serve-max-connections*))
+                     (%write-simple conn 503 "Service Unavailable" nil)
+                     (net:tcp-shutdown conn))
+                    (t
+                     (incf (car conns))
+                     (setf (net:tcp-on-close conn)
+                           (lambda (c code) (declare (ignore c code))
+                             (decf (car conns))
+                             (when (and (car stopping) (zerop (car conns))
+                                        (car stop-resolve))
+                               (funcall (car stop-resolve)))))
+                     (setf (net:tcp-on-error conn)
+                           (lambda (c code) (declare (ignore c code)) nil))
+                     (%serve-connection conn fetch-cell err-handler-cell
+                                        routes-cell)))))))
+        (eng:data-prop server "port"
+                       (coerce (net:listener-port listener) 'double-float))
+        (eng:data-prop server "hostname" host)
+        (eng:data-prop server "url"
+          (format nil "http://~a:~a/"
+                  (if (string= host "0.0.0.0") "localhost" host)
+                  (net:listener-port listener)))
+        (eng:install-method server "reload" 1
+          (lambda (this args)
+            (declare (ignore this))
+            (multiple-value-bind (new-fetch new-error new-routes)
+                (%compile-serve-dispatch-options (eng:arg args 0))
+              (setf (car fetch-cell) new-fetch
+                    (car err-handler-cell) new-error
+                    (car routes-cell) new-routes))
+            server))
+        (eng:install-method server "stop" 1
+          (lambda (this args) (declare (ignore this args))
+            (setf (car stopping) t)
+            (net:listener-close listener)
+            (if (zerop (car conns))
+                (%resolved-promise g eng:+undefined+)
+                (eng:js-construct (eng:js-get g "Promise")
+                  (list (eng:make-native-function "" 2
+                          (lambda (th a) (declare (ignore th))
+                            (let ((res (eng:arg a 0)))
+                              (setf (car stop-resolve)
+                                    (lambda ()
+                                      (eng:js-call res eng:+undefined+
+                                                   (list eng:+undefined+)))))
+                            eng:+undefined+)))))))
+        (eng:install-method server "ref" 0
+          (lambda (th a) (declare (ignore th a)) eng:+undefined+))
+        (eng:install-method server "unref" 0
+          (lambda (th a) (declare (ignore th a)) eng:+undefined+))
+        server))))
