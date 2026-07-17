@@ -53,6 +53,8 @@ resource does not exist with a 404 response:
 0.1.0-dev.19
 0.1.0-dev.20
 0.1.0-dev.21
+0.1.0-dev.22
+0.1.0-dev.23
 ```
 
 Phase 25b is the compatibility program for the planned `0.1.0` release. Its first behavioral
@@ -111,12 +113,14 @@ but Phase 37 and Issue #11 remain in progress and make no full language-parity c
 Phase 50 stages `0.1.0-dev.17` / `v0.1.0-dev.17` under Issue #24 (router PR #85) and is published on
 master. Phase 65 stages `0.1.0-dev.18` / `v0.1.0-dev.18` under Issue #39 (shell PR #86; published).
 Phase 66 stages `0.1.0-dev.19` / `v0.1.0-dev.19` under Issue #40 (test-runner PR #88 on master).
-Phase 28 stages `0.1.0-dev.20` / `v0.1.0-dev.20` under Issue #2. Phase 37 milestone 2 stages
-`0.1.0-dev.21` / `v0.1.0-dev.21` under Issue #11 (PR #96). Version-transition allows multi-step
-prerelease advances only while every skipped intermediate remains unpublished, so parallel drafts
-may allocate later slots without claiming each other's tags. Phase 37 m2 adds backward-compatible
-`Array.fromAsync` and supporting lexer/parser admissions and therefore its SemVer impact is `minor`
-within the selected `0.1.0` core. Until gates complete, the installer and immutable published
+Phase 28 stages `0.1.0-dev.20` / `v0.1.0-dev.20` under Issue #2. Phase 37 milestone 2 merged as
+`0.1.0-dev.21` / `v0.1.0-dev.21` under Issue #11 (PR #96). Transport may hold unpublished
+`0.1.0-dev.22`. This Phase 66 concurrent-scheduling unit stages `0.1.0-dev.23` / `v0.1.0-dev.23`
+under Issue #40. Version-transition allows multi-step prerelease advances only while every skipped
+intermediate remains unpublished, so parallel drafts may allocate later slots without claiming each
+other's tags. Concurrent/serial test scheduling is a backward-compatible test-runner API addition
+and therefore its SemVer impact is `minor` within the selected `0.1.0` core. The compatibility row
+remains `Partial` (not Yes). Until gates complete, the installer and immutable published
 boundary remain dev.18; Phase 37 remains open and makes no full language-parity or matrix Yes claim.
 
 ## Canonical record

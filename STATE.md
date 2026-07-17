@@ -18,9 +18,9 @@ plus lexer/parser admission of nullish coalescing and numeric separators require
 Test262 helpers. Converts 95 frozen `built-ins/Array/fromAsync` failures. No compatibility-table
 `Yes` is claimed; Phase 37 remains open with residual ownership after reclassification.
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
+****Candidate release:** `0.1.0-dev.23` / `v0.1.0-dev.23`
 **Published release:** `0.1.0-dev.18` / `v0.1.0-dev.18`
-**Entry boundary:** immutable `v0.1.0-dev.18` is tagged at exact master `b5ecdb5defeef8ddede72ef794e41f14fb423b86` with four native archives + checksums (release run 29596302229); installer defaults to that tag. Master source is `0.1.0-dev.19` after test-runner PR #88. Transport holds unpublished `0.1.0-dev.20`; this unit stages `0.1.0-dev.21` under the unpublished-intermediate prerelease gap policy (transition 19→21). Phase 26 remains after Phase 82.
+**Entry boundary:** immutable `v0.1.0-dev.18` is tagged at exact master `b5ecdb5defeef8ddede72ef794e41f14fb423b86` with four native archives + checksums (release run 29596302229); installer defaults to that tag. Master source is `0.1.0-dev.19` after test-runner PR #88. Transport holds unpublished `0.1.0-dev.20`; this unit stages `0.1.0-dev.23` under the unpublished-intermediate prerelease gap policy (transition 19→21). Phase 26 remains after Phase 82.
 **Next scope:** keep Phase 37 open (no matrix Yes); green exact-head CI on the staged candidate; residual
 modern ECMAScript inventory continues after m2; pass-list reclassification is owned by the release unit.
 
@@ -1963,3 +1963,10 @@ Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-earl
   descriptor and string edge cases, JSX coverage mapping, parallelism/concurrency,
   watch hooks, exact 52-root Bun/Clun counts, four-target receipts,
   serial/parallel agreement, and 10k RSS.
+
+## Phase 66 concurrent scheduling (Issue #40, 0.1.0-dev.23)
+
+- Implemented pure-CL `test.concurrent` / `describe.concurrent` / `test.serial` / `describe.serial`, `concurrentIf` / `serialIf`, CLI `--concurrent` and `--max-concurrency`.
+- Bun-shaped consecutive concurrent groups with overlapping async settlement; serial tests form isolation boundaries.
+- Fixtures: `tests/js/testrunner/concurrent{,immediate,serial,flag,isol}/`.
+- Ledger remains **Partial** (not Yes).

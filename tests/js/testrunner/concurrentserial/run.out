@@ -1,0 +1,23 @@
+[0] start test default-1
+[1] end test default-1
+(pass) test default-1
+[0] start test default-2
+[1] end test default-2
+(pass) test default-2
+[0] start test concurrent-1
+[0] start test concurrent-2
+[1] end test concurrent-1
+(pass) test concurrent-1
+[1] end test concurrent-2
+(pass) test concurrent-2
+[0] start test serial-1
+[1] end test serial-1
+(pass) test serial-1
+[0] start test serial-2
+[1] end test serial-2
+(pass) test serial-2
+
+ 6 pass
+ 0 fail
+ 0 expect() calls
+Ran 6 tests across 1 file.

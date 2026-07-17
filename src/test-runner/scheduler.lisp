@@ -84,7 +84,9 @@
 
 (defstruct (run-cfg (:conc-name cfg-))
   (default-timeout 5000) (retry 0) (todo nil) (ci nil) (name-re nil) (bail nil)
-  (snapshot nil) (random-state nil))
+  (snapshot nil) (random-state nil)
+  ;; --concurrent makes inherit-mode tests concurrent; 0 max = unlimited.
+  (default-concurrent nil) (max-concurrency 20))
 
 (defstruct (run-stats (:conc-name st-))
   (pass 0) (fail 0) (skip 0) (todo 0) (matched 0) (bailed nil)
@@ -178,6 +180,31 @@ When FN also returns a Promise, both that Promise and done() must complete."
          (eng:js-call fn eng:+undefined+ args)))
    realm :timeout-ms timeout))
 
+(defun %invoke-test-callback (fn args)
+  "Invoke FN without driving the event loop. Returns (values kind value-or-promise)
+where KIND is :fulfilled, :rejected, or :pending (VALUE is the pending Promise)."
+  (handler-case
+      (let ((result (if (%callback-uses-done-p fn args)
+                        (%call-with-done fn args)
+                        (eng:js-call fn eng:+undefined+ args))))
+        (cond
+          ((and (eng:js-promise-p result)
+                (eq (eng:js-promise-pstate result) :pending))
+           (values :pending result))
+          ((eng:js-promise-p result)
+           (values (if (eq (eng:js-promise-pstate result) :rejected)
+                       :rejected :fulfilled)
+                   (eng:js-promise-value result)))
+          (t (values :fulfilled result))))
+    (eng:js-condition (c) (values :rejected (eng:js-condition-value c)))
+    (error (c)
+      (values :rejected
+              (handler-case
+                  (eng:js-construct
+                   (eng:js-get (eng:realm-global eng:*realm*) "Error")
+                   (list (format nil "~a" c)))
+                (error () (format nil "~a" c)))))))
+
 (defun %run-hooks (hooks realm timeout)
   "Run HOOKS (in registration order) to settlement; return NIL on success or the JS
   error value of the first that threw/rejected/timed-out."
@@ -187,6 +214,23 @@ When FN also returns a Promise, both that Promise and done() must complete."
       (case kind
         (:rejected (return val))
         (:timeout (return (%assertion-error (format nil "hook timed out after ~ams" timeout))))))))
+
+(defun %test-runs-concurrent-p (test cfg)
+  "Resolved concurrent flag for TEST: explicit yes/no, else nearest describe, else
+`--concurrent` file default."
+  (let ((mode (tt-concurrent test)))
+    (ecase mode
+      (:yes t)
+      (:no nil)
+      (:inherit
+       (let ((parent (tt-parent test)))
+         (loop while parent do
+           (let ((dm (td-concurrent parent)))
+             (ecase dm
+               (:yes (return-from %test-runs-concurrent-p t))
+               (:no (return-from %test-runs-concurrent-p nil))
+               (:inherit (setf parent (td-parent parent)))))
+           finally (return (and (cfg-default-concurrent cfg) t))))))))
 
 (defun %chain (node)
   "The describe chain root→NODE's parent (for beforeEach/afterEach accumulation)."
@@ -224,7 +268,8 @@ every sibling)."
 
 (defun run-file-tree (ctx realm cfg stats report)
   "Execute CTX's tree under REALM. REPORT is (status full-name detail) -> prints a line.
-Returns STATS (mutated). Honours .only (per-file), .skip/.todo, -t, timeouts, --bail."
+Returns STATS (mutated). Honours .only (per-file), .skip/.todo, -t, timeouts, --bail,
+test.concurrent / describe.concurrent / test.serial, and --max-concurrency."
   (let ((has-only (%tree-active-only (ctx-root ctx) nil)))
     (when (and has-only (cfg-ci cfg))
       (funcall report :fail "" "test.only is not allowed when CI=true")
@@ -240,37 +285,445 @@ Returns STATS (mutated). Honours .only (per-file), .skip/.todo, -t, timeouts, --
                 ((td-p c) (%runnable-in-subtree c has-only (or under-only (eq (td-mode c) :only)) cfg))))
         (td-children node)))
 
-(defun %run-describe (node realm cfg stats report has-only under-only under-todo)
-  "Run describe NODE. UNDER-ONLY and UNDER-TODO carry inherited suite modifiers."
+;;; Plan entries are either:
+;;;   (:barrier node hooks)  — beforeAll / afterAll run serially as a group break
+;;;   (:test test under-only under-todo concurrent-p)
+;;; Consecutive concurrent :test entries form one concurrent group (Bun Order.rs).
+
+(defun %push-plan (acc kind &rest data)
+  (vector-push-extend (cons kind data) acc)
+  acc)
+
+(defun %collect-plan (node has-only under-only under-todo cfg acc)
+  "Depth-first plan mirroring Bun's Order generation: beforeAll/afterAll are serial
+barriers; consecutive concurrent tests merge across nested describes."
   (let* ((uo (or under-only (eq (td-mode node) :only)))
          (skip-all (eq (td-mode node) :skip))
          (todo-all (or under-todo (eq (td-mode node) :todo)))
          (runs (and (not skip-all)
                     (or (cfg-todo cfg) (not todo-all))
                     (%runnable-in-subtree node has-only uo cfg))))
-    (when skip-all                        ; describe.skip: every descendant test → (skip)
-      (%skip-subtree node cfg stats report)
-      (return-from %run-describe))
-    (when (and todo-all (not (cfg-todo cfg)))
-      (%todo-subtree node cfg stats report)
-      (return-from %run-describe))
-    (when (and runs (td-before-all node))
-      (let ((err (%run-hooks (td-before-all node) realm (cfg-default-timeout cfg))))
-        (when err
-          ;; a beforeAll failure: report it + skip the subtree's tests, still run afterAll
-          (funcall report :fail (format nil "~abeforeAll" (%prefix node)) (%err-detail err))
-          (incf (st-fail stats))
-          (%skip-subtree node cfg stats report)
-          (%run-afterall node realm cfg stats report)
-          (return-from %run-describe))))
-    (dolist (child (%run-ordered-children node cfg))
-      (when (st-bailed stats) (return))
-      (cond
-        ((td-p child)
-         (%run-describe child realm cfg stats report has-only uo todo-all))
-        ((tt-p child)
-         (%run-test child realm cfg stats report has-only uo todo-all))))
-    (when runs (%run-afterall node realm cfg stats report))))
+    (cond
+      (skip-all
+       (%plan-skip-subtree node cfg acc))
+      ((and todo-all (not (cfg-todo cfg)))
+       (%plan-todo-subtree node cfg acc))
+      (t
+       (when (and runs (td-before-all node))
+         (%push-plan acc :before-all node (td-before-all node)))
+       (dolist (child (%run-ordered-children node cfg))
+         (cond
+           ((td-p child)
+            (%collect-plan child has-only uo todo-all cfg acc))
+           ((tt-p child)
+            (%push-plan acc :test child uo todo-all
+                        (%test-runs-concurrent-p child cfg)))))
+       (when (and runs (td-after-all node))
+         (%push-plan acc :after-all node (td-after-all node)))))
+    acc))
+
+(defun %plan-skip-subtree (node cfg acc)
+  (dolist (child (%run-ordered-children node cfg))
+    (cond ((tt-p child) (%push-plan acc :skip-test child))
+          ((td-p child) (%plan-skip-subtree child cfg acc)))))
+
+(defun %plan-todo-subtree (node cfg acc)
+  (dolist (child (%run-ordered-children node cfg))
+    (cond
+      ((tt-p child)
+       (if (eq (tt-mode child) :skip)
+           (%push-plan acc :skip-test child)
+           (%push-plan acc :todo-test child)))
+      ((td-p child)
+       (if (eq (td-mode child) :skip)
+           (%plan-skip-subtree child cfg acc)
+           (%plan-todo-subtree child cfg acc))))))
+
+(defun %group-plan (plan)
+  "Partition PLAN into serial barriers and concurrent test groups.
+Each group is either a single non-concurrent entry or a list of consecutive concurrent
+:test entries."
+  (let ((groups '()) (batch '()))
+    (labels ((flush ()
+               (when batch
+                 (push (cons :concurrent (nreverse batch)) groups)
+                 (setf batch '()))))
+      (dotimes (i (length plan))
+        (let ((entry (aref plan i)))
+          (case (car entry)
+            (:test
+             (if (fifth entry)          ; concurrent-p
+                 (push entry batch)
+                 (progn (flush) (push (cons :serial (list entry)) groups))))
+            (otherwise
+             (flush)
+             (push (cons :serial (list entry)) groups)))))
+      (flush)
+      (nreverse groups))))
+
+(defvar *before-all-failed-nodes* nil
+  "Describe nodes whose beforeAll failed; descendant tests are skipped until afterAll.")
+
+(defun %under-failed-before-all-p (node)
+  (let ((n node))
+    (loop while n do
+      (when (member n *before-all-failed-nodes* :test #'eq)
+        (return t))
+      (setf n (%node-parent n)))))
+
+(defun %run-describe (node realm cfg stats report has-only under-only under-todo)
+  "Run describe NODE via a Bun-shaped concurrent plan (file root and nested suites)."
+  (declare (ignore under-only under-todo))
+  (let* ((*before-all-failed-nodes* '())
+         (acc (make-array 32 :adjustable t :fill-pointer 0))
+         (plan (%collect-plan node has-only nil nil cfg acc))
+         (groups (%group-plan plan)))
+    (dolist (group groups)
+      (when (eq (st-bailed stats) t) (return))
+      (destructuring-bind (kind . entries) group
+        (ecase kind
+          (:serial
+           (dolist (entry entries)
+             (when (eq (st-bailed stats) t) (return))
+             (%run-plan-entry entry realm cfg stats report has-only)))
+          (:concurrent
+           (%run-concurrent-group entries realm cfg stats report has-only)))))))
+
+(defun %run-plan-entry (entry realm cfg stats report has-only)
+  (case (car entry)
+    (:before-all
+     (destructuring-bind (node hooks) (cdr entry)
+       (if (%under-failed-before-all-p node)
+           nil
+           (let ((err (%run-hooks hooks realm (cfg-default-timeout cfg))))
+             (when err
+               (funcall report :fail (format nil "~abeforeAll" (%prefix node))
+                        (%err-detail err))
+               (incf (st-fail stats))
+               (push node *before-all-failed-nodes*)
+               (%maybe-bail stats cfg))))))
+    (:after-all
+     (destructuring-bind (node hooks) (cdr entry)
+       (setf *before-all-failed-nodes*
+             (remove node *before-all-failed-nodes* :test #'eq))
+       (unless (and (eq (st-bailed stats) t)
+                    (not (%under-failed-before-all-p node)))
+         (let ((err (%run-hooks hooks realm (cfg-default-timeout cfg))))
+           (when err
+             (funcall report :fail (format nil "~aafterAll" (%prefix node))
+                      (%err-detail err))
+             (incf (st-fail stats))
+             (%maybe-bail stats cfg))))))
+    (:skip-test
+     (let ((test (second entry)))
+       (funcall report :skip (%full-name test) nil)
+       (incf (st-skip stats))))
+    (:todo-test
+     (let ((test (second entry)))
+       (funcall report :todo (%full-name test) nil)
+       (incf (st-todo stats))))
+    (:test
+     (destructuring-bind (test under-only under-todo concurrent-p) (cdr entry)
+       (declare (ignore concurrent-p))
+       (if (%under-failed-before-all-p test)
+           (progn (funcall report :skip (%full-name test) nil)
+                  (incf (st-skip stats)))
+           (%run-test test realm cfg stats report has-only under-only under-todo))))
+    (otherwise nil)))
+
+;;; --- concurrent group execution ---------------------------------------------
+
+;;; --- concurrent group execution ---------------------------------------------
+
+(defstruct (cslot (:conc-name cslot-))
+  test under-only under-todo
+  (phase :start)
+  (ok t) detail failure-kind
+  (assertions 0) (expected-assertions nil) (has-assertions nil)
+  (finished-callbacks '())
+  (timeout nil)
+  (pending-promise nil)
+  (chain nil)
+  (index 0)
+  (started nil)
+  (reported nil)
+  (deadline-ms nil))
+
+(defun %slot-bind (slot thunk)
+  "Run THUNK with dynamic test-runner state rebound for SLOT."
+  (let ((*active-test* (cslot-test slot))
+        (*test-assertions* (cslot-assertions slot))
+        (*expected-assertions* (cslot-expected-assertions slot))
+        (*has-assertions* (cslot-has-assertions slot))
+        (*test-finished-callbacks* (cslot-finished-callbacks slot)))
+    (unwind-protect (funcall thunk)
+      (setf (cslot-assertions slot) *test-assertions*
+            (cslot-expected-assertions slot) *expected-assertions*
+            (cslot-has-assertions slot) *has-assertions*
+            (cslot-finished-callbacks slot) *test-finished-callbacks*))))
+
+(defun %slot-fail (slot detail kind)
+  (setf (cslot-ok slot) nil
+        (cslot-detail slot) detail
+        (cslot-failure-kind slot) kind))
+
+(defun %now-ms ()
+  (values (floor (get-internal-real-time)
+                 (floor internal-time-units-per-second 1000))))
+
+(defun %run-concurrent-group (entries realm cfg stats report has-only)
+  "Run consecutive concurrent :test plan entries with overlapping async settlement."
+  (let ((runnable '())
+        (maxc (cfg-max-concurrency cfg)))
+    (dolist (entry entries)
+      (destructuring-bind (test under-only under-todo concurrent-p) (cdr entry)
+        (declare (ignore concurrent-p))
+        (cond
+          ((%under-failed-before-all-p test)
+           (funcall report :skip (%full-name test) nil)
+           (incf (st-skip stats)))
+          (t
+           (let ((full (%full-name test))
+                 (mode (tt-mode test))
+                 (todo-mode (or under-todo (eq (tt-mode test) :todo))))
+             (cond
+               ((eq mode :skip)
+                (funcall report :skip full nil) (incf (st-skip stats)))
+               ((and has-only (not under-only) (not (eq mode :only)))
+                (funcall report :skip full nil) (incf (st-skip stats)))
+               ((and todo-mode (not (cfg-todo cfg)))
+                (funcall report :todo full nil) (incf (st-todo stats)))
+               ((null (tt-fn test))
+                (funcall report :todo full nil) (incf (st-todo stats)))
+               ((not (%name-matches cfg full)) nil)
+               (t
+                (incf (st-matched stats))
+                (push (make-cslot :test test
+                                  :under-only under-only
+                                  :under-todo under-todo
+                                  :timeout (or (tt-timeout test)
+                                               (cfg-default-timeout cfg))
+                                  :chain (%chain test)
+                                  :index (length runnable))
+                      runnable))))))))
+    (setf runnable (nreverse runnable))
+    (when (null runnable)
+      (return-from %run-concurrent-group))
+    ;; Retries/repeats/todo/failing fall back to the serial multi-attempt path.
+    (when (or (= (length runnable) 1)
+              (some (lambda (s)
+                      (or (tt-repeats (cslot-test s))
+                          (tt-retry (cslot-test s))
+                          (plusp (cfg-retry cfg))
+                          (cslot-under-todo s)
+                          (tt-failing (cslot-test s))))
+                    runnable))
+      (dolist (s runnable)
+        (when (eq (st-bailed stats) t) (return))
+        (%run-test (cslot-test s) realm cfg stats report has-only
+                   (cslot-under-only s) (cslot-under-todo s)))
+      (return-from %run-concurrent-group))
+    (%execute-concurrent-slots runnable realm cfg stats report maxc)))
+
+(defun %report-concurrent-slot (slot cfg stats report)
+  (when (cslot-reported slot)
+    (return-from %report-concurrent-slot))
+  (setf (cslot-reported slot) t)
+  (let ((full (%full-name (cslot-test slot)))
+        (ok (cslot-ok slot))
+        (detail (cslot-detail slot))
+        (assertions (cslot-assertions slot)))
+    (if ok
+        (progn (funcall report :pass full nil assertions) (incf (st-pass stats)))
+        (progn (funcall report :fail full detail assertions)
+               (incf (st-fail stats))
+               (%maybe-bail stats cfg)))))
+
+(defun %attach-promise-continue (promise slot cont)
+  "When PROMISE settles, rebind SLOT state and call CONT with (ok value)."
+  (let ((settled nil))
+    (flet ((make-reaction (ok-p)
+             (eng:make-native-function
+              "" 1
+              (lambda (this args)
+                (declare (ignore this))
+                (unless settled
+                  (setf settled t)
+                  (%slot-bind slot
+                              (lambda ()
+                                (funcall cont ok-p (eng:arg args 0)))))
+                eng:+undefined+))))
+      (eng:js-call (eng:js-get promise "then") promise
+                   (list (make-reaction t) (make-reaction nil))))))
+
+(defun %run-hooks-async (hooks slot cont)
+  "Run HOOKS in registration order; CONT receives NIL or an error value."
+  (let ((remaining (copy-list hooks)))
+    (labels ((advance ()
+               (if (null remaining)
+                   (funcall cont nil)
+                   (let ((fn (pop remaining)))
+                     (%slot-bind
+                      slot
+                      (lambda ()
+                        (multiple-value-bind (kind val)
+                            (%invoke-test-callback fn '())
+                          (ecase kind
+                            (:fulfilled (advance))
+                            (:rejected (funcall cont val))
+                            (:pending
+                             (setf (cslot-pending-promise slot) val)
+                             (%attach-promise-continue
+                              val slot
+                              (lambda (ok value)
+                                (setf (cslot-pending-promise slot) nil)
+                                (if ok
+                                    (advance)
+                                    (funcall cont value)))))))))))))
+      (advance))))
+
+(defun %advance-slot (slot realm on-progress)
+  "Advance SLOT through beforeEach → body → afterEach → onTestFinished."
+  (let ((eng:*realm* realm))
+    (labels
+        ((done ()
+           (when (and (cslot-ok slot)
+                      (cslot-expected-assertions slot)
+                      (/= (cslot-assertions slot)
+                          (cslot-expected-assertions slot)))
+             (%slot-fail slot
+                         (format nil "expect.assertions(~a) — but ~a assertion(s) ran"
+                                 (cslot-expected-assertions slot)
+                                 (cslot-assertions slot))
+                         :assertion-contract))
+           (when (and (cslot-ok slot)
+                      (cslot-has-assertions slot)
+                      (zerop (cslot-assertions slot)))
+             (%slot-fail slot
+                         "expect.hasAssertions() — but no assertions ran"
+                         :assertion-contract))
+           (setf (cslot-phase slot) :done)
+           (funcall on-progress slot))
+         (after-hooks ()
+           (let ((cbs (reverse (cslot-finished-callbacks slot))))
+             (setf (cslot-finished-callbacks slot) '())
+             (if cbs
+                 (%run-hooks-async cbs slot
+                                   (lambda (err)
+                                     (when err
+                                       (%slot-fail slot (%err-detail err) :hook))
+                                     (done)))
+                 (done))))
+         (after-body ()
+           (let ((after
+                   (mapcan (lambda (d) (reverse (td-after-each d)))
+                           (reverse (cslot-chain slot)))))
+             (if after
+                 (%run-hooks-async after slot
+                                   (lambda (err)
+                                     (when err
+                                       (%slot-fail slot (%err-detail err) :hook))
+                                     (after-hooks)))
+                 (after-hooks))))
+         (run-body ()
+           (%slot-bind
+            slot
+            (lambda ()
+              (multiple-value-bind (kind val)
+                  (%invoke-test-callback (tt-fn (cslot-test slot))
+                                         (tt-args (cslot-test slot)))
+                (ecase kind
+                  (:fulfilled (after-body))
+                  (:rejected
+                   (%slot-fail slot (%err-detail val) :body)
+                   (after-body))
+                  (:pending
+                   (setf (cslot-pending-promise slot) val)
+                   (%attach-promise-continue
+                    val slot
+                    (lambda (ok value)
+                      (setf (cslot-pending-promise slot) nil)
+                      (unless ok
+                        (%slot-fail slot (%err-detail value) :body))
+                      (after-body))))))))))
+      (let ((before
+              (mapcan (lambda (d) (reverse (td-before-each d)))
+                      (cslot-chain slot))))
+        (if before
+            (%run-hooks-async before slot
+                              (lambda (err)
+                                (when err
+                                  (%slot-fail slot (%err-detail err) :hook))
+                                (if (cslot-ok slot)
+                                    (run-body)
+                                    (after-body))))
+            (run-body))))))
+
+(defun %execute-concurrent-slots (slots realm cfg stats report maxc)
+  "Start concurrent SLOTS (up to MAXC, 0 = unlimited) and drive the realm loop."
+  (let* ((eng:*realm* realm)
+         (n (length slots))
+         (next 0)
+         (active 0)
+         (eloop (eng:current-loop)))
+    (labels
+        ((can-start-p ()
+           (and (< next n)
+                (or (zerop maxc) (< active maxc))))
+         (start-more ()
+           (loop while (can-start-p) do
+             (let ((slot (nth next slots)))
+               (incf next)
+               (incf active)
+               (setf (cslot-started slot) t
+                     (cslot-deadline-ms slot)
+                     (+ (%now-ms) (cslot-timeout slot)))
+               (snapshot-reset-attempt (cfg-snapshot cfg) (cslot-test slot))
+               (%advance-slot slot realm #'on-slot-progress))))
+         (on-slot-progress (slot)
+           (when (eq (cslot-phase slot) :done)
+             (decf active)
+             (%report-concurrent-slot slot cfg stats report)
+             (start-more)
+             (when (and (zerop active) (>= next n) eloop)
+               (lp:loop-stop eloop))))
+         (check-timeouts ()
+           (let ((now (%now-ms)))
+             (dolist (slot slots)
+               (when (and (cslot-started slot)
+                          (not (eq (cslot-phase slot) :done))
+                          (cslot-deadline-ms slot)
+                          (>= now (cslot-deadline-ms slot)))
+                 (setf (cslot-pending-promise slot) nil)
+                 (%slot-fail slot
+                             (format nil "this test timed out after ~ams"
+                                     (cslot-timeout slot))
+                             :timeout)
+                 (setf (cslot-phase slot) :done)
+                 (on-slot-progress slot))))))
+      (start-more)
+      (when (every (lambda (s) (eq (cslot-phase s) :done)) slots)
+        (return-from %execute-concurrent-slots))
+      (let ((timer
+              (and eloop
+                   (lp:set-timer
+                    eloop 5
+                    (lambda ()
+                      (check-timeouts)
+                      (when (and (zerop active) (>= next n))
+                        (lp:loop-stop eloop)))
+                    :repeat 5))))
+        (unwind-protect
+             (when eloop (lp:run-loop eloop))
+          (when timer (lp:clear-timer timer))))
+      (dolist (slot slots)
+        (unless (eq (cslot-phase slot) :done)
+          (%slot-fail slot
+                      (format nil "this test timed out after ~ams"
+                              (cslot-timeout slot))
+                      :timeout)
+          (setf (cslot-phase slot) :done)
+          (%report-concurrent-slot slot cfg stats report))))))
 
 (defun %run-afterall (node realm cfg stats report)
   "Run NODE's afterAll hooks; a throw/reject/timeout is a reported failure (symmetric

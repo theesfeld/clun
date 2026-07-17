@@ -1,0 +1,17 @@
+beforeEach
+start test 1
+afterEach
+(pass) test 1
+beforeEach
+start test 2
+afterEach
+(pass) test 2
+beforeEach
+start test 3
+afterEach
+(pass) test 3
+
+ 3 pass
+ 0 fail
+ 0 expect() calls
+Ran 3 tests across 1 file.

@@ -384,3 +384,15 @@ Measurement receipt and `gap-catalog.tsv` live beside the manifest. Bun was meas
 stable 1.3.14 binary against the pinned `c1076ce95e` sources; Clun with `0.1.0-dev.19`. Clun currently
 fails to load nearly every upstream meta-root (0 pass). Residual owners drive subsequent close-the-gap
 work. The public compatibility row remains Partial.
+
+## Milestone 66.concurrent - cooperative concurrent/serial scheduling
+
+Issue #40 residual slice. Registration surfaces for `test.concurrent`, `describe.concurrent`,
+`test.serial`, `describe.serial`, and conditional `concurrentIf`/`serialIf` are live. The scheduler
+builds a Bun-shaped plan where consecutive concurrent tests form a concurrent group (including across
+nested describes without beforeAll/afterAll barriers), serial tests and suite hooks break groups, and
+within a group async bodies interleave on the realm event loop up to `--max-concurrency` (default 20;
+0 = unlimited). `--concurrent` flips inherit-mode tests to concurrent; `test.serial` forces isolation.
+
+Evidence: `tests/js/testrunner/concurrent*`. Ledger stays `Partial` — parallel files, watch, full
+frozen-root counts, four-target receipts, and remaining exotic residuals are still open.
