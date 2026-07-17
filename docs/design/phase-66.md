@@ -159,6 +159,17 @@ records every source path, category, and SHA-256 digest and validates against th
 `pending` until an exact reproducible run fills them; freezing paths is not evidence that either pass set has
 already been measured.
 
+## Milestone 66.11 - per-test completion cleanup
+
+`onTestFinished(callback)` registers cleanup against the current test attempt. Callbacks run in registration
+order after inherited `afterEach` hooks, including when the test body throws or rejects. Each retry and repeat
+attempt owns a fresh callback list, so completion work cannot leak into the next attempt or test.
+
+The callbacks use the existing hook settlement path: synchronous returns, Promises, and `done(error?)` are
+supported, the test timeout remains authoritative, and all completion work settles before the next test
+starts. Registration outside an active test and non-callable callbacks fail immediately. Real concurrent
+test scheduling is still residual scope, so the pinned concurrent-registration diagnostic is not claimed.
+
 The row remains `Partial`. Snapshot/inline updates, module mocks, fake timers, coverage/source maps,
 concurrency/parallel files, setup/reporters/JUnit, sharding/randomization/watch behavior, exact 52-root Bun
 and Clun counts, four-target receipts, serial/parallel agreement, and the 10k-test RSS gate remain explicit

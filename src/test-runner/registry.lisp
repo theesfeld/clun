@@ -19,6 +19,9 @@
   (mocks '()) (invocation-order 0)
   (custom-matchers (make-hash-table :test #'equal)))
 
+(defvar *active-test* nil "The test whose hooks/body are currently executing.")
+(defvar *test-finished-callbacks* nil "Callbacks registered for the active test attempt.")
+
 (defun td-ordered-children (d)
   "Children in registration order (they are pushed, so reverse)."
   (reverse (td-children d)))
@@ -311,6 +314,19 @@
                     (:after-each (push fn (td-after-each d)))))
                 eng:+undefined+))))
 
+(defun %on-test-finished ()
+  (%fn "onTestFinished" 1
+    (lambda (this args)
+      (declare (ignore this))
+      (unless *active-test*
+        (eng:throw-type-error
+         "Cannot call onTestFinished() here. It must be called inside a test."))
+      (let ((callback (eng:arg args 0)))
+        (unless (eng:callable-p callback)
+          (eng:throw-type-error "onTestFinished() expects a callback function"))
+        (push callback *test-finished-callbacks*))
+      eng:+undefined+)))
+
 (defun install-test-globals (realm ctx)
   "Install describe/test/it + hooks + setDefaultTimeout on REALM's global, all
 registering into CTX's tree. expect is installed separately (install-expect)."
@@ -323,6 +339,7 @@ registering into CTX's tree. expect is installed separately (install-expect)."
     (eng:hidden-prop g "beforeEach" (%hook ctx :before-each))
     (eng:hidden-prop g "afterAll" (%hook ctx :after-all))
     (eng:hidden-prop g "afterEach" (%hook ctx :after-each))
+    (eng:hidden-prop g "onTestFinished" (%on-test-finished))
     (eng:hidden-prop g "setDefaultTimeout"
       (%fn "setDefaultTimeout" 1
         (lambda (this args) (declare (ignore this))

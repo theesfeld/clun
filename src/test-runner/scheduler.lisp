@@ -319,6 +319,7 @@ the first semantic failure while still completing later attempts."
 Returns (values ok detail failure-kind); FAILURE-KIND distinguishes an expected body
 failure from framework failures that `test.failing` must not invert."
   (let ((*test-assertions* 0) (*expected-assertions* nil) (*has-assertions* nil)
+        (*active-test* test) (*test-finished-callbacks* '())
         (timeout (or (tt-timeout test) (cfg-default-timeout cfg)))
         (chain (%chain test)) (ok t) (detail nil) (failure-kind nil))
     ;; beforeEach outer→inner
@@ -355,4 +356,9 @@ failure from framework failures that `test.failing` must not invert."
       (let ((err (%run-hooks (td-after-each d) realm timeout)))
         (when (and err ok)
           (setf ok nil detail (%err-detail err) failure-kind :hook))))
+    ;; Per-test cleanup runs in registration order after every afterEach hook, even
+    ;; when the body or an earlier hook failed.
+    (let ((err (%run-hooks *test-finished-callbacks* realm timeout)))
+      (when (and err ok)
+        (setf ok nil detail (%err-detail err) failure-kind :hook)))
     (values ok detail failure-kind)))

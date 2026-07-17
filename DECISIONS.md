@@ -2961,3 +2961,11 @@ category, and SHA-256 digest. The manifest deliberately records Bun and Clun res
 the exact root executes under a reproducible binary. This separates the already-complete scope freeze from
 the still-open baseline measurement and prevents a frozen manifest from being misrepresented as a passing
 compatibility gate.
+
+### 2026-07-17 - Phase 66 completion cleanup belongs to one attempt
+
+`onTestFinished` callbacks live in a dynamically bound list for one active attempt. Retry and repeat attempts
+therefore start empty, while a failed test body still drains its registered callbacks before producing the
+attempt result. The scheduler runs them in registration order after inherited `afterEach` hooks through the
+existing synchronous, Promise, callback, and timeout settlement path. Concurrent registration remains
+unclaimed until the runner has real concurrent scheduling rather than serial qualifier aliases.
