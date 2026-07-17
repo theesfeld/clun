@@ -38,7 +38,7 @@ pass at `7c7377780413b98da1396f5d8e5d84611cf6cca3`; annotated tag `v0.1.0-dev.16
 release run **29561031150** published the immutable four-platform archives plus checksums. Issue #5 is
 closed complete with exact asset digests. Phase 37 milestone 1 adds `Object.hasOwn`, array copy-by-change methods, String
 well-formedness, `Error.isError`, and `Promise.withResolvers`, producing 173 measured execution-pass gains;
-its frozen inventory still has 603 residual failures after m2 and no full ledger row is claimed. Parallel durable
+its frozen inventory still has 452 residual failures after m3 and no full ledger row is claimed. Parallel durable
 checkpoints include transport request streaming plus origin-keyed HTTP pooling and shell parser/runtime,
 guarded filesystem builtins, bounded `yes`, and isolated pipeline state. Merged `master` is **9 Yes /
 7 Partial / 14 No** with shell Partial (PR #86) and test-runner Partial (PR #88) on master; this unit
