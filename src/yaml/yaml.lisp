@@ -542,9 +542,22 @@
                  :offset (+ (fr-offset reader) (fr-position reader)))))
 
 (defun fr-skip-separation (reader)
-  (loop for character = (fr-peek reader)
-        while (and character (member character '(#\Space #\Tab #\Newline #\Return)))
-        do (incf (fr-position reader))))
+  (loop
+    (loop for character = (fr-peek reader)
+          while (and character
+                     (member character '(#\Space #\Tab #\Newline #\Return)))
+          do (incf (fr-position reader)))
+    (let ((character (fr-peek reader))
+          (position (fr-position reader)))
+      (unless (and character
+                   (char= character #\#)
+                   (or (zerop position)
+                       (member (char (fr-text reader) (1- position))
+                               '(#\Space #\Tab #\Newline #\Return))))
+        (return))
+      (loop for current = (fr-peek reader)
+            while (and current (not (member current '(#\Newline #\Return))))
+            do (incf (fr-position reader))))))
 
 (defun fr-location (reader)
   (values (fr-line reader)
@@ -733,10 +746,15 @@
                      :line line :column column :offset offset))))))
 
 (defun flow-plain-end-p (reader character key-p)
+  (declare (ignore key-p))
   (or (member character '(#\, #\] #\}))
-      (and key-p
-           (char= character #\:)
-           (flow-value-indicator-p reader))))
+      (and (char= character #\:)
+           (flow-value-indicator-p reader))
+      (and (char= character #\#)
+           (let ((position (fr-position reader)))
+             (or (zerop position)
+                 (member (char (fr-text reader) (1- position))
+                         '(#\Space #\Tab #\Newline #\Return)))))))
 
 (defun fold-flow-plain-text (text)
   (let ((start 0)
@@ -771,9 +789,11 @@
            (comment (comment-start raw 0))
            (text (fold-flow-plain-text
                   (subseq raw 0 (or comment (length raw))))))
-      (when (zerop (length text))
+      (when (or (zerop (length text))
+                (string= text "-"))
         (multiple-value-bind (line column offset) (fr-location reader)
-          (yaml-fail (fr-parser reader) :empty-flow-node "expected a YAML flow value"
+          (yaml-fail (fr-parser reader) :invalid-flow-plain
+                     "invalid plain scalar in flow context"
                      :line line :column column :offset offset)))
       text)))
 
@@ -871,10 +891,20 @@
       (when explicit
         (fr-next reader)
         (fr-skip-separation reader))
-      (let ((key (if (flow-value-indicator-p reader)
-                     (scalar-node (fr-parser reader) "" line column offset)
-                     (flow-parse-node reader (1+ depth) :key-p t))))
+      (let* ((key-start (fr-position reader))
+             (key (if (flow-value-indicator-p reader)
+                      (scalar-node (fr-parser reader) "" line column offset)
+                      (flow-parse-node reader (1+ depth) :key-p t))))
         (fr-skip-separation reader)
+        (when (and (not explicit)
+                   (flow-value-indicator-p reader)
+                   (or (position #\Newline (fr-text reader)
+                                 :start key-start :end (fr-position reader))
+                       (position #\Return (fr-text reader)
+                                 :start key-start :end (fr-position reader))))
+          (yaml-fail (fr-parser reader) :implicit-key
+                     "an implicit flow-sequence key must stay on one line"
+                     :line line :column column :offset offset))
         (if (or explicit (flow-value-indicator-p reader))
             (let ((has-value-indicator (flow-value-indicator-p reader)))
               (when has-value-indicator
@@ -1114,7 +1144,8 @@
           (subseq tail 0 (or comment (length tail))))
         initial)))
 
-(defun gather-inline-lines (parser initial line column offset)
+(defun gather-inline-lines (parser initial line column offset
+                            &optional allow-unindented-continuation)
   "Gather a multiline quoted/flow value starting on the current parser line."
   (let ((output (make-array (max 16 (length initial))
                             :element-type 'character :adjustable t :fill-pointer 0))
@@ -1136,11 +1167,13 @@
           ;; Tabs may separate root flow content, but cannot supply the block
           ;; indentation required by a nested quoted or flow continuation.
           (when (and (> column 1)
+                     (not allow-unindented-continuation)
                      (plusp (length next-text))
-                     (char= (char next-text 0) #\Tab)
+                     (or (char= (char next-text 0) #\Tab)
+                         (zerop next-start))
                      (< next-start (length next-text)))
-            (yaml-fail parser :tab-indentation
-                       "tab cannot establish indentation for nested flow content"
+            (yaml-fail parser :flow-indentation
+                       "nested flow continuation must be indented"
                        :line (sl-number next) :column 1 :offset (sl-offset next)))
           (vector-push-extend #\Newline output)
           (loop for character across next-text do (vector-push-extend character output))
@@ -1295,24 +1328,39 @@
              (yaml-fail parser :block-header "duplicate block indentation indicator"
                         :line line :column (+ column index) :offset (+ offset index))
              (setf explicit-indent (digit-char-p character))))
-        ((ascii-space-p character) (return))
+        ((ascii-space-p character)
+         (unless (= (trim-left-index header index) (length header))
+           (yaml-fail parser :block-header
+                      "unexpected content after block scalar header"
+                      :line line :column (+ column index)
+                      :offset (+ offset index)))
+         (return))
         (t (yaml-fail parser :block-header "invalid block scalar header"
                       :line line :column (+ column index) :offset (+ offset index)))))
     (let ((content-indent (and explicit-indent (+ parent-indent explicit-indent)))
-          (content-indent-known-p (not (null explicit-indent))))
+          (content-indent-known-p (not (null explicit-indent)))
+          (leading-blank-indent 0))
       (unless content-indent
         (loop for scan from (yp-index parser) below (length (yp-lines parser))
               for candidate = (aref (yp-lines parser) scan)
               until (or (marker-line-p parser candidate "---")
                         (marker-line-p parser candidate "..."))
-              unless (whitespace-only-source-line-p candidate) do
-                (let ((indent (line-indentation parser candidate)))
-                  (when (<= indent parent-indent)
-                    (return))
-                  (setf content-indent indent
-                        content-indent-known-p t)
-                  (return))))
+              do (let ((indent (line-indentation parser candidate)))
+                   (cond
+                     ((whitespace-only-source-line-p candidate)
+                      (setf leading-blank-indent
+                            (max leading-blank-indent indent)))
+                     ((<= indent parent-indent) (return))
+                     (t
+                      (setf content-indent indent
+                            content-indent-known-p t)
+                      (return))))))
       (unless content-indent (setf content-indent (1+ parent-indent)))
+      (when (and content-indent-known-p
+                 (> leading-blank-indent content-indent))
+        (yaml-fail parser :block-indentation
+                   "leading blank line exceeds block scalar indentation"
+                   :line line :column column :offset offset))
       (let ((entries '()) (had-content nil))
         (loop while (< (yp-index parser) (length (yp-lines parser)))
               for current = (aref (yp-lines parser) (yp-index parser))
@@ -1433,6 +1481,10 @@
                        (effective-tag (and (not (yaml-node-tag parsed)) tag))
                        (tagged (retag-existing-node parser parsed effective-tag
                                                    line column offset)))
+                  (when (yaml-node-anchor parsed)
+                    (yaml-fail parser :multiple-anchors
+                               "a node cannot have more than one anchor"
+                               :line line :column column :offset offset))
                   (when (eq tagged placeholder)
                     (yaml-fail parser :recursive-alias
                                "an alias cannot be the complete anchored node"
@@ -1468,7 +1520,7 @@
                                parser text parent-indent allow-same-indent-plain)
                               (gather-inline-lines
                                parser (exact-open-inline-tail parser text column)
-                               line column offset)))
+                               line column offset allow-zero-indent-block)))
                 (node (parse-inline-value parser gathered line column offset)))
            node))))))
 
@@ -1614,6 +1666,11 @@
          (value
            (cond
              ((sequence-indicator-p rest)
+              (when (position #\Tab content :start 1 :end value-start)
+                (yaml-fail parser :tab-indentation
+                           "tab cannot establish nested sequence indentation"
+                           :line line :column (+ column value-start)
+                           :offset (+ offset value-start)))
               (parse-block-sequence parser (+ indent 2) depth
                                     :first-content rest :first-line line
                                     :first-column value-column :first-offset value-offset))
@@ -1685,6 +1742,16 @@
     (multiple-value-bind (rest-index anchor tag)
         (parse-node-properties parser content 0 line-number column offset)
       (let ((rest (trim-ascii-space (subseq content rest-index))))
+        (when (directive-line-p parser line)
+          (yaml-fail parser :directive-boundary
+                     "directives are only allowed before a document start marker"
+                     :line line-number :column column :offset offset))
+        (when (and (or anchor tag)
+                   (plusp (length rest))
+                   (sequence-indicator-p rest))
+          (yaml-fail parser :node-properties
+                     "node properties cannot prefix a block collection indicator"
+                     :line line-number :column column :offset offset))
         (cond
           ;; A property-only line applies to the following indented node.
           ((and (or anchor tag) (zerop (length rest)))
@@ -1864,6 +1931,12 @@
             (when (and (< (yp-index parser) (length (yp-lines parser)))
                        (marker-line-p parser
                                       (aref (yp-lines parser) (yp-index parser)) "..."))
+              (let ((line (aref (yp-lines parser) (yp-index parser))))
+                (unless (zerop (length (marker-rest line "...")))
+                  (yaml-fail parser :document-end
+                             "unexpected content after document end marker"
+                             :line (sl-number line) :column 4
+                             :offset (+ (sl-offset line) 3))))
               (setf had-end-marker t)
               (incf (yp-index parser))
               (skip-ignorable-lines parser)
