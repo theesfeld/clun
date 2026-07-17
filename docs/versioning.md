@@ -57,6 +57,8 @@ and the branch must rebase onto the published train before it can land.
 0.1.0-dev.18
 0.1.0-dev.19
 0.1.0-dev.20
+0.1.0-dev.21
+0.1.0-dev.22
 ```
 
 Phase 25b is the compatibility program for the planned `0.1.0` release. Its first behavioral
@@ -113,14 +115,11 @@ the published installer remains dev.14. The dispatchable-gate recovery advances 
 hosted-installer evidence. The same candidate includes Phase 37 milestone 1's reviewed modern built-ins,
 but Phase 37 and Issue #11 remain in progress and make no full language-parity claim.
 Phase 50 stages `0.1.0-dev.17` / `v0.1.0-dev.17` under Issue #24 (router PR #85) and is published on
-master. Phase 65 staged `0.1.0-dev.18` / `v0.1.0-dev.18` under Issue #39 and is on master via PR #86.
-Phase 66 staged `0.1.0-dev.19` / `v0.1.0-dev.19` under Issue #40 and is on master via PR #88. Phase 28
-stages `0.1.0-dev.20` / `v0.1.0-dev.20` under Issue #2 (transport PR #95) as the exact next prerelease
-on top of master `0.1.0-dev.19`. Phase 28 adds backward-compatible pure-CL TLS 1.2 registry transport,
-DNS and Happy Eyeballs, streaming Fetch, HTTP pooling, and proxy/CONNECT support and therefore its
-SemVer impact is `minor` within the selected `0.1.0` core. Until gates complete, the installer and
-immutable published boundary remain dev.18; `runtime.web-standard-apis` and `package-manager.npm`
-remain Partial and are not claimed as Yes.
+master. Phase 65 staged `0.1.0-dev.18` / `v0.1.0-dev.18` under Issue #39 and is on master via PR #86
+(published installer boundary). Phase 66 staged `0.1.0-dev.19` / `v0.1.0-dev.19` under Issue #40 and is
+on master via PR #88. Phase 37 m2 staged `0.1.0-dev.21` / `v0.1.0-dev.21` under Issue #11 and is on
+master via PR #96 (slot `dev.20` remains unused/unpublished). Phase 28 stages `0.1.0-dev.22` / `v0.1.0-dev.22` under Issue #2 (transport PR #95) as the exact next prerelease on top of master `0.1.0-dev.21`. Phase 28 adds backward-compatible pure-CL TLS 1.2 registry transport, DNS and Happy Eyeballs, streaming Fetch, HTTP pooling, and proxy/CONNECT support and therefore its SemVer impact is `minor` within the selected `0.1.0` core. Until gates complete, the installer and immutable published boundary remain dev.18; `runtime.web-standard-apis` and `package-manager.npm` remain Partial and are not claimed as Yes.
+
 
 ## Canonical record
 

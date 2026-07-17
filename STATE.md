@@ -18,11 +18,11 @@ registry fallback, A/AAAA DNS and Happy Eyeballs, streaming Fetch request/respon
 connection pooling, and HTTP proxy / HTTPS CONNECT. Public `runtime.web-standard-apis` and
 `package-manager.npm` remain `Partial` (not Yes). Shell Partial is published as `v0.1.0-dev.18`
 (#86 / #98); test-runner Partial is on master as `0.1.0-dev.19` (#88); this unit stages
-`0.1.0-dev.20` as the exact next prerelease and stays draft until residual Phase 28 gates are decided.
+`0.1.0-dev.22` as the exact next prerelease and stays draft until residual Phase 28 gates are decided.
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.20` / `v0.1.0-dev.20`
+**Candidate release:** `0.1.0-dev.22` / `v0.1.0-dev.22`
 **Published release:** `0.1.0-dev.18` / `v0.1.0-dev.18`
-**Entry boundary:** immutable `v0.1.0-dev.18` is tagged at exact master `b5ecdb5defeef8ddede72ef794e41f14fb423b86` with four native archives + checksums (release run 29596302229). Installer defaults to that tag. Master source includes test-runner `0.1.0-dev.19` (#88). Draft PR #95 stages Partial transport as `0.1.0-dev.20`. Phase 26 remains after Phase 82.
+**Entry boundary:** immutable `v0.1.0-dev.18` is tagged at exact master `b5ecdb5defeef8ddede72ef794e41f14fb423b86` with four native archives + checksums (release run 29596302229). Installer defaults to that tag. Master source includes test-runner `0.1.0-dev.19` (#88) and Phase 37 m2 `0.1.0-dev.21` (#96). Draft PR #95 stages Partial transport as `0.1.0-dev.22`. Phase 26 remains after Phase 82.
 **Next scope:** keep both transport-adjacent ledger rows Partial until HTTPS proxy endpoints, pooling/stress breadth, large-transfer/leak matrix, and four-target receipts complete; green exact-head CI on the rebased candidate; then reassess Yes readiness.
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
@@ -32,7 +32,7 @@ four-target evidence, synchronized public surfaces, and the correct SemVer trans
 queue is YAML, transport streaming, shell, test-runner parity, and the dependency-enabling modern ECMAScript
 wave; exact canonical ledger IDs are frozen in `PLAN.md`.
 
-**Phase 28 checkpoint (Issue #2, release lane dev.20):** branch
+**Phase 28 checkpoint (Issue #2, release lane dev.22):** branch
 `feat/issue-2-transport-foundation` contains a per-loop plain HTTP pool keyed by origin, family, and
 transport. Earlier durable checkpoints add pure-CL TLS 1.2 registry fallback, A/AAAA DNS and Happy
 Eyeballs, exact Fetch abort lifecycle, bounded incremental HTTP and authenticated HTTPS response bodies,

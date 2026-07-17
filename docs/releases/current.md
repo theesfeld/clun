@@ -1,5 +1,5 @@
 <!-- clun-generated:release-notes:begin -->
-# Clun 0.1.0-dev.20
+# Clun 0.1.0-dev.22
 
 Phase 28: TLS, DNS, streaming transport, and public npm.
 
@@ -21,7 +21,7 @@ The canonical evidence and current limitations are in `compat/`; `make compat-va
   `runtime.web-standard-apis` and `package-manager.npm` (`make compat FEATURE=…` is valid).
 - Keeps both public rows `Partial` (not `Yes`). Router owns published `0.1.0-dev.17`; shell
   (`0.1.0-dev.18`, #86) and test-runner (`0.1.0-dev.19`, #88) are on master; this candidate is the
-  exact next prerelease `0.1.0-dev.20`.
+  exact next prerelease `0.1.0-dev.22`.
 
 The release candidate stages honest Partial transport and package-manager surfaces. Merge,
 publication, and issue closure remain blocked on HTTPS proxy endpoints, pooling/stress breadth,
