@@ -88,7 +88,7 @@ types, fixtures, and upstream licenses. `upstream-files.tsv` binds every file to
 
 `upstream-corpus.tsv` enumerates 1,630 lexical test sites from those exact snapshots. The initial conservative
 disposition was 1,598 pending and 32 explicitly inactive at the pinned revisions. The current executable
-mapping is 1,247 covered, 351 pending, and 32 upstream-inactive. `upstream-coverage.tsv` binds each credited
+mapping is 1,251 covered, 347 pending, and 32 upstream-inactive. `upstream-coverage.tsv` binds each credited
 inventory ID to a checked-in shipped-binary fixture; regeneration rejects duplicate, stale, or unknown IDs,
 and the corpus validator rejects missing evidence. `shell-upstream-corpus-check.sh` rejects inventory drift
 or an unexplained disposition. Its `--yes` mode is the finite closure gate: it rejects any pending row and
@@ -126,10 +126,10 @@ aggregate credit is used.
 including invalid flags as data and the engineering two-or-more-trailing-newline regressions.
 `tests/compat/tooling.shell/upstream-cp.js` executes all 32 exact `cp` IDs through hermetic file, overwrite,
 multi-source, same-file, directory, verbose, repeated-source, and recursive cases.
-`tests/compat/tooling.shell/upstream-ls.js` executes 50 exact deterministic `ls` IDs across both baselines,
-including recursive and hidden listings, flags, multiple paths, unusual filenames, diagnostics, and broken
-symlinks. The four `chmod 000` permission sites remain pending because their outcome depends on runner
-privilege and filesystem policy.
+`tests/compat/tooling.shell/upstream-ls.js` executes 54 exact `ls` IDs across both baselines,
+including recursive and hidden listings, flags, multiple paths, unusual filenames, diagnostics, broken
+symlinks, and the four `chmod 000` permission-denied directory sites (restored after each probe so
+non-root runners match the pinned Bun diagnostics).
 `tests/compat/tooling.shell/upstream-mv-rm.js` executes 20 exact `mv` and `rm` IDs. The engineering concurrent
 directory-to-symlink swap race remains pending until the actual mutation race is exercised.
 `tests/compat/tooling.shell/upstream-pipeline-stack.js` executes 118 exact stable and engineering IDs for

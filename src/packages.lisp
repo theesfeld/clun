@@ -305,6 +305,32 @@
    ;; TLS client (Phase 20): blocking HTTPS request for the worker pool + error mapping.
    #:https-request #:tls-error-message))
 
+;; Phase 51 — WebSocket types + fail-closed stubs (pure CL; framing later).
+(defpackage :clun.websocket
+  (:use :cl)
+  (:documentation
+   "Pure Common Lisp WebSocket scaffold (RFC 6455 types and Phase 51 fail-closed errors).
+    Full handshake/framing/Pub/Sub are not implemented yet; see docs/design/phase-51.md.")
+  (:export
+   #:+opcode-continuation+ #:+opcode-text+ #:+opcode-binary+
+   #:+opcode-close+ #:+opcode-ping+ #:+opcode-pong+
+   #:+ws-guid+ #:+default-max-payload-bytes+ #:+default-backpressure-limit+
+   #:websocket-error #:websocket-error-message
+   #:websocket-unsupported
+   #:websocket-not-implemented-message #:signal-websocket-unsupported
+   #:ws-frame #:ws-frame-p #:make-ws-frame
+   #:ws-frame-fin #:ws-frame-rsv1 #:ws-frame-rsv2 #:ws-frame-rsv3
+   #:ws-frame-opcode #:ws-frame-masked #:ws-frame-payload #:ws-frame-mask-key
+   #:ws-handler-options #:ws-handler-options-p #:make-ws-handler-options
+   #:ws-handler-options-max-payload-length
+   #:ws-handler-options-backpressure-limit
+   #:ws-handler-options-close-on-backpressure-limit
+   #:ws-handler-options-idle-timeout-seconds
+   #:ws-handler-options-publish-to-self
+   #:ws-handler-options-send-pings
+   #:ws-handler-options-permessage-deflate
+   #:handshake-accept-key #:encode-frame #:decode-frame))
+
 ;; --- dependent layer (local-nicknames into the base packages above) ---------
 
 (defpackage :clun.cli
@@ -315,12 +341,12 @@
 
 (defpackage :clun.runtime
   (:use :cl)
-  (:local-nicknames (:eng :clun.engine) (:sys :clun.sys) (:lp :clun.loop) (:net :clun.net))
+  (:local-nicknames (:eng :clun.engine) (:sys :clun.sys) (:lp :clun.loop)
+                    (:net :clun.net) (:ws :clun.websocket))
   (:documentation "Globals wiring: console/inspector, process, timers, Clun global, node/ modules.")
   (:export #:install-runtime #:process-exit #:process-exit-code
            #:run-exit-handlers #:*runtime* #:runtime-exit-code #:format-log-args
            #:safe-integer #:execute-shell-script))
-
 (defpackage :clun
   (:use :cl)
   (:local-nicknames (:eng :clun.engine) (:sys :clun.sys) (:cli :clun.cli) (:rt :clun.runtime))

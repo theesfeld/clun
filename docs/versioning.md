@@ -124,6 +124,10 @@ may allocate later slots without claiming each other's tags. Phase 37 m2 adds ba
 `Array.fromAsync` and supporting lexer/parser admissions and therefore its SemVer impact is `minor`
 within the selected `0.1.0` core. Until gates complete, the installer and immutable published
 boundary remain dev.18; Phase 37 remains open and makes no full language-parity or matrix Yes claim.
+Phase 51 M0 (WebSocket constitutional checkpoint, Issue #25 / PR #107) retains unpublished
+`0.1.0-dev.21` / `v0.1.0-dev.21` as a release-bearing correction: fail-closed `Clun.serve` refusal of
+WebSocket options/APIs with SemVer impact is `minor`; ledger `server.websocket` remains No and no new
+prerelease slot is allocated.
 
 ## Canonical record
 
