@@ -901,6 +901,53 @@
                  (eng:utf8->code-units (clun.runtime::shell-result-stderr result)))))
       (ignore-errors (sys:remove-recursive directory)))))
 
+(define-test shell/ls-permission-denied-directory-and-recursive
+  "Exact stable/engineering ls.test.ts chmod-000 permission sites (non-root)."
+  (let* ((directory (clun.runtime::%shell-temp-directory))
+         (state (shell-test-state))
+         (restricted (sys:path-join directory "restricted"))
+         (level1 (sys:path-join directory "level1"))
+         (level2 (sys:path-join level1 "level2"))
+         (level3 (sys:path-join level2 "level3")))
+    (unwind-protect
+         (progn
+           (setf (clun.runtime::shell-state-cwd state) directory)
+           (sys:make-directory restricted)
+           (sys:change-mode restricted #o000)
+           (let ((result (clun.runtime::%shell-run-ls '("restricted") state)))
+             (sys:change-mode restricted #o755)
+             (is = 1 (clun.runtime::shell-result-exit-code result))
+             (is equal "" (eng:utf8->code-units
+                           (clun.runtime::shell-result-stdout result)))
+             (true (search "Permission denied"
+                           (eng:utf8->code-units
+                            (clun.runtime::shell-result-stderr result)))))
+           (sys:make-directory level3 :recursive t)
+           (dolist (path '("level1/file1" "level1/file2" "level1/file3"
+                           "level1/level2/file4" "level1/level2/file5"
+                           "level1/level2/file6"
+                           "level1/level2/level3/file7"
+                           "level1/level2/level3/file8"
+                           "level1/level2/level3/file9"))
+             (sys:write-file-octets (sys:path-join directory path)
+                                    (eng:code-units->utf8 "")))
+           (sys:change-mode level2 #o000)
+           (let* ((result (clun.runtime::%shell-run-ls '("-R" "level1") state))
+                  (stdout (eng:utf8->code-units
+                           (clun.runtime::shell-result-stdout result)))
+                  (stderr (eng:utf8->code-units
+                           (clun.runtime::shell-result-stderr result))))
+             (sys:change-mode level2 #o755)
+             (is = 1 (clun.runtime::shell-result-exit-code result))
+             (true (search "file1" stdout))
+             (true (search "file2" stdout))
+             (true (search "file3" stdout))
+             (true (search "Permission denied" stderr))))
+      (ignore-errors
+        (ignore-errors (sys:change-mode restricted #o755))
+        (ignore-errors (sys:change-mode level2 #o755))
+        (sys:remove-recursive directory)))))
+
 (define-test shell/cp-bounded-recursive-and-symlink-copy
   (let* ((directory (clun.runtime::%shell-temp-directory))
          (state (shell-test-state))

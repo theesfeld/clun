@@ -17,11 +17,11 @@ The canonical evidence and current limitations are in `compat/`; `make compat-va
 - Unpublished correction of master `0.1.0-dev.21` (no new prerelease slot): pure-CL unmatched
   pathname globs fail in command position with `clun: no matches found: <pattern>` (exit 1);
   assignment position keeps the literal pattern; multi-match assignment values join with a space.
-- Inventory burn-down: **1,282 covered / 316 pending / 32 upstream-inactive** (was
-  1,247 / 351 / 32). Closes 35 pending sites across language, glob, and
-  `pwd | cd | pwd` pipeline isolation fixtures.
-- Does **not** claim `tooling.shell` Yes. Residual parser, lifecycle, background,
-  and permission-sensitive rows remain pending under Issue #39.
-- Slot map: published base `v0.1.0-dev.18`; master source after Phase 37 m2 is
-  `0.1.0-dev.21`; this unit retains that candidate as an unpublished correction.
-  Hosted installer remains on published dev.18 until a later unit publishes.
+- Inventory burn-down after merge with master residual closes: **1,286 covered / 312 pending /
+  32 upstream-inactive**. Closes 35 pending sites across language, glob, and `pwd | cd | pwd`
+  pipeline isolation fixtures (plus #102 permission-sensitive `ls` closes already on master).
+- Does **not** claim `tooling.shell` Yes. Residual parser, lifecycle, and background rows remain
+  pending under Issue #39.
+- Slot map: published base `v0.1.0-dev.18`; master source remains `0.1.0-dev.21` (also hosts
+  Phase 51 WebSocket M0 fail-closed checkpoint). This unit retains that candidate as an
+  unpublished correction. Hosted installer remains on published dev.18 until a later unit publishes.
