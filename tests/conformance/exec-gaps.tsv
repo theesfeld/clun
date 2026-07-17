@@ -1,9 +1,9 @@
 # generator: scripts/test262-buckets.lisp
 # vendor-test262-commit: d1d583db95a521218f3eb8341a887fd63eda8ff1
-# source-revision: working-tree@7f443be629d66f5d11f3a81590de8160b6522ab0
+# source-revision: working-tree@132d7b711e0cdef712fa41ed832e26b917d6e650
 # classification-ledger: tmp-test/test262-exec-classifications.tsv
 # frozen-passlist: tests/conformance/exec-passlist.txt
-# classification-ledger-fnv-1a-64: 505954B27BF44A08
+# classification-ledger-fnv-1a-64: C69927D3946A20FB
 path	owner	phase_owner	work_bucket	topic	features	flags	includes
 arguments-object/10.5-1-s.js	language:arguments-object	phase-25b	functions-arguments	language/arguments-object	-	onlyStrict	-
 arguments-object/10.5-7-b-1-s.js	language:arguments-object	phase-25b	functions-arguments	language/arguments-object	-	onlyStrict	-
@@ -1248,10 +1248,6 @@ built-ins/String/prototype/toLowerCase/special_casing_conditional.js	builtin:Str
 built-ins/String/prototype/toLowerCase/supplementary_plane.js	builtin:String	phase-25b	primitive-builtins	built-ins/String/prototype/toLowerCase	-	-	-
 built-ins/String/prototype/toUpperCase/special_casing.js	builtin:String	phase-25b	primitive-builtins	built-ins/String/prototype/toUpperCase	-	-	-
 built-ins/String/prototype/toUpperCase/supplementary_plane.js	builtin:String	phase-25b	primitive-builtins	built-ins/String/prototype/toUpperCase	-	-	-
-built-ins/String/raw/return-the-string-value-from-template.js	builtin:String	phase-25b	primitive-builtins	built-ins/String/raw	-	-	-
-built-ins/String/raw/special-characters.js	builtin:String	phase-25b	primitive-builtins	built-ins/String/raw	-	-	-
-built-ins/String/raw/template-substitutions-are-appended-on-same-index.js	builtin:String	phase-25b	primitive-builtins	built-ins/String/raw	-	-	-
-built-ins/String/raw/zero-literal-segments.js	builtin:String	phase-25b	primitive-builtins	built-ins/String/raw	-	-	-
 built-ins/Symbol/auto-boxing-strict.js	builtin:Symbol	phase-25b	primitive-builtins	built-ins/Symbol	Symbol	onlyStrict	-
 built-ins/Symbol/constructor.js	builtin:Symbol	phase-25b	primitive-builtins	built-ins/Symbol	Symbol	-	-
 built-ins/Symbol/isConcatSpreadable/prop-desc.js	builtin:Symbol	phase-25b	primitive-builtins	built-ins/Symbol/isConcatSpreadable	Symbol.isConcatSpreadable	-	propertyHelper.js
@@ -2110,7 +2106,6 @@ expressions/generators/unscopables-with.js	language:expressions	phase-25b	genera
 expressions/in/S11.8.7_A1.js	language:expressions	phase-25b	other-runtime	language/expressions/in	-	-	-
 expressions/member-expression/computed-reference-null-or-undefined.js	language:expressions	phase-25b	other-runtime	language/expressions/member-expression	-	-	-
 expressions/modulus/S11.5.3_A4_T2.js	language:expressions	phase-25b	other-runtime	language/expressions/modulus	-	-	-
-expressions/new.target/value-via-tagged-template.js	language:expressions	phase-25b	functions-arguments	language/expressions/new.target	new.target,template	-	-
 expressions/object/cpn-obj-lit-computed-property-name-from-expression-coalesce.js	language:expressions	phase-37	objects	language/expressions/object	computed-property-names	generated	-
 expressions/object/cpn-obj-lit-computed-property-name-from-integer-separators.js	language:expressions	phase-37	objects	language/expressions/object	computed-property-names	generated	-
 expressions/object/method-definition/async-gen-meth-eval-var-scope-syntax-err.js	language:expressions	phase-25b	binding-patterns	language/expressions/object	default-parameters,async-iteration	generated,noStrict	-
@@ -2151,44 +2146,8 @@ expressions/super/prop-dot-cls-val-from-eval.js	language:expressions	phase-25b	c
 expressions/super/prop-dot-obj-val-from-eval.js	language:expressions	phase-25b	classes	language/expressions/super	-	-	-
 expressions/super/prop-expr-cls-val-from-eval.js	language:expressions	phase-25b	classes	language/expressions/super	class	-	-
 expressions/super/prop-expr-obj-val-from-eval.js	language:expressions	phase-25b	classes	language/expressions/super	-	-	-
-expressions/tagged-template/cache-different-functions-same-site.js	language:expressions	phase-25b	operators-references	language/expressions/tagged-template	-	-	-
-expressions/tagged-template/cache-differing-expressions-eval.js	language:expressions	phase-25b	operators-references	language/expressions/tagged-template	-	-	-
-expressions/tagged-template/cache-differing-expressions-new-function.js	language:expressions	phase-25b	operators-references	language/expressions/tagged-template	-	-	-
-expressions/tagged-template/cache-differing-expressions.js	language:expressions	phase-25b	operators-references	language/expressions/tagged-template	-	-	-
-expressions/tagged-template/cache-differing-raw-strings.js	language:expressions	phase-25b	operators-references	language/expressions/tagged-template	-	-	-
-expressions/tagged-template/cache-differing-string-count.js	language:expressions	phase-25b	operators-references	language/expressions/tagged-template	-	-	-
 expressions/tagged-template/cache-eval-inner-function.js	language:expressions	phase-25b	operators-references	language/expressions/tagged-template	-	-	-
-expressions/tagged-template/cache-identical-source-eval.js	language:expressions	phase-25b	operators-references	language/expressions/tagged-template	-	-	-
-expressions/tagged-template/cache-identical-source-new-function.js	language:expressions	phase-25b	operators-references	language/expressions/tagged-template	-	-	-
-expressions/tagged-template/cache-identical-source.js	language:expressions	phase-25b	operators-references	language/expressions/tagged-template	-	-	-
-expressions/tagged-template/cache-same-site-top-level.js	language:expressions	phase-25b	operators-references	language/expressions/tagged-template	-	-	-
-expressions/tagged-template/cache-same-site.js	language:expressions	phase-25b	operators-references	language/expressions/tagged-template	-	-	-
-expressions/tagged-template/call-expression-argument-list-evaluation.js	language:expressions	phase-25b	operators-references	language/expressions/tagged-template	-	-	-
-expressions/tagged-template/call-expression-context-no-strict.js	language:expressions	phase-25b	operators-references	language/expressions/tagged-template	-	noStrict	-
-expressions/tagged-template/call-expression-context-strict.js	language:expressions	phase-25b	operators-references	language/expressions/tagged-template	-	onlyStrict	-
-expressions/tagged-template/chained-application.js	language:expressions	phase-25b	operators-references	language/expressions/tagged-template	-	-	-
-expressions/tagged-template/constructor-invocation.js	language:expressions	phase-25b	operators-references	language/expressions/tagged-template	-	-	-
-expressions/tagged-template/invalid-escape-sequences.js	language:expressions	phase-25b	operators-references	language/expressions/tagged-template	-	-	-
-expressions/tagged-template/member-expression-argument-list-evaluation.js	language:expressions	phase-25b	operators-references	language/expressions/tagged-template	-	-	-
-expressions/tagged-template/member-expression-context.js	language:expressions	phase-25b	operators-references	language/expressions/tagged-template	-	-	-
-expressions/tagged-template/template-object-frozen-non-strict.js	language:expressions	phase-25b	operators-references	language/expressions/tagged-template	-	noStrict	-
-expressions/tagged-template/template-object-frozen-strict.js	language:expressions	phase-25b	operators-references	language/expressions/tagged-template	-	onlyStrict	-
-expressions/tagged-template/template-object-template-map.js	language:expressions	phase-25b	operators-references	language/expressions/tagged-template	-	-	-
-expressions/tagged-template/template-object.js	language:expressions	phase-25b	operators-references	language/expressions/tagged-template	-	-	propertyHelper.js
-expressions/template-literal/evaluation-order.js	language:expressions	phase-25b	operators-references	language/expressions/template-literal	-	-	-
-expressions/template-literal/tv-character-escape-sequence.js	language:expressions	phase-25b	operators-references	language/expressions/template-literal	-	-	-
-expressions/template-literal/tv-hex-escape-sequence.js	language:expressions	phase-25b	operators-references	language/expressions/template-literal	-	-	-
-expressions/template-literal/tv-line-continuation.js	language:expressions	phase-25b	operators-references	language/expressions/template-literal	-	-	-
 expressions/template-literal/tv-line-terminator-sequence.js	language:expressions	phase-25b	operators-references	language/expressions/template-literal	-	-	-
-expressions/template-literal/tv-no-substitution.js	language:expressions	phase-25b	operators-references	language/expressions/template-literal	-	-	-
-expressions/template-literal/tv-null-character-escape-sequence.js	language:expressions	phase-25b	operators-references	language/expressions/template-literal	-	-	-
-expressions/template-literal/tv-template-character.js	language:expressions	phase-25b	operators-references	language/expressions/template-literal	-	-	-
-expressions/template-literal/tv-template-characters.js	language:expressions	phase-25b	operators-references	language/expressions/template-literal	-	-	-
-expressions/template-literal/tv-template-head.js	language:expressions	phase-25b	operators-references	language/expressions/template-literal	-	-	-
-expressions/template-literal/tv-template-middle.js	language:expressions	phase-25b	operators-references	language/expressions/template-literal	-	-	-
-expressions/template-literal/tv-template-tail.js	language:expressions	phase-25b	operators-references	language/expressions/template-literal	-	-	-
-expressions/template-literal/tv-utf16-escape-sequence.js	language:expressions	phase-25b	operators-references	language/expressions/template-literal	-	-	-
-expressions/template-literal/tv-zwnbsp.js	language:expressions	phase-25b	operators-references	language/expressions/template-literal	-	-	-
 expressions/yield/from-with.js	language:expressions	phase-25b	generators	language/expressions/yield	generators	noStrict	-
 function-code/10.4.3-1-17-s.js	language:function-code	phase-25b	functions-arguments	language/function-code	-	onlyStrict	-
 global-code/S10.4.1_A1_T1.js	language:global-code	phase-25b	other-runtime	language/global-code	-	noStrict	-

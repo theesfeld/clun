@@ -1,5 +1,5 @@
 # test262 execution-phase pass-list (PLAN.md §3.1). Sorted; only grows.
-# Regenerate: CLUN_GEN=1 CLUN_EXEC=1 make conformance. 25647 entries.
+# Regenerate: CLUN_GEN=1 CLUN_EXEC=1 make conformance. 25688 entries.
 arguments-object/10.5-7-b-2-s.js
 arguments-object/10.5-7-b-3-s.js
 arguments-object/10.5-7-b-4-s.js
@@ -11606,11 +11606,13 @@ built-ins/String/raw/return-empty-string-if-length-is-zero-boolean.js
 built-ins/String/raw/return-empty-string-if-length-is-zero-null.js
 built-ins/String/raw/return-empty-string-if-length-is-zero-or-less-number.js
 built-ins/String/raw/return-empty-string-if-length-is-zero-or-less-string.js
+built-ins/String/raw/return-the-string-value-from-template.js
 built-ins/String/raw/return-the-string-value.js
 built-ins/String/raw/returns-abrupt-from-next-key-toString.js
 built-ins/String/raw/returns-abrupt-from-next-key.js
 built-ins/String/raw/returns-abrupt-from-substitution-symbol.js
 built-ins/String/raw/returns-abrupt-from-substitution.js
+built-ins/String/raw/special-characters.js
 built-ins/String/raw/substitutions-are-appended-on-same-index.js
 built-ins/String/raw/substitutions-are-limited-to-template-raw-length.js
 built-ins/String/raw/template-length-is-symbol-throws.js
@@ -11618,6 +11620,8 @@ built-ins/String/raw/template-length-throws.js
 built-ins/String/raw/template-not-object-throws.js
 built-ins/String/raw/template-raw-not-object-throws.js
 built-ins/String/raw/template-raw-throws.js
+built-ins/String/raw/template-substitutions-are-appended-on-same-index.js
+built-ins/String/raw/zero-literal-segments.js
 built-ins/String/symbol-string-coercion.js
 built-ins/String/symbol-wrapping.js
 built-ins/Symbol/asyncIterator/prop-desc.js
@@ -18159,6 +18163,7 @@ expressions/new.target/value-via-member.js
 expressions/new.target/value-via-new.js
 expressions/new.target/value-via-super-call.js
 expressions/new.target/value-via-super-property.js
+expressions/new.target/value-via-tagged-template.js
 expressions/new/S11.2.2_A1.1.js
 expressions/new/S11.2.2_A1.2.js
 expressions/new/S11.2.2_A2.js
@@ -19461,6 +19466,30 @@ expressions/super/prop-expr-uninitialized-this-putvalue-increment.js
 expressions/super/prop-expr-uninitialized-this-putvalue.js
 expressions/super/prop-poisoned-underscore-proto.js
 expressions/super/super-reference-resolution.js
+expressions/tagged-template/cache-different-functions-same-site.js
+expressions/tagged-template/cache-differing-expressions-eval.js
+expressions/tagged-template/cache-differing-expressions-new-function.js
+expressions/tagged-template/cache-differing-expressions.js
+expressions/tagged-template/cache-differing-raw-strings.js
+expressions/tagged-template/cache-differing-string-count.js
+expressions/tagged-template/cache-identical-source-eval.js
+expressions/tagged-template/cache-identical-source-new-function.js
+expressions/tagged-template/cache-identical-source.js
+expressions/tagged-template/cache-same-site-top-level.js
+expressions/tagged-template/cache-same-site.js
+expressions/tagged-template/call-expression-argument-list-evaluation.js
+expressions/tagged-template/call-expression-context-no-strict.js
+expressions/tagged-template/call-expression-context-strict.js
+expressions/tagged-template/chained-application.js
+expressions/tagged-template/constructor-invocation.js
+expressions/tagged-template/invalid-escape-sequences.js
+expressions/tagged-template/member-expression-argument-list-evaluation.js
+expressions/tagged-template/member-expression-context.js
+expressions/tagged-template/template-object-frozen-non-strict.js
+expressions/tagged-template/template-object-frozen-strict.js
+expressions/tagged-template/template-object-template-map.js
+expressions/tagged-template/template-object.js
+expressions/template-literal/evaluation-order.js
 expressions/template-literal/literal-expr-abrupt.js
 expressions/template-literal/literal-expr-function.js
 expressions/template-literal/literal-expr-member-expr.js
@@ -19488,6 +19517,18 @@ expressions/template-literal/middle-list-one-expr-tostr-error.js
 expressions/template-literal/mongolian-vowel-separator-eval.js
 expressions/template-literal/mongolian-vowel-separator.js
 expressions/template-literal/no-sub.js
+expressions/template-literal/tv-character-escape-sequence.js
+expressions/template-literal/tv-hex-escape-sequence.js
+expressions/template-literal/tv-line-continuation.js
+expressions/template-literal/tv-no-substitution.js
+expressions/template-literal/tv-null-character-escape-sequence.js
+expressions/template-literal/tv-template-character.js
+expressions/template-literal/tv-template-characters.js
+expressions/template-literal/tv-template-head.js
+expressions/template-literal/tv-template-middle.js
+expressions/template-literal/tv-template-tail.js
+expressions/template-literal/tv-utf16-escape-sequence.js
+expressions/template-literal/tv-zwnbsp.js
 expressions/this/11.1.1-1.js
 expressions/this/S11.1.1_A3.1.js
 expressions/this/S11.1.1_A3.2.js

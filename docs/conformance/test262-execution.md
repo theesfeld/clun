@@ -8,10 +8,10 @@ This is a deterministic analysis of the authoritative execution classification l
 |---|---|
 | generator | `scripts/test262-buckets.lisp` |
 | vendor-test262-commit | `d1d583db95a521218f3eb8341a887fd63eda8ff1` |
-| source-revision | `working-tree@7f443be629d66f5d11f3a81590de8160b6522ab0` |
+| source-revision | `working-tree@132d7b711e0cdef712fa41ed832e26b917d6e650` |
 | classification-ledger | `tmp-test/test262-exec-classifications.tsv` |
 | frozen-passlist | `tests/conformance/exec-passlist.txt` |
-| classification-ledger-fnv-1a-64 | `505954B27BF44A08` |
+| classification-ledger-fnv-1a-64 | `C69927D3946A20FB` |
 
 The digest is FNV-1a-64 over the ledger's exact input bytes; it is not SHA.
 
@@ -20,13 +20,13 @@ The digest is FNV-1a-64 over the ledger's exact input bytes; it is not SHA.
 | Measure | Exact value |
 |---|---:|
 | Total | 40654 |
-| Pass | 25647 |
-| Fail | 2516 |
+| Pass | 25688 |
+| Fail | 2475 |
 | Skip | 12491 |
 | Crash | 0 |
 | Eligible (`pass + fail`) | 28163 |
-| Pass rate | 25647 / 28163 = 91.066293% |
-| Frozen baseline pass count | 25647 |
+| Pass rate | 25688 / 28163 = 91.211874% |
+| Frozen baseline pass count | 25688 |
 | Current-pass delta from frozen baseline | +0 |
 | `ceil(90% * eligible)` | 25347 |
 | Required pass lift | 0 |
@@ -35,7 +35,7 @@ The digest is FNV-1a-64 over the ledger's exact input bytes; it is not SHA.
 
 | Phase owner | Fail rows |
 |---|---:|
-| `phase-25b` | 1808 |
+| `phase-25b` | 1767 |
 | `phase-37` | 708 |
 
 Phase ownership is orthogonal to the implementation work buckets below.
@@ -57,12 +57,12 @@ Phase ownership is orthogonal to the implementation work buckets below.
 | 11 | `collections` | 238 |
 | 12 | `arrays` | 249 |
 | 13 | `objects` | 32 |
-| 14 | `functions-arguments` | 44 |
-| 15 | `operators-references` | 177 |
-| 16 | `primitive-builtins` | 197 |
+| 14 | `functions-arguments` | 43 |
+| 15 | `operators-references` | 141 |
+| 16 | `primitive-builtins` | 193 |
 | 17 | `other-runtime` | 148 |
 
-The work buckets are mutually exclusive, first-match wins, and their counts sum to 2516.
+The work buckets are mutually exclusive, first-match wins, and their counts sum to 2475.
 
 ## Top 25 owner counts
 
@@ -71,8 +71,8 @@ The work buckets are mutually exclusive, first-match wins, and their counts sum 
 | 382 | `builtin:TypedArray` |
 | 337 | `builtin:Array` |
 | 284 | `language:statements` |
-| 232 | `language:expressions` |
 | 204 | `builtin:RegExp` |
+| 195 | `language:expressions` |
 | 183 | `language:eval-code` |
 | 156 | `builtin:Set` |
 | 129 | `builtin:DataView` |
@@ -83,8 +83,8 @@ The work buckets are mutually exclusive, first-match wins, and their counts sum 
 | 43 | `builtin:Map` |
 | 38 | `builtin:Object` |
 | 36 | `builtin:WeakMap` |
-| 34 | `builtin:String` |
 | 30 | `builtin:Error` |
+| 30 | `builtin:String` |
 | 25 | `builtin:JSON` |
 | 19 | `builtin:Math` |
 | 19 | `builtin:Number` |
@@ -122,11 +122,11 @@ Counts are sorted by count descending, then raw value ascending. Showing 25 of 3
 | 26 | `built-ins/RegExp/prototype/Symbol.split` |
 | 25 | `built-ins/TypedArray/prototype/subarray` |
 | 24 | `built-ins/Set/prototype/union` |
-| 24 | `language/expressions/tagged-template` |
 | 23 | `built-ins/Set/prototype/difference` |
 | 23 | `built-ins/Set/prototype/intersection` |
+| 23 | `built-ins/Set/prototype/symmetricDifference` |
 
-Counts are sorted by count descending, then raw value ascending. Showing 25 of 301 distinct values.
+Counts are sorted by count descending, then raw value ascending. Showing 25 of 299 distinct values.
 
 ## Top 25 raw feature counts
 
@@ -158,7 +158,7 @@ Counts are sorted by count descending, then raw value ascending. Showing 25 of 3
 | 28 | `error-stack-accessor` |
 | 25 | `arrow-function` |
 
-Counts are sorted by count descending, then raw value ascending. Showing 25 of 74 distinct values.
+Counts are sorted by count descending, then raw value ascending. Showing 25 of 73 distinct values.
 
 ## Top 25 raw include counts
 
@@ -167,7 +167,7 @@ Counts are sorted by count descending, then raw value ascending. Showing 25 of 7
 | 441 | `testTypedArray.js` |
 | 270 | `compareArray.js` |
 | 258 | `detachArrayBuffer.js` |
-| 194 | `propertyHelper.js` |
+| 193 | `propertyHelper.js` |
 | 141 | `asyncHelpers.js` |
 | 39 | `isConstructor.js` |
 | 19 | `nativeErrors.js` |
