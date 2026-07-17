@@ -13,7 +13,7 @@ their contents cannot create operators, substitutions, redirects, globs, or extr
   operators, sequences, assignments, tilde expansion, and `Clun.Glob` expansion into an explicit AST.
 - Treat scalar interpolation as one inert argument and flatten array interpolation into inert arguments with
   a bounded nesting depth. Only an explicit `{ raw: source }` interpolation opts source text into grammar.
-- Execute `echo`, `basename`, `dirname`, `seq`, `yes`, `cat`, `mkdir`, `touch`, `rm`, `mv`, `ls`, `cp`, `pwd`, `cd`, `true`, `false`,
+- Execute `echo`, `basename`, `dirname`, `seq`, `yes`, `cat`, `mkdir`, `touch`, `rm`, `mv`, `ls`, `cp`, `pwd`, `cd`, `true`, `false`, `[[`,
   `:`, `export`, `unset`, `which`, and `exit` internally. `seq` uses Bun-compatible f32 accumulation and
   non-advance termination, bounds output to one million items, and additionally supports fixed-width and
   one floating printf conversion. `yes` matches the pinned Bun byte-buffer contract by repeating its joined
@@ -30,6 +30,10 @@ their contents cannot create operators, substitutions, redirects, globs, or extr
   targets, rejects identical/self-descendant copies, and replaces observed destination symlinks instead of
   intentionally writing through them. Regular destinations are opened with `O_NOFOLLOW`, and copied modes
   are applied to the open descriptor so a replacement race cannot redirect file contents or chmod.
+- Evaluate the active non-todo conditional-expression subgroup internally: nonempty/empty strings, regular
+  files, directories, character devices, and string equality/inequality. The same bounded evaluator handles
+  symlinks, file identity, and strict integer comparisons. Conditional expansion preserves an unquoted empty
+  variable as an empty operand.
 - Resolve external programs against the job's `PATH`, require executable permission, and use
   `sb-ext:run-program` directly. The implementation does not invoke `sh`, `bash`, or another command parser.
 - Spawn every command in an external-only pipeline before waiting. Intermediate streams are connected while
@@ -61,6 +65,8 @@ an internal `yes | head` streaming case, and the explicit standalone unbounded-o
 fixture independently drains 1 MiB from that internal producer to prove behavior beyond pipe capacity.
 It also freezes active `pipeline_stack.test.ts` behavior for last-command status, `exit`, cwd and environment
 isolation, immediate `yes` sinks, and a 20-stage builtin pipeline.
+The conditional fixture freezes the active `shell-seq-condexpr.test.ts` empty-path regressions and the
+non-todo `bunshell.test.ts` unary/string cases, including both conditional pipeline positions.
 `tests/lisp/runtime/shell-tests.lisp` separately
 owns parser and built-in behavior without an external process dependency.
 

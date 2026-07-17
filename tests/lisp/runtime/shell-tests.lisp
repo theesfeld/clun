@@ -187,6 +187,46 @@
                    (clun.runtime::shell-result-stderr result)))
     (is = 1 (clun.runtime::shell-result-exit-code result))))
 
+(define-test shell/conditional-expression-core
+  (let* ((directory (clun.runtime::%shell-temp-directory))
+         (state (shell-test-state)))
+    (labels ((exit-code (&rest terms)
+               (clun.runtime::shell-result-exit-code
+                (clun.runtime::%shell-run-condition
+                 (append terms (list "]]")) state))))
+      (unwind-protect
+           (progn
+             (setf (clun.runtime::shell-state-cwd state) directory)
+             (sys:write-file-octets (sys:path-join directory "file")
+                                    (eng:code-units->utf8 "payload"))
+             (sys:make-directory (sys:path-join directory "dir"))
+             (sys:make-symlink "file" (sys:path-join directory "link"))
+             (is = 0 (exit-code "-f" "file"))
+             (is = 1 (exit-code "-f" "dir"))
+             (is = 0 (exit-code "-d" "dir"))
+             (is = 1 (exit-code "-d" "file"))
+             (is = 0 (exit-code "-L" "link"))
+             (is = 1 (exit-code "-f" ""))
+             (is = 1 (exit-code "-d" ""))
+             (is = 0 (exit-code "-n" "value"))
+             (is = 0 (exit-code "-z" ""))
+             (is = 0 (exit-code "alpha" "==" "alpha"))
+             (is = 0 (exit-code "alpha" "!=" "beta"))
+             (is = 0 (exit-code "7" "-gt" "4"))
+             (is = 0 (exit-code "file" "-ef" "file")))
+        (ignore-errors (sys:remove-recursive directory))))))
+
+(define-test shell/conditional-expansion-preserves-empty-operands
+  (multiple-value-bind (output exit-code)
+      (shell-test-output
+       "CLUN_COND_EMPTY=; [[ -z $CLUN_COND_EMPTY ]] && echo empty")
+    (is equal (format nil "empty~%") output)
+    (is = 0 exit-code))
+  (multiple-value-bind (output exit-code)
+      (shell-test-output "true | [[ -n test ]] && echo ok")
+    (is equal (format nil "ok~%") output)
+    (is = 0 exit-code)))
+
 (define-test shell/lines-preserve-string-split-boundaries
   (is equal '() (clun.runtime::%shell-lines ""))
   (is equal '("hello") (clun.runtime::%shell-lines "hello"))

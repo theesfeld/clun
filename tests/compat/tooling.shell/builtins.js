@@ -144,6 +144,27 @@ check(Clun.$`basename`, 1, "", "usage: basename string\n", "basename usage")
   })
   .then(() => check(Clun.$`mkdir -p clun-shell-builtins.tmp/nested`, 0, "", "", "mkdir parents"))
   .then(() => check(Clun.$`touch clun-shell-builtins.tmp/one clun-shell-builtins.tmp/two`, 0, "", "", "touch files"))
+  .then(() => check(Clun.$`ln -s one clun-shell-builtins.tmp/conditional-link`, 0, "", "", "conditional symlink setup"))
+  .then(() => check(Clun.$`[[ -f clun-shell-builtins.tmp/one ]] && echo regular`, 0, "regular\n", "", "conditional regular file"))
+  .then(() => check(Clun.$`[[ -d clun-shell-builtins.tmp/nested ]] && echo directory`, 0, "directory\n", "", "conditional directory"))
+  .then(() => check(Clun.$`[[ -c /dev/null ]] && echo character`, 0, "character\n", "", "conditional character device"))
+  .then(() => check(Clun.$`[[ -L clun-shell-builtins.tmp/conditional-link ]] && echo symlink`, 0, "symlink\n", "", "conditional symlink"))
+  .then(() => check(Clun.$`[[ -f "" ]]`, 1, "", "", "conditional empty file path"))
+  .then(() => check(Clun.$`[[ -d "" ]]`, 1, "", "", "conditional empty directory path"))
+  .then(() => check(
+    Clun.$`CLUN_COND_EMPTY=; [[ -z $CLUN_COND_EMPTY ]] && echo empty`,
+    0,
+    "empty\n",
+    "",
+    "conditional empty expansion",
+  ))
+  .then(() => check(Clun.$`[[ alpha == alpha ]] && echo equal`, 0, "equal\n", "", "conditional equality"))
+  .then(() => check(Clun.$`[[ alpha != beta ]] && echo different`, 0, "different\n", "", "conditional inequality"))
+  .then(() => check(Clun.$`[[ -n test ]] | true && echo ok`, 0, "ok\n", "", "conditional producer pipeline"))
+  .then(() => check(Clun.$`true | [[ -n test ]] && echo ok`, 0, "ok\n", "", "conditional consumer pipeline"))
+  .then(() => {
+    console.log("conditional-expressions");
+  })
   .then(() => check(Clun.$`printf alpha > clun-shell-builtins.tmp/one`, 0, "", "", "write first"))
   .then(() => check(Clun.$`printf beta > clun-shell-builtins.tmp/two`, 0, "", "", "write second"))
   .then(() => check(Clun.$`cat clun-shell-builtins.tmp/one clun-shell-builtins.tmp/two`, 0, "alphabeta", "", "cat files"))

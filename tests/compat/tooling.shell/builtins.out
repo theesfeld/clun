@@ -5,6 +5,7 @@ exit
 seq
 yes
 builtin-pipelines
+conditional-expressions
 filesystem-builtins
 rm
 mv
