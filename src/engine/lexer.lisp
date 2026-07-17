@@ -292,6 +292,11 @@ Returns :ok, or :invalid for an escape only legal in tagged templates (cooked=ni
           (let ((cp (handler-case (read-unicode-escape-value lx)
                       (js-native-error (e)
                         (if template (return-from read-string-escape :invalid)
+                            (error e)))
+                      ;; Once a realm exists, lexer errors carry a real JS Error
+                      ;; object in JS-CONDITION rather than JS-NATIVE-ERROR.
+                      (js-condition (e)
+                        (if template (return-from read-string-escape :invalid)
                             (error e))))))
             (%push-code-point cp out)))
          (t (vector-push-extend c out)))))                ; \<other> -> the char

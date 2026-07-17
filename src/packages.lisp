@@ -42,7 +42,8 @@
            #:open-regular-file-stream
            #:make-directory #:remove-directory #:remove-file #:rename-path #:make-symlink
            #:read-symlink #:change-mode #:truncate-file #:make-temp-dir #:check-access
-           #:remove-recursive #:read-file-octets #:write-file-octets #:copy-file*))
+           #:touch-file #:remove-recursive #:read-file-octets #:write-file-octets
+           #:write-fd-octets #:copy-file* #:copy-file-stream))
 
 (defpackage :clun.csrf
   (:use :cl)
@@ -304,7 +305,7 @@
   (:documentation "Globals wiring: console/inspector, process, timers, Clun global, node/ modules.")
   (:export #:install-runtime #:process-exit #:process-exit-code
            #:run-exit-handlers #:*runtime* #:runtime-exit-code #:format-log-args
-           #:safe-integer))
+           #:safe-integer #:execute-shell-script))
 
 (defpackage :clun
   (:use :cl)

@@ -40,6 +40,25 @@
   (is eq eng:+false+ (ev "1 === '1'"))
   (is eq eng:+true+ (ev "null == undefined")))
 
+(define-test eval/tagged-templates
+  (is string= "a|b|c:1,2"
+      (ev "function tag(strings,a,b){return strings.join('|')+':'+a+','+b}tag`a${1}b${2}c`"))
+  (is string= "true,true,true,false|false,true,true,false"
+      (ev "var first;function tag(strings){if(!first)first=strings;return [first===strings,Object.isFrozen(strings),Object.isFrozen(strings.raw),Object.getOwnPropertyDescriptor(strings,'raw').enumerable].join(',')}var a=tag`x${1}y`;var b=tag`x${2}y`;[a,b].join('|')")
+      "each syntactic site has a distinct template object")
+  (is string= "true,true,true,false"
+      (ev "var seen;function tag(strings){if(!seen)seen=strings;return [seen===strings,Object.isFrozen(strings),Object.isFrozen(strings.raw),Object.getOwnPropertyDescriptor(strings,'raw').enumerable].join(',')}function run(x){return tag`x${x}y`}run(1);run(2)"))
+  (is string= "receiver:a,b:7"
+      (ev "var object={name:'receiver',tag:function(strings,value){return this.name+':'+strings.join(',')+':'+value}};object.tag`a${7}b`"))
+  (is string= "derived:x,y:8"
+      (ev "class Base{tag(strings,value){return this.name+':'+strings.join(',')+':'+value}}class Derived extends Base{constructor(){super();this.name='derived'}run(){return super.tag`x${8}y`}}new Derived().run()"))
+  (is string= "key,get,sub,call"
+      (ev "var log=[];var object={get tag(){log.push('get');return function(strings,value){log.push('call');return log.join(',')}}};function key(){log.push('key');return 'tag'}function sub(){log.push('sub');return 1}object[key()]`x${sub()}y`"))
+  (is string= "undefined:true"
+      (ev "function tag(strings){var raw=strings.raw[0];return String(strings[0])+':'+(raw.length===2&&raw.charCodeAt(0)===92&&raw.charCodeAt(1)===120)}tag`\\x`"))
+  (is string= "TypeError:0"
+      (ev "var hit=0,name='';try{({tag:1}).tag`x${hit++}y`}catch(error){name=error.name}name+':'+hit")))
+
 (define-test eval/functions-and-closures
   (is eql 7d0 (ev "function add(a,b){ return a+b; } add(3,4)"))
   (is eql 120d0 (ev "function f(n){ return n<=1 ? 1 : n*f(n-1); } f(5)"))

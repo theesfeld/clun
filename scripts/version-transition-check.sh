@@ -272,8 +272,10 @@ remote_resource_exists() {
   fail "could not verify $resource_label: ${remote_error:-unknown GitHub API error}"
 }
 
-published_version_exists() {
-  release_tag=v$current_version
+published_tag_exists() {
+  # Sets published_reason on success. Caller supplies the bare SemVer version.
+  probe_version=$1
+  release_tag=v$probe_version
   if git show-ref --verify --quiet "refs/tags/$release_tag"; then
     published_reason="local tag $release_tag"
     return 0
@@ -293,6 +295,34 @@ published_version_exists() {
     return 0
   fi
   return 1
+}
+
+published_version_exists() {
+  published_tag_exists "$current_version"
+}
+
+# True when every intermediate same-prefix prerelease between base_number and
+# current_number (exclusive of both ends) is still unpublished. Used so parallel
+# draft units may allocate a later slot while an earlier candidate remains
+# untagged; once any intermediate is published, the skip is rejected.
+unpublished_prerelease_gap() {
+  gap_prefix=$1
+  gap_base_number=$2
+  gap_current_number=$3
+  gap_core=$4
+  gap_cursor=$(increment_uint "$gap_base_number")
+  while [ "$(compare_uint "$gap_cursor" "$gap_current_number")" -lt 0 ]; do
+    if [ -n "$gap_prefix" ]; then
+      gap_version="$gap_core-$gap_prefix.$gap_cursor"
+    else
+      gap_version="$gap_core-$gap_cursor"
+    fi
+    if published_tag_exists "$gap_version"; then
+      return 1
+    fi
+    gap_cursor=$(increment_uint "$gap_cursor")
+  done
+  return 0
 }
 
 materialize_checked_path() {
@@ -609,9 +639,17 @@ else
     current_number=$(printf '%s\n' "$current_sequence" | awk -F '\t' '{ print $2 }')
     [ "$current_prefix" = "$base_prefix" ] ||
       fail "same-core prerelease prefix changed: $base_version -> $current_version"
+    sequence_cmp=$(compare_uint "$current_number" "$base_number")
+    [ "$sequence_cmp" -gt 0 ] ||
+      fail "same-core prerelease must advance: $base_version -> $current_version"
     expected_number=$(increment_uint "$base_number")
-    [ "$current_number" = "$expected_number" ] ||
-      fail "same-core prerelease must advance exactly once: expected $base_prefix${base_prefix:+.}$expected_number"
+    if [ "$current_number" != "$expected_number" ]; then
+      # Multi-step advance is allowed only while every skipped intermediate
+      # remains unpublished (no local tag, remote tag, or GitHub release).
+      unpublished_prerelease_gap "$base_prefix" "$base_number" \
+        "$current_number" "$base_core" ||
+        fail "same-core prerelease skips a published intermediate: expected $base_prefix${base_prefix:+.}$expected_number"
+    fi
     transition='prerelease'
   fi
 fi

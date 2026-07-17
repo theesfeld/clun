@@ -1207,12 +1207,13 @@ malformed markup/CSS and asset-collision cases pass; two builds are byte-identic
 
 ### Phase 65 — Cross-platform shell API  *(deps: 24, 30)* ~9k LOC ⚡
 Objective: implement Bun's `$` shell language consistently on supported Linux and macOS targets.
-Tasks: inventory Bun `src/shell/`, shell types/docs/tests; implement tagged-template interpolation with safe
+Tasks: inventory stable Bun `src/shell/`, engineering Bun `src/runtime/shell/` plus `src/shell_parser/`,
+shell bridge files, types, docs, and tests; implement tagged-template interpolation with safe
 escaping, parser/AST, variables, quoting, expansions/globs, substitutions, pipelines, redirects, logical/
 control forms, background jobs and required builtins; expose stdout/stderr/text/json/lines, cwd/env, quiet/
 nothrow and ShellError semantics; execute external commands only as the user-requested shell feature, never
 as an internal implementation dependency; define platform-specific command behavior explicitly.
-**Gate:** `make compat FEATURE=shell` passes the complete pinned Bun shell corpus on Linux/macOS x64/arm64;
+**Gate:** `make compat FEATURE=tooling.shell` passes the complete pinned Bun shell corpus on Linux/macOS x64/arm64;
 injection fixtures prove interpolated values remain data, pipeline backpressure drains concurrently, signal/
 exit ordering matches and 1,000 jobs leak no children/fds; `make build`; `make test`; `make purity`;
 `make docs-check`.

@@ -9,16 +9,21 @@ targets are workload-specific and published;
 Clun does not claim blanket speed parity with Bun.
 
 <!-- clun-generated:release:begin -->
-> **Status: pre-alpha, under active construction.** [Phase 50](https://github.com/theesfeld/clun/issues/24) is complete.
-> It shipped as `0.1.0-dev.17` / `v0.1.0-dev.17` (SemVer impact: `minor`).
-> The verified release boundary is `v0.1.0-dev.17`, with four native archives and checksums.
-> Release-gated Pages and hosted-installer results are recorded in the canonical issue.
+> **Status: pre-alpha, under active construction.** [Phase 65](https://github.com/theesfeld/clun/issues/39) is in progress.
+> Its release-bearing target is `0.1.0-dev.18` / `v0.1.0-dev.18` (SemVer impact: `minor`).
+> The verified release boundary is `v0.1.0-dev.17`, with four native archives, checksums, Pages,
+> and hosted-installer evidence.
 > Phase 26 remains deferred until after Phase 82 and will
 > be rewritten for the repository state that exists then.
 > Clun executes its scoped JS/TS surface, but it is not a drop-in Node.js or Bun replacement.
 > The canonical issue is the live source of truth; `PLAN.md` is the technical contract and `STATE.md` is
 > the local resume checklist.
 <!-- clun-generated:release:end -->
+
+Source on draft [PR #86](https://github.com/theesfeld/clun/pull/86) is the `0.1.0-dev.18` Phase 65
+candidate. Public `tooling.shell` remains honest `Partial` (1,247/1,630 pinned sites) and is not claimed as
+`Yes`. Published `v0.1.0-dev.17` is the verified release boundary (router Yes). This unit stages Partial shell as `0.1.0-dev.18`.
+The hosted installer correctly remains on published dev.17 until the candidate is merged, tagged, and released.
 
 
 ## Install
@@ -62,18 +67,18 @@ interoperability gap.
 - `clun test` with hooks, modifiers, filters, async tests, timeouts, and about 22 matchers.
 - `clun install`, `add`, `remove`, and package scripts with a deterministic lockfile and cache.
 
-The checked-in curated test262 pass list contains 25,647 tests. The current
-40,654-row off-mode execution ledger measures 25,647 passes and 2,516 gaps across 28,163 eligible tests
-(91.06%), with 12,491 skips and zero crashes. Phase 25b's 90% target is met: the 25,347-pass target has
-zero remaining lift. The pass list gained 596 tests from milestone 5 and 3,004 from the Phase 25b entry.
+The checked-in curated test262 pass list contains 25,688 tests. The current
+40,654-row off-mode execution ledger measures 25,688 passes and 2,475 gaps across 28,163 eligible tests
+(91.21%), with 12,491 skips and zero crashes. Phase 25b's 90% target is met: the 25,347-pass target has
+zero remaining lift. The pass list gained 637 tests from milestone 5 and 3,045 from the Phase 25b entry.
 Its focused m6 slice contains 509 tests: 407 pass and 102 fail, with zero skips, timeouts, and crashes.
 All 407 milestone-owned rows pass; the 102 deliberate controls remain assigned to m11 (7) and Phase 37
 (95), leaving m6 with no owned residual. Three additional `Promise.prototype.finally` rows passed
 incidentally: `species-constructor.js`, `subclass-reject-count.js`, and `subclass-resolve-count.js`.
 Phase 32's supporting Proxy infrastructure adds 13 newly frozen passes without making a blanket Proxy
 compatibility claim. Phase 37 milestone 1 adds 173 more frozen passes without claiming complete modern
-ECMAScript parity. The full gap inventory assigns 1,808 residuals to Phase 25b and 708 to Phase 37.
-The canonical execution ledger digest is `505954B27BF44A08`.
+ECMAScript parity. The full gap inventory assigns 1,767 residuals to Phase 25b and 708 to Phase 37.
+The canonical execution ledger digest is `C69927D3946A20FB`.
 The off/eager ledgers are byte-identical; eager mode compiled
 1,030,545 forms, classified 56,018 as ineligible, fell back zero times, and executed zero interpreter
 fallbacks. The parse gate classifies
@@ -115,7 +120,7 @@ July 16, 2026. Engineering references are separately pinned to Bun commit `c1076
 | Encrypted secrets storage | No | [Phase 58](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-58) |
 | npm package management | Partial: fixture-tested; public npm is blocked by TLS interop | Phases [28](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-28), [59](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-59), [60](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-60), [61](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-61) |
 | Bundler | No: not included in the v0.1 scope | Phases [62](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-62), [63](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-63), [64](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-64), [77](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-77) |
-| Cross-platform shell API | No: spawn and package scripts only | [Phase 65](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-65) |
+| Cross-platform shell API | Partial: `Clun.$`, `clun exec`, standalone `.bun.sh` files with positional parameters, dollar and backtick command substitution, merged stdout/stderr pipelines, grouped subshells and brace groups nested across `if` control flow, Blob/Response I/O, positive extended-glob conditions, compound-word field splitting, 100-level arrays, Unicode, tilde and continuation expansion, builtins, and 1,247/1,630 pinned shell sites | [Phase 65](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-65) |
 | Jest-compatible test runner | Partial: 22 matchers; no snapshots, coverage, mocks, or concurrency | [Phase 66](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-66) |
 | Hot reloading | No | [Phase 67](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-67) |
 | Monorepo support | No: workspaces are unsupported | [Phase 60](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-60) |
@@ -151,10 +156,12 @@ workflows are read-only and fail closed if the canonical issues, README, or site
 
 <!-- clun-generated:release-summary:begin -->
 Release versions follow the actual SemVer impact recorded in the canonical issue, not the number of pushes.
-The current source version and latest published prerelease are [`0.1.0-dev.17`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.17).
+The current source is the `0.1.0-dev.18` release candidate; the immutable tag and assets are not published yet.
+The last published prerelease remains [`v0.1.0-dev.17`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.17).
 [The versioning contract](docs/versioning.md) defines prerelease sequencing, synchronized surfaces, immutable tags, assets, and installer evidence.
-[Phase 50 issue #24](https://github.com/theesfeld/clun/issues/24) is the canonical live release record.
+[Phase 65 issue #39](https://github.com/theesfeld/clun/issues/39) is the canonical live release record.
 <!-- clun-generated:release-summary:end -->
+
 
 ## The purity contract
 
@@ -193,7 +200,7 @@ vendored under `vendor/` and located via `scripts/registry.lisp`.
 make build     # compile everything, save build/clun (save-lisp-and-die)
 make test      # run the CL suites and JS/TS fixture harnesses
 make purity    # fail on any CFFI/foreign-code token
-./build/clun --version   # => clun 0.1.0-dev.17
+./build/clun --version   # => clun 0.1.0-dev.18
 ```
 
 A fresh clone builds with `make build` alone: ASDF compiles the vendored closure and `src/` into

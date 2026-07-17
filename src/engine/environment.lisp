@@ -49,6 +49,8 @@
   (coroutines '())               ; live coroutines, for teardown (Phase 06)
   (pending-rejections nil)       ; hash promise->reason of unhandled rejections (Phase 06)
   (modules nil)                  ; module registry: resolved-path(string) -> module-record (Phase 07)
+  (template-registry (make-hash-table :test 'eq))
+                                 ; TemplateLiteral parse node -> frozen template object
   (entry-module nil))            ; the graph's entry module (import.meta.main, Phase 07)
 
 (defun realm-module (realm path)

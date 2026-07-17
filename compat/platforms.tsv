@@ -91,10 +91,10 @@ tooling.hot-reload	darwin-arm64	unsupported	-	Capability is not implemented.
 tooling.hot-reload	darwin-x64	unsupported	-	Capability is not implemented.
 tooling.hot-reload	linux-arm64	unsupported	-	Capability is not implemented.
 tooling.hot-reload	linux-x64	unsupported	-	Capability is not implemented.
-tooling.shell	darwin-arm64	unsupported	-	Capability is not implemented.
-tooling.shell	darwin-x64	unsupported	-	Capability is not implemented.
-tooling.shell	linux-arm64	unsupported	-	Capability is not implemented.
-tooling.shell	linux-x64	unsupported	-	Capability is not implemented.
+tooling.shell	darwin-arm64	unverified	ev.tooling.shell.builtins.v1,ev.tooling.shell.core.v1,ev.tooling.shell.tagged-template.v1,ev.tooling.shell.upstream-low-hanging.v1	Registered executable evidence is target-scoped; the complete corpus and target receipt remain incomplete.
+tooling.shell	darwin-x64	unverified	ev.tooling.shell.builtins.v1,ev.tooling.shell.core.v1,ev.tooling.shell.tagged-template.v1,ev.tooling.shell.upstream-low-hanging.v1	Registered executable evidence is target-scoped; the complete corpus and target receipt remain incomplete.
+tooling.shell	linux-arm64	unverified	ev.tooling.shell.builtins.v1,ev.tooling.shell.core.v1,ev.tooling.shell.tagged-template.v1,ev.tooling.shell.upstream-low-hanging.v1	Registered executable evidence is target-scoped; the complete corpus and target receipt remain incomplete.
+tooling.shell	linux-x64	unverified	ev.tooling.shell.builtins.v1,ev.tooling.shell.core.v1,ev.tooling.shell.tagged-template.v1,ev.tooling.shell.upstream-low-hanging.v1	Registered executable evidence is target-scoped; the complete corpus and target receipt remain incomplete.
 tooling.single-file-executables	darwin-arm64	unsupported	-	Capability is not implemented.
 tooling.single-file-executables	darwin-x64	unsupported	-	Capability is not implemented.
 tooling.single-file-executables	linux-arm64	unsupported	-	Capability is not implemented.

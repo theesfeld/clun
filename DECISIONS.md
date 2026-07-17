@@ -2715,3 +2715,171 @@ corpus, security/resource gates, and four-target receipts pass. The pinned sourc
 Clun translation, and case-level baseline are committed together; no case can be dropped or reclassified
 silently. The dev.14 SemVer target remains valid because Phase 36's password/hash APIs are independent real
 backward-compatible functionality.
+### 2026-07-16 - Phase 65 starts at the tagged-template call boundary
+
+The shell API will use ordinary ECMAScript tagged-template semantics rather than a shell-specific parser
+shortcut at the JavaScript call boundary. Each realm therefore owns an identity-keyed template registry:
+syntactic sites receive distinct frozen cooked/raw arrays, repeated evaluation of one site reuses identity,
+and objects never cross realms. Callability is checked before template-object creation or substitution
+evaluation, and member references retain their receiver. These order rules are security-relevant groundwork
+for keeping future shell interpolations as data.
+
+This is an internal engine prerequisite, not completion of the `$` API. It has no release or public-ledger
+disposition by itself, and the existing version remains unchanged. Phase 65 and `tooling.shell` stay open
+until the public API, shell language, execution, portability, injection, backpressure, signal, and stress
+contracts pass. The exact 27-file tagged-template Test262 gate records 23 pass, the existing direct-eval
+lexical-environment failure, three policy skips, and zero timeout or crash without hiding those residuals.
+
+### 2026-07-16 - Phase 65 parses the application shell without a host shell
+
+`Clun.$` keeps ordinary template expressions as out-of-band lexer units and promotes only explicit raw
+objects into source grammar. This makes interpolation safety structural: a string containing `;`, `|`, `$()`,
+or glob metacharacters remains one argument instead of relying on reversible quoting. The parser produces a
+small shell AST and runs builtins in-process; external commands are resolved from the job environment and
+launched directly through SBCL's sanctioned subprocess API. Calling `sh -c` was rejected because it would
+make behavior host-dependent and turn parser escaping into the security boundary.
+
+External-only pipelines are started concurrently and connect adjacent process streams. Their final stdout
+and aggregate stderr use temporary files so the parent never blocks a child by delaying a terminal pipe
+drain. Pipelines containing stateful builtins currently use the bounded sequential executor and remain an
+explicit Phase 65 residual rather than being mislabeled as complete. The public API addition is a SemVer
+minor unit, but the compatibility row remains below `Yes` until the complete frozen corpus, signal/lifecycle,
+stress, and four-target gates pass.
+
+### 2026-07-16 - Phase 65 composes braces and pathname globbing without promoting substitutions to syntax
+
+Shell word expansion carries two aligned values: the observable argument and a glob pattern in which every
+syntax-bearing character from interpolation, variables, command substitution, or quoted text is escaped.
+Only unquoted literal source can introduce brace or pathname-glob syntax. A brace-and-glob word first emits
+the bounded literal brace variants, then appends matches from the original protected pattern, matching the
+pinned engineering behavior without executing a substitution twice or using a host shell.
+
+This closes the three engineering brace-plus-glob sites, including the interpolated-comma regression, while
+keeping all other corpus IDs pending until executable evidence exists. The shell row remains `Partial`; this
+is a SemVer-minor behavior increment within the already allocated `0.1.0-dev.18` Phase 65 release boundary.
+
+### 2026-07-16 - Phase 65 assignment-only pipeline stages are isolated byte-preserving boundaries
+
+An assignment-only command continues to update its command-local environment, but its result now forwards
+the incoming stdin bytes unchanged. Since ordinary standalone assignments receive an empty input, they remain
+silent and preserve their existing stateful behavior. Pipeline execution already copies state per stage, so
+the forwarded bytes do not create environment leakage into neighboring commands or the parent shell.
+
+This production change closes 74 exact stable and engineering assignment-pipeline sites through a shipped-
+binary fixture. The two parenthesized subshell sites remain pending rather than being mapped to an approximation.
+The shell row remains `Partial`; this is another SemVer-minor behavior increment within `0.1.0-dev.18`.
+
+### 2026-07-16 - Phase 65 credits the complete pinned seq cluster only through exact binary evidence
+
+The existing pure-Common-Lisp `seq` builtin now has one shipped-binary fixture covering every lexical test
+site in both frozen Bun baselines. All 60 IDs retain their own overlay rows and exact status, stdout, and stderr
+assertions; no file-level or aggregate mapping substitutes for execution. This evidence-only closure changes
+the public count but not runtime behavior or the allocated `0.1.0-dev.18` release boundary.
+
+### 2026-07-16 - Phase 65 credits the complete pinned echo cluster through exact binary evidence
+
+The shipped `echo` fixture binds all 41 active stable and engineering IDs to exact status, stdout, and stderr
+assertions. This includes the engineering trailing-newline regressions and prevents a general echo smoke test
+from being used as aggregate credit. The evidence-only closure changes the public count but not runtime
+behavior or the allocated `0.1.0-dev.18` boundary.
+
+### 2026-07-16 - Phase 65 credits the complete pinned cp cluster through hermetic binary evidence
+
+The shipped `cp` fixture binds all 32 stable and engineering IDs to independent filesystem outcomes and exact
+diagnostics. It covers overwrite, directory destinations, repeated sources, multi-source failures, same-file
+rejection, verbose paths, and recursive copies without relying on the host `cp`. This evidence-only closure
+changes the public count but not runtime behavior or the allocated `0.1.0-dev.18` boundary.
+
+### 2026-07-16 - Phase 65 separates deterministic mv/rm coverage from the open rm mutation race
+
+The shipped filesystem fixture binds all 12 `mv` IDs and eight deterministic `rm` IDs to exact outcomes.
+The engineering recursive directory-to-symlink swap site is deliberately still pending: a pre-existing
+symlink-boundary test is not credited as equivalent to its concurrent mutation race. This evidence-only
+closure changes the public count but not runtime behavior or the allocated `0.1.0-dev.18` boundary.
+
+### 2026-07-16 - Phase 65 credits deterministic ls behavior and preserves permission residuals
+
+The shipped `ls` fixture binds 50 stable and engineering inventory IDs to exact status, output, diagnostics,
+and filesystem outcomes. Recursive and hidden listings, option combinations, multiple operands, unusual
+filenames, missing paths, invalid options, and broken symlinks execute through `build/clun`. The four
+`chmod 000` cases remain pending because privileged runners and filesystem policy can legitimately change
+their outcome; no deterministic approximation receives credit. This evidence-only closure changes the public
+count but not runtime behavior or the allocated `0.1.0-dev.18` boundary.
+
+### 2026-07-17 - Phase 65 makes grouped subshells first-class AST nodes
+
+Unquoted parentheses are now depth-aware syntax in the pure-Common-Lisp lexer and parser. A group owns a
+recursive shell script, executes with copied environment, cwd, termination, and status state, accepts bounded
+pipeline input, and returns output and status to its surrounding pipeline. Parentheses inside `[[ ... ]]`
+remain operand bytes, preserving regex and arithmetic behavior. No source is reparsed by a host shell.
+
+The shipped binary closes the final two grouped assignment IDs and 118 stable and engineering pipeline-stack
+IDs, including all nested-group sites. At this checkpoint the six `if` IDs and the two `pwd | cd / | pwd` IDs
+remained pending; the conditional decision below subsequently closes the six `if` IDs. This is a SemVer-minor
+behavior increment within the allocated `0.1.0-dev.18` Phase 65 boundary.
+
+### 2026-07-17 - Phase 65 models conditionals as compound commands
+
+`if`, `elif`, `else`, and `fi` are reserved only at command boundaries and compile into recursive branch
+nodes. Conditions and bodies reuse the existing script and pipeline AST, so nested conditionals, condition
+pipelines, linebreaks, status propagation, command negation, and whole-compound redirects do not need a
+second evaluator or source rewrite. A false condition with no selected branch returns zero, matching the
+upstream contract. The implementation remains pure Common Lisp and does not delegate parsing to a host shell.
+
+The shipped-binary control-flow fixture closes 124 exact IDs across both pinned baselines, moving the finite
+corpus to 625 covered, 973 pending, and 32 upstream-inactive. Background and brace-group sites remain pending;
+no credit is inferred from related syntax. This SemVer-minor behavior remains inside the allocated
+`0.1.0-dev.18` Phase 65 boundary.
+
+### 2026-07-17 - Phase 65 opens output redirects before command execution
+
+Output redirect words are expanded and their targets are created, truncated, or opened for append before a
+command runs. Prepared redirect bindings then carry those resolved targets through ordered descriptor routing
+without reopening or truncating a path after command side effects. A filesystem failure becomes shell status
+`1` with a path-bearing diagnostic, so `.nothrow()`, `$?`, `&&`, and `||` observe command semantics instead of
+an unrelated JavaScript rejection. Input-open failures use the same status boundary.
+
+The shipped-binary file-I/O fixture closes all 51 exact stable and engineering IDs, moving the finite corpus
+to 676 covered, 922 pending, and 32 upstream-inactive. The shell row stays `Partial`; this SemVer-minor behavior
+remains inside the allocated `0.1.0-dev.18` Phase 65 boundary.
+
+### 2026-07-17 - Phase 65 makes buffered Blob and write errors first-class shell I/O
+
+Blob data is held in a private runtime subtype rather than a forgeable JavaScript property bag. Construction
+copies strings, typed-array views, ArrayBuffers, and existing Blobs into a bounded 256 MiB byte vector, and
+text, bytes, ArrayBuffer, size, and type are exposed through the branded prototype. Shell input recognizes
+Blob and Response bodies directly, bounded typed-array output retains view boundaries, and `.blob()` is
+available on job promises, successful output, and ShellError.
+
+The filesystem byte writer now uses an errno-preserving descriptor loop. A synchronous ENOSPC or other write
+failure therefore becomes an `fs-error`, then a shell status, and can drive `||` recovery even through nested
+command substitutions. The shipped public API fixture closes 50 exact IDs across seven pinned files, moving
+the corpus to 726 covered, 872 pending, and 32 upstream-inactive. `exec` and unexercised lifecycle sites remain
+pending; the shell row stays `Partial` within the allocated `0.1.0-dev.18` Phase 65 boundary.
+
+### 2026-07-17 - Phase 65 adds `clun exec` on the in-process shell engine
+
+The CLI accepts `clun exec <script>` and routes the source directly into the same Common Lisp parser and
+executor used by `Clun.$`. It does not invoke `/bin/sh`; cwd, environment, byte-exact stdout/stderr, and
+status are carried explicitly. A bare `clun` command can resolve the running executable even when `PATH`
+is empty, matching the runtime self-execution contract without changing lookup for any other command.
+
+The shipped fixture closes all 18 exact stable and engineering `exec.test.ts` IDs, including help, failure,
+large output, builtin diagnostics, `cd`, self-execution, and a non-ASCII cwd. The corpus is now 744 covered,
+854 pending, and 32 upstream-inactive. This remains SemVer-minor behavior inside the allocated
+`0.1.0-dev.18` Phase 65 boundary; the public shell row stays `Partial` pending finite-corpus closure and
+four-target receipts.
+
+### 2026-07-17 - Phase 65 closes the first broad shell-language slice
+
+The interpolation contract is now bounded at the pinned 100-level nesting limit and validates at tagged
+template construction time, so depth 101 fails synchronously before a lazy job exists. The lexer removes
+backslash-newline continuations outside single quotes. A command that disappears after substitution returns
+the substitution's status instead of manufacturing success, and `echo` preserves exactly one pure newline
+while retaining the already-frozen two-newline cap for longer runs.
+
+The shipped language fixture binds 163 exact stable and engineering `bunshell.test.ts` IDs to these behaviors
+and the existing escaping, inert interpolation, compact operator, Unicode, Latin-1, tilde, and command
+substitution surfaces. The corpus is now 907 covered, 691 pending, and 32 upstream-inactive. This is SemVer
+minor behavior inside the allocated `0.1.0-dev.18` Phase 65 boundary; the row remains `Partial` until the
+finite pending set and four platform receipts close.

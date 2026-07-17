@@ -1,0 +1,17 @@
+safe-interpolation
+array-interpolation
+pipeline
+pipeline-backpressure
+logical-operators
+command-substitution
+env-and-cwd
+redirection
+descriptor-redirection
+structured-output
+structured-error
+brace-expansion
+helpers
+promise-chain
+path-lookup
+shell-promise-api
+shell-instance
