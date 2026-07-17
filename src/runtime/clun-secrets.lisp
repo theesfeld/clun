@@ -37,23 +37,43 @@
 (defun %secrets-js-string (value)
   (and (eng:js-string-p value) value))
 
+(defun %secrets-require-set-value (value has-value-p)
+  "Bun-shaped TypeError for missing / non-string set value."
+  (cond
+    ((or (not has-value-p)
+         (eng:js-undefined-p value)
+         (eng:js-null-p value))
+     (%secrets-type-error
+      "Expected 'value' to be a string. To delete the secret, call secrets.delete instead."))
+    ((not (eng:js-string-p value))
+     (%secrets-type-error "Expected 'value' to be a string"))
+    (t value)))
+
 (defun %secrets-parse-options (args operation)
   "Parse object or positional secrets arguments.
    Returns (values service name value value-present-p allow-unrestricted-p).
-   VALUE is meaningful only for :set."
+   VALUE is meaningful only for :set.
+
+   Positional forms:
+     get/delete: (service name)
+     set:        (service name value)
+   When the first two arguments are strings, the call is treated as positional
+   even if `value` is missing or the wrong type (so set reports a value error,
+   not \"Expected options to be an object\")."
   (let ((n (length args))
         (first (eng:arg args 0))
         (second (eng:arg args 1))
         (third (eng:arg args 2)))
-    (when (and (>= n (if (eq operation :set) 3 2))
+    (when (and (>= n 2)
                (eng:js-string-p first)
-               (eng:js-string-p second)
-               (or (not (eq operation :set)) (eng:js-string-p third)))
+               (eng:js-string-p second))
       (return-from %secrets-parse-options
-        (values first second
-                (if (eq operation :set) third nil)
-                (eq operation :set)
-                nil)))
+        (if (eq operation :set)
+            (let ((has-value (>= n 3))
+                  (value (if (>= n 3) third eng:+undefined+)))
+              (%secrets-require-set-value value has-value)
+              (values first second value t nil))
+            (values first second nil nil nil))))
     (when (zerop n)
       (%secrets-type-error "Expected options to be an object"))
     (unless (eng:js-object-p first)
@@ -69,20 +89,11 @@
       (if (eq operation :set)
           (let ((has-value (eng:has-property first "value"))
                 (value (eng:js-get first "value")))
-            (cond
-              ((not has-value)
-               (%secrets-type-error
-                "Expected 'value' to be a string. To delete the secret, call secrets.delete instead."))
-              ((or (eng:js-undefined-p value) (eng:js-null-p value))
-               (%secrets-type-error
-                "Expected 'value' to be a string. To delete the secret, call secrets.delete instead."))
-              ((not (eng:js-string-p value))
-               (%secrets-type-error "Expected 'value' to be a string"))
-              (t
-               (let ((allow (eng:js-get first "allowUnrestrictedAccess")))
-                 (values service-s name-s value t
-                         (and (not (eng:js-undefined-p allow))
-                              (eng:js-truthy allow)))))))
+            (%secrets-require-set-value value has-value)
+            (let ((allow (eng:js-get first "allowUnrestrictedAccess")))
+              (values service-s name-s value t
+                      (and (not (eng:js-undefined-p allow))
+                           (eng:js-truthy allow)))))
           (values service-s name-s nil nil nil)))))
 
 (defun %secrets-dispatch (global args operation)

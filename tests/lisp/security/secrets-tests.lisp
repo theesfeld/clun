@@ -86,7 +86,19 @@
                .catch((error) => { globalThis.delCode = error.code; });
              Clun.secrets.get('clun-phase-58', 'positional')
                .then(() => { globalThis.posResolved = true; })
-               .catch((error) => { globalThis.posCode = error.code; });"
+               .catch((error) => { globalThis.posCode = error.code; });
+             try {
+               Clun.secrets.set('svc', 'name');
+               globalThis.posMissingValue = 'NO_THROW';
+             } catch (error) {
+               globalThis.posMissingValue = error.name + '|' + error.code + '|' + error.message;
+             }
+             try {
+               Clun.secrets.set('svc', 'name', 1);
+               globalThis.posBadValue = 'NO_THROW';
+             } catch (error) {
+               globalThis.posBadValue = error.name + '|' + error.code + '|' + error.message;
+             }"
             :realm realm)
            (let ((eng::*realm* realm)
                  (global (eng:realm-global realm)))
@@ -100,6 +112,10 @@
                  (eng:js-get global "emptyInvalid"))
              (true (search "Expected 'value' to be a string"
                            (eng:js-get global "missingValue")))
+             (true (search "Expected 'value' to be a string"
+                           (eng:js-get global "posMissingValue")))
+             (is string= "TypeError|ERR_INVALID_ARG_TYPE|Expected 'value' to be a string"
+                 (eng:js-get global "posBadValue"))
              (is string= "ERR_SECRETS_NOT_AVAILABLE" (eng:js-get global "gotCode"))
              (is string= "Error" (eng:js-get global "gotName"))
              (true (search "purity" (eng:js-get global "gotMsg") :test #'char-equal))

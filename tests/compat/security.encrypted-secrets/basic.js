@@ -30,6 +30,8 @@ console.log(
   errorSummary(function () { secrets.get({ service: "", name: "x" }); }),
   errorSummary(function () { secrets.set({ service: "s", name: "n" }); }),
   errorSummary(function () { secrets.set({ service: "s", name: "n", value: 1 }); }),
+  errorSummary(function () { secrets.set("s", "n"); }),
+  errorSummary(function () { secrets.set("s", "n", 1); }),
 );
 
 function settle(label, promise) {
