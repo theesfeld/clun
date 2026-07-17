@@ -121,10 +121,12 @@ console.log(
 
 let touched = false;
 let formatCode = "";
+let formatMessage = "";
 try {
   Clun.color({ get r() { touched = true; return 1; } }, "bad-format");
 } catch (error) {
   formatCode = error.code;
+  formatMessage = error.message;
 }
 let missingCode = "";
 try {
@@ -138,7 +140,15 @@ try {
 } catch (error) {
   constructError = error instanceof TypeError;
 }
-console.log("errors", formatCode, touched, missingCode, constructError);
+console.log(
+  "errors",
+  formatCode,
+  touched,
+  missingCode,
+  constructError,
+  ["'ansi-16'", "'ansi-256'", "'ansi-16m'", "'ansi-24bit'", "'ansi-truecolor'", "'[r,g,b,a]'", "'{r,g,b}'"]
+    .every((format) => formatMessage.includes(format)),
+);
 
 let arrayError;
 try {
@@ -159,4 +169,5 @@ console.log(
   arrayError.message === "Expected array length 3 or 4",
   channelError.name,
   channelError.code,
+  channelError.message === "Expected [0] to be an integer for 'color'.",
 );

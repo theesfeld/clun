@@ -14,6 +14,12 @@
     ("[rgb]" . :rgb-array) ("[rgba]" . :rgba-array) ("[r,g,b,a]" . :rgba-array)
     ("{rgb}" . :rgb-object) ("{rgba}" . :rgba-object) ("{r,g,b}" . :rgb-object)))
 
+(defun %color-format-error-message ()
+  (let* ((names (mapcar #'car +color-formats+))
+         (quoted (mapcar (lambda (name) (format nil "'~a'" name)) names)))
+    (format nil "format must be one of ~{~a~^, ~}, or ~a"
+            (butlast quoted) (car (last quoted)))))
+
 (defun %color-type-error (message)
   (let ((error (eng:make-error-object :type-error-prototype "TypeError" message)))
     (eng:js-set error "code" "ERR_INVALID_ARG_TYPE" nil)
@@ -27,12 +33,11 @@
   (unless (eng:js-string-p value)
     (%color-type-error "Expected format to be a string for 'color'."))
   (or (cdr (assoc value +color-formats+ :test #'string=))
-      (%color-type-error
-       "format must be one of 'ansi', 'ansi_16', 'ansi_16m', 'ansi_256', 'css', 'hex', 'HEX', 'hsl', 'lab', 'number', 'rgb', 'rgba', '[rgb]', '[rgba]', '{rgb}' or '{rgba}'")))
+      (%color-type-error (%color-format-error-message))))
 
 (defun %color-channel-integer (value property)
   (unless (eng:js-number-p value)
-    (%color-type-error (format nil "Expected ~a to be a integer for 'color'." property)))
+    (%color-type-error (format nil "Expected ~a to be an integer for 'color'." property)))
   (cond ((eng:js-nan-p value) 0)
         ((eng:js-infinite-p value) (if (minusp value) 0 255))
         (t (max 0 (min 255 (truncate value))))))

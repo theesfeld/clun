@@ -17,5 +17,5 @@ precision-projections hsl(210, 50.00000000000018%, 0.7843137254901961%) lab(0.50
 none #0000 color(display-p3 none 0 0 / none)
 invalid true true true true true true true
 bounds true true true true
-errors ERR_INVALID_ARG_TYPE false ERR_INVALID_ARG_TYPE true
-input-errors Error true true TypeError ERR_INVALID_ARG_TYPE
+errors ERR_INVALID_ARG_TYPE false ERR_INVALID_ARG_TYPE true true
+input-errors Error true true TypeError ERR_INVALID_ARG_TYPE true
