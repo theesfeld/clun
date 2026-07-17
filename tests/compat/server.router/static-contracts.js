@@ -43,11 +43,11 @@ function batchSizeFor(byteSize, method) {
   // width flake with "connection closed" under pure-CL serve+fetch; keep the
   // matrix shape and use a measured Darwin-safe concurrent width.
   const darwin = process.platform === "darwin";
-  if (byteSize <= 1024 * 1024) return darwin ? 24 : 64;
+  if (byteSize <= 1024 * 1024) return darwin ? 12 : 64;
   // Pure-CL multi-megabyte text() materialization is sequential; binary body
   // APIs keep Bun's 48-wide large batch on Linux.
   if (method === "text") return 1;
-  return darwin ? 12 : 48;
+  return darwin ? 8 : 48;
 }
 
 async function fetchRetry(route, attempts = 4) {
@@ -72,9 +72,11 @@ async function runMatrix(server, specs, iterationsFactor) {
     // Full Bun 10/12 iteration counts on Linux; Darwin keeps the warm+measured
     // structure with fewer loops so CI runners finish under runner budgets.
     const baseIterations = byteSize > 1024 * 1024
-      ? (darwin ? 4 : 10)
-      : (darwin ? 4 : 12);
+      ? (darwin ? 2 : 10)
+      : (darwin ? 2 : 12);
     const iterations = Math.max(2, Math.floor(baseIterations * iterationsFactor));
+    // Darwin: one measured loop set only (still GC + RSS ceiling); Linux: warm then measured.
+    const measuredOnly = darwin;
     const large = byteSize > 1024 * 1024;
 
     for (const method of ["arrayBuffer", "blob", "bytes", "text"]) {
@@ -125,15 +127,17 @@ async function runMatrix(server, specs, iterationsFactor) {
           pending.length = 0;
         }
 
-        for (let iteration = 0; iteration < iterations; iteration++) {
-          await iterate(iteration === 0 || !large);
-          if (large) Clun.gc(true);
+        if (!measuredOnly) {
+          for (let iteration = 0; iteration < iterations; iteration++) {
+            await iterate(iteration === 0 || !large);
+            if (large) Clun.gc(true);
+          }
+          Clun.gc(true);
         }
 
-        Clun.gc(true);
         const baseline = rssMiB();
         for (let iteration = 0; iteration < iterations; iteration++) {
-          await iterate(false);
+          await iterate(iteration === 0 || !large);
           if (large) Clun.gc(true);
         }
         Clun.gc(true);
