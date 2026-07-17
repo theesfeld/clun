@@ -1957,3 +1957,8 @@ Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-earl
   descriptor and string edge cases, JSX coverage mapping, parallelism/concurrency,
   watch hooks, exact 52-root Bun/Clun counts, four-target receipts,
   serial/parallel agreement, and 10k RSS.
+
+## Publication boundary
+
+- Published: `v0.1.0-dev.19` @ `1a523491` (#40); `v0.1.0-dev.21` @ `a8f45013` (#11).
+- Installer / ledger previous_version: `v0.1.0-dev.21` while source candidate is `0.1.0-dev.22`.
