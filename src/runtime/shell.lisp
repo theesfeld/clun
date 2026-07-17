@@ -32,6 +32,7 @@
   (stderr #() :type vector)
   (exit-code 0 :type integer))
 (defstruct shell-output-sink kind target)
+(defstruct shell-prepared-redirection kind target)
 (defstruct shell-state
   (env '()) cwd old-cwd (last-exit-code 0) (throws t) (quiet nil)
   (terminated nil))
@@ -1993,18 +1994,28 @@ integer conversions are deliberately rejected because seq values are f32."
        (%shell-fill-pattern array 0 (length array) pattern)))
     (t nil)))
 
+(defun %shell-redirection-kind-value (redirection)
+  (if (shell-prepared-redirection-p redirection)
+      (shell-prepared-redirection-kind redirection)
+      (shell-redirection-kind redirection)))
+
+(defun %shell-redirection-target-value (redirection state g)
+  (if (shell-prepared-redirection-p redirection)
+      (shell-prepared-redirection-target redirection)
+      (%shell-word-raw-target (shell-redirection-target redirection) state g)))
+
 (defun %shell-bounded-output-target (redirections state g)
   ;; The frozen yes corpus has one direct byte-buffer stdout redirect. Keep the
   ;; eligibility strict until ordered descriptor redirects are generalized.
   (let ((stdout-redirections
           (remove-if-not
            (lambda (redirection)
-             (member (shell-redirection-kind redirection)
+             (member (%shell-redirection-kind-value redirection)
                      '(:output :output-append :both :both-append)))
            redirections)))
     (when (= (length stdout-redirections) 1)
-      (let ((target (%shell-word-raw-target
-                     (shell-redirection-target (first stdout-redirections)) state g)))
+      (let ((target (%shell-redirection-target-value
+                     (first stdout-redirections) state g)))
         (when (or (eng:js-typed-array-p target) (eng:js-array-buffer-p target))
           target)))))
 
@@ -2710,6 +2721,19 @@ integer conversions are deliberately rejected because seq values are f32."
     (t (clun.sys:write-file-octets (%shell-target-path target state) octets
                                    :append append))))
 
+(defun %shell-prepare-output-redirection (redirection state g)
+  (let ((kind (shell-redirection-kind redirection)))
+    (if (member kind '(:output :output-append :error :error-append
+                       :both :both-append))
+        (let* ((target (%shell-word-raw-target
+                        (shell-redirection-target redirection) state g))
+               (append (member kind '(:output-append :error-append :both-append))))
+          ;; Open output paths before executing the command. A failed redirect
+          ;; must suppress command side effects and become a shell status.
+          (%shell-write-target target state *shell-empty-octets* append)
+          (make-shell-prepared-redirection :kind kind :target target))
+        (make-shell-prepared-redirection :kind kind))))
+
 (defun %shell-command-redirections (command state g stdin)
   "Apply input redirections and return stdin plus the ordered output redirections."
   (let ((input stdin) (output-redirections '()))
@@ -2719,7 +2743,8 @@ integer conversions are deliberately rejected because seq values are f32."
                        (%shell-word-raw-target (shell-redirection-target redirection)
                                                state g)
                        state))
-          (push redirection output-redirections)))
+          (push (%shell-prepare-output-redirection redirection state g)
+                output-redirections)))
     (values input (nreverse output-redirections))))
 
 (defun %shell-apply-output-redirections (result redirections state g)
@@ -2729,12 +2754,12 @@ integer conversions are deliberately rejected because seq values are f32."
          (error-sink captured-error)
          (emissions '()))
     (labels ((target-sink (redirection append)
-               (let ((target
-                       (%shell-word-raw-target
-                        (shell-redirection-target redirection) state g)))
-                 ;; Opening a pathname redirect has an observable create/truncate
-                 ;; side effect even when a later redirect replaces this fd.
-                 (%shell-write-target target state *shell-empty-octets* append)
+               (let ((target (%shell-redirection-target-value redirection state g)))
+                 ;; Direct callers may still supply parser redirections. Command
+                 ;; execution supplies pre-opened bindings so failures happen
+                 ;; before the command and paths are not truncated twice.
+                 (unless (shell-prepared-redirection-p redirection)
+                   (%shell-write-target target state *shell-empty-octets* append))
                  (make-shell-output-sink :kind :target :target target)))
              (emit (sink octets)
                (let ((entry (assoc sink emissions :test #'eq)))
@@ -2743,7 +2768,7 @@ integer conversions are deliberately rejected because seq values are f32."
                            (%shell-concat-octets (cdr entry) octets))
                      (push (cons sink octets) emissions)))))
       (dolist (redirection redirections)
-        (let ((kind (shell-redirection-kind redirection)))
+        (let ((kind (%shell-redirection-kind-value redirection)))
           (case kind
             ((:output :output-append)
              (setf output-sink
@@ -2918,8 +2943,19 @@ integer conversions are deliberately rejected because seq values are f32."
                       (%shell-run-external argv env (shell-state-cwd state) input))
                   output-redirections state g)))))))))
 
+(defun %shell-redirection-error-result (condition)
+  (%shell-result-from-strings
+   ""
+   (format nil "clun: redirection: ~a: ~a~%"
+           (%shell-coreutils-message (clun.sys:fs-error-code condition))
+           (clun.sys:fs-error-path condition))
+   1))
+
 (defun %shell-execute-command (command state g stdin)
-  (let ((result (%shell-execute-command-core command state g stdin)))
+  (let ((result
+          (handler-case (%shell-execute-command-core command state g stdin)
+            (clun.sys:fs-error (condition)
+              (%shell-redirection-error-result condition)))))
     (if (shell-command-negated command)
         (make-shell-result
          :stdout (shell-result-stdout result)

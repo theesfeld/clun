@@ -368,6 +368,30 @@
              (false (search "x.]foo" output))))
       (ignore-errors (sys:remove-recursive directory)))))
 
+(define-test shell/redirection-open-errors-are-command-statuses
+  (let* ((directory (clun.runtime::%shell-temp-directory))
+         (state (shell-test-state)))
+    (unwind-protect
+         (progn
+           (setf (clun.runtime::shell-state-cwd state) directory)
+           (let ((result
+                   (clun.runtime::%shell-execute-units
+                    (shell-test-units
+                     "touch must-not-exist > missing/output; echo status=$?")
+                    state nil)))
+             (is equal (format nil "status=1~%")
+                 (eng:utf8->code-units
+                  (clun.runtime::shell-result-stdout result)))
+             (is equal
+                 (format nil "clun: redirection: No such file or directory: ~a~%"
+                         (sys:path-join directory "missing/output"))
+                 (eng:utf8->code-units
+                  (clun.runtime::shell-result-stderr result)))
+             (is = 0 (clun.runtime::shell-result-exit-code result))
+             (is eq nil (sys:path-exists-p
+                         (sys:path-join directory "must-not-exist")))))
+      (ignore-errors (sys:remove-recursive directory)))))
+
 (define-test shell/conditional-expression-core
   (let* ((directory (clun.runtime::%shell-temp-directory))
          (state (shell-test-state)))
