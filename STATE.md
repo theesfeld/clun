@@ -11,18 +11,18 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 **Canonical issue:** https://github.com/theesfeld/clun/issues/39
 **Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/25,
-https://github.com/theesfeld/clun/issues/2, and https://github.com/theesfeld/clun/issues/40
+https://github.com/theesfeld/clun/issues/2, https://github.com/theesfeld/clun/issues/11, and https://github.com/theesfeld/clun/issues/40
 **Current implementation unit:** Phase 65 inventory burn-down — pure-CL unmatched-glob failure
 policy, assignment multi-match join, and 35 closed pending corpus sites. After merge with master
-(including #95 transport and #102 ls residual closes) disposition is **1,286 covered / 312 pending /
-32 upstream-inactive**. `tooling.shell` remains **Partial**; no Yes claim. Master holds Phase 28
-transport at unpublished candidate `0.1.0-dev.22`.
+(including #109 m3 Set methods, #95 transport, #102 ls residual closes) disposition is **1,286 covered /
+312 pending / 32 upstream-inactive**. `tooling.shell` remains **Partial**; no Yes claim. Master holds
+Phase 37 m3 at unpublished candidate `0.1.0-dev.23`.
 **SemVer impact:** `patch`
-**Candidate release:** `0.1.0-dev.22` / `v0.1.0-dev.22`
+**Candidate release:** `0.1.0-dev.23` / `v0.1.0-dev.23`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
 **Entry boundary:** immutable `v0.1.0-dev.21` is tagged; installer defaults to that tag. Master
-source is `0.1.0-dev.22` after transport #95. This unit is an **unpublished correction** of that
-candidate (release-bearing shell behavior fix; no new prerelease slot; does not steal m3=`0.1.0-dev.23`).
+source is `0.1.0-dev.23` after Phase 37 m3 #109. This unit is an **unpublished correction** of that
+candidate (release-bearing shell behavior fix; no new prerelease slot; does not allocate `0.1.0-dev.24`).
 Phase 26 remains after Phase 82.
 **Next scope:** residual parser/lifecycle/background shell rows; keep Partial until four-target
 Yes gates.
@@ -41,7 +41,7 @@ pass at `7c7377780413b98da1396f5d8e5d84611cf6cca3`; annotated tag `v0.1.0-dev.16
 release run **29561031150** published the immutable four-platform archives plus checksums. Issue #5 is
 closed complete with exact asset digests. Phase 37 milestone 1 adds `Object.hasOwn`, array copy-by-change methods, String
 well-formedness, `Error.isError`, and `Promise.withResolvers`, producing 173 measured execution-pass gains;
-its frozen inventory still has 603 residual failures after m2 and no full ledger row is claimed. Parallel durable
+its frozen inventory still has 452 residual failures after m3 and no full ledger row is claimed. Parallel durable
 checkpoints include transport request streaming plus origin-keyed HTTP pooling and shell parser/runtime,
 guarded filesystem builtins, bounded `yes`, and isolated pipeline state. Merged `master` is **9 Yes /
 7 Partial / 14 No** with shell Partial (PR #86) and test-runner Partial (PR #88) on master; this unit

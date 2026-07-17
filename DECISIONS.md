@@ -3236,5 +3236,5 @@ Brace+glob composition still keeps every brace variant as a literal while append
 matches. Inventory disposition after merge with master residual closes is
 **1,286 covered / 312 pending / 32 upstream-inactive** (35 sites closed this unit; #102 also
 closed permission-sensitive `ls` corpus sites on master). SemVer impact is `patch` as an
-unpublished correction of master `0.1.0-dev.22` after transport #95 (no new prerelease slot; does not steal m3=`0.1.0-dev.23`); `tooling.shell` stays
+unpublished correction of master `0.1.0-dev.23` after m3 #109 (no new prerelease slot; does not allocate `0.1.0-dev.24`); `tooling.shell` stays
 `Partial` (no Yes claim).
