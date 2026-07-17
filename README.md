@@ -70,18 +70,18 @@ interoperability gap.
   expected-failure modifiers, array-parameterized tests and suites, retries, and repeats.
 - `clun install`, `add`, `remove`, and package scripts with a deterministic lockfile and cache.
 
-The checked-in curated test262 pass list contains 25,752 tests. The current
-40,654-row off-mode execution ledger measures 25,752 passes and 2,411 gaps across 28,163 eligible tests
-(91.43%), with 12,491 skips and zero crashes. Phase 25b's 90% target is met: the 25,347-pass target has
-zero remaining lift. The pass list gained 701 tests from milestone 5 and 3,109 from the Phase 25b entry.
+The checked-in curated test262 pass list contains 25,793 tests. The current
+40,654-row off-mode execution ledger measures 25,793 passes and 2,370 gaps across 28,163 eligible tests
+(91.58%), with 12,491 skips and zero crashes. Phase 25b's 90% target is met: the 25,347-pass target has
+zero remaining lift. The pass list gained 742 tests from milestone 5 and 3,150 from the Phase 25b entry.
 Its focused m6 slice contains 509 tests: 407 pass and 102 fail, with zero skips, timeouts, and crashes.
 All 407 milestone-owned rows pass; the 102 deliberate controls remain assigned to m11 (7) and Phase 37
 (95), leaving m6 with no owned residual. Three additional `Promise.prototype.finally` rows passed
 incidentally: `species-constructor.js`, `subclass-reject-count.js`, and `subclass-resolve-count.js`.
 Phase 32's supporting Proxy infrastructure adds 13 newly frozen passes without making a blanket Proxy
 compatibility claim. Phase 37 milestone 1 adds 173 more frozen passes without claiming complete modern
-ECMAScript parity. The full gap inventory assigns 1,808 residuals to Phase 25b and 603 to Phase 37.
-The canonical execution ledger digest is `6A1583FC8C3EAAAF`.
+ECMAScript parity. The full gap inventory assigns 1,767 residuals to Phase 25b and 603 to Phase 37.
+The canonical execution ledger digest is `B74BA9D0C45F150C`.
 The off/eager ledgers are byte-identical; eager mode compiled
 1,030,545 forms, classified 56,018 as ineligible, fell back zero times, and executed zero interpreter
 fallbacks. The parse gate classifies
