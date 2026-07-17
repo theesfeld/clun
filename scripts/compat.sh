@@ -320,8 +320,25 @@ run_fixture() {
   status=0
   (cd "$fixture_dir" && env CI=0 "$repo_root/$executable" "$@") \
     >"$stdout" 2>"$stderr" || status=$?
-  [ "$status" -eq "$expected_exit" ] ||
+  if [ "$status" -ne "$expected_exit" ]; then
+    {
+      printf 'compat: %s exit mismatch: expected %s, got %s\n' \
+        "$evidence_id" "$expected_exit" "$status"
+      if [ -s "$stdout" ]; then
+        printf 'compat: %s stdout:\n' "$evidence_id"
+        cat "$stdout" || :
+      else
+        printf 'compat: %s stdout: <empty>\n' "$evidence_id"
+      fi
+      if [ -s "$stderr" ]; then
+        printf 'compat: %s stderr:\n' "$evidence_id"
+        cat "$stderr" || :
+      else
+        printf 'compat: %s stderr: <empty>\n' "$evidence_id"
+      fi
+    } >&2
     fail "$evidence_id exit mismatch: expected $expected_exit, got $status"
+  fi
   cmp -s "$expected_full" "$stdout" || {
     diff -u "$expected_full" "$stdout" >&2 || :
     fail "$evidence_id stdout mismatch"

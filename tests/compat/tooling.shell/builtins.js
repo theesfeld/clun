@@ -8,9 +8,38 @@ function stderr(result) {
 
 function check(job, expectedCode, expectedOut, expectedErr, label) {
   return job.quiet().nothrow().then(result => {
-    assert(result.exitCode === expectedCode, label + " exit code");
-    assert(result.text() === expectedOut, label + " stdout");
-    assert(stderr(result) === expectedErr, label + " stderr");
+    const actualErr = stderr(result);
+    if (result.exitCode !== expectedCode) {
+      throw new Error(
+        label +
+          " exit code: got " +
+          result.exitCode +
+          " want " +
+          expectedCode +
+          " stdout=" +
+          JSON.stringify(result.text()) +
+          " stderr=" +
+          JSON.stringify(actualErr),
+      );
+    }
+    if (result.text() !== expectedOut) {
+      throw new Error(
+        label +
+          " stdout: got " +
+          JSON.stringify(result.text()) +
+          " want " +
+          JSON.stringify(expectedOut),
+      );
+    }
+    if (actualErr !== expectedErr) {
+      throw new Error(
+        label +
+          " stderr: got " +
+          JSON.stringify(actualErr) +
+          " want " +
+          JSON.stringify(expectedErr),
+      );
+    }
   });
 }
 
@@ -390,4 +419,8 @@ check(Clun.$`basename`, 1, "", "usage: basename string\n", "basename usage")
     console.log("mv");
     console.log("ls");
     console.log("cp");
+  })
+  .catch(error => {
+    console.error(String(error && error.stack ? error.stack : error));
+    process.exit(1);
   });

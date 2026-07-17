@@ -1033,24 +1033,29 @@
                  (return path)))))
 
 (defun %shell-which (name env cwd)
-  (flet ((usable (path)
-           (let ((resolved (if (clun.sys:absolute-path-p path)
-                               path (clun.sys:path-join cwd path))))
-             (and (ignore-errors
-                    (and (clun.sys:file-p resolved)
-                         (clun.sys:check-access resolved 1)))
-                  resolved))))
+  (labels ((usable (path)
+             (let ((resolved (if (clun.sys:absolute-path-p path)
+                                 path (clun.sys:path-join cwd path))))
+               (and (ignore-errors
+                      (and (clun.sys:file-p resolved)
+                           (clun.sys:check-access resolved 1)))
+                    resolved)))
+           (search-path (path-value)
+             (loop with path = (or path-value "")
+                   with start = 0
+                   for colon = (position #\: path :start start)
+                   for directory = (subseq path start (or colon (length path)))
+                   for candidate = (clun.sys:path-join
+                                    (if (string= directory "") cwd directory)
+                                    name)
+                   when (usable candidate) return candidate
+                   while colon do (setf start (1+ colon)))))
     (if (find #\/ name)
         (usable name)
-        (or (loop with path = (%shell-env-get env "PATH" "")
-                  with start = 0
-                  for colon = (position #\: path :start start)
-                  for directory = (subseq path start (or colon (length path)))
-                  for candidate = (clun.sys:path-join
-                                   (if (string= directory "") cwd directory)
-                                   name)
-                  when (usable candidate) return candidate
-                  while colon do (setf start (1+ colon)))
+        (or (search-path (%shell-env-get env "PATH" ""))
+            ;; Fallback when PATH is stripped or incomplete (observed on some
+            ;; Darwin CI shells): still resolve ordinary POSIX utilities.
+            (search-path "/usr/bin:/bin:/usr/sbin:/sbin")
             (and (string= name "clun") (%shell-current-executable))))))
 
 (defun %shell-path-separator-p (character)
@@ -3400,21 +3405,38 @@ integer conversions are deliberately rejected because seq values are f32."
     (ignore-errors (sb-ext:process-close process))))
 
 (defun %shell-stream-yes-pattern (stream pattern)
-  "Write a fixed-size repeated pattern until the consumer closes its pipe."
-  (let* ((fd (clun.sys:stream-fd stream))
-         (block (make-array 65536 :element-type '(unsigned-byte 8))))
-    (unless fd (error "yes pipeline input is not an fd stream"))
-    (%shell-fill-pattern block 0 (length block) pattern)
-    (loop with offset = 0
-          for written = (%write-fd fd block offset)
-          do (cond
-               ((and (integerp written) (plusp written))
-                (if (= written (- (length block) offset))
-                    (setf offset 0)
-                    (incf offset written)))
-               ((eq written :again) (sleep 0.001))
-               (t (return))))))
+  "Write a fixed-size repeated pattern until the consumer closes its pipe.
 
+Prefer a raw FD write when STREAM is an SBCL fd-stream. Fall back to the
+character/byte stream protocol when no FD is available — some Darwin SBCL
+pipe ends expose a non-FD stream wrapper, and hard-failing there made
+`yes | head` exit 127 on macOS runners."
+  (let* ((fd (clun.sys:stream-fd stream))
+         ;; Keep the block modest so a short-lived consumer (e.g. head -c N)
+         ;; is not forced to absorb a full 64KiB pipe fill before exiting.
+         (block (make-array 4096 :element-type '(unsigned-byte 8))))
+    (%shell-fill-pattern block 0 (length block) pattern)
+    (cond
+      (fd
+       (loop with offset = 0
+             for written = (%write-fd fd block offset)
+             do (cond
+                  ((and (integerp written) (plusp written))
+                   (if (= written (- (length block) offset))
+                       (setf offset 0)
+                       (incf offset written)))
+                  ((eq written :again) (sleep 0.001))
+                  (t (return)))))
+      (t
+       (let ((text (map 'string #'code-char pattern))
+             (chunk-size (max 1 (floor 4096 (max 1 (length pattern))))))
+         (handler-case
+             (loop
+               (loop repeat chunk-size do (write-string text stream))
+               (finish-output stream))
+           (stream-error ())
+           #+sbcl (sb-int:broken-pipe ())
+           (error ())))))))
 (defun %shell-execute-yes-pipeline (pipeline state g)
   "Stream the internal YES producer into an otherwise external pipeline."
   (let ((directory (%shell-temp-directory)) (processes '())
