@@ -7,21 +7,22 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **66 - Jest-compatible test-runner parity**  (PARTIAL CHECKPOINT)
+## Current phase: **37 - Modern ECMAScript gap wave**  (M2 CHECKPOINT)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/40
+**Canonical issue:** https://github.com/theesfeld/clun/issues/11
 **Next phase issue:** https://github.com/theesfeld/clun/issues/11
 **Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/2,
-https://github.com/theesfeld/clun/issues/24, and https://github.com/theesfeld/clun/issues/39
-**Current implementation unit:** Phase 66 Partial landing pad on draft PR #88 — mocks, snapshots, coverage,
-reporters, sharding, fake timers, and preloads. Ledger `tooling.test-runner` remains **Partial** (not Yes).
-Shell Partial is published as `v0.1.0-dev.18` (merge `b5ecdb5defeef8ddede72ef794e41f14fb423b86`); installer defaults to that tag; this unit stages candidate `0.1.0-dev.19` (Phase 66 Partial).
+https://github.com/theesfeld/clun/issues/39, and https://github.com/theesfeld/clun/issues/40
+**Current implementation unit:** Phase 37 milestone 2 on draft PR #96 — pure-CL `Array.fromAsync`
+plus lexer/parser admission of nullish coalescing and numeric separators required by the frozen
+Test262 helpers. Converts 95 frozen `built-ins/Array/fromAsync` failures. No compatibility-table
+`Yes` is claimed; Phase 37 remains open with residual ownership after reclassification.
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.19` / `v0.1.0-dev.19`
+**Candidate release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
 **Published release:** `0.1.0-dev.18` / `v0.1.0-dev.18`
-**Entry boundary:** immutable `v0.1.0-dev.18` is tagged at exact master `b5ecdb5defeef8ddede72ef794e41f14fb423b86` with four native archives + checksums (release run 29596302229). Installer defaults to that tag. Master source stages `0.1.0-dev.19` Phase 66 Partial (PR #88).
-**Next scope:** post-66.23 residual close (bun:test ESM resolve, concurrent/parallel, host-meta roots); Yes only
-with full PLAN gate and four-target receipts.
+**Entry boundary:** immutable `v0.1.0-dev.18` is tagged at exact master `b5ecdb5defeef8ddede72ef794e41f14fb423b86` with four native archives + checksums (release run 29596302229); installer defaults to that tag. Master source is `0.1.0-dev.19` after test-runner PR #88. Transport holds unpublished `0.1.0-dev.20`; this unit stages `0.1.0-dev.21` under the unpublished-intermediate prerelease gap policy (transition 19→21). Phase 26 remains after Phase 82.
+**Next scope:** keep Phase 37 open (no matrix Yes); green exact-head CI on the staged candidate; residual
+modern ECMAScript inventory continues after m2; pass-list reclassification is owned by the release unit.
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
 easiest to hardest among dependency-ready rows. Core engine/runtime/network/tooling changes are expected.
@@ -40,48 +41,8 @@ well-formedness, `Error.isError`, and `Promise.withResolvers`, producing 173 mea
 its frozen inventory still has 708 residual failures and no full ledger row is claimed. Parallel durable
 checkpoints include transport request streaming plus origin-keyed HTTP pooling and shell parser/runtime,
 guarded filesystem builtins, bounded `yes`, and isolated pipeline state. Merged `master` is **9 Yes /
-7 Partial / 14 No** with the complete Phase 31 evidence attached.
-
-**Parallel Phase 65 checkpoint:** Issue [#39](https://github.com/theesfeld/clun/issues/39) remains open on
-`feat/issue-39-shell-tagged-templates`, rebased onto published dev.16 master with the current exact-coverage
-mapping. The production
-`Clun.$` shell now includes inert interpolation, a pure-CL parser and evaluator, builtins, concurrent external
-pipelines, ordered descriptor redirects, callable isolated `Shell` instances, signed-64 conditional
-arithmetic, bounded nested brace expansion, and brace-plus-glob composition with protected interpolation.
-Assignment-only pipeline stages now forward stdin without leaking their environment, and grouped subshells
-parse recursively with isolated state and buffered stdin propagation. Compound `if` / `elif` / `else`
-commands, command negation, branch status, linebreak grammar, and whole-compound redirects execute from the
-same recursive AST.
-Output redirects are opened before command execution, so invalid targets suppress command side effects and
-return ordinary status `1` diagnostics; truncation, append, pipeline delivery, and merged descriptors retain
-ordered behavior.
-The runtime now has a branded, bounded Blob implementation; shell jobs accept Blob, Buffer, Uint8Array, and
-Response stdin, emit to bounded typed-array targets, and expose Blob output on successful and failed jobs.
-Synchronous write errors retain errno as shell statuses through nested substitutions and recovery operators.
-`clun exec` now runs scripts through the same in-process shell engine, including exact help, cwd/env handling,
-large output, builtin error contracts, non-ASCII cwd, and current-executable resolution when `PATH` is empty.
-Nested interpolation arrays now support the pinned 100-level boundary, escaped newlines are continuations,
-empty substitutions retain their command status, and a single interpolated newline is not doubled by `echo`.
-Conditional string matching now supports bounded positive extended globs with nesting and alternation,
-`shopt -s extglob` executes internally, and per-job or per-shell `cwd()` changes keep `$PWD` synchronized.
-Pipeline edges now distinguish `|` from merged stdout/stderr `|&`; missing literal producers retain ordinary
-command diagnostics and last-stage status. Compound-word expansion attaches prefixes to the first split field
-and suffixes to the last, while empty-variable redirects return status `1` instead of escaping as job errors.
-Brace groups now parse as compound commands, execute in the current shell state, compose with nested groups and
-pipelines, and apply whole-group input and output redirections without colliding with brace expansion words.
-Brace and subshell groups are now opaque to the surrounding `if` reserved-word scanner, so groups execute
-correctly in conditions and every branch; command negation also applies recursively to compound commands.
-Application tags and standalone `.bun.sh` files now expose positional parameters with exact missing,
-multi-digit, and non-ASCII argument behavior.
-Historical backtick command substitution now executes in-process with quoted multiline output and its
-distinct line-continuation semantics.
-`make phase-65-shell-core-check` passes **312 / 0 / 0** plus
-**20/20** shipped `tooling.shell` evidence records; `make build`, `make purity` (**728 / 0**), and diff check
-pass. The exact stable and engineering Bun boundary is now frozen at **211 source/docs/types/test files** and
-**1,630 lexical test sites**: **1,247 covered / 351 pending / 32 upstream-inactive**. The checked-in coverage
-overlay binds every credited site to executable shipped-binary evidence and rejects stale or unknown IDs.
-The row is honestly **Partial**, not `Yes`: remaining language/API/lifecycle cases, four permission-sensitive
-`ls` sites, 1,000-job stress, and Linux/macOS x64/arm64 receipts are still open.
+7 Partial / 14 No** with shell Partial (PR #86) and test-runner Partial (PR #88) on master; this unit
+does not change the public matrix counts and claims no Yes.
 
 **M5 entry boundary:** immutable dev.4 diagnostic set **56 total / 0 pass / 56 fail / 0 skip / 0 crash**:
 **43 m5-owned** (32 intrinsic/prototype, 7 parser, 4 raw delegation), **12 m11** direct-eval/`with`

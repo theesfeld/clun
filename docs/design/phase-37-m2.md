@@ -68,6 +68,6 @@ matrix Yes row.
 ## SemVer
 
 Backward-compatible public built-in → **minor** within the `0.1.0-dev.N` train.
-Release version assignment is owned by the release unit; reserved slots
-`dev.18`/`dev.19` must not be stolen — target **`0.1.0-dev.20+`**. This
-implementation branch does not bump version files or public claims.
+This candidate stages **`0.1.0-dev.21` / `v0.1.0-dev.21`** under Issue #11 (do not steal
+`dev.18`/`dev.19`/`dev.20` owned by shell/test-runner/transport). Installer default stays on
+published `v0.1.0-dev.17`. No compatibility-table **Yes** claim.
