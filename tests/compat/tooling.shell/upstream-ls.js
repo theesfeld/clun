@@ -136,6 +136,28 @@ inspect(() => Clun.$`ls -az`.cwd(root), "invalid combined flags", (result, name)
   assert(stderr(result).includes("illegal option"), name + " stderr");
 });
 
+// Exact stable+engineering ls.test.ts L274 / L285 (chmod 000 permission sites).
+// Non-root runners only: chmod 000 must deny readdir. Always restore modes in cleanup.
+success(() => Clun.$`mkdir -p perm/restricted`.cwd(root), "", "permission setup");
+inspect(() => Clun.$`chmod 000 restricted; ls restricted; status=$?; chmod 755 restricted; exit $status`.cwd(root + "/perm"),
+  "permission denied directory", (result, name) => {
+    assert(result.exitCode === 1, name + " exit code");
+    assert(result.text() === "", name + " stdout empty");
+    assert(stderr(result).includes("Permission denied"), name + " stderr");
+  });
+
+success(() => Clun.$`mkdir -p perm-rec/level1/level2/level3; touch perm-rec/level1/file1 perm-rec/level1/file2 perm-rec/level1/file3; touch perm-rec/level1/level2/file4 perm-rec/level1/level2/file5 perm-rec/level1/level2/file6; touch perm-rec/level1/level2/level3/file7 perm-rec/level1/level2/level3/file8 perm-rec/level1/level2/level3/file9`.cwd(root),
+  "", "permission recursive setup");
+inspect(() => Clun.$`chmod 000 level1/level2; ls -R level1; status=$?; chmod 755 level1/level2; exit $status`.cwd(root + "/perm-rec"),
+  "permission denied directory recursive", (result, name) => {
+    assert(result.exitCode === 1, name + " exit code");
+    const output = lines(result.text());
+    assert(output.includes("file1"), name + " lists file1");
+    assert(output.includes("file2"), name + " lists file2");
+    assert(output.includes("file3"), name + " lists file3");
+    assert(stderr(result).includes("Permission denied"), name + " stderr");
+  });
+
 success(() => Clun.$`mkdir -p broken; touch broken/will-remove; ln -s will-remove broken/broken-file; rm broken/will-remove; mkdir broken/will-remove-dir; ln -s will-remove-dir broken/broken-dir; rm -rf broken/will-remove-dir`.cwd(root),
   "", "broken symlink setup");
 inspect(() => Clun.$`ls broken-file`.cwd(root + "/broken"), "broken file symlink", (result, name) => {
@@ -154,4 +176,4 @@ inspect(() => Clun.$`ls -RA .`.cwd(root + "/broken-rec"), "broken recursive syml
 });
 
 success(() => Clun.$`rm -rf ${root}`, "", "root cleanup");
-chain.then(() => console.log("upstream-ls: 50 exact sites"));
+chain.then(() => console.log("upstream-ls: 54 exact sites"));

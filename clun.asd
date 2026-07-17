@@ -89,7 +89,8 @@
                                            (:file "http-parser")
                                            (:file "http-client")
                                            (:file "tls12-client")
-                                           (:file "tls-client")))
+                                           (:file "tls-client")
+                                           (:file "websocket"))) ; Phase 51
                              ;; install (Phase 21): pure-CL package-manager substrate.
                              ;; It has no engine dependency, so the public runtime can
                              ;; reuse the one SemVer implementation without a late bind.
@@ -326,6 +327,7 @@
                                                          (:file "router-tests")
                                                          (:file "fetch-tests")
                                                          (:file "tls12-tests")
+                                                         (:file "websocket-tests")
                                                          (:file "web-streams-tests")
                                                          (:file "https-tests")))
                                            (:module "install"
