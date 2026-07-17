@@ -199,6 +199,7 @@
                                            (:file "web-cookies") ; Clun.Cookie/CookieMap (Phase 32)
                                            (:file "clun-serve"); Clun.serve HTTP server (Phase 17)
                                            (:file "web-url")   ; URL/URLSearchParams (Phase 18)
+                                           (:file "web-proxy") ; fetch proxy selection/auth/bypass (Phase 28)
                                            (:file "web-fetch") ; fetch (Phase 18)
                                            ;; node builtin modules (Phase 12): registry +
                                            ;; one file per module; each self-registers.

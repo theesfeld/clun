@@ -85,6 +85,84 @@ for response completion."
                 (error "TLS peer closed without close_notify for an EOF-framed response"))
                (t (error "connection closed before a full response")))))))))
 
+(defun %proxy-connect-authority (host port)
+  (if (find #\: host)
+      (format nil "[~a]:~d" host port)
+      (format nil "~a:~d" host port)))
+
+(defun %proxy-connect-request (host port authorization)
+  (let ((authority (%proxy-connect-authority host port)))
+    (%client-ascii-octets
+     (with-output-to-string (output)
+       (format output "CONNECT ~a HTTP/1.1~c~c" authority #\Return #\Newline)
+       (format output "Host: ~a~c~c" authority #\Return #\Newline)
+       (format output "Proxy-Connection: keep-alive~c~c" #\Return #\Newline)
+       (when authorization
+         (format output "Proxy-Authorization: ~a~c~c"
+                 (remove-if (lambda (character)
+                              (member character '(#\Return #\Newline)))
+                            authorization)
+                 #\Return #\Newline))
+       (format output "~c~c" #\Return #\Newline)))))
+
+(defun %read-proxy-connect-head (stream cancelled-p)
+  "Read exactly one bounded CONNECT response head, across any number of socket reads."
+  (let ((head (make-array 256 :element-type '(unsigned-byte 8)
+                              :adjustable t :fill-pointer 0))
+        (w 0) (x 0) (y 0) (z 0))
+    (loop
+      (when (and cancelled-p (funcall cancelled-p))
+        (error 'socket-open-error :code "ECANCELED" :op "proxy CONNECT"))
+      (let ((byte (read-byte stream nil nil)))
+        (unless byte
+          (error "proxy closed before completing the CONNECT response"))
+        (when (>= (fill-pointer head) *max-header-bytes*)
+          (error "proxy CONNECT response headers exceed the size limit"))
+        (vector-push-extend byte head)
+        (setf w x x y y z z byte)
+        (when (and (= w 13) (= x 10) (= y 13) (= z 10))
+          (return))))
+    (let* ((octets (subseq head 0 (fill-pointer head)))
+           (text (sb-ext:octets-to-string octets :external-format :latin-1))
+           (line-end (search (format nil "~c~c" #\Return #\Newline) text)))
+      (unless line-end
+        (error "malformed proxy CONNECT response"))
+      (multiple-value-bind (version status reason)
+          (%parse-status-line (subseq text 0 line-end))
+        (declare (ignore reason))
+        (unless version
+          (error "malformed proxy CONNECT status line"))
+        (values status octets)))))
+
+(defun %establish-http-connect
+    (stream host port authorization cancelled-p)
+  (write-sequence (%proxy-connect-request host port authorization) stream)
+  (force-output stream)
+  (%read-proxy-connect-head stream cancelled-p))
+
+(defun %deliver-proxy-connect-response
+    (stream head cancelled-p on-headers on-data on-complete)
+  "Surface a non-2xx CONNECT reply as fetch's response without origin redirect handling."
+  (multiple-value-bind (feed finish-at-eof)
+      (%make-https-response-stream-dispatcher
+       "CONNECT"
+       (lambda (response)
+         (setf (hres-proxy-response-p response) t)
+         (when on-headers (funcall on-headers response)))
+       on-data on-complete)
+    (when (funcall feed head)
+      (return-from %deliver-proxy-connect-response t))
+    (let ((buffer (make-array 65536 :element-type '(unsigned-byte 8))))
+      (loop
+        (when (and cancelled-p (funcall cancelled-p))
+          (error 'socket-open-error :code "ECANCELED" :op "proxy response"))
+        (let ((count (read-sequence buffer stream)))
+          (when (zerop count)
+            (funcall finish-at-eof t)
+            (return t))
+          (when (funcall feed (subseq buffer 0 count))
+            (return t)))))))
+
 (defun %dns-address-socket (address)
   (make-instance (if (dns-address-ipv6-p address)
                      'sb-bsd-sockets:inet6-socket
@@ -318,6 +396,7 @@ an abort can close it to unblock the blocking read."
 
 (defun https-request-stream
     (&key host port method path headers body host-header
+          proxy-host proxy-port proxy-authorization
           (ca-file (%system-ca-file)) (verify t) socket-box
           (connect-timeout-ms 30000) cancelled-p request-body-source
           on-headers on-data on-complete)
@@ -327,7 +406,9 @@ This preserves HTTPS-REQUEST's DNS, Happy Eyeballs, TLS 1.3-to-1.2 fallback,
 certificate/hostname verification, authenticated records, decompression bounds,
 and abort socket. The caller must run it off the event-loop thread. Callbacks run
 on that worker thread; an asynchronous caller is responsible for loop marshalling."
-  (let ((addresses (resolve-hostname-all host :cancelled-p cancelled-p))
+  (let* ((dial-host (or proxy-host host))
+         (dial-port (or proxy-port port))
+         (addresses (resolve-hostname-all dial-host :cancelled-p cancelled-p))
         (sock nil)
         (raw nil)
         (tls nil)
@@ -340,76 +421,94 @@ on that worker thread; an asynchronous caller is responsible for loop marshallin
                (ignore-errors (when sock (sb-bsd-sockets:socket-close sock)))
                (setf tls nil raw nil sock nil))
              (connect-transport ()
-               (setf sock (%connect-happy-blocking addresses port socket-box
+               (setf sock (%connect-happy-blocking addresses dial-port socket-box
                                                    connect-timeout-ms))
                (setf raw
                      (sb-bsd-sockets:socket-make-stream
                       sock :input t :output t
-                      :element-type '(unsigned-byte 8)))))
+                      :element-type '(unsigned-byte 8)))
+               (if proxy-host
+                   (multiple-value-bind (status head)
+                       (%establish-http-connect
+                        raw host port proxy-authorization cancelled-p)
+                     (when (= status 101)
+                       (error "proxy CONNECT returned an unrequested protocol upgrade"))
+                     (values (<= 200 status 299) head))
+                   (values t nil)))
+             (deliver-proxy-response (head)
+               (%deliver-proxy-connect-response
+                raw head cancelled-p on-headers on-data on-complete)))
       (unwind-protect
-           (progn
-             (connect-transport)
-             (multiple-value-bind (feed finish-at-eof)
-                 (%make-https-response-stream-dispatcher
-                  method on-headers on-data on-complete)
-               (let ((fallback-p nil)
-                     (context (if ca-file
-                                  (pure-tls:make-tls-context :ca-file ca-file)
-                                  (pure-tls:make-tls-context))))
-                 (handler-case
-                     (setf tls
-                           (pure-tls:make-tls-client-stream
-                            raw :hostname host
-                                :verify (if verify
-                                            pure-tls:+verify-required+
-                                            pure-tls:+verify-none+)
-                                :alpn-protocols '("http/1.1")
-                                :context context))
-                   (pure-tls:tls-alert-error (condition)
-                     (unless (%protocol-version-alert-p condition)
-                       (error condition))
-                     (setf fallback-p t)))
-                 (if fallback-p
-                     (progn
-                       (close-transport)
-                       (connect-transport)
-                       (multiple-value-bind (termination clean-eof-p)
-                           (https-request-tls12-stream
-                            raw host request feed
-                            :ca-file ca-file :verify verify
-                            :request-body-source request-body-source)
-                         (case termination
-                           (:message-complete t)
-                           (:close-notify (funcall finish-at-eof clean-eof-p))
-                           (:eof (funcall finish-at-eof clean-eof-p)))))
-                     (progn
-                       (write-sequence request tls)
-                       (force-output tls)
-                       (when request-body-source
-                         (let ((total 0))
-                           (loop
-                             (multiple-value-bind (chunk done-p)
-                                 (funcall request-body-source)
-                               (when done-p
-                                 (write-sequence +chunked-request-end+ tls)
-                                 (force-output tls)
-                                 (return))
-                               (when (plusp (length chunk))
-                                 (incf total (length chunk))
-                                 (when (> total *max-body-bytes*)
-                                   (error
-                                    "streaming request body exceeded the size limit"))
-                                 (write-sequence
-                                  (%chunked-request-frame chunk) tls)
-                                 (force-output tls))))))
-                       (let ((buffer
-                               (make-array 65536
-                                           :element-type '(unsigned-byte 8))))
-                         (loop
-                           (let ((count (read-sequence buffer tls)))
-                             (when (zerop count)
-                               (funcall finish-at-eof t)
-                               (return))
-                             (when (funcall feed (subseq buffer 0 count))
-                               (return))))))))))
+           (multiple-value-bind (tunnel-ready-p proxy-head)
+               (connect-transport)
+             (if (not tunnel-ready-p)
+                 (deliver-proxy-response proxy-head)
+                 (multiple-value-bind (feed finish-at-eof)
+                     (%make-https-response-stream-dispatcher
+                      method on-headers on-data on-complete)
+                   (let ((fallback-p nil)
+                         (context (if ca-file
+                                      (pure-tls:make-tls-context :ca-file ca-file)
+                                      (pure-tls:make-tls-context))))
+                     (handler-case
+                         (setf tls
+                               (pure-tls:make-tls-client-stream
+                                raw :hostname host
+                                    :verify (if verify
+                                                pure-tls:+verify-required+
+                                                pure-tls:+verify-none+)
+                                    :alpn-protocols '("http/1.1")
+                                    :context context))
+                       (pure-tls:tls-alert-error (condition)
+                         (unless (%protocol-version-alert-p condition)
+                           (error condition))
+                         (setf fallback-p t)))
+                     (if fallback-p
+                         (progn
+                           (close-transport)
+                           (multiple-value-bind (fallback-ready-p fallback-head)
+                               (connect-transport)
+                             (if fallback-ready-p
+                                 (multiple-value-bind (termination clean-eof-p)
+                                     (https-request-tls12-stream
+                                      raw host request feed
+                                      :ca-file ca-file :verify verify
+                                      :request-body-source request-body-source)
+                                   (case termination
+                                     (:message-complete t)
+                                     (:close-notify
+                                      (funcall finish-at-eof clean-eof-p))
+                                     (:eof
+                                      (funcall finish-at-eof clean-eof-p))))
+                                 (deliver-proxy-response fallback-head))))
+                         (progn
+                           (write-sequence request tls)
+                           (force-output tls)
+                           (when request-body-source
+                             (let ((total 0))
+                               (loop
+                                 (multiple-value-bind (chunk done-p)
+                                     (funcall request-body-source)
+                                   (when done-p
+                                     (write-sequence +chunked-request-end+ tls)
+                                     (force-output tls)
+                                     (return))
+                                   (when (plusp (length chunk))
+                                     (incf total (length chunk))
+                                     (when (> total *max-body-bytes*)
+                                       (error
+                                        "streaming request body exceeded the size limit"))
+                                     (write-sequence
+                                      (%chunked-request-frame chunk) tls)
+                                     (force-output tls))))))
+                           (let ((buffer
+                                   (make-array 65536
+                                               :element-type '(unsigned-byte 8))))
+                             (loop
+                               (let ((count (read-sequence buffer tls)))
+                                 (when (zerop count)
+                                   (funcall finish-at-eof t)
+                                   (return))
+                                 (when (funcall feed (subseq buffer 0 count))
+                                   (return)))))))))))
         (close-transport)))))

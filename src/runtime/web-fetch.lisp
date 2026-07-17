@@ -48,12 +48,16 @@ preserve bounded pull/backpressure instead of eagerly collecting a ReadableStrea
                         (and (eng:js-string-p value)
                              (eng:to-string value)))))
          (signal (and io (let ((s (eng:js-get init "signal"))) (and (eng:js-object-p s) s))))
+         (proxy-value (and io (eng:js-get init "proxy")))
+         (proxy-specified-p
+           (and io (not (eng:js-undefined-p proxy-value))))
          (redirect (if (and io (eng:js-string-p (eng:js-get init "redirect")))
                        (eng:to-string (eng:js-get init "redirect")) "follow")))
     (list :url (%fetch-url-of input) :method method :headers headers
           :body (if (and body-val (not body-stream)) (%body->octets body-val) nil)
           :body-stream body-stream :duplex duplex
-          :signal signal :redirect redirect)))
+          :signal signal :redirect redirect
+          :proxy proxy-value :proxy-specified-p proxy-specified-p)))
 
 (defun %fetch-request-framing-header-p (headers)
   (or (assoc "content-length" headers :test #'string-equal)
@@ -155,6 +159,7 @@ they describe a body that no longer exists (Content-Type/Length/Encoding/Languag
 
 (defun %https-request-stream-async
     (loop &key host port method path headers body host-header timeout
+               proxy-host proxy-port proxy-authorization
                request-body-reader on-request-complete
                (verify t) on-headers on-data on-complete on-error)
   "Run the blocking authenticated TLS transport on a worker with bounded loop delivery.
@@ -329,6 +334,8 @@ thunks matching NET:HTTP-REQUEST-STREAM-ASYNC."
                (net:https-request-stream
                 :host host :port port :method method :path path
                 :headers headers :body body :host-header host-header
+                :proxy-host proxy-host :proxy-port proxy-port
+                :proxy-authorization proxy-authorization
                 :socket-box box :connect-timeout-ms (or timeout 30000)
                 :cancelled-p (lambda () (lp:worker-cancelled-p token))
                 :request-body-source
@@ -554,7 +561,42 @@ thunks matching NET:HTTP-REQUEST-STREAM-ASYNC."
               (if (ur-query record)
                   (concatenate 'string "?" (ur-query record))
                   ""))))
-      (let ((stream nil)
+      (let ((proxy nil))
+        (handler-case
+            (setf proxy (%fetch-select-proxy info record port))
+          (eng:js-condition (condition)
+            (return-from %do-fetch
+              (%fetch-operation-settle
+               operation :reject (eng:js-condition-value condition))))
+          (error (condition)
+            (return-from %do-fetch
+              (%fetch-operation-settle
+               operation :reject
+               (%fetch-error g "TypeError" (princ-to-string condition))))))
+        (let* ((original-headers (getf info :headers))
+               (proxy-authorization
+                 (and proxy
+                      (%fetch-proxy-authorization proxy original-headers)))
+               (request-headers
+                 (cond
+                   ((and proxy https)
+                    (%fetch-remove-hop-headers original-headers))
+                   (proxy
+                    (%fetch-http-proxy-headers proxy original-headers))
+                   (t (%fetch-remove-hop-headers original-headers))))
+               (request-path
+                 (if (and proxy (not https))
+                     (%fetch-absolute-target record)
+                     path))
+               (transport-host
+                 (if (and proxy (not https))
+                     (fetch-proxy-host proxy)
+                     (%proxy-unbracket-host raw-host)))
+               (transport-port
+                 (if (and proxy (not https))
+                     (fetch-proxy-port proxy)
+                     port))
+               (stream nil)
             (cancel nil)
             (pause nil)
             (resume nil)
@@ -617,6 +659,8 @@ thunks matching NET:HTTP-REQUEST-STREAM-ASYNC."
                        (net:%header (net:hres-headers head) "location"))
                      (status (net:hres-status head)))
                  (cond
+                   ((net::hres-proxy-response-p head)
+                    (expose-response head))
                    ((and (%redirect-p status) location
                          (string= (getf info :redirect) "follow"))
                     (if (and upload-stream
@@ -677,24 +721,29 @@ thunks matching NET:HTTP-REQUEST-STREAM-ASYNC."
           (multiple-value-setq (cancel pause resume)
             (if https
                 (%https-request-stream-async
-                 loop :host raw-host :port port :host-header host-header
-                 :method (getf info :method) :path path
-                 :headers (getf info :headers) :body (getf info :body)
+                 loop :host (%proxy-unbracket-host raw-host) :port port
+                 :host-header host-header
+                 :method (getf info :method) :path request-path
+                 :headers request-headers :body (getf info :body)
+                 :proxy-host (and proxy (fetch-proxy-host proxy))
+                 :proxy-port (and proxy (fetch-proxy-port proxy))
+                 :proxy-authorization proxy-authorization
                  :request-body-reader upload-reader
                  :on-request-complete #'finish-upload
                  :timeout timeout
                  :on-headers #'on-headers :on-data #'on-data
                  :on-complete #'on-complete :on-error #'on-error)
                 (net:http-request-stream-async
-                 loop :host raw-host :port port :host-header host-header
-                 :method (getf info :method) :path path
-                 :headers (getf info :headers) :body (getf info :body)
+                 loop :host transport-host :port transport-port
+                 :host-header host-header :pooling-p (null proxy)
+                 :method (getf info :method) :path request-path
+                 :headers request-headers :body (getf info :body)
                  :request-body-stream-p (not (null upload-reader))
                  :on-request-ready (and upload-reader #'start-upload)
                  :timeout timeout
                  :on-headers #'on-headers :on-data #'on-data
                  :on-complete #'on-complete :on-error #'on-error)))
-          (setf (fetch-operation-active-cancel operation) cancel))))))
+          (setf (fetch-operation-active-cancel operation) cancel)))))))
 
 (defun install-fetch (realm)
   (let ((eng:*realm* realm) (g (eng:realm-global realm)))

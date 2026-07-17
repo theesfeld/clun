@@ -334,6 +334,81 @@ then the final chunk after 75ms.  __tailSent exposes whether fetch waited for EO
          realm :timeout-ms 8000)
       (values kind value))))
 
+(defun fetch-info-url (g realm url &optional opts-src)
+  (eng:run-callback-to-settlement
+   (lambda ()
+     (eng:js-call (eng:js-get g "__fetchInfo") eng:+undefined+
+                  (list url
+                        (if opts-src
+                            (jseval realm opts-src)
+                            eng:+undefined+))))
+   realm :timeout-ms 8000))
+
+(defun %start-http-proxy-fixture (loop captures)
+  (let ((head-end
+          (sb-ext:string-to-octets
+           (format nil "~c~c~c~c" #\Return #\Newline #\Return #\Newline)
+           :external-format :latin-1)))
+    (net:tcp-listen
+     loop "127.0.0.1" 0
+     :on-connection
+     (lambda (connection)
+       (let ((capture
+               (make-array 512 :element-type '(unsigned-byte 8)
+                               :adjustable t :fill-pointer 0))
+             (responded-p nil))
+         (setf
+          (net:tcp-on-data connection)
+          (lambda (peer data)
+            (%append-upload-capture capture data)
+            (when (and (not responded-p)
+                       (search head-end capture :end2 (fill-pointer capture)))
+              (setf responded-p t)
+              (let* ((wire
+                       (sb-ext:octets-to-string
+                        (subseq capture 0 (fill-pointer capture))
+                        :external-format :latin-1))
+                     (authorized-p
+                       (search
+                        "Proxy-Authorization: Basic c3F1aWRfdXNlcjpBU0QxMjNAMTIzYXNk"
+                        wire :test #'char-equal))
+                     (status (if authorized-p 200 407))
+                     (reason (if authorized-p "OK" "Proxy Authentication Required"))
+                     (body (if authorized-p "proxy-body" "auth-required")))
+                (push wire (car captures))
+                (net:tcp-write
+                 peer
+                 (sb-ext:string-to-octets
+                  (with-output-to-string (output)
+                    (format output "HTTP/1.1 ~d ~a~c~c" status reason
+                            #\Return #\Newline)
+                    (when (= status 407)
+                      (format output "Proxy-Authenticate: Basic realm=fixture~c~c"
+                              #\Return #\Newline))
+                    (format output "Content-Length: ~d~c~c" (length body)
+                            #\Return #\Newline)
+                    (format output "Connection: close~c~c~c~c~a"
+                            #\Return #\Newline #\Return #\Newline body))
+                  :external-format :latin-1))
+                (net:tcp-shutdown peer))))))))))
+
+(defmacro with-http-proxy-fixture ((g port captures) &body body)
+  (let ((realm (gensym)) (loop (gensym)) (listener (gensym)))
+    `(let ((,realm (eng:make-realm)))
+       (rt:install-runtime ,realm :argv '(:script "[test]" :rest nil) :cwd "/tmp")
+       (let ((eng:*realm* ,realm)
+             (rt::*fetch-environment-reader*
+               (lambda (name) (declare (ignore name)) nil)))
+         (let* ((,g (eng:realm-global ,realm))
+                (,loop (eng:current-loop))
+                (,captures (list nil))
+                (,listener (%start-http-proxy-fixture ,loop ,captures))
+                (,port (net:listener-port ,listener)))
+           (eng:run-program (eng:parse-program +fetch-info-src+) ,realm)
+           (unwind-protect (progn ,@body)
+             (net:listener-close ,listener)
+             (eng:teardown-realm ,realm)))))))
+
 (defun info-field (info key) (eng:js-get info key))
 (defun info-str (info key) (eng:to-string (eng:js-get info key)))
 (defun info-num (info key) (truncate (eng:js-get info key)))
@@ -460,6 +535,72 @@ then the final chunk after 75ms.  __tailSent exposes whether fetch waited for EO
     (multiple-value-bind (kind info) (fetch-info g eng:*realm* port "/500")
       (is eq :fulfilled kind)
       (is = 500 (info-num info "status")))))
+
+(define-test net/fetch-http-proxy-absolute-form-auth-and-failure-response
+  ;; Frozen upstream contracts:
+  ;; oven-sh/bun@c1076ce95e test/js/bun/http/proxy.test.js.
+  (with-http-proxy-fixture (g proxy-port captures)
+    (multiple-value-bind (kind info)
+        (fetch-info-url
+         g eng:*realm* "http://origin.invalid:4321/resource?x=1"
+         (format nil
+                 "{proxy:'http://squid_user:ASD123%40123asd@127.0.0.1:~d'}"
+                 proxy-port))
+      (is eq :fulfilled kind)
+      (is = 200 (info-num info "status"))
+      (is string= "proxy-body" (info-str info "body")))
+    (let ((wire (first (car captures))))
+      (true (search "GET http://origin.invalid:4321/resource?x=1 HTTP/1.1" wire))
+      (true (search "Host: origin.invalid:4321" wire :test #'char-equal))
+      (true (search "Proxy-Connection:" wire :test #'char-equal))
+      (true
+       (search
+        "Proxy-Authorization: Basic c3F1aWRfdXNlcjpBU0QxMjNAMTIzYXNk"
+        wire :test #'char-equal)))
+    (multiple-value-bind (kind info)
+        (fetch-info-url
+         g eng:*realm* "http://origin.invalid:4321/private"
+         (format nil "{proxy:'127.0.0.1:~d'}" proxy-port))
+      (is eq :fulfilled kind)
+      (is = 407 (info-num info "status"))
+      (is string= "auth-required" (info-str info "body")))
+    ;; Proxy requests are intentionally not admitted to the direct-origin pool.
+    (is = 0
+        (length
+         (net::%http-pool-idle-tcps
+          (eng:current-loop) "127.0.0.1" proxy-port)))))
+
+(define-test net/fetch-proxy-parser-and-no-proxy-port-semantics
+  ;; Bun's pinned matrix requires percent-decoded Basic auth, tolerant empty
+  ;; entries, exact host:port matching, and host-only matching across all ports.
+  (let ((proxy (rt::%parse-fetch-proxy
+                "http://squid_user:ASD123%40123asd@localhost:8080")))
+    (is string= "localhost" (rt::fetch-proxy-host proxy))
+    (is = 8080 (rt::fetch-proxy-port proxy))
+    (is string= "Basic c3F1aWRfdXNlcjpBU0QxMjNAMTIzYXNk"
+        (rt::fetch-proxy-authorization proxy)))
+  (true (rt::%no-proxy-match-p "localhost" 3000
+                               "example.com, ,localhost:3000,"))
+  (false (rt::%no-proxy-match-p "localhost" 3000
+                                "localhost:3001"))
+  (true (rt::%no-proxy-match-p "localhost" 3000 "localhost"))
+  (true (rt::%no-proxy-match-p "api.example.com" 443 ".example.com"))
+  (false (rt::%no-proxy-match-p "notexample.com" 443 ".example.com"))
+  (true (rt::%no-proxy-match-p "anything.invalid" 80 "*"))
+  (is equal '(("X-Origin" . "kept"))
+      (rt::%fetch-remove-hop-headers
+       '(("Proxy-Authorization" . "Basic secret")
+         ("X-Origin" . "kept")
+         ("Proxy-Connection" . "keep-alive"))))
+  (dolist (scheme '("ftp" "socks4" "socks5" "socks5h" "ws"))
+    (fail (rt::%parse-fetch-proxy
+           (format nil "~a://127.0.0.1:1" scheme))
+          error))
+  (dolist (disabled '(nil "" "''" "\"\""))
+    (let ((rt::*fetch-environment-reader*
+            (lambda (name)
+              (and (string= name "http_proxy") disabled))))
+      (false (rt::%fetch-proxy-environment-value "http")))))
 
 (define-test net/fetch-redirect-chain
   (with-fetch-server (g port)

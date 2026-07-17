@@ -2766,3 +2766,26 @@ and CNAME recursion. Both reactor HTTP and worker HTTPS pass their cancellable w
 path, preventing an aborted fetch from occupying a fixed worker until the DNS timeout. The deterministic
 network, TLS interoperability, build, and purity gates pass. Proxy/CONNECT, TLS pooling, incremental
 decompression, HTTPS race/leak stress, the 1 GiB fixture, and four-target receipts remain open.
+
+### 2026-07-17 - Phase 28 routes Fetch through HTTP proxies and HTTPS CONNECT tunnels
+
+Proxy selection lives at the Fetch operation boundary so it is recomputed for each redirect target.
+Explicit string proxies and conventional HTTP/HTTPS proxy environment variables share one parser;
+`NO_PROXY` applies wildcard, exact-domain, suffix, IPv6, and exact optional-port rules. URL credentials are
+percent-decoded for Basic authentication, stripped from the absolute request target, and kept out of the
+origin request after a CONNECT tunnel is established.
+
+Plain HTTP proxy connections are intentionally one-shot and excluded from the direct-origin pool. HTTPS
+CONNECT reads exactly one bounded response head across arbitrary socket splits before TLS construction;
+2xx headers are discarded, while non-2xx replies are parsed as proxy responses and cannot enter origin
+redirect handling. Origin hostname and certificate verification remain unchanged. A TLS 1.2 fallback uses
+a fresh proxy connection and repeats CONNECT before sending a new ClientHello.
+
+The executable inventory maps nine contracts from Bun engineering commit
+`c1076ce95effb909bfe9f596919b5dba5567d550` to six hermetic Clun suites. This is not a `Yes` conversion:
+HTTPS proxy endpoints, proxy object options and pooling, the broader stress/error matrix, TLS pooling,
+large-transfer/leak evidence, and four-target receipts remain open on Issue #2.
+
+Checkpoint receipts: `make test-proxy` passes all nine inventory contracts across six suites,
+`make test-net` passes 124 top-level network suites / 3,764 assertions, and `make test-tls12` passes 15
+focused suites plus the existing OpenSSL TLS 1.2 interoperability matrix.

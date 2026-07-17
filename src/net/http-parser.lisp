@@ -14,7 +14,10 @@
   method target version headers body keep-alive)
 
 (defstruct (http-response (:conc-name hres-))
-  status reason version headers body keep-alive)
+  status reason version headers body keep-alive
+  ;; True only for a non-2xx response from an HTTPS proxy's CONNECT request.
+  ;; Fetch exposes this response but must not apply origin redirect handling.
+  (proxy-response-p nil))
 
 (defstruct (http-parser (:conc-name hp-))
   (buf (make-array 4096 :element-type '(unsigned-byte 8) :adjustable t :fill-pointer 0))

@@ -349,6 +349,7 @@ for the Host: line) defaults to HOST when the caller does not pass a distinct va
 
 (defun http-request-stream-async
     (loop &key host port method path headers body timeout host-header
+               (pooling-p t)
                request-body-stream-p on-request-ready
                on-headers on-data on-complete on-error)
   "Issue one HTTP request and deliver its response incrementally.
@@ -379,7 +380,7 @@ CONTINUATION runs on the drain edge. FINISH emits the sole terminal chunk."
         (request-finished-p (not request-body-stream-p))
         (content-format nil)
         (encoded-body nil)
-        (request-keep-alive-p (%request-keep-alive-p headers))
+        (request-keep-alive-p (and pooling-p (%request-keep-alive-p headers)))
         (hh (or host-header host)))
     (labels
         ((cleanup ()
@@ -487,7 +488,7 @@ CONTINUATION runs on the drain edge. FINISH emits the sole terminal chunk."
              (tcp-write
               connection
               (%serialize-request method path hh headers body "identity"
-                                  request-body-stream-p t))
+                                  request-body-stream-p pooling-p))
              (when request-body-stream-p
                (handler-case
                    (if on-request-ready
@@ -567,7 +568,7 @@ CONTINUATION runs on the drain edge. FINISH emits the sole terminal chunk."
              (when (and timeout (plusp timeout))
                (setf timer
                      (lp:set-timer loop timeout (lambda () (fail "timeout")))))
-             (let ((pooled (%http-pool-acquire loop host port)))
+             (let ((pooled (and pooling-p (%http-pool-acquire loop host port))))
                (if pooled
                    (start-request pooled)
                    (start-dns)))))

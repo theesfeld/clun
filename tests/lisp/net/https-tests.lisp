@@ -94,6 +94,133 @@ CRLFCRLF (and optionally its terminal chunk), writes RESPONSE-BYTES, and closes 
                  (sb-ext:string-to-octets hdr :external-format :latin-1)
                  (sb-ext:string-to-octets body :external-format :utf-8))))
 
+(defun %http-marker-response-bytes (body)
+  (let ((header
+          (with-output-to-string (output)
+            (format output "HTTP/1.1 200 OK~c~c" #\Return #\Newline)
+            (format output "Content-Type: text/event-stream~c~c" #\Return #\Newline)
+            (format output "X-Upstream-Marker: from-upstream~c~c" #\Return #\Newline)
+            (format output "Content-Length: ~d~c~c" (length body) #\Return #\Newline)
+            (format output "Connection: close~c~c~c~c"
+                    #\Return #\Newline #\Return #\Newline))))
+    (concatenate '(vector (unsigned-byte 8))
+                 (sb-ext:string-to-octets header :external-format :latin-1)
+                 (sb-ext:string-to-octets body :external-format :utf-8))))
+
+(defun %fixture-copy-stream (input output)
+  ;; A blocking socket READ-SEQUENCE may wait to fill its whole buffer.  TLS
+  ;; handshake records are smaller than that buffer, so a naive relay can
+  ;; deadlock before forwarding the ClientHello.  Forward each available byte;
+  ;; this fixture values deterministic framing over throughput.
+  (handler-case
+      (loop for byte = (read-byte input nil nil)
+            while byte do
+              (write-byte byte output)
+              (force-output output))
+    (error () nil)))
+
+(defun %connect-proxy-fixture
+    (upstream-port capture &key (status 200) split-at location error-box)
+  "Start a one-shot blocking HTTP CONNECT proxy, optionally relaying to UPSTREAM-PORT."
+  (let ((listener
+          (make-instance 'sb-bsd-sockets:inet-socket
+                         :type :stream :protocol :tcp)))
+    (setf (sb-bsd-sockets:sockopt-reuse-address listener) t)
+    (sb-bsd-sockets:socket-bind
+     listener (sb-bsd-sockets:make-inet-address "127.0.0.1") 0)
+    (sb-bsd-sockets:socket-listen listener 5)
+    (values
+     (nth-value 1 (sb-bsd-sockets:socket-name listener))
+     (sb-thread:make-thread
+      (lambda ()
+        (let ((client nil) (client-stream nil)
+              (upstream nil) (upstream-stream nil) (relay nil))
+          (unwind-protect
+               (handler-case
+                   (progn
+                     (setf client (sb-bsd-sockets:socket-accept listener)
+                           client-stream
+                           (sb-bsd-sockets:socket-make-stream
+                            client :input t :output t
+                            :element-type '(unsigned-byte 8)))
+                     (let ((w 0) (x 0) (y 0) (z 0))
+                       (loop for byte = (read-byte client-stream nil nil) do
+                         (unless byte
+                           (error "client closed during CONNECT request"))
+                         (vector-push-extend byte capture)
+                         (setf w x x y y z z byte)
+                         (when (and (= w 13) (= x 10) (= y 13) (= z 10))
+                           (return))))
+                     (if (= status 200)
+                         (progn
+                           (setf upstream
+                                 (make-instance 'sb-bsd-sockets:inet-socket
+                                                :type :stream :protocol :tcp))
+                           (sb-bsd-sockets:socket-connect
+                            upstream
+                            (sb-bsd-sockets:make-inet-address "127.0.0.1")
+                            upstream-port)
+                           (setf upstream-stream
+                                 (sb-bsd-sockets:socket-make-stream
+                                  upstream :input t :output t
+                                  :element-type '(unsigned-byte 8)))
+                           (let ((envelope
+                                   (sb-ext:string-to-octets
+                                    (format nil
+                                            "HTTP/1.1 200 Connection established~c~cConnection: close~c~cProxy-Agent: splitproxy~c~c~c~c"
+                                            #\Return #\Newline #\Return #\Newline
+                                            #\Return #\Newline #\Return #\Newline)
+                                    :external-format :latin-1)))
+                             (if split-at
+                                 (progn
+                                   (write-sequence envelope client-stream
+                                                   :end split-at)
+                                   (force-output client-stream)
+                                   (sleep 0.05)
+                                   (write-sequence envelope client-stream
+                                                   :start split-at))
+                                 (write-sequence envelope client-stream))
+                             (force-output client-stream))
+                           (setf relay
+                                 (sb-thread:make-thread
+                                  (lambda ()
+                                    (%fixture-copy-stream
+                                     client-stream upstream-stream))
+                                  :name "connect-proxy-client-to-origin"))
+                           (%fixture-copy-stream upstream-stream client-stream))
+                         (let ((body "auth-required"))
+                           (write-sequence
+                            (sb-ext:string-to-octets
+                             (with-output-to-string (output)
+                               (format output
+                                       "HTTP/1.1 ~d Proxy Response~c~c"
+                                       status #\Return #\Newline)
+                               (format output
+                                       "Proxy-Authenticate: Basic realm=fixture~c~c"
+                                       #\Return #\Newline)
+                               (when location
+                                 (format output "Location: ~a~c~c"
+                                         location #\Return #\Newline))
+                               (format output "Content-Length: ~d~c~c"
+                                       (length body) #\Return #\Newline)
+                               (format output "Connection: close~c~c~c~c~a"
+                                       #\Return #\Newline #\Return #\Newline body))
+                             :external-format :latin-1)
+                            client-stream)
+                           (force-output client-stream))))
+                 (error (condition)
+                   (when error-box (setf (car error-box) condition))))
+            (when relay
+              (ignore-errors (sb-thread:join-thread relay :timeout 2)))
+            (ignore-errors (when upstream-stream (close upstream-stream)))
+            (ignore-errors (when client-stream (close client-stream)))
+            (ignore-errors (when upstream
+                             (sb-bsd-sockets:socket-close upstream)))
+            (ignore-errors (when client
+                             (sb-bsd-sockets:socket-close client)))
+            (ignore-errors (sb-bsd-sockets:socket-close listener)))))
+      :name "connect-proxy-fixture"))))
+
 (define-test net/https-transport
   ;; The blocking TLS TRANSPORT (connect → pure-tls handshake → serialize request → read +
   ;; parse the response) works against an in-process pure-tls server. Verification is OFF here
@@ -142,6 +269,139 @@ CRLFCRLF (and optionally its terminal chunk), writes RESPONSE-BYTES, and closes 
                        (nreverse chunks))
                 :external-format :utf-8)))
       (ignore-errors (sb-thread:join-thread thread :timeout 5)))))
+
+(define-test net/https-connect-proxy-split-envelope-is-not-origin-response
+  ;; Frozen upstream regression:
+  ;; oven-sh/bun@c1076ce95e
+  ;; test/js/web/fetch/fetch-proxy-connect-tunnel-split-envelope.test.ts.
+  (let ((capture
+          (make-array 512 :element-type '(unsigned-byte 8)
+                          :adjustable t :fill-pointer 0))
+        (proxy-error (list nil)))
+    (multiple-value-bind (origin-port origin-thread)
+        (%https-fixture-server
+         (%cert "localhost-leaf.crt") (%cert "localhost-leaf.key")
+         (%http-marker-response-bytes "hello world"))
+      (multiple-value-bind (proxy-port proxy-thread)
+          (%connect-proxy-fixture
+           origin-port capture :split-at 20 :error-box proxy-error)
+        (unwind-protect
+             (let ((head nil) (chunks '()) (complete-p nil))
+               (net:https-request-stream
+                :host "localhost" :port origin-port :method "GET" :path "/"
+                :proxy-host "127.0.0.1" :proxy-port proxy-port
+                :proxy-authorization "Basic dTpw" :verify nil
+                :on-headers (lambda (response) (setf head response))
+                :on-data (lambda (chunk) (push chunk chunks))
+                :on-complete (lambda () (setf complete-p t)))
+               (is = 200 (net:hres-status head))
+               (is string= "from-upstream"
+                   (net:%header (net:hres-headers head) "x-upstream-marker"))
+               (false (net:%header (net:hres-headers head) "proxy-agent"))
+               (is string= "hello world"
+                   (sb-ext:octets-to-string
+                    (apply #'concatenate '(vector (unsigned-byte 8))
+                           (nreverse chunks))
+                    :external-format :utf-8))
+               (true complete-p)
+               (let ((wire
+                       (sb-ext:octets-to-string
+                        (subseq capture 0 (fill-pointer capture))
+                        :external-format :latin-1)))
+                 (true (search (format nil "CONNECT localhost:~d HTTP/1.1"
+                                       origin-port)
+                               wire))
+                 (true (search "Proxy-Authorization: Basic dTpw" wire)))
+               (false (car proxy-error)))
+          (ignore-errors (sb-thread:join-thread proxy-thread :timeout 5))
+          (ignore-errors (sb-thread:join-thread origin-thread :timeout 5)))))))
+
+(define-test net/https-connect-proxy-non-2xx-is-a-response
+  ;; Pinned Bun proxy-stress-errors.test.ts requires CONNECT failures to
+  ;; resolve as proxy responses and never be interpreted as origin redirects.
+  (let ((capture
+          (make-array 512 :element-type '(unsigned-byte 8)
+                          :adjustable t :fill-pointer 0))
+        (proxy-error (list nil)))
+    (multiple-value-bind (proxy-port proxy-thread)
+        (%connect-proxy-fixture
+         nil capture :status 407 :error-box proxy-error)
+      (unwind-protect
+           (let ((head nil) (chunks '()) (complete-p nil))
+             (net:https-request-stream
+              :host "origin.invalid" :port 443 :method "HEAD" :path "/"
+              :proxy-host "127.0.0.1" :proxy-port proxy-port :verify nil
+              :on-headers (lambda (response) (setf head response))
+              :on-data (lambda (chunk) (push chunk chunks))
+              :on-complete (lambda () (setf complete-p t)))
+             (is = 407 (net:hres-status head))
+             (true (net::hres-proxy-response-p head))
+             (is string= "auth-required"
+                 (sb-ext:octets-to-string
+                  (apply #'concatenate '(vector (unsigned-byte 8))
+                         (nreverse chunks))
+                  :external-format :utf-8))
+             (true complete-p)
+             (false (car proxy-error)))
+        (ignore-errors (sb-thread:join-thread proxy-thread :timeout 5))))))
+
+(define-test net/https-connect-proxy-101-is-rejected
+  (let ((capture
+          (make-array 512 :element-type '(unsigned-byte 8)
+                          :adjustable t :fill-pointer 0))
+        (proxy-error (list nil)))
+    (multiple-value-bind (proxy-port proxy-thread)
+        (%connect-proxy-fixture
+         nil capture :status 101 :error-box proxy-error)
+      (unwind-protect
+           (let ((message
+                   (handler-case
+                       (progn
+                         (net:https-request-stream
+                          :host "origin.invalid" :port 443
+                          :method "GET" :path "/"
+                          :proxy-host "127.0.0.1" :proxy-port proxy-port
+                          :verify nil)
+                         nil)
+                     (error (condition) (princ-to-string condition)))))
+             (true message)
+             (true (search "unrequested protocol upgrade" message))
+             (false (car proxy-error)))
+        (ignore-errors (sb-thread:join-thread proxy-thread :timeout 5))))))
+
+(define-test net/fetch-https-connect-redirect-is-not-followed
+  ;; A CONNECT 3xx is the proxy's response, not an origin redirect. Exercise
+  ;; the complete Fetch -> worker -> CONNECT -> Response path.
+  (let ((capture
+          (make-array 512 :element-type '(unsigned-byte 8)
+                          :adjustable t :fill-pointer 0))
+        (proxy-error (list nil))
+        (realm (eng:make-realm)))
+    (rt:install-runtime realm :argv '(:script "[test]" :rest nil) :cwd "/tmp")
+    (unwind-protect
+         (let ((eng:*realm* realm)
+               (rt::*fetch-environment-reader*
+                 (lambda (name) (declare (ignore name)) nil)))
+           (let ((g (eng:realm-global realm)))
+             (eng:run-program (eng:parse-program +fetch-info-src+) realm)
+             (multiple-value-bind (proxy-port proxy-thread)
+                 (%connect-proxy-fixture
+                  nil capture :status 302
+                  :location "https://must-not-be-followed.invalid/"
+                  :error-box proxy-error)
+               (unwind-protect
+                    (multiple-value-bind (kind info)
+                        (fetch-info-url
+                         g realm "https://origin.invalid/private"
+                         (format nil "{proxy:'http://127.0.0.1:~d'}"
+                                 proxy-port))
+                      (is eq :fulfilled kind)
+                      (is = 302 (info-num info "status"))
+                      (is string= "auth-required" (info-str info "body"))
+                      (false (car proxy-error)))
+                 (ignore-errors
+                   (sb-thread:join-thread proxy-thread :timeout 5))))))
+      (eng:teardown-realm realm))))
 
 (define-test net/https-transport-streams-request-body
   (let ((capture

@@ -7,14 +7,15 @@ interoperability, blocking libc IPv4-only hostname resolution, and buffered-only
 fetch bodies. It adds a pure Common Lisp TLS 1.2 fallback beneath the existing
 TLS 1.3 client, a bounded DNS A/AAAA resolver, dual-stack connection racing,
 incremental authenticated response delivery, streaming request bodies, hardened
-response decoding, and hermetic plus live public-registry evidence.
+response decoding, HTTP proxy routing, HTTPS CONNECT tunnels, and hermetic plus
+live public-registry evidence.
 
 This is an implementation slice of Phase 28, not completion of the phase. The
 canonical Phase 28 GitHub issue remains open. In particular, this series does not
-claim the issue's proxy support, TLS pooling, incremental decompression, 1 GiB
-transfer, remaining HTTPS cancellation-race/leak stress, or four-target acceptance
-requirements. It does not promote a compatibility-ledger row or a public
-landing-page claim.
+claim the issue's complete proxy matrix, TLS pooling, incremental decompression,
+1 GiB transfer, remaining HTTPS cancellation-race/leak stress, or four-target
+acceptance requirements. It does not promote a compatibility-ledger row to
+`Yes`.
 
 ## 2. Architecture
 
@@ -83,6 +84,32 @@ overflow, and authentication failures all fail closed.
 
 No FFI, external TLS process, or shell command participates in production
 networking. OpenSSL is used only as a hermetic test oracle.
+
+### 2.3 HTTP proxy routing and CONNECT tunnels
+
+Fetch accepts an HTTP proxy URL through `init.proxy` or the conventional
+lowercase/uppercase `http_proxy` and `https_proxy` environment variables. Empty
+and quoted-empty environment values disable proxying. `NO_PROXY`/`no_proxy`
+supports wildcard, exact host, domain suffix, bracketed IPv6, and exact optional
+port matching; malformed or empty entries are ignored safely. Proxy URL
+credentials are percent-decoded and sent as Basic credentials without leaking
+them into the absolute request target.
+
+Plain HTTP dials the proxy and serializes the origin URL in absolute form while
+retaining the origin `Host` header. Proxy hop headers are shaped separately from
+origin headers; direct and bypassed requests also strip proxy hop headers rather
+than exposing credentials to an origin. Proxied connections are excluded from
+the direct-origin pool. This avoids reusing an authentication failure or
+cross-origin proxy socket under the wrong pool identity.
+
+HTTPS sends one bounded, split-safe CONNECT request before constructing the TLS
+stream. A successful 2xx envelope is consumed completely and never reaches the
+origin response parser. Certificate and hostname verification remain bound to
+the origin, not the proxy. The TLS 1.2 fallback opens a fresh connection and
+repeats CONNECT before its new handshake. Non-2xx CONNECT replies are exposed as
+proxy HTTP responses and marked so Fetch never follows them as origin redirects.
+Proxy authorization and `Proxy-Connection` are removed from the tunneled origin
+request.
 
 ## 3. Bounded data flow
 
@@ -179,7 +206,17 @@ request is never pooled. A peer FIN while idle evicts the stale wrapper before a
 later request reconnects, and simultaneous same-host/different-port origins retain
 distinct TCP identities. Parser tests separately reject EOF-delimited bodies,
 close responses, and bytes trailing a complete message as reusable. The complete
-network subset passes at this checkpoint with zero failures and zero skips.
+network subset passes at this checkpoint with 124 top-level suites, 3,764
+assertions, zero failures, and zero skips.
+
+`make test-proxy` validates nine contract mappings against Bun engineering commit
+`c1076ce95effb909bfe9f596919b5dba5567d550`, then executes six hermetic suites.
+They cover absolute-form HTTP requests, percent-decoded Basic credentials,
+407 response delivery, disabled proxy environment values, `NO_PROXY` port and
+domain rules, a CONNECT envelope split across reads, proxy-header isolation, and
+non-2xx CONNECT response delivery without redirect handling, including an
+end-to-end Fetch 302 response with a `Location` that is not followed. CONNECT 101
+and unsupported `ftp`, SOCKS, and WebSocket proxy schemes reject before origin I/O.
 
 `make test-tls12` runs that focused suite, then starts OpenSSL TLS 1.2-only peers
 with `ECDHE-RSA-AES128-GCM-SHA256` and forces `rsa_pkcs1_sha256`. It proves a
@@ -198,7 +235,8 @@ Before Phase 28 can close, the canonical issue still requires implementation and
 evidence for at least:
 
 - TLS connection reuse and broader pool stress/eviction coverage;
-- proxy/CONNECT support and the remaining HTTPS cancellation-race/leak matrix;
+- HTTPS proxy endpoints, proxy object options and pooling, the broader proxy
+  stress/error matrix, and the remaining HTTPS cancellation-race/leak matrix;
 - the issue's large-transfer and adversarial transport fixtures;
 - required Linux and macOS x64/arm64 evidence; and
 - valid compatibility-ledger gate identifiers for the issue acceptance commands.

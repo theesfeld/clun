@@ -43,10 +43,16 @@ Eyeballs, exact Fetch abort lifecycle, bounded incremental HTTP and authenticate
 isolated network gate, `make build`, purity gate, exact TCP reuse, `Connection: close` exclusion, idle
 peer-FIN eviction/reconnect, and cross-origin isolation pass. Fetch now also carries one monotonic safety
 deadline across redirects, preserves `TimeoutError` before and after headers, closes incomplete bodies on
-reader cancellation, and interrupts silent DNS waits for both HTTP and HTTPS workers. Issue #2 remains open
-for proxy/CONNECT, TLS pooling, incremental decompression, HTTPS race/leak stress, the 1 GiB matrix, valid
-compatibility gate IDs, and all four release-target receipts. The related public rows remain `Partial` until
-those gates pass.
+reader cancellation, and interrupts silent DNS waits for both HTTP and HTTPS workers. HTTP proxy routing,
+environment and `NO_PROXY` selection, percent-decoded Basic credentials, and HTTPS CONNECT tunnels now pass
+the exact pinned-Bun gate, including split envelopes and non-2xx response delivery. Issue #2 remains open
+for HTTPS proxy endpoints, proxy object options/pooling and broader stress coverage, TLS pooling, incremental
+decompression, HTTPS race/leak stress, the 1 GiB matrix, valid compatibility gate IDs, and all four
+release-target receipts. The related public rows remain `Partial` until those gates pass.
+
+Current executable receipts for this proxy checkpoint: `make test-proxy` passes 9 pinned contracts across
+6 hermetic suites; `make test-net` passes 124 top-level suites / 3,764 assertions; and `make test-tls12`
+passes 15 focused suites plus the buffered/streamed/wrong-host OpenSSL interoperability gate.
 
 **Current checkpoint:** the integrated YAML parser reports **402 pass / 0 fail / 402 total** and **408
 assertions** in the exact pinned corpus. Exact master CI **29560539473**, Documentation **29560539481**,
