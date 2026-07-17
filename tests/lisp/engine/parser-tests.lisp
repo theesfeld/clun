@@ -83,12 +83,12 @@
                  "class C { constructor(){} constructor(){} }"
                  "class C { get constructor(){} }" "class C { static prototype(){} }"
                  "async function f(a = await x){}" "function* g(a = yield){}"
-                 "[...a, b] = c;" "new.target;" "`\\x`"
+                 "[...a, b] = c;" "new.target;" "`\\x`" "`\\u0`"
                  "switch(x){ case 1: let y; default: let y; }"))
     (false (parses? bad)))
   ;; these must still parse (guard against over-rejection)
   (dolist (ok '("function f(a, a){}" "({ get x(){}, set x(v){} })" "class C { m(){} m(){} }"
-                "class C { *['constructor'](){} }" "[a, ...b] = c;" "tag`\\x`;"
+                "class C { *['constructor'](){} }" "[a, ...b] = c;" "tag`\\x`;" "tag`\\u0`;"
                 "function f(){ new.target; }" "l\\u0065t; var a;"))
     (true (parses? ok))))
 

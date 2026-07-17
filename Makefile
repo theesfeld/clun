@@ -21,6 +21,7 @@ FEATURE                    ?= all
 		roadmap-check roadmap-sync \
 		roadmap-verify-live \
 		conformance-exec-compare phase-25b-m5-check phase-25b-m6-check phase-37-m1-check \
+		phase-65-tagged-templates-check \
 		conformance-buckets conformance-buckets-check \
 		conformance-buckets-verify clean
 
@@ -109,6 +110,12 @@ phase-25b-m6-check:
 ## phase-37-m1-check -- require all 173 frozen modern-built-in entry failures to pass.
 phase-37-m1-check:
 	$(SBCL) --dynamic-space-size 6144 $(SBCL_FLAGS) --load scripts/phase-37-m1.lisp
+
+## phase-65-tagged-templates-check -- freeze the engine prerequisite without
+## claiming completion of the public shell API.
+phase-65-tagged-templates-check:
+	CLUN_EXEC=1 $(SBCL) --dynamic-space-size 2048 $(SBCL_FLAGS) \
+		--load scripts/phase-65-tagged-templates.lisp
 
 ## conformance-exec-compare -- run the complete execution corpus with the COMPILE
 ## tier off and eager, then require byte-identical per-file classifications.

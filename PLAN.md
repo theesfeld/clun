@@ -1212,7 +1212,7 @@ escaping, parser/AST, variables, quoting, expansions/globs, substitutions, pipel
 control forms, background jobs and required builtins; expose stdout/stderr/text/json/lines, cwd/env, quiet/
 nothrow and ShellError semantics; execute external commands only as the user-requested shell feature, never
 as an internal implementation dependency; define platform-specific command behavior explicitly.
-**Gate:** `make compat FEATURE=shell` passes the complete pinned Bun shell corpus on Linux/macOS x64/arm64;
+**Gate:** `make compat FEATURE=tooling.shell` passes the complete pinned Bun shell corpus on Linux/macOS x64/arm64;
 injection fixtures prove interpolated values remain data, pipeline backpressure drains concurrently, signal/
 exit ordering matches and 1,000 jobs leak no children/fds; `make build`; `make test`; `make purity`;
 `make docs-check`.
