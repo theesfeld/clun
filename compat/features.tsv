@@ -28,4 +28,4 @@ tooling.test-runner	20	tooling	Jest-compatible test runner	Tests with familiar J
 utility.semver	28	utilities	Semver API	Compare and test semantic versions	Yes	`Clun.semver` satisfies and order	-	Yes	`Bun.semver`	No	use an ecosystem package	No	use the standard library	29	-
 web.cookies	15	apis	Cookies API	Map-like request cookie handling	Yes	`Clun.Cookie` and `Clun.CookieMap` with request/response integration	-	Yes	request cookie map	No	-	No	use the standard library	32	-
 web.csrf	30	utilities	CSRF API	Generate and verify CSRF tokens	Yes	`Clun.CSRF` generate and verify	-	Yes	`Bun.CSRF`	No	-	No	-	35	-
-web.css-color	29	utilities	CSS color conversion	Parse and convert CSS color formats	No	-	CSS color parsing and conversion are not implemented.	Yes	`Bun.color`	No	-	No	-	34	-
+web.css-color	29	utilities	CSS color conversion	Parse and convert CSS color formats	Yes	`Clun.color` with CSS Color and ANSI output	-	Yes	`Bun.color`	No	-	No	-	34	-

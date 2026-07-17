@@ -2661,3 +2661,15 @@ Cookie header layout prepass and exact backing capacity. The original 2.75x acce
 local repeated ratios improve from 2.38-2.48x to 2.197x. Because Phase 30 Glob is the next release-bearing
 compatibility unit, the correction and Glob ship together as `0.1.0-dev.12` / `v0.1.0-dev.12`. This is a
 new minor prerelease boundary, not a retry or mutation of dev.11.
+
+### 2026-07-16 - Phase 34 preserves exact public Color projections as dev.13
+
+Phase 34 implements the complete selected `Clun.color` surface as a backward-compatible minor addition.
+Public RGBA alpha and retained-space byte projections follow Bun's observable f32 behavior, including all
+256 alpha values and final byte rounding, while internal conversion retains bounded double-precision math.
+Compact CSS numbers use the shortest accepted spelling. These decisions are frozen by structured Bun
+differentials and exhaustive shipped-binary evidence rather than prose-only compatibility claims.
+
+The phase follows immutable dev.12 and therefore targets `0.1.0-dev.13` / `v0.1.0-dev.13`; it cannot merge,
+tag, or publish while dev.12 remains unverified. The ASDF core remains `0.1.0`, and issue #8 owns the exact
+four-target release, Pages, and hosted-installer receipts.
