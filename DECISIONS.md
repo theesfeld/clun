@@ -2775,3 +2775,10 @@ The existing pure-Common-Lisp `seq` builtin now has one shipped-binary fixture c
 site in both frozen Bun baselines. All 60 IDs retain their own overlay rows and exact status, stdout, and stderr
 assertions; no file-level or aggregate mapping substitutes for execution. This evidence-only closure changes
 the public count but not runtime behavior or the allocated `0.1.0-dev.18` release boundary.
+
+### 2026-07-16 - Phase 65 credits the complete pinned echo cluster through exact binary evidence
+
+The shipped `echo` fixture binds all 41 active stable and engineering IDs to exact status, stdout, and stderr
+assertions. This includes the engineering trailing-newline regressions and prevents a general echo smoke test
+from being used as aggregate credit. The evidence-only closure changes the public count but not runtime
+behavior or the allocated `0.1.0-dev.18` boundary.
