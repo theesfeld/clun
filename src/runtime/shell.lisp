@@ -12,6 +12,9 @@
   (:report (lambda (condition stream)
              (write-string (shell-syntax-error-message condition) stream))))
 
+(define-condition shell-condition-evaluation-error (error)
+  ((message :initarg :message :reader shell-condition-evaluation-error-message)))
+
 (defstruct shell-fragment kind value quoted)
 (defstruct shell-word (fragments '()))
 (defstruct shell-token kind value)
@@ -1815,6 +1818,18 @@ integer conversions are deliberately rejected because seq values are f32."
                  (write-char #\\ output))
                (write-char character output)))))
 
+(defun %shell-condition-regex (term)
+  (let* ((operand (%shell-condition-as-operand term))
+         (value (shell-condition-operand-value operand)))
+    (with-output-to-string (output)
+      (loop for character across value
+            for index from 0
+            do (write-string
+                (if (%shell-condition-protected-p operand index)
+                    (cl-ppcre:quote-meta-chars (string character))
+                    (string character))
+                output)))))
+
 (defun %shell-condition-integer (value)
   (handler-case
       (multiple-value-bind (integer position)
@@ -1860,6 +1875,12 @@ integer conversions are deliberately rejected because seq values are f32."
        (clun.glob:glob-match-p (%shell-condition-pattern right) left-value))
       ((string= operator "!=")
        (not (clun.glob:glob-match-p (%shell-condition-pattern right) left-value)))
+      ((string= operator "=~")
+       (handler-case
+           (not (null (cl-ppcre:scan (%shell-condition-regex right) left-value)))
+         (cl-ppcre:ppcre-error (condition)
+           (error 'shell-condition-evaluation-error
+                  :message (princ-to-string condition)))))
       ((string= operator "<") (string< left-value right-value))
       ((string= operator ">") (string> left-value right-value))
       ((string= operator "-ef")
@@ -1886,16 +1907,23 @@ integer conversions are deliberately rejected because seq values are f32."
 
 (defun %shell-condition-normalize-parentheses (terms)
   "Split grouping parentheses attached to operands without splitting balanced pattern text."
-  (let ((output '()) (depth 0))
+  (let ((output '()) (depth 0) (binary-rhs nil)
+        (binary-operators '("=" "==" "!=" "=~" "<" ">" "-ef"
+                            "-eq" "-ne" "-lt" "-le" "-gt" "-ge")))
     (dolist (term terms (nreverse output))
-      (let* ((term (%shell-condition-as-operand term))
+      (let* ((rhs binary-rhs)
+             (term (%shell-condition-as-operand term))
              (text (%shell-condition-operand-text term))
              (length (length text))
-             (leading (loop for index below length
-                            while (and (not (%shell-condition-protected-p term index))
+             (leading (if rhs
+                          0
+                          (loop for index below length
+                                while (and
+                                       (not (%shell-condition-protected-p term index))
                                        (char= (char text index) #\())
-                            count 1))
+                                count 1)))
              (body (%shell-condition-operand-slice term leading)))
+        (setf binary-rhs nil)
         (dotimes (index leading)
           (declare (ignore index))
           (push (%shell-condition-literal-operand "(") output)
@@ -1925,13 +1953,17 @@ integer conversions are deliberately rejected because seq values are f32."
             (dotimes (index closings)
               (declare (ignore index))
               (push (%shell-condition-literal-operand ")") output)
-              (decf depth))))))))
+              (decf depth))))
+        (when (some (lambda (operator)
+                      (%shell-condition-operator-p term operator))
+                    binary-operators)
+          (setf binary-rhs t))))))
 
 (defun %shell-condition-p (terms state)
   (let* ((terms (coerce (%shell-condition-normalize-parentheses terms) 'vector))
          (length (length terms))
          (unary-operators '("-n" "-z" "-e" "-f" "-d" "-c" "-L"))
-         (binary-operators '("=" "==" "!=" "<" ">" "-ef"
+         (binary-operators '("=" "==" "!=" "=~" "<" ">" "-ef"
                              "-eq" "-ne" "-lt" "-le" "-gt" "-ge")))
     (labels ((term (index) (and (< index length) (aref terms index)))
              (operator-p (operand operator)
@@ -2006,12 +2038,16 @@ integer conversions are deliberately rejected because seq values are f32."
 
 (defun %shell-run-condition (arguments state)
   (if (and arguments (%shell-condition-operator-p (car (last arguments)) "]]"))
-      (multiple-value-bind (matches valid)
-          (%shell-condition-p (butlast arguments) state)
-        (if valid
-            (%shell-result-from-strings "" "" (if matches 0 1))
-            (%shell-result-from-strings
-             "" (format nil "clun: conditional expression: invalid expression~%") 2)))
+      (handler-case
+          (multiple-value-bind (matches valid)
+              (%shell-condition-p (butlast arguments) state)
+            (if valid
+                (%shell-result-from-strings "" "" (if matches 0 1))
+                (%shell-result-from-strings
+                 "" (format nil "clun: conditional expression: invalid expression~%") 2)))
+        (shell-condition-evaluation-error ()
+          (%shell-result-from-strings
+           "" (format nil "clun: conditional expression: invalid regular expression~%") 2)))
       (%shell-result-from-strings
        "" (format nil "clun: conditional expression: expected ]]~%") 2)))
 

@@ -15,6 +15,7 @@ function check(job, expectedCode, expectedOut, expectedErr, label) {
 }
 
 const inertConditionalPattern = "/usr/homes/*";
+const inertConditionalRegex = "[0-9]+";
 
 check(Clun.$`basename`, 1, "", "usage: basename string\n", "basename usage")
   .then(() => check(
@@ -195,6 +196,12 @@ check(Clun.$`basename`, 1, "", "usage: basename string\n", "basename usage")
     "variable conditional pattern",
   ))
   .then(() => check(Clun.$`[[ /usr/homes/gmacs == ${inertConditionalPattern} ]]`, 1, "", "", "inert interpolated conditional pattern"))
+  .then(() => check(Clun.$`[[ 123abc =~ ^[0-9]+[a-z]+$ ]]`, 0, "", "", "conditional regex"))
+  .then(() => check(Clun.$`[[ jbig2dec-0.9-i586-001.tgz =~ ([^-]+)-([^-]+)-([^-]+)-0*([1-9][0-9]*)\.tgz ]]`, 0, "", "", "conditional regex groups"))
+  .then(() => check(Clun.$`[[ abc =~ 'a.c' ]]`, 1, "", "", "quoted conditional regex"))
+  .then(() => check(Clun.$`[[ 123 =~ ${inertConditionalRegex} ]]`, 1, "", "", "inert interpolated conditional regex"))
+  .then(() => check(Clun.$`[[ value =~ ( ]]`, 2, "", "clun: conditional expression: invalid regular expression\n", "invalid conditional regex"))
+  .then(() => check(Clun.$`[[ value || value =~ ( ]]`, 0, "", "", "short-circuited invalid conditional regex"))
   .then(() => check(Clun.$`[[ -n test ]] | true && echo ok`, 0, "ok\n", "", "conditional producer pipeline"))
   .then(() => check(Clun.$`true | [[ -n test ]] && echo ok`, 0, "ok\n", "", "conditional consumer pipeline"))
   .then(() => {

@@ -264,6 +264,18 @@
     (is equal "" output)
     (is = 0 exit-code)))
 
+(define-test shell/conditional-regex
+  (flet ((exit-code (source)
+           (nth-value 1 (shell-test-output source))))
+    (is = 0 (exit-code "[[ 123abc =~ ^[0-9]+[a-z]+$ ]]"))
+    (is = 1 (exit-code "[[ 123abc =~ ^[a-z]+$ ]]"))
+    (is = 0 (exit-code
+             "[[ jbig2dec-0.9-i586-001.tgz =~ ([^-]+)-([^-]+)-([^-]+)-0*([1-9][0-9]*)\\.tgz ]]"))
+    (is = 0 (exit-code "[[ a.c =~ 'a.c' ]]"))
+    (is = 1 (exit-code "[[ abc =~ 'a.c' ]]"))
+    (is = 2 (exit-code "[[ value =~ ( ]]"))
+    (is = 0 (exit-code "[[ value || value =~ ( ]]"))))
+
 (define-test shell/lines-preserve-string-split-boundaries
   (is equal '() (clun.runtime::%shell-lines ""))
   (is equal '("hello") (clun.runtime::%shell-lines "hello"))
