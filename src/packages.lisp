@@ -48,6 +48,24 @@
   (:documentation "Engine-free bounded CSRF token encoding, authentication, and expiry.")
   (:export #:core-generate #:core-verify))
 
+(defpackage :clun.password
+  (:use :cl)
+  (:local-nicknames (:crypto :ironclad))
+  (:documentation "Bounded password hashing, PHC/MCF encoding, and verification.")
+  (:export
+   #:password-error #:password-error-kind #:password-error-detail
+   #:hash-password #:verify-password
+   #:+default-argon-memory-cost+ #:+default-argon-time-cost+
+   #:+max-password-bytes+ #:+max-encoded-hash-bytes+))
+
+(defpackage :clun.hash
+  (:use :cl)
+  (:documentation "Pure Common Lisp implementations of Clun.hash algorithms.")
+  (:export
+   #:hash-octets #:wyhash #:adler32 #:crc32 #:city-hash32 #:city-hash64
+   #:xxhash32 #:xxhash64 #:xxhash3 #:murmur32v2 #:murmur32v3 #:murmur64v2
+   #:rapidhash))
+
 (defpackage :clun.text.string-width
   (:nicknames :clun.text)
   (:use :cl)
@@ -224,6 +242,7 @@
    #:js-construct #:obj-own-desc #:pd-value #:pd-enumerable #:crypto-fill-random
    #:js-loose-eq #:js-instanceof #:throw-js-value #:js-object-class
    #:js-typed-array-p #:make-u8-array #:u8-from-octets #:ta-octets #:u8-over-arraybuffer #:js-array-buffer-bytes #:js-array-buffer-p
+   #:buffer-source-octets
    #:code-units->utf8 #:utf8->code-units #:ta-subview
    ;; TS strip hook (Phase 09): the loader applies this to .ts/.mts/.cts source
    ;; before parse-program; the transpiler installs it (engine stays dep-free).

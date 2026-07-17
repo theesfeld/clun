@@ -16,6 +16,8 @@
     (eng:fixed-data-prop clun "semver" (make-clun-semver))
     (eng:nonconfigurable-data-prop clun "CSRF" (make-clun-csrf g))
     (install-clun-glob clun g realm)
+    (eng:nonconfigurable-data-prop clun "password" (make-clun-password g))
+    (eng:nonconfigurable-data-prop clun "hash" (make-clun-hash))
     (install-clun-string-width clun)
     (install-clun-color clun)
     (install-clun-yaml clun)

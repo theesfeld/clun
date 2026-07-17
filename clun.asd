@@ -55,7 +55,9 @@
                              ;; encoding/authentication over vendored crypto primitives.
                              (:module "security"
                               :serial t
-                              :components ((:file "csrf")))
+                              :components ((:file "csrf")
+                                           (:file "password")
+                                           (:file "noncrypto-hash")))
                              ;; Cookie parsing/serialization is engine-free so HTTP
                              ;; transport and runtime bindings share one contract.
                              (:module "http"
@@ -183,6 +185,7 @@
                                            (:file "spawn")     ; Clun.spawnSync (Phase 24) — before clun-global
                                            (:file "clun-semver"); Clun.semver (Phase 29) — before clun-global
                                            (:file "clun-csrf")  ; Clun.CSRF (Phase 35) — before clun-global
+                                           (:file "clun-password-hash") ; Clun.password/hash (Phase 36)
                                            (:file "clun-string-width") ; Clun.stringWidth (Phase 33) — before clun-global
                                            (:file "clun-glob") ; Clun.Glob (Phase 30) — before clun-global
                                            (:file "clun-color") ; Clun.color (Phase 34) — before clun-global
@@ -244,7 +247,8 @@
                                             :components ((:file "sys-tests")))
                                            (:module "security"
                                             :serial t
-                                            :components ((:file "csrf-tests")))
+                                            :components ((:file "csrf-tests")
+                                                         (:file "password-hash-tests")))
                                            (:module "http"
                                             :serial t
                                             :components ((:file "cookies-tests")))
