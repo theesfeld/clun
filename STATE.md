@@ -55,12 +55,12 @@ pipelines, ordered descriptor redirects, callable isolated `Shell` instances, si
 arithmetic, bounded nested brace expansion, and brace-plus-glob composition with protected interpolation.
 Assignment-only pipeline stages now forward stdin without leaking their environment.
 `make phase-65-shell-core-check` passes **195 / 0 / 0** plus
-**9/9** shipped `tooling.shell` evidence records; `make build`, `make purity` (**716 / 0**), and diff check
+**10/10** shipped `tooling.shell` evidence records; `make build`, `make purity` (**716 / 0**), and diff check
 pass. The exact stable and engineering Bun boundary is now frozen at **211 source/docs/types/test files** and
-**1,630 lexical test sites**: **331 covered / 1,267 pending / 32 upstream-inactive**. The checked-in coverage
+**1,630 lexical test sites**: **381 covered / 1,217 pending / 32 upstream-inactive**. The checked-in coverage
 overlay binds every credited site to executable shipped-binary evidence and rejects stale or unknown IDs.
-The row is honestly **Partial**, not `Yes`: remaining language/API/lifecycle cases,
-1,000-job stress, and Linux/macOS x64/arm64 receipts are still open.
+The row is honestly **Partial**, not `Yes`: remaining language/API/lifecycle cases, four permission-sensitive
+`ls` sites, 1,000-job stress, and Linux/macOS x64/arm64 receipts are still open.
 
 **M5 entry boundary:** immutable dev.4 diagnostic set **56 total / 0 pass / 56 fail / 0 skip / 0 crash**:
 **43 m5-owned** (32 intrinsic/prototype, 7 parser, 4 raw delegation), **12 m11** direct-eval/`with`
