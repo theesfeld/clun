@@ -17,7 +17,7 @@ terminal-palette surface.
 **Release target:** `0.1.0-dev.13` / `v0.1.0-dev.13`
 **Entry boundary:** Phase 30 dev.12 is the required predecessor and carries the CookieMap arm64 correction
 plus the fifth ledger `Yes`, `Clun.Glob`. The Color implementation is stacked on exact dev.12 candidate
-`056bc811`; PR #75 is now rerunning its four-target publication gate at `9f283e7f`, and dev.13 cannot merge or tag before the
+`056bc811`; PR #75 is now rerunning its exact-head four-target publication gate, and dev.13 cannot merge or tag before the
 immutable dev.12 release and hosted installer are verified. Phase 34 depends only on completed Phase 27.
 Phase 26 remains after Phase 82.
 **Current scope:** publish the accepted Color implementation and evidence as dev.13, collect exact-master
