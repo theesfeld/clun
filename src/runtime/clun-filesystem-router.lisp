@@ -189,6 +189,52 @@
           nil
           (error condition)))))
 
+(defun %fsr-latin1-proxy (string)
+  "Encode STRING as UTF-8 bytes carried losslessly by Latin-1 characters."
+  (map 'string #'code-char
+       (sb-ext:string-to-octets string :external-format :utf-8)))
+
+(defun %fsr-display-name (native-proxy)
+  "Decode a Latin-1 byte proxy as replacement-mode UTF-8 for the JavaScript API."
+  (let ((octets
+          (map '(simple-array (unsigned-byte 8) (*)) #'char-code native-proxy)))
+    (sb-ext:octets-to-string
+     octets :external-format
+     (list :utf-8 :replacement (code-char #xfffd)))))
+
+(defun %fsr-directory-entries (directory)
+  "Return (DISPLAY-NAME . NATIVE-PROXY) entries in deterministic order.
+
+NATIVE-PROXY is NIL on the normal UTF-8 path. If one POSIX filename contains
+arbitrary bytes, retry the whole directory in Latin-1 byte-preserving mode so
+one undecodable entry cannot abort or hide its siblings."
+  (let ((entries '()))
+    (handler-case
+        (sys:map-directory-entries
+         directory (lambda (name) (push (cons name nil) entries)))
+      (sb-int:c-string-decoding-error ()
+        (setf entries '())
+        (let ((sb-ext:*default-c-string-external-format* :latin-1)
+              (sb-ext:*default-external-format* :latin-1)
+              (native-directory (%fsr-latin1-proxy directory)))
+          (sys:map-directory-entries
+           native-directory
+           (lambda (native-name)
+             (push (cons (%fsr-display-name native-name) native-name)
+                   entries))))))
+    (sort entries
+          (lambda (left right)
+            (or (string< (car left) (car right))
+                (and (string= (car left) (car right))
+                     (string< (or (cdr left) "") (or (cdr right) ""))))))))
+
+(defun %fsr-entry-stat-for-name (directory display-name native-name)
+  (if native-name
+      (let ((sb-ext:*default-c-string-external-format* :latin-1)
+            (sb-ext:*default-external-format* :latin-1))
+        (%fsr-entry-stat (%fsr-latin1-proxy directory) native-name))
+      (%fsr-entry-stat directory display-name)))
+
 (defun %fsr-load-inventory (router)
   (let* ((root (js-file-system-router-root router))
          (extensions (js-file-system-router-extensions router))
@@ -205,14 +251,15 @@
                           (string= canonical directory)
                           (%fsr-root-contained-p root canonical))
                (return-from walk nil)))
-           (let ((names '()))
-             (sys:map-directory-entries directory (lambda (name) (push name names)))
-             (dolist (name (sort names #'string<))
+           (dolist (entry (%fsr-directory-entries directory))
+             (let ((name (car entry))
+                   (native-name (cdr entry)))
                (unless (or (member name '("." ".." "node_modules" ".git" ".next")
                                    :test #'string=)
                            (and (plusp (length name))
                                 (char= (char name 0) #\.)))
-                 (let* ((stat (%fsr-entry-stat directory name))
+                 (let* ((stat (%fsr-entry-stat-for-name
+                               directory name native-name))
                         (logical (sys:path-join directory name))
                         (child-relative
                           (if (zerop (length relative))
@@ -222,7 +269,11 @@
                      (cond
                        ((sys:fstat-symlink-p stat) nil)
                        ((sys:fstat-dir-p stat)
-                        (walk logical child-relative (1+ depth)))
+                        ;; An invalid-byte directory cannot be named faithfully by
+                        ;; a Common Lisp pathname. Keep traversal fail-closed; raw
+                        ;; regular files are still represented in the inventory.
+                        (unless (position (code-char #xfffd) name)
+                          (walk logical child-relative (1+ depth))))
                        ((sys:fstat-file-p stat)
                         (let ((extension-rank
                                 (%fsr-extension-rank name extensions)))

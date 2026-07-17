@@ -1,44 +1,104 @@
 let server;
 
+let manyPattern = "/many";
+for (let index = 1; index <= 65; index++) manyPattern += `/:p${index}`;
+
+const routes = {
+  "/static": new Response("static", { headers: { "x-route": "static" } }),
+  "/static-created": new Response("created", {
+    status: 201,
+    statusText: "Created",
+    headers: { "x-created": "yes" },
+  }),
+  "/file": new Response(Clun.file(process.env.CLUN_ROUTER_FILE)),
+  "/file-direct": Clun.file(process.env.CLUN_ROUTER_FILE),
+  "/file-slice": Clun.file(process.env.CLUN_ROUTER_FILE).slice(5, 10),
+  "/file-empty": new Response(Clun.file(process.env.CLUN_ROUTER_EMPTY)),
+  "/file-empty-400": new Response(Clun.file(process.env.CLUN_ROUTER_EMPTY), { status: 400 }),
+  "/file-binary": new Response(Clun.file(process.env.CLUN_ROUTER_BINARY)),
+  "/file-json": new Response(Clun.file(process.env.CLUN_ROUTER_JSON)),
+  "/file-unicode": new Response(Clun.file(process.env.CLUN_ROUTER_UNICODE)),
+  "/large-file": new Response(Clun.file(process.env.CLUN_ROUTER_LARGE)),
+  "/file-custom": new Response(Clun.file(process.env.CLUN_ROUTER_FILE), {
+    headers: { "x-file": "custom", "etag": '"file-custom"' },
+  }),
+  "/file-last-modified": new Response(Clun.file(process.env.CLUN_ROUTER_FILE), {
+    headers: { "last-modified": "Wed, 21 Oct 2015 07:28:00 GMT" },
+  }),
+  "/file-content-range": new Response(Clun.file(process.env.CLUN_ROUTER_FILE), {
+    headers: { "content-range": "bytes 0-15/100" },
+  }),
+  "/dynamic-file": () => new Response(Clun.file(process.env.CLUN_ROUTER_FILE)),
+  "/dynamic-range-custom": () => new Response(Clun.file(process.env.CLUN_ROUTER_FILE), {
+    headers: { "cache-control": "max-age=3600", "x-custom": "abc" },
+  }),
+  "/dynamic-content-range": () => new Response(Clun.file(process.env.CLUN_ROUTER_FILE), {
+    headers: { "content-range": "bytes 0-15/100" },
+  }),
+  "/missing-file": new Response(Clun.file(process.env.CLUN_ROUTER_MISSING)),
+  "/symlink-file": new Response(Clun.file(process.env.CLUN_ROUTER_SYMLINK)),
+  "/special-file": new Response(Clun.file(process.env.CLUN_ROUTER_SPECIAL)),
+  "/api/users": () => new Response("exact"),
+  "/api/users/:id": request => new Response(`param:${request.params.id}`),
+  "/api/multi/:postId/comments/:commentId": request =>
+    new Response(`${request.params.postId}:${request.params.commentId}`),
+  "/api/*": request => new Response(`wild:${request.params["*"]}`),
+  "/method": {
+    GET: request => new Response(`get:${request.method}`),
+    POST: () => new Response("post"),
+  },
+  "/method-all": {
+    GET: () => new Response("GET"),
+    POST: () => new Response("POST"),
+    PUT: () => new Response("PUT"),
+    DELETE: () => new Response("DELETE"),
+    PATCH: () => new Response("PATCH"),
+    OPTIONS: () => new Response("OPTIONS"),
+    HEAD: () => new Response(null, { headers: { "x-explicit-head": "handler" } }),
+  },
+  "/head-get": {
+    GET: request => new Response("head-body", { headers: { "x-seen-method": request.method } }),
+  },
+  "/head-static": {
+    GET: new Response("static-get"),
+    HEAD: new Response(null, { headers: { "x-explicit-head": "static" } }),
+  },
+  "/head-mixed": {
+    GET: () => new Response("mixed-get"),
+    POST: new Response("mixed-post"),
+  },
+  "/post-only": { POST: () => new Response("post-only") },
+  "/post-only-static": { POST: new Response("post-only-static") },
+  "/echo-header": request => new Response(request.headers.get("x-test") || "missing"),
+  "/echo-body": async request => new Response(await request.text()),
+  "/echo-query": request => new Response(request.url),
+  "/absolute/secret": () => new Response("absolute-route"),
+  "/async": () => Promise.resolve(new Response("async")),
+  "/error": () => {
+    throw new Error("route-failure");
+  },
+  "/async-error": async () => {
+    throw new Error("async-route-failure");
+  },
+  "/skip": false,
+  "/reload": () => {
+    server.reload({
+      routes: {
+        "/after": new Response("after"),
+      },
+    });
+    return new Response("reloaded");
+  },
+};
+
+routes[manyPattern] = request => new Response(
+  `${Object.keys(request.params).length}:${request.params.p1}:${request.params.p65}`,
+);
+
 server = Clun.serve({
   hostname: "127.0.0.1",
   port: 0,
-  routes: {
-    "/static": new Response("static", { headers: { "x-route": "static" } }),
-    "/file": new Response(Clun.file(process.env.CLUN_ROUTER_FILE)),
-    "/file-direct": Clun.file(process.env.CLUN_ROUTER_FILE),
-    "/file-slice": Clun.file(process.env.CLUN_ROUTER_FILE).slice(5, 10),
-    "/large-file": new Response(Clun.file(process.env.CLUN_ROUTER_LARGE)),
-    "/file-custom": new Response(Clun.file(process.env.CLUN_ROUTER_FILE), {
-      headers: { "x-file": "custom", "etag": '"file-custom"' },
-    }),
-    "/file-content-range": new Response(Clun.file(process.env.CLUN_ROUTER_FILE), {
-      headers: { "content-range": "bytes 0-15/100" },
-    }),
-    "/missing-file": new Response(Clun.file(process.env.CLUN_ROUTER_MISSING)),
-    "/symlink-file": new Response(Clun.file(process.env.CLUN_ROUTER_SYMLINK)),
-    "/special-file": new Response(Clun.file(process.env.CLUN_ROUTER_SPECIAL)),
-    "/api/users": () => new Response("exact"),
-    "/api/users/:id": request => new Response(`param:${request.params.id}`),
-    "/api/*": request => new Response(`wild:${request.params["*"]}`),
-    "/method": {
-      GET: request => new Response(`get:${request.method}`),
-      POST: () => new Response("post"),
-    },
-    "/async": () => Promise.resolve(new Response("async")),
-    "/error": () => {
-      throw new Error("route-failure");
-    },
-    "/skip": false,
-    "/reload": () => {
-      server.reload({
-        routes: {
-          "/after": new Response("after"),
-        },
-      });
-      return new Response("reloaded");
-    },
-  },
+  routes,
   fetch: request => new Response(`fallback:${request.method}:${request.url}`, { status: 202 }),
   error: error => new Response(`error:${error.message}`, { status: 500 }),
 });

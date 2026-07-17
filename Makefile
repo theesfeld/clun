@@ -13,7 +13,7 @@ PHASE_25B_M5_MANIFEST      ?= tests/conformance/phase-25b-m5.tsv
 PHASE_25B_M6_MANIFEST      ?= tests/conformance/phase-25b-m6.tsv
 FEATURE                    ?= all
 
-.PHONY: all build test test-lisp test-cookie-resources test-glob test-js test-tls test-crypto registry-fixture purity bench \
+.PHONY: all build test test-lisp test-cookie-resources test-glob test-router test-js test-tls test-crypto registry-fixture purity bench \
 		bench-check compile-tier-ceiling test-installer test-release-live-check \
 		public-claims-check version-transition-check test-version-transition-check \
 		compat compat-validate docs-generate docs-check test-compat-tools \
@@ -52,6 +52,12 @@ test-glob: build
 	CLUN_COMPAT_EXECUTABLE="$(CURDIR)/build/clun" sh tests/compat/filesystem.glob/adversarial.sh
 	CLUN_COMPAT_EXECUTABLE="$(CURDIR)/build/clun" sh tests/compat/filesystem.glob/stress.sh
 	sh scripts/glob-upstream-inventory-check.sh
+
+## test-router -- Phase 50 focused core, shipped HTTP/FileSystemRouter, and 100k-route bounds.
+test-router: build
+	$(SBCL) $(SBCL_FLAGS) --load scripts/test-router.lisp
+	CLUN_COMPAT_EXECUTABLE="$(CURDIR)/build/clun" sh tests/compat/server.router/run.sh
+	$(SBCL) --dynamic-space-size 4096 $(SBCL_FLAGS) --load scripts/test-router-resources.lisp
 
 ## test-js — run the tests/js + tests/ts/runtime fixtures against build/clun.
 test-js: build

@@ -110,6 +110,19 @@ inventory policy, and four-target receipts; this checkpoint does not change the 
 - Load 100,000 synthetic routes within recorded construction, lookup, and RSS bounds.
 - Run build, full tests, purity, documentation, public-claim, and four-target compatibility receipt gates.
 
+The current M4 checkpoint expands the shipped-binary matrix across every supported HTTP method, explicit
+and derived `HEAD`, 65 parameters, binary/empty/Unicode files, dynamic and static ranges, custom response
+metadata, live file mutation, cancellation, and validation failures. FileSystemRouter now tolerates arbitrary
+POSIX filename bytes without losing valid sibling entries: Linux directory enumeration retries through a
+byte-preserving native-name boundary and publishes replacement-decoded JavaScript route names.
+
+Resource evidence constructs and compiles 100,000 routes, validates first/middle/last/missing lookup, and
+performs 10,000 repeated matches. The recorded local receipt was 0.031 seconds to create the JavaScript
+inventory, 0.057 seconds to compile it, 0.009 seconds for the lookup loop, 119,071,136 retained bytes, and
+160,987,360 allocated bytes. A separate FileSystemRouter stress fixture inventories 129 routes and retains
+30,000 four-parameter matches under a 128 MiB heap bound. Exact pinned-manifest accounting and four-target
+receipts remain required before promotion; this checkpoint does not change the public ledger.
+
 Only M4 may change `server.router` to `Yes` or close the canonical phase issue.
 
 ## Bounds And Failure Policy
