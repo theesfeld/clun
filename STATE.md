@@ -19,8 +19,8 @@ regular-file response streaming, server.fetch, and FileSystemRouter. Exact stabl
 and five explicit non-applicable. Final exact-head four-target receipts and two accepted adversarial reviews
 remain before the staged `server.router` Yes can merge and publish.
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.17` / `v0.1.0-dev.17`
-**Published release:** `0.1.0-dev.16` / `v0.1.0-dev.16`
+**Published release:** `0.1.0-dev.17` / `v0.1.0-dev.17`
+**Entry boundary:** immutable dev.17 tagged at exact master `909aafa090a21e247d22566361475f608bcaa7a8` with four native archives + checksums.
 **Entry boundary:** immutable dev.16 is published and reconciled at exact master
 `0212be64283549d03864fa7e01a793c1cee8ac33`. Phase 50 draft PR #85 targets `master`; exact `a36047e2`
 four-target compatibility receipts pass, and integrated contract-map head `dde7c3e4` makes every pinned test
