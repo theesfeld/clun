@@ -39,7 +39,54 @@
             (:constructor %make-js-response))
   body
   (body-used-p nil)
-  body-stream)
+  body-stream
+  (body-null-p nil))
+
+(defstruct (js-body-stream
+            (:include eng:js-object (class :readable-stream))
+            (:constructor %make-js-body-stream))
+  (queue '())
+  queue-tail
+  (queued-bytes 0 :type (integer 0 *))
+  (pending '())
+  pending-tail
+  collector
+  (closed-p nil)
+  (errored-p nil)
+  error
+  (locked-p nil)
+  (disturbed-p nil)
+  cancel
+  pause
+  resume
+  (backpressured-p nil)
+  (high-water (* 1024 1024) :type (integer 1 *))
+  (low-water (* 512 1024) :type (integer 0 *))
+  terminal-callback
+  tee-targets)
+
+(defstruct (js-body-reader
+            (:include eng:js-object (class :readable-stream-reader))
+            (:constructor %make-js-body-reader))
+  stream
+  (released-p nil))
+
+(defstruct (body-read-request (:constructor %make-body-read-request))
+  reader resolve reject)
+
+(defstruct (body-collector (:constructor %make-body-collector))
+  (buffer (make-array (* 64 1024) :element-type '(unsigned-byte 8)
+                                   :adjustable t :fill-pointer 0))
+  resolve reject transform)
+
+(defstruct (body-tee (:constructor %make-body-tee))
+  source
+  first
+  second
+  (first-active-p t)
+  (second-active-p t)
+  (transport-paused-p nil))
+
 
 (defstruct (js-blob
             (:include eng:js-object (class :blob))
@@ -541,7 +588,15 @@ Headers, Request, Response, and cookie state never use this mechanism."
 
 (defun %body-used-p (value)
   (cond
-    ((js-response-p value) (js-response-body-used-p value))
+    ((js-response-p value)
+     (or (js-response-body-used-p value)
+         (let ((stream (js-response-body-stream value)))
+           (cond
+             ((js-body-stream-p stream)
+              (js-body-stream-disturbed-p stream))
+             ((js-readable-stream-p stream)
+              (js-readable-stream-disturbed-p stream))
+             (t nil)))))
     ((js-request-p value) (js-request-body-used-p value))
     (t nil)))
 
@@ -582,7 +637,9 @@ Headers, Request, Response, and cookie state never use this mechanism."
   (cond
     ((js-response-p value)
      (setf (js-response-body-used-p value) t)
-     (setf (js-response-body value) eng:+null+))
+     (let ((stream (js-response-body-stream value)))
+       (when (js-body-stream-p stream)
+         (setf (js-body-stream-disturbed-p stream) t))))
     ((js-request-p value)
      (setf (js-request-body-used-p value) t)
      (setf (js-request-body value)
@@ -592,8 +649,10 @@ Headers, Request, Response, and cookie state never use this mechanism."
 
 (defun %body-stream-locked-p (value)
   (let ((stream (%body-stream-slot value)))
-    (and (js-readable-stream-p stream)
-         (js-readable-stream-locked-p stream))))
+    (or (and (js-readable-stream-p stream)
+             (js-readable-stream-locked-p stream))
+        (and (js-body-stream-p stream)
+             (js-body-stream-locked-p stream)))))
 
 (defun %consume-body-octets (value body-function)
   "Return body octets once.  Subsequent mixin reads and clone after use reject.
@@ -952,25 +1011,28 @@ Rejects when the body stream is locked by getReader()."
 Access alone does not mark bodyUsed or materialize Clun.file bodies;
 getReader/read or mixin consumers do."
   (let ((existing (%body-stream-slot value)))
-    (when (js-readable-stream-p existing)
-      (return-from %body-stream-for existing)))
-  (when (and (%body-used-p value) (not (js-readable-stream-p existing)))
-    (return-from %body-stream-for eng:+null+))
-  (when (%body-is-absent-p value)
-    (return-from %body-stream-for eng:+null+))
-  (let* ((kind (cond ((js-response-p value) :response)
-                     ((js-request-p value) :request)
-                     (t nil)))
-         (stream
-           (%new-readable-stream
-            :queue '()
-            :closed-p nil
-            :owner value
-            :owner-kind kind
-            :lazy-body-p t
-            :lazy-body-function body-function)))
-    (%set-body-stream-slot value stream)
-    stream))
+    (cond
+      ((js-readable-stream-p existing)
+       (return-from %body-stream-for existing))
+      ((js-body-stream-p existing)
+       (return-from %body-stream-for existing))
+      ((%body-used-p value)
+       (return-from %body-stream-for eng:+null+))
+      ((%body-is-absent-p value)
+       (return-from %body-stream-for eng:+null+)))
+    (let* ((kind (cond ((js-response-p value) :response)
+                       ((js-request-p value) :request)
+                       (t nil)))
+           (stream
+             (%new-readable-stream
+              :queue '()
+              :closed-p nil
+              :owner value
+              :owner-kind kind
+              :lazy-body-p t
+              :lazy-body-function body-function)))
+      (%set-body-stream-slot value stream)
+      stream)))
 
 (defun %install-body-methods (prototype require-function body-function)
   (let ((global (eng:realm-global eng:*realm*)))
@@ -1089,6 +1151,489 @@ getReader/read or mixin consumers do."
 (defun %server-request-prototype ()
   (web-http-realm-state-server-request-prototype (%http-state)))
 
+;;; --- response body streams -------------------------------------------------
+
+(defun %body-stream-error-object (message)
+  (eng:make-error-object :type-error-prototype "TypeError" message))
+
+(defun %body-iterator-result (value done-p)
+  (let ((result (eng:new-object)))
+    (eng:data-prop result "value" value)
+    (eng:data-prop result "done" (eng:js-boolean done-p))
+    result))
+
+(defun %body-resolve (function value)
+  (eng:js-call function eng:+undefined+ (list value)))
+
+(defun %body-stream-terminal (stream)
+  (let ((callback (js-body-stream-terminal-callback stream)))
+    (when callback
+      (setf (js-body-stream-terminal-callback stream) nil)
+      (funcall callback))))
+
+(defun %body-stream-queue-push (stream chunk)
+  (let ((cell (list chunk)))
+    (if (js-body-stream-queue-tail stream)
+        (setf (cdr (js-body-stream-queue-tail stream)) cell
+              (js-body-stream-queue-tail stream) cell)
+        (setf (js-body-stream-queue stream) cell
+              (js-body-stream-queue-tail stream) cell)))
+  (incf (js-body-stream-queued-bytes stream) (length chunk)))
+
+(defun %body-stream-queue-pop (stream)
+  (let ((chunk (car (js-body-stream-queue stream))))
+    (when chunk
+      (setf (js-body-stream-queue stream)
+            (cdr (js-body-stream-queue stream)))
+      (unless (js-body-stream-queue stream)
+        (setf (js-body-stream-queue-tail stream) nil))
+      (decf (js-body-stream-queued-bytes stream) (length chunk)))
+    chunk))
+
+(defun %body-stream-pending-push (stream request)
+  (let ((cell (list request)))
+    (if (js-body-stream-pending-tail stream)
+        (setf (cdr (js-body-stream-pending-tail stream)) cell
+              (js-body-stream-pending-tail stream) cell)
+        (setf (js-body-stream-pending stream) cell
+              (js-body-stream-pending-tail stream) cell))))
+
+(defun %body-stream-pending-pop (stream)
+  (let ((request (car (js-body-stream-pending stream))))
+    (when request
+      (setf (js-body-stream-pending stream)
+            (cdr (js-body-stream-pending stream)))
+      (unless (js-body-stream-pending stream)
+        (setf (js-body-stream-pending-tail stream) nil)))
+    request))
+
+(defun %body-stream-resolve-read (request chunk done-p)
+  (%body-resolve
+   (body-read-request-resolve request)
+   (%body-iterator-result
+    (if done-p eng:+undefined+ (eng:u8-from-octets chunk))
+    done-p)))
+
+(defun %body-stream-reject-read (request reason)
+  (%body-resolve (body-read-request-reject request) reason))
+
+(defun %body-stream-maybe-resume (stream)
+  (when (and (js-body-stream-backpressured-p stream)
+             (<= (js-body-stream-queued-bytes stream)
+                 (js-body-stream-low-water stream)))
+    (setf (js-body-stream-backpressured-p stream) nil)
+    (let ((resume (js-body-stream-resume stream)))
+      (when resume (funcall resume)))))
+
+(defun %body-collector-append (collector chunk)
+  (let* ((buffer (body-collector-buffer collector))
+         (old (fill-pointer buffer))
+         (next (+ old (length chunk)))
+         (limit net:*max-body-bytes*))
+    (when (> next limit)
+      (error "response body exceeded the size limit"))
+    (when (> next (array-total-size buffer))
+      (adjust-array buffer
+                    (min limit
+                         (max next (* 2 (max 1 (array-total-size buffer)))))
+                    :fill-pointer old))
+    (setf (fill-pointer buffer) next)
+    (replace buffer chunk :start1 old)))
+
+(defun %body-collector-reject (stream reason)
+  (let ((collector (js-body-stream-collector stream)))
+    (when collector
+      (setf (js-body-stream-collector stream) nil
+            (js-body-stream-locked-p stream) nil)
+      (%body-resolve (body-collector-reject collector) reason))))
+
+(defun %body-collector-finish (stream)
+  (let ((collector (js-body-stream-collector stream)))
+    (when collector
+      (setf (js-body-stream-collector stream) nil
+            (js-body-stream-locked-p stream) nil)
+      (let ((octets
+              (subseq (body-collector-buffer collector) 0
+                      (fill-pointer (body-collector-buffer collector)))))
+        (handler-case
+            (%body-resolve
+             (body-collector-resolve collector)
+             (funcall (body-collector-transform collector) octets))
+          (eng:js-condition (condition)
+            (%body-resolve (body-collector-reject collector)
+                           (eng:js-condition-value condition)))
+          (error (condition)
+            (%body-resolve
+             (body-collector-reject collector)
+             (%body-stream-error-object (princ-to-string condition)))))))))
+
+(defun %body-stream-enqueue (stream chunk)
+  "Hand one transport chunk to STREAM and apply its high-water backpressure."
+  (when (and (not (js-body-stream-closed-p stream))
+             (not (js-body-stream-errored-p stream))
+             (plusp (length chunk)))
+    (if (js-body-stream-tee-targets stream)
+        (dolist (target (js-body-stream-tee-targets stream))
+          (%body-stream-enqueue target chunk))
+        (cond
+          ((js-body-stream-collector stream)
+           (handler-case
+               (%body-collector-append (js-body-stream-collector stream) chunk)
+             (error (condition)
+               (%body-stream-error
+                stream (%body-stream-error-object (princ-to-string condition))))))
+          ((js-body-stream-pending stream)
+           (%body-stream-resolve-read
+            (%body-stream-pending-pop stream) chunk nil))
+          (t
+           (%body-stream-queue-push stream chunk)
+           (when (and (not (js-body-stream-backpressured-p stream))
+                      (>= (js-body-stream-queued-bytes stream)
+                          (js-body-stream-high-water stream)))
+             (setf (js-body-stream-backpressured-p stream) t)
+             (let ((pause (js-body-stream-pause stream)))
+               (when pause (funcall pause))))))))
+  stream)
+
+(defun %body-stream-close (stream)
+  (unless (or (js-body-stream-closed-p stream)
+              (js-body-stream-errored-p stream))
+    (setf (js-body-stream-closed-p stream) t)
+    (if (js-body-stream-tee-targets stream)
+        (dolist (target (js-body-stream-tee-targets stream))
+          (%body-stream-close target))
+        (progn
+          (loop for request = (%body-stream-pending-pop stream)
+                while request
+                do (%body-stream-resolve-read request nil t))
+          (%body-collector-finish stream)))
+    (%body-stream-terminal stream))
+  stream)
+
+(defun %body-stream-error (stream reason)
+  (unless (or (js-body-stream-closed-p stream)
+              (js-body-stream-errored-p stream))
+    (setf (js-body-stream-errored-p stream) t
+          (js-body-stream-error stream) reason
+          (js-body-stream-queue stream) nil
+          (js-body-stream-queue-tail stream) nil
+          (js-body-stream-queued-bytes stream) 0)
+    (if (js-body-stream-tee-targets stream)
+        (dolist (target (js-body-stream-tee-targets stream))
+          (%body-stream-error target reason))
+        (progn
+          (loop for request = (%body-stream-pending-pop stream)
+                while request
+                do (%body-stream-reject-read request reason))
+          (%body-collector-reject stream reason)))
+    (%body-stream-maybe-resume stream)
+    (%body-stream-terminal stream))
+  stream)
+
+(defun %body-stream-cancel-now (stream reason)
+  (declare (ignore reason))
+  ;; Cancel always disturbs the stream and drops residual chunks, including
+  ;; already-closed buffered Response bodies (string init enqueues then closes).
+  (let ((cancel (js-body-stream-cancel stream))
+        (was-open-p (not (or (js-body-stream-closed-p stream)
+                             (js-body-stream-errored-p stream)))))
+    (setf (js-body-stream-cancel stream) nil
+          (js-body-stream-queue stream) nil
+          (js-body-stream-queue-tail stream) nil
+          (js-body-stream-queued-bytes stream) 0
+          (js-body-stream-closed-p stream) t
+          (js-body-stream-disturbed-p stream) t)
+    (loop for request = (%body-stream-pending-pop stream)
+          while request
+          do (%body-stream-resolve-read request nil t))
+    (%body-collector-finish stream)
+    (when was-open-p
+      (%body-stream-maybe-resume stream)
+      (%body-stream-terminal stream)
+      (when cancel (funcall cancel))))
+  stream)
+
+(defun %body-reader-read (reader)
+  (multiple-value-bind (promise resolve reject) (eng::promise-and-caps)
+    (let ((stream (js-body-reader-stream reader)))
+      (cond
+        ((js-body-reader-released-p reader)
+         (%body-resolve reject
+                        (%body-stream-error-object
+                         "The reader has been released")))
+        (t
+         (setf (js-body-stream-disturbed-p stream) t)
+         (cond
+           ((js-body-stream-queue stream)
+            (%body-stream-resolve-read
+             (%make-body-read-request :reader reader
+                                      :resolve resolve :reject reject)
+             (%body-stream-queue-pop stream) nil)
+            (%body-stream-maybe-resume stream))
+           ((js-body-stream-errored-p stream)
+            (%body-resolve reject (js-body-stream-error stream)))
+           ((js-body-stream-closed-p stream)
+            (%body-stream-resolve-read
+             (%make-body-read-request :reader reader
+                                      :resolve resolve :reject reject)
+             nil t))
+           (t
+            (%body-stream-pending-push
+             stream
+             (%make-body-read-request :reader reader
+                                      :resolve resolve :reject reject)))))))
+    promise))
+
+(defun %body-reader-has-pending-p (reader)
+  (find reader (js-body-stream-pending (js-body-reader-stream reader))
+        :key #'body-read-request-reader :test #'eq))
+
+(defun %body-reader-release (reader)
+  (unless (js-body-reader-released-p reader)
+    (when (%body-reader-has-pending-p reader)
+      (eng:throw-type-error "Cannot release a reader with pending read requests"))
+    (setf (js-body-reader-released-p reader) t
+          (js-body-stream-locked-p (js-body-reader-stream reader)) nil))
+  eng:+undefined+)
+
+(defun %body-tee-active-p (tee)
+  (or (body-tee-first-active-p tee)
+      (body-tee-second-active-p tee)))
+
+(defun %body-tee-sync-backpressure (tee)
+  (let* ((source (body-tee-source tee))
+         (blocked-p
+           (or (and (body-tee-first-active-p tee)
+                    (js-body-stream-backpressured-p (body-tee-first tee)))
+               (and (body-tee-second-active-p tee)
+                    (js-body-stream-backpressured-p (body-tee-second tee))))))
+    (cond
+      ((and blocked-p (not (body-tee-transport-paused-p tee)))
+       (setf (body-tee-transport-paused-p tee) t
+             (js-body-stream-backpressured-p source) t)
+       (let ((pause (js-body-stream-pause source)))
+         (when pause (funcall pause))))
+      ((and (not blocked-p) (body-tee-transport-paused-p tee))
+       (setf (body-tee-transport-paused-p tee) nil
+             (js-body-stream-backpressured-p source) nil)
+       (let ((resume (js-body-stream-resume source)))
+         (when resume (funcall resume))))))
+  tee)
+
+(defun %body-tee-cancel-branch (tee branch)
+  (cond
+    ((eq branch (body-tee-first tee))
+     (setf (body-tee-first-active-p tee) nil))
+    ((eq branch (body-tee-second tee))
+     (setf (body-tee-second-active-p tee) nil)))
+  (if (%body-tee-active-p tee)
+      (%body-tee-sync-backpressure tee)
+      (progn
+        (setf (body-tee-transport-paused-p tee) nil
+              (js-body-stream-backpressured-p (body-tee-source tee)) nil)
+        (%body-stream-cancel-now (body-tee-source tee) eng:+undefined+)))
+  (values))
+
+(defun %body-stream-reader (stream)
+  (when (js-body-stream-locked-p stream)
+    (eng:throw-type-error "ReadableStream is locked"))
+  (let ((reader
+          (%make-js-body-reader
+           :proto (eng:intrinsic :object-prototype) :stream stream)))
+    (setf (js-body-stream-locked-p stream) t)
+    (let ((read-function
+            (eng:make-native-function
+             "read" 0
+             (lambda (this args)
+               (declare (ignore args))
+               (%body-reader-read
+                (if (js-body-reader-p this)
+                    this
+                    (eng:throw-type-error "Illegal invocation")))))))
+      (eng:data-prop reader "read" read-function)
+      (eng:data-prop reader "next" read-function))
+    (eng:install-method
+     reader "cancel" 1
+     (lambda (this args)
+       (unless (js-body-reader-p this)
+         (eng:throw-type-error "Illegal invocation"))
+       (if (js-body-reader-released-p this)
+           (%rejected-promise
+            (eng:realm-global eng:*realm*)
+            (%body-stream-error-object "The reader has been released"))
+           (progn
+             (%body-stream-cancel-now
+              (js-body-reader-stream this) (eng:arg args 0))
+             (%resolved-promise
+              (eng:realm-global eng:*realm*) eng:+undefined+)))))
+    (eng:install-method
+     reader "releaseLock" 0
+     (lambda (this args)
+       (declare (ignore args))
+       (%body-reader-release
+        (if (js-body-reader-p this)
+            this
+            (eng:throw-type-error "Illegal invocation")))))
+    (eng:install-method
+     reader "return" 1
+     (lambda (this args)
+       (unless (js-body-reader-p this)
+         (eng:throw-type-error "Illegal invocation"))
+       (%body-stream-cancel-now (js-body-reader-stream this) (eng:arg args 0))
+       (setf (js-body-reader-released-p this) t
+             (js-body-stream-locked-p (js-body-reader-stream this)) nil)
+       (%resolved-promise
+        (eng:realm-global eng:*realm*)
+        (%body-iterator-result eng:+undefined+ t))))
+    (eng:create-data-property
+     reader (eng:well-known :async-iterator)
+     (eng:make-native-function
+      "[Symbol.asyncIterator]" 0
+      (lambda (this args) (declare (ignore args)) this)))
+    reader))
+
+(defun %new-body-stream (&key cancel pause resume terminal-callback
+                              (high-water (* 1024 1024))
+                              (low-water (* 512 1024)))
+  (let* ((state (ignore-errors (%http-state)))
+         (proto (or (and state
+                         (web-http-realm-state-readable-stream-prototype state))
+                    (eng:intrinsic :object-prototype)))
+         (stream
+           (%make-js-body-stream
+            :proto proto
+            :cancel cancel :pause pause :resume resume
+            :terminal-callback terminal-callback
+            :high-water high-water :low-water low-water)))
+    (eng:install-getter
+     stream "locked"
+     (lambda (this args)
+       (declare (ignore args))
+       (eng:js-boolean
+        (js-body-stream-locked-p
+         (if (js-body-stream-p this)
+             this
+             (eng:throw-type-error "Illegal invocation"))))))
+    (eng:install-method
+     stream "getReader" 0
+     (lambda (this args)
+       (declare (ignore args))
+       (%body-stream-reader
+        (if (js-body-stream-p this)
+            this
+            (eng:throw-type-error "Illegal invocation")))))
+    (eng:install-method
+     stream "cancel" 1
+     (lambda (this args)
+       (unless (js-body-stream-p this)
+         (eng:throw-type-error "Illegal invocation"))
+       (if (js-body-stream-locked-p this)
+           (%rejected-promise
+            (eng:realm-global eng:*realm*)
+            (%body-stream-error-object "Cannot cancel a locked ReadableStream"))
+           (progn
+             (%body-stream-cancel-now this (eng:arg args 0))
+             (%resolved-promise
+              (eng:realm-global eng:*realm*) eng:+undefined+)))))
+    (eng:install-method
+     stream "tee" 0
+     (lambda (this args)
+       (declare (ignore args))
+       (multiple-value-bind (first second)
+           (%body-stream-tee
+            (if (js-body-stream-p this)
+                this
+                (eng:throw-type-error "Illegal invocation")))
+         (eng:new-array (list first second)))))
+    (let ((iterator-function
+            (eng:make-native-function
+             "values" 0
+             (lambda (this args)
+               (declare (ignore args))
+               (%body-stream-reader
+                (if (js-body-stream-p this)
+                    this
+                    (eng:throw-type-error "Illegal invocation")))))))
+      (eng:data-prop stream "values" iterator-function)
+      (eng:create-data-property stream (eng:well-known :async-iterator)
+                                iterator-function))
+    stream))
+
+(defun %body-stream-tee
+    (source &key (high-water net:*max-body-bytes*)
+                 (low-water (floor net:*max-body-bytes* 2)))
+  "Lock SOURCE and return two bounded branches fed by its current and future bytes."
+  (when (js-body-stream-locked-p source)
+    (eng:throw-type-error "ReadableStream is locked"))
+  (let* ((first (%new-body-stream :high-water high-water :low-water low-water))
+         (second (%new-body-stream :high-water high-water :low-water low-water))
+         (tee
+           (%make-body-tee
+            :source source :first first :second second
+            :transport-paused-p (js-body-stream-backpressured-p source))))
+    (%body-stream-bind-transport
+     first
+     :cancel (lambda () (%body-tee-cancel-branch tee first))
+     :pause (lambda () (%body-tee-sync-backpressure tee))
+     :resume (lambda () (%body-tee-sync-backpressure tee)))
+    (%body-stream-bind-transport
+     second
+     :cancel (lambda () (%body-tee-cancel-branch tee second))
+     :pause (lambda () (%body-tee-sync-backpressure tee))
+     :resume (lambda () (%body-tee-sync-backpressure tee)))
+    (setf (js-body-stream-locked-p source) t
+          (js-body-stream-tee-targets source) (list first second))
+    (loop for chunk = (%body-stream-queue-pop source)
+          while chunk
+          do (%body-stream-enqueue first chunk)
+             (%body-stream-enqueue second chunk))
+    (cond
+      ((js-body-stream-errored-p source)
+       (%body-stream-error first (js-body-stream-error source))
+       (%body-stream-error second (js-body-stream-error source)))
+      ((js-body-stream-closed-p source)
+       (%body-stream-close first)
+       (%body-stream-close second))
+      (t (%body-tee-sync-backpressure tee)))
+    (values first second)))
+
+(defun %body-stream-bind-transport
+    (stream &key cancel pause resume terminal-callback)
+  (setf (js-body-stream-cancel stream) cancel
+        (js-body-stream-pause stream) pause
+        (js-body-stream-resume stream) resume
+        (js-body-stream-terminal-callback stream) terminal-callback)
+  stream)
+
+(defun %body-stream-consume (stream transform)
+  (multiple-value-bind (promise resolve reject) (eng::promise-and-caps)
+    (cond
+      ((or (js-body-stream-disturbed-p stream)
+           (js-body-stream-locked-p stream))
+       (%body-resolve
+        reject
+        (%body-stream-error-object "Body has already been consumed")))
+      (t
+       (setf (js-body-stream-disturbed-p stream) t
+             (js-body-stream-locked-p stream) t
+             (js-body-stream-collector stream)
+             (%make-body-collector :resolve resolve :reject reject
+                                   :transform transform))
+       (handler-case
+           (loop for chunk = (%body-stream-queue-pop stream)
+                 while chunk
+                 do (%body-collector-append
+                     (js-body-stream-collector stream) chunk))
+         (error (condition)
+           (%body-stream-error
+            stream (%body-stream-error-object (princ-to-string condition)))))
+       (%body-stream-maybe-resume stream)
+       (cond
+         ((js-body-stream-errored-p stream)
+          (%body-collector-reject stream (js-body-stream-error stream)))
+         ((js-body-stream-closed-p stream)
+          (%body-collector-finish stream)))))
+    promise))
 ;;; --- Blob -------------------------------------------------------------------
 
 (defun %require-blob (value)
@@ -1246,37 +1791,138 @@ getReader/read or mixin consumers do."
 (defun %response-body-vector (response)
   (%body->octets (%response-body-value response)))
 
-(defun %clone-response-body (body)
-  (cond
-    ((eng:js-typed-array-p body)
-     (eng:u8-from-octets (%body->octets body)))
-    ((eng:js-array-buffer-p body)
-     (eng:js-get (eng:u8-from-octets (%body->octets body)) "buffer"))
-    ((js-blob-p body)
-     (%make-js-blob
-      :proto (web-http-realm-state-blob-prototype (%http-state))
-      :bytes (copy-seq (js-blob-bytes body))
-      :type (js-blob-type body)))
-    ;; Strings are immutable and file bodies retain their deferred stat/open plan.
-    (t body)))
+(defun %response-stream (response)
+  (js-response-body-stream (%require-response response)))
 
-(defun %clone-response (response)
-  (let* ((response (%require-response response))
-         (init (eng:new-object))
-         (url (eng:js-get response "url")))
-    (when (js-response-body-used-p response)
-      (eng:throw-type-error "Cannot clone a response with a used body"))
-    (eng:data-prop init "status" (eng:js-get response "status"))
-    (eng:data-prop init "statusText" (eng:js-get response "statusText"))
-    (eng:data-prop init "headers" (eng:js-get response "headers"))
-    (let ((clone (%new-response
-                  (%clone-response-body (%response-body-value response)) init)))
-      (unless (eng:js-undefined-p url)
-        (eng:data-prop clone "url" url))
-      clone)))
+(defun %materialize-deferred-file-body (response)
+  "Copy a deferred Clun.file body into RESPONSE's ReadableStream once.
+
+`new Response(Clun.file(...))` deliberately keeps the file plan lazy so construction
+never blocks on FIFO/special files. Server serialization uses the file handle directly;
+body consumers (text/bytes/blob/getReader) call this helper first."
+  (let ((body (js-response-body response))
+        (stream (js-response-body-stream response)))
+    (when (and (js-clun-file-p body)
+               stream
+               (not (js-body-stream-closed-p stream))
+               (not (js-body-stream-errored-p stream))
+               (null (js-body-stream-queue stream))
+               (null (js-body-stream-collector stream))
+               (null (js-body-stream-pending stream)))
+      (let ((octets
+              (handler-case (%clun-file-octets body)
+                (error ()
+                  (make-array 0 :element-type '(unsigned-byte 8))))))
+        (when (plusp (length octets))
+          (%body-stream-enqueue stream octets))
+        (%body-stream-close stream))))
+  response)
+
+(defun %clone-response (value)
+  (let* ((response (%require-response value))
+         (stream (js-response-body-stream response))
+         (body (js-response-body response)))
+    (when (or (js-body-stream-disturbed-p stream)
+              (js-body-stream-locked-p stream))
+      (eng:throw-type-error "Body has already been consumed"))
+    (flet ((copy-response-metadata (clone)
+             (eng:data-prop clone "status" (eng:js-get response "status"))
+             (eng:data-prop clone "statusText" (eng:js-get response "statusText"))
+             (eng:data-prop clone "ok" (eng:js-get response "ok"))
+             (eng:data-prop clone "headers"
+                            (%new-headers (eng:js-get response "headers")))
+             (let ((url (eng:js-get response "url")))
+               (unless (eng:js-undefined-p url)
+                 (eng:data-prop clone "url" url)))
+             clone))
+      (if (and (js-clun-file-p body)
+               (not (js-body-stream-closed-p stream))
+               (null (js-body-stream-queue stream)))
+          ;; Deferred file plans clone by reference without opening the path.
+          (copy-response-metadata
+           (%make-js-response
+            :proto (web-http-realm-state-response-prototype (%http-state))
+            :body body
+            :body-stream (%new-body-stream)
+            :body-null-p (js-response-body-null-p response)))
+          (multiple-value-bind (first second) (%body-stream-tee stream)
+            (setf (js-response-body-stream response) first)
+            (copy-response-metadata
+             (%make-js-response
+              :proto (web-http-realm-state-response-prototype (%http-state))
+              :body body
+              :body-stream second
+              :body-null-p (js-response-body-null-p response))))))))
+
+(defun %install-response-body-method
+    (prototype name transform)
+  (%install-prototype-method
+   prototype name 0
+   (lambda (this args)
+     (declare (ignore args))
+     (let* ((response (%require-response this))
+            (stream (js-response-body-stream response)))
+       (when (or (%body-used-p response)
+                 (and (js-body-stream-p stream)
+                      (or (js-body-stream-disturbed-p stream)
+                          (js-body-stream-locked-p stream))))
+         (eng:throw-type-error
+          (if (and (js-body-stream-p stream)
+                   (js-body-stream-locked-p stream)
+                   (not (js-body-stream-disturbed-p stream)))
+              "Body stream is locked"
+              "Body has already been used")))
+       (%materialize-deferred-file-body response)
+       (%body-stream-consume (js-response-body-stream response) transform)))))
 
 (defun %install-response-prototype (prototype)
-  (%install-body-methods prototype #'%require-response #'%response-body-vector)
+  (let ((global (eng:realm-global eng:*realm*)))
+    (%install-response-body-method
+     prototype "text" #'%body-text-decode)
+    (%install-response-body-method
+     prototype "bytes" #'eng:u8-from-octets)
+    (%install-response-body-method
+     prototype "arrayBuffer"
+     (lambda (octets)
+       (eng:js-get (eng:u8-from-octets octets) "buffer")))
+    (%install-response-body-method
+     prototype "json"
+     (lambda (octets)
+       (let ((json (eng:js-get global "JSON")))
+         (eng:js-call (eng:js-get json "parse") json
+                      (list (%body-text-decode octets)))))))
+  (%define-accessor
+   prototype "body"
+   (lambda (this args)
+     (declare (ignore args))
+     (let ((response (%require-response this)))
+       (if (js-response-body-null-p response)
+           eng:+null+
+           (progn
+             (%materialize-deferred-file-body response)
+             (js-response-body-stream response)))))
+   nil)
+  (%define-accessor
+   prototype "bodyUsed"
+   (lambda (this args)
+     (declare (ignore args))
+     (eng:js-boolean
+      (js-body-stream-disturbed-p (%response-stream this))))
+   nil)
+  (%install-prototype-method
+   prototype "blob" 0
+   (lambda (this args)
+     (declare (ignore args))
+     (let ((response (%require-response this))
+           (type (%normalize-blob-type (%body-content-type this))))
+       (%materialize-deferred-file-body response)
+       (%body-stream-consume
+        (js-response-body-stream response)
+        (lambda (octets)
+          (%make-js-blob
+           :proto (web-http-realm-state-blob-prototype (%http-state))
+           :bytes octets
+           :type type))))))
   (%install-prototype-method
    prototype "clone" 0
    (lambda (this args)
@@ -1284,7 +1930,7 @@ getReader/read or mixin consumers do."
      (%clone-response this)))
   prototype)
 
-(defun %init-response (object body init)
+(defun %init-response (object body init &key body-stream body-null-p)
   "Populate and return a branded Response.  OBJECT is retained for old CL callers
 but an ordinary object is never promoted into the Response brand."
   (let* ((state (%http-state))
@@ -1306,13 +1952,28 @@ but an ordinary object is never promoted into the Response brand."
                (%byte-string status-text-value "Invalid HTTP status text")
                (%status-text status)))
          (headers-init (and init-object-p (eng:js-get init "headers")))
-         (headers (%new-headers headers-init)))
+         (headers (%new-headers headers-init))
+         (stream (or body-stream (%new-body-stream)))
+         (deferred-file-p (and (not body-stream) (js-clun-file-p body))))
     (when (and (js-blob-p body)
                (null (%header-values headers "content-type")))
       (let ((content-type (%blob-response-content-type body)))
         (when content-type
           (%headers-set headers "content-type" content-type))))
-    (setf (js-response-body response) body)
+    (setf (js-response-body response) body
+          (js-response-body-stream response) stream
+          (js-response-body-null-p response)
+          (if body-stream
+              body-null-p
+              (or (null body) (eng:js-undefined-p body)
+                  (eng:js-null-p body))))
+    ;; Clun.file bodies stay deferred so construction cannot hang on FIFO/special
+    ;; files. Serve freezes them through file-response-source; body methods materialize.
+    (unless (or body-stream deferred-file-p)
+      (let ((octets (%body->octets body)))
+        (when (plusp (length octets))
+          (%body-stream-enqueue stream octets))
+        (%body-stream-close stream)))
     (eng:data-prop response "status" (coerce status 'double-float))
     (eng:data-prop response "statusText" status-text)
     (eng:data-prop response "ok"
@@ -1322,6 +1983,9 @@ but an ordinary object is never promoted into the Response brand."
 
 (defun %new-response (body init)
   (%init-response nil body init))
+
+(defun %new-stream-response (stream init &key body-null-p)
+  (%init-response nil nil init :body-stream stream :body-null-p body-null-p))
 
 (defun %response-body-octets (response)
   "Return (values octets default-content-type) for a real Response."

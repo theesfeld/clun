@@ -168,7 +168,7 @@
    ;; loop lifecycle
    #:event-loop #:event-loop-p #:make-event-loop #:destroy-event-loop
    #:run-loop #:loop-post #:loop-stop #:el-ref-count #:now-ms
-   #:loop-on-thread-p #:run-on-loop #:*on-foreign-thread*
+   #:loop-on-thread-p #:run-on-loop #:loop-extension #:*on-foreign-thread*
    ;; queues (stub in P05; JS jobs wire in P06)
    #:enqueue-task #:enqueue-microtask #:enqueue-next-tick #:drain-microtasks
    ;; handles / refcount
@@ -289,21 +289,29 @@
   (:local-nicknames (:lp :clun.loop) (:sys :clun.sys))
   (:documentation "Sockets, HTTP parser/server/client, fetch, TLS integration.")
   (:export ;; Phase 16 — TCP handle layer on the reactor
-   #:tcp-listen #:tcp-connect #:tcp-write #:tcp-close #:tcp-shutdown
+   #:tcp-listen #:tcp-connect #:tcp-connect-happy #:tcp-write #:tcp-close #:tcp-shutdown
+   #:tcp-pause #:tcp-resume
    #:tcp #:tcp-p #:tcp-state #:tcp-queued-bytes #:tcp-peer #:tcp-local
    #:tcp-on-data #:tcp-on-close #:tcp-on-error #:tcp-on-drain
    #:listener #:listener-p #:listener-port #:listener-close #:listener-address
    #:socket-error-code #:socket-open-error #:socket-open-error-code #:*default-read-size*
+   ;; Phase 28 -- bounded DNS + address-family racing
+   #:dns-error #:dns-error-message #:dns-address #:dns-address-text
+   #:dns-address-ipv6-p #:resolve-hostname-all #:resolve-hostname
    ;; Phase 17 — incremental HTTP/1.1 request parser
    #:make-http-parser #:parser-feed #:http-request #:http-request-p
    #:hr-method #:hr-target #:hr-version #:hr-headers #:hr-body #:hr-keep-alive
    #:*max-header-bytes* #:*max-body-bytes*
    #:make-http-response-parser #:response-finish #:http-response #:http-response-p
    #:hres-status #:hres-reason #:hres-version #:hres-headers #:hres-body #:hres-keep-alive
+   #:make-http-response-stream-parser #:response-stream-feed #:response-stream-finish
+   #:response-stream-reusable-p
    ;; Phase 18 — reactor HTTP client
-   #:http-request-async #:resolve-hostname #:%header
+   #:http-request-async #:http-request-stream-async #:resolve-hostname #:%header
+   #:http-content-decoding-error #:http-content-decoding-error-message
+   #:*max-decoded-body-bytes*
    ;; TLS client (Phase 20): blocking HTTPS request for the worker pool + error mapping.
-   #:https-request #:tls-error-message))
+   #:https-request #:https-request-stream #:tls-error-message))
 
 ;; Phase 51 — WebSocket types + fail-closed stubs (pure CL; framing later).
 (defpackage :clun.websocket

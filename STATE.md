@@ -21,7 +21,7 @@ cannot access macOS Keychain, libsecret, or Windows Credential Manager without C
 **Candidate release:** `0.1.0-dev.26` / `v0.1.0-dev.26`
 **Published release:** `0.1.0-dev.18` / `v0.1.0-dev.18`
 **Entry boundary:** immutable `v0.1.0-dev.18` is tagged and published; installer defaults to that tag.
-Master tip is `0.1.0-dev.21`. Parallel trains claim unpublished slots through `0.1.0-dev.25`;
+Master tip is `0.1.0-dev.22` after transport #95. Parallel trains claim unpublished slots through `0.1.0-dev.25`;
 this unit stages free `0.1.0-dev.26` under the unpublished-intermediate prerelease gap policy. Phase 26 remains after Phase 82.
 **Next scope:** keep `security.encrypted-secrets` at No with tested fail-closed evidence; no purity
 amendment; no file-vault relabel as OS secrets.

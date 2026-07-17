@@ -1,0 +1,10 @@
+contract_id	exact_commit	upstream_source	upstream_contract	local_test
+http.absolute-form-auth	c1076ce95effb909bfe9f596919b5dba5567d550	test/js/bun/http/proxy.test.js	proxy non-TLS absolute-form target and percent-decoded Basic credentials	NET/FETCH-HTTP-PROXY-ABSOLUTE-FORM-AUTH-AND-FAILURE-RESPONSE
+http.failure-response	c1076ce95effb909bfe9f596919b5dba5567d550	test/js/bun/http/proxy.test.js	proxy non-TLS auth failures resolve as HTTP responses	NET/FETCH-HTTP-PROXY-ABSOLUTE-FORM-AUTH-AND-FAILURE-RESPONSE
+env.disabled-values	c1076ce95effb909bfe9f596919b5dba5567d550	test/js/bun/http/proxy.test.js	empty and quoted-empty proxy environment values disable proxying	NET/FETCH-PROXY-PARSER-AND-NO-PROXY-PORT-SEMANTICS
+no-proxy.port-semantics	c1076ce95effb909bfe9f596919b5dba5567d550	test/js/bun/http/proxy.test.js	empty entries domain suffixes and exact optional ports are handled safely	NET/FETCH-PROXY-PARSER-AND-NO-PROXY-PORT-SEMANTICS
+connect.split-envelope	c1076ce95effb909bfe9f596919b5dba5567d550	test/js/web/fetch/fetch-proxy-connect-tunnel-split-envelope.test.ts	split CONNECT response head is consumed before origin TLS bytes	NET/HTTPS-CONNECT-PROXY-SPLIT-ENVELOPE-IS-NOT-ORIGIN-RESPONSE
+connect.failure-response	c1076ce95effb909bfe9f596919b5dba5567d550	test/js/bun/http/proxy-stress-errors.test.ts	non-2xx CONNECT reply is exposed without origin redirect handling	NET/HTTPS-CONNECT-PROXY-NON-2XX-IS-A-RESPONSE
+connect.redirect-not-followed	c1076ce95effb909bfe9f596919b5dba5567d550	test/js/bun/http/proxy-stress-errors.test.ts	CONNECT 3xx reply is exposed and its Location is not followed	NET/FETCH-HTTPS-CONNECT-REDIRECT-IS-NOT-FOLLOWED
+connect.unrequested-upgrade	c1076ce95effb909bfe9f596919b5dba5567d550	test/js/bun/http/proxy-stress-errors.test.ts	CONNECT 101 is rejected instead of interpreted as an origin response	NET/HTTPS-CONNECT-PROXY-101-IS-REJECTED
+proxy.unsupported-schemes	c1076ce95effb909bfe9f596919b5dba5567d550	test/js/bun/http/proxy-stress-errors.test.ts	ftp socks4 socks5 socks5h and ws proxy URLs reject before dialing	NET/FETCH-PROXY-PARSER-AND-NO-PROXY-PORT-SEMANTICS

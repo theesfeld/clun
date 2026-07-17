@@ -380,7 +380,7 @@ Linked phase labels are planned acceptance gates, not capabilities available tod
     </tr>
     <tr data-compat-feature="runtime.web-standard-apis">
       <th scope="row"><strong>Web Standard APIs</strong><span><code>fetch</code>, URL, events, headers, and related APIs</span></th>
-      <td class="clun-col"><b class="state partial">Partial</b> buffered fetch, scoped Web API surface, and one-chunk Response/Request.body ReadableStream consumers<a class="phase-link" data-roadmap-phase="38" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-38">Phase 38</a></td>
+      <td class="clun-col"><b class="state partial">Partial</b> streaming <code>fetch</code>, clone/tee, operation-wide timeouts, HTTP proxy and HTTPS CONNECT support, plain HTTP pooling, origin-keyed pure-tls HTTPS idle pooling, one-chunk Response/Request.body ReadableStream consumers, and a scoped Web API surface<a class="phase-link" data-roadmap-phase="38" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-38">Phase 38</a></td>
       <td><b class="state yes">Yes</b> broad WebCore-backed surface</td>
       <td><b class="state yes">Yes</b> broad standards surface</td>
       <td><b class="state yes">Yes</b> standards-first runtime surface</td>
@@ -495,7 +495,7 @@ Linked phase labels are planned acceptance gates, not capabilities available tod
     </tr>
     <tr data-compat-feature="package-manager.npm">
       <th scope="row"><strong>npm package management</strong><span>Install, manage, and publish npm-compatible dependencies</span></th>
-      <td class="clun-col"><b class="state partial">Partial</b> fixture-tested; public npm is blocked by TLS interop<span class="phase-links" data-roadmap-phase="61"><span>Phases</span> <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-28">28</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-59">59</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-60">60</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-61">61</a></span></td>
+      <td class="clun-col"><b class="state partial">Partial</b> fixture-tested; a pinned public npm install smoke passes over verified TLS<span class="phase-links" data-roadmap-phase="61"><span>Phases</span> <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-28">28</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-59">59</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-60">60</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-61">61</a></span></td>
       <td><b class="state yes">Yes</b> <code>bun install</code></td>
       <td><b class="state separate">Separate</b> npm ships with Node.js installers</td>
       <td><b class="state partial">Partial</b> installs npm projects; publishing is JSR-oriented</td>
