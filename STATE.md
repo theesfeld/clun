@@ -1993,8 +1993,11 @@ Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-earl
   inline receipts cover sorted nested containers, collections, dates, errors, promises, regexps, typed/binary
   values, circular references, functions, wrappers, classes, weak collections, numeric edges, symbols, and
   Buffer JSON shape while preserving lifecycle and asymmetric property-token behavior.
+- Milestone 66.22 adds engine-level source probes and runner-owned Bun-shaped text and LCOV reports for ESM,
+  CommonJS, JavaScript, and length-preserving stripped TypeScript. Coverage filtering, test-file inclusion,
+  output directories, reporters, and aggregate line/function/statement thresholds are available through CLI
+  and bunfig, with exact-output and checked shipped-binary receipts.
 - Ledger stays `Partial`. Remaining Phase 66 scope: Bun-exact serialization for the remaining exotic
-  descriptor and string edge cases,
-  coverage/source maps, parallelism/concurrency,
+  descriptor and string edge cases, JSX coverage mapping, parallelism/concurrency,
   watch hooks, exact 52-root Bun/Clun counts, four-target receipts,
   serial/parallel agreement, and 10k RSS.

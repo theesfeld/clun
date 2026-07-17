@@ -8,7 +8,13 @@
   (positionals '()) (name-pattern nil) (timeout 5000) (retry 0)
   (bail nil) (todo nil) (ci nil) (update-snapshots nil)
   (randomize nil) (seed nil) (reporter :console) (reporter-outfile nil)
-  (shard-index nil) (shard-count nil) (preloads '()) (error-message nil))
+  (shard-index nil) (shard-count nil) (preloads '())
+  (coverage nil) (coverage-reporters '()) (coverage-dir "coverage")
+  (coverage-reporters-explicit-p nil) (coverage-dir-explicit-p nil)
+  (coverage-include-test-files nil) (coverage-files-explicit-p nil)
+  (coverage-ignore-patterns '())
+  (coverage-threshold-lines nil) (coverage-threshold-functions nil)
+  (coverage-threshold-statements nil) (error-message nil))
 
 (defun %test-seed (value)
   (when (and value (plusp (length value)) (<= (length value) 10)
@@ -26,6 +32,21 @@
            (format nil
                    "unsupported reporter format '~a'. Available options: 'junit', 'dots'"
                    value)))))
+
+(defun %add-coverage-reporter (opts value)
+  (let ((reporter (cond ((string= value "text") :text)
+                        ((string= value "lcov") :lcov))))
+    (if reporter
+        (progn
+          (setf (to-coverage opts) t)
+          (setf (to-coverage-reporters-explicit-p opts) t)
+          (unless (member reporter (to-coverage-reporters opts))
+            (setf (to-coverage-reporters opts)
+                  (append (to-coverage-reporters opts) (list reporter)))))
+        (setf (to-error-message opts)
+              (format nil
+                      "unsupported coverage reporter '~a'. Available options: 'text', 'lcov'"
+                      value)))))
 
 (defun %test-positive-u32 (value)
   (let ((number (%test-seed value)))
@@ -64,6 +85,34 @@
           ((string= tok "--todo") (setf (to-todo o) t))
           ((string= tok "--ci") (setf (to-ci o) t))
           ((string= tok "--randomize") (setf (to-randomize o) t))
+          ((string= tok "--coverage") (setf (to-coverage o) t))
+          ((string= tok "--coverage-reporter")
+           (let ((value (next)))
+             (if value
+                 (%add-coverage-reporter o value)
+                 (setf (to-error-message o) "--coverage-reporter requires a value"))))
+          ((and (>= (length tok) 20)
+                (string= (subseq tok 0 20) "--coverage-reporter="))
+           (%add-coverage-reporter o (subseq tok 20)))
+          ((string= tok "--coverage-dir")
+           (let ((value (next)))
+             (if (and value (plusp (length value)))
+                 (setf (to-coverage-dir o) value
+                       (to-coverage-dir-explicit-p o) t)
+                 (setf (to-error-message o) "--coverage-dir requires a value"))))
+          ((and (>= (length tok) 15)
+                (string= (subseq tok 0 15) "--coverage-dir="))
+           (let ((value (subseq tok 15)))
+             (if (plusp (length value))
+                 (setf (to-coverage-dir o) value
+                       (to-coverage-dir-explicit-p o) t)
+                 (setf (to-error-message o) "--coverage-dir requires a value"))))
+          ((string= tok "--coverage-skip-test-files")
+           (setf (to-coverage-include-test-files o) nil
+                 (to-coverage-files-explicit-p o) t))
+          ((string= tok "--no-coverage-skip-test-files")
+           (setf (to-coverage-include-test-files o) t
+                 (to-coverage-files-explicit-p o) t))
           ((member tok '("--preload" "--require" "-r") :test #'string=)
            (let ((value (next)))
              (if (and value (plusp (length value)))
@@ -134,6 +183,30 @@
       (setf (to-error-message o)
             "--reporter=junit requires --reporter-outfile [file] to specify where to save the XML report"))
     o))
+
+(defun %apply-test-bunfig (opts config)
+  (when (and (tbc-coverage-present-p config) (tbc-coverage config))
+    (setf (to-coverage opts) t))
+  (when (and (not (to-coverage-reporters-explicit-p opts))
+             (tbc-coverage-reporters config))
+    (setf (to-coverage-reporters opts) (tbc-coverage-reporters config)))
+  (when (and (not (to-coverage-dir-explicit-p opts)) (tbc-coverage-dir config))
+    (setf (to-coverage-dir opts) (tbc-coverage-dir config)))
+  (when (and (not (to-coverage-files-explicit-p opts))
+             (tbc-coverage-skip-test-files-present-p config))
+    (setf (to-coverage-include-test-files opts)
+          (not (tbc-coverage-skip-test-files config))))
+  (setf (to-coverage-ignore-patterns opts) (tbc-coverage-ignore-patterns config)
+        (to-coverage-threshold-lines opts) (tbc-coverage-threshold-lines config)
+        (to-coverage-threshold-functions opts) (tbc-coverage-threshold-functions config)
+        (to-coverage-threshold-statements opts) (tbc-coverage-threshold-statements config))
+  (when (or (to-coverage-threshold-lines opts)
+            (to-coverage-threshold-functions opts)
+            (to-coverage-threshold-statements opts))
+    (setf (to-coverage opts) t))
+  (when (and (to-coverage opts) (null (to-coverage-reporters opts)))
+    (setf (to-coverage-reporters opts) '(:text)))
+  opts)
 
 (defun %fresh-test-seed ()
   (handler-case
@@ -231,10 +304,12 @@
       (incf (st-fail stats))
       (%maybe-bail stats cfg))))
 
-(defun %run-one-file (path opts stats report cwd suite-state last-file-p)
+(defun %run-one-file (path opts stats report cwd suite-state last-file-p
+                      &optional coverage-session)
   "Load + run one test file in a fresh realm. Returns the file's expect() count. A load
 error (syntax / top-level throw) is reported as a fail. Always tears the realm down."
   (let ((realm (eng:make-realm)) (ctx nil) (snapshot nil))
+    (setf (eng:realm-coverage-session realm) coverage-session)
     (unwind-protect
          (progn
            (rt:install-runtime realm :argv (list :script path :rest nil)
@@ -311,8 +386,10 @@ process exit code (1 on any failure, on zero tests, or on a 0-match -t filter)."
       (format *error-output* "clun test: ~a~%" (to-error-message opts))
       (return-from run-test-command 1))
     (handler-case
-        (setf (to-preloads opts)
-              (append (read-test-preloads-from-bunfig cwd*) (to-preloads opts)))
+        (let ((config (read-test-config-from-bunfig cwd*)))
+          (setf (to-preloads opts)
+                (append (tbc-preloads config) (to-preloads opts)))
+          (%apply-test-bunfig opts config))
       (test-config-error (condition)
         (format *error-output* "clun test: ~a~%" condition)
         (return-from run-test-command 1)))
@@ -336,19 +413,45 @@ process exit code (1 on any failure, on zero tests, or on a 0-match -t filter)."
                       records))))
            (expect-total 0)
            (suite-state (make-preload-suite-state))
+           (coverage-session (and (to-coverage opts) (eng:make-coverage-session)))
            (report-error nil))
       (when (null files)
         (format *standard-output* "No test files found.~%")
         (return-from run-test-command 1))
-      (loop for remaining on files
-            for f = (car remaining)
-            for last-file-p = (null (cdr remaining))
-            do (when (st-bailed stats) (return))
-               (setf current-file f)
-               (incf expect-total
-                     (%run-one-file f opts stats report cwd* suite-state last-file-p)))
+      (labels ((run-files ()
+                 (loop for remaining on files
+                       for f = (car remaining)
+                       for last-file-p = (null (cdr remaining))
+                       do (when (st-bailed stats) (return))
+                          (setf current-file f)
+                          (incf expect-total
+                                (%run-one-file f opts stats report cwd* suite-state
+                                               last-file-p coverage-session)))))
+        (if coverage-session
+            (eng:call-with-coverage-session coverage-session #'run-files)
+            (run-files)))
       (print-summary *standard-output* stats (length files) expect-total
                      (and (to-randomize opts) (to-seed opts)))
+      (when coverage-session
+        (handler-case
+            (let ((coverage-records
+                    (write-test-coverage
+                     coverage-session cwd* (to-coverage-reporters opts)
+                     (to-coverage-dir opts)
+                     (to-coverage-include-test-files opts)
+                     (to-coverage-ignore-patterns opts) *standard-output*)))
+              (dolist (failure
+                       (coverage-threshold-failures
+                        coverage-records
+                        (to-coverage-threshold-lines opts)
+                        (to-coverage-threshold-functions opts)
+                        (to-coverage-threshold-statements opts)))
+                (setf report-error t)
+                (format *error-output* "clun test: ~a~%" failure)))
+          (error (condition)
+            (setf report-error t)
+            (format *error-output* "clun test: failed to write coverage report: ~a~%"
+                    condition))))
       (when (eq (to-reporter opts) :junit)
         (let ((outfile (to-reporter-outfile opts)))
           (unless (sys:absolute-path-p outfile)

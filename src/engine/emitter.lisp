@@ -199,7 +199,40 @@ the `arguments` object when nothing references it (Phase 25 m5)."
 
 ;;; --- the dispatcher ---------------------------------------------------------
 
+(defun %coverage-statement-node-p (node)
+  (or (expression-statement-p node)
+      (debugger-statement-p node)
+      (variable-declaration-p node)
+      (if-statement-p node)
+      (while-statement-p node)
+      (do-while-statement-p node)
+      (for-statement-p node)
+      (for-in-statement-p node)
+      (for-of-statement-p node)
+      (switch-statement-p node)
+      (return-statement-p node)
+      (throw-statement-p node)
+      (try-statement-p node)
+      (break-statement-p node)
+      (continue-statement-p node)
+      (labeled-statement-p node)
+      (with-statement-p node)
+      (and (function-node-p node) (function-node-declaration node))
+      (and (class-node-p node) (class-node-declaration node))))
+
 (defun compile-node (comp node)
+  (let ((compiled (%compile-node-raw comp node)))
+    (if (%coverage-statement-node-p node)
+        (let ((point (coverage-register-point :statement
+                                              (node-start node) (node-end node))))
+          (if point
+              (lambda (environment)
+                (coverage-hit point)
+                (funcall compiled environment))
+              compiled))
+        compiled)))
+
+(defun %compile-node-raw (comp node)
   (etypecase node
     (literal (compile-literal node))
     (identifier (compile-identifier comp node))
@@ -1169,11 +1202,15 @@ base and computed key exactly once, before evaluating a right-hand side."
     (t nil)))
 
 (defun compile-function-common (comp params body fname &key arrow method generator async function-kind
-                                                       source-text)
+                                                       source-text source-start source-end)
   "Return (lambda (env) -> js-function). Sets up the function scope and body closure.
 GENERATOR/ASYNC bodies run in a coroutine (Phase 06): a hidden %coro% frame slot holds
 the live coroutine that yield/await suspend."
-  (let* ((strict (or (comp-strict comp) (function-body-strict-p body)))
+  (let* ((function-point
+           (and source-start
+                (coverage-register-point :function source-start
+                                         (or source-end source-start) fname)))
+         (strict (or (comp-strict comp) (function-body-strict-p body)))
          (parameter-scope (make-cscope :function))
          (stmts (block-statement-body body))
          (coro-p (or generator async))
@@ -1268,7 +1305,9 @@ the live coroutine that yield/await suspend."
                                     name
                                     :generator (function-node-generator declaration)
                                     :async (function-node-async declaration)
-                                    :source-text (node-source-text declaration)))))
+                                    :source-text (node-source-text declaration)
+                                    :source-start (node-start declaration)
+                                    :source-end (node-end declaration)))))
                      ;; Phase-25 COMPILE tier: eager mode classifies every body and records a named
                      ;; outcome. A coverable non-coroutine body invokes ONE cl:compiled native form;
                      ;; rejection or any compile failure falls back to the unchanged closure emitter.
@@ -1341,6 +1380,7 @@ the live coroutine that yield/await suspend."
                        (function-frame (body-frame)
                          (if body-scope (env-parent body-frame) body-frame))
                        (run-body (frame)
+                         (coverage-hit function-point)
                          (catch return-tag (funcall body-fn frame) +undefined+)))
                     (instantiate-function
                      (cond
@@ -1418,7 +1458,9 @@ the live coroutine that yield/await suspend."
         (compile-function-common comp (function-node-params node) (function-node-body node) ""
                                  :generator (function-node-generator node)
                                  :async (function-node-async node)
-                                 :source-text (node-source-text node))
+                                 :source-text (node-source-text node)
+                                 :source-start (node-start node)
+                                 :source-end (node-end node))
         (let* ((name (identifier-name id))
                (name-scope (make-cscope :block))
                (name-index (cs-declare name-scope name))
@@ -1434,7 +1476,9 @@ the live coroutine that yield/await suspend."
                    sub (function-node-params node) (function-node-body node) name
                    :generator (function-node-generator node)
                    :async (function-node-async node)
-                   :source-text (node-source-text node))))
+                   :source-text (node-source-text node)
+                   :source-start (node-start node)
+                   :source-end (node-end node))))
             (lambda (env)
               (let* ((name-env (new-frame 1 env +tdz+))
                      (function (funcall factory name-env)))
@@ -1446,12 +1490,16 @@ the live coroutine that yield/await suspend."
     (if (block-statement-p body)
         (compile-function-common comp (arrow-function-params node) body name :arrow t
                                  :async (arrow-function-async node)
-                                 :source-text (node-source-text node))
+                                 :source-text (node-source-text node)
+                                 :source-start (node-start node)
+                                 :source-end (node-end node))
         ;; expression-bodied arrow: wrap the expression in a return
         (compile-function-common comp (arrow-function-params node)
                                  (make-block-statement :body (list (make-return-statement :argument body)))
                                  name :arrow t :async (arrow-function-async node)
-                                 :source-text (node-source-text node)))))
+                                 :source-text (node-source-text node)
+                                 :source-start (node-start node)
+                                 :source-end (node-end node)))))
 
 (defun anon-fn-node-p (node)
   "An anonymous function/arrow/class expression eligible for NamedEvaluation."
@@ -1468,7 +1516,9 @@ the live coroutine that yield/await suspend."
      (compile-function-common comp (function-node-params node) (function-node-body node) name
                                :generator (function-node-generator node)
                                :async (function-node-async node)
-                               :source-text (node-source-text node)))
+                               :source-text (node-source-text node)
+                               :source-start (node-start node)
+                               :source-end (node-end node)))
     ((and (class-node-p node) (null (class-node-id node)))
      (compile-class comp node name))
     (t (compile-node comp node))))
@@ -1478,7 +1528,9 @@ the live coroutine that yield/await suspend."
                            :generator (function-node-generator fn-node)
                            :async (function-node-async fn-node)
                            :function-kind function-kind
-                           :source-text (callable-source-node-text (or source-node fn-node))))
+                           :source-text (callable-source-node-text (or source-node fn-node))
+                           :source-start (node-start (or source-node fn-node))
+                           :source-end (node-end (or source-node fn-node))))
 
 ;;; --- yield / await (Phase 06) ------------------------------------------------
 ;;; yield/await are plain calls into the coroutine primitive: they return a js-value
@@ -1674,7 +1726,9 @@ value to the outer driver and returning the inner iterator's final value."
                                                                                  (identifier-name (function-node-id fd))
                                                                                  :generator (function-node-generator fd)
                                                                                  :async (function-node-async fd)
-                                                                                 :source-text (node-source-text fd)))))
+                                                                                 :source-text (node-source-text fd)
+                                                                                 :source-start (node-start fd)
+                                                                                 :source-end (node-end fd)))))
                      (body-fn (compile-seq sub stmts))
                      (count (cs-count scope)))
                 (lambda (env)
@@ -1957,7 +2011,9 @@ Runs inside the enclosing async function/generator's coroutine (%coro%)."
                                        (identifier-name (function-node-id fd))
                                        :generator (function-node-generator fd)
                                        :async (function-node-async fd)
-                                       :source-text (node-source-text fd))))))
+                                       :source-text (node-source-text fd)
+                                       :source-start (node-start fd)
+                                       :source-end (node-end fd))))))
            (count (and scope (cs-count scope))))
       (labels ((run-cases (frame d)
                  (catch bt

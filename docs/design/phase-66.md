@@ -355,3 +355,24 @@ values, and empty/populated Buffer output. The existing checked lifecycle also p
 descriptor/accessor and pathological string/Unicode cases, coverage/source maps, watch integration, real
 concurrent/parallel scheduling, exact 52-root counts, target receipts, serial/parallel agreement, and the 10k
 RSS gate keep the public row `Partial`.
+
+## Milestone 66.22 - source-aligned code coverage
+
+The engine emitter now registers statement and function probes while compiling each module's original AST.
+Probe closures retain their owning coverage session, and the session is also realm-owned so module loading
+remains correctly attributed across coroutine threads. ESM and CommonJS use their resolved source path;
+TypeScript stripping preserves source length and line boundaries, so `.ts` and `.mts` reports refer directly
+to the original TypeScript rather than generated JavaScript.
+
+`clun test --coverage` emits a deterministic Bun-shaped text table by default. Repeated
+`--coverage-reporter=text|lcov`, `--coverage-dir`, test-file inclusion controls, and `bunfig.toml` coverage,
+reporter, directory, ignore-pattern, test-file, and aggregate threshold keys share one filtered result set.
+LCOV records contain function declarations/hits and line declarations/hits. A missed configured line,
+function, or statement threshold fails the command after the ordinary test summary.
+
+Exact shipped-binary evidence locks transformed TypeScript function and line percentages plus uncovered
+source lines. A checked matrix additionally proves ESM, CommonJS, text, LCOV, default and explicit test-file
+filtering, path ignores, bunfig parsing, CLI precedence, validation, and passing/failing thresholds. Coverage
+for JavaScript and TypeScript is therefore no longer a residual. JSX runtime support and source mapping,
+watch integration, real concurrent/parallel scheduling, exact 52-root counts, remaining exotic snapshot
+serialization, target receipts, serial/parallel agreement, and the 10k RSS gate keep the row `Partial`.

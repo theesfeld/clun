@@ -45,7 +45,9 @@
                                                    (function-node-body fd) name
                                                    :generator (function-node-generator fd)
                                                    :async (function-node-async fd)
-                                                   :source-text (node-source-text fd))
+                                                   :source-text (node-source-text fd)
+                                                   :source-start (node-start fd)
+                                                   :source-end (node-end fd))
                           lexical-env)))
         (js-set g name fn t)))
     (multiple-value-bind (vars funcs) (collect-var-names stmts)

@@ -3087,3 +3087,19 @@ External and inline storage share the same value renderer but apply multiline bo
 storage edge: external template literals retain Bun's leading/trailing newline, while inline snapshots compare
 the dedented value and add source indentation only during an edit. Property matcher tokens remain a structural
 pre-pass and therefore cannot be replaced accidentally in unrelated equal-looking values.
+
+### 2026-07-17 - Phase 66 coverage probes belong to source modules and realms
+
+Coverage is registered in the engine emitter from original AST offsets rather than inferred from runner
+output or generated Common Lisp forms. Each emitted probe captures its point for runtime hits, while the
+coverage session also belongs to the realm so loader work retains attribution across coroutine threads. ESM
+and CommonJS bind their resolved source path during compilation. TypeScript stripping remains length- and
+newline-preserving, which makes its existing transformed AST positions valid original-source positions
+without a second approximate mapping layer.
+
+The runner owns filtering and reporting after all selected files finish. One filtered record set feeds the
+deterministic text table, LCOV, and aggregate line/function/statement thresholds, preventing reporter-specific
+denominator drift. Test sources are excluded by default and can be included explicitly; project-external and
+`node_modules` sources are never presented as project coverage. This milestone claims source-aligned
+JavaScript and TypeScript only. JSX mapping remains public residual scope until the JSX runtime and its source
+contract are implemented.

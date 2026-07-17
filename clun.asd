@@ -155,6 +155,7 @@
                                                          (:file "promise")
                                                          (:file "async-function")))
                                            (:file "inspect")
+                                           (:file "coverage")
                                            (:file "emitter")
                                            (:file "compile-source")
                                            (:file "eval")
@@ -228,6 +229,7 @@
                                            (:file "scheduler")
                                            (:file "reporter")
                                            (:file "discovery")
+                                           (:file "coverage")
                                            (:file "config")
                                            (:file "runner")))
                              ;; CLI (Phase 08): arg parsing, .env, dispatch.
