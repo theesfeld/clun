@@ -17,6 +17,7 @@
     (eng:nonconfigurable-data-prop clun "CSRF" (make-clun-csrf g))
     (install-clun-glob clun g realm)
     (install-clun-string-width clun)
+    (install-clun-color clun)
     ;; env / argv mirror process (same objects)
     (when (eng:js-object-p proc)
       (eng:data-prop clun "env" (eng:js-get proc "env"))

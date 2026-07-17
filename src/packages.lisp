@@ -109,6 +109,14 @@
            #:glob-scan-cancelled #:glob-scan-cancelled-p #:glob-js-path-to-native
            #:glob-native-path-to-js #:scan-glob))
 
+(defpackage :clun.color
+  (:use :cl)
+  (:documentation "Engine-independent CSS color parsing, conversion, and terminal palettes.")
+  (:export #:color #:color-p #:color-space #:color-c1 #:color-c2 #:color-c3 #:color-alpha
+           #:make-rgba-color #:parse-color #:color->srgb #:color->rgba-bytes
+           #:color->hsl #:color->lab #:format-css-color #:format-color-number
+           #:ansi256-index #:ansi16-index))
+
 ;; Defined before clun.engine so the engine's :lp local-nickname can target it.
 (defpackage :clun.loop
   (:use :cl)

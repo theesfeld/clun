@@ -40,6 +40,12 @@
                               :serial t
                               :components ((:file "unicode-width-tables")
                                            (:file "string-width")))
+                             ;; CSS Color 4/5 parser and conversion substrate (Phase 34).
+                             ;; It is engine-independent so future CSS tooling can reuse it.
+                             (:module "color"
+                              :serial t
+                              :components ((:file "named-colors")
+                                           (:file "color")))
                              ;; Security substrate (Phase 35): engine-free CSRF token
                              ;; encoding/authentication over vendored crypto primitives.
                              (:module "security"
@@ -173,6 +179,7 @@
                                            (:file "clun-csrf")  ; Clun.CSRF (Phase 35) — before clun-global
                                            (:file "clun-string-width") ; Clun.stringWidth (Phase 33) — before clun-global
                                            (:file "clun-glob") ; Clun.Glob (Phase 30) — before clun-global
+                                           (:file "clun-color") ; Clun.color (Phase 34) — before clun-global
                                            (:file "clun-global")
                                            (:file "abort")     ; AbortController/AbortSignal (Phase 14)
                                            (:file "globals")   ; structuredClone, crypto (Phase 12)
@@ -241,6 +248,9 @@
                                             :serial t
                                             :components ((:file "matcher-tests")
                                                          (:file "walker-tests")))
+                                           (:module "color"
+                                            :serial t
+                                            :components ((:file "color-tests")))
                                            (:module "resolver"
                                             :serial t
                                             :components ((:file "resolver-tests")))
