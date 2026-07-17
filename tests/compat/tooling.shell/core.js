@@ -113,6 +113,43 @@ Clun.$`printf "%s\n" ${hostile}`.text()
     console.log("structured-error");
     assert(Clun.$.escape("a b") === '"a b"', "escape helper");
     assert(Clun.$.braces("x{a,b}y").join(",") === "xay,xby", "brace helper");
+    assert(Clun.$.braces("echo 123").join("|") === "echo 123", "brace no-op");
+    assert(Clun.$.braces("echo {123,{456,789},abc}").join("|") ===
+      "echo 123|echo 456|echo 789|echo abc", "nested brace variants");
+    assert(Clun.$.braces("pre{{a,b}{c,d}}post").join("|") ===
+      "preacpost|preadpost|prebcpost|prebdpost", "nested brace product");
+    assert(Clun.$.braces("{a,{b,c}{d,e},f}").join("|") ===
+      "a|bd|be|cd|ce|f", "mixed brace variants and products");
+    assert(Clun.$.braces("{{a,b}{c,d}{e,f}}").join("|") ===
+      "ace|acf|ade|adf|bce|bcf|bde|bdf", "triple brace product");
+    assert(Clun.$.braces("lol {😂,🫵,🤣}").join("|") === "lol 😂|lol 🫵|lol 🤣",
+      "Unicode brace variants");
+    assert(Clun.$.braces(
+      "{1,{2,{3,{4,{5,{6,{7,{8,{9,{10,{11,{12,{13,{14,{15,{16,{17}}}}}}}}}}}}}}}}}"
+    ).join("|") === "1|2|3|4|5|6|7|8|9|10|11|12|13|14|15|16|17",
+    "deep nested brace variants");
+    assert(Clun.$.braces("").join("|") === "", "empty brace input");
+    assert(Clun.$.braces("", { tokenize: true }) === '["eof"]',
+      "brace token debug output");
+    assert(Clun.$.braces("", { parse: true }) ===
+      '{"bubble_up":null,"bubble_up_next":null,"atoms":{"many":[]}}',
+    "brace AST debug output");
+    let braceBoundError = "";
+    try {
+      Clun.$.braces("{".repeat(257) + "}".repeat(257));
+    } catch (error) {
+      braceBoundError = error.message;
+    }
+    assert(braceBoundError === "Too many braces in brace expansion", "brace group bound");
+    let braceResultError = "";
+    try {
+      Clun.$.braces("{a,b}".repeat(17));
+    } catch (error) {
+      braceResultError = error.message;
+    }
+    assert(braceResultError === "Too many brace expansions (131072 > 65536)",
+      "brace result bound");
+    console.log("brace-expansion");
     console.log("helpers");
     const manual = new Clun.$.ShellError("manual");
     assert(manual instanceof Clun.$.ShellError && manual instanceof Error,

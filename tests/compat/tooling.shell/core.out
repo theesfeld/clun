@@ -9,6 +9,7 @@ redirection
 descriptor-redirection
 structured-output
 structured-error
+brace-expansion
 helpers
 promise-chain
 path-lookup

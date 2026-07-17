@@ -239,6 +239,23 @@
              (is equal (format nil "out~%err~%out~%err~%") (text "both")))
         (ignore-errors (sys:remove-recursive directory))))))
 
+(define-test shell/bounded-nested-brace-expansion
+  (is equal '("echo 123")
+      (clun.runtime::%shell-brace-expand "echo 123"))
+  (is equal '("echo 123" "echo 456" "echo 789" "echo abc")
+      (clun.runtime::%shell-brace-expand "echo {123,{456,789},abc}"))
+  (is equal '("preacpost" "preadpost" "prebcpost" "prebdpost")
+      (clun.runtime::%shell-brace-expand "pre{{a,b}{c,d}}post"))
+  (is equal '("a" "bd" "be" "cd" "ce" "f")
+      (clun.runtime::%shell-brace-expand "{a,{b,c}{d,e},f}"))
+  (is equal '("ace" "acf" "ade" "adf" "bce" "bcf" "bde" "bdf")
+      (clun.runtime::%shell-brace-expand "{{a,b}{c,d}{e,f}}"))
+  (let* ((tokens (clun.runtime::%shell-brace-tokenize ""))
+         (group (clun.runtime::%shell-brace-parse tokens)))
+    (is equal "[\"eof\"]" (clun.runtime::%shell-brace-tokens-json tokens))
+    (is equal "{\"bubble_up\":null,\"bubble_up_next\":null,\"atoms\":{\"many\":[]}}"
+        (clun.runtime::%shell-brace-ast-json group))))
+
 (define-test shell/conditional-expression-core
   (let* ((directory (clun.runtime::%shell-temp-directory))
          (state (shell-test-state)))
