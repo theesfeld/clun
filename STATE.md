@@ -7,43 +7,44 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **30 - Glob API**  (IN PROGRESS)
+## Current phase: **34 - CSS Color API**  (IN PROGRESS)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/4
-**Current implementation unit:** publish the arm64 CookieMap allocation correction and convert
-`filesystem.glob` from `No` to the fifth evidence-backed compatibility-ledger `Yes` through immutable
-`Clun.Glob` matching plus synchronous and asynchronous filesystem scanning.
+**Canonical issue:** https://github.com/theesfeld/clun/issues/8
+**Current implementation unit:** convert `web.css-color` from `No` to the sixth evidence-backed
+compatibility-ledger `Yes` through the complete `Clun.color` parse, conversion, serialization, and
+terminal-palette surface.
 **SemVer impact:** `minor`
-**Release target:** `0.1.0-dev.12` / `v0.1.0-dev.12`
-**Entry boundary:** Phase 33 / issue #7 published the third ledger `Yes` as immutable dev.10 at
-`3e169ed25f8818621fd383678b313dfd0af71323`. Reconciliation commit
-`6585ace428934801ae2e2a3ebb132d38e0cd9ad5` passed CI, Documentation, and Pages; live `clun.sh`
-and an isolated hosted dev.10 install are verified. Phase 32 then merged its fourth candidate `Yes` at
-`cb7de5d30b3a9c0df96bf857fe091a86f09da2cd`; exact master CI, Documentation, Compatibility, and candidate
-Pages passed. Immutable dev.11 release run `29544890706` failed only the CookieMap allocation-scaling
-assertion on both arm64 builders, so no GitHub release or assets were published and that tag will never be
-moved or reused. Phase 30 dependencies 13 and 27 are complete. Phase 26 remains after Phase 82.
-**Current scope:** publish the completed CookieMap allocation-free layout correction and the accepted
-`Clun.Glob` row together from the exact dev.12 master commit, collect four native compatibility receipts,
-then reconcile Pages and the hosted installer before handing the ledger to Phase 34.
+**Release target:** `0.1.0-dev.13` / `v0.1.0-dev.13`
+**Entry boundary:** Phase 30 and its fifth ledger `Yes`, `Clun.Glob`, are merged at exact master
+`ba20edbbb05a7c84b58ec555347b7f3cb858610a`. Exact-master CI, Documentation, Compatibility, and
+candidate Pages passed. Immutable dev.12 release run `29549077422` then exposed architecture-sensitive
+single-sample CookieMap allocation accounting on both arm64 builders, so no release or assets were
+published and the tag will not be moved or reused. The last published prerelease remains dev.10. Phase 34
+depends only on completed Phase 27, and Phase 26 remains after Phase 82.
+**Current scope:** publish the accepted Glob and Color implementations together as dev.13 with the
+architecture-stable aggregate allocation gate, collect exact-master CI plus all four native compatibility
+receipts, then reconcile Pages and verify the hosted installer before handing the release lane to Phase 31
+YAML.
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
 easiest to hardest among dependency-ready rows. Core engine/runtime/network/tooling changes are expected.
 Every conversion requires a legitimate canonical issue, accepted design, full declared behavior, executable
 four-target evidence, synchronized public surfaces, and the correct SemVer transition. The active parallel
-queue is Glob, CSS Color, YAML, and password/hash; exact canonical ledger IDs are frozen in `PLAN.md`.
+queue is CSS Color, YAML, password/hash, transport, and modern ECMAScript; exact canonical ledger IDs are
+frozen in `PLAN.md`.
 
-**Current checkpoint:** Cookie correction commit `1762cdd969e25591dbe33d05532aa978c53b435e` replaces geometric
-CookieMap growth with an allocation-free layout prepass and exact 1024/2048/4096 capacities. The unchanged
-2.75x N-to-2N gate now measures 2.197x locally; focused resources are 13/13, Cookie core 1,500/1,500, build,
-purity (**714 files / 0 violations**), and diff check pass. Glob commits
-`758323395895ecc23b986b94bef5549d21d17630` and `dfab88be` implement the matcher and synchronous/asynchronous
-scanners, then close independent Unicode, navigation, component-local dotfile, ELOOP, cancellation,
-producer-lifetime, platform-ceiling, oracle, and evidence findings. The integrated gate passes **679 focused
-assertions**, stable and engineering matcher inventories (**24/1,471** and **26/1,483**), all shipped
-scan/adversarial/stress/oracle scripts, and the honest **3,400-site** inventory. The source candidate is now
-**5 Yes / 6 Partial / 19 No**. The published live ledger remains **3 Yes / 6 Partial / 21 No** until dev.12,
-Pages reconciliation, and the hosted installer pass.
+**Current checkpoint:** integrated production commits `6b58ad73` and `7ac12aca` (from reviewed source
+commits `01ab1f9c` and `a0183dfc`) implement every selected input and
+output space, strict grammar and bounds, color conversion and gamut mapping, exact CSS/hex/number/object/
+tuple/ANSI serialization, observable option access, and runtime wiring. The focused suite passes
+**8,638 / 0 / 0**. Exact Bun 1.3.14 differentials pass **5,392 ordinary vectors**, **5,392 missing-alpha
+vectors**, and all **256 alpha values**; registered shipped-binary corpus/public/stress evidence and the
+structured differential trace pass. Build, purity (**718 files / 0 violations**), compatibility validation,
+roadmap, docs, public claims, and diff check pass on the implementation branch. The stacked source candidate
+is **6 Yes / 6 Partial / 18 No**. Commit `9b074e11` replaces the allocator-region-sensitive single
+construction sample with eight-construction aggregate accounting after warming every checked size; its
+focused resource gate passes **13 / 13** locally without weakening the unchanged 2.75x linearity threshold.
+Public release receipts, Pages, and hosted installation remain pending.
 
 **M5 entry boundary:** immutable dev.4 diagnostic set **56 total / 0 pass / 56 fail / 0 skip / 0 crash**:
 **43 m5-owned** (32 intrinsic/prototype, 7 parser, 4 raw delegation), **12 m11** direct-eval/`with`

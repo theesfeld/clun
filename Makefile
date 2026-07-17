@@ -13,7 +13,7 @@ PHASE_25B_M5_MANIFEST      ?= tests/conformance/phase-25b-m5.tsv
 PHASE_25B_M6_MANIFEST      ?= tests/conformance/phase-25b-m6.tsv
 FEATURE                    ?= all
 
-.PHONY: all build test test-lisp test-glob test-js test-tls test-crypto registry-fixture purity bench \
+.PHONY: all build test test-lisp test-cookie-resources test-glob test-js test-tls test-crypto registry-fixture purity bench \
 		bench-check compile-tier-ceiling test-installer test-release-live-check \
 		public-claims-check version-transition-check test-version-transition-check \
 		compat compat-validate docs-generate docs-check test-compat-tools \
@@ -36,6 +36,10 @@ test: test-lisp test-ts test-js
 
 test-lisp:
 	$(SBCL) $(SBCL_FLAGS) --load scripts/test.lisp
+
+## test-cookie-resources -- architecture-sensitive CookieMap allocation bounds.
+test-cookie-resources:
+	$(SBCL) $(SBCL_FLAGS) --load scripts/test-cookie-resources.lisp
 
 ## test-glob -- Phase 30 focused Lisp bounds plus shipped public API/corpus/scanner.
 test-glob: build

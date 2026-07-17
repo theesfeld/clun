@@ -44,6 +44,7 @@ resource does not exist with a 404 response:
 0.1.0-dev.10
 0.1.0-dev.11
 0.1.0-dev.12
+0.1.0-dev.13
 ```
 
 Phase 25b is the compatibility program for the planned `0.1.0` release. Its first behavioral
@@ -76,8 +77,16 @@ Phase 32 implemented the fourth public compatibility-ledger `Yes`: backward-comp
 Compatibility, and candidate Pages passed for dev.11, but the immutable tag's release matrix exposed
 geometric CookieMap allocation growth on both arm64 builders. No dev.11 GitHub release or assets were
 published, and the tag is immutable. The production pre-sizing correction is therefore combined with
-Phase 30's backward-compatible `Clun.Glob` API in `0.1.0-dev.12` / `v0.1.0-dev.12`, with ASDF core
-`0.1.0`. Issues #6 and #4 jointly own the release evidence; issue #4 is the active publication record.
+Phase 30's backward-compatible `Clun.Glob` API was merged for `0.1.0-dev.12` / `v0.1.0-dev.12`, with
+ASDF core `0.1.0`. Exact-master gates passed, but the immutable tag's release run exposed
+allocator-region-sensitive single-sample accounting in the unchanged CookieMap linearity test on both
+arm64 builders. No dev.12 GitHub release or assets were published, and the tag is immutable. Issues #6 and
+#4 retain those exact receipts.
+Phase 34 adds the sixth public compatibility-ledger `Yes`, the backward-compatible `Clun.color` parsing,
+conversion, CSS, packed, object, tuple, hex, and ANSI output surface. It targets immutable prerelease
+`0.1.0-dev.13` / `v0.1.0-dev.13`, with ASDF core `0.1.0`; that release also republishes the accepted Glob
+surface and uses aggregate allocation accounting without weakening its 2.75x threshold. Issue #8 owns the
+active release evidence and exact four-target receipts, while issue #4 remains the canonical Glob record.
 
 ## Canonical record
 

@@ -1,0 +1,186 @@
+;;;; clun-color.lisp -- public Clun.color JavaScript boundary (Phase 34).
+
+(in-package :clun.runtime)
+
+(defparameter +color-formats+
+  '(("ansi" . :ansi)
+    ("ansi-16" . :ansi-16) ("ansi_16" . :ansi-16)
+    ("ansi-256" . :ansi-256) ("ansi_256" . :ansi-256) ("ansi256" . :ansi-256)
+    ("ansi-16m" . :ansi-16m) ("ansi_16m" . :ansi-16m)
+    ("ansi-24bit" . :ansi-16m) ("ansi-truecolor" . :ansi-16m)
+    ("css" . :css) ("hex" . :hex) ("HEX" . :hex-upper)
+    ("hsl" . :hsl) ("lab" . :lab) ("number" . :number)
+    ("rgb" . :rgb) ("rgba" . :rgba)
+    ("[rgb]" . :rgb-array) ("[rgba]" . :rgba-array) ("[r,g,b,a]" . :rgba-array)
+    ("{rgb}" . :rgb-object) ("{rgba}" . :rgba-object) ("{r,g,b}" . :rgb-object)))
+
+(defun %color-format-error-message ()
+  (let* ((names (mapcar #'car +color-formats+))
+         (quoted (mapcar (lambda (name) (format nil "'~a'" name)) names)))
+    (format nil "format must be one of ~{~a~^, ~}, or ~a"
+            (butlast quoted) (car (last quoted)))))
+
+(defun %color-type-error (message)
+  (let ((error (eng:make-error-object :type-error-prototype "TypeError" message)))
+    (eng:js-set error "code" "ERR_INVALID_ARG_TYPE" nil)
+    (eng:throw-js-value error)))
+
+(defun %color-error (message)
+  (eng:throw-js-value (eng:make-error-object :error-prototype "Error" message)))
+
+(defun %color-format (value)
+  (when (eng:js-nullish-p value) (return-from %color-format :css))
+  (unless (eng:js-string-p value)
+    (%color-type-error "Expected format to be a string for 'color'."))
+  (or (cdr (assoc value +color-formats+ :test #'string=))
+      (%color-type-error (%color-format-error-message))))
+
+(defun %color-channel-integer (value property)
+  (unless (eng:js-number-p value)
+    (%color-type-error (format nil "Expected ~a to be an integer for 'color'." property)))
+  (cond ((eng:js-nan-p value) 0)
+        ((eng:js-infinite-p value) (if (minusp value) 0 255))
+        (t (max 0 (min 255 (truncate value))))))
+
+(defun %color-alpha-byte (value)
+  (if (eng:js-number-p value)
+      (cond ((eng:js-nan-p value) 0)
+            ((or (eng:js-infinite-p value)
+                 (> value (/ (coerce #x7fffffffffffffff 'double-float) 255d0)))
+             (if (minusp value) 0 255))
+            ((< value (/ (coerce (- #x8000000000000000) 'double-float) 255d0)) 0)
+            (t (mod (truncate (* value 255d0)) 256)))
+      255))
+
+(defun %color-array-like-p (value)
+  (or (eng::js-array-p value) (eng::js-typed-array-p value)))
+
+(defun %color-from-array (value)
+  (let ((length-value (eng:js-get value "length")))
+    (unless (eng:js-number-p length-value) (%color-error "Expected array length 3 or 4"))
+    (let ((length (truncate length-value)))
+      (unless (member length '(3 4)) (%color-error "Expected array length 3 or 4"))
+      (let ((r (%color-channel-integer (eng:js-get value "0") "[0]"))
+            (g (%color-channel-integer (eng:js-get value "1") "[1]"))
+            (b (%color-channel-integer (eng:js-get value "2") "[2]")))
+        (clun.color:make-rgba-color
+         r g b (if (= length 4)
+                   (%color-channel-integer (eng:js-get value "3") "[3]")
+                   255))))))
+
+(defun %color-from-object (value)
+  (let ((r (%color-channel-integer (eng:js-get value "r") "r"))
+        (g (%color-channel-integer (eng:js-get value "g") "g"))
+        (b (%color-channel-integer (eng:js-get value "b") "b")))
+    (clun.color:make-rgba-color r g b (%color-alpha-byte (eng:js-get value "a")))))
+
+(defun %color-from-number (value)
+  (let* ((integer (eng::double->uint32 value))
+         (blue (ldb (byte 8 0) integer))
+         (green (ldb (byte 8 8) integer))
+         (red (ldb (byte 8 16) integer))
+         (alpha (if (> integer #xffffff) (ldb (byte 8 24) integer) 255)))
+    (clun.color:make-rgba-color red green blue alpha)))
+
+(defun %color-input (value)
+  (cond ((eng:js-number-p value) (%color-from-number value))
+        ((%color-array-like-p value) (%color-from-array value))
+        ((eng:js-object-p value) (%color-from-object value))
+        (t (clun.color:parse-color (eng:to-string value)))))
+
+(defun %color-object (red green blue &optional alpha alpha-p)
+  (let ((object (eng:new-object)))
+    (eng:data-prop object "r" (coerce red 'double-float))
+    (eng:data-prop object "g" (coerce green 'double-float))
+    (eng:data-prop object "b" (coerce blue 'double-float))
+    (when alpha-p (eng:data-prop object "a" alpha))
+    object))
+
+(defun %color-auto-ansi-format ()
+  (let ((force (sys:getenv "FORCE_COLOR"))
+        (no-color (sys:getenv "NO_COLOR"))
+        (term (or (sys:getenv "TERM") ""))
+        (colorterm (or (sys:getenv "COLORTERM") ""))
+        (tmux (sys:getenv "TMUX")))
+    (cond ((and force (string= force "0")) nil)
+          ((and force (string= force "1")) :ansi-16)
+          ((and force (string= force "2")) :ansi-256)
+          ((and force (string= force "3")) :ansi-16m)
+          ((and no-color (not (and force (plusp (length force))))) nil)
+          ((string-equal term "dumb") nil)
+          ((or tmux (member (%ascii-downcase colorterm) '("truecolor" "24bit") :test #'string=))
+           :ansi-16m)
+          ((search "256color" term :test #'char-equal) :ansi-256)
+          ((sys:tty-p *standard-output*) :ansi-16)
+          (t nil))))
+
+(defun %ascii-downcase (string)
+  (map 'string (lambda (char)
+                 (if (and (char>= char #\A) (char<= char #\Z))
+                     (code-char (+ (char-code char) 32)) char))
+       string))
+
+(defun %color-render-bytes (color format)
+  (multiple-value-bind (r g b alpha-byte) (clun.color:color->rgba-bytes color)
+    (case format
+        (:number (coerce (logior (ash r 16) (ash g 8) b) 'double-float))
+        (:hex (string-downcase (format nil "#~2,'0x~2,'0x~2,'0x" r g b)))
+        (:hex-upper (string-upcase (format nil "#~2,'0x~2,'0x~2,'0x" r g b)))
+        (:rgb (format nil "rgb(~d, ~d, ~d)" r g b))
+        (:rgba (format nil "rgba(~d, ~d, ~d, ~a)" r g b
+                       (clun.color:format-color-number (/ alpha-byte 255d0) t)))
+        (:rgb-array (eng:new-array (mapcar (lambda (n) (coerce n 'double-float)) (list r g b))))
+        (:rgba-array (eng:new-array (mapcar (lambda (n) (coerce n 'double-float))
+                                            (list r g b alpha-byte))))
+        (:rgb-object (%color-object r g b))
+        (:rgba-object
+         (%color-object r g b
+                        (coerce (/ (coerce alpha-byte 'single-float) 255f0) 'double-float)
+                        t))
+        (:ansi-16m (format nil "~c[38;2;~d;~d;~dm" #\Esc r g b))
+        (:ansi-256 (format nil "~c[38;5;~dm" #\Esc (clun.color:ansi256-index r g b)))
+        (:ansi-16
+         (let* ((index (clun.color:ansi16-index r g b))
+                (sgr (if (< index 8) (+ 30 index) (+ 82 index))))
+           (format nil "~c[~dm" #\Esc sgr)))
+        (otherwise (clun.color:format-css-color color)))))
+
+(defun %color-render (color requested-format)
+  (let ((format (if (eq requested-format :ansi) (%color-auto-ansi-format) requested-format)))
+    (when (and (eq requested-format :ansi) (null format)) (return-from %color-render ""))
+    (case format
+      (:css (clun.color:format-css-color color))
+      (:hsl
+       (multiple-value-bind (h s l ignored-alpha) (clun.color:color->hsl color)
+         (declare (ignore ignored-alpha))
+         (format nil "hsl(~a, ~a%, ~a%)" (clun.color:format-color-number h)
+                 (clun.color:format-color-number (* s 100d0))
+                 (clun.color:format-color-number (* l 100d0)))))
+      (:lab
+       (multiple-value-bind (l a bb ignored-alpha) (clun.color:color->lab color)
+         (declare (ignore ignored-alpha))
+         (format nil "lab(~a% ~a ~a)" (clun.color:format-color-number l)
+                 (clun.color:format-color-number a) (clun.color:format-color-number bb))))
+      (otherwise (%color-render-bytes color format)))))
+
+(defun %make-clun-color ()
+  (eng:make-native-function
+   "color" 2
+   (lambda (this args)
+     (declare (ignore this))
+     (let ((input (eng:arg args 0)))
+       (when (eng:js-undefined-p input)
+         (%color-type-error "Expected input to be a string, number, or object for 'color'."))
+       (let* ((format (%color-format (eng:arg args 1)))
+              (color (%color-input input)))
+         (if color
+             (handler-case (%color-render color format)
+               (clun.color::color-parse-error () eng:+null+)
+               (arithmetic-error () eng:+null+))
+             eng:+null+))))))
+
+(defun install-clun-color (clun)
+  (eng::obj-set-desc clun "color"
+                     (eng::data-pd (%make-clun-color)
+                                   :writable t :enumerable t :configurable nil))
+  clun)
