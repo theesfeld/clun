@@ -323,6 +323,29 @@
              (is = 0 (clun.runtime::shell-result-exit-code result))))
       (ignore-errors (sys:remove-recursive directory)))))
 
+(define-test shell/compound-groups-nest-inside-if
+  (dolist (case
+           '(("if { echo foo; } then echo bar; fi" "foo~%bar~%" 0)
+             ("if echo foo; then { echo bar; } fi" "foo~%bar~%" 0)
+             ("if echo foo; then { echo bar; } elif echo baz; then echo qux; fi"
+              "foo~%bar~%" 0)
+             ("if echo foo; then echo bar; elif { echo baz; } then echo qux; fi"
+              "foo~%bar~%" 0)
+             ("if ! echo foo; then { echo bar; } else echo baz; fi"
+              "foo~%baz~%" 0)
+             ("if ! echo foo; then echo bar; else { echo baz; } fi"
+              "foo~%baz~%" 0)
+             ("if { if false; then echo no; else echo nested; fi; } then echo outer; fi"
+              "nested~%outer~%" 0)
+             ("if (echo subshell); then echo outer; fi"
+              "subshell~%outer~%" 0)
+             ("if ! { false; }; then echo negated; fi" "negated~%" 0)
+             ("! ! { false; }" "" 1)))
+    (destructuring-bind (source expected-output expected-code) case
+      (multiple-value-bind (output exit-code) (shell-test-output source)
+        (is equal (format nil expected-output) output)
+        (is = expected-code exit-code)))))
+
 (define-test shell/if-elif-else-compound-command
   (multiple-value-bind (output exit-code)
       (shell-test-output

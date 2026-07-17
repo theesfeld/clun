@@ -85,7 +85,19 @@ queue("{ echo 1; echo 2; echo 3; echo 4; } > brace-out\n{ tail -n 2; } < brace-o
   "3\n4\n", 0, "brace group redirects");
 queue("{ echo foo; }", "foo\n", 0, "brace group trailing separator");
 queue("{\necho foo\n}", "foo\n", 0, "brace group newlines");
+queue("if { echo foo; } then echo bar; fi", "foo\nbar\n", 0,
+  "brace group as if condition");
+queue("if echo foo; then { echo bar; } fi", "foo\nbar\n", 0,
+  "brace group as then body");
+queue("if echo foo; then { echo bar; } elif echo baz; then echo qux; fi",
+  "foo\nbar\n", 0, "brace group before elif");
+queue("if echo foo; then echo bar; elif { echo baz; } then echo qux; fi",
+  "foo\nbar\n", 0, "brace group as elif condition");
+queue("if ! echo foo; then { echo bar; } else echo baz; fi", "foo\nbaz\n", 0,
+  "brace group before else");
+queue("if ! echo foo; then echo bar; else { echo baz; } fi", "foo\nbaz\n", 0,
+  "brace group as else body");
 
 chain
   .then(() => job(`rm -rf ${root}`).quiet())
-  .then(() => console.log("upstream-groups: 36 exact sites"));
+  .then(() => console.log("upstream-groups: 48 exact sites"));
