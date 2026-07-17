@@ -8,10 +8,10 @@ This is a deterministic analysis of the authoritative execution classification l
 |---|---|
 | generator | `scripts/test262-buckets.lisp` |
 | vendor-test262-commit | `d1d583db95a521218f3eb8341a887fd63eda8ff1` |
-| source-revision | `cb7de5d30b3a9c0df96bf857fe091a86f09da2cd` |
+| source-revision | `working-tree@7f443be629d66f5d11f3a81590de8160b6522ab0` |
 | classification-ledger | `tmp-test/test262-exec-classifications.tsv` |
 | frozen-passlist | `tests/conformance/exec-passlist.txt` |
-| classification-ledger-fnv-1a-64 | `51F51CA8B22FAB6D` |
+| classification-ledger-fnv-1a-64 | `505954B27BF44A08` |
 
 The digest is FNV-1a-64 over the ledger's exact input bytes; it is not SHA.
 
@@ -20,13 +20,13 @@ The digest is FNV-1a-64 over the ledger's exact input bytes; it is not SHA.
 | Measure | Exact value |
 |---|---:|
 | Total | 40654 |
-| Pass | 25474 |
-| Fail | 2689 |
+| Pass | 25647 |
+| Fail | 2516 |
 | Skip | 12491 |
 | Crash | 0 |
 | Eligible (`pass + fail`) | 28163 |
-| Pass rate | 25474 / 28163 = 90.452012% |
-| Frozen baseline pass count | 25474 |
+| Pass rate | 25647 / 28163 = 91.066293% |
+| Frozen baseline pass count | 25647 |
 | Current-pass delta from frozen baseline | +0 |
 | `ceil(90% * eligible)` | 25347 |
 | Required pass lift | 0 |
@@ -36,7 +36,7 @@ The digest is FNV-1a-64 over the ledger's exact input bytes; it is not SHA.
 | Phase owner | Fail rows |
 |---|---:|
 | `phase-25b` | 1808 |
-| `phase-37` | 881 |
+| `phase-37` | 708 |
 
 Phase ownership is orthogonal to the implementation work buckets below.
 
@@ -50,41 +50,41 @@ Phase ownership is orthogonal to the implementation work buckets below.
 | 4 | `async-generators` | 0 |
 | 5 | `generators` | 10 |
 | 6 | `classes` | 19 |
-| 7 | `binary-data` | 643 |
+| 7 | `binary-data` | 642 |
 | 8 | `regexp` | 224 |
 | 9 | `iterator-protocol` | 10 |
-| 10 | `promises` | 97 |
+| 10 | `promises` | 93 |
 | 11 | `collections` | 238 |
-| 12 | `arrays` | 333 |
-| 13 | `objects` | 91 |
+| 12 | `arrays` | 249 |
+| 13 | `objects` | 32 |
 | 14 | `functions-arguments` | 44 |
 | 15 | `operators-references` | 177 |
-| 16 | `primitive-builtins` | 222 |
+| 16 | `primitive-builtins` | 197 |
 | 17 | `other-runtime` | 148 |
 
-The work buckets are mutually exclusive, first-match wins, and their counts sum to 2689.
+The work buckets are mutually exclusive, first-match wins, and their counts sum to 2516.
 
 ## Top 25 owner counts
 
 | Count | Value |
 |---:|---|
-| 421 | `builtin:Array` |
 | 382 | `builtin:TypedArray` |
+| 337 | `builtin:Array` |
 | 284 | `language:statements` |
 | 232 | `language:expressions` |
 | 204 | `builtin:RegExp` |
 | 183 | `language:eval-code` |
 | 156 | `builtin:Set` |
 | 129 | `builtin:DataView` |
-| 99 | `builtin:Promise` |
-| 97 | `builtin:Object` |
+| 95 | `builtin:Promise` |
 | 65 | `builtin:TypedArrayConstructors` |
 | 63 | `builtin:Date` |
-| 50 | `builtin:String` |
 | 48 | `builtin:ArrayBuffer` |
 | 43 | `builtin:Map` |
-| 40 | `builtin:Error` |
+| 38 | `builtin:Object` |
 | 36 | `builtin:WeakMap` |
+| 34 | `builtin:String` |
+| 30 | `builtin:Error` |
 | 25 | `builtin:JSON` |
 | 19 | `builtin:Math` |
 | 19 | `builtin:Number` |
@@ -104,7 +104,6 @@ Counts are sorted by count descending, then raw value ascending. Showing 25 of 3
 | 142 | `language/statements/with` |
 | 95 | `built-ins/Array/fromAsync` |
 | 78 | `language/expressions/compound-assignment` |
-| 59 | `built-ins/Object/hasOwn` |
 | 47 | `built-ins/TypedArrayConstructors/internals` |
 | 44 | `built-ins/TypedArray/prototype/slice` |
 | 39 | `built-ins/Array/prototype/concat` |
@@ -114,7 +113,6 @@ Counts are sorted by count descending, then raw value ascending. Showing 25 of 3
 | 35 | `built-ins/Array/prototype/lastIndexOf` |
 | 35 | `built-ins/TypedArray/prototype/filter` |
 | 29 | `built-ins/Array/prototype/indexOf` |
-| 29 | `built-ins/Array/prototype/toSpliced` |
 | 28 | `built-ins/Error/prototype/stack` |
 | 28 | `built-ins/TypedArray/prototype/findLast` |
 | 28 | `built-ins/TypedArray/prototype/findLastIndex` |
@@ -125,31 +123,32 @@ Counts are sorted by count descending, then raw value ascending. Showing 25 of 3
 | 25 | `built-ins/TypedArray/prototype/subarray` |
 | 24 | `built-ins/Set/prototype/union` |
 | 24 | `language/expressions/tagged-template` |
+| 23 | `built-ins/Set/prototype/difference` |
+| 23 | `built-ins/Set/prototype/intersection` |
 
-Counts are sorted by count descending, then raw value ascending. Showing 25 of 310 distinct values.
+Counts are sorted by count descending, then raw value ascending. Showing 25 of 301 distinct values.
 
 ## Top 25 raw feature counts
 
 | Count | Value |
 |---:|---|
 | 449 | `TypedArray` |
-| 203 | `BigInt` |
+| 202 | `BigInt` |
 | 188 | `Symbol.species` |
 | 151 | `set-methods` |
-| 121 | `change-array-by-copy` |
 | 95 | `Array.fromAsync` |
-| 93 | `Symbol` |
+| 89 | `Symbol` |
 | 75 | `await-dictionary` |
 | 72 | `globalThis` |
 | 63 | `align-detached-buffer-semantics-with-web-reality` |
-| 59 | `Object.hasOwn` |
 | 59 | `array-find-from-last` |
-| 49 | `Reflect.construct` |
 | 49 | `upsert` |
 | 44 | `immutable-arraybuffer` |
 | 43 | `Symbol.unscopables` |
+| 41 | `Reflect.construct` |
 | 40 | `Float16Array` |
 | 38 | `Symbol.replace` |
+| 37 | `change-array-by-copy` |
 | 31 | `Symbol.match` |
 | 31 | `WeakMap` |
 | 30 | `ArrayBuffer` |
@@ -157,19 +156,20 @@ Counts are sorted by count descending, then raw value ascending. Showing 25 of 3
 | 28 | `Symbol.isConcatSpreadable` |
 | 28 | `Symbol.split` |
 | 28 | `error-stack-accessor` |
+| 25 | `arrow-function` |
 
-Counts are sorted by count descending, then raw value ascending. Showing 25 of 79 distinct values.
+Counts are sorted by count descending, then raw value ascending. Showing 25 of 74 distinct values.
 
 ## Top 25 raw include counts
 
 | Count | Value |
 |---:|---|
 | 441 | `testTypedArray.js` |
-| 325 | `compareArray.js` |
+| 270 | `compareArray.js` |
 | 258 | `detachArrayBuffer.js` |
-| 217 | `propertyHelper.js` |
+| 194 | `propertyHelper.js` |
 | 141 | `asyncHelpers.js` |
-| 47 | `isConstructor.js` |
+| 39 | `isConstructor.js` |
 | 19 | `nativeErrors.js` |
 | 15 | `regExpUtils.js` |
 | 9 | `temporalHelpers.js` |

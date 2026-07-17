@@ -59,6 +59,14 @@ than exhausting the host heap. Real engines cap near 2^30; we stay under the hea
 (defun %bootstrap-string-extra ()
   (let ((sp (intrinsic :string-prototype)) (sc (intrinsic :string-constructor)))
     (macrolet ((m (name arity &body body) `(install-method sp ,name ,arity ,@body)))
+      (m "isWellFormed" 0
+        (lambda (this args)
+          (declare (ignore args))
+          (js-boolean (well-formed-code-unit-string-p (%this-str this)))))
+      (m "toWellFormed" 0
+        (lambda (this args)
+          (declare (ignore args))
+          (to-well-formed-code-unit-string (%this-str this))))
       (m "at" 1 (lambda (this args)
                   (let* ((s (%this-str this)) (len (length s)) (n (%int (arg args 0)))
                          (i (if (minusp n) (+ len n) n)))

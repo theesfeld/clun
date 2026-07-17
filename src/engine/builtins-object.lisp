@@ -24,6 +24,14 @@
   (let ((oc (intrinsic :object-constructor)) (op (intrinsic :object-prototype)))
     (install-method oc "is" 2
       (lambda (this args) (declare (ignore this)) (js-boolean (js-same-value (arg args 0) (arg args 1)))))
+    (install-method oc "hasOwn" 2
+      (lambda (this args)
+        (declare (ignore this))
+        ;; ToObject precedes ToPropertyKey; both steps can run user code.
+        (let ((object (to-object (arg args 0))))
+          (js-boolean
+           (not (null (jm-get-own-property object
+                                            (to-property-key (arg args 1)))))))))
     (install-method oc "fromEntries" 1
       (lambda (this args) (declare (ignore this))
         (let* ((o (new-object))

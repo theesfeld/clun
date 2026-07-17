@@ -282,6 +282,14 @@
                 (t (format nil "~a: ~a" name msg))))))
     (let ((error-ctor (make-error-constructor "Error" ep)))
       (setf (realm-intrinsic *realm* :error-constructor) error-ctor)
+      (install-method error-ctor "isError" 1
+        (lambda (this args)
+          (declare (ignore this))
+          (let ((value (arg args 0)))
+            (js-boolean
+             (and (js-object-p value)
+                  (not (js-proxy-p value))
+                  (eq (js-object-class value) :error))))))
       (dolist (spec '(("TypeError" :type-error-prototype :type-error-constructor)
                       ("RangeError" :range-error-prototype :range-error-constructor)
                       ("SyntaxError" :syntax-error-prototype :syntax-error-constructor)

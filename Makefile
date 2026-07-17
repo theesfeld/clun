@@ -20,7 +20,7 @@ FEATURE                    ?= all
 		test-yaml-upstream test-yaml-upstream-full \
 		roadmap-check roadmap-sync \
 		roadmap-verify-live \
-		conformance-exec-compare phase-25b-m5-check phase-25b-m6-check \
+		conformance-exec-compare phase-25b-m5-check phase-25b-m6-check phase-37-m1-check \
 		conformance-buckets conformance-buckets-check \
 		conformance-buckets-verify clean
 
@@ -105,6 +105,10 @@ phase-25b-m5-check:
 phase-25b-m6-check:
 	CLUN_PHASE_25B_M6_MANIFEST='$(PHASE_25B_M6_MANIFEST)' \
 		$(SBCL) --dynamic-space-size 6144 $(SBCL_FLAGS) --load scripts/phase-25b-m6.lisp
+
+## phase-37-m1-check -- require all 173 frozen modern-built-in entry failures to pass.
+phase-37-m1-check:
+	$(SBCL) --dynamic-space-size 6144 $(SBCL_FLAGS) --load scripts/phase-37-m1.lisp
 
 ## conformance-exec-compare -- run the complete execution corpus with the COMPILE
 ## tier off and eager, then require byte-identical per-file classifications.

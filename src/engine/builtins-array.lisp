@@ -15,6 +15,83 @@
 
 (defun %array-species-new (n) (js-make-array (intrinsic :array-prototype) n))
 
+(defconstant +max-array-length+ #xffffffff)
+
+(defun %array-copy-new (length)
+  "ArrayCreate for the copy-by-change methods."
+  (when (> length +max-array-length+)
+    (throw-range-error "invalid array length"))
+  (js-make-array (intrinsic :array-prototype) length))
+
+(defun %array-to-reversed (this)
+  (let* ((object (to-object this))
+         (length (%alen object))
+         (result (%array-copy-new length)))
+    (dotimes (index length result)
+      (create-data-property-or-throw
+       result (%aidx index) (%aget object (- length index 1))))))
+
+(defun %array-to-sorted (this comparefn)
+  (unless (or (js-undefined-p comparefn) (callable-p comparefn))
+    (throw-type-error "comparator is not a function"))
+  (let* ((object (to-object this))
+         (length (%alen object)))
+    ;; ArrayCreate precedes source element access for the copy-by-change API.
+    (let* ((result (%array-copy-new length))
+           (values (loop for index below length collect (%aget object index)))
+           (sorted (%stable-sort-list values
+                                      (unless (js-undefined-p comparefn) comparefn))))
+      (loop for value in sorted
+            for index from 0
+            do (create-data-property-or-throw result (%aidx index) value))
+      result)))
+
+(defun %array-to-spliced (this args)
+  (let* ((object (to-object this))
+         (length (%alen object))
+         (start (%rel-index (arg args 0) length))
+         (argument-count (length args))
+         (inserted (if (> argument-count 2) (cddr args) '()))
+         (insert-count (length inserted))
+         (delete-count
+           (cond
+             ((zerop argument-count) 0)
+             ((= argument-count 1) (- length start))
+             (t
+              (let ((count (to-integer-or-infinity (arg args 1))))
+                (cond
+                  ((<= count 0d0) 0)
+                  ((js-infinite-p count) (- length start))
+                  (t (min (truncate count) (- length start))))))))
+         (new-length (+ (- length delete-count) insert-count)))
+    (when (> new-length +max-safe-length+)
+      (throw-type-error "result exceeds maximum safe length"))
+    (let ((result (%array-copy-new new-length))
+          (to 0))
+      (loop for from below start do
+        (create-data-property-or-throw result (%aidx to) (%aget object from))
+        (incf to))
+      (dolist (value inserted)
+        (create-data-property-or-throw result (%aidx to) value)
+        (incf to))
+      (loop for from from (+ start delete-count) below length do
+        (create-data-property-or-throw result (%aidx to) (%aget object from))
+        (incf to))
+      result)))
+
+(defun %array-with (this index value)
+  (let* ((object (to-object this))
+         (length (%alen object))
+         (relative (to-integer-or-infinity index))
+         (actual (if (minusp relative) (+ length relative) relative)))
+    (when (or (js-infinite-p relative) (< actual 0) (>= actual length))
+      (throw-range-error "index out of range"))
+    (let ((result (%array-copy-new length))
+          (actual (truncate actual)))
+      (dotimes (at length result)
+        (create-data-property-or-throw
+         result (%aidx at) (if (= at actual) value (%aget object at)))))))
+
 (defun %to-array-list (o len)
   (loop for i below len collect (%aget o i)))
 
@@ -71,6 +148,14 @@
                   (let* ((o (to-object this)) (len (%alen o)) (n (%int (arg args 0)))
                          (i (if (minusp n) (+ len n) n)))
                     (if (and (<= 0 i) (< i len)) (%aget o i) +undefined+))))
+      (m "toReversed" 0
+        (lambda (this args) (declare (ignore args)) (%array-to-reversed this)))
+      (m "toSorted" 1
+        (lambda (this args) (%array-to-sorted this (arg args 0))))
+      (m "toSpliced" 2
+        (lambda (this args) (%array-to-spliced this args)))
+      (m "with" 2
+        (lambda (this args) (%array-with this (arg args 0) (arg args 1))))
       (m "shift" 0 (lambda (this args) (declare (ignore args))
                      (let* ((o (to-object this)) (len (%alen o)))
                        (if (zerop len) (progn (%aset-len o 0) +undefined+)

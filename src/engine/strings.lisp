@@ -20,6 +20,45 @@
 (defun high-surrogate-p (cp) (<= +high-surrogate-start+ cp +high-surrogate-end+))
 (defun low-surrogate-p  (cp) (<= +low-surrogate-start+ cp +low-surrogate-end+))
 
+(defun well-formed-code-unit-string-p (string)
+  "Whether STRING contains only Unicode scalar values encoded as UTF-16 code units."
+  (let ((i 0) (length (length string)))
+    (loop while (< i length) do
+      (let ((code (char-code (char string i))))
+        (cond
+          ((high-surrogate-p code)
+           (unless (and (< (1+ i) length)
+                        (low-surrogate-p (char-code (char string (1+ i)))))
+             (return-from well-formed-code-unit-string-p nil))
+           (incf i 2))
+          ((low-surrogate-p code)
+           (return-from well-formed-code-unit-string-p nil))
+          (t (incf i)))))
+    t))
+
+(defun to-well-formed-code-unit-string (string)
+  "Replace each unpaired UTF-16 surrogate in STRING with U+FFFD."
+  (when (well-formed-code-unit-string-p string)
+    (return-from to-well-formed-code-unit-string string))
+  (with-output-to-string (out)
+    (let ((i 0) (length (length string)))
+      (loop while (< i length) do
+        (let ((char (char string i))
+              (code (char-code (char string i))))
+          (cond
+            ((and (high-surrogate-p code)
+                  (< (1+ i) length)
+                  (low-surrogate-p (char-code (char string (1+ i)))))
+             (write-char char out)
+             (write-char (char string (1+ i)) out)
+             (incf i 2))
+            ((or (high-surrogate-p code) (low-surrogate-p code))
+             (write-char (code-char +replacement-char+) out)
+             (incf i))
+            (t
+             (write-char char out)
+             (incf i))))))))
+
 (defun %push-utf8 (cp out)
   "Append the UTF-8 bytes of code point CP to fill-pointer byte vector OUT."
   (cond
