@@ -60,6 +60,11 @@
 
 ;;; --- Clun.file / Clun.write (lazy file I/O; Bun-shaped, buffered) ------------
 
+(defstruct (js-clun-file
+            (:include eng:js-object (class :clun-file))
+            (:constructor %make-js-clun-file))
+  (path "" :type string))
+
 (defun %resolved-promise (g value)
   (eng:js-construct (eng:js-get g "Promise")
     (list (eng:make-native-function "" 2
@@ -89,7 +94,8 @@
 
 (defun %clun-file (g path)
   "A lazy BunFile: text()/json()/arrayBuffer()/bytes()/exists() (Promises), name, size getter."
-  (let ((o (eng:new-object)))
+  (let ((o (%make-js-clun-file :proto (eng:intrinsic :object-prototype)
+                               :path path)))
     (eng:data-prop o "name" path)
     (eng:install-getter o "size"
       (lambda (this args) (declare (ignore this args))
@@ -118,7 +124,9 @@
 (defun %clun-write (g dest data)
   "Write DATA (string / Buffer / Uint8Array / ArrayBuffer) to DEST (a path or a Clun.file)."
   (%async (g)
-    (let* ((path (if (eng:js-object-p dest) (eng:to-string (eng:js-get dest "name")) (eng:to-string dest)))
+    (let* ((path (if (js-clun-file-p dest)
+                     (js-clun-file-path dest)
+                     (eng:to-string dest)))
            (octets (cond ((eng:js-typed-array-p data)
                           (multiple-value-bind (v o l) (eng:ta-octets data) (subseq v o (+ o l))))
                          ((eng:js-array-buffer-p data)

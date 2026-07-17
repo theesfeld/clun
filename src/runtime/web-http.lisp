@@ -581,10 +581,9 @@ Headers, Request, Response, and cookie state never use this mechanism."
        (subseq vector offset (+ offset length))))
     ((eng:js-array-buffer-p body)
      (copy-seq (eng:js-array-buffer-bytes body)))
-    ((and (eng:js-object-p body)
-          (eng:js-string-p (eng:js-get body "name")))
+    ((js-clun-file-p body)
      (handler-case
-         (clun.sys:read-file-octets (eng:to-string (eng:js-get body "name")))
+         (clun.sys:read-file-octets (js-clun-file-path body))
        (error () (make-array 0 :element-type '(unsigned-byte 8)))))
     (t (eng:code-units->utf8 (eng:to-string body)))))
 

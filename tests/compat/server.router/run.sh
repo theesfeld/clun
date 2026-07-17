@@ -47,6 +47,34 @@ assert_body() {
 }
 
 assert_body static static
+
+curl --silent --show-error --dump-header "$scratch/static-headers-1" \
+  --output "$scratch/static-body-1" "${url}static"
+etag=$(tr -d '\r' <"$scratch/static-headers-1" | awk '
+  BEGIN { IGNORECASE = 1 }
+  /^etag:/ { sub(/^[^:]*:[[:space:]]*/, ""); print; exit }
+')
+[ -n "$etag" ] && [ "$(cat "$scratch/static-body-1")" = static ] || {
+  printf 'server.router: static response did not publish an ETag and body\n' >&2
+  exit 1
+}
+curl --silent --show-error --dump-header "$scratch/static-headers-2" \
+  --output "$scratch/static-body-2" "${url}static"
+etag_again=$(tr -d '\r' <"$scratch/static-headers-2" | awk '
+  BEGIN { IGNORECASE = 1 }
+  /^etag:/ { sub(/^[^:]*:[[:space:]]*/, ""); print; exit }
+')
+[ "$etag_again" = "$etag" ] || {
+  printf 'server.router: static response ETag changed between requests\n' >&2
+  exit 1
+}
+status=$(curl --silent --show-error --output "$scratch/not-modified" --write-out '%{http_code}' \
+  -H "If-None-Match: \"unrelated\", W/$etag" "${url}static")
+[ "$status" = 304 ] && [ ! -s "$scratch/not-modified" ] || {
+  printf 'server.router: static If-None-Match did not produce an empty 304\n' >&2
+  exit 1
+}
+
 assert_body api/users exact
 assert_body api/users/alice%40example.com 'param:alice@example.com'
 assert_body api/users/%C3%A9 'param:é'
@@ -91,4 +119,4 @@ status=$(curl --silent --show-error --output "$scratch/missing" --write-out '%{h
   exit 1
 }
 
-printf 'server.router: route table, methods, params, async, errors, fallback, HEAD, and reload passed\n'
+printf 'server.router: routes, params, methods, ETags, conditional GET, async, errors, fallback, HEAD, and reload passed\n'

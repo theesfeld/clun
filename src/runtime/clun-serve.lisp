@@ -62,7 +62,44 @@
                  collect (cons "set-cookie" (%hdr-value value)))))
     (nconc manual automatic)))
 
-(defun %serialize-response (resp method keep-alive &optional request)
+(defun %request-header-value (request name)
+  "Return the ordered, comma-joined request field value for NAME, or NIL."
+  (when (js-request-p request)
+    (let ((values
+            (loop for (field-name . value) in (js-request-headers-alist request)
+                  when (string-equal field-name name)
+                    collect value)))
+      (when values (format nil "~{~a~^, ~}" values)))))
+
+(defun %buffer-etag (body)
+  "Return a deterministic strong ETag for a buffered response representation."
+  (format nil "\"sha256-~a\""
+          (ironclad:byte-array-to-hex-string
+           (ironclad:digest-sequence :sha256 body))))
+
+(defun %etag-opaque-value (tag)
+  "Normalize optional weak syntax for GET/HEAD If-None-Match comparison."
+  (let ((tag (%ascii-ows-trim tag)))
+    (if (and (>= (length tag) 2)
+             (char-equal (char tag 0) #\W)
+             (char= (char tag 1) #\/))
+        (%ascii-ows-trim (subseq tag 2))
+        tag)))
+
+(defun %if-none-match-p (field-value etag)
+  "Perform the RFC weak comparison used by If-None-Match for GET and HEAD."
+  (when field-value
+    (loop with expected = (%etag-opaque-value etag)
+          with start = 0
+          for comma = (position #\, field-value :start start)
+          for candidate = (%ascii-ows-trim
+                           (subseq field-value start comma))
+          thereis (or (string= candidate "*")
+                      (string= (%etag-opaque-value candidate) expected))
+          while comma
+          do (setf start (1+ comma)))))
+
+(defun %serialize-response (resp method keep-alive &optional request static-p)
   "A Response JS object → the full HTTP/1.1 response octet vector. HEAD omits the body.
 Date/Content-Length/Connection are set by us (user copies of those are dropped)."
   (%require-response resp)
@@ -77,22 +114,38 @@ Date/Content-Length/Connection are set by us (user copies of those are dropped).
                         (%byte-string s "Invalid HTTP status text")
                         (%status-text status))))
            (user (%response-headers-for-wire resp request))
+           (etag-field (assoc "etag" user :test #'string=))
+           (etag (and static-p (= status 200)
+                      (not (js-clun-file-p (%response-body-value resp)))
+                      (if etag-field (cdr etag-field) (%buffer-etag body))))
+           (not-modified-p
+             (and etag
+                  (member method '("GET" "HEAD") :test #'string=)
+                  (%if-none-match-p
+                   (%request-header-value request "if-none-match") etag)))
+           (wire-status (if not-modified-p 304 status))
+           (wire-stext (if not-modified-p (%status-text 304) stext))
            (has-ct (assoc "content-type" user :test #'string=))
            (head (make-string-output-stream)))
       (unless (<= 200 status 599)
         (eng:throw-type-error "Invalid HTTP response status"))
-      (format head "HTTP/1.1 ~d ~a~c~c" status stext #\Return #\Newline)
+      (format head "HTTP/1.1 ~d ~a~c~c" wire-status wire-stext #\Return #\Newline)
       (format head "Date: ~a~c~c" (%http-date) #\Return #\Newline)
       (dolist (p user)
         (format head "~a: ~a~c~c" (%header-title-case (car p))
                 (cdr p) #\Return #\Newline))
-      (when (and default-ct (not has-ct))
+      (when (and etag (not etag-field))
+        (format head "ETag: ~a~c~c" etag #\Return #\Newline))
+      (when (and (not not-modified-p) default-ct (not has-ct))
         (format head "Content-Type: ~a~c~c" default-ct #\Return #\Newline))
-      (format head "Content-Length: ~d~c~c" (length body) #\Return #\Newline)
+      (unless not-modified-p
+        (format head "Content-Length: ~d~c~c" (length body) #\Return #\Newline))
       (format head "Connection: ~a~c~c" (if keep-alive "keep-alive" "close") #\Return #\Newline)
       (format head "~c~c" #\Return #\Newline)
       (let* ((hbytes (%ascii-octets (get-output-stream-string head)))
-             (send-body (and (not (string= method "HEAD")) (plusp (length body))))
+             (send-body (and (not not-modified-p)
+                             (not (string= method "HEAD"))
+                             (plusp (length body))))
              (out (make-array (+ (length hbytes) (if send-body (length body) 0))
                               :element-type '(unsigned-byte 8))))
         (replace out hbytes)
@@ -165,12 +218,12 @@ COMMIT is connection-owned, so late Promise settlement cannot write after teardo
              (setf settled-p t
                    (serve-request-context-committed-p context) t)
              (funcall commit (%default-error-octets method request) nil context)))
-         (commit-response (response)
+         (commit-response (response &optional static-p)
            (unless settled-p
              (if (%response-like-p response)
                  (handler-case
                      (let ((octets (%serialize-response response method keep-alive
-                                                        request)))
+                                                        request static-p)))
                        (setf settled-p t
                              (serve-request-context-committed-p context) t)
                        (funcall commit octets keep-alive context))
@@ -203,7 +256,7 @@ COMMIT is connection-owned, so late Promise settlement cannot write after teardo
               (%install-request-route-params request params))
             (let ((action (or route-action fetch)))
               (cond
-                ((%response-like-p action) (commit-response action))
+                ((%response-like-p action) (commit-response action (and route-action t)))
                 ((eng:callable-p action)
                  (let ((result
                          (eng:js-call action eng:+undefined+ (list request))))
