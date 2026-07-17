@@ -1,5 +1,5 @@
 <!-- clun-generated:release-notes:begin -->
-# Clun 0.1.0-dev.21
+# Clun 0.1.0-dev.23
 
 Phase 37: Modern ECMAScript gap wave.
 
@@ -14,16 +14,16 @@ The canonical evidence and current limitations are in `compat/`; `make compat-va
 
 ## Highlights
 
-- Stages Phase 37 milestone 2 as a bounded engine residual conversion: pure-CL
-  `Array.fromAsync` over Promise + async-iterator / AsyncFromSync / array-like paths.
-- Admits nullish coalescing (`??`) and numeric separators in the lexer/parser so frozen
-  Test262 helper observation controls parse (emitter already handled `??`).
-- Converts 95 frozen `built-ins/Array/fromAsync` failures; pass-list reclassification is not
-  claimed on this candidate. No compatibility-table `Yes` is claimed.
-- Slot map after published shell (`v0.1.0-dev.18`, #86/#98) and master test-runner (#88):
-  published base `0.1.0-dev.18`; master source is `0.1.0-dev.19`; transport holds unpublished
-  `0.1.0-dev.20`; this candidate allocates `0.1.0-dev.21` under the unpublished-intermediate
-  prerelease gap policy (transition `0.1.0-dev.19` → `0.1.0-dev.21`).
+- Stages Phase 37 milestone 3 as a bounded engine residual conversion: pure-CL
+  ES2025 `Set.prototype` set-methods (`union`, `intersection`, `difference`,
+  `symmetricDifference`, `isSubsetOf`, `isSupersetOf`, `isDisjointFrom`) over
+  Set-like `GetSetRecord` arguments.
+- Converts 151 frozen `set-methods` Test262 failures; pass-list reclassification
+  is not claimed on this candidate. No compatibility-table `Yes` is claimed.
+- Slot map after published shell (`v0.1.0-dev.18`) and master tip
+  (`0.1.0-dev.21` m2): transport holds unpublished `0.1.0-dev.22`; this candidate
+  allocates `0.1.0-dev.23` under the unpublished-intermediate prerelease gap
+  policy (transition `0.1.0-dev.21` → `0.1.0-dev.23`).
 
 The release candidate stages honest engine residual work without promoting any matrix row to `Yes`.
 Merge, publication, and Phase 37 closure remain blocked on remaining inventory residuals, pass-list
