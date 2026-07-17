@@ -521,7 +521,7 @@
 
 (defparameter *shell-builtins*
   '("echo" "pwd" "cd" "true" "false" ":" "export" "unset" "which" "exit"
-    "basename" "dirname" "seq" "cat" "mkdir" "touch" "rm" "mv"))
+    "basename" "dirname" "seq" "cat" "mkdir" "touch" "rm" "mv" "ls"))
 
 (defun %shell-relative-path (path state)
   (if (clun.sys:absolute-path-p path)
@@ -1307,6 +1307,167 @@ integer conversions are deliberately rejected because seq values are f32."
                              (if (plusp exit-code) exit-code 1))))))))))
             (%shell-result-from-strings (get-output-stream-string stdout) "" 0)))))))
 
+(defparameter *shell-ls-recognized-options*
+  "aAbBcCdDfFgGhHiIkLlmnNopqQRrsStTuUvwxXZ1")
+
+(defun %shell-ls-entry-type (mode)
+  (case (logand mode #o170000)
+    (#o040000 #\d)
+    (#o120000 #\l)
+    (#o060000 #\b)
+    (#o020000 #\c)
+    (#o010000 #\p)
+    (#o140000 #\s)
+    (otherwise #\-)))
+
+(defun %shell-ls-permissions (mode)
+  (let ((result (make-string 9 :initial-element #\-)))
+    (flet ((set-permission (mask index character)
+             (when (plusp (logand mode mask))
+               (setf (char result index) character))))
+      (set-permission #o400 0 #\r)
+      (set-permission #o200 1 #\w)
+      (set-permission #o100 2 #\x)
+      (set-permission #o040 3 #\r)
+      (set-permission #o020 4 #\w)
+      (set-permission #o010 5 #\x)
+      (set-permission #o004 6 #\r)
+      (set-permission #o002 7 #\w)
+      (set-permission #o001 8 #\x)
+      (when (plusp (logand mode #o4000))
+        (setf (char result 2) (if (plusp (logand mode #o100)) #\s #\S)))
+      (when (plusp (logand mode #o2000))
+        (setf (char result 5) (if (plusp (logand mode #o010)) #\s #\S)))
+      (when (plusp (logand mode #o1000))
+        (setf (char result 8) (if (plusp (logand mode #o001)) #\t #\T))))
+    result))
+
+(defun %shell-ls-time (timestamp now)
+  (handler-case
+      (multiple-value-bind (second minute hour day month year)
+          (decode-universal-time (+ timestamp 2208988800) 0)
+        (declare (ignore second))
+        (let* ((months #("Jan" "Feb" "Mar" "Apr" "May" "Jun"
+                         "Jul" "Aug" "Sep" "Oct" "Nov" "Dec"))
+               (name (aref months (1- month)))
+               (six-months (* 180 24 60 60))
+               (recent (and (> timestamp (- now six-months))
+                            (<= timestamp (+ now six-months)))))
+          (if recent
+              (format nil "~a ~2,'0d ~2,'0d:~2,'0d" name day hour minute)
+              (format nil "~a ~2,'0d  ~4d" name day year))))
+    (error () "??? ?? ??:??")))
+
+(defun %shell-ls-write-long-entry (name path now output)
+  (handler-case
+      (let* ((stat (clun.sys:stat* path :lstat t))
+             (mode (clun.sys:fstat-mode stat))
+             (timestamp (floor (clun.sys:fstat-mtime-ns stat) 1000000000)))
+        (format output "~c~a ~3d ~5d ~5d ~8d ~a ~a~%"
+                (%shell-ls-entry-type mode)
+                (%shell-ls-permissions mode)
+                (clun.sys:fstat-nlink stat)
+                (clun.sys:fstat-uid stat)
+                (clun.sys:fstat-gid stat)
+                (clun.sys:fstat-size stat)
+                (%shell-ls-time timestamp now)
+                name))
+    (clun.sys:fs-error ()
+      (format output "?????????? ? ? ? ?            ? ~a~%" name))))
+
+(defun %shell-run-ls (arguments state)
+  (let ((args arguments) (paths nil)
+        (show-all nil) (show-almost-all nil) (list-directories nil)
+        (recursive nil) (reverse-order nil) (long-listing nil))
+    (labels ((illegal (option)
+               (return-from %shell-run-ls
+                 (%shell-result-from-strings
+                  "" (format nil "ls: illegal option -- ~a~%" option) 1))))
+      (loop while args do
+        (let ((argument (first args)))
+          (cond
+            ((or (zerop (length argument))
+                 (not (char= (char argument 0) #\-)))
+             (setf paths args)
+             (return))
+            ((= (length argument) 1) (illegal "-"))
+            (t
+             (pop args)
+             (loop for option across (subseq argument 1) do
+               (unless (find option *shell-ls-recognized-options*)
+                 (illegal (string option)))
+               (case option
+                 (#\a (setf show-all t))
+                 (#\A (setf show-almost-all t))
+                 (#\d (setf list-directories t))
+                 (#\l (setf long-listing t))
+                 (#\R (setf recursive t))
+                 (#\r (setf reverse-order t))))))))
+      (unless paths (setf paths '(".")))
+      (let ((stdout (make-string-output-stream))
+            (stderr (make-string-output-stream))
+            (exit-code 0)
+            (now (truncate (clun.sys:unix-milliseconds) 1000))
+            (multiple-paths (> (length paths) 1)))
+        (labels
+            ((visible-p (name)
+               (cond
+                 (show-all t)
+                 (show-almost-all
+                  (not (member name '("." "..") :test #'string=)))
+                 (t (or (zerop (length name))
+                        (not (char= (char name 0) #\.))))))
+             (ordered (entries)
+               (let ((result (sort entries #'string<)))
+                 (if reverse-order (nreverse result) result)))
+             (write-entry (name resolved-path)
+               (if long-listing
+                   (%shell-ls-write-long-entry
+                    name resolved-path now stdout)
+                   (format stdout "~a~%" name)))
+             (record-error (display condition)
+               (write-string (%shell-fs-error-string "ls" display condition) stderr)
+               (setf exit-code 1))
+             (entry-directory-p (resolved name)
+               (handler-case
+                   (clun.sys:fstat-dir-p
+                    (clun.sys:stat-at* resolved name :lstat t))
+                 (clun.sys:fs-error () nil)))
+             (visit (display resolved print-directory)
+               (handler-case
+                   (let ((stat (clun.sys:stat* resolved)))
+                     (cond
+                       ((and (clun.sys:fstat-dir-p stat) (not list-directories))
+                        (when print-directory (format stdout "~a:~%" display))
+                        (let ((entries '()))
+                          (handler-case
+                              (clun.sys:map-directory-entries
+                               resolved (lambda (entry) (push entry entries)))
+                            (clun.sys:fs-error (condition)
+                              (record-error display condition)
+                              (return-from visit nil)))
+                          (setf entries (ordered entries))
+                          (when show-all
+                            (write-entry "." (clun.sys:path-join resolved "."))
+                            (write-entry ".." (clun.sys:path-join resolved "..")))
+                          (dolist (entry entries)
+                            (when (visible-p entry)
+                              (write-entry entry (clun.sys:path-join resolved entry))))
+                          (when recursive
+                            (dolist (entry entries)
+                              (when (and (visible-p entry)
+                                         (entry-directory-p resolved entry))
+                                (visit (clun.sys:path-join display entry)
+                                       (clun.sys:path-join resolved entry) t))))))
+                       (t (write-entry display resolved))))
+                 (clun.sys:fs-error (condition)
+                   (record-error display condition)))))
+          (dolist (path paths)
+            (visit path (if (zerop (length path)) "" (%shell-relative-path path state))
+                   multiple-paths)))
+        (%shell-result-from-strings (get-output-stream-string stdout)
+                                    (get-output-stream-string stderr) exit-code)))))
+
 (defun %shell-run-builtin (argv state env stdin)
   "Return RESULT and true when ARGV names a builtin."
   (let ((name (first argv)) (args (rest argv)))
@@ -1340,6 +1501,8 @@ integer conversions are deliberately rejected because seq values are f32."
        (values (%shell-run-rm args state) t))
       ((string= name "mv")
        (values (%shell-run-mv args state) t))
+      ((string= name "ls")
+       (values (%shell-run-ls args state) t))
       ((string= name "pwd")
        (values (%shell-result-from-strings
                 (concatenate 'string (shell-state-cwd state) (string #\Newline)) "" 0) t))
