@@ -4,6 +4,10 @@ function assert(condition, message) {
 
 const hostile = "safe; printf INJECTED $(printf BAD) *";
 const outputPath = "clun-shell-core-output.tmp";
+const bothPath = "clun-shell-core-both.tmp";
+const orderedPath = "clun-shell-core-ordered.tmp";
+const replacedPath = "clun-shell-core-replaced.tmp";
+const finalPath = "clun-shell-core-final.tmp";
 
 Clun.$`printf "%s\n" ${hostile}`.text()
   .then(text => {
@@ -49,7 +53,41 @@ Clun.$`printf "%s\n" ${hostile}`.text()
   .then(text => {
     assert(text === "redirected", "output redirection");
     console.log("redirection");
-    return Clun.$`rm ${outputPath}`.nothrow();
+    return Clun.$`ls ${outputPath} clun-shell-core-missing > ${bothPath} 2>&1`
+      .quiet().nothrow();
+  })
+  .then(result => {
+    assert(result.exitCode === 1 && result.text() === "" && result.stderr.length === 0,
+      "stdout then stderr duplication must fully redirect");
+    return Clun.$`echo appended &>> ${bothPath}; cat ${bothPath}`.text();
+  })
+  .then(text => {
+    assert(text.includes(outputPath + "\n"), "combined redirect stdout");
+    assert(text.includes("ls: clun-shell-core-missing: No such file or directory\n"),
+      "combined redirect stderr");
+    assert(text.endsWith("appended\n"), "combined append redirect");
+    return Clun.$`ls ${outputPath} clun-shell-core-missing 2>&1 > ${orderedPath}`
+      .quiet().nothrow();
+  })
+  .then(result => {
+    assert(result.exitCode === 1, "ordered redirect exit code");
+    assert(result.text() === "ls: clun-shell-core-missing: No such file or directory\n",
+      "stderr must retain the snapshotted original stdout destination");
+    assert(result.stderr.length === 0, "duplicated stderr must leave stderr capture empty");
+    return Clun.$`cat ${orderedPath}`.text();
+  })
+  .then(text => {
+    assert(text === outputPath + "\n", "later stdout redirect must not move duplicated stderr");
+    return Clun.$`printf final > ${replacedPath} > ${finalPath}; cat ${replacedPath}`.text();
+  })
+  .then(text => {
+    assert(text === "", "superseded redirect still creates an empty file");
+    return Clun.$`cat ${finalPath}`.text();
+  })
+  .then(text => {
+    assert(text === "final", "last redirect receives stdout");
+    console.log("descriptor-redirection");
+    return Clun.$`rm ${[outputPath, bothPath, orderedPath, replacedPath, finalPath]}`.nothrow();
   })
   .then(result => {
     assert(result.exitCode === 0, "cleanup command");

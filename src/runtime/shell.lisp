@@ -28,6 +28,7 @@
   (stdout #() :type vector)
   (stderr #() :type vector)
   (exit-code 0 :type integer))
+(defstruct shell-output-sink kind target)
 (defstruct shell-state
   (env '()) cwd old-cwd (last-exit-code 0) (throws t) (quiet nil)
   (terminated nil))
@@ -2479,34 +2480,59 @@ integer conversions are deliberately rejected because seq values are f32."
     (values input (nreverse output-redirections))))
 
 (defun %shell-apply-output-redirections (result redirections state g)
-  (let ((stdout (shell-result-stdout result))
-        (stderr (shell-result-stderr result)))
-    (dolist (redirection redirections)
-      (let ((kind (shell-redirection-kind redirection)))
-        (case kind
-          ((:output :output-append)
-           (%shell-write-target
-            (%shell-word-raw-target (shell-redirection-target redirection) state g)
-            state stdout (eq kind :output-append))
-           (setf stdout *shell-empty-octets*))
-          ((:error :error-append)
-           (%shell-write-target
-            (%shell-word-raw-target (shell-redirection-target redirection) state g)
-            state stderr (eq kind :error-append))
-           (setf stderr *shell-empty-octets*))
-          ((:both :both-append)
-           (%shell-write-target
-            (%shell-word-raw-target (shell-redirection-target redirection) state g)
-            state (%shell-concat-octets stdout stderr) (eq kind :both-append))
-           (setf stdout *shell-empty-octets* stderr *shell-empty-octets*))
-          (:error-to-output
-           (setf stdout (%shell-concat-octets stdout stderr)
-                 stderr *shell-empty-octets*))
-          (:output-to-error
-           (setf stderr (%shell-concat-octets stderr stdout)
-                 stdout *shell-empty-octets*)))))
-    (make-shell-result :stdout stdout :stderr stderr
-                       :exit-code (shell-result-exit-code result))))
+  (let* ((captured-output (make-shell-output-sink :kind :output))
+         (captured-error (make-shell-output-sink :kind :error))
+         (output-sink captured-output)
+         (error-sink captured-error)
+         (emissions '()))
+    (labels ((target-sink (redirection append)
+               (let ((target
+                       (%shell-word-raw-target
+                        (shell-redirection-target redirection) state g)))
+                 ;; Opening a pathname redirect has an observable create/truncate
+                 ;; side effect even when a later redirect replaces this fd.
+                 (%shell-write-target target state *shell-empty-octets* append)
+                 (make-shell-output-sink :kind :target :target target)))
+             (emit (sink octets)
+               (let ((entry (assoc sink emissions :test #'eq)))
+                 (if entry
+                     (setf (cdr entry)
+                           (%shell-concat-octets (cdr entry) octets))
+                     (push (cons sink octets) emissions)))))
+      (dolist (redirection redirections)
+        (let ((kind (shell-redirection-kind redirection)))
+          (case kind
+            ((:output :output-append)
+             (setf output-sink
+                   (target-sink redirection (eq kind :output-append))))
+            ((:error :error-append)
+             (setf error-sink
+                   (target-sink redirection (eq kind :error-append))))
+            ((:both :both-append)
+             (let ((sink (target-sink redirection (eq kind :both-append))))
+               (setf output-sink sink error-sink sink)))
+            (:error-to-output
+             ;; Descriptor duplication snapshots the destination at this point;
+             ;; a later stdout redirect must not move stderr with it.
+             (setf error-sink output-sink))
+            (:output-to-error
+             (setf output-sink error-sink)))))
+      (emit output-sink (shell-result-stdout result))
+      (emit error-sink (shell-result-stderr result))
+      (let ((stdout *shell-empty-octets*)
+            (stderr *shell-empty-octets*))
+        (dolist (entry (nreverse emissions))
+          (let ((sink (car entry)) (octets (cdr entry)))
+            (case (shell-output-sink-kind sink)
+              (:output (setf stdout octets))
+              (:error (setf stderr octets))
+              (:target
+               ;; The target was already opened with its requested truncation
+               ;; policy. Append here so delivery cannot truncate it a second time.
+               (%shell-write-target
+                (shell-output-sink-target sink) state octets t)))))
+        (make-shell-result :stdout stdout :stderr stderr
+                           :exit-code (shell-result-exit-code result))))))
 
 (defun %shell-condition-fragment-string (fragment state g)
   (case (shell-fragment-kind fragment)
