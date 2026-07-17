@@ -59,6 +59,24 @@ INPUT + INIT (INIT overrides). A Request INPUT contributes method/headers/body."
       (eng:data-prop r "url" final-url)
       r)))
 
+(defun %build-stream-fetch-response (head stream final-url method)
+  "Build the public Response as soon as HEAD is available.  STREAM remains owned by
+the active transport until completion, cancellation, or failure."
+  (let ((init (eng:new-object))
+        (status (net:hres-status head)))
+    (eng:data-prop init "status" (coerce status 'double-float))
+    (eng:data-prop init "statusText" (or (net:hres-reason head) ""))
+    (eng:data-prop init "headers" (%new-headers (net:hres-headers head)))
+    (let ((response
+            (%new-stream-response
+             stream init
+             :body-null-p
+             (or (string= method "HEAD")
+                 (member status '(204 304))
+                 (< status 200)))))
+      (eng:data-prop response "url" final-url)
+      response)))
+
 (defun %redirect-p (status) (member status '(301 302 303 307 308)))
 
 (defun %redirect-to-get-p (status method)
@@ -130,7 +148,11 @@ $SSL_CERT_FILE / the system bundle (net's %system-ca-file). Certs always fail cl
         (settle (lambda () (funcall on-error "abort")) :cancel-worker t)))))
 
 (defstruct (fetch-operation (:constructor %make-fetch-operation))
-  global resolve reject signal listener active-cancel (settled-p nil))
+  global resolve reject signal listener active-cancel response-stream
+  ;; SETTLED-P is the public fetch promise.  TERMINAL-P is the response body /
+  ;; transport lifecycle.  A streaming fetch deliberately settles before terminal.
+  (settled-p nil)
+  (terminal-p nil))
 
 (defun %abort-reason (g signal)
   (let ((reason (and signal (eng:js-get signal "reason"))))
@@ -150,26 +172,53 @@ $SSL_CERT_FILE / the system bundle (net's %system-ca-file). Certs always fail cl
           (eng:js-call remove signal (list "abort" listener)))))
     (setf (fetch-operation-listener operation) nil)))
 
-(defun %fetch-operation-settle (operation kind value)
-  "Settle the public fetch promise exactly once and release its signal listener."
-  (unless (fetch-operation-settled-p operation)
-    (setf (fetch-operation-settled-p operation) t
+(defun %fetch-operation-finish (operation)
+  "End transport ownership and detach the one operation-scoped abort listener."
+  (unless (fetch-operation-terminal-p operation)
+    (setf (fetch-operation-terminal-p operation) t
           (fetch-operation-active-cancel operation) nil)
-    (%fetch-operation-detach operation)
+    (%fetch-operation-detach operation)))
+
+(defun %fetch-operation-settle (operation kind value)
+  "Settle a non-streaming or pre-header fetch and finish the operation."
+  (unless (fetch-operation-settled-p operation)
+    (setf (fetch-operation-settled-p operation) t)
     (eng:js-call (ecase kind
                    (:resolve (fetch-operation-resolve operation))
                    (:reject (fetch-operation-reject operation)))
-                 eng:+undefined+ (list value))))
+                 eng:+undefined+ (list value)))
+  (%fetch-operation-finish operation))
+
+(defun %fetch-operation-resolve-stream (operation stream response)
+  "Fulfil fetch at response headers while retaining body lifecycle ownership."
+  (unless (fetch-operation-settled-p operation)
+    (setf (fetch-operation-settled-p operation) t
+          (fetch-operation-response-stream operation) stream)
+    (eng:js-call (fetch-operation-resolve operation)
+                 eng:+undefined+ (list response))))
+
+(defun %fetch-operation-fail (operation reason)
+  "Reject before headers, or error an already-exposed response body after headers."
+  (unless (fetch-operation-terminal-p operation)
+    (if (fetch-operation-settled-p operation)
+        (let ((stream (fetch-operation-response-stream operation)))
+          (when stream (%body-stream-error stream reason))
+          ;; A defensive fallback for a settled operation without a body stream.
+          (unless stream (%fetch-operation-finish operation)))
+        (%fetch-operation-settle operation :reject reason))))
 
 (defun %fetch-operation-abort (operation)
-  (unless (fetch-operation-settled-p operation)
+  (unless (fetch-operation-terminal-p operation)
     (let ((cancel (fetch-operation-active-cancel operation)))
       (setf (fetch-operation-active-cancel operation) nil)
+      ;; Transport cancellation normally calls the current hop's ON-ERROR
+      ;; synchronously.  The fallback covers a transport already between hops.
       (when cancel (funcall cancel)))
-    (%fetch-operation-settle
-     operation :reject
-     (%abort-reason (fetch-operation-global operation)
-                    (fetch-operation-signal operation)))))
+    (unless (fetch-operation-terminal-p operation)
+      (%fetch-operation-fail
+       operation
+       (%abort-reason (fetch-operation-global operation)
+                      (fetch-operation-signal operation))))))
 
 (defun %fetch-operation-install-signal (operation)
   (let ((signal (fetch-operation-signal operation)))
@@ -188,18 +237,35 @@ $SSL_CERT_FILE / the system bundle (net's %system-ca-file). Certs always fail cl
                 (setf (fetch-operation-listener operation) listener)
                 (eng:js-call add signal (list "abort" listener)))))))))
 
+(defun %redirect-info (info record location status)
+  "Return the next normalized request for one valid redirect, or NIL."
+  (let ((next
+          (handler-case
+              (%serialize-url (%parse-url location record))
+            (error () nil))))
+    (when next
+      (let ((redirected (copy-list info)))
+        (setf (getf redirected :url) next)
+        (when (%redirect-to-get-p status (getf info :method))
+          (setf (getf redirected :method) "GET"
+                (getf redirected :body) nil
+                (getf redirected :headers)
+                (%strip-body-headers (getf info :headers))))
+        redirected))))
+
 (defun %do-fetch (operation info hops)
-  (when (fetch-operation-settled-p operation)
+  (when (fetch-operation-terminal-p operation)
     (return-from %do-fetch eng:+undefined+))
-  (let ((g (fetch-operation-global operation)))
-  (let* ((url-str (getf info :url))
-         (record (handler-case (%parse-url url-str)
-                   (error () (return-from %do-fetch
-                               (%fetch-operation-settle
-                                operation :reject
-                                (%fetch-error g "TypeError"
-                                              (format nil "Failed to parse URL: ~a"
-                                                      url-str))))))))
+  (let* ((g (fetch-operation-global operation))
+         (url-str (getf info :url))
+         (record
+           (handler-case (%parse-url url-str)
+             (error ()
+               (return-from %do-fetch
+                 (%fetch-operation-settle
+                  operation :reject
+                  (%fetch-error g "TypeError"
+                                (format nil "Failed to parse URL: ~a" url-str))))))))
     (unless (member (ur-scheme record) '("http" "https") :test #'string=)
       (return-from %do-fetch
         (%fetch-operation-settle
@@ -207,8 +273,8 @@ $SSL_CERT_FILE / the system bundle (net's %system-ca-file). Certs always fail cl
          (%fetch-error g "TypeError"
                        (format nil "fetch: unsupported scheme ~a"
                                (ur-scheme record))))))
-    ;; a GET/HEAD request cannot carry a body (Fetch spec) — reject rather than send it.
-    (when (and (member (getf info :method) '("GET" "HEAD") :test #'string=) (getf info :body))
+    (when (and (member (getf info :method) '("GET" "HEAD") :test #'string=)
+               (getf info :body))
       (return-from %do-fetch
         (%fetch-operation-settle
          operation :reject
@@ -219,60 +285,141 @@ $SSL_CERT_FILE / the system bundle (net's %system-ca-file). Certs always fail cl
            (https (string= (ur-scheme record) "https"))
            (raw-host (ur-host record))
            (port (or (ur-port record) (if https 443 80)))
-           ;; the Host: header is the ORIGIN authority (hostname + non-default port).
-           (host-header (if (ur-port record) (format nil "~a:~d" raw-host (ur-port record)) raw-host))
-           (path (concatenate 'string (if (plusp (length (ur-path record))) (ur-path record) "/")
-                              (if (ur-query record) (concatenate 'string "?" (ur-query record)) "")))
-           ;; Both transports resolve off the JS loop. Plain HTTP uses the DNS worker
-           ;; plus reactor Happy Eyeballs; HTTPS resolves inside its blocking worker.
-           (dial-host raw-host))
-      (labels ((on-resp (resp)
+           (host-header
+             (if (ur-port record)
+                 (format nil "~a:~d" raw-host (ur-port record))
+                 raw-host))
+           (path
+             (concatenate
+              'string
+              (if (plusp (length (ur-path record))) (ur-path record) "/")
+              (if (ur-query record)
+                  (concatenate 'string "?" (ur-query record))
+                  ""))))
+      (if https
+          ;; The TLS 1.2 worker is still buffered.  It preserves the same abort and
+          ;; redirect lifecycle while the pure-TLS streaming adapter is completed.
+          (labels
+              ((on-response (response)
                  (setf (fetch-operation-active-cancel operation) nil)
-                 (let ((loc (net:%header (net:hres-headers resp) "location"))
-                       (st (net:hres-status resp)))
+                 (let ((location
+                         (net:%header (net:hres-headers response) "location"))
+                       (status (net:hres-status response)))
                    (cond
-                     ((and (%redirect-p st) loc (string= (getf info :redirect) "follow"))
+                     ((and (%redirect-p status) location
+                           (string= (getf info :redirect) "follow"))
                       (if (>= hops 20)
                           (%fetch-operation-settle
                            operation :reject
                            (%fetch-error g "TypeError" "fetch: too many redirects"))
-                          ;; resolve Location against the current URL and re-fetch (scheme re-dispatched)
-                          (let ((next (handler-case (%serialize-url (%parse-url loc record)) (error () nil))))
-                            (if next
-                                (let ((info2 (copy-list info)))
-                                  (setf (getf info2 :url) next)
-                                  (when (%redirect-to-get-p st (getf info :method))
-                                    (setf (getf info2 :method) "GET" (getf info2 :body) nil
-                                          (getf info2 :headers) (%strip-body-headers (getf info :headers))))
-                                  (%do-fetch operation info2 (1+ hops)))
+                          (let ((redirected
+                                  (%redirect-info info record location status)))
+                            (if redirected
+                                (%do-fetch operation redirected (1+ hops))
                                 (%fetch-operation-settle
                                  operation :resolve
-                                 (%build-fetch-response resp url-str))))))
-                     ((and (%redirect-p st) (string= (getf info :redirect) "error"))
+                                 (%build-fetch-response response url-str))))))
+                     ((and (%redirect-p status)
+                           (string= (getf info :redirect) "error"))
                       (%fetch-operation-settle
                        operation :reject
                        (%fetch-error g "TypeError" "fetch: unexpected redirect")))
                      (t
                       (%fetch-operation-settle
-                       operation :resolve (%build-fetch-response resp url-str))))))
-               (on-err (code)
+                       operation :resolve
+                       (%build-fetch-response response url-str))))))
+               (on-error (code)
                  (setf (fetch-operation-active-cancel operation) nil)
-                 (if (string= code "abort")
-                     (%fetch-operation-settle operation :reject
-                                              (%abort-reason g signal))
-                     (%fetch-operation-settle
-                      operation :reject
+                 (%fetch-operation-fail
+                  operation
+                  (if (string= code "abort")
+                      (%abort-reason g signal)
                       (%fetch-error g "TypeError"
                                     (format nil "fetch failed: ~a" code))))))
-        (let ((cancel
-                (if https
-                    (%https-request-async loop :host raw-host :port port :host-header host-header
-                      :method (getf info :method) :path path :headers (getf info :headers) :body (getf info :body)
-                      :timeout *fetch-connect-timeout-ms* :on-response #'on-resp :on-error #'on-err)
-                    (net:http-request-async loop :host dial-host :port port :host-header host-header
-                      :method (getf info :method) :path path :headers (getf info :headers) :body (getf info :body)
-                      :timeout *fetch-connect-timeout-ms* :on-response #'on-resp :on-error #'on-err))))
-          (setf (fetch-operation-active-cancel operation) cancel)))))))
+            (setf (fetch-operation-active-cancel operation)
+                  (%https-request-async
+                   loop :host raw-host :port port :host-header host-header
+                   :method (getf info :method) :path path
+                   :headers (getf info :headers) :body (getf info :body)
+                   :timeout *fetch-connect-timeout-ms*
+                   :on-response #'on-response :on-error #'on-error)))
+          (let ((stream nil)
+                (cancel nil)
+                (pause nil)
+                (resume nil)
+                (redirecting-p nil))
+            (labels
+                ((stop-current-hop ()
+                   ;; Suppress the cancellation callback only while deliberately
+                   ;; abandoning a redirect response before starting the next hop.
+                   (setf redirecting-p t
+                         (fetch-operation-active-cancel operation) nil)
+                   (when cancel (funcall cancel))
+                   (setf redirecting-p nil))
+                 (expose-response (head)
+                   (setf stream (%new-body-stream))
+                   (%body-stream-bind-transport
+                    stream :cancel cancel :pause pause :resume resume
+                    :terminal-callback
+                    (lambda () (%fetch-operation-finish operation)))
+                   (%fetch-operation-resolve-stream
+                    operation stream
+                    (%build-stream-fetch-response
+                     head stream url-str (getf info :method))))
+                 (on-headers (head)
+                   (let ((location
+                           (net:%header (net:hres-headers head) "location"))
+                         (status (net:hres-status head)))
+                     (cond
+                       ((and (%redirect-p status) location
+                             (string= (getf info :redirect) "follow"))
+                        (if (>= hops 20)
+                            (progn
+                              (stop-current-hop)
+                              (%fetch-operation-settle
+                               operation :reject
+                               (%fetch-error g "TypeError"
+                                             "fetch: too many redirects")))
+                            (let ((redirected
+                                    (%redirect-info info record location status)))
+                              (if redirected
+                                  (progn
+                                    (stop-current-hop)
+                                    (%do-fetch operation redirected (1+ hops)))
+                                  (expose-response head)))))
+                       ((and (%redirect-p status)
+                             (string= (getf info :redirect) "error"))
+                        (stop-current-hop)
+                        (%fetch-operation-settle
+                         operation :reject
+                         (%fetch-error g "TypeError"
+                                       "fetch: unexpected redirect")))
+                       (t (expose-response head)))))
+                 (on-data (chunk)
+                   (when stream (%body-stream-enqueue stream chunk)))
+                 (on-complete ()
+                   (setf (fetch-operation-active-cancel operation) nil)
+                   (if stream
+                       (%body-stream-close stream)
+                       (%fetch-operation-finish operation)))
+                 (on-error (code)
+                   (setf (fetch-operation-active-cancel operation) nil)
+                   (unless redirecting-p
+                     (%fetch-operation-fail
+                      operation
+                      (if (string= code "abort")
+                          (%abort-reason g signal)
+                          (%fetch-error
+                           g "TypeError" (format nil "fetch failed: ~a" code)))))))
+              (multiple-value-setq (cancel pause resume)
+                (net:http-request-stream-async
+                 loop :host raw-host :port port :host-header host-header
+                 :method (getf info :method) :path path
+                 :headers (getf info :headers) :body (getf info :body)
+                 :timeout *fetch-connect-timeout-ms*
+                 :on-headers #'on-headers :on-data #'on-data
+                 :on-complete #'on-complete :on-error #'on-error))
+              (setf (fetch-operation-active-cancel operation) cancel)))))))
 
 (defun install-fetch (realm)
   (let ((eng:*realm* realm) (g (eng:realm-global realm)))
