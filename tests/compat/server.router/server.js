@@ -2,6 +2,60 @@ let server;
 const sharedStatic = new Response("shared-static");
 const largeStatic = new Uint8Array(4 * 1024 * 1024);
 
+function reloadRoutes(extraRoutes = {}) {
+  server.reload({
+    fetch: () => new Response("reload-fallback"),
+    routes: {
+      "/reload-control/:stage": reloadControl,
+      ...extraRoutes,
+    },
+  });
+}
+
+function reloadControl(request) {
+  switch (request.params.stage) {
+    case "update":
+      reloadRoutes({ "/reload-target": () => new Response("updated") });
+      break;
+    case "methods":
+      reloadRoutes({
+        "/reload-method": {
+          GET: () => new Response("GET response"),
+          POST: () => new Response("POST response"),
+          PUT: () => new Response("PUT response"),
+          DELETE: () => new Response("DELETE response"),
+          OPTIONS: () => new Response("OPTIONS response"),
+        },
+      });
+      break;
+    case "methods-static":
+      reloadRoutes({
+        "/reload-method": {
+          OPTIONS: new Response("OPTIONS response 2"),
+          GET: () => new Response("GET response 2"),
+          POST: () => new Response("POST response 2"),
+          PUT: () => new Response("PUT response 2"),
+          DELETE: () => new Response("DELETE response 2"),
+        },
+      });
+      break;
+    case "remove":
+      reloadRoutes();
+      break;
+    case "static":
+      server.reload({
+        static: {
+          "/after": new Response("after"),
+          "/shared-a": sharedStatic,
+        },
+      });
+      break;
+    default:
+      return new Response("unknown reload stage", { status: 400 });
+  }
+  return new Response(`reloaded:${request.params.stage}`);
+}
+
 let manyPattern = "/many";
 for (let index = 1; index <= 65; index++) manyPattern += `/:p${index}`;
 
@@ -45,6 +99,11 @@ const routes = {
     headers: { "content-range": "bytes 0-15/100" },
   }),
   "/dynamic-file": () => new Response(Clun.file(process.env.CLUN_ROUTER_FILE)),
+  "/range-after-size": () => {
+    const file = Clun.file(process.env.CLUN_ROUTER_FILE);
+    void file.size;
+    return new Response(file);
+  },
   "/dynamic-range-custom": () => new Response(Clun.file(process.env.CLUN_ROUTER_FILE), {
     headers: { "cache-control": "max-age=3600", "x-custom": "abc" },
   }),
@@ -97,15 +156,8 @@ const routes = {
     throw new Error("async-route-failure");
   },
   "/skip": false,
-  "/reload": () => {
-    server.reload({
-      static: {
-        "/after": new Response("after"),
-        "/shared-a": sharedStatic,
-      },
-    });
-    return new Response("reloaded");
-  },
+  "/reload-target": () => new Response("original"),
+  "/reload-control/:stage": reloadControl,
 };
 
 routes[manyPattern] = request => new Response(

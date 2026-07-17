@@ -297,6 +297,19 @@ assert_range file 'Bytes = 2-5' 206 2345 'bytes 2-5/16'
 assert_range file 'bytes=100-200' 416 '' 'bytes */16'
 assert_range dynamic-file 'bytes=0-3' 206 0123 'bytes 0-3/16'
 assert_range dynamic-file 'bytes=100-200' 416 '' 'bytes */16'
+assert_range range-after-size 'bytes=4-7' 206 4567 'bytes 4-7/16'
+
+for path in file dynamic-file; do
+  status=$(curl --silent --show-error --dump-header "$scratch/multi-range-headers" \
+    --output "$scratch/multi-range-body" --write-out '%{http_code}' \
+    -H 'Range: bytes=0-1,4-5' "${url}${path}")
+  if [ "$status" != 200 ] || \
+      [ "$(cat "$scratch/multi-range-body")" != 0123456789ABCDEF ] || \
+      tr -d '\r' <"$scratch/multi-range-headers" | grep -i '^content-range:' >/dev/null; then
+    printf 'server.router: multi-range request was not ignored for %s\n' "$path" >&2
+    exit 1
+  fi
+done
 
 status=$(curl --silent --show-error --dump-header "$scratch/dynamic-range-headers" \
   --output "$scratch/dynamic-range-body" --write-out '%{http_code}' \
@@ -305,6 +318,18 @@ if [ "$status" != 206 ] || [ "$(cat "$scratch/dynamic-range-body")" != 0123 ] ||
     ! tr -d '\r' <"$scratch/dynamic-range-headers" | grep -i -x 'cache-control: max-age=3600' >/dev/null || \
     ! tr -d '\r' <"$scratch/dynamic-range-headers" | grep -i -x 'x-custom: abc' >/dev/null; then
   printf 'server.router: handler range did not preserve custom headers\n' >&2
+  exit 1
+fi
+
+status=$(curl --silent --show-error --dump-header "$scratch/unsatisfied-range-headers" \
+  --output "$scratch/unsatisfied-range-body" --write-out '%{http_code}' \
+  -H 'Range: bytes=100-200' "${url}dynamic-range-custom")
+if [ "$status" != 416 ] || [ -s "$scratch/unsatisfied-range-body" ] || \
+    ! tr -d '\r' <"$scratch/unsatisfied-range-headers" | grep -i -x 'cache-control: max-age=3600' >/dev/null || \
+    ! tr -d '\r' <"$scratch/unsatisfied-range-headers" | grep -i -x 'x-custom: abc' >/dev/null || \
+    ! tr -d '\r' <"$scratch/unsatisfied-range-headers" | grep -i -x 'accept-ranges: bytes' >/dev/null || \
+    ! tr -d '\r' <"$scratch/unsatisfied-range-headers" | grep -i -F -x 'content-range: bytes */16' >/dev/null; then
+  printf 'server.router: 416 response did not preserve custom and range headers\n' >&2
   exit 1
 fi
 
@@ -546,7 +571,22 @@ tr -d '\r' <"$scratch/head" | grep -i -x 'content-length: 8' >/dev/null || {
   exit 1
 }
 
-assert_body reload reloaded
+assert_body reload-target original
+assert_body reload-control/update reloaded:update
+assert_body reload-target updated
+assert_body reload-control/methods reloaded:methods
+for method in GET POST PUT DELETE OPTIONS; do
+  assert_body reload-method "$method response" "$method"
+done
+assert_body reload-control/methods-static reloaded:methods-static
+for method in GET POST PUT DELETE OPTIONS; do
+  assert_body reload-method "$method response 2" "$method"
+done
+assert_body reload-control/remove reloaded:remove
+assert_body reload-target reload-fallback
+assert_body reload-method reload-fallback POST
+
+assert_body reload-control/static reloaded:static
 assert_body after after
 assert_body shared-a shared-static
 status=$(curl --silent --show-error --output "$scratch/missing" --write-out '%{http_code}' \
