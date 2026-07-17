@@ -18,8 +18,10 @@ The canonical evidence and current limitations are in `compat/`; `make compat-va
   `static` alias, route-only servers, atomic reload, and `server.fetch()`.
 - Adds conditional, ranged, backpressured regular-file responses with no-follow path safety and live
   revalidation, plus a bounded Next.js-style `Clun.FileSystemRouter`.
-- Accounts for 981 lexical sites across exact pinned stable and engineering Bun route/static/file/router
-  sources and records 100,000-route construction, lookup, and memory bounds.
+- Assigns every one of 254 pinned stable and engineering Bun route/static/file/router tests exactly once
+  across 118 executable and five explicit non-applicable semantic contract rows, while retaining traceability
+  for all 981 lexical sites.
+- Records bounded Blob/body/clone concurrency and 100,000-route construction, lookup, and memory evidence.
 
 The release candidate stages the public router row as `Yes` with registered evidence on all four targets.
 Merge, publication, and issue closure remain blocked on green target receipts and final adversarial review.
