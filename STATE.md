@@ -14,18 +14,20 @@ Update when work completes; keep consistent with the Issue, README, and site.
 **Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/2,
 https://github.com/theesfeld/clun/issues/39, and https://github.com/theesfeld/clun/issues/40
 **Current implementation unit:** Phase 50 implements first-party routes, the legacy static alias,
-regular-file response streaming, server.fetch, and FileSystemRouter. The exact stable/engineering Bun
-inventory accounts for 981 lexical sites; four-target receipts and final adversarial review remain before
-the staged `server.router` Yes can merge and publish.
+regular-file response streaming, server.fetch, and FileSystemRouter. Exact stable/engineering sources trace
+981 lexical sites to 254 tests, each assigned exactly once across 123 semantic contract rows: 118 executable
+and five explicit non-applicable. Final exact-head four-target receipts and two accepted adversarial reviews
+remain before the staged `server.router` Yes can merge and publish.
 **SemVer impact:** `minor`
 **Candidate release:** `0.1.0-dev.17` / `v0.1.0-dev.17`
 **Published release:** `0.1.0-dev.16` / `v0.1.0-dev.16`
 **Entry boundary:** immutable dev.16 is published and reconciled at exact master
-`0212be64283549d03864fa7e01a793c1cee8ac33`. Phase 50 draft PR #85 targets `master`; local `make
-test-router` passes with 981/981 pinned lexical sites accounted and 100,000-route resource bounds.
+`0212be64283549d03864fa7e01a793c1cee8ac33`. Phase 50 draft PR #85 targets `master`; exact `a36047e2`
+four-target compatibility receipts pass, and integrated contract-map head `dde7c3e4` makes every pinned test
+disposition executable or explicitly non-applicable. Fresh exact-head gates and reviews remain.
 Phase 26 remains after Phase 82.
-**Next scope:** pass four-target PR compatibility receipts, resolve final adversarial findings, verify the
-synchronized ledger/README/site/Issue candidate, squash-merge to master, and release dev.17.
+**Next scope:** run focused and four-target gates on the synchronized exact head, resolve two independent
+adversarial reviews, reconcile Issue #24 and PR #85, squash-merge to master, and release dev.17.
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
 easiest to hardest among dependency-ready rows. Core engine/runtime/network/tooling changes are expected.

@@ -1,8 +1,7 @@
 # Phase 50 - Router, static files, and FileSystemRouter
 
-Status: accepted for milestone 1 after the pinned Bun route documentation, public types, and
-`bun-serve-routes.test.ts` inventory. Later milestones remain subject to their own source and adversarial
-reviews before the ledger can change to `Yes`.
+Status: complete candidate. The implementation and explicit upstream contract map are awaiting final
+exact-head adversarial review and release gates before the staged `Yes` can merge and publish.
 
 ## Objective
 
@@ -60,7 +59,7 @@ engine-independent except for the frozen JavaScript action values at terminal en
 - Invalid patterns, duplicate parameter names, invalid values, and an empty routes-without-fetch options
   object fail before binding the listener.
 
-M1 is a production capability but leaves the ledger `No`; the row describes the complete Phase 50 surface.
+M1 is complete and remains covered by the final M4 executable contract map.
 
 ### M2 - Static and file responses
 
@@ -70,7 +69,7 @@ M1 is a production capability but leaves the ledger `No`; the row describes the 
 - Missing files become 404 without hiding unrelated errors.
 - Canonical-root checks reject traversal, symlink escape, special files, and time-of-check/time-of-use swaps.
 
-The current M2 checkpoint implements the first three items through the shipped runtime. Route values accept
+M2 implements these items through the shipped runtime. Route values accept
 direct `Clun.file(...)` objects as well as file-backed `Response` objects; explicit `slice(begin, end)` windows
 cannot be escaped with a client `Range`. Regular files are opened with no-follow semantics, validated through
 the opened descriptor, and emitted through one reusable 64 KiB buffer. Queued pipeline slots retain frozen
@@ -80,9 +79,8 @@ response. Disconnect, truncation, and socket-write failure close that descriptor
 Executable coverage includes stable buffered ETags, weak/list/wildcard `If-None-Match`, `If-Modified-Since`
 precedence, custom ETag and Last-Modified fields, single/suffix/open byte ranges, 416 responses, ignored
 multi-ranges, user-owned Content-Range, HEAD framing, MIME selection, live file mutation/deletion, missing
-file fallback, symlink/FIFO rejection, a 16 MiB multi-chunk body, and abort followed by a healthy request.
-The canonical-root/traversal policy remains an M2 exit item; this checkpoint does not complete M2 or change
-the public ledger.
+file fallback, canonical-root traversal rejection, symlink/FIFO rejection, a 16 MiB multi-chunk body, and
+abort followed by a healthy request.
 
 ### M3 - FileSystemRouter
 
@@ -90,7 +88,7 @@ the public ledger.
 - Refresh development inventories atomically and make production inventories immutable.
 - Share the glob/path primitives already proven by Phase 30 while retaining router-specific precedence.
 
-The current M3 checkpoint installs a branded `Clun.FileSystemRouter` constructor through the shipped
+M3 installs a branded `Clun.FileSystemRouter` constructor through the shipped
 runtime. It builds a deterministic Next.js-style inventory from regular files, applies configured extension
 priority, filters dot/build/dependency directories and symlinks, and caps route count, traversal depth, and
 query pairs. Matching covers exact, dynamic, catch-all, and optional-catch-all precedence; decoded path
@@ -98,11 +96,10 @@ parameters; string, `Request`, and absolute-URL inputs; root and nested-index al
 source paths; and query/parameter projections. `reload()` constructs the replacement inventory before
 publishing it, so a failed refresh retains the prior table.
 
-The shipped-binary fixture exercises a 72-route filtered tree, 3,000 query pairs, percent-decoding exactly
+The shipped-binary fixture exercises a 74-route filtered tree, 3,000 query pairs, percent-decoding exactly
 once, extension defaults, empty and invalid directories, symlink exclusion, route addition/removal, and
 cached-inventory identity. The same gate also retains all M1/M2 HTTP, conditional, range, bounded-streaming,
-and lifecycle evidence. M4 still owns exact pinned-manifest accounting, stress/resource bounds, production
-inventory policy, and four-target receipts; this checkpoint does not change the public ledger.
+and lifecycle evidence.
 
 ### M4 - Completion evidence
 
@@ -112,34 +109,41 @@ inventory policy, and four-target receipts; this checkpoint does not change the 
 - Load 100,000 synthetic routes within recorded construction, lookup, and RSS bounds.
 - Run build, full tests, purity, documentation, public-claim, and four-target compatibility receipt gates.
 
-The current M4 checkpoint expands the shipped-binary matrix across every supported HTTP method, explicit
+M4 expands the shipped-binary matrix across every supported HTTP method, explicit
 and derived `HEAD`, 65 parameters, binary/empty/Unicode files, dynamic and static ranges, custom response
 metadata, live file mutation, cancellation, and validation failures. FileSystemRouter now tolerates arbitrary
 POSIX filename bytes without losing valid sibling entries: Linux directory enumeration retries through a
 byte-preserving native-name boundary and publishes replacement-decoded JavaScript route names.
 
 Exact exports of the stable and engineering Bun route, static, file-response, and FileSystemRouter sources
-are vendored with SHA-256 verification. The deterministic inventory accounts for 981 lexical test/assertion
-sites: 949 map to shipped Clun evidence and 32 are explicitly upstream-inactive, platform-excluded, or owned
-by another feature such as `Bun.build`. Aggregate mappings identify semantic evidence clusters and do not
-claim that Bun's TypeScript sources execute unchanged under Clun.
+are vendored with SHA-256 verification. The deterministic inventory traces 981 lexical test/assertion sites
+to 254 pinned upstream tests. Every test ID is assigned exactly once across 123 semantic contract rows: 117
+ordinary executable rows, one executable correctness-improvement row, and five explicit non-applicable rows.
+The correctness row covers two stable empty-file tests: Clun follows the corrected engineering behavior of a
+zero-byte `200` representation with `Content-Length: 0`, rather than the stable snapshot's inconsistent `204`
+rewrite. Assertions inherit the disposition of their owning test and remain traceable; they are not counted
+as independently executed TypeScript tests.
 
 Static-route evidence also covers `Response.redirect()` validation and manual/follow/fallback behavior,
 stable implicit/explicit/JSON/byte content types, a Response shared by multiple paths and across reload,
 static-only reload, and twelve concurrent 4 MiB representations with exact lengths. The branded server
 object exposes `server.fetch(Request|string)`: it dispatches the configured fetch handler with the server
 argument, normalizes relative strings against `server.url`, and rejects route-only use with a TypeError.
+Object-form `Request` inputs follow the same canonical-path contract. Blob-backed static responses exercise
+`arrayBuffer()`, `blob()`, `bytes()`, and `text()` through both direct and `.body` access, in concurrent batches
+with exact status, URL, MIME, bytes, clone behavior, and header isolation.
 
 Resource evidence constructs and compiles 100,000 routes, validates first/middle/last/missing lookup, and
-performs 10,000 repeated matches. The recorded local receipt was 0.031 seconds to create the JavaScript
-inventory, 0.057 seconds to compile it, 0.009 seconds for the lookup loop, 119,071,136 retained bytes, and
-160,987,360 allocated bytes. A separate FileSystemRouter stress fixture inventories 129 routes, forces full
-collection around 30,000 four-parameter matches, and enforces the pinned non-ASAN 20 MiB RSS bound; the local
-receipt grew by 192,512 bytes. File-backed static responses also run the pinned five-request warmup and 50
-measured cycles under the 100 MiB delta bound (340 KiB local), while 50 in-memory 4 MiB static cycles finish
-under the pinned 4,092 MiB absolute ceiling (139,276 KiB local). `Clun.gc(true)` supplies the explicit full-GC
-boundary used by these shipped-binary gates. Four-target receipts and final adversarial review remain required
-before promotion; this checkpoint does not change the public ledger.
+performs 10,000 repeated matches. The exact `a36047e2` local receipt was 0.034 seconds to create the JavaScript
+inventory, 0.061 seconds to compile it, 0.010 seconds for the lookup loop, 119,073,056 retained bytes, and
+160,998,496 allocated bytes. A separate FileSystemRouter stress fixture inventories 129 routes, forces full
+collection around 30,000 four-parameter matches, and enforces the pinned non-ASAN 20 MiB RSS bound; its local
+retained-memory delta was 172,032 bytes. File-backed static responses also run the pinned five-request warmup
+and 50 measured cycles under the 100 MiB delta bound (about 132-140 KiB local), while 50 in-memory 4 MiB static
+cycles finish under the pinned 4,092 MiB absolute ceiling (about 138,544-138,644 KiB local). `Clun.gc(true)`
+supplies the explicit full-GC boundary used by these shipped-binary gates. Exact `a36047e2` four-target receipts
+passed; the final contract-map head still requires fresh four-target receipts and two accepted adversarial
+reviews before promotion.
 
 Only M4 may change `server.router` to `Yes` or close the canonical phase issue.
 
@@ -155,7 +159,7 @@ Only M4 may change `server.router` to `Yes` or close the canonical phase issue.
 
 ## Public Claim Boundary
 
-README, landing page, release metadata, and `compat/features.tsv` continue to report `No` until every
-milestone and the exact four-target gate pass. Branch progress belongs outside generated GitHub Issue
-markers. The eventual compatible addition is SemVer minor; the provisional release slot is dev.20 and may
-be reassigned by readiness without changing the required transition class.
+The topic branch stages `server.router` as a candidate `Yes`; published `master`, the hosted installer, and
+release metadata remain at the previous release until the exact-head gates pass and the PR merges. Branch
+progress belongs outside generated GitHub Issue markers. This compatible addition is SemVer minor and owns
+the `0.1.0-dev.17` release slot.

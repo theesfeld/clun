@@ -22,8 +22,9 @@ Clun does not claim blanket speed parity with Bun.
 
 Source on draft [PR #85](https://github.com/theesfeld/clun/pull/85) is the `0.1.0-dev.17` Phase 50
 candidate. Its evidence-backed router/static-file/FileSystemRouter row is staged as `Yes` and is under
-four-target review; the hosted installer correctly remains on published dev.16 until the candidate is
-merged, tagged, and released.
+exact-head release and adversarial review. Its pinned inventory assigns all 254 upstream tests once across
+118 executable and five explicit non-applicable contract rows. The hosted installer correctly remains on
+published dev.16 until the candidate is merged, tagged, and released.
 
 ## Install
 
