@@ -54,6 +54,24 @@ resolver corpus."
   (let ((p (sys:native->pathname "/tmp/has[bracket].txt")))
     (is equal "/tmp/has[bracket].txt" (sys:pathname->native p))))
 
+(define-test sys/stat-at-entry-path-is-linux-only
+  ;; macOS exposes /dev/fd as a directory, but not directory descriptors as
+  ;; traversable /dev/fd/FD/NAME paths. The platform decision must precede the
+  ;; host's descriptor-root probes so this remains testable on every runner.
+  (is equal "/tmp/pages/index.tsx"
+      (sys::%stat-at-entry-path
+       "darwin" "/tmp/pages/index.tsx" 17 "index.tsx"))
+  (let ((linux-path
+          (sys::%stat-at-entry-path
+           "linux" "/tmp/pages/index.tsx" 17 "index.tsx")))
+    (if (or (sys:directory-p "/dev/fd")
+            (sys:directory-p "/proc/self/fd"))
+        (true (member linux-path
+                      '("/dev/fd/17/index.tsx"
+                        "/proc/self/fd/17/index.tsx")
+                      :test #'string=))
+        (is equal "/tmp/pages/index.tsx" linux-path))))
+
 ;;; --- JSON reader ------------------------------------------------------------
 
 (define-test sys/json-scalars
