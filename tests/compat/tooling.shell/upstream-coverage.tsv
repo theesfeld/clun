@@ -1161,3 +1161,13 @@ stable.test_js_bun_shell_bunshell_test_ts.L1978.1.builder-test	covered	tests/com
 stable.test_js_bun_shell_bunshell_test_ts.L1984.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned brace-group control-flow behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L1990.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned brace-group control-flow behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L1996.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned brace-group control-flow behavior executes through the shipped binary
+engineering.test_js_bun_shell_env_positionals_test_ts.L15.1.builder-test	covered	tests/compat/tooling.shell/upstream-positionals.js	exact pinned positional-parameter behavior executes through the shipped binary
+engineering.test_js_bun_shell_env_positionals_test_ts.L19.1.test-call	covered	tests/compat/tooling.shell/upstream-positionals.js	exact pinned positional-parameter behavior executes through the shipped binary
+engineering.test_js_bun_shell_env_positionals_test_ts.L38.1.test-call	covered	tests/compat/tooling.shell/upstream-positionals.js	exact pinned positional-parameter behavior executes through the shipped binary
+engineering.test_js_bun_shell_env_positionals_test_ts.L57.1.test-call	covered	tests/compat/tooling.shell/upstream-positionals.js	exact pinned positional-parameter behavior executes through the shipped binary
+engineering.test_js_bun_shell_env_positionals_test_ts.L76.1.test-call	covered	tests/compat/tooling.shell/upstream-positionals.js	exact pinned positional-parameter behavior executes through the shipped binary
+stable.test_js_bun_shell_env_positionals_test_ts.L15.1.builder-test	covered	tests/compat/tooling.shell/upstream-positionals.js	exact pinned positional-parameter behavior executes through the shipped binary
+stable.test_js_bun_shell_env_positionals_test_ts.L19.1.test-call	covered	tests/compat/tooling.shell/upstream-positionals.js	exact pinned positional-parameter behavior executes through the shipped binary
+stable.test_js_bun_shell_env_positionals_test_ts.L38.1.test-call	covered	tests/compat/tooling.shell/upstream-positionals.js	exact pinned positional-parameter behavior executes through the shipped binary
+stable.test_js_bun_shell_env_positionals_test_ts.L57.1.test-call	covered	tests/compat/tooling.shell/upstream-positionals.js	exact pinned positional-parameter behavior executes through the shipped binary
+stable.test_js_bun_shell_env_positionals_test_ts.L76.1.test-call	covered	tests/compat/tooling.shell/upstream-positionals.js	exact pinned positional-parameter behavior executes through the shipped binary

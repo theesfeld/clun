@@ -81,6 +81,25 @@
     (is equal '("a" "b")
         (clun.runtime::%shell-word-values unquoted-word state nil))))
 
+(define-test shell/positional-parameters
+  (let* ((state (clun.runtime::make-shell-state
+                 :env nil :cwd (sys:current-directory) :throws t
+                 :positionals '("/tmp/script.bun.sh" "a b" "c")))
+         (result (clun.runtime::%shell-execute-units
+                  (shell-test-units
+                   "echo \"$0|$1|$2|$9|$10\"; [[ \"$1\" == \"a b\" ]] && echo matched")
+                  state nil)))
+    (is equal (format nil "/tmp/script.bun.sh|a b|c||a b0~%matched~%")
+        (eng:utf8->code-units (clun.runtime::shell-result-stdout result)))
+    (is = 0 (clun.runtime::shell-result-exit-code result)))
+  (multiple-value-bind (stdout stderr status)
+      (rt:execute-shell-script "echo $0:$1:$2"
+                               :positionals '("standalone" "one"))
+    (is equal (format nil "standalone:one:~%")
+        (eng:utf8->code-units stdout))
+    (is = 0 (length stderr))
+    (is = 0 status)))
+
 (define-test shell/compound-word-field-boundaries
   (multiple-value-bind (output exit-code)
       (shell-test-output "echo pre$(echo one two)post")

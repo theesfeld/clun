@@ -72,6 +72,24 @@
   (let ((dot (position #\. path :from-end t)))
     (and dot (string= (subseq path dot) ".tsx"))))
 
+(defun bun-shell-file-p (path)
+  (let ((suffix ".bun.sh"))
+    (and (>= (length path) (length suffix))
+         (string= suffix path :start2 (- (length path) (length suffix))))))
+
+(defun run-shell-file (path rest cwd)
+  (multiple-value-bind (stdout stderr status)
+      (rt:execute-shell-script
+       (eng:utf8->code-units (sys:read-file-octets path))
+       :cwd cwd
+       :env (sys:environ-alist)
+       :positionals (cons path rest))
+    (when (plusp (length stdout))
+      (sys:write-fd-octets 1 stdout))
+    (when (plusp (length stderr))
+      (sys:write-fd-octets 2 stderr))
+    status))
+
 (defun run-file (r file &key (rest (cli:cli-get r :args)))
   "Execute FILE (a path). Returns an exit code. REST is process.argv after the script (defaults to
 the CLI's trailing args). .ts/.mts/.cts are stripped by the loader's *ts-strip-hook*; .tsx is
@@ -86,11 +104,13 @@ rejected."
             (abs (if (sys:absolute-path-p file) file (sys:path-join cwd file))))
        (if (not (sys:file-p abs))
            (progn (format *error-output* "clun: cannot find module '~a'~%" file) 1)
-           (let ((realm (make-runtime-realm r cwd :script abs :rest rest)))
-             (let ((clun-g (eng:js-get (eng:realm-global realm) "Clun")))
-               (when (eng:js-object-p clun-g) (eng:data-prop clun-g "main" abs)))
-             (eng:run-module-file abs :realm realm)
-             (finish-exit realm)))))))
+           (if (bun-shell-file-p abs)
+               (run-shell-file abs rest cwd)
+               (let ((realm (make-runtime-realm r cwd :script abs :rest rest)))
+                 (let ((clun-g (eng:js-get (eng:realm-global realm) "Clun")))
+                   (when (eng:js-object-p clun-g) (eng:data-prop clun-g "main" abs)))
+                 (eng:run-module-file abs :realm realm)
+                 (finish-exit realm))))))))
 
 (defun run-test (r)
   "`clun test` — resolve cwd (honouring --cwd), then hand the test-subcommand argv

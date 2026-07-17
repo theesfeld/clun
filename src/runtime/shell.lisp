@@ -35,7 +35,7 @@
 (defstruct shell-prepared-redirection kind target)
 (defstruct shell-state
   (env '()) cwd old-cwd (last-exit-code 0) (throws t) (quiet nil)
-  (terminated nil))
+  (terminated nil) (positionals '()))
 (defstruct shell-job
   units state g result error (started nil))
 (defstruct (shell-condition-operand
@@ -195,6 +195,13 @@
     (cond
       ((char= unit #\?)
        (values (make-shell-fragment :kind :status :value "?" :quoted quoted) (1+ index)))
+      ((digit-char-p unit)
+       ;; Unbraced shell positionals consume one digit: $10 is $1 followed by
+       ;; the literal 0, matching the pinned Bun standalone-script contract.
+       (values (make-shell-fragment :kind :positional
+                                    :value (- (char-code unit) (char-code #\0))
+                                    :quoted quoted)
+               (1+ index)))
       ((char= unit #\{)
        (let ((end (loop for position from (1+ index) below (length units)
                         for candidate = (aref units position)
@@ -782,6 +789,9 @@
 (defun %shell-trim-command-output (string)
   (string-right-trim '(#\Newline #\Return) string))
 
+(defun %shell-positional-value (state index)
+  (or (nth index (shell-state-positionals state)) ""))
+
 (defun %shell-fragment-values (fragment state g)
   "Return values for FRAGMENT and whether unquoted field splitting applies."
   (let ((quoted (shell-fragment-quoted fragment)))
@@ -792,6 +802,9 @@
       (:variable
        (let ((value (%shell-env-get (shell-state-env state)
                                     (shell-fragment-value fragment) "")))
+         (values (if quoted (list value) (%shell-whitespace-fields value)) (not quoted))))
+      (:positional
+       (let ((value (%shell-positional-value state (shell-fragment-value fragment))))
          (values (if quoted (list value) (%shell-whitespace-fields value)) (not quoted))))
       (:status
        (values (list (princ-to-string (shell-state-last-exit-code state))) nil))
@@ -3122,6 +3135,8 @@ integer conversions are deliberately rejected because seq values are f32."
              (%shell-flatten-interpolation (shell-fragment-value fragment))))
     (:variable
      (%shell-env-get (shell-state-env state) (shell-fragment-value fragment) ""))
+    (:positional
+     (%shell-positional-value state (shell-fragment-value fragment)))
     (:status (princ-to-string (shell-state-last-exit-code state)))
     (:substitution
      (let* ((sub-state (copy-shell-state state))
@@ -3571,11 +3586,13 @@ deadlock even when commands produce output larger than kernel pipe capacity."
   (%shell-execute-script (%shell-parse units) state g))
 
 (defun execute-shell-script (source &key (cwd (clun.sys:current-directory))
-                                         (env (clun.sys:environ-alist)))
+                                         (env (clun.sys:environ-alist))
+                                         (positionals '()))
   "Execute SOURCE with Clun's shell engine and return stdout, stderr, and status values."
   (unless (stringp source)
     (error 'type-error :datum source :expected-type 'string))
-  (let* ((state (make-shell-state :cwd cwd :env (%shell-env-copy env)))
+  (let* ((state (make-shell-state :cwd cwd :env (%shell-env-copy env)
+                                  :positionals (copy-list positionals)))
          (result (%shell-execute-units (coerce source 'vector) state nil)))
     (values (copy-seq (shell-result-stdout result))
             (copy-seq (shell-result-stderr result))
@@ -4083,6 +4100,14 @@ deadlock even when commands produce output larger than kernel pipe capacity."
         (%shell-brace-expand-parsed (%shell-brace-parse tokens))
         (list pattern))))
 
+(defun %shell-process-positionals (g)
+  (let* ((process (eng:js-get g "process"))
+         (argv (and (eng:js-object-p process) (eng:js-get process "argv"))))
+    (if (eng:js-array-p argv)
+        (loop for index below (eng:array-length argv)
+              collect (eng:to-string (eng:js-getv argv (princ-to-string index))))
+        '())))
+
 (defun %shell-make-tag (g name initial-env initial-cwd initial-throws)
   "Create one callable shell tag with instance-local defaults."
   (let ((default-env (%shell-env-copy initial-env))
@@ -4098,7 +4123,8 @@ deadlock even when commands produce output larger than kernel pipe capacity."
                     (expressions (rest args))
                     (state (make-shell-state
                             :env (%shell-env-copy default-env)
-                            :cwd default-cwd :throws default-throws)))
+                            :cwd default-cwd :throws default-throws
+                            :positionals (%shell-process-positionals g))))
                (%shell-promise-object
                 (make-shell-job :units (%shell-template-units strings expressions)
                                 :state state :g g))))))

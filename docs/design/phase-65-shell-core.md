@@ -88,7 +88,7 @@ types, fixtures, and upstream licenses. `upstream-files.tsv` binds every file to
 
 `upstream-corpus.tsv` enumerates 1,630 lexical test sites from those exact snapshots. The initial conservative
 disposition was 1,598 pending and 32 explicitly inactive at the pinned revisions. The current executable
-mapping is 907 covered, 691 pending, and 32 upstream-inactive. `upstream-coverage.tsv` binds each credited
+mapping is 1,172 covered, 426 pending, and 32 upstream-inactive. `upstream-coverage.tsv` binds each credited
 inventory ID to a checked-in shipped-binary fixture; regeneration rejects duplicate, stale, or unknown IDs,
 and the corpus validator rejects missing evidence. `shell-upstream-corpus-check.sh` rejects inventory drift
 or an unexplained disposition. Its `--yes` mode is the finite closure gate: it rejects any pending row and
@@ -159,6 +159,11 @@ baselines. The `clun exec <script>` CLI dispatches through the same Common Lisp 
 normalizes command lookup failure to the CLI contract, resolves the current Clun executable when `PATH` is
 empty, and freezes help, large output, builtin diagnostics, default `cd`, and a non-ASCII cwd through the
 shipped binary.
+`tests/compat/tooling.shell/upstream-positionals.js` closes all 10 exact IDs from both pinned
+`env.positionals.test.ts` baselines. Application shell tags expose the realm's `process.argv` through `$0`
+to `$9`; `clun run` executes standalone `.bun.sh` files with the script path at `$0` and user arguments at
+the remaining positions. Missing values expand empty, `$10` composes `$1` with a literal zero, and Unicode
+arguments round trip through the shipped binary.
 `tests/compat/tooling.shell/upstream-language.js` executes 163 exact pending IDs across both pinned
 `bunshell.test.ts` baselines. Nested interpolation arrays are accepted through depth 100 and rejected
 synchronously beyond it. Backslash-newline pairs are removed by the lexer outside single quotes, empty
