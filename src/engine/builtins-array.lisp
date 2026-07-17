@@ -141,6 +141,109 @@
           (new-array (loop for i below len
                            collect (let ((v (%aget o i))) (if mapfn (js-call mapfn this-arg (list v (coerce i 'double-float))) v))))))))
 
+;;; --- Array.fromAsync (Phase 37 m2; TC39 Array.fromAsync / ES sec-array.fromasync) ---
+
+(defun %array-from-async-make-async-record (async-items method)
+  "GetIteratorFromMethod for an async iterator method."
+  (let ((iterator (js-call method async-items '())))
+    (unless (js-object-p iterator)
+      (throw-type-error "iterator is not an object"))
+    (%make-async-iterator-record iterator (js-get iterator "next"))))
+
+(defun %array-from-async-make-sync-adapted-record (async-items method)
+  "CreateAsyncFromSyncIterator(GetIteratorFromMethod(...))."
+  (let* ((sync-record (get-iterator-record async-items method))
+         (adapter (%make-async-from-sync-iterator-record
+                   (iterator-record-iterator sync-record)
+                   (iterator-record-next-method sync-record))))
+    (%make-async-iterator-record
+     (async-from-sync-iterator-record-iterator adapter)
+     (async-from-sync-iterator-record-next-method adapter)
+     adapter)))
+
+(defun %array-from-async-construct (c &optional (length nil length-p))
+  (if (constructor-p c)
+      (if length-p
+          (js-construct c (list (coerce length 'double-float)))
+          (js-construct c '()))
+      (if length-p
+          (%array-copy-new length)
+          (js-make-array (intrinsic :array-prototype) 0))))
+
+(defun %array-from-async-body (co c async-items mapfn this-arg)
+  "Async body of Array.fromAsync. Runs on a coroutine; uses AWAIT-VALUE for Await."
+  (let* ((mapping (cond ((js-undefined-p mapfn) nil)
+                        ((callable-p mapfn) t)
+                        (t (throw-type-error "Array.fromAsync mapper is not a function"))))
+         (using-async (get-method async-items (well-known :async-iterator)))
+         (using-sync (if (js-undefined-p using-async)
+                         (get-method async-items (well-known :iterator))
+                         +undefined+))
+         (iterator-record
+           (cond ((not (js-undefined-p using-async))
+                  (%array-from-async-make-async-record async-items using-async))
+                 ((not (js-undefined-p using-sync))
+                  (%array-from-async-make-sync-adapted-record async-items using-sync))
+                 (t nil))))
+    (if iterator-record
+        (let ((a (%array-from-async-construct c))
+              (k 0))
+          (loop
+            (when (>= k +max-safe-length+)
+              (async-iterator-close co iterator-record :throw-completion-p t)
+              (throw-type-error "Array.fromAsync produced too many values"))
+            (let* ((next-result (async-iterator-next iterator-record))
+                   (awaited (await-value co next-result)))
+              (unless (js-object-p awaited)
+                (throw-type-error "iterator result is not an object"))
+              (when (js-truthy (js-get awaited "done"))
+                (setf (async-iterator-record-done iterator-record) t)
+                (js-set a "length" (coerce k 'double-float) t)
+                (return a))
+              (let ((next-value (js-get awaited "value"))
+                    (pk (%aidx k)))
+                (call-with-async-iterator-close-on-abrupt
+                 co iterator-record
+                 (lambda ()
+                   (let ((mapped-value
+                           (if mapping
+                               (await-value
+                                co
+                                (js-call mapfn this-arg
+                                         (list next-value
+                                               (coerce k 'double-float))))
+                               next-value)))
+                     (create-data-property-or-throw a pk mapped-value)
+                     +undefined+)))
+                (incf k)))))
+        (let* ((array-like (to-object async-items))
+               (len (%alen array-like))
+               (a (%array-from-async-construct c len)))
+          (loop for k below len do
+            (let* ((pk (%aidx k))
+                   (k-value (await-value co (js-get array-like pk)))
+                   (mapped-value
+                     (if mapping
+                         (await-value
+                          co
+                          (js-call mapfn this-arg
+                                   (list k-value (coerce k 'double-float))))
+                         k-value)))
+              (create-data-property-or-throw a pk mapped-value)))
+          (js-set a "length" (coerce len 'double-float) t)
+          a))))
+
+(defun %array-from-async (c async-items mapfn this-arg)
+  "Array.fromAsync: always returns a Promise (built-in async method)."
+  (start-async-function
+   (lambda ()
+     (let ((box (cons nil nil)))
+       (let ((co (make-coroutine
+                  (lambda ()
+                    (%array-from-async-body (car box) c async-items mapfn this-arg)))))
+         (setf (car box) co)
+         co)))))
+
 (defun %bootstrap-array-extra ()
   (let ((ap (intrinsic :array-prototype)) (ac (intrinsic :array-constructor)))
     (macrolet ((m (name arity &body body) `(install-method ap ,name ,arity ,@body)))
@@ -239,7 +342,10 @@
                          (new-array (nreverse acc))))))
     (install-method ac "from" 1
       (lambda (this args) (declare (ignore this))
-        (%array-from (arg args 0) (let ((mf (arg args 1))) (if (js-undefined-p mf) nil mf)) (arg args 2))))))
+        (%array-from (arg args 0) (let ((mf (arg args 1))) (if (js-undefined-p mf) nil mf)) (arg args 2))))
+    (install-method ac "fromAsync" 1
+      (lambda (this args)
+        (%array-from-async this (arg args 0) (arg args 1) (arg args 2))))))
 
 (defun %array-find (this args mode from-end)
   (let* ((o (to-object this)) (len (%alen o)) (f (arg args 0)) (that (arg args 1)))
