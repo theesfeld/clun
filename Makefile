@@ -13,7 +13,7 @@ PHASE_25B_M5_MANIFEST      ?= tests/conformance/phase-25b-m5.tsv
 PHASE_25B_M6_MANIFEST      ?= tests/conformance/phase-25b-m6.tsv
 FEATURE                    ?= all
 
-.PHONY: all build test test-lisp test-js test-tls test-crypto registry-fixture purity bench \
+.PHONY: all build test test-lisp test-glob test-js test-tls test-crypto registry-fixture purity bench \
 		bench-check compile-tier-ceiling test-installer test-release-live-check \
 		public-claims-check version-transition-check test-version-transition-check \
 		compat compat-validate docs-generate docs-check test-compat-tools \
@@ -36,6 +36,17 @@ test: test-lisp test-ts test-js
 
 test-lisp:
 	$(SBCL) $(SBCL_FLAGS) --load scripts/test.lisp
+
+## test-glob -- Phase 30 focused Lisp bounds plus shipped public API/corpus/scanner.
+test-glob: build
+	$(SBCL) $(SBCL_FLAGS) --load scripts/test-glob.lisp
+	(cd tests/compat/filesystem.glob && ../../../build/clun api.js | cmp api.out -)
+	(cd tests/compat/filesystem.glob && ../../../build/clun match.js | cmp match.out -)
+	CLUN_COMPAT_EXECUTABLE="$(CURDIR)/build/clun" sh tests/compat/filesystem.glob/upstream-match.sh
+	CLUN_COMPAT_EXECUTABLE="$(CURDIR)/build/clun" sh tests/compat/filesystem.glob/scan.sh
+	CLUN_COMPAT_EXECUTABLE="$(CURDIR)/build/clun" sh tests/compat/filesystem.glob/adversarial.sh
+	CLUN_COMPAT_EXECUTABLE="$(CURDIR)/build/clun" sh tests/compat/filesystem.glob/stress.sh
+	sh scripts/glob-upstream-inventory-check.sh
 
 ## test-js — run the tests/js + tests/ts/runtime fixtures against build/clun.
 test-js: build

@@ -7,7 +7,12 @@
 
 (defstruct (js-generator (:include js-object (class :generator)) (:constructor %make-js-generator))
   coroutine
+  producer
   (done nil))
+
+(defstruct (generator-producer (:constructor %make-generator-producer (values)))
+  values
+  (index 0 :type fixnum))
 
 (defun make-generator (fn co)
   "A generator instance whose [[Prototype]] is FN.prototype (the generator function's
@@ -16,12 +21,42 @@
                  (if (js-object-p p) p (intrinsic :generator-prototype)))))
     (%make-js-generator :proto proto :coroutine co)))
 
+(defun make-producer-generator (values)
+  "A real Generator over VALUES using the shared intrinsic prototype directly."
+  (%make-js-generator
+   :proto (intrinsic :generator-prototype)
+   :producer (%make-generator-producer (coerce values 'vector))))
+
 (defun %this-generator (this)
   (if (js-generator-p this) this
       (throw-type-error "Generator method called on an incompatible receiver")))
 
 (defun %generator-step (gen mode value)
   "Resume GEN's coroutine (§27.5.3 GeneratorResume/Return/Throw) → iterator result."
+  (let ((producer (js-generator-producer gen)))
+    (when producer
+      (return-from %generator-step
+        (cond
+          ((js-generator-done gen)
+           (ecase mode
+             (:next (make-iter-result +undefined+ t))
+             (:return (make-iter-result value t))
+             (:throw (throw-js-value value))))
+          ((eq mode :return)
+           (setf (js-generator-done gen) t)
+           (make-iter-result value t))
+          ((eq mode :throw)
+           (setf (js-generator-done gen) t)
+           (throw-js-value value))
+          (t
+           (let ((index (generator-producer-index producer))
+                 (values (generator-producer-values producer)))
+             (if (< index (length values))
+                 (prog1 (make-iter-result (aref values index) nil)
+                   (incf (generator-producer-index producer)))
+                 (progn
+                   (setf (js-generator-done gen) t)
+                   (make-iter-result +undefined+ t)))))))))
   (let ((co (js-generator-coroutine gen)))
     (cond
       ((js-generator-done gen)

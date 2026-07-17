@@ -29,6 +29,11 @@
                                            (:file "fs")
                                            (:file "json")
                                            (:file "platform")))
+                             ;; Phase 30 matcher substrate: immutable and engine-free.
+                             (:module "glob"
+                              :serial t
+                              :components ((:file "matcher")
+                                           (:file "walker")))
                              ;; Unicode-pinned string width substrate (Phase 33):
                              ;; generated tables must load before the scanner.
                              (:module "text"
@@ -167,6 +172,7 @@
                                            (:file "clun-semver"); Clun.semver (Phase 29) — before clun-global
                                            (:file "clun-csrf")  ; Clun.CSRF (Phase 35) — before clun-global
                                            (:file "clun-string-width") ; Clun.stringWidth (Phase 33) — before clun-global
+                                           (:file "clun-glob") ; Clun.Glob (Phase 30) — before clun-global
                                            (:file "clun-global")
                                            (:file "abort")     ; AbortController/AbortSignal (Phase 14)
                                            (:file "globals")   ; structuredClone, crypto (Phase 12)
@@ -231,6 +237,10 @@
                                            (:module "text"
                                             :serial t
                                             :components ((:file "string-width-tests")))
+                                           (:module "glob"
+                                            :serial t
+                                            :components ((:file "matcher-tests")
+                                                         (:file "walker-tests")))
                                            (:module "resolver"
                                             :serial t
                                             :components ((:file "resolver-tests")))
@@ -259,6 +269,7 @@
                                            (:module "runtime"
                                             :serial t
                                             :components ((:file "runtime-tests")
+                                                         (:file "glob-tests")
                                                          (:file "url-tests")
                                                          (:file "spawn-tests")
                                                          (:file "scripts-tests")))

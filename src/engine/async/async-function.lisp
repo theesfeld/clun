@@ -79,9 +79,18 @@ escaping synchronously from the async call."
 (defstruct (js-async-generator (:include js-object (class :async-generator))
                                (:constructor %make-js-async-generator))
   coroutine
+  producer
   (state :suspended-start)
   request-head
   request-tail)
+
+(defstruct (async-generator-producer
+            (:constructor %make-async-generator-producer (&key cancel)))
+  (state :traversing)
+  (values #())
+  (index 0 :type fixnum)
+  failure
+  cancel)
 
 (defun make-async-generator (fn co)
   "Create an async generator using FN.prototype when it is an object."
@@ -90,6 +99,32 @@ escaping synchronously from the async call."
                          value
                          (intrinsic :async-generator-prototype)))))
     (%make-js-async-generator :proto prototype :coroutine co)))
+
+(defun make-producer-async-generator (&key cancel)
+  "A real AsyncGenerator with no coroutine or per-instance thread."
+  (%make-js-async-generator
+   :proto (intrinsic :async-generator-prototype)
+   :producer (%make-async-generator-producer :cancel cancel)))
+
+(defun async-generator-producer-ready (generator values)
+  "Commit worker VALUES to a traversing producer and drain queued requests."
+  (let ((producer (and (js-async-generator-p generator)
+                       (js-async-generator-producer generator))))
+    (when (and producer (eq (async-generator-producer-state producer) :traversing))
+      (setf (async-generator-producer-values producer) (coerce values 'vector)
+            (async-generator-producer-state producer) :ready)
+      (%async-gen-resume-next generator)
+      t)))
+
+(defun async-generator-producer-failed (generator reason)
+  "Commit worker failure REASON to a traversing producer."
+  (let ((producer (and (js-async-generator-p generator)
+                       (js-async-generator-producer generator))))
+    (when (and producer (eq (async-generator-producer-state producer) :traversing))
+      (setf (async-generator-producer-failure producer) reason
+            (async-generator-producer-state producer) :failed)
+      (%async-gen-resume-next generator)
+      t)))
 
 (defun %async-gen-enqueue-request (agen request)
   (let ((cell (list request)))
@@ -122,8 +157,61 @@ escaping synchronously from the async call."
   (member (js-async-generator-state agen)
           '(:executing :awaiting-value :awaiting-return)))
 
+(defun %producer-abrupt-request-p (agen)
+  (loop for cell on (js-async-generator-request-head agen)
+        thereis (not (eq (async-generator-request-mode (car cell)) :next))))
+
+(defun %complete-producer (agen)
+  (setf (js-async-generator-state agen) :completed
+        (js-async-generator-producer agen) nil))
+
+(defun %async-producer-resume-next (agen producer)
+  (case (async-generator-producer-state producer)
+    (:traversing
+     ;; An abrupt request wins cancellation even behind already-pending nexts.
+     (when (%producer-abrupt-request-p agen)
+       (setf (async-generator-producer-state producer) :cancelling)
+       (let ((cancel (async-generator-producer-cancel producer)))
+         (when cancel (funcall cancel)))
+       (%complete-producer agen)
+       (%async-gen-resume-next agen)))
+    (:ready
+     (loop while (js-async-generator-request-head agen) do
+       (let* ((request (%async-gen-current-request agen))
+              (mode (async-generator-request-mode request))
+              (index (async-generator-producer-index producer))
+              (values (async-generator-producer-values producer)))
+         (cond
+           ((not (eq mode :next))
+            (%complete-producer agen)
+            (%async-gen-resume-next agen)
+            (return))
+           ((< index (length values))
+            (incf (async-generator-producer-index producer))
+            (%async-gen-resolve-current agen (aref values index) nil))
+           (t
+            (%complete-producer agen)
+            (%async-gen-resolve-current agen +undefined+ t)
+            (%async-gen-resume-next agen)
+            (return))))))
+    (:failed
+     (when (js-async-generator-request-head agen)
+       (let ((request (%async-gen-current-request agen)))
+         (if (eq (async-generator-request-mode request) :next)
+             (progn
+               (%async-gen-reject-current agen
+                                          (async-generator-producer-failure producer))
+               (%complete-producer agen))
+             (%complete-producer agen))
+         (%async-gen-resume-next agen)))))
+  nil)
+
 (defun %async-gen-resume-next (agen)
   "Run queued requests in FIFO order until the coroutine or an adopted value waits."
+  (let ((producer (js-async-generator-producer agen)))
+    (when producer
+      (%async-producer-resume-next agen producer)
+      (return-from %async-gen-resume-next nil)))
   (loop
     (when (or (null (js-async-generator-request-head agen))
               (%async-gen-active-p agen))
