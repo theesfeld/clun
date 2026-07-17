@@ -67,10 +67,12 @@ Synchronous write errors retain errno as shell statuses through nested substitut
 large output, builtin error contracts, non-ASCII cwd, and current-executable resolution when `PATH` is empty.
 Nested interpolation arrays now support the pinned 100-level boundary, escaped newlines are continuations,
 empty substitutions retain their command status, and a single interpolated newline is not doubled by `echo`.
-`make phase-65-shell-core-check` passes **240 / 0 / 0** plus
-**16/16** shipped `tooling.shell` evidence records; `make build`, `make purity` (**728 / 0**), and diff check
+Conditional string matching now supports bounded positive extended globs with nesting and alternation,
+`shopt -s extglob` executes internally, and per-job or per-shell `cwd()` changes keep `$PWD` synchronized.
+`make phase-65-shell-core-check` passes **250 / 0 / 0** plus
+**17/17** shipped `tooling.shell` evidence records; `make build`, `make purity` (**728 / 0**), and diff check
 pass. The exact stable and engineering Bun boundary is now frozen at **211 source/docs/types/test files** and
-**1,630 lexical test sites**: **907 covered / 691 pending / 32 upstream-inactive**. The checked-in coverage
+**1,630 lexical test sites**: **958 covered / 640 pending / 32 upstream-inactive**. The checked-in coverage
 overlay binds every credited site to executable shipped-binary evidence and rejects stale or unknown IDs.
 The row is honestly **Partial**, not `Yes`: remaining language/API/lifecycle cases, four permission-sensitive
 `ls` sites, 1,000-job stress, and Linux/macOS x64/arm64 receipts are still open.

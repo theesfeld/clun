@@ -327,7 +327,8 @@
              (let ((operator (%shell-operator-at units index)))
                (if (and operator
                         (not (and in-condition
-                                  (member operator '("(" ")") :test #'string=))))
+                                  (member operator '("(" ")" "|")
+                                          :test #'string=))))
                    (progn (emit-operator operator) (incf index (length operator)))
                    (progn (emit-character unit nil) (incf index)))))
             (t
@@ -821,7 +822,7 @@
 ;;; --- builtins and direct external execution --------------------------------
 
 (defparameter *shell-builtins*
-  '("echo" "pwd" "cd" "true" "false" ":" "export" "unset" "which" "exit"
+  '("echo" "pwd" "cd" "true" "false" ":" "export" "unset" "shopt" "which" "exit"
     "basename" "dirname" "seq" "cat" "mkdir" "touch" "rm" "mv" "ls" "cp" "yes"
     "[["))
 
@@ -2114,6 +2115,136 @@ integer conversions are deliberately rejected because seq values are f32."
                  (write-char #\\ output))
                (write-char character output)))))
 
+(defconstant +shell-condition-max-pattern-length+ 65536)
+(defconstant +shell-condition-max-extglob-depth+ 64)
+
+(defun %shell-condition-extglob-start-p (operand index)
+  (let ((value (shell-condition-operand-value operand)))
+    (and (< (1+ index) (length value))
+         (not (%shell-condition-protected-p operand index))
+         (not (%shell-condition-protected-p operand (1+ index)))
+         (find (char value index) "?*+@")
+         (char= (char value (1+ index)) #\())))
+
+(defun %shell-condition-extglob-p (term)
+  (let* ((operand (%shell-condition-as-operand term))
+         (value (shell-condition-operand-value operand)))
+    (loop for index below (length value)
+          thereis (%shell-condition-extglob-start-p operand index))))
+
+(defun %shell-condition-extglob-regex (term)
+  "Translate positive Bash extglobs used by [[ == ]] to a bounded regex."
+  (let* ((operand (%shell-condition-as-operand term))
+         (value (shell-condition-operand-value operand))
+         (length (length value))
+         (index 0))
+    (when (> length +shell-condition-max-pattern-length+)
+      (error 'shell-condition-evaluation-error
+             :message "pattern is too long" :status 2))
+    (labels
+        ((protected-p (position)
+           (%shell-condition-protected-p operand position))
+         (literal (character)
+           (cl-ppcre:quote-meta-chars (string character)))
+         (class-close (open)
+           (loop for position from (1+ open) below length
+                 when (and (char= (char value position) #\])
+                           (not (protected-p position))
+                           (> position (1+ open)))
+                   return position))
+         (parse-class ()
+           (let ((close (class-close index)))
+             (unless close
+               (incf index)
+               (return-from parse-class (literal #\[)))
+             (prog1
+                 (with-output-to-string (output)
+                   (write-char #\[ output)
+                   (incf index)
+                   (when (and (< index close)
+                              (not (protected-p index))
+                              (char= (char value index) #\!))
+                     (write-char #\^ output)
+                     (incf index))
+                   (loop while (< index close)
+                         for character = (char value index)
+                         do (when (or (protected-p index)
+                                      (find character "\\]"))
+                              (write-char #\\ output))
+                            (write-char character output)
+                            (incf index))
+                   (write-char #\] output))
+               (setf index (1+ close)))))
+         (parse-extglob (depth)
+           (when (> depth +shell-condition-max-extglob-depth+)
+             (error 'shell-condition-evaluation-error
+                    :message "extended glob nesting is too deep" :status 2))
+           (let ((operator (char value index))
+                 (alternatives '()))
+             (incf index 2)
+             (loop
+               (push (parse-sequence depth) alternatives)
+               (cond
+                 ((and (< index length)
+                       (not (protected-p index))
+                       (char= (char value index) #\|))
+                  (incf index))
+                 ((and (< index length)
+                       (not (protected-p index))
+                       (char= (char value index) #\)))
+                  (incf index)
+                  (return))
+                 (t
+                  (error 'shell-condition-evaluation-error
+                         :message "invalid extended glob" :status 2))))
+             (format nil "(?:~{~a~^|~})~a"
+                     (nreverse alternatives)
+                     (case operator
+                       (#\? "?")
+                       (#\* "*")
+                       (#\+ "+")
+                       (otherwise "")))))
+         (parse-sequence (depth)
+           (with-output-to-string (output)
+             (loop while (< index length)
+                   for character = (char value index)
+                   do (cond
+                        ((and (not (protected-p index))
+                              (find character "|)"))
+                         (return))
+                        ((%shell-condition-extglob-start-p operand index)
+                         (write-string (parse-extglob (1+ depth)) output))
+                        ((and (not (protected-p index))
+                              (char= character #\*))
+                         (write-string "(?s:.)*" output)
+                         (incf index))
+                        ((and (not (protected-p index))
+                              (char= character #\?))
+                         (write-string "(?s:.)" output)
+                         (incf index))
+                        ((and (not (protected-p index))
+                              (char= character #\[))
+                         (write-string (parse-class) output))
+                        (t
+                         (write-string (literal character) output)
+                         (incf index)))))))
+      (let ((regex (parse-sequence 0)))
+        (unless (= index length)
+          (error 'shell-condition-evaluation-error
+                 :message "invalid extended glob" :status 2))
+        (format nil "\\A(?:~a)\\z" regex)))))
+
+(defun %shell-condition-pattern-match-p (term candidate)
+  (if (%shell-condition-extglob-p term)
+      (handler-case
+          (not (null (cl-ppcre:scan (%shell-condition-extglob-regex term)
+                                    candidate)))
+        (cl-ppcre:ppcre-error (condition)
+          (declare (ignore condition))
+          (error 'shell-condition-evaluation-error
+                 :message "invalid extended glob" :status 2)))
+      (clun.glob:glob-match-p (%shell-condition-pattern term) candidate)))
+
 (defun %shell-condition-regex (term)
   (let* ((operand (%shell-condition-as-operand term))
          (value (shell-condition-operand-value operand)))
@@ -2396,9 +2527,9 @@ integer conversions are deliberately rejected because seq values are f32."
         (right-value (%shell-condition-operand-text right)))
     (cond
       ((member operator '("=" "==") :test #'string=)
-       (clun.glob:glob-match-p (%shell-condition-pattern right) left-value))
+       (%shell-condition-pattern-match-p right left-value))
       ((string= operator "!=")
-       (not (clun.glob:glob-match-p (%shell-condition-pattern right) left-value)))
+       (not (%shell-condition-pattern-match-p right left-value)))
       ((string= operator "=~")
        (handler-case
            (not (null (cl-ppcre:scan (%shell-condition-regex right) left-value)))
@@ -2670,6 +2801,13 @@ integer conversions are deliberately rejected because seq values are f32."
            (setf (shell-state-env state)
                  (%shell-env-unset (shell-state-env state) argument))))
        (values (%shell-result-from-strings "" "" 0) t))
+      ((string= name "shopt")
+       (if (and (= (length args) 2)
+                (string= (first args) "-s")
+                (string= (second args) "extglob"))
+           (values (%shell-result-from-strings "" "" 0) t)
+           (values (%shell-result-from-strings
+                    "" (format nil "clun: shopt: unsupported option~%") 1) t)))
       ((string= name "which")
        (let ((found (loop for argument in args
                           for path = (%shell-which argument env (shell-state-cwd state))
@@ -3202,7 +3340,7 @@ deadlock even when commands produce output larger than kernel pipe capacity."
       (ignore-errors (clun.sys:remove-recursive directory)))))
 
 (defparameter *shell-no-stdin-builtins*
-  '("echo" "pwd" "cd" "true" "false" ":" "export" "unset" "which" "exit"
+  '("echo" "pwd" "cd" "true" "false" ":" "export" "unset" "shopt" "which" "exit"
     "basename" "dirname" "seq" "mkdir" "touch" "rm" "mv" "ls" "cp" "[["))
 
 (defun %shell-no-stdin-builtin-p (command)
@@ -3517,8 +3655,11 @@ deadlock even when commands produce output larger than kernel pipe capacity."
                        (list (eng:arg args 0))))))
     (eng:install-method object "cwd" 1
       (lambda (this args)
-        (setf (shell-state-cwd state)
-              (%shell-relative-path (eng:to-string (eng:arg args 0)) state))
+        (let ((cwd (%shell-relative-path
+                    (eng:to-string (eng:arg args 0)) state)))
+          (setf (shell-state-cwd state) cwd
+                (shell-state-env state)
+                (%shell-env-set (shell-state-env state) "PWD" cwd)))
         this))
     (eng:install-method object "env" 1
       (lambda (this args)
@@ -3808,13 +3949,16 @@ deadlock even when commands produce output larger than kernel pipe capacity."
         (setf default-env (%shell-object-env g (eng:arg args 0))) this))
     (eng:install-method tag "cwd" 1
       (lambda (this args)
-        (setf default-cwd
-              (if (eng:js-undefined-p (eng:arg args 0))
-                  (clun.sys:current-directory)
-                  (let ((value (eng:to-string (eng:arg args 0))))
-                    (if (clun.sys:absolute-path-p value) value
-                        (clun.sys:normalize-path
-                         (clun.sys:path-join (clun.sys:current-directory) value))))))
+        (let ((cwd
+                (if (eng:js-undefined-p (eng:arg args 0))
+                    (clun.sys:current-directory)
+                    (let ((value (eng:to-string (eng:arg args 0))))
+                      (if (clun.sys:absolute-path-p value) value
+                          (clun.sys:normalize-path
+                           (clun.sys:path-join
+                            (clun.sys:current-directory) value)))))))
+          (setf default-cwd cwd
+                default-env (%shell-env-set default-env "PWD" cwd)))
         this))
     (eng:install-method tag "nothrow" 0
       (lambda (this args)
