@@ -48,6 +48,24 @@
   (:documentation "Engine-free bounded CSRF token encoding, authentication, and expiry.")
   (:export #:core-generate #:core-verify))
 
+(defpackage :clun.password
+  (:use :cl)
+  (:local-nicknames (:crypto :ironclad))
+  (:documentation "Bounded password hashing, PHC/MCF encoding, and verification.")
+  (:export
+   #:password-error #:password-error-kind #:password-error-detail
+   #:hash-password #:verify-password #:validate-encoded-password-hash
+   #:+default-argon-memory-cost+ #:+default-argon-time-cost+
+   #:+max-password-bytes+ #:+max-encoded-hash-bytes+))
+
+(defpackage :clun.hash
+  (:use :cl)
+  (:documentation "Pure Common Lisp implementations of Clun.hash algorithms.")
+  (:export
+   #:hash-octets #:wyhash #:adler32 #:crc32 #:city-hash32 #:city-hash64
+   #:xxhash32 #:xxhash64 #:xxhash3 #:murmur32v2 #:murmur32v3 #:murmur64v2
+   #:rapidhash))
+
 (defpackage :clun.text.string-width
   (:nicknames :clun.text)
   (:use :cl)
@@ -116,6 +134,19 @@
            #:make-rgba-color #:parse-color #:color->srgb #:color->rgba-bytes
            #:color->hsl #:color->lab #:format-css-color #:format-color-number
            #:ansi256-index #:ansi16-index))
+
+(defpackage :clun.yaml
+  (:use :cl)
+  (:documentation "Bounded engine-free YAML 1.2 graph parser for the runtime and module loader.")
+  (:export
+   #:parse-yaml #:yaml-error #:yaml-error-code #:yaml-error-reason
+   #:yaml-error-line #:yaml-error-column #:yaml-error-offset #:yaml-error-document
+   #:yaml-stream #:yaml-stream-p #:yaml-stream-documents
+   #:yaml-node #:yaml-node-p #:yaml-node-kind #:yaml-node-value #:yaml-node-anchor
+   #:yaml-node-tag #:yaml-node-line #:yaml-node-column #:yaml-node-offset #:yaml-node-style
+   #:yaml-pair #:yaml-pair-p #:yaml-pair-key #:yaml-pair-value #:yaml-pair-merge-p
+   #:+max-source-length+ #:+max-depth+ #:+max-documents+ #:+max-nodes+
+   #:+max-edges+ #:+max-anchors+ #:+max-aliases+ #:+max-scalar-length+))
 
 ;; Defined before clun.engine so the engine's :lp local-nickname can target it.
 (defpackage :clun.loop
@@ -211,6 +242,7 @@
    #:js-construct #:obj-own-desc #:pd-value #:pd-enumerable #:crypto-fill-random
    #:js-loose-eq #:js-instanceof #:throw-js-value #:js-object-class
    #:js-typed-array-p #:make-u8-array #:u8-from-octets #:ta-octets #:u8-over-arraybuffer #:js-array-buffer-bytes #:js-array-buffer-p
+   #:buffer-source-octets
    #:code-units->utf8 #:utf8->code-units #:ta-subview
    ;; TS strip hook (Phase 09): the loader applies this to .ts/.mts/.cts source
    ;; before parse-program; the transpiler installs it (engine stays dep-free).

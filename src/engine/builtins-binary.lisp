@@ -678,6 +678,11 @@ reads/writes the backing vector directly for its byte and numeric accessors."
                                   (+ (js-data-view-byte-offset v) (js-data-view-byte-length v)))))
     (t (throw-type-error "argument is not a BufferSource"))))
 
+(defun buffer-source-octets (value)
+  "Return the exact byte range represented by a BufferSource.
+ArrayBuffer may return its backing vector; views return a bounded copy."
+  (%source-bytes value))
+
 (defun %to-usv-string (s)
   "Replace every LONE surrogate (unpaired D800..DFFF) with U+FFFD — the WHATWG
 JS-string→USV-string step. Valid surrogate PAIRS (astral chars) are preserved."

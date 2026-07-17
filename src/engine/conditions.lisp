@@ -7,6 +7,8 @@
 
 (in-package :clun.engine)
 
+(defvar *realm* nil "The realm current code runs in (bound by the evaluator).")
+
 (define-condition js-condition (error)
   ((value :initarg :value :reader js-condition-value
           :documentation "The thrown JS value."))
@@ -42,7 +44,7 @@
 (defun throw-native-error (kind message)
   ;; With a realm, throw a real Error object wrapped in a js-condition; before the
   ;; realm exists (early bootstrap / unit tests) fall back to the js-native-error.
-  (if *make-error-object*
+  (if (and *realm* *make-error-object*)
       (error 'js-condition :value (funcall *make-error-object* kind message))
       (error 'js-native-error :kind kind :message message :value message)))
 

@@ -2689,3 +2689,29 @@ arm64. Dev.13 measures eight warmed constructions per size and retains the uncha
 threshold. That correction ships with the already-complete Phase 34 Color surface. Because dev.11 and
 dev.12 never published assets, the generated candidate README and site continue to identify immutable
 dev.10 as the last published prerelease.
+
+### 2026-07-16 - YAML and password/hash share the dev.14 minor boundary
+
+Phases 31 and 36 are independently complete backward-compatible public API additions, and their combined
+integration passes the focused core, shipped-binary, crypto, build, and purity gates. Publishing them in one
+release does not change the SemVer impact: the unit remains `minor` within the selected `0.1.0` prerelease
+train and advances once to `0.1.0-dev.14` / `v0.1.0-dev.14`. The ASDF core remains `0.1.0`.
+
+Issue #5 owns the coordinated release, platform, Pages, and installer receipts. Issue #10 remains the
+canonical source for password/hash behavior and is closed only after those shared dev.14 receipts exist.
+Neither compatibility cell becomes public before dev.13 publication and a fully green four-target dev.14
+gate; the ledger state is therefore evidence-backed candidate truth, not a claim about the live site.
+
+### 2026-07-17 - YAML returns to Partial against the complete pinned denominator
+
+Adversarial review replaced the narrow local YAML fixtures with Bun's exact generated
+`yaml-test-suite.test.ts` at engineering commit `c1076ce95e`, itself generated from
+`yaml-test-suite` revision `6e6c296ae9c9d2d5c4134b4b64d01b29ac19ff6f`. The denominator is 402 named
+cases. The shipped dev.14 candidate measures **204 pass / 198 fail**, with residuals spanning document and
+block continuation, collections, explicit keys, flow grammar, tabs, tags/directives, and scalar handling.
+
+`data.yaml` is therefore `Partial` until the complete 402-case gate, block-scalar matrix, public API/module
+corpus, security/resource gates, and four-target receipts pass. The pinned source, Bun license, deterministic
+Clun translation, and case-level baseline are committed together; no case can be dropped or reclassified
+silently. The dev.14 SemVer target remains valid because Phase 36's password/hash APIs are independent real
+backward-compatible functionality.

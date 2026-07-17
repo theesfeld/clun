@@ -71,5 +71,6 @@ loader) — evaluation is driven by status, not mere existence."
     (ecase format
       (:cjs (load-cjs-module path))
       (:json (load-json-value path))
+      (:yaml (load-yaml-value path))
       (:esm (throw-type-error
              (format nil "require() of ES Module ~a not supported (use import)" path))))))

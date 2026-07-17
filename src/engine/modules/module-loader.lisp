@@ -1,4 +1,4 @@
-;;;; module-loader.lisp — ESM load/evaluate + ESM↔CJS interop + JSON modules +
+;;;; module-loader.lisp — ESM load/evaluate + ESM↔CJS interop + data modules +
 ;;;; the run-module-file drive path (Phase 07, design §3/§6/§7).
 ;;;;
 ;;;; Structure: a single post-order pass loads the graph (records + compiled ESM +
@@ -102,16 +102,40 @@ by round-tripping through JSON.parse semantics — but here we build directly)."
        (dolist (kv v o) (data-prop o (car kv) (json->js-value (cdr kv))))))
     (t +undefined+)))
 
+;;; --- YAML modules -----------------------------------------------------------
+
+(defun load-yaml-value (path)
+  "Parse and cache the YAML data module at real PATH. A failed parse is evicted."
+  (let ((existing (realm-module *realm* path)))
+    (if (and existing (eq (mr-status existing) :evaluated))
+        (mr-cjs-exports existing)
+        (let ((record (or existing
+                          (make-module-record :resolved-path path :format :yaml)))
+              (done nil))
+          (setf (realm-module *realm* path) record
+                (mr-status record) :evaluating)
+          (unwind-protect
+               (multiple-value-bind (value named-exports-p)
+                   (yaml-source->js
+                    (yaml-octets->source (clun.sys:read-file-octets path) path)
+                    path)
+                 (setf (mr-cjs-exports record) value
+                       (mr-yaml-named-exports-p record) named-exports-p
+                       (mr-status record) :evaluated
+                       done t)
+                 value)
+            (unless done (setf (realm-module *realm* path) nil)))))))
+
 ;;; --- graph load (records + compile + resolve deps) --------------------------
 
 (defun load-any (path format)
   "Ensure a record exists for real PATH/FORMAT and (for ESM) its graph is loaded.
-The record is REGISTERED so the evaluate pass finds the same object (a CJS/JSON
-placeholder is evaluated lazily via load-cjs-module / load-json-value)."
+The record is REGISTERED so the evaluate pass finds the same object (a CJS/JSON/YAML
+placeholder is evaluated lazily by its format-specific loader)."
   (or (realm-module *realm* path)
       (ecase format
         (:esm (esm-load path))
-        ((:cjs :json)
+        ((:cjs :json :yaml)
          (setf (realm-module *realm* path)
                (make-module-record :resolved-path path :format format :status :unlinked))))))
 
@@ -135,11 +159,12 @@ placeholder is evaluated lazily via load-cjs-module / load-json-value)."
 ;;; --- evaluate (post-order) --------------------------------------------------
 
 (defun evaluate-module (mr)
-  "Evaluate MR after its dependencies. CJS/JSON own their own status + cycle handling
-(load-cjs-module / load-json-value); ESM uses the guard below."
+  "Evaluate MR after its dependencies. Data and CJS formats own their status handling;
+ESM uses the guard below."
   (ecase (mr-format mr)
     (:cjs  (load-cjs-module (mr-resolved-path mr)))
     (:json (load-json-value (mr-resolved-path mr)))
+    (:yaml (load-yaml-value (mr-resolved-path mr)))
     (:esm  (evaluate-esm-guarded mr)))
   mr)
 
@@ -194,17 +219,18 @@ already-loaded dep for DESC's source specifier."
 
 (defun module-default-thunk (dep)
   "Thunk for the DEFAULT import of DEP (ESM default binding / CJS module.exports /
-JSON value)."
+JSON/YAML value)."
   (ecase (mr-format dep)
     (:esm  (let ((thunk (gethash "default" (mr-exports dep))))
              (or thunk (lambda () +undefined+))))
     (:cjs  (lambda () (mr-cjs-exports dep)))          ; interop: default = module.exports
-    (:json (lambda () (mr-cjs-exports dep)))))
+    (:json (lambda () (mr-cjs-exports dep)))
+    (:yaml (lambda () (mr-cjs-exports dep)))))
 
 (defun module-named-thunk (dep name)
   "Thunk for a NAMED import of DEP. ESM: a live binding thunk; CJS: a property of
-module.exports (best-effort 🟡); `default` = the whole value for CJS/JSON. A JSON
-module has ONLY a default export — any other named import is a link SyntaxError."
+module.exports (best-effort 🟡); `default` = the whole value for CJS/JSON/YAML. JSON
+has only a default export; YAML mappings also expose their own top-level keys."
   (ecase (mr-format dep)
     (:esm  (or (gethash name (mr-exports dep))
                (throw-syntax-error
@@ -217,7 +243,17 @@ module has ONLY a default export — any other named import is a link SyntaxErro
                (lambda () (mr-cjs-exports dep))           ; {default as X} = the JSON value
                (throw-syntax-error
                 (format nil "The requested module '~a' does not provide an export named '~a'"
-                        (mr-resolved-path dep) name))))))
+                        (mr-resolved-path dep) name))))
+    (:yaml
+     (if (string= name "default")
+         (lambda () (mr-cjs-exports dep))
+         (let ((value (mr-cjs-exports dep)))
+           (if (and (mr-yaml-named-exports-p dep)
+                    (has-own-property value name))
+               (lambda () (js-get value name))
+               (throw-syntax-error
+                (format nil "The requested module '~a' does not provide an export named '~a'"
+                        (mr-resolved-path dep) name))))))))
 
 (defun json-as-object (v) (if (js-object-p v) v (new-object)))
 
@@ -272,6 +308,9 @@ splices the source's names."
                (lambda () (js-get (mr-cjs-exports mr) name))))
     (:json (if (string= name "default")
                (lambda () (mr-cjs-exports mr))
+               (lambda () (js-get (json-as-object (mr-cjs-exports mr)) name))))
+    (:yaml (if (string= name "default")
+               (lambda () (mr-cjs-exports mr))
                (lambda () (js-get (json-as-object (mr-cjs-exports mr)) name))))))
 
 (defun module-export-names (mr)
@@ -279,7 +318,13 @@ splices the source's names."
   (ecase (mr-format mr)
     (:esm  (loop for k being the hash-keys of (mr-exports mr) collect k))
     (:cjs  (cons "default" (own-enumerable-string-keys (mr-cjs-exports mr))))
-    (:json '("default"))))
+    (:json '("default"))
+    (:yaml (if (mr-yaml-named-exports-p mr)
+               (cons "default"
+                     (remove "default"
+                             (own-enumerable-string-keys (mr-cjs-exports mr))
+                             :test #'string=))
+               '("default")))))
 
 ;;; --- namespace object -------------------------------------------------------
 
@@ -295,7 +340,14 @@ values (🟡: not a live exotic object) plus, for CJS, a `default`."
                 (:cjs (data-prop ns "default" (mr-cjs-exports mr))
                       (dolist (k (own-enumerable-string-keys (mr-cjs-exports mr)))
                         (data-prop ns k (js-get (mr-cjs-exports mr) k))))
-                (:json (data-prop ns "default" (mr-cjs-exports mr))))
+                (:json (data-prop ns "default" (mr-cjs-exports mr)))
+                (:yaml
+                 (data-prop ns "default" (mr-cjs-exports mr))
+                 (when (mr-yaml-named-exports-p mr)
+                   (dolist (key (remove "default"
+                                        (own-enumerable-string-keys (mr-cjs-exports mr))
+                                        :test #'string=))
+                     (data-prop ns key (js-get (mr-cjs-exports mr) key))))))
               ns))))
 
 ;;; --- drive path -------------------------------------------------------------

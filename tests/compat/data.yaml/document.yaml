@@ -1,0 +1,5 @@
+name: clun
+items: [parse, stringify, import]
+shared: &shared
+  value: 7
+copy: *shared

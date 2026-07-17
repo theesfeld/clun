@@ -3,10 +3,10 @@ cloud.s3	darwin-arm64	unsupported	-	Capability is not implemented.
 cloud.s3	darwin-x64	unsupported	-	Capability is not implemented.
 cloud.s3	linux-arm64	unsupported	-	Capability is not implemented.
 cloud.s3	linux-x64	unsupported	-	Capability is not implemented.
-data.yaml	darwin-arm64	unsupported	-	Capability is not implemented.
-data.yaml	darwin-x64	unsupported	-	Capability is not implemented.
-data.yaml	linux-arm64	unsupported	-	Capability is not implemented.
-data.yaml	linux-x64	unsupported	-	Capability is not implemented.
+data.yaml	darwin-arm64	unverified	ev.data.yaml.api-differential.v1,ev.data.yaml.bun-402.v1,ev.data.yaml.module-loading.v1	The public APIs execute, but the complete parser corpus is 204 pass / 198 fail and release-target receipts are incomplete.
+data.yaml	darwin-x64	unverified	ev.data.yaml.api-differential.v1,ev.data.yaml.bun-402.v1,ev.data.yaml.module-loading.v1	The public APIs execute, but the complete parser corpus is 204 pass / 198 fail and release-target receipts are incomplete.
+data.yaml	linux-arm64	unverified	ev.data.yaml.api-differential.v1,ev.data.yaml.bun-402.v1,ev.data.yaml.module-loading.v1	The public APIs execute, but the complete parser corpus is 204 pass / 198 fail and release-target receipts are incomplete.
+data.yaml	linux-x64	unverified	ev.data.yaml.api-differential.v1,ev.data.yaml.bun-402.v1,ev.data.yaml.module-loading.v1	The public APIs execute, but the complete parser corpus is 204 pass / 198 fail and release-target receipts are incomplete.
 database.redis	darwin-arm64	unsupported	-	Capability is not implemented.
 database.redis	darwin-x64	unsupported	-	Capability is not implemented.
 database.redis	linux-arm64	unsupported	-	Capability is not implemented.
@@ -55,10 +55,10 @@ security.encrypted-secrets	darwin-arm64	unsupported	-	Capability is not implemen
 security.encrypted-secrets	darwin-x64	unsupported	-	Capability is not implemented.
 security.encrypted-secrets	linux-arm64	unsupported	-	Capability is not implemented.
 security.encrypted-secrets	linux-x64	unsupported	-	Capability is not implemented.
-security.password-hashing	darwin-arm64	unsupported	-	Capability is not implemented.
-security.password-hashing	darwin-x64	unsupported	-	Capability is not implemented.
-security.password-hashing	linux-arm64	unsupported	-	Capability is not implemented.
-security.password-hashing	linux-x64	unsupported	-	Capability is not implemented.
+security.password-hashing	darwin-arm64	supported	ev.security.password-hashing.public.v1	The complete public surface executes through the shipped binary.
+security.password-hashing	darwin-x64	supported	ev.security.password-hashing.public.v1	The complete public surface executes through the shipped binary.
+security.password-hashing	linux-arm64	supported	ev.security.password-hashing.public.v1	The complete public surface executes through the shipped binary.
+security.password-hashing	linux-x64	supported	ev.security.password-hashing.public.v1	The complete public surface executes through the shipped binary.
 server.http	darwin-arm64	unverified	ev.server.http.binary-e2e.v1,ev.server.http.server-suite.v1	Registered executable evidence is target-scoped; static suite evidence is trace-only.
 server.http	darwin-x64	unverified	ev.server.http.binary-e2e.v1,ev.server.http.server-suite.v1	Registered executable evidence is target-scoped; static suite evidence is trace-only.
 server.http	linux-arm64	unverified	ev.server.http.binary-e2e.v1,ev.server.http.server-suite.v1	Registered executable evidence is target-scoped; static suite evidence is trace-only.

@@ -1,0 +1,12 @@
+api function wyhash,adler32,crc32,cityHash32,cityHash64,xxHash32,xxHash64,xxHash3,murmur32v2,murmur32v3,murmur64v2,rapidhash hash,hashSync,verify,verifySync hash 2 hashSync 2 verify 2 verifySync 2
+hash-vectors 668d5e431c3b2573 668d5e431c3b2573 1a0b045d d4a1185 19a7581a c7920bbdbecee42f cebb6622 45ab6734b21e6968 d447b1ea40e6988b 44a81419 5e928f0f d3ba2368a832afce 58a89bdcee89c08c
+hash-types number number number number number number bigint bigint bigint bigint bigint bigint
+binary-ranges true true true true true
+password-roundtrip $2b$04$ true false true true false
+password-defaults true true true true
+password-binary true true
+cross-tool true true false
+errors TypeError|undefined|unknown algorithm, expected one of: "bcrypt", "argon2id", "argon2d", "argon2i" (default is "argon2id") Error|PASSWORD_INVALID_ENCODING|Password verification failed with error "InvalidEncoding"
+async-verify-admission false PASSWORD_INVALID_ENCODING
+async-hash 1 true true
+async-verify true
