@@ -11,6 +11,7 @@
 (defconstant +dns-max-name-depth+ 16)
 (defconstant +dns-max-cname-depth+ 8)
 (defconstant +dns-cache-capacity+ 256)
+(defconstant +dns-cancel-poll-ms+ 25)
 
 (define-condition dns-error (socket-open-error)
   ((message :initarg :message :reader dns-error-message))
@@ -40,6 +41,10 @@
 (defun %dns-fail (code control &rest arguments)
   (error 'dns-error :code code :op "resolve"
                     :message (apply #'format nil control arguments)))
+
+(defun %dns-check-cancelled (cancelled-p)
+  (when (and cancelled-p (funcall cancelled-p))
+    (%dns-fail "ECANCELED" "DNS resolution was cancelled")))
 
 (defun %dns-u16 (octets offset)
   (when (> (+ offset 2) (length octets))
@@ -301,17 +306,24 @@
       (values 'sb-bsd-sockets:inet-socket
               (sb-bsd-sockets:make-inet-address nameserver))))
 
-(defun %dns-wait (socket direction deadline-ms)
-  (let ((remaining (- deadline-ms (%monotonic-ms))))
-    (and (plusp remaining)
-         (sb-sys:wait-until-fd-usable
-          (sb-bsd-sockets:socket-file-descriptor socket)
-          direction (/ remaining 1000.0d0) nil))))
+(defun %dns-wait (socket direction deadline-ms &optional cancelled-p)
+  "Wait for socket readiness while making worker cancellation promptly observable."
+  (loop
+    (%dns-check-cancelled cancelled-p)
+    (let ((remaining (- deadline-ms (%monotonic-ms))))
+      (unless (plusp remaining) (return nil))
+      (when (sb-sys:wait-until-fd-usable
+             (sb-bsd-sockets:socket-file-descriptor socket)
+             direction
+             (/ (min remaining +dns-cancel-poll-ms+) 1000.0d0)
+             nil)
+        (%dns-check-cancelled cancelled-p)
+        (return t)))))
 
-(defun %dns-send-all (socket octets deadline-ms)
+(defun %dns-send-all (socket octets deadline-ms &optional cancelled-p)
   (loop with offset = 0
         while (< offset (length octets)) do
-          (unless (%dns-wait socket :output deadline-ms)
+          (unless (%dns-wait socket :output deadline-ms cancelled-p)
             (%dns-fail "ETIMEOUT" "DNS write timed out"))
           (let ((sent (handler-case
                           (sb-bsd-sockets:socket-send
@@ -324,16 +336,16 @@
                            (- (length octets) offset))
                         (sb-bsd-sockets:interrupted-error () 0))))
             (when (or (null sent) (zerop sent))
-              (unless (%dns-wait socket :output deadline-ms)
+              (unless (%dns-wait socket :output deadline-ms cancelled-p)
                 (%dns-fail "ETIMEOUT" "DNS write timed out")))
             (incf offset (or sent 0))))
   octets)
 
-(defun %dns-recv-exact (socket count deadline-ms)
+(defun %dns-recv-exact (socket count deadline-ms &optional cancelled-p)
   (let ((result (make-array count :element-type '(unsigned-byte 8)))
         (offset 0))
     (loop while (< offset count) do
-      (unless (%dns-wait socket :input deadline-ms)
+      (unless (%dns-wait socket :input deadline-ms cancelled-p)
         (%dns-fail "ETIMEOUT" "DNS read timed out"))
       (let ((buffer (make-array (- count offset) :element-type '(unsigned-byte 8))))
         (multiple-value-bind (ignored received)
@@ -346,7 +358,7 @@
           (incf offset received))))
     result))
 
-(defun %dns-udp-query (nameserver port packet timeout-ms)
+(defun %dns-udp-query (nameserver port packet timeout-ms &optional cancelled-p)
   (multiple-value-bind (socket-class native) (%dns-nameserver-native nameserver)
     (let ((socket (make-instance socket-class :type :datagram :protocol :udp))
           (deadline (+ (%monotonic-ms) timeout-ms)))
@@ -355,8 +367,8 @@
              (setf (sb-bsd-sockets:non-blocking-mode socket) t)
              (handler-case (sb-bsd-sockets:socket-connect socket native port)
                (sb-bsd-sockets:operation-in-progress ()))
-             (%dns-send-all socket packet deadline)
-             (unless (%dns-wait socket :input deadline)
+             (%dns-send-all socket packet deadline cancelled-p)
+             (unless (%dns-wait socket :input deadline cancelled-p)
                (%dns-fail "ETIMEOUT" "DNS UDP query timed out"))
              (let ((buffer (make-array +dns-max-message-bytes+
                                        :element-type '(unsigned-byte 8))))
@@ -369,7 +381,7 @@
                  (subseq buffer 0 count))))
         (ignore-errors (sb-bsd-sockets:socket-close socket :abort t))))))
 
-(defun %dns-tcp-query (nameserver port packet timeout-ms)
+(defun %dns-tcp-query (nameserver port packet timeout-ms &optional cancelled-p)
   (multiple-value-bind (socket-class native) (%dns-nameserver-native nameserver)
     (let ((socket (make-instance socket-class :type :stream :protocol :tcp))
           (deadline (+ (%monotonic-ms) timeout-ms)))
@@ -378,7 +390,7 @@
              (setf (sb-bsd-sockets:non-blocking-mode socket) t)
              (handler-case (sb-bsd-sockets:socket-connect socket native port)
                (sb-bsd-sockets:operation-in-progress ()))
-             (unless (%dns-wait socket :output deadline)
+             (unless (%dns-wait socket :output deadline cancelled-p)
                (%dns-fail "ETIMEOUT" "DNS TCP connect timed out"))
              (unless (zerop (sb-bsd-sockets:sockopt-error socket))
                (%dns-fail "ECONNREFUSED" "DNS TCP connect failed"))
@@ -386,12 +398,12 @@
                                        :element-type '(unsigned-byte 8))))
                (%dns-set-u16 framed 0 (length packet))
                (replace framed packet :start1 2)
-               (%dns-send-all socket framed deadline))
-             (let* ((head (%dns-recv-exact socket 2 deadline))
+               (%dns-send-all socket framed deadline cancelled-p))
+             (let* ((head (%dns-recv-exact socket 2 deadline cancelled-p))
                     (length (%dns-u16 head 0)))
                (when (or (zerop length) (> length +dns-max-message-bytes+))
                  (%dns-fail "EBADRESP" "invalid DNS TCP frame length"))
-               (%dns-recv-exact socket length deadline)))
+               (%dns-recv-exact socket length deadline cancelled-p)))
         (ignore-errors (sb-bsd-sockets:socket-close socket :abort t))))))
 
 (defun %dns-read-resolv-conf (&optional
@@ -413,7 +425,8 @@
                     (push (second words) servers))))))
     (nreverse (remove-duplicates servers :test #'string=))))
 
-(defun %dns-query-type (name qtype nameservers port timeout-ms &optional (depth 0))
+(defun %dns-query-type
+    (name qtype nameservers port timeout-ms &optional (depth 0) cancelled-p)
   (when (> depth +dns-max-cname-depth+)
     (%dns-fail "EBADRESP" "DNS CNAME recursion exceeds bounds"))
   (let ((last-error nil))
@@ -422,11 +435,15 @@
         (declare (ignore attempt))
         (handler-case
             (multiple-value-bind (query id) (%dns-encode-query name qtype)
-              (let ((response (%dns-udp-query nameserver port query timeout-ms)))
+              (let ((response
+                      (%dns-udp-query nameserver port query timeout-ms
+                                      cancelled-p)))
                 (multiple-value-bind (addresses ttl canonical truncated)
                     (%dns-parse-response response id name qtype)
                   (when truncated
-                    (setf response (%dns-tcp-query nameserver port query timeout-ms))
+                    (setf response
+                          (%dns-tcp-query nameserver port query timeout-ms
+                                          cancelled-p))
                     (multiple-value-setq (addresses ttl canonical truncated)
                       (%dns-parse-response response id name qtype))
                     (when truncated
@@ -436,9 +453,11 @@
                     ((not (string= canonical (%dns-normalize-name name)))
                      (return-from %dns-query-type
                        (%dns-query-type canonical qtype nameservers port timeout-ms
-                                        (1+ depth))))
+                                        (1+ depth) cancelled-p)))
                     (t (return-from %dns-query-type (values '() ttl)))))))
           (dns-error (condition)
+            (when (string= (socket-open-error-code condition) "ECANCELED")
+              (error condition))
             (setf last-error condition)
             (when (member (socket-open-error-code condition)
                           '("ENOTFOUND" "EINVAL" "ENOTSUP" "EACCES")
@@ -514,10 +533,12 @@
              :expires-at (+ (%dns-now-seconds) ttl)))))
   addresses)
 
-(defun resolve-hostname-all (host &key nameservers (port 53) (timeout-ms 1500)
-                                       (use-cache t))
+(defun resolve-hostname-all
+    (host &key nameservers (port 53) (timeout-ms 1500) (use-cache t)
+               cancelled-p)
   "Resolve HOST to interleaved AAAA/A candidates without libc name-service calls."
   (let ((host (%dns-unbracket-host (or host "127.0.0.1"))))
+    (%dns-check-cancelled cancelled-p)
     (cond
       ((%valid-ipv4-literal-p host)
        (list (make-dns-address :text host :ipv6-p nil)))
@@ -536,14 +557,20 @@
            (let ((error6 nil) (error4 nil))
              (multiple-value-bind (ipv6 ttl6)
                  (handler-case
-                     (%dns-query-type name +dns-type-aaaa+ servers port timeout-ms)
+                     (%dns-query-type name +dns-type-aaaa+ servers port timeout-ms
+                                      0 cancelled-p)
                    (dns-error (condition)
+                     (when (string= (socket-open-error-code condition) "ECANCELED")
+                       (error condition))
                      (setf error6 condition)
                      (values '() 0)))
                (multiple-value-bind (ipv4 ttl4)
                    (handler-case
-                       (%dns-query-type name +dns-type-a+ servers port timeout-ms)
+                       (%dns-query-type name +dns-type-a+ servers port timeout-ms
+                                        0 cancelled-p)
                      (dns-error (condition)
+                       (when (string= (socket-open-error-code condition) "ECANCELED")
+                         (error condition))
                        (setf error4 condition)
                        (values '() 0)))
                (let ((addresses

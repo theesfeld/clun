@@ -41,9 +41,12 @@ transport. Earlier durable checkpoints add pure-CL TLS 1.2 registry fallback, A/
 Eyeballs, exact Fetch abort lifecycle, bounded incremental HTTP and authenticated HTTPS response bodies,
 `Response.clone()` and bounded tee, and `duplex: "half"` streaming request bodies. The checkpoint's
 isolated network gate, `make build`, purity gate, exact TCP reuse, `Connection: close` exclusion, idle
-peer-FIN eviction/reconnect, and cross-origin isolation pass. Issue #2 remains open for proxy and complete
-timeout semantics, TLS pooling, incremental decompression, the 1 GiB/leak matrix, valid compatibility gate
-IDs, and all four release-target receipts. The related public rows remain `Partial` until those gates pass.
+peer-FIN eviction/reconnect, and cross-origin isolation pass. Fetch now also carries one monotonic safety
+deadline across redirects, preserves `TimeoutError` before and after headers, closes incomplete bodies on
+reader cancellation, and interrupts silent DNS waits for both HTTP and HTTPS workers. Issue #2 remains open
+for proxy/CONNECT, TLS pooling, incremental decompression, HTTPS race/leak stress, the 1 GiB matrix, valid
+compatibility gate IDs, and all four release-target receipts. The related public rows remain `Partial` until
+those gates pass.
 
 **Current checkpoint:** the integrated YAML parser reports **402 pass / 0 fail / 402 total** and **408
 assertions** in the exact pinned corpus. Exact master CI **29560539473**, Documentation **29560539481**,

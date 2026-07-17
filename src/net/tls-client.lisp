@@ -198,14 +198,15 @@ created. The winning socket is restored to blocking mode for pure-tls."
 
 (defun https-request (&key host port method path headers body host-header
                            (ca-file (%system-ca-file)) (verify t) socket-box
-                           (connect-timeout-ms 30000))
+                           (connect-timeout-ms 30000) cancelled-p)
   "Issue one BLOCKING HTTPS request (run on a worker thread) and return the parsed + decoded
 http-response. Connects, does the pure-tls handshake + chain/hostname verification (unless
 VERIFY is NIL), sends the serialized request, reads the response to EOF, parses + gunzips it.
 Signals on connect / handshake / verification / parse failure — the caller maps the condition
 (see tls-error-message). If SOCKET-BOX (a cons) is supplied, its car is set to the socket so
 an abort can close it to unblock the blocking read."
-  (let ((addresses (resolve-hostname-all host)) (sock nil) (raw nil) (tls nil)
+  (let ((addresses (resolve-hostname-all host :cancelled-p cancelled-p))
+        (sock nil) (raw nil) (tls nil)
         (request (%serialize-request method path (or host-header host) headers body)))
     (labels ((close-transport ()
                (ignore-errors (when tls (close tls)))
@@ -318,7 +319,7 @@ an abort can close it to unblock the blocking read."
 (defun https-request-stream
     (&key host port method path headers body host-header
           (ca-file (%system-ca-file)) (verify t) socket-box
-          (connect-timeout-ms 30000) request-body-source
+          (connect-timeout-ms 30000) cancelled-p request-body-source
           on-headers on-data on-complete)
   "Issue one blocking HTTPS request and deliver its response incrementally.
 
@@ -326,7 +327,7 @@ This preserves HTTPS-REQUEST's DNS, Happy Eyeballs, TLS 1.3-to-1.2 fallback,
 certificate/hostname verification, authenticated records, decompression bounds,
 and abort socket. The caller must run it off the event-loop thread. Callbacks run
 on that worker thread; an asynchronous caller is responsible for loop marshalling."
-  (let ((addresses (resolve-hostname-all host))
+  (let ((addresses (resolve-hostname-all host :cancelled-p cancelled-p))
         (sock nil)
         (raw nil)
         (tls nil)

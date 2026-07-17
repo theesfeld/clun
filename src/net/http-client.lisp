@@ -190,7 +190,9 @@ for the Host: line) defaults to HOST when the caller does not pass a distinct va
              (lambda (token)
                (when (lp:worker-cancelled-p token)
                  (error 'socket-open-error :code "ECANCELED" :op "resolve"))
-               (resolve-hostname-all host))
+               (resolve-hostname-all
+                host :cancelled-p
+                (lambda () (lp:worker-cancelled-p token))))
              (lambda (result)
                (unless done
                  (case (first result)
@@ -545,7 +547,9 @@ CONTINUATION runs on the drain edge. FINISH emits the sole terminal chunk."
                   (lambda (token)
                     (when (lp:worker-cancelled-p token)
                       (error 'socket-open-error :code "ECANCELED" :op "resolve"))
-                    (resolve-hostname-all host))
+                    (resolve-hostname-all
+                     host :cancelled-p
+                     (lambda () (lp:worker-cancelled-p token))))
                   (lambda (result)
                     (setf dns-job nil)
                     (unless done

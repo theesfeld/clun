@@ -270,6 +270,57 @@
         (ignore-errors
           (sb-thread:join-thread thread :timeout 2 :default nil))))))
 
+(define-test net/dns-cancel-interrupts-silent-resolver
+  (let ((socket (make-instance 'sb-bsd-sockets:inet-socket
+                               :type :datagram :protocol :udp))
+        (thread nil)
+        (cancelled nil)
+        (cancel-lock (sb-thread:make-mutex :name "clun-dns-cancel-test"))
+        (done (sb-thread:make-semaphore :count 0))
+        (error-code nil)
+        (elapsed-ms nil))
+    (unwind-protect
+         (progn
+           ;; The bound UDP socket deliberately never reads or responds. Without
+           ;; cancellation-aware waits the resolver occupies its worker until timeout.
+           (sb-bsd-sockets:socket-bind
+            socket (sb-bsd-sockets:make-inet-address "127.0.0.1") 0)
+           (multiple-value-bind (address port)
+               (sb-bsd-sockets:socket-name socket)
+             (declare (ignore address))
+             (let ((started (lp:now-ms)))
+               (setf thread
+                     (sb-thread:make-thread
+                      (lambda ()
+                        (unwind-protect
+                             (handler-case
+                                 (clun.net::resolve-hostname-all
+                                  "silent.test" :nameservers '("127.0.0.1")
+                                  :port port :timeout-ms 5000 :use-cache nil
+                                  :cancelled-p
+                                  (lambda ()
+                                    (sb-thread:with-mutex (cancel-lock)
+                                      cancelled)))
+                               (clun.net::dns-error (condition)
+                                 (setf error-code
+                                       (clun.net::socket-open-error-code
+                                        condition))))
+                          (setf elapsed-ms (- (lp:now-ms) started))
+                          (sb-thread:signal-semaphore done)))
+                      :name "clun-dns-cancel-test-worker")))
+             (sleep 0.05)
+             (sb-thread:with-mutex (cancel-lock)
+               (setf cancelled t))
+             (true (sb-thread:wait-on-semaphore done :timeout 1))
+             (sb-thread:join-thread thread)
+             (setf thread nil)
+             (is string= "ECANCELED" error-code)
+             (true (< elapsed-ms 500))))
+      (ignore-errors (sb-bsd-sockets:socket-close socket :abort t))
+      (when thread
+        (ignore-errors
+          (sb-thread:join-thread thread :timeout 2 :default nil))))))
+
 (define-test net/happy-eyeballs-falls-back-to-ipv4
   (let ((loop (lp:make-event-loop :workers 0))
         (server nil)

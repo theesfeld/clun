@@ -6,9 +6,9 @@
 
 (in-package :clun.runtime)
 
-(defparameter *fetch-connect-timeout-ms* 120000
-  "A safety-net timeout so a stuck connect can't hang forever; real cancellation is via
-an AbortSignal (e.g. AbortSignal.timeout(ms)).")
+(defparameter *fetch-operation-timeout-ms* 120000
+  "A safety-net deadline for the complete redirect operation. User-visible cancellation
+uses an AbortSignal (for example AbortSignal.timeout(ms)); redirects cannot renew this budget.")
 
 (defun %fetch-error (g name message)
   (let ((e (eng:js-construct (eng:js-get g "Error") (list message))))
@@ -330,6 +330,7 @@ thunks matching NET:HTTP-REQUEST-STREAM-ASYNC."
                 :host host :port port :method method :path path
                 :headers headers :body body :host-header host-header
                 :socket-box box :connect-timeout-ms (or timeout 30000)
+                :cancelled-p (lambda () (lp:worker-cancelled-p token))
                 :request-body-source
                 (and request-body-reader #'request-next)
                 :verify verify
@@ -371,11 +372,15 @@ thunks matching NET:HTTP-REQUEST-STREAM-ASYNC."
       (values #'cancel #'pause-control #'resume-control))))
 
 (defstruct (fetch-operation (:constructor %make-fetch-operation))
-  global resolve reject signal listener active-cancel response-stream
+  global resolve reject signal listener active-cancel response-stream deadline-ms
   ;; SETTLED-P is the public fetch promise.  TERMINAL-P is the response body /
   ;; transport lifecycle.  A streaming fetch deliberately settles before terminal.
   (settled-p nil)
   (terminal-p nil))
+
+(defun %fetch-operation-remaining-timeout (operation)
+  (let ((deadline (fetch-operation-deadline-ms operation)))
+    (and deadline (max 0 (- deadline (lp:now-ms))))))
 
 (defun %abort-reason (g signal)
   (let ((reason (and signal (eng:js-get signal "reason"))))
@@ -481,6 +486,7 @@ thunks matching NET:HTTP-REQUEST-STREAM-ASYNC."
   (when (fetch-operation-terminal-p operation)
     (return-from %do-fetch eng:+undefined+))
   (let* ((g (fetch-operation-global operation))
+         (timeout (%fetch-operation-remaining-timeout operation))
          (url-str (getf info :url))
          (record
            (handler-case (%parse-url url-str)
@@ -490,6 +496,11 @@ thunks matching NET:HTTP-REQUEST-STREAM-ASYNC."
                   operation :reject
                   (%fetch-error g "TypeError"
                                 (format nil "Failed to parse URL: ~a" url-str))))))))
+    (when (and timeout (zerop timeout))
+      (return-from %do-fetch
+        (%fetch-operation-settle
+         operation :reject
+         (%fetch-error g "TypeError" "fetch failed: timeout"))))
     (unless (member (ur-scheme record) '("http" "https") :test #'string=)
       (return-from %do-fetch
         (%fetch-operation-settle
@@ -671,7 +682,7 @@ thunks matching NET:HTTP-REQUEST-STREAM-ASYNC."
                  :headers (getf info :headers) :body (getf info :body)
                  :request-body-reader upload-reader
                  :on-request-complete #'finish-upload
-                 :timeout *fetch-connect-timeout-ms*
+                 :timeout timeout
                  :on-headers #'on-headers :on-data #'on-data
                  :on-complete #'on-complete :on-error #'on-error)
                 (net:http-request-stream-async
@@ -680,7 +691,7 @@ thunks matching NET:HTTP-REQUEST-STREAM-ASYNC."
                  :headers (getf info :headers) :body (getf info :body)
                  :request-body-stream-p (not (null upload-reader))
                  :on-request-ready (and upload-reader #'start-upload)
-                 :timeout *fetch-connect-timeout-ms*
+                 :timeout timeout
                  :on-headers #'on-headers :on-data #'on-data
                  :on-complete #'on-complete :on-error #'on-error)))
           (setf (fetch-operation-active-cancel operation) cancel))))))
@@ -694,11 +705,15 @@ thunks matching NET:HTTP-REQUEST-STREAM-ASYNC."
           (eng:js-construct promise-ctor
             (list (eng:make-native-function "" 2
                     (lambda (th a) (declare (ignore th))
-                      (let ((operation
-                              (%make-fetch-operation
-                               :global g :resolve (eng:arg a 0)
-                               :reject (eng:arg a 1)
-                               :signal (getf info :signal))))
+                      (let* ((timeout *fetch-operation-timeout-ms*)
+                             (operation
+                               (%make-fetch-operation
+                                :global g :resolve (eng:arg a 0)
+                                :reject (eng:arg a 1)
+                                :signal (getf info :signal)
+                                :deadline-ms
+                                (and timeout (plusp timeout)
+                                     (+ (lp:now-ms) timeout)))))
                         (%fetch-operation-install-signal operation)
                         (unless (fetch-operation-settled-p operation)
                           (%do-fetch operation info 0)))

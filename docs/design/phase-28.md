@@ -11,8 +11,8 @@ response decoding, and hermetic plus live public-registry evidence.
 
 This is an implementation slice of Phase 28, not completion of the phase. The
 canonical Phase 28 GitHub issue remains open. In particular, this series does not
-claim the issue's proxy support, complete cancellation and timeout matrix, TLS
-pooling, incremental decompression, 1 GiB transfer, leak/stress, or four-target acceptance
+claim the issue's proxy support, TLS pooling, incremental decompression, 1 GiB
+transfer, remaining HTTPS cancellation-race/leak stress, or four-target acceptance
 requirements. It does not promote a compatibility-ledger row or a public
 landing-page claim.
 
@@ -27,6 +27,9 @@ recursive A and AAAA queries, validates transaction IDs/questions/opcodes and
 section sizes, follows bounded compressed names and CNAME chains, and retries a
 truncated UDP response over length-framed DNS TCP. Successful answers enter a
 small TTL-bound cache. Literal IPv4, literal IPv6, and localhost avoid DNS I/O.
+Every resolver wait polls its caller's cancellation token at a bounded interval;
+an aborted HTTP or HTTPS fetch therefore releases a DNS worker promptly instead
+of retaining it until the resolver timeout.
 
 Results are interleaved IPv6-first while retaining each family's answer order.
 Plain HTTP submits resolution to Clun's fixed worker pool and hands the candidates
@@ -45,8 +48,11 @@ Fetch owns one abort listener for the complete redirect operation rather than on
 listener per hop. Terminal fulfillment, rejection, timeout, and abort detach that
 exact listener and cancel the current DNS/connect/TLS resource exactly once. Abort
 rejections preserve the signal's supplied JavaScript reason, including primitive
-values. HTTPS work uses the cancellable worker API; cancellation closes the active
-transport and clears its timeout before publishing the terminal callback.
+values and `AbortSignal.timeout()`'s `TimeoutError`. A monotonic safety deadline is
+fixed when the operation begins and each redirect receives only the remaining
+budget, so redirects cannot renew it. HTTPS work uses the cancellable worker API;
+cancellation closes the active transport and clears its timeout before publishing
+the terminal callback.
 
 ### 2.2 TLS interoperability
 
@@ -154,14 +160,18 @@ compressed CNAME/A/AAAA parsing, canonical IPv6 rendering, truncation signaling,
 malformed compression/bounds/transaction rejection, exact rcode mapping,
 family interleaving, network-free literal handling, a hermetic UDP A/AAAA
 resolver round trip, and an IPv6-to-IPv4 connection fallback against a local
-listener.
+listener. A silent local resolver additionally proves that cancellation interrupts
+the in-flight wait and returns `ECANCELED` without waiting for the resolver deadline.
 
 The fetch integration suite covers pre-aborted signals, primitive abort reasons,
 and a multi-hop redirect that installs and removes exactly one listener without
 leaving it attached after settlement. Streaming coverage additionally verifies
 byte-exact HTTP chunk framing, mandatory half-duplex validation, framing-header
 rejection, source-error identity, reader lock release, and the HTTPS
-worker-to-loop pull bridge.
+worker-to-loop pull bridge. Timeout coverage preserves `TimeoutError` before
+headers and while consuming a partial body, proves one safety deadline across
+redirect hops, and proves reader cancellation closes an incomplete transport
+without admitting it to the pool.
 
 The plain HTTP pool tests prove that two sequential fetches to one origin return
 the same TCP wrapper to the idle pool, while an explicit `Connection: close`
@@ -169,7 +179,7 @@ request is never pooled. A peer FIN while idle evicts the stale wrapper before a
 later request reconnects, and simultaneous same-host/different-port origins retain
 distinct TCP identities. Parser tests separately reject EOF-delimited bodies,
 close responses, and bytes trailing a complete message as reusable. The complete
-network subset currently passes 113 tests and 3,694 assertions.
+network subset passes at this checkpoint with zero failures and zero skips.
 
 `make test-tls12` runs that focused suite, then starts OpenSSL TLS 1.2-only peers
 with `ECDHE-RSA-AES128-GCM-SHA256` and forces `rsa_pkcs1_sha256`. It proves a
@@ -188,7 +198,7 @@ Before Phase 28 can close, the canonical issue still requires implementation and
 evidence for at least:
 
 - TLS connection reuse and broader pool stress/eviction coverage;
-- proxy support and the complete cancellation/timeout matrix;
+- proxy/CONNECT support and the remaining HTTPS cancellation-race/leak matrix;
 - the issue's large-transfer and adversarial transport fixtures;
 - required Linux and macOS x64/arm64 evidence; and
 - valid compatibility-ledger gate identifiers for the issue acceptance commands.

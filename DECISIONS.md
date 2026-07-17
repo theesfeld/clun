@@ -2751,3 +2751,18 @@ The implementation gate is 113 network tests / 3,694 assertions with zero failur
 and parser rejection evidence. This is still an
 internal Phase 28 slice: TLS pooling, proxy support, the remaining stress/cancellation matrix, four-target
 receipts, and the public compatibility promotion remain open.
+
+### 2026-07-17 - Phase 28 makes fetch deadlines operation-wide and DNS cancellation prompt
+
+Fetch fixes its internal monotonic safety deadline when the operation is created. Redirects receive only
+the remaining budget, so a chain cannot renew the deadline at each hop. User-directed cancellation remains
+separate: `AbortSignal.timeout()` preserves its `TimeoutError` reason before headers and while consuming a
+partial response, and cancelling a response reader closes the incomplete transport rather than pooling it.
+
+The pure Common Lisp resolver accepts a cancellation predicate and checks it around socket readiness waits.
+Readiness waits are sliced at 25 ms, which bounds cancellation observation without adding a thread or an
+external resolver dependency. `ECANCELED` is terminal across resolver retries, nameservers, address families,
+and CNAME recursion. Both reactor HTTP and worker HTTPS pass their cancellable worker token through this
+path, preventing an aborted fetch from occupying a fixed worker until the DNS timeout. The deterministic
+network, TLS interoperability, build, and purity gates pass. Proxy/CONNECT, TLS pooling, incremental
+decompression, HTTPS race/leak stress, the 1 GiB fixture, and four-target receipts remain open.

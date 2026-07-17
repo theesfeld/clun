@@ -154,6 +154,84 @@ then the final chunk after 75ms.  __tailSent exposes whether fetch waited for EO
              (net:listener-close ,listener)
              (eng:teardown-realm ,realm)))))))
 
+(defun %start-timeout-matrix-server (loop accepted-count closed-count)
+  (net:tcp-listen
+   loop "127.0.0.1" 0
+   :on-connection
+   (lambda (connection)
+     (incf (car accepted-count))
+     (let ((handled nil))
+       (setf
+        (net:tcp-on-close connection)
+        (lambda (peer code)
+          (declare (ignore peer code))
+          (incf (car closed-count)))
+        (net:tcp-on-data connection)
+        (lambda (peer data)
+          (unless handled
+            (setf handled t)
+            (let ((request
+                    (sb-ext:octets-to-string data :external-format :latin-1)))
+              (cond
+                ((search "GET /partial " request)
+                 (net:tcp-write
+                  peer
+                  (sb-ext:string-to-octets
+                   (format nil
+                           "HTTP/1.1 200 OK~c~cTransfer-Encoding: chunked~c~cConnection: keep-alive~c~c~c~c5~c~chello~c~c"
+                           #\Return #\Newline #\Return #\Newline
+                           #\Return #\Newline #\Return #\Newline
+                           #\Return #\Newline #\Return #\Newline)
+                   :external-format :latin-1)))
+                ((search "GET /redirect-one " request)
+                 (lp:set-timer
+                  loop 70
+                  (lambda ()
+                    (net:tcp-write
+                     peer
+                     (sb-ext:string-to-octets
+                      (format nil
+                              "HTTP/1.1 302 Found~c~cLocation: /redirect-two~c~cContent-Length: 0~c~cConnection: close~c~c~c~c"
+                              #\Return #\Newline #\Return #\Newline
+                              #\Return #\Newline #\Return #\Newline
+                              #\Return #\Newline)
+                      :external-format :latin-1))
+                    (net:tcp-shutdown peer))))
+                ((search "GET /redirect-two " request)
+                 (lp:set-timer
+                  loop 70
+                  (lambda ()
+                    (net:tcp-write
+                     peer
+                     (sb-ext:string-to-octets
+                      (format nil
+                              "HTTP/1.1 200 OK~c~cContent-Length: 2~c~cConnection: close~c~c~c~cok"
+                              #\Return #\Newline #\Return #\Newline
+                              #\Return #\Newline #\Return #\Newline)
+                      :external-format :latin-1))
+                    (net:tcp-shutdown peer))))
+                ;; /stall intentionally accepts the request without replying.
+                (t nil))))))))))
+
+(defmacro with-timeout-matrix-server ((g port accepted-count closed-count) &body body)
+  (let ((realm (gensym)) (loop (gensym)) (listener (gensym)))
+    `(let ((,realm (eng:make-realm)))
+       (rt:install-runtime ,realm :argv '(:script "[test]" :rest nil) :cwd "/tmp")
+       (let ((eng:*realm* ,realm))
+         (let* ((,g (eng:realm-global ,realm))
+                (,loop (eng:current-loop))
+                (,accepted-count (list 0))
+                (,closed-count (list 0))
+                (,listener
+                  (%start-timeout-matrix-server
+                   ,loop ,accepted-count ,closed-count))
+                (,port (net:listener-port ,listener)))
+           (declare (ignorable ,g ,port ,accepted-count ,closed-count))
+           (eng:run-program (eng:parse-program +fetch-info-src+) ,realm)
+           (unwind-protect (progn ,@body)
+             (net:listener-close ,listener)
+             (eng:teardown-realm ,realm)))))))
+
 (defun %start-stale-pool-server (loop accepted-count)
   "Serve a persistent response, then send FIN after the client can cache the socket."
   (net:tcp-listen
@@ -419,6 +497,106 @@ then the final chunk after 75ms.  __tailSent exposes whether fetch waited for EO
                     "{signal: AbortSignal.abort('custom-stop')}")
       (is eq :rejected kind)
       (is string= "custom-stop" (eng:to-string value)))))
+
+(define-test net/fetch-timeout-signal-before-headers-closes-transport
+  (with-timeout-matrix-server (g port accepted-count closed-count)
+    (multiple-value-bind (kind value)
+        (eng:run-callback-to-settlement
+         (lambda ()
+           (jseval
+            eng:*realm*
+            (format nil
+                    "(async () => {
+                       try {
+                         await fetch('http://127.0.0.1:~d/stall',
+                                     { signal: AbortSignal.timeout(20) });
+                         return { name: 'fulfilled' };
+                       } catch (error) {
+                         return { name: error.name };
+                       }
+                     })()"
+                    port)))
+         eng:*realm* :timeout-ms 2000)
+      (is eq :fulfilled kind)
+      (is string= "TimeoutError"
+          (eng:to-string (eng:js-get value "name"))))
+    ;; Let the server-side reactor observe the client FIN before inspecting it.
+    (eng:run-callback-to-settlement
+     (lambda () (jseval eng:*realm*
+                        "new Promise(resolve => setTimeout(resolve, 40))"))
+     eng:*realm* :timeout-ms 1000)
+    (is = 1 (car accepted-count))
+    (is = 1 (car closed-count))))
+
+(define-test net/fetch-timeout-signal-after-headers-errors-body
+  (with-delayed-fetch-server (g port)
+    (multiple-value-bind (kind value)
+        (eng:run-callback-to-settlement
+         (lambda ()
+           (jseval
+            eng:*realm*
+            (format nil
+                    "(async () => {
+                       const signal = AbortSignal.timeout(20);
+                       const response = await fetch(
+                         'http://127.0.0.1:~d/slow-body', { signal });
+                       try {
+                         await response.text();
+                         return { name: 'fulfilled' };
+                       } catch (error) {
+                         return { name: error.name };
+                       }
+                     })()"
+                    port)))
+         eng:*realm* :timeout-ms 2000)
+      (is eq :fulfilled kind)
+      (is string= "TimeoutError"
+          (eng:to-string (eng:js-get value "name"))))))
+
+(define-test net/fetch-operation-timeout-is-shared-across-redirects
+  (with-timeout-matrix-server (g port accepted-count closed-count)
+    (let ((rt::*fetch-operation-timeout-ms* 100)
+          (started (lp:now-ms)))
+      (multiple-value-bind (kind value)
+          (fetch-info g eng:*realm* port "/redirect-one")
+        (is eq :rejected kind)
+        (is string= "TypeError"
+            (eng:to-string (eng:js-get value "name")))
+        (true (search "timeout"
+                      (eng:to-string (eng:js-get value "message"))))
+        (true (< (- (lp:now-ms) started) 1000))))
+    (is = 2 (car accepted-count))))
+
+(define-test net/fetch-response-reader-cancel-closes-transport
+  (with-timeout-matrix-server (g port accepted-count closed-count)
+    (multiple-value-bind (kind value)
+        (eng:run-callback-to-settlement
+         (lambda ()
+           (jseval
+            eng:*realm*
+            (format nil
+                    "(async () => {
+                       const response = await fetch(
+                         'http://127.0.0.1:~d/partial');
+                       const reader = response.body.getReader();
+                       const first = await reader.read();
+                       await reader.cancel('done');
+                       return { bytes: first.value.length, done: first.done };
+                     })()"
+                    port)))
+         eng:*realm* :timeout-ms 2000)
+      (is eq :fulfilled kind)
+      (is = 5 (truncate (eng:js-get value "bytes")))
+      (is eq eng:+false+ (eng:js-get value "done")))
+    (eng:run-callback-to-settlement
+     (lambda () (jseval eng:*realm*
+                        "new Promise(resolve => setTimeout(resolve, 40))"))
+     eng:*realm* :timeout-ms 1000)
+    (is = 1 (car accepted-count))
+    (is = 1 (car closed-count))
+    (is = 0
+        (length (net::%http-pool-idle-tcps
+                 (eng:current-loop) "127.0.0.1" port)))))
 
 (define-test net/fetch-redirects-own-one-abort-listener
   (with-fetch-server (g port)

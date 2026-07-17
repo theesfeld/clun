@@ -60,7 +60,8 @@ package transport receipts remain unfinished.
   AsyncFromSync fallback and completion-correct `for await...of` close behavior.
 - Timers, promises, files, buffered HTTP serving, URL APIs, process spawning, and streaming `fetch`.
   Fetch exposes bounded response readers and async iteration, `Response.clone()`/body tee, bounded
-  half-duplex streaming uploads, dual-stack DNS/Happy Eyeballs, and reusable plain HTTP connections.
+  half-duplex streaming uploads, dual-stack DNS/Happy Eyeballs, prompt DNS cancellation, one timeout
+  budget across redirects, and reusable plain HTTP connections.
 - `clun test` with hooks, modifiers, filters, async tests, timeouts, and about 22 matchers.
 - `clun install`, `add`, `remove`, and package scripts with a deterministic lockfile and cache.
 
@@ -100,7 +101,7 @@ July 16, 2026. Engineering references are separately pinned to Bun commit `c1076
 | Capability | Current pre-alpha state | Evidence-backed target |
 |---|---|---|
 | Node.js compatibility | Partial: selected globals and module subsets | Phases [42](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-42), [43](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-43), [44](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-44), [45](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-45), [46](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-46), [47](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-47) |
-| Web Standard APIs | Partial: streaming `fetch`, clone/tee, plain HTTP pooling, and a scoped Web API surface | [Phase 38](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-38) |
+| Web Standard APIs | Partial: streaming `fetch`, clone/tee, operation-wide timeouts, plain HTTP pooling, and a scoped Web API surface | [Phase 38](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-38) |
 | Native addons | No: excluded by the current purity contract | [Phase 48](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-48) |
 | TypeScript | Partial: erasable syntax stripping only | [Phase 39](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-39) |
 | JSX | No: not included in the v0.1 scope | [Phase 40](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-40) |
@@ -182,10 +183,10 @@ pure-tls verification gap recorded in `DECISIONS.md`. Trust anchors resolve from
 trusting nothing.
 
 Known limitations (see `STATE.md`): each in-flight HTTPS request still uses one worker thread; TLS
-connections are not yet pooled; proxy and complete timeout semantics remain open; compressed Fetch
-bodies are bounded but decoded at completion rather than incrementally. Package tarballs are additionally
-protected by SRI SHA-512 verification before extraction, so a TLS compromise cannot by itself corrupt an
-install.
+connections are not yet pooled; proxy/CONNECT and the remaining HTTPS timeout-race stress matrix are open;
+compressed Fetch bodies are bounded but decoded at completion rather than incrementally. Package tarballs
+are additionally protected by SRI SHA-512 verification before extraction, so a TLS compromise cannot by
+itself corrupt an install.
 
 ## Building from source
 

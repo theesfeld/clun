@@ -13,6 +13,7 @@
                clun-test::net/dns-family-interleave
                clun-test::net/dns-literals-and-localhost-avoid-network
                clun-test::net/dns-resolver-udp-fixture
+               clun-test::net/dns-cancel-interrupts-silent-resolver
                clun-test::net/happy-eyeballs-falls-back-to-ipv4)))
   (dolist (test tests)
     (unless (eq (parachute:status (parachute:test test)) :passed)
