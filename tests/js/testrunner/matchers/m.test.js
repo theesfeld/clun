@@ -35,3 +35,13 @@ test('strict vs loose', () => {
   expect({a:1}).toStrictEqual({a:1});
   expect(0.1 + 0.2).toBeCloseTo(0.3);
 });
+test('shared and cyclic values', () => {
+  const shared = {value: 1};
+  expect({a: shared, b: shared}).toEqual({a: {value: 1}, b: {value: 1}});
+
+  const actual = {};
+  const expected = {};
+  actual.self = actual;
+  expected.self = expected;
+  expect(actual).toEqual(expected);
+});
