@@ -1208,7 +1208,7 @@ deadlock even when commands produce output larger than kernel pipe capacity."
          (constructor (eng:js-get tag "ShellError"))
          (error (eng:js-construct
                  constructor
-                 (list (format nil "Shell command exited with code ~d"
+                 (list (format nil "Failed with exit code ~d"
                                (shell-result-exit-code result)))))
         (stdout (shell-result-stdout result))
         (stderr (shell-result-stderr result)))
@@ -1282,17 +1282,96 @@ deadlock even when commands produce output larger than kernel pipe capacity."
          (%shell-output-object result (shell-job-g job)))))
 
 (defun %shell-lines (text)
-  (let ((lines '()) (start 0))
-    (loop for newline = (position #\Newline text :start start)
-          while newline
-          do (push (string-right-trim '(#\Return) (subseq text start newline)) lines)
-             (setf start (1+ newline)))
-    (when (< start (length text))
-      (push (subseq text start) lines))
-    (nreverse lines)))
+  (when (plusp (length text))
+    (let ((lines '()) (start 0))
+      (loop for newline = (position #\Newline text :start start)
+            do (if newline
+                   (progn
+                     (push (subseq text start newline) lines)
+                     (setf start (1+ newline)))
+                   (progn
+                     ;; String.split("\n") preserves the final empty field.
+                     (push (subseq text start) lines)
+                     (return))))
+      (nreverse lines))))
+
+(defun %shell-iterator-result (value done)
+  (let ((result (eng:new-object)))
+    (eng:data-prop result "value" value)
+    (eng:data-prop result "done" (eng:js-boolean done))
+    result))
+
+(defun %shell-lines-iterator (job)
+  "Create the lazy async iterator returned by ShellPromise.lines()."
+  (let ((iterator (eng:new-object))
+        (lines nil)
+        (index 0)
+        (initialized nil)
+        (done nil)
+        (g (shell-job-g job)))
+    (labels ((promise (settler)
+               (eng:js-construct
+                (eng:js-get g "Promise")
+                (list
+                 (eng:make-native-function
+                  "" 2
+                  (lambda (this args)
+                    (declare (ignore this))
+                    (funcall settler (eng:arg args 0) (eng:arg args 1))
+                    eng:+undefined+)))))
+             (resolve-result (resolve value complete)
+               (eng:js-call resolve eng:+undefined+
+                            (list (%shell-iterator-result value complete)))))
+      (eng:install-method iterator "next" 0
+        (lambda (this args)
+          (declare (ignore this args))
+          (promise
+           (lambda (resolve reject)
+             (cond
+               (done
+                (resolve-result resolve eng:+undefined+ t))
+               (t
+                (unless initialized
+                  (setf initialized t)
+                  (%shell-job-start job)
+                  (unless (shell-job-error job)
+                    (setf lines
+                          (%shell-lines
+                           (%shell-string
+                            (shell-result-stdout (shell-job-result job)))))))
+                (cond
+                  ((shell-job-error job)
+                   (setf done t)
+                   (eng:js-call reject eng:+undefined+
+                                (list (shell-job-error job))))
+                  ((< index (length lines))
+                   (prog1
+                       (resolve-result resolve (nth index lines) nil)
+                     (incf index)))
+                  (t
+                   (setf done t)
+                   (resolve-result resolve eng:+undefined+ t)))))))))
+      (eng:install-method iterator "return" 0
+        (lambda (this args)
+          (declare (ignore this args))
+          (setf done t)
+          (promise (lambda (resolve reject)
+                     (declare (ignore reject))
+                     (resolve-result resolve eng:+undefined+ t)))))
+      (eng:create-data-property
+       iterator (eng:well-known :async-iterator)
+       (eng:make-native-function
+        "[Symbol.asyncIterator]" 0
+        (lambda (this args) (declare (ignore args)) this)))
+      iterator)))
 
 (defun %shell-promise-object (job)
   (let ((object (eng:new-object)) (state (shell-job-state job)))
+    (eng:install-method object "run" 0
+      (lambda (this args)
+        (declare (ignore args))
+        (%shell-job-start job)
+        this))
     (eng:install-method object "then" 2
       (lambda (this args) (declare (ignore this))
         (let ((promise (%shell-job-output-promise job)))
@@ -1361,12 +1440,7 @@ deadlock even when commands produce output larger than kernel pipe capacity."
     (eng:install-method object "lines" 0
       (lambda (this args) (declare (ignore this args))
         (setf (shell-state-quiet state) t)
-        (%shell-job-start job)
-        (if (shell-job-error job)
-            (eng:throw-js-value (shell-job-error job))
-            (eng:new-array
-             (%shell-lines
-              (%shell-string (shell-result-stdout (shell-job-result job))))))))
+        (%shell-lines-iterator job)))
     object))
 
 (defun %shell-escape (value)
