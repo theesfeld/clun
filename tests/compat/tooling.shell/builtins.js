@@ -68,6 +68,48 @@ check(Clun.$`basename`, 1, "", "usage: basename string\n", "basename usage")
   .then(() => check(Clun.$`seq -f %05.1f -s, 1 1 3`, 0, "001.0,002.0,003.0,", "", "seq format"))
   .then(() => {
     console.log("seq");
+    const buffer = Buffer.alloc(10);
+    return check(Clun.$`yes > ${buffer}`, 0, "", "", "yes default")
+      .then(() => assert(buffer.toString() === "y\ny\ny\ny\ny\n", "yes default buffer"));
+  })
+  .then(() => {
+    const buffer = Buffer.alloc(18);
+    return check(Clun.$`yes xy > ${buffer}`, 0, "", "", "yes one argument")
+      .then(() => assert(
+        buffer.toString() === "xy\nxy\nxy\nxy\nxy\nxy\n",
+        "yes one argument buffer",
+      ));
+  })
+  .then(() => {
+    const buffer = Buffer.alloc(17);
+    return check(Clun.$`yes ab cd ef > ${buffer}`, 0, "", "", "yes multiple arguments")
+      .then(() => assert(
+        buffer.toString() === "ab cd ef\nab cd ef",
+        "yes multiple arguments buffer",
+      ));
+  })
+  .then(() => {
+    const backing = Buffer.from("........");
+    const view = backing.subarray(2, 6);
+    return check(Clun.$`yes q > ${view}`, 0, "", "", "yes typed-array view")
+      .then(() => assert(backing.toString() === "..q\nq\n..", "yes typed-array view offset"));
+  })
+  .then(() => check(
+    Clun.$`yes`,
+    1,
+    "",
+    "yes: unbounded output requires a streaming sink\n",
+    "yes unbounded boundary",
+  ))
+  .then(() => check(
+    Clun.$`yes xy | head -c 7`,
+    0,
+    "xy\nxy\nx",
+    "",
+    "yes pipeline streaming",
+  ))
+  .then(() => {
+    console.log("yes");
     return check(Clun.$`rm -rf clun-shell-builtins.tmp`, 0, "", "", "filesystem setup");
   })
   .then(() => check(Clun.$`mkdir -p clun-shell-builtins.tmp/nested`, 0, "", "", "mkdir parents"))

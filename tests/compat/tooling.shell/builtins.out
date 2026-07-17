@@ -3,6 +3,7 @@ dirname
 echo
 exit
 seq
+yes
 filesystem-builtins
 rm
 mv

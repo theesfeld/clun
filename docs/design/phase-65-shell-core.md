@@ -13,10 +13,14 @@ their contents cannot create operators, substitutions, redirects, globs, or extr
   operators, sequences, assignments, tilde expansion, and `Clun.Glob` expansion into an explicit AST.
 - Treat scalar interpolation as one inert argument and flatten array interpolation into inert arguments with
   a bounded nesting depth. Only an explicit `{ raw: source }` interpolation opts source text into grammar.
-- Execute `echo`, `basename`, `dirname`, `seq`, `cat`, `mkdir`, `touch`, `rm`, `mv`, `ls`, `cp`, `pwd`, `cd`, `true`, `false`,
+- Execute `echo`, `basename`, `dirname`, `seq`, `yes`, `cat`, `mkdir`, `touch`, `rm`, `mv`, `ls`, `cp`, `pwd`, `cd`, `true`, `false`,
   `:`, `export`, `unset`, `which`, and `exit` internally. `seq` uses Bun-compatible f32 accumulation and
   non-advance termination, bounds output to one million items, and additionally supports fixed-width and
-  one floating printf conversion. The filesystem builtins provide bounded binary concatenation, stdin,
+  one floating printf conversion. `yes` matches the pinned Bun byte-buffer contract by repeating its joined
+  arguments directly into the target typed-array view without constructing output proportional to the target.
+  It also streams from a fixed 64 KiB producer block into an otherwise external pipeline, stopping when the
+  consumer closes the pipe. Standalone unbounded `yes` still fails explicitly until job output can expose a
+  streaming sink. The filesystem builtins provide bounded binary concatenation, stdin,
   display/numbering controls, parents/verbose/octal-mode creation, create-or-update timestamps, guarded
   recursive deletion, symlink boundaries, force/verbose flags, root preservation, atomic same-filesystem
   moves, multi-source directory targets, no-overwrite, and verbose move output. None of these paths delegates
@@ -30,6 +34,8 @@ their contents cannot create operators, substitutions, redirects, globs, or extr
   `sb-ext:run-program` directly. The implementation does not invoke `sh`, `bash`, or another command parser.
 - Spawn every command in an external-only pipeline before waiting. Intermediate streams are connected while
   the final stdout and all stderr are file-backed, preventing parent-side pipe-capacity deadlocks.
+- Stream an internal `yes` producer into an otherwise external pipeline without invoking a host `yes` binary.
+  The producer uses bounded memory, observes downstream pipe closure, and preserves the last-command status.
 - Expose lazy job methods for cwd, environment, quiet/nothrow/throws, explicit one-shot `run`, Promise
   chaining, text, JSON, bytes, array buffers, and lines. `lines()` is a lazy async iterator with JavaScript
   split boundaries, including a trailing empty line after a final newline. Results and failures carry stdout,
@@ -47,6 +53,9 @@ echo, exit, sequence, binary cat, mkdir, touch, guarded recursive rm, and mv bui
 all six active scenarios in the pinned `commands/mv.test.ts`, plus usage, flags, and no-overwrite behavior.
 It also freezes ls directory, hidden, long, recursive, multi-file, partial-error, invalid-option, and broken-link
 behavior, plus cp file, directory-target, multi-source, recursive, no-overwrite, symlink, and error behavior.
+The fixture also executes all three active pinned `commands/yes.test.ts` cases, a typed-array view-offset case,
+an internal `yes | head` streaming case, and the explicit standalone unbounded-output boundary. The core
+fixture independently drains 1 MiB from that internal producer to prove behavior beyond pipe capacity.
 `tests/lisp/runtime/shell-tests.lisp` separately
 owns parser and built-in behavior without an external process dependency.
 
@@ -62,6 +71,7 @@ This milestone is substantial application behavior, but it is not the complete f
 ledger must not report `Yes` until the pinned source inventory and full applicable corpus are mapped and pass,
 including remaining control/background forms and builtins, exact descriptor/coercion/error behavior, async
 line and blob surfaces, ordered descriptor redirects, signal/exit ordering, cancellation, 1,000-job child/fd
-and memory stress, and Linux/macOS x64/arm64 receipts. Recursive `rm` still requires a portable
+and memory stress, and Linux/macOS x64/arm64 receipts. General concurrent builtin streaming and standalone
+unbounded job-output sinks are still required. Recursive `rm` still requires a portable
 descriptor-relative traversal before the directory-to-symlink replacement race can be considered closed on
 all release targets. Those residuals remain owned by Issue #39.
