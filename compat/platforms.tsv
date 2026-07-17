@@ -67,10 +67,10 @@ server.router	darwin-arm64	supported	ev.server.router.binary-e2e.v1,ev.server.ro
 server.router	darwin-x64	supported	ev.server.router.binary-e2e.v1,ev.server.router.inventory.v1	The complete public router surface executes through the shipped binary.
 server.router	linux-arm64	supported	ev.server.router.binary-e2e.v1,ev.server.router.inventory.v1	The complete public router surface executes through the shipped binary.
 server.router	linux-x64	supported	ev.server.router.binary-e2e.v1,ev.server.router.inventory.v1	The complete public router surface executes through the shipped binary.
-server.websocket	darwin-arm64	unsupported	-	Capability is not implemented.
-server.websocket	darwin-x64	unsupported	-	Capability is not implemented.
-server.websocket	linux-arm64	unsupported	-	Capability is not implemented.
-server.websocket	linux-x64	unsupported	-	Capability is not implemented.
+server.websocket	darwin-arm64	unsupported	-	Not implemented; pure-CL design checkpoint (Phase 51) with fail-closed stubs.
+server.websocket	darwin-x64	unsupported	-	Not implemented; pure-CL design checkpoint (Phase 51) with fail-closed stubs.
+server.websocket	linux-arm64	unsupported	-	Not implemented; pure-CL design checkpoint (Phase 51) with fail-closed stubs.
+server.websocket	linux-x64	unsupported	-	Not implemented; pure-CL design checkpoint (Phase 51) with fail-closed stubs.
 text.string-width	darwin-arm64	supported	ev.text.string-width.corpus.v1,ev.text.string-width.public.v1,ev.text.string-width.stress.v1	The complete public surface executes through the shipped binary.
 text.string-width	darwin-x64	supported	ev.text.string-width.corpus.v1,ev.text.string-width.public.v1,ev.text.string-width.stress.v1	The complete public surface executes through the shipped binary.
 text.string-width	linux-arm64	supported	ev.text.string-width.corpus.v1,ev.text.string-width.public.v1,ev.text.string-width.stress.v1	The complete public surface executes through the shipped binary.

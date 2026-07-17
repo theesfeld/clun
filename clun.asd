@@ -87,7 +87,8 @@
                               :components ((:file "sockets")
                                            (:file "http-parser")
                                            (:file "http-client")
-                                           (:file "tls-client")))
+                                           (:file "tls-client")
+                                           (:file "websocket"))) ; Phase 51 types + fail-closed
                              ;; install (Phase 21): pure-CL package-manager substrate.
                              ;; It has no engine dependency, so the public runtime can
                              ;; reuse the one SemVer implementation without a late bind.
@@ -320,6 +321,7 @@
                                                          (:file "http-parser-tests")
                                                          (:file "http-server-tests")
                                                          (:file "router-tests")
+                                                         (:file "websocket-tests")
                                                          (:file "fetch-tests")
                                                          (:file "web-streams-tests")
                                                          (:file "https-tests")))
