@@ -376,3 +376,11 @@ filtering, path ignores, bunfig parsing, CLI precedence, validation, and passing
 for JavaScript and TypeScript is therefore no longer a residual. JSX runtime support and source mapping,
 watch integration, real concurrent/parallel scheduling, exact 52-root counts, remaining exotic snapshot
 serialization, target receipts, serial/parallel agreement, and the 10k RSS gate keep the row `Partial`.
+
+## Milestone 66.23 - frozen 52-root baseline counts
+
+Every immutable result root in `manifest.tsv` now carries numeric Bun and Clun pass/fail/skip counts.
+Measurement receipt and `gap-catalog.tsv` live beside the manifest. Bun was measured with the available
+stable 1.3.14 binary against the pinned `c1076ce95e` sources; Clun with `0.1.0-dev.19`. Clun currently
+fails to load nearly every upstream meta-root (0 pass). Residual owners drive subsequent close-the-gap
+work. The public compatibility row remains Partial.

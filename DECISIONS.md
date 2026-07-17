@@ -3103,3 +3103,13 @@ denominator drift. Test sources are excluded by default and can be included expl
 `node_modules` sources are never presented as project coverage. This milestone claims source-aligned
 JavaScript and TypeScript only. JSX mapping remains public residual scope until the JSX runtime and its source
 contract are implemented.
+
+### 2026-07-17 - Phase 66.23 records measured 52-root baseline counts
+
+The frozen 52-root manifest replaces every `pending` result triple with measured pass/fail/skip counts.
+Bun counts come from Bun **1.3.14 stable** executing the `c1076ce95e` source tree (no host engineering
+binary for that commit). Clun counts come from `0.1.0-dev.19` single-file absolute-path runs. Aggregate
+**Bun 849/18/32** vs **Clun 0/52/0**. `gap-catalog.tsv` assigns residual owners; dominant blockers are
+`bun:test` ESM resolve, `bun` namespace imports, parser tier gaps, and upstream harness/host-spawn meta
+tests. Numeric coincidence of failing 0/1/0 roots is not treated as a closed residual. Ledger remains
+Partial; re-measure under a true `c1076ce95e` engineering binary when available.

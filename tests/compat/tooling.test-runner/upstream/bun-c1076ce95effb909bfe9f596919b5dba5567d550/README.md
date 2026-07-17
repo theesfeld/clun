@@ -10,10 +10,24 @@ snapshot, and helper dependencies are resolved from the same immutable checkout 
 are not counted as independent result roots. The pinned types, docs, and Common Lisp engineering inventory
 remain references rather than executable denominator entries.
 
-The six result columns are deliberately `pending` until the exact pinned Bun engineering build and Clun run
-that root. A root may be changed to numeric pass/fail/skip counts only with a reproducible receipt. No root
-may be deleted, renamed, recategorized, or replaced in place after implementation; an upstream revision
-requires a new manifest directory and an explicit canonical-issue decision.
+## Result columns (66.23 baseline)
+
+`manifest.tsv` now holds numeric `bun_pass` / `bun_fail` / `bun_skip` and `clun_pass` / `clun_fail` /
+`clun_skip` for every root (skip includes todo). Measurement methodology, environment, and aggregate totals
+are recorded in [`measurement-receipt.md`](measurement-receipt.md). Per-root residual ownership is in
+[`gap-catalog.tsv`](gap-catalog.tsv).
+
+**Bun binary caveat:** sources are pinned at `c1076ce95e`. The host measurement used **Bun 1.3.14 stable**
+against that checkout because no engineering binary built from `c1076ce95e` is available on this host.
+Re-run under a true `c1076ce95e` binary when available and refresh counts with a new receipt.
+
+**Clun status:** `0.1.0-dev.19` currently loads almost none of the frozen meta-roots as-is (0 pass / 52
+file-level fails). Dominant blockers are `bun:test` ESM resolve, `bun` namespace imports, parser tier gaps,
+and upstream harness / host-spawn dependencies. Ledger remains **Partial** — counts measure the gap; they
+do not promote Yes.
+
+No root may be deleted, renamed, recategorized, or replaced in place after implementation; an upstream
+revision requires a new manifest directory and an explicit canonical-issue decision.
 
 Run the structural gate with:
 

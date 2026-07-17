@@ -36,7 +36,7 @@ source under parallel unpublished-gap policy.
 **Candidate release:** `0.1.0-dev.19` / `v0.1.0-dev.19`
 **Published release:** `0.1.0-dev.16` / `v0.1.0-dev.16`
 **Entry boundary:** immutable dev.16 is published at exact master `0212be64283549d03864fa7e01a793c1cee8ac33`.
-**Next scope:** green CI for Partial pad; 66.23 frozen 52-root baseline counts; concurrent/parallel; Yes only
+**Next scope:** post-66.23 residual close (bun:test ESM resolve, concurrent/parallel, host-meta roots); Yes only
 with full PLAN gate and four-target receipts.
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
@@ -2010,6 +2010,7 @@ Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-earl
   values, circular references, functions, wrappers, classes, weak collections, numeric edges, symbols, and
   Buffer JSON shape while preserving lifecycle and asymmetric property-token behavior.
 - Milestone 66.22 adds engine-level source probes and runner-owned Bun-shaped text and LCOV reports for ESM,
+- Milestone 66.23 fills all 52 frozen root Bun/Clun pass/fail/skip counts (Bun 1.3.14 stable vs c1076ce sources; Clun 0.1.0-dev.19). Aggregates Bun 849/18/32 vs Clun 0/52/0; gap-catalog.tsv residual owners recorded. Ledger stays Partial; not Yes.
   CommonJS, JavaScript, and length-preserving stripped TypeScript. Coverage filtering, test-file inclusion,
   output directories, reporters, and aggregate line/function/statement thresholds are available through CLI
   and bunfig, with exact-output and checked shipped-binary receipts.
