@@ -1,7 +1,7 @@
 <!-- clun-generated:release-notes:begin -->
-# Clun 0.1.0-dev.21
+# Clun 0.1.0-dev.24
 
-Phase 37: Modern ECMAScript gap wave.
+Phase 47: Node compatibility certification.
 
 - SemVer impact: `minor` within the selected `0.1.0` prerelease train.
 - Compatibility snapshot: 9 Yes / 7 Partial / 14 No across 30 generated rows.
@@ -14,17 +14,18 @@ The canonical evidence and current limitations are in `compat/`; `make compat-va
 
 ## Highlights
 
-- Stages Phase 37 milestone 2 as a bounded engine residual conversion: pure-CL
-  `Array.fromAsync` over Promise + async-iterator / AsyncFromSync / array-like paths.
-- Admits nullish coalescing (`??`) and numeric separators in the lexer/parser so frozen
-  Test262 helper observation controls parse (emitter already handled `??`).
-- Converts 95 frozen `built-ins/Array/fromAsync` failures; pass-list reclassification is not
-  claimed on this candidate. No compatibility-table `Yes` is claimed.
-- Slot map after published shell (`v0.1.0-dev.18`, #86/#98) and master test-runner (#88):
-  published base `0.1.0-dev.18`; master source is `0.1.0-dev.19`; transport holds unpublished
-  `0.1.0-dev.20`; this candidate allocates `0.1.0-dev.21` under the unpublished-intermediate
-  prerelease gap policy (transition `0.1.0-dev.19` → `0.1.0-dev.21`).
+- Implements pure Common Lisp `path.win32` string algorithms (sep, delimiter,
+  basename, dirname, extname, isAbsolute, normalize, join, resolve, relative,
+  parse, format, toNamespacedPath / `_makeLong`) so `require('path').win32` no
+  longer throws.
+- Cross-links match Node: `path.win32 === path.win32.win32`, `path.posix.win32`,
+  `path.win32.posix`.
+- Host cwd for resolve/relative/namespaced paths rewrites `/` → `\` (Node-on-POSIX).
+- Fixture-covered by `tests/js/node/path-win32.js`. **Does not** promote
+  `runtime.node-compatibility` to ledger Yes.
+- Slot map after published shell (`v0.1.0-dev.18`) and master Phase 37 m2
+  (`0.1.0-dev.21`): parallel drafts hold 22–23; this candidate allocates
+  `0.1.0-dev.24` under the unpublished-intermediate prerelease gap policy.
 
-The release candidate stages honest engine residual work without promoting any matrix row to `Yes`.
-Merge, publication, and Phase 37 closure remain blocked on remaining inventory residuals, pass-list
-integration, and final review.
+The release candidate stages honest node:path residual work without promoting any
+matrix row to `Yes`.

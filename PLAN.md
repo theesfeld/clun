@@ -474,7 +474,7 @@ BigInt (literals, ops, ToBigInt, mixing TypeErrors, toString radix, BigInt64Arra
 ### Phase 12 — Node-compat wave 1 (sync)  *(deps: 08; 10 for assert.match)* ~4k LOC ⚡⚡
 Objective: the engine-light stdlib floor. **This is the flagship fan-out phase** — one subagent
 per module, disjoint files, each ships module + conformance tests.
-Tasks: node:path (posix; win32 present-but-throwing), node:os, node:querystring (null-prototype
+Tasks: node:path (posix + pure-CL win32 string algorithms, #108), node:os, node:querystring (null-prototype
 parse), node:util (format/formatWithOptions/inspect→shared/promisify+custom/callbackify/inherits/
 deprecate/isDeepStrictEqual/types subset/stripVTControlCharacters), node:events (full sync
 EventEmitter per §3.6 subtleties: snapshot iteration, once-wrapper removal, newListener-before-
@@ -1557,7 +1557,7 @@ Legend: ✅ as documented · 🟡 partial (note what's missing) · ❌ non-goal 
 | RegExp | 🟡 | PPCRE bridge; var-length lookbehind + `\p{}` error loudly; unparticipated backrefs known gap |
 | ESM / CJS | 🟡 | Full resolution; import-of-CJS = default-only; require-of-ESM errors |
 | TypeScript | 🟡 | Strip-only; enum/namespace/param-props/decorators **error** (Bun transpiles them); no `.tsx` |
-| node:path / os / querystring | ✅ | posix only; win32 throws |
+| node:path / os / querystring | ✅ | posix + pure-CL win32 (#108) |
 | node:fs | 🟡 | 23 sync + 14 promise + callback shims; no watch/streams/FileHandle; ms-mtime only |
 | node:buffer | 🟡 | Core methods; utf8/ascii/latin1/hex/base64(url)/utf16le |
 | node:events / util / assert | 🟡 | Per §3.6 subsets |

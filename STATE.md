@@ -7,22 +7,23 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **37 - Modern ECMAScript gap wave**  (M2 CHECKPOINT)
+## Current phase: **47 - Node compatibility residual (path.win32)**
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/11
-**Next phase issue:** https://github.com/theesfeld/clun/issues/11
+**Canonical issue:** https://github.com/theesfeld/clun/issues/108
+**Related phase issue:** https://github.com/theesfeld/clun/issues/21 (Phase 47)
 **Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/2,
 https://github.com/theesfeld/clun/issues/39, and https://github.com/theesfeld/clun/issues/40
-**Current implementation unit:** Phase 37 milestone 2 on draft PR #96 — pure-CL `Array.fromAsync`
-plus lexer/parser admission of nullish coalescing and numeric separators required by the frozen
-Test262 helpers. Converts 95 frozen `built-ins/Array/fromAsync` failures. No compatibility-table
-`Yes` is claimed; Phase 37 remains open with residual ownership after reclassification.
+**Current implementation unit:** pure-CL `node:path.win32` string algorithms so
+`require('path').win32` no longer throws. Fixture `tests/js/node/path-win32.js`.
+No compatibility-table `Yes` is claimed; `runtime.node-compatibility` stays **Partial**.
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
+**Candidate release:** `0.1.0-dev.24` / `v0.1.0-dev.24`
 **Published release:** `0.1.0-dev.18` / `v0.1.0-dev.18`
-**Entry boundary:** immutable `v0.1.0-dev.18` is tagged at exact master `b5ecdb5defeef8ddede72ef794e41f14fb423b86` with four native archives + checksums (release run 29596302229); installer defaults to that tag. Master source is `0.1.0-dev.19` after test-runner PR #88. Transport holds unpublished `0.1.0-dev.20`; this unit stages `0.1.0-dev.21` under the unpublished-intermediate prerelease gap policy (transition 19→21). Phase 26 remains after Phase 82.
-**Next scope:** keep Phase 37 open (no matrix Yes); green exact-head CI on the staged candidate; residual
-modern ECMAScript inventory continues after m2; pass-list reclassification is owned by the release unit.
+**Entry boundary:** immutable `v0.1.0-dev.18` is tagged with four native archives + checksums;
+installer defaults to that tag. Master source is `0.1.0-dev.21` after Phase 37 m2 (#96). Parallel
+drafts hold unpublished 22–23; this unit stages `0.1.0-dev.24` under the unpublished-intermediate
+prerelease gap policy. Phase 26 remains after Phase 82.
+**Next scope:** keep `runtime.node-compatibility` Partial; green CI on the staged candidate.
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
 easiest to hardest among dependency-ready rows. Core engine/runtime/network/tooling changes are expected.
@@ -1473,7 +1474,7 @@ _(nothing blocked)_
     throws-class-validation + AssertionError export; structuredClone Date + DataCloneError; path extname
     leading-dots + format dir===root; os.userInfo $USER; and a class of outside-the-float-mask NaN checks
     (`eng:js-nan-p`, never `=`/`/=`, which trap) across util/querystring/Clun.sleep.
-  - DEFERRED 🟡 (matrix): path.win32 throws; util.format %d truncates (Bun-faithful console, not Node's full
+  - CLOSED (#108): path.win32 pure-CL string algorithms (fixture tests/js/node/path-win32.js). DEFERRED 🟡: util.format %d truncates (Bun-faithful console, not Node's full
     Number); pathToFileURL → string (URL object is Phase 18); util.promisify.custom, once-fire/removeAll
     `removeListener` emissions, full `instanceof assert.AssertionError`; full ironclad + KATs → Phase 19.
 
