@@ -158,16 +158,57 @@ remain available through their stable pre-resolution key."
           (gethash (module-mock-builtin-key specifier) table) (car records))
     exports))
 
+(defun bun-builtin-registry-key (name)
+  "Realm registry key for the virtual `bun:NAME` module (NUL prefix ⇒ never a path)."
+  (concatenate 'string (string (code-char 0)) "bun:" name))
+
+(defun get-bun-builtin-module (name)
+  "The :cjs module-record for virtual `bun:NAME` in *realm*, or NIL if unregistered."
+  (realm-module *realm* (bun-builtin-registry-key name)))
+
+(defun register-bun-builtin (realm name exports)
+  "Install EXPORTS as the pure-CL virtual module `bun:NAME` for REALM.
+Used by the test runner for `bun:test` so ESM `import` and CJS `require` resolve
+without touching the filesystem or node_modules."
+  (unless (js-object-p exports)
+    (throw-type-error "bun builtin exports must be an object"))
+  (let* ((*realm* realm)
+         (key (bun-builtin-registry-key name))
+         (record (or (realm-module realm key)
+                     (make-module-record :resolved-path key :format :cjs
+                                         :status :evaluated))))
+    (setf (mr-cjs-exports record) exports
+          (mr-mock-exports record) nil
+          (mr-status record) :evaluated
+          (mr-eval-error record) nil
+          (mr-namespace record) nil
+          (realm-module realm key) record)
+    record))
+
 (defun try-builtin-module (specifier)
-  "If SPECIFIER names a node builtin, return its (per-realm cached) :cjs module-record,
-else NIL. A `node:`-prefixed specifier that is not a known builtin throws (as Node does)."
-  (when *builtin-module-builder*
-    (let* ((prefixed (and (>= (length specifier) 5) (string= specifier "node:" :end1 5)))
-           (name (if prefixed (subseq specifier 5) specifier))
-           (rec (get-builtin-module name)))
-      (cond (rec rec)
-            (prefixed (throw-native-error :error (format nil "Cannot find module 'node:~a'" name)))
-            (t nil)))))
+  "If SPECIFIER names a node or bun builtin, return its (per-realm cached) :cjs
+module-record, else NIL. A `node:`/`bun:`-prefixed specifier that is not a known
+builtin throws (as Node does for `node:`)."
+  (cond
+    ;; bun: scheme — pure-CL virtual modules (e.g. bun:test from the test runner).
+    ((and (>= (length specifier) 4) (string= specifier "bun:" :end1 4))
+     (let* ((name (subseq specifier 4))
+            (rec (get-bun-builtin-module name)))
+       (or rec
+           (throw-native-error :error
+                               (format nil "Cannot find module 'bun:~a'" name)))))
+    ;; node builtins: bare name or node: prefix via *builtin-module-builder*.
+    (*builtin-module-builder*
+     (let* ((prefixed (and (>= (length specifier) 5)
+                           (string= specifier "node:" :end1 5)))
+            (name (if prefixed (subseq specifier 5) specifier))
+            (rec (get-builtin-module name)))
+       (cond (rec rec)
+             (prefixed
+              (throw-native-error :error
+                                  (format nil "Cannot find module 'node:~a'" name)))
+             (t nil))))
+    (t nil)))
 
 (defun get-builtin-module (name)
   "The cached :cjs module-record for builtin NAME in *realm*, built on first use, or NIL."

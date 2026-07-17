@@ -24,7 +24,8 @@
   (headers-alist '() :type list)
   (body #() :type vector)
   (body-used-p nil)
-  headers-object)
+  headers-object
+  body-stream)
 
 (defstruct (js-server-request
             (:include js-request (class :server-request))
@@ -37,13 +38,50 @@
             (:include eng:js-object (class :response))
             (:constructor %make-js-response))
   body
-  (body-used-p nil))
+  (body-used-p nil)
+  body-stream)
 
 (defstruct (js-blob
             (:include eng:js-object (class :blob))
             (:constructor %make-js-blob))
   (bytes (make-array 0 :element-type '(unsigned-byte 8)) :type vector)
   (type "" :type string))
+
+;;; Bounded Web Streams (Phase 38 Partial): one-chunk buffered body consumers.
+;;; Not full BYOB/backpressure/TransformStreams — enough for Response/Request
+;;; `.body.getReader().read()` and a minimal `new ReadableStream({start})`.
+
+(defstruct (js-readable-stream
+            (:include eng:js-object (class :readable-stream))
+            (:constructor %make-js-readable-stream))
+  ;; FIFO of chunk values (JS objects / typed arrays). Empty + closed → done.
+  (queue '() :type list)
+  (closed-p nil)
+  error
+  (locked-p nil)
+  reader
+  (disturbed-p nil)
+  owner                 ; Request/Response when this is a body stream, else nil
+  owner-kind            ; :request | :response | nil
+  cancel-callback       ; optional JS function
+  ;; Deferred Fetch body materialization: avoid opening Clun.file/FIFOs on
+  ;; mere `.body` access; materialize one chunk on first read/cancel/mixin.
+  (lazy-body-p nil)
+  lazy-body-function)
+
+(defstruct (js-readable-stream-reader
+            (:include eng:js-object (class :readable-stream-default-reader))
+            (:constructor %make-js-readable-stream-reader))
+  stream
+  (closed-promise nil)
+  (closed-resolve nil)
+  (closed-reject nil)
+  (released-p nil))
+
+(defstruct (js-readable-stream-controller
+            (:include eng:js-object (class :readable-stream-default-controller))
+            (:constructor %make-js-readable-stream-controller))
+  stream)
 
 (defstruct (web-http-realm-state
             (:constructor %make-web-http-realm-state))
@@ -56,7 +94,11 @@
   blob-constructor
   blob-prototype
   response-constructor
-  response-prototype)
+  response-prototype
+  readable-stream-constructor
+  readable-stream-prototype
+  readable-stream-reader-prototype
+  readable-stream-controller-prototype)
 
 (defvar *web-http-realm-states*
   (make-hash-table :test #'eq :weakness :key))
@@ -503,6 +545,39 @@ Headers, Request, Response, and cookie state never use this mechanism."
     ((js-request-p value) (js-request-body-used-p value))
     (t nil)))
 
+(defun %body-stream-slot (value)
+  (cond
+    ((js-response-p value) (js-response-body-stream value))
+    ((js-request-p value) (js-request-body-stream value))
+    (t nil)))
+
+(defun %set-body-stream-slot (value stream)
+  (cond
+    ((js-response-p value) (setf (js-response-body-stream value) stream))
+    ((js-request-p value) (setf (js-request-body-stream value) stream)))
+  stream)
+
+(defun %body-raw-value (value)
+  (cond
+    ((js-response-p value) (js-response-body value))
+    ((js-request-p value) (js-request-body value))
+    (t nil)))
+
+(defun %body-is-absent-p (value)
+  "True when the Fetch body source is null/undefined (Response.body → null)."
+  (let ((raw (%body-raw-value value)))
+    (or (null raw) (eng:js-null-p raw) (eng:js-undefined-p raw))))
+
+(defun %disturb-body-stream (value)
+  "Mark a cached body stream disturbed so later reader.read() sees EOF."
+  (let ((stream (%body-stream-slot value)))
+    (when (js-readable-stream-p stream)
+      (setf (js-readable-stream-disturbed-p stream) t)
+      (setf (js-readable-stream-lazy-body-p stream) nil)
+      (setf (js-readable-stream-lazy-body-function stream) nil)
+      (setf (js-readable-stream-queue stream) '())
+      (setf (js-readable-stream-closed-p stream) t))))
+
 (defun %mark-body-used (value)
   (cond
     ((js-response-p value)
@@ -512,15 +587,390 @@ Headers, Request, Response, and cookie state never use this mechanism."
      (setf (js-request-body-used-p value) t)
      (setf (js-request-body value)
            (make-array 0 :element-type '(unsigned-byte 8)))))
+  (%disturb-body-stream value)
   value)
 
+(defun %body-stream-locked-p (value)
+  (let ((stream (%body-stream-slot value)))
+    (and (js-readable-stream-p stream)
+         (js-readable-stream-locked-p stream))))
+
 (defun %consume-body-octets (value body-function)
-  "Return body octets once.  Subsequent mixin reads and clone after use reject."
+  "Return body octets once.  Subsequent mixin reads and clone after use reject.
+Rejects when the body stream is locked by getReader()."
   (when (%body-used-p value)
     (eng:throw-type-error "Body has already been used"))
+  (when (%body-stream-locked-p value)
+    (eng:throw-type-error "Body stream is locked"))
   (let ((octets (copy-seq (funcall body-function value))))
     (%mark-body-used value)
     octets))
+
+;;; --- ReadableStream (bounded) ----------------------------------------------
+
+(defun %read-result (value done-p)
+  (let ((o (eng:new-object)))
+    (eng:data-prop o "value" (if done-p eng:+undefined+ value))
+    (eng:data-prop o "done" (eng:js-boolean done-p))
+    o))
+
+(defun %reader-closed-deferred (reader)
+  "Ensure CLOSED promise resolvers exist on READER."
+  (unless (js-readable-stream-reader-closed-promise reader)
+    (let ((global (eng:realm-global eng:*realm*))
+          resolve reject)
+      (let ((promise
+              (eng:js-construct
+               (eng:js-get global "Promise")
+               (list (eng:make-native-function
+                      "" 2
+                      (lambda (this a)
+                        (declare (ignore this))
+                        (setf resolve (eng:arg a 0)
+                              reject (eng:arg a 1))
+                        eng:+undefined+))))))
+        (setf (js-readable-stream-reader-closed-promise reader) promise
+              (js-readable-stream-reader-closed-resolve reader) resolve
+              (js-readable-stream-reader-closed-reject reader) reject))))
+  (js-readable-stream-reader-closed-promise reader))
+
+(defun %reader-resolve-closed (reader)
+  (let ((resolve (js-readable-stream-reader-closed-resolve reader)))
+    (when resolve
+      (eng:js-call resolve eng:+undefined+ (list eng:+undefined+))
+      (setf (js-readable-stream-reader-closed-resolve reader) nil
+            (js-readable-stream-reader-closed-reject reader) nil))))
+
+(defun %reader-reject-closed (reader reason)
+  (let ((reject (js-readable-stream-reader-closed-reject reader)))
+    (when reject
+      (eng:js-call reject eng:+undefined+ (list reason))
+      (setf (js-readable-stream-reader-closed-resolve reader) nil
+            (js-readable-stream-reader-closed-reject reader) nil))))
+
+(defun %stream-error-type (message)
+  (let ((g (eng:realm-global eng:*realm*)))
+    (eng:js-construct (eng:js-get g "TypeError") (list message))))
+
+(defun %notify-owner-body-used (stream)
+  "When a body-owned stream is read/cancelled, mark the Fetch body used."
+  (let ((owner (js-readable-stream-owner stream)))
+    (when owner
+      (unless (%body-used-p owner)
+        (cond
+          ((js-response-p owner)
+           (setf (js-response-body-used-p owner) t)
+           (setf (js-response-body owner) eng:+null+))
+          ((js-request-p owner)
+           (setf (js-request-body-used-p owner) t)
+           (setf (js-request-body owner)
+                 (make-array 0 :element-type '(unsigned-byte 8)))))))))
+
+(defun %stream-enqueue (stream chunk)
+  (when (js-readable-stream-closed-p stream)
+    (eng:throw-type-error "ReadableStream is closed"))
+  (when (js-readable-stream-error stream)
+    (eng:throw-type-error "ReadableStream is errored"))
+  (setf (js-readable-stream-queue stream)
+        (append (js-readable-stream-queue stream) (list chunk)))
+  eng:+undefined+)
+
+(defun %stream-close (stream)
+  (unless (or (js-readable-stream-closed-p stream)
+              (js-readable-stream-error stream))
+    (setf (js-readable-stream-closed-p stream) t)
+    (let ((reader (js-readable-stream-reader stream)))
+      (when (and (js-readable-stream-reader-p reader)
+                 (null (js-readable-stream-queue stream)))
+        (%reader-resolve-closed reader))))
+  eng:+undefined+)
+
+(defun %stream-error (stream reason)
+  (unless (or (js-readable-stream-closed-p stream)
+              (js-readable-stream-error stream))
+    (setf (js-readable-stream-error stream) reason)
+    (let ((reader (js-readable-stream-reader stream)))
+      (when (js-readable-stream-reader-p reader)
+        (%reader-reject-closed reader reason))))
+  eng:+undefined+)
+
+(defun %stream-materialize-lazy-body (stream)
+  "Turn a deferred body-owned stream into a single closed Uint8Array chunk."
+  (when (js-readable-stream-lazy-body-p stream)
+    (setf (js-readable-stream-lazy-body-p stream) nil)
+    (let* ((owner (js-readable-stream-owner stream))
+           (fn (js-readable-stream-lazy-body-function stream))
+           (octets
+             (cond
+               ((and owner fn (not (%body-used-p owner)))
+                (copy-seq (funcall fn owner)))
+               (t (make-array 0 :element-type '(unsigned-byte 8))))))
+      (setf (js-readable-stream-queue stream)
+            (list (eng:u8-from-octets octets)))
+      (setf (js-readable-stream-closed-p stream) t)
+      (setf (js-readable-stream-lazy-body-function stream) nil))))
+
+(defun %stream-pull-chunk (stream)
+  "Pop one queued chunk, or return (values nil :done|:pending|:error reason)."
+  (%stream-materialize-lazy-body stream)
+  (cond
+    ((js-readable-stream-error stream)
+     (values nil :error (js-readable-stream-error stream)))
+    ((js-readable-stream-queue stream)
+     (let ((chunk (pop (js-readable-stream-queue stream))))
+       (setf (js-readable-stream-disturbed-p stream) t)
+       (%notify-owner-body-used stream)
+       (values chunk :value nil)))
+    ((js-readable-stream-closed-p stream)
+     (setf (js-readable-stream-disturbed-p stream) t)
+     (values nil :done nil))
+    (t (values nil :pending nil))))
+
+(defun %reader-read (reader)
+  (let ((global (eng:realm-global eng:*realm*)))
+    (when (js-readable-stream-reader-released-p reader)
+      (return-from %reader-read
+        (%rejected-promise
+         global (%stream-error-type "This readable stream reader has been released"))))
+    (let ((stream (js-readable-stream-reader-stream reader)))
+      (multiple-value-bind (chunk kind reason) (%stream-pull-chunk stream)
+        (ecase kind
+          (:value
+           (when (and (js-readable-stream-closed-p stream)
+                      (null (js-readable-stream-queue stream)))
+             (%reader-resolve-closed reader))
+           (%resolved-promise global (%read-result chunk nil)))
+          (:done
+           (%reader-resolve-closed reader)
+           (%resolved-promise global (%read-result eng:+undefined+ t)))
+          (:error
+           (%rejected-promise global reason))
+          (:pending
+           ;; Bounded Partial: only pre-buffered/start()-closed streams are
+           ;; supported; an open empty queue is treated as closed EOF.
+           (setf (js-readable-stream-closed-p stream) t)
+           (%reader-resolve-closed reader)
+           (%resolved-promise global (%read-result eng:+undefined+ t))))))))
+
+(defun %reader-cancel (reader reason)
+  (let ((global (eng:realm-global eng:*realm*)))
+    (when (js-readable-stream-reader-released-p reader)
+      (return-from %reader-cancel
+        (%rejected-promise
+         global (%stream-error-type "This readable stream reader has been released"))))
+    (let* ((stream (js-readable-stream-reader-stream reader))
+           (cb (js-readable-stream-cancel-callback stream)))
+      ;; Drop lazy body without materializing (cancel must not open FIFOs).
+      (setf (js-readable-stream-lazy-body-p stream) nil)
+      (setf (js-readable-stream-lazy-body-function stream) nil)
+      (setf (js-readable-stream-disturbed-p stream) t)
+      (setf (js-readable-stream-queue stream) '())
+      (setf (js-readable-stream-closed-p stream) t)
+      (%notify-owner-body-used stream)
+      (when (and cb (eng:callable-p cb))
+        (ignore-errors (eng:js-call cb eng:+undefined+ (list reason))))
+      (%reader-resolve-closed reader)
+      (%resolved-promise global eng:+undefined+))))
+
+(defun %reader-release-lock (reader)
+  (when (js-readable-stream-reader-released-p reader)
+    (return-from %reader-release-lock eng:+undefined+))
+  (let ((stream (js-readable-stream-reader-stream reader)))
+    (setf (js-readable-stream-reader-released-p reader) t)
+    (setf (js-readable-stream-locked-p stream) nil)
+    (setf (js-readable-stream-reader stream) nil)
+    ;; Spec rejects closed; Partial resolves so consumers can drop the reader.
+    (%reader-resolve-closed reader))
+  eng:+undefined+)
+
+(defun %make-default-reader (stream)
+  (when (js-readable-stream-locked-p stream)
+    (eng:throw-type-error "ReadableStream is locked"))
+  (let* ((state (%http-state))
+         (reader
+           (%make-js-readable-stream-reader
+            :proto (web-http-realm-state-readable-stream-reader-prototype state)
+            :stream stream)))
+    (setf (js-readable-stream-locked-p stream) t
+          (js-readable-stream-reader stream) reader)
+    (%reader-closed-deferred reader)
+    (when (and (js-readable-stream-closed-p stream)
+               (null (js-readable-stream-queue stream))
+               (null (js-readable-stream-error stream)))
+      (%reader-resolve-closed reader))
+    (when (js-readable-stream-error stream)
+      (%reader-reject-closed reader (js-readable-stream-error stream)))
+    reader))
+
+(defun %install-readable-stream-reader-prototype (prototype)
+  (%define-accessor
+   prototype "closed"
+   (lambda (this args)
+     (declare (ignore args))
+     (unless (js-readable-stream-reader-p this)
+       (eng:throw-type-error "Illegal invocation"))
+     (%reader-closed-deferred this))
+   nil)
+  (%install-prototype-method
+   prototype "read" 0
+   (lambda (this args)
+     (declare (ignore args))
+     (unless (js-readable-stream-reader-p this)
+       (eng:throw-type-error "Illegal invocation"))
+     (%reader-read this)))
+  (%install-prototype-method
+   prototype "cancel" 1
+   (lambda (this args)
+     (unless (js-readable-stream-reader-p this)
+       (eng:throw-type-error "Illegal invocation"))
+     (%reader-cancel this (eng:arg args 0))))
+  (%install-prototype-method
+   prototype "releaseLock" 0
+   (lambda (this args)
+     (declare (ignore args))
+     (unless (js-readable-stream-reader-p this)
+       (eng:throw-type-error "Illegal invocation"))
+     (%reader-release-lock this)))
+  (%define-data prototype (eng:well-known :to-string-tag)
+                "ReadableStreamDefaultReader"
+                :writable nil :enumerable nil :configurable t)
+  prototype)
+
+(defun %install-readable-stream-controller-prototype (prototype)
+  (%install-prototype-method
+   prototype "enqueue" 1
+   (lambda (this args)
+     (unless (js-readable-stream-controller-p this)
+       (eng:throw-type-error "Illegal invocation"))
+     (%stream-enqueue (js-readable-stream-controller-stream this)
+                      (eng:arg args 0))))
+  (%install-prototype-method
+   prototype "close" 0
+   (lambda (this args)
+     (declare (ignore args))
+     (unless (js-readable-stream-controller-p this)
+       (eng:throw-type-error "Illegal invocation"))
+     (%stream-close (js-readable-stream-controller-stream this))))
+  (%install-prototype-method
+   prototype "error" 1
+   (lambda (this args)
+     (unless (js-readable-stream-controller-p this)
+       (eng:throw-type-error "Illegal invocation"))
+     (%stream-error (js-readable-stream-controller-stream this)
+                    (eng:arg args 0))))
+  (%define-data prototype (eng:well-known :to-string-tag)
+                "ReadableStreamDefaultController"
+                :writable nil :enumerable nil :configurable t)
+  prototype)
+
+(defun %install-readable-stream-prototype (prototype)
+  (%define-accessor
+   prototype "locked"
+   (lambda (this args)
+     (declare (ignore args))
+     (unless (js-readable-stream-p this)
+       (eng:throw-type-error "Illegal invocation"))
+     (eng:js-boolean (js-readable-stream-locked-p this)))
+   nil)
+  (%install-prototype-method
+   prototype "getReader" 0
+   (lambda (this args)
+     (declare (ignore args))
+     (unless (js-readable-stream-p this)
+       (eng:throw-type-error "Illegal invocation"))
+     (%make-default-reader this)))
+  (%install-prototype-method
+   prototype "cancel" 1
+   (lambda (this args)
+     (unless (js-readable-stream-p this)
+       (eng:throw-type-error "Illegal invocation"))
+     (if (js-readable-stream-locked-p this)
+         (%rejected-promise
+          (eng:realm-global eng:*realm*)
+          (%stream-error-type "Cannot cancel a locked stream"))
+         (let ((reader (%make-default-reader this)))
+           (%reader-cancel reader (eng:arg args 0))))))
+  (%define-data prototype (eng:well-known :to-string-tag) "ReadableStream"
+                :writable nil :enumerable nil :configurable t)
+  prototype)
+
+(defun %new-readable-stream (&key queue closed-p owner owner-kind
+                                   cancel-callback lazy-body-p
+                                   lazy-body-function)
+  (let* ((state (%http-state))
+         (stream
+           (%make-js-readable-stream
+            :proto (web-http-realm-state-readable-stream-prototype state)
+            :queue (copy-list queue)
+            :closed-p closed-p
+            :owner owner
+            :owner-kind owner-kind
+            :cancel-callback cancel-callback
+            :lazy-body-p lazy-body-p
+            :lazy-body-function lazy-body-function)))
+    stream))
+
+(defun %controller-for (stream)
+  (%make-js-readable-stream-controller
+   :proto (web-http-realm-state-readable-stream-controller-prototype
+           (%http-state))
+   :stream stream))
+
+(defun %construct-readable-stream (underlying-source)
+  "Minimal `new ReadableStream({ start(controller), cancel })`."
+  (let* ((stream (%new-readable-stream :closed-p nil))
+         (controller (%controller-for stream))
+         (source (if (eng:js-object-p underlying-source)
+                     underlying-source
+                     eng:+undefined+)))
+    (unless (eng:js-undefined-p source)
+      (let ((cancel (eng:js-get source "cancel")))
+        (when (eng:callable-p cancel)
+          (setf (js-readable-stream-cancel-callback stream) cancel)))
+      (let ((start (eng:js-get source "start")))
+        (when (eng:callable-p start)
+          (eng:js-call start source (list controller)))))
+    ;; If start never closed/enqueued, leave open until first pending read → EOF.
+    stream))
+
+(defun %make-readable-stream-constructor (prototype)
+  (let ((constructor
+          (eng:make-native-function
+           "ReadableStream" 0
+           (lambda (this args)
+             (declare (ignore this args))
+             (eng:throw-type-error "ReadableStream requires 'new'"))
+           :construct
+           (lambda (args new-target)
+             (declare (ignore new-target))
+             (%construct-readable-stream (eng:arg args 0))))))
+    (%set-constructor-prototype constructor prototype)
+    constructor))
+
+(defun %body-stream-for (value body-function)
+  "Return (and cache) a one-chunk ReadableStream for a Request/Response body.
+Access alone does not mark bodyUsed or materialize Clun.file bodies;
+getReader/read or mixin consumers do."
+  (let ((existing (%body-stream-slot value)))
+    (when (js-readable-stream-p existing)
+      (return-from %body-stream-for existing)))
+  (when (and (%body-used-p value) (not (js-readable-stream-p existing)))
+    (return-from %body-stream-for eng:+null+))
+  (when (%body-is-absent-p value)
+    (return-from %body-stream-for eng:+null+))
+  (let* ((kind (cond ((js-response-p value) :response)
+                     ((js-request-p value) :request)
+                     (t nil)))
+         (stream
+           (%new-readable-stream
+            :queue '()
+            :closed-p nil
+            :owner value
+            :owner-kind kind
+            :lazy-body-p t
+            :lazy-body-function body-function)))
+    (%set-body-stream-slot value stream)
+    stream))
 
 (defun %install-body-methods (prototype require-function body-function)
   (let ((global (eng:realm-global eng:*realm*)))
@@ -530,13 +980,13 @@ Headers, Request, Response, and cookie state never use this mechanism."
        (funcall require-function this)
        (eng:js-boolean (%body-used-p this)))
      nil)
-    ;; Accessing .body does not consume buffered bodies (Fetch stream lock is
-    ;; separate); stress fixtures probe the getter without reading bytes.
+    ;; Accessing .body does not consume buffered bodies; getReader/read does.
+    ;; Stress fixtures probe the getter without reading bytes.
     (%define-accessor
      prototype "body"
      (lambda (this args) (declare (ignore args))
        (funcall require-function this)
-       eng:+null+)
+       (%body-stream-for this body-function))
      nil)
     (%install-prototype-method
      prototype "text" 0
@@ -998,6 +1448,9 @@ but an ordinary object is never promoted into the Response brand."
                  (eng:js-make-object request-prototype))
                (blob-prototype (eng:new-object))
                (response-prototype (eng:new-object))
+               (readable-stream-prototype (eng:new-object))
+               (readable-stream-reader-prototype (eng:new-object))
+               (readable-stream-controller-prototype (eng:new-object))
                (state
                  (%make-web-http-realm-state
                   :headers-prototype headers-prototype
@@ -1005,7 +1458,12 @@ but an ordinary object is never promoted into the Response brand."
                   :request-prototype request-prototype
                   :server-request-prototype server-request-prototype
                   :blob-prototype blob-prototype
-                  :response-prototype response-prototype)))
+                  :response-prototype response-prototype
+                  :readable-stream-prototype readable-stream-prototype
+                  :readable-stream-reader-prototype
+                  readable-stream-reader-prototype
+                  :readable-stream-controller-prototype
+                  readable-stream-controller-prototype)))
           ;; Install state before helpers allocate branded instances.
           (setf (gethash realm *web-http-realm-states*) state)
           (%install-headers-prototype headers-prototype)
@@ -1013,6 +1471,11 @@ but an ordinary object is never promoted into the Response brand."
           (%install-request-prototype request-prototype)
           (%install-blob-prototype blob-prototype)
           (%install-response-prototype response-prototype)
+          (%install-readable-stream-prototype readable-stream-prototype)
+          (%install-readable-stream-reader-prototype
+           readable-stream-reader-prototype)
+          (%install-readable-stream-controller-prototype
+           readable-stream-controller-prototype)
           (setf (web-http-realm-state-headers-constructor state)
                 (%make-headers-constructor headers-prototype)
                 (web-http-realm-state-request-constructor state)
@@ -1020,7 +1483,9 @@ but an ordinary object is never promoted into the Response brand."
                 (web-http-realm-state-blob-constructor state)
                 (%make-blob-constructor blob-prototype)
                 (web-http-realm-state-response-constructor state)
-                (%make-response-constructor response-prototype))
+                (%make-response-constructor response-prototype)
+                (web-http-realm-state-readable-stream-constructor state)
+                (%make-readable-stream-constructor readable-stream-prototype))
           state))
     (let ((state (%http-state realm)))
       (eng:hidden-prop global "Headers"
@@ -1030,5 +1495,7 @@ but an ordinary object is never promoted into the Response brand."
       (eng:hidden-prop global "Blob"
                        (web-http-realm-state-blob-constructor state))
       (eng:hidden-prop global "Response"
-                       (web-http-realm-state-response-constructor state)))
+                       (web-http-realm-state-response-constructor state))
+      (eng:hidden-prop global "ReadableStream"
+                       (web-http-realm-state-readable-stream-constructor state)))
     realm))

@@ -107,7 +107,7 @@ July 16, 2026. Engineering references are separately pinned to Bun commit `c1076
 | Capability | Current pre-alpha state | Evidence-backed target |
 |---|---|---|
 | Node.js compatibility | Partial: selected globals and module subsets | Phases [42](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-42), [43](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-43), [44](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-44), [45](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-45), [46](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-46), [47](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-47) |
-| Web Standard APIs | Partial: buffered fetch and a scoped Web API surface | [Phase 38](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-38) |
+| Web Standard APIs | Partial: buffered fetch, scoped Web API surface, and one-chunk Response/Request.body ReadableStream consumers | [Phase 38](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-38) |
 | Native addons | No: excluded by the current purity contract | [Phase 48](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-48) |
 | TypeScript | Partial: erasable syntax stripping only | [Phase 39](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-39) |
 | JSX | No: not included in the v0.1 scope | [Phase 40](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-40) |

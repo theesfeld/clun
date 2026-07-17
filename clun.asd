@@ -212,6 +212,7 @@
                                                          (:file "path")
                                                          (:file "os")
                                                          (:file "querystring")
+                                                         (:file "url")      ; node:url legacy (Phase 47 residual)
                                                          (:file "util")
                                                          (:file "events")
                                                          (:file "assert")
@@ -323,6 +324,7 @@
                                                          (:file "http-server-tests")
                                                          (:file "router-tests")
                                                          (:file "fetch-tests")
+                                                         (:file "web-streams-tests")
                                                          (:file "https-tests")))
                                            (:module "install"
                                             :serial t

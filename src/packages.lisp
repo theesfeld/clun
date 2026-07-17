@@ -239,7 +239,7 @@
    ;; realm accessors the runtime/CLI need
    #:run-module-file #:run-module-source #:eval-source #:realm-global #:realm-clock-now-ms
    #:realm-coverage-session
-   #:register-module-mock
+   #:register-module-mock #:register-bun-builtin
    #:teardown-realm #:run-callback-to-settlement #:drive-jobs #:current-loop
    #:make-coverage-session #:call-with-coverage-session #:coverage-results
    #:promise-and-caps
