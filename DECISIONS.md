@@ -2944,3 +2944,20 @@ compose through nested equality, object subsets, mock histories, property values
 state stays in native Common Lisp closures and each factory validates its sample at construction. Async
 settlement is deliberately not hidden in synchronous equality; `resolvesTo` / `rejectsTo` remain a separate
 scheduler-aware milestone.
+
+### 2026-07-17 - Phase 66 custom matchers share one per-file protocol
+
+`expect.extend` stores validated callables in the test file's host-owned context and installs both symmetric
+methods and static asymmetric factories from that registry. This preserves replacement behavior while making
+file teardown the state-isolation boundary. Matcher result Promises flow through the realm scheduler, and
+recursive loose equality now carries Promise-valued asymmetric results rather than treating them as truthy
+objects. `resolvesTo` and `rejectsTo` wrap the full settlement predicate so negation includes wrong-settlement
+and non-Promise values, matching the pinned Bun behavior without unhandled rejection shortcuts.
+
+### 2026-07-17 - Phase 66 freezes result roots before recording pass counts
+
+The immutable denominator is 52 test-runner result roots at Bun `c1076ce95e`, each identified by source path,
+category, and SHA-256 digest. The manifest deliberately records Bun and Clun result counts as `pending` until
+the exact root executes under a reproducible binary. This separates the already-complete scope freeze from
+the still-open baseline measurement and prevents a frozen manifest from being misrepresented as a passing
+compatibility gate.

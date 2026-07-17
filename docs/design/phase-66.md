@@ -130,5 +130,36 @@ Object subsets require property presence (so missing is distinct from present `u
 properties, and include symbol keys. String regular expressions reset state before each match, and close-to
 handles infinities plus Bun's non-number negated boundary. Factory type errors occur at construction.
 
-This milestone is synchronous. `expect.extend` custom matcher registration and Promise-settlement
-`resolvesTo` / `rejectsTo` asymmetric namespaces remain explicit residuals.
+## Milestone 66.8 - custom matcher registration
+
+Each test file owns a custom matcher registry in its test context. `expect.extend(definitions)` walks own and
+non-Object prototype layers, validates every named value before registration, and installs the same callable
+as a symmetric matcher and a static asymmetric factory. Later extensions replace earlier definitions,
+including built-in names, without allowing registry state to cross a file-realm boundary.
+
+Matcher calls receive `isNot`, `equals`, and deterministic `printReceived`, `printExpected`, `stringify`, and
+color utility functions. Results may settle synchronously or through a Promise and must contain a `pass`
+property; failure messages may be strings or functions, with a stable default when omitted. Prototype/class
+methods, numeric property names, the empty name, thrown errors, rejected results, and nested asynchronous
+asymmetric comparisons use that same protocol.
+
+## Milestone 66.9 - Promise-settlement asymmetric matchers
+
+Loose equality now propagates a boolean-or-Promise result while descending arrays and objects. The
+`expect.resolvesTo` and `expect.rejectsTo` namespaces wrap each built-in or custom asymmetric matcher and
+match only the requested settlement path. Their `expect.not` forms invert the complete settlement predicate,
+so a non-Promise or opposite settlement matches the negated form without producing an unhandled rejection.
+Timer-driven and nested Promises remain under the existing scheduler rather than introducing a nested loop.
+
+## Milestone 66.10 - immutable upstream denominator
+
+The Phase 66 denominator is frozen at 52 result roots from Bun commit `c1076ce95e`. The committed manifest
+records every source path, category, and SHA-256 digest and validates against the pinned checkout with
+`CLUN_BUN_SOURCE=... make test-test-runner-manifest`. Bun and Clun pass/fail/skip fields remain explicitly
+`pending` until an exact reproducible run fills them; freezing paths is not evidence that either pass set has
+already been measured.
+
+The row remains `Partial`. Snapshot/inline updates, module mocks, fake timers, coverage/source maps,
+concurrency/parallel files, setup/reporters/JUnit, sharding/randomization/watch behavior, exact 52-root Bun
+and Clun counts, four-target receipts, serial/parallel agreement, and the 10k-test RSS gate remain explicit
+residuals.

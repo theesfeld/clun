@@ -1922,7 +1922,7 @@ Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-earl
 ### Phase 66 checkpoint - function mocks and spies (2026-07-16)
 
 - Canonical issue #40 is `in-progress`; SemVer impact is `minor`, with release target
-  `0.1.0-dev.16` / `v0.1.0-dev.16` after the earlier queued compatibility units.
+  `0.1.0-dev.17` / `v0.1.0-dev.17` after the coordinated dev.16 recovery release.
 - Production implementation: host-owned callable mock records, default/FIFO one-shot implementations,
   return/resolved/rejected/return-this behavior, call/result/context/instance/order history, `spyOn`, exact
   restoration, Jest/Vi lifecycle operations, temporary implementations, and 11 canonical call/return
@@ -1946,6 +1946,14 @@ Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-earl
   `asymmetricMatch` deep-equality protocol. Focused integration covers 7 tests and 56 expectations across
   nested equality/subsets, mock calls and returns, thrown errors, symbol/inherited keys, negation, primitive
   wrappers, factory validation, and close-to boundaries.
+- Milestone 66.8 adds per-file `expect.extend` registration with validation/replacement, matcher context
+  utilities, own/prototype/class/numeric/empty names, synchronous and Promise results, symmetric calls, and
+  custom asymmetric factories. Focused integration covers 6 tests and 39 expectations.
+- Milestone 66.9 propagates Promise-valued asymmetric results through nested loose equality and adds
+  `resolvesTo` / `rejectsTo` built-in/custom namespaces with whole-settlement negation. Focused integration
+  covers 3 tests and 11 expectations, including opposite settlement, non-Promises, nesting, and timers.
+- Milestone 66.10 freezes 52 Bun `c1076ce95e` result roots with paths, categories, and SHA-256 digests. Both
+  Bun and Clun pass/fail/skip fields remain explicitly pending; the digest gate passes against the checkout.
 - Ledger stays `Partial`. Remaining Phase 66 scope: snapshots/inline updates, module mocks, fake timers,
-  coverage/source maps, custom/async asymmetric matchers, parallelism/concurrency, setup/reporters/JUnit,
-  sharding/randomization/watch hooks, frozen complete upstream manifest, four-target receipts, and 10k RSS.
+  coverage/source maps, parallelism/concurrency, setup/reporters/JUnit, sharding/randomization/watch hooks,
+  exact 52-root Bun/Clun counts, four-target receipts, serial/parallel agreement, and 10k RSS.

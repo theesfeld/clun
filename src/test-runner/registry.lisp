@@ -16,7 +16,8 @@
 
 (defstruct (test-context (:conc-name ctx-))
   root current (default-timeout 5000) (has-only nil) (expect-calls 0)
-  (mocks '()) (invocation-order 0))
+  (mocks '()) (invocation-order 0)
+  (custom-matchers (make-hash-table :test #'equal)))
 
 (defun td-ordered-children (d)
   "Children in registration order (they are pushed, so reverse)."

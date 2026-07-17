@@ -35,8 +35,17 @@
        (eng:callable-p (eng:js-get value "asymmetricMatch"))))
 
 (defun %asymmetric-match (matcher received)
-  (eng:js-truthy
-   (eng:js-call (eng:js-get matcher "asymmetricMatch") matcher (list received))))
+  (let ((result
+          (eng:js-call (eng:js-get matcher "asymmetricMatch") matcher (list received))))
+    (if (eng:js-promise-p result) result (eng:js-truthy result))))
+
+(defun %promise-map (promise function)
+  (eng:js-call
+   (eng:js-get promise "then") promise
+   (list (%fn "" 1
+           (lambda (this args)
+             (declare (ignore this))
+             (funcall function (eng:arg args 0)))))))
 
 (defun %length-of (v)
   "The .length of V as a CL integer (strings by code-unit length, objects/arrays via
@@ -57,8 +66,12 @@ the length property), or NIL when V has no numeric length."
 (defun %le (a b seen)
   (cond
     ((%svz a b) t)
-    ((%asymmetric-matcher-p b) (%asymmetric-match b a))
-    ((%asymmetric-matcher-p a) (%asymmetric-match a b))
+    ((%asymmetric-matcher-p b)
+     (let ((result (%asymmetric-match b a)))
+       (and (not (eng:js-promise-p result)) result)))
+    ((%asymmetric-matcher-p a)
+     (let ((result (%asymmetric-match a b)))
+       (and (not (eng:js-promise-p result)) result)))
     ((not (and (eng:js-object-p a) (eng:js-object-p b))) nil)
     ((gethash a seen) (eq (gethash a seen) b))
     (t
@@ -92,6 +105,68 @@ the length property), or NIL when V has no numeric length."
                                   (%le va vb seen)))))))
        (remhash a seen)))))
 
+(defun %match-items-and (items function)
+  "Evaluate match items in order, stopping before later async matchers on failure."
+  (labels ((next-match (remaining)
+             (if (null remaining)
+                 t
+                 (let ((result (funcall function (car remaining))))
+                   (if (eng:js-promise-p result)
+                       (%promise-map
+                        result
+                        (lambda (value)
+                          (if (eng:js-truthy value)
+                              (let ((next (next-match (cdr remaining))))
+                                (if (eng:js-promise-p next)
+                                    next
+                                    (eng:js-boolean next)))
+                              eng:+false+)))
+                       (and result (next-match (cdr remaining))))))))
+    (next-match items)))
+
+(defun %loose-equal-result (a b)
+  "%loose-equal with asynchronous asymmetricMatch results propagated as a Promise."
+  (%ler a b (make-hash-table :test 'eq)))
+
+(defun %ler (a b seen)
+  (cond
+    ((%svz a b) t)
+    ((%asymmetric-matcher-p b) (%asymmetric-match b a))
+    ((%asymmetric-matcher-p a) (%asymmetric-match a b))
+    ((not (and (eng:js-object-p a) (eng:js-object-p b))) nil)
+    ((gethash a seen) (eq (gethash a seen) b))
+    (t
+     (setf (gethash a seen) b)
+     (let ((ca (eng:js-object-class a)) (cb (eng:js-object-class b)))
+       (cond
+         ((and (eq ca :date) (eq cb :date))
+          (= (%num (eng:js-call (eng:js-get a "getTime") a '()))
+             (%num (eng:js-call (eng:js-get b "getTime") b '()))))
+         ((and (eq ca :regexp) (eq cb :regexp))
+          (and (string= (eng:to-string (eng:js-get a "source"))
+                        (eng:to-string (eng:js-get b "source")))
+               (string= (eng:to-string (eng:js-get a "flags"))
+                        (eng:to-string (eng:js-get b "flags")))))
+         ((and (eng:js-array-p a) (eng:js-array-p b))
+          (let ((la (eng:array-length a)) (lb (eng:array-length b)))
+            (and (= la lb)
+                 (%match-items-and
+                  (loop for i below la collect i)
+                  (lambda (i)
+                    (%ler (eng:js-getv a (princ-to-string i))
+                          (eng:js-getv b (princ-to-string i)) seen))))))
+         ((or (eng:js-array-p a) (eng:js-array-p b)) nil)
+         (t
+          (let* ((ka (%own-string-keys a)) (kb (%own-string-keys b))
+                 (keys (remove-duplicates (append ka kb) :test #'string=)))
+            (%match-items-and
+             keys
+             (lambda (key)
+               (let ((va (eng:js-getv a key)) (vb (eng:js-getv b key)))
+                 (or (and (eng:js-undefined-p va)
+                          (eng:js-undefined-p vb))
+                     (%ler va vb seen))))))))))))
+
 (defun %match-object (actual expected)
   "Recursive subset: every own key of EXPECTED matches (loose) in ACTUAL."
   (and (eng:js-object-p actual) (eng:js-object-p expected)
@@ -116,9 +191,14 @@ the length property), or NIL when V has no numeric length."
     (eng:install-method matcher "asymmetricMatch" 1
       (lambda (this args)
         (declare (ignore this))
-        (eng:js-boolean
-         (let ((matched (funcall predicate (eng:arg args 0))))
-           (if negated (not matched) matched)))))
+        (let ((matched (funcall predicate (eng:arg args 0))))
+          (if (eng:js-promise-p matched)
+              (%promise-map
+               matched
+               (lambda (value)
+                 (eng:js-boolean
+                  (if negated (not (eng:js-truthy value)) (eng:js-truthy value)))))
+              (eng:js-boolean (if negated (not matched) matched))))))
     (eng:install-method matcher "toString" 0
       (lambda (this args) (declare (ignore this args))
         (if negated (concatenate 'string "Not" label) label)))
@@ -245,6 +325,93 @@ the length property), or NIL when V has no numeric length."
         (and (eng:js-number-p received)
              (let ((matched (%close-to-match-p received sample precision)))
                (if negated (not matched) matched)))))))
+
+;;; --- custom matcher protocol ------------------------------------------------
+
+(defun %custom-print-function ()
+  (%fn "" 1
+    (lambda (this args)
+      (declare (ignore this))
+      (%insp (eng:arg args 0)))))
+
+(defun %custom-identity-function ()
+  (%fn "" 1
+    (lambda (this args)
+      (declare (ignore this))
+      (eng:arg args 0))))
+
+(defun %custom-matcher-context (negated &optional (promise ""))
+  (let ((context (eng:new-object)) (utils (eng:new-object)))
+    (eng:data-prop context "isNot" (eng:js-boolean negated))
+    (eng:data-prop context "promise" promise)
+    (eng:data-prop context "equals"
+      (%fn "equals" 2
+        (lambda (this args)
+          (declare (ignore this))
+          (eng:js-boolean (%loose-equal (eng:arg args 0) (eng:arg args 1))))))
+    (eng:data-prop utils "printReceived" (%custom-print-function))
+    (eng:data-prop utils "printExpected" (%custom-print-function))
+    (eng:data-prop utils "stringify" (%custom-print-function))
+    (eng:data-prop utils "RECEIVED_COLOR" (%custom-identity-function))
+    (eng:data-prop utils "EXPECTED_COLOR" (%custom-identity-function))
+    (eng:data-prop context "utils" utils)
+    context))
+
+(defun %invalid-custom-result (name result)
+  (eng:throw-type-error
+   (format nil
+           "Unexpected return from matcher function `~a`. Matcher functions must return { message?: string | function, pass: boolean }; received ~a"
+           name (%insp result))))
+
+(defun %custom-result-pass (name result)
+  (unless (and (eng:js-object-p result) (eng:has-property result "pass"))
+    (%invalid-custom-result name result))
+  (eng:js-truthy (eng:js-get result "pass")))
+
+(defun %custom-failure-message (result)
+  (let ((message (eng:js-get result "message")))
+    (cond
+      ((eng:callable-p message)
+       (eng:to-string (eng:js-call message result '())))
+      ((eng:js-string-p message) (eng:to-string message))
+      ((eng:js-undefined-p message) "No message was specified for this matcher.")
+      (t (eng:to-string message)))))
+
+(defun %custom-pass-result (name function actual args negated)
+  (let* ((context (%custom-matcher-context negated))
+         (result (eng:js-call function context (cons actual args))))
+    (if (eng:js-promise-p result)
+        (%promise-map result (lambda (settled) (eng:js-boolean (%custom-result-pass name settled))))
+        (%custom-result-pass name result))))
+
+(defun %apply-custom-matcher (name function actual negated args &optional (promise ""))
+  (let ((context (%custom-matcher-context negated promise)))
+    (labels ((finish (result)
+               (let* ((pass (%custom-result-pass name result))
+                      (ok (if negated (not pass) pass)))
+                 (unless ok (%fail "~a" (%custom-failure-message result)))
+                 eng:+undefined+)))
+      (let ((result (eng:js-call function context (cons actual args))))
+        (if (eng:js-promise-p result)
+            (%promise-map result #'finish)
+            (finish result))))))
+
+(defun %custom-asymmetric (name function args matcher-negated context-negated)
+  (%make-asymmetric name matcher-negated
+    (lambda (received)
+      (%custom-pass-result name function received args context-negated))))
+
+(defun %custom-definition-layers (object)
+  "OBJECT and its non-Object prototype layers, farthest first for later override."
+  (let* ((global-object (%global-constructor "Object"))
+         (object-prototype (eng:js-get global-object "prototype"))
+         (get-prototype (eng:js-get global-object "getPrototypeOf"))
+         (layers '())
+         (current object))
+    (loop while (and (eng:js-object-p current) (not (eq current object-prototype))) do
+      (push current layers)
+      (setf current (eng:js-call get-prototype global-object (list current))))
+    layers))
 
 ;;; --- toThrow ---------------------------------------------------------------
 
@@ -386,7 +553,16 @@ on the wrong outcome (honouring NEGATED). Returns undefined on success."
               (unless negated (format nil "expect(received).toBe(expected)~%~%~a"
                                       (line-diff (%insp e0) (%insp actual))))))
         ((string= name "toEqual")
-         (chk (%loose-equal actual e0) (unless negated (%deep-msg "toEqual" actual e0))))
+         (let ((result (%loose-equal-result actual e0)))
+           (if (eng:js-promise-p result)
+               (return-from %apply-matcher
+                 (%promise-map
+                  result
+                  (lambda (value)
+                    (chk (eng:js-truthy value)
+                         (unless negated (%deep-msg "toEqual" actual e0)))
+                    eng:+undefined+)))
+               (chk result (unless negated (%deep-msg "toEqual" actual e0))))))
         ((string= name "toStrictEqual")
          (chk (eng:js-deep-equal actual e0) (unless negated (%deep-msg "toStrictEqual" actual e0))))
         ((string= name "toBeTruthy") (chk (eng:js-truthy actual)))
@@ -468,7 +644,7 @@ on the wrong outcome (honouring NEGATED). Returns undefined on success."
 
 ;;; --- building the matcher object --------------------------------------------
 
-(defun %make-matcher (actual negated)
+(defun %make-matcher (actual negated ctx)
   (let ((o (eng:new-object)))
     (dolist (nm *matcher-names*)
       (let ((name nm))
@@ -476,12 +652,29 @@ on the wrong outcome (honouring NEGATED). Returns undefined on success."
           (lambda (this args) (declare (ignore this))
             (incf *test-assertions*)
             (%apply-matcher name actual negated args)))))
-    (eng:install-getter o "not" (lambda (this args) (declare (ignore this args)) (%make-matcher actual (not negated))))
-    (eng:install-getter o "resolves" (lambda (this args) (declare (ignore this args)) (%make-async-matcher actual negated nil)))
-    (eng:install-getter o "rejects" (lambda (this args) (declare (ignore this args)) (%make-async-matcher actual negated t)))
+    (maphash
+     (lambda (name function)
+       (eng:install-method o name 3
+         (lambda (this args)
+           (declare (ignore this))
+           (incf *test-assertions*)
+           (%apply-custom-matcher name function actual negated args))))
+     (ctx-custom-matchers ctx))
+    (eng:install-getter o "not"
+      (lambda (this args)
+        (declare (ignore this args))
+        (%make-matcher actual (not negated) ctx)))
+    (eng:install-getter o "resolves"
+      (lambda (this args)
+        (declare (ignore this args))
+        (%make-async-matcher actual negated nil ctx)))
+    (eng:install-getter o "rejects"
+      (lambda (this args)
+        (declare (ignore this args))
+        (%make-async-matcher actual negated t ctx)))
     o))
 
-(defun %make-async-matcher (actual negated reject-p)
+(defun %make-async-matcher (actual negated reject-p ctx)
   "expect(promise).resolves|rejects.MATCHER(...) -> a Promise (actual.then(...)) that
 applies MATCHER to the fulfilled value (resolves) or rejection reason (rejects)."
   (let ((o (eng:new-object)))
@@ -511,48 +704,175 @@ applies MATCHER to the fulfilled value (resolves) or rejection reason (rejects).
                     (list (%fn "" 1 (lambda (th a) (declare (ignore th)) (funcall on-value (eng:arg a 0))))
                           (%fn "" 1 (lambda (th a) (declare (ignore th a))
                                       (%fail "expect(received).resolves.~a() — promise rejected" name)))))))))))
+    (maphash
+     (lambda (name function)
+       (eng:install-method o name 3
+         (lambda (this args)
+           (declare (ignore this))
+           (incf *test-assertions*)
+           (let ((then (and (eng:js-object-p actual) (eng:js-get actual "then"))))
+             (unless (eng:callable-p then)
+               (%fail "expect(received).~:[resolves~;rejects~] — received is not a Promise"
+                      reject-p))
+             (eng:js-call
+              then actual
+              (if reject-p
+                  (list
+                   (%fn "" 1
+                     (lambda (th values)
+                       (declare (ignore th values))
+                       (%fail "expect(received).rejects.~a() — promise resolved" name)))
+                   (%fn "" 1
+                     (lambda (th values)
+                       (declare (ignore th))
+                       (%apply-custom-matcher name function (eng:arg values 0)
+                                              negated args "rejects"))))
+                  (list
+                   (%fn "" 1
+                     (lambda (th values)
+                       (declare (ignore th))
+                       (%apply-custom-matcher name function (eng:arg values 0)
+                                              negated args "resolves")))
+                   (%fn "" 1
+                     (lambda (th values)
+                       (declare (ignore th values))
+                       (%fail "expect(received).resolves.~a() — promise rejected" name))))))))))
+     (ctx-custom-matchers ctx))
     o))
 
-(defun %install-asymmetric-family (target negated &key include-any)
-  (when include-any
-    (eng:install-method target "any" 1
-      (lambda (this args) (declare (ignore this))
-        (%asymmetric-any (eng:arg args 0) negated)))
-    (eng:install-method target "anything" 0
-      (lambda (this args) (declare (ignore this args))
-        (%asymmetric-anything negated))))
-  (eng:install-method target "arrayContaining" 1
-    (lambda (this args) (declare (ignore this))
-      (%asymmetric-array-containing (eng:arg args 0) negated)))
-  (eng:install-method target "objectContaining" 1
-    (lambda (this args) (declare (ignore this))
-      (%asymmetric-object-containing (eng:arg args 0) negated)))
-  (eng:install-method target "stringContaining" 1
-    (lambda (this args) (declare (ignore this))
-      (%asymmetric-string-containing (eng:arg args 0) negated)))
-  (eng:install-method target "stringMatching" 1
-    (lambda (this args) (declare (ignore this))
-      (%asymmetric-string-matching (eng:arg args 0) negated)))
-  (eng:install-method target "closeTo" 2
-    (lambda (this args) (declare (ignore this))
-      (%asymmetric-close-to (eng:arg args 0) (eng:arg args 1) negated)))
+(defun %settlement-asymmetric (matcher settlement negated)
+  (%make-asymmetric
+   (if (eq settlement :resolve) "ResolvesTo" "RejectsTo") negated
+   (lambda (received)
+     (if (eng:js-promise-p received)
+         (let ((on-match
+                 (%fn "" 1
+                   (lambda (this args)
+                     (declare (ignore this))
+                     (let ((result (%asymmetric-match matcher (eng:arg args 0))))
+                       (if (eng:js-promise-p result)
+                           result
+                           (eng:js-boolean result))))))
+               (on-mismatch
+                 (%fn "" 1
+                   (lambda (this args)
+                     (declare (ignore this args))
+                     eng:+false+))))
+           (eng:js-call
+            (eng:js-get received "then") received
+            (if (eq settlement :resolve)
+                (list on-match on-mismatch)
+                (list on-mismatch on-match))))
+         nil))))
+
+(defun %asymmetric-output (matcher settlement negated)
+  (if settlement
+      (%settlement-asymmetric matcher settlement negated)
+      matcher))
+
+(defun %install-asymmetric-family (target negated &key include-any ctx settlement)
+  (let ((inner-negated (and negated (null settlement))))
+    (labels ((output (matcher) (%asymmetric-output matcher settlement negated)))
+      (when include-any
+        (eng:install-method target "any" 1
+          (lambda (this args) (declare (ignore this))
+            (output (%asymmetric-any (eng:arg args 0) inner-negated))))
+        (eng:install-method target "anything" 0
+          (lambda (this args) (declare (ignore this args))
+            (output (%asymmetric-anything inner-negated)))))
+      (eng:install-method target "arrayContaining" 1
+        (lambda (this args) (declare (ignore this))
+          (output (%asymmetric-array-containing (eng:arg args 0) inner-negated))))
+      (eng:install-method target "objectContaining" 1
+        (lambda (this args) (declare (ignore this))
+          (output (%asymmetric-object-containing (eng:arg args 0) inner-negated))))
+      (eng:install-method target "stringContaining" 1
+        (lambda (this args) (declare (ignore this))
+          (output (%asymmetric-string-containing (eng:arg args 0) inner-negated))))
+      (eng:install-method target "stringMatching" 1
+        (lambda (this args) (declare (ignore this))
+          (output (%asymmetric-string-matching (eng:arg args 0) inner-negated))))
+      (eng:install-method target "closeTo" 2
+        (lambda (this args) (declare (ignore this))
+          (output (%asymmetric-close-to (eng:arg args 0) (eng:arg args 1)
+                                        inner-negated))))
+      (when ctx
+        (maphash
+         (lambda (name function)
+           (eng:install-method target name 3
+             (lambda (this args)
+               (declare (ignore this))
+               (output (%custom-asymmetric name function args inner-negated negated)))))
+         (ctx-custom-matchers ctx)))
+      target)))
+
+(defun %install-settlement-getters (target negated ctx)
+  (eng:install-getter target "resolvesTo"
+    (lambda (this args)
+      (declare (ignore this args))
+      (%install-asymmetric-family (eng:new-object) negated
+                                  :include-any (not negated) :ctx ctx
+                                  :settlement :resolve)))
+  (eng:install-getter target "rejectsTo"
+    (lambda (this args)
+      (declare (ignore this args))
+      (%install-asymmetric-family (eng:new-object) negated
+                                  :include-any (not negated) :ctx ctx
+                                  :settlement :reject)))
   target)
+
+(defun %custom-value-kind (value)
+  (cond ((eng:js-undefined-p value) "undefined")
+        ((eng:js-null-p value) "null")
+        (t (eng:js-typeof value))))
+
+(defun %install-custom-static (expect ctx name function)
+  (eng:install-method expect name 3
+    (lambda (this args)
+      (declare (ignore this))
+      (%custom-asymmetric name function args nil nil)))
+  (setf (gethash name (ctx-custom-matchers ctx)) function))
+
+(defun %extend-expect (expect ctx definitions)
+  (unless (eng:js-object-p definitions)
+    (eng:throw-type-error "expect.extend expects an object"))
+  (let ((pending '()))
+    (dolist (layer (%custom-definition-layers definitions))
+      (dolist (key (eng:jm-own-property-keys layer))
+        (when (and (stringp key) (not (string= key "constructor")))
+          (let ((function (eng:js-getv layer key)))
+            (unless (eng:callable-p function)
+              (eng:throw-type-error
+               (format nil
+                       "expect.extend: `~a` is not a valid matcher. Must be a function, is ~s"
+                       key (%custom-value-kind function))))
+            (push (cons key function) pending)))))
+    (dolist (entry (nreverse pending))
+      (%install-custom-static expect ctx (car entry) (cdr entry))))
+  eng:+undefined+)
 
 (defun install-expect (realm ctx)
   (let ((eng:*realm* realm) (g (eng:realm-global realm)))
     (let ((expect (eng:make-native-function "expect" 1
                     (lambda (this args) (declare (ignore this))
                       (incf (ctx-expect-calls ctx))
-                      (%make-matcher (eng:arg args 0) nil)))))
+                      (%make-matcher (eng:arg args 0) nil ctx)))))
       (eng:install-method expect "assertions" 1
         (lambda (this args) (declare (ignore this))
           (setf *expected-assertions* (truncate (%num (eng:arg args 0)))) eng:+undefined+))
       (eng:install-method expect "hasAssertions" 0
         (lambda (this args) (declare (ignore this args))
           (setf *has-assertions* t) eng:+undefined+))
-      (%install-asymmetric-family expect nil :include-any t)
+      (eng:install-method expect "extend" 1
+        (lambda (this args)
+          (declare (ignore this))
+          (%extend-expect expect ctx (eng:arg args 0))))
+      (%install-asymmetric-family expect nil :include-any t :ctx ctx)
+      (%install-settlement-getters expect nil ctx)
       (eng:install-getter expect "not"
         (lambda (this args)
           (declare (ignore this args))
-          (%install-asymmetric-family (eng:new-object) t)))
+          (let ((namespace
+                  (%install-asymmetric-family (eng:new-object) t :ctx ctx)))
+            (%install-settlement-getters namespace t ctx))))
       (eng:hidden-prop g "expect" expect))))
