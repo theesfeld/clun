@@ -113,7 +113,7 @@ but Phase 37 and Issue #11 remain in progress and make no full language-parity c
 Phase 50 stages `0.1.0-dev.17` / `v0.1.0-dev.17` under Issue #24 (router PR #85) and is published on
 master. Phase 65 stages `0.1.0-dev.18` / `v0.1.0-dev.18` under Issue #39 (shell PR #86; published).
 Phase 66 stages `0.1.0-dev.19` / `v0.1.0-dev.19` under Issue #40 (test-runner PR #88 on master).
-Phase 28 stages `0.1.0-dev.20`/`0.1.0-dev.22` under Issue #2 (transport draft). Phase 37 milestone 2
+Phase 28 stages `0.1.0-dev.20`/`0.1.0-dev.22` under Issue #2 (transport PR #95, on master). Phase 37 milestone 2
 stages `0.1.0-dev.21` / `v0.1.0-dev.21` under Issue #11 (PR #96, on master). Phase 37 milestone 3
 stages `0.1.0-dev.23` / `v0.1.0-dev.23` under Issue #11 (set-methods residual conversion).
 Version-transition allows multi-step prerelease advances only while every skipped intermediate

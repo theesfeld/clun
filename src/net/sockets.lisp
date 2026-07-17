@@ -104,9 +104,29 @@
                 ((zerop n) (%finish-close tcp nil) (return))   ; orderly EOF (peer closed)
                 (t (when (tcp-on-data tcp)
                      (funcall (tcp-on-data tcp) tcp (subseq buf 0 n)))
-                   (unless (eq (tcp-state tcp) :open) (return))))))
+                   ;; ON-DATA may apply inbound backpressure. Stop this readiness
+                   ;; drain immediately so one hot fd cannot outrun its consumer.
+                   (unless (and (eq (tcp-state tcp) :open)
+                                (tcp-reading tcp))
+                     (return))))))
         (sb-bsd-sockets:interrupted-error ())    ; EINTR — try again next readiness
         (sb-bsd-sockets:socket-error (e) (%fail tcp e))))))
+
+(defun tcp-pause (tcp)
+  "Stop delivering inbound bytes until TCP-RESUME. Idempotent and loop-affine."
+  (lp:run-on-loop (tcp-loop tcp)
+    (lambda ()
+      (when (eq (tcp-state tcp) :open)
+        (%stop-reading tcp))))
+  (values))
+
+(defun tcp-resume (tcp)
+  "Resume inbound delivery after TCP-PAUSE. Idempotent and loop-affine."
+  (lp:run-on-loop (tcp-loop tcp)
+    (lambda ()
+      (when (eq (tcp-state tcp) :open)
+        (%start-reading tcp))))
+  (values))
 
 ;;; --- writing (queue + backpressure) -----------------------------------------
 
@@ -365,6 +385,130 @@ called from an async function body, i.e. a coroutine thread — see LP:RUN-ON-LO
       (error (e)
         (%finish-close tcp nil :notify nil)
         (error e)))))
+
+(defparameter *happy-eyeballs-delay-ms* 250
+  "Delay before starting the next address-family candidate. This is the RFC 8305
+recommended connection-attempt delay and is deliberately configurable for hermetic tests.")
+
+(defun tcp-connect-happy (loop addresses port
+                          &key on-connect on-data on-close on-error
+                               (delay-ms *happy-eyeballs-delay-ms*))
+  "Race pre-resolved DNS ADDRESSES without serially penalising the second family.
+
+ADDRESSES is the interleaved result of RESOLVE-HOSTNAME-ALL. The first candidate starts
+immediately; each remaining candidate starts after DELAY-MS, or immediately after every
+currently-started attempt has failed. The first successful TCP handle wins and all losers
+are closed. Returns an idempotent cancellation thunk. User callbacks only observe the
+winner, except ON-ERROR which fires once if every candidate fails."
+  (let* ((candidates (coerce addresses 'vector))
+         (count (length candidates))
+         (attempts '())
+         (next-index 0)
+         (started 0)
+         (failed 0)
+         (last-code "ENOTFOUND")
+         (winner nil)
+         (cancelled nil)
+         (settled nil)
+         (stagger-timer nil))
+    (labels ((clear-stagger ()
+               (when stagger-timer
+                 (lp:clear-timer stagger-timer)
+                 (setf stagger-timer nil)))
+             (close-losers ()
+               (dolist (attempt attempts)
+                 (unless (eq attempt winner)
+                   (tcp-close attempt))))
+             (fail-once ()
+               (unless (or settled cancelled winner)
+                 (setf settled t)
+                 (clear-stagger)
+                 (when on-error (funcall on-error nil last-code))))
+             (schedule-next ()
+               (when (and (not settled) (not cancelled) (not winner)
+                          (< next-index count) (null stagger-timer))
+                 (setf stagger-timer
+                       (lp:set-timer loop delay-ms
+                         (lambda ()
+                           (setf stagger-timer nil)
+                           (start-next))))))
+             (attempt-failed (tcp code)
+               (declare (ignore tcp))
+               (unless (or settled cancelled winner)
+                 (incf failed)
+                 (when code (setf last-code code))
+                 (cond
+                   ;; Do not wait out the family delay if every live attempt failed.
+                   ((and (= failed started) (< next-index count))
+                    (clear-stagger)
+                    (start-next))
+                   ((and (= failed started) (= next-index count))
+                    (fail-once)))))
+             (candidate-data (tcp data)
+               (when (and (eq tcp winner) on-data)
+                 (funcall on-data tcp data)))
+             (candidate-close (tcp code)
+               (cond
+                 ((eq tcp winner)
+                  (when on-close (funcall on-close tcp code)))
+                 ;; A candidate can close cleanly during its connect transition without
+                 ;; first publishing ON-ERROR. Count that as a failed attempt.
+                 ((and (null code) (not winner) (not cancelled) (not settled))
+                  (attempt-failed tcp (or code "ECONNRESET")))))
+             (candidate-connected (tcp)
+               (if (or settled cancelled winner)
+                   (tcp-close tcp)
+                   (progn
+                     (setf winner tcp settled t)
+                     (clear-stagger)
+                     (close-losers)
+                     (when on-connect (funcall on-connect tcp)))))
+             (start-next ()
+               (when (and (not settled) (not cancelled) (not winner)
+                          (< next-index count))
+                 (let* ((address (aref candidates next-index))
+                        (host (dns-address-text address))
+                        (ipv6 (dns-address-ipv6-p address))
+                        (failed-p nil)
+                        (tcp nil))
+                   (incf next-index)
+                   (incf started)
+                   (handler-case
+                       (setf tcp
+                             (tcp-connect loop host port :ipv6 ipv6
+                               :on-connect #'candidate-connected
+                               :on-data #'candidate-data
+                               :on-close #'candidate-close
+                               :on-error
+                               (lambda (handle code)
+                                 (unless failed-p
+                                   (setf failed-p t)
+                                   (attempt-failed handle code)))))
+                     (error (condition)
+                       (setf failed-p t
+                             last-code (if (typep condition 'socket-open-error)
+                                           (socket-open-error-code condition)
+                                           "EIO"))
+                       (incf failed)))
+                   (when tcp (push tcp attempts))
+                   (cond
+                     ((and (= failed started) (< next-index count)) (start-next))
+                     ((and (= failed started) (= next-index count)) (fail-once))
+                     (t (schedule-next)))))))
+      (if (zerop count)
+          (fail-once)
+          (lp:run-on-loop loop #'start-next))
+      (lambda ()
+        ;; AbortSignal listeners and coroutine callers are not guaranteed to run on
+        ;; the reactor thread. Keep the race state, timer heap, and handle teardown
+        ;; confined to the same loop that owns the candidate sockets.
+        (lp:run-on-loop
+         loop
+         (lambda ()
+           (unless cancelled
+             (setf cancelled t settled t)
+             (clear-stagger)
+             (dolist (attempt attempts) (tcp-close attempt)))))))))
 
 (defun %on-connect-writable (tcp)
   "Writable after EINPROGRESS: peername succeeds → connected; else surface the real error."

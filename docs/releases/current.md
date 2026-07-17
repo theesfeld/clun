@@ -20,10 +20,10 @@ The canonical evidence and current limitations are in `compat/`; `make compat-va
   Set-like `GetSetRecord` arguments.
 - Converts 151 frozen `set-methods` Test262 failures; pass-list reclassification
   is not claimed on this candidate. No compatibility-table `Yes` is claimed.
-- Slot map after published shell (`v0.1.0-dev.18`) and master tip
-  (`0.1.0-dev.21` m2): transport holds unpublished `0.1.0-dev.22`; this candidate
-  allocates `0.1.0-dev.23` under the unpublished-intermediate prerelease gap
-  policy (transition `0.1.0-dev.21` → `0.1.0-dev.23`).
+- Slot map: published shell boundary `v0.1.0-dev.18`; master tip `0.1.0-dev.22`
+  after Phase 28 transport foundation (#95); this candidate allocates
+  `0.1.0-dev.23` under the unpublished-intermediate prerelease gap policy
+  (transition `0.1.0-dev.22` → `0.1.0-dev.23`).
 
 The release candidate stages honest engine residual work without promoting any matrix row to `Yes`.
 Merge, publication, and Phase 37 closure remain blocked on remaining inventory residuals, pass-list
