@@ -32,8 +32,10 @@ their contents cannot create operators, substitutions, redirects, globs, or extr
   are applied to the open descriptor so a replacement race cannot redirect file contents or chmod.
 - Evaluate the active non-todo conditional-expression subgroup internally: nonempty/empty strings, regular
   files, directories, character devices, and string equality/inequality. The same bounded evaluator handles
-  symlinks, file identity, and strict integer comparisons. Conditional expansion preserves an unquoted empty
-  variable as an empty operand.
+  symlinks, file identity, strict integer comparisons, lexical ordering, repeated negation, `&&`/`||`
+  precedence, and parenthesized grouping. Conditional expansion preserves an unquoted empty variable as an
+  empty operand. Compound expressions are parsed and short-circuited internally rather than being mistaken
+  for outer script operators.
 - Resolve external programs against the job's `PATH`, require executable permission, and use
   `sb-ext:run-program` directly. The implementation does not invoke `sh`, `bash`, or another command parser.
 - Spawn every command in an external-only pipeline before waiting. Intermediate streams are connected while
@@ -66,7 +68,9 @@ fixture independently drains 1 MiB from that internal producer to prove behavior
 It also freezes active `pipeline_stack.test.ts` behavior for last-command status, `exit`, cwd and environment
 isolation, immediate `yes` sinks, and a 20-stage builtin pipeline.
 The conditional fixture freezes the active `shell-seq-condexpr.test.ts` empty-path regressions and the
-non-todo `bunshell.test.ts` unary/string cases, including both conditional pipeline positions.
+non-todo `bunshell.test.ts` unary/string cases, including both conditional pipeline positions. It additionally
+freezes the pinned GNU-bash-derived compound-expression cases for repeated negation, short-circuit operators,
+operator precedence, compact/spaced grouping, and lexical string ordering.
 `tests/lisp/runtime/shell-tests.lisp` separately
 owns parser and built-in behavior without an external process dependency.
 

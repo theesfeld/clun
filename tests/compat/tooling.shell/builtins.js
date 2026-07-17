@@ -160,6 +160,22 @@ check(Clun.$`basename`, 1, "", "usage: basename string\n", "basename usage")
   ))
   .then(() => check(Clun.$`[[ alpha == alpha ]] && echo equal`, 0, "equal\n", "", "conditional equality"))
   .then(() => check(Clun.$`[[ alpha != beta ]] && echo different`, 0, "different\n", "", "conditional inequality"))
+  .then(() => check(
+    Clun.$`[[ ! alpha || alpha ]] && echo negation`,
+    0,
+    "negation\n",
+    "",
+    "conditional negation and logical or",
+  ))
+  .then(() => check(
+    Clun.$`[[ ( -z missing || -n value ) && ! -z value ]] && echo grouped`,
+    0,
+    "grouped\n",
+    "",
+    "conditional grouping and precedence",
+  ))
+  .then(() => check(Clun.$`[[ (-n value) ]] && echo compact`, 0, "compact\n", "", "compact conditional grouping"))
+  .then(() => check(Clun.$`[[ alpha > aardvark && alpha < beta ]] && echo ordered`, 0, "ordered\n", "", "conditional lexical ordering"))
   .then(() => check(Clun.$`[[ -n test ]] | true && echo ok`, 0, "ok\n", "", "conditional producer pipeline"))
   .then(() => check(Clun.$`true | [[ -n test ]] && echo ok`, 0, "ok\n", "", "conditional consumer pipeline"))
   .then(() => {

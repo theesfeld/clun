@@ -212,8 +212,16 @@
              (is = 0 (exit-code "-z" ""))
              (is = 0 (exit-code "alpha" "==" "alpha"))
              (is = 0 (exit-code "alpha" "!=" "beta"))
+             (is = 0 (exit-code "alpha" ">" "aardvark"))
+             (is = 0 (exit-code "alpha" "<" "beta"))
              (is = 0 (exit-code "7" "-gt" "4"))
-             (is = 0 (exit-code "file" "-ef" "file")))
+             (is = 0 (exit-code "file" "-ef" "file"))
+             (is = 0 (exit-code "!" "x" "||" "x"))
+             (is = 1 (exit-code "!" "!" "!" "1" "-eq" "1"))
+             (is = 0 (exit-code "!" "!" "!" "!" "1" "-eq" "1"))
+             (is = 0 (exit-code "" "&&" "x" "||" "y"))
+             (is = 0 (exit-code "x" "||" "" "&&" ""))
+             (is = 1 (exit-code "(" "x" "||" "" ")" "&&" "")))
         (ignore-errors (sys:remove-recursive directory))))))
 
 (define-test shell/conditional-expansion-preserves-empty-operands
@@ -225,6 +233,15 @@
   (multiple-value-bind (output exit-code)
       (shell-test-output "true | [[ -n test ]] && echo ok")
     (is equal (format nil "ok~%") output)
+    (is = 0 exit-code))
+  (multiple-value-bind (output exit-code)
+      (shell-test-output
+       "[[ ( -z missing || -n value ) && ! -z value ]] && echo grouped")
+    (is equal (format nil "grouped~%") output)
+    (is = 0 exit-code))
+  (multiple-value-bind (output exit-code)
+      (shell-test-output "[[ (-n value) ]] && echo compact")
+    (is equal (format nil "compact~%") output)
     (is = 0 exit-code)))
 
 (define-test shell/lines-preserve-string-split-boundaries
