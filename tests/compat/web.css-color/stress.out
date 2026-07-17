@@ -1,0 +1,5 @@
+repeat 20000 4b35601c
+bounded-rejections 6 6
+alpha-f32 256 3bf8864d
+projection-roundtrips 350
+ansi-shapes 4096

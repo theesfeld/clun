@@ -708,7 +708,10 @@
                        (%unit-clamp (%component (color-alpha color)))))))))))
 
 (defun %byte-channel (component)
-  (floor (+ (* 255d0 (%unit-clamp component)) 0.5d0)))
+  ;; Bun's byte bridge rounds after f32 scaling. This matters at exact half
+  ;; boundaries retained in a non-sRGB space, such as HWB with alpha `none`.
+  (let ((scaled (* 255f0 (coerce (%unit-clamp component) 'single-float))))
+    (floor (+ scaled 0.5f0))))
 
 (defun color->rgba-bytes (color)
   (multiple-value-bind (r g b alpha) (color->srgb color)
@@ -761,13 +764,20 @@
 
 ;;; Formatting and terminal palettes -----------------------------------------
 
-(defun format-color-number (number &optional (digits 7))
-  "Format the shortest decimal that round-trips as the same double float."
-  (declare (ignore digits))
+(defun format-color-number (number &optional single-precision-p)
+  "Format a finite decimal at double precision or the bridge's f32 boundary."
   (unless (%finitep number) (%invalid))
   (when (zerop number) (return-from format-color-number "0"))
-  (let* ((raw (%ascii-lower (write-to-string (coerce number 'double-float))))
-         (marker (position #\d raw))
+  (let* ((value (coerce number (if single-precision-p 'single-float 'double-float)))
+         ;; Rust's Display for f32 is fixed-point. SBCL's bare ~F produces the
+         ;; same shortest spelling for the byte-derived alpha values exposed by
+         ;; Clun.color, while WRITE-TO-STRING retains compact exponents for the
+         ;; engine's double-precision CSS and projection values.
+         (raw (%ascii-lower (if single-precision-p
+                                (format nil "~f" value)
+                                (write-to-string value))))
+         (marker (and (not single-precision-p)
+                      (position-if (lambda (char) (find char "defsl")) raw)))
          (mantissa (if marker (subseq raw 0 marker) raw))
          (exponent (and marker (subseq raw (1+ marker))))
          (length (length mantissa)))
@@ -780,6 +790,20 @@
 (defun %packed-rgb (r g b) (logior (ash r 16) (ash g 8) b))
 
 (defun %compressible-byte-p (byte) (= (ldb (byte 4 4) byte) (ldb (byte 4 0) byte)))
+
+(defun %format-css-number (number)
+  "Format NUMBER with the CSS printer's compact leading-zero convention."
+  (let ((spelling (format-color-number number)))
+    (cond ((and (> (length spelling) 1)
+                (char= (char spelling 0) #\0)
+                (char= (char spelling 1) #\.))
+           (subseq spelling 1))
+          ((and (> (length spelling) 2)
+                (char= (char spelling 0) #\-)
+                (char= (char spelling 1) #\0)
+                (char= (char spelling 2) #\.))
+           (concatenate 'string "-" (subseq spelling 2)))
+          (t spelling))))
 
 (defun format-css-color (color)
   (case (color-space color)
@@ -805,14 +829,14 @@
             (alpha (color-alpha color)))
        (format nil "~a(~a~a ~a ~a~a)" name
                (if (eq l :none) "none"
-                   (format-color-number
+                   (%format-css-number
                     (if (member (color-space color) '(:oklab :oklch)) (* l 100d0) l)))
                (if (eq l :none) "" "%")
-               (if (eq a :none) "none" (format-color-number a))
-               (if (eq b :none) "none" (format-color-number b))
+               (if (eq a :none) "none" (%format-css-number a))
+               (if (eq b :none) "none" (%format-css-number b))
                (if (and (not (eq alpha :none)) (< (abs (- alpha 1d0)) +epsilon+)) ""
                    (format nil " / ~a" (if (eq alpha :none) "none"
-                                           (format-color-number alpha)))))))
+                                           (%format-css-number alpha)))))))
     (otherwise
      (let ((name (case (color-space color)
                    (:srgb-float "srgb") (:srgb-linear "srgb-linear")
@@ -821,15 +845,15 @@
                    (:rec2020 "rec2020") (:xyz-d50 "xyz-d50") (:xyz-d65 "xyz")
                    (otherwise (string-downcase (symbol-name (color-space color)))))))
        (format nil "color(~a ~a ~a ~a~a)" name
-               (if (eq (color-c1 color) :none) "none" (format-color-number (color-c1 color)))
-               (if (eq (color-c2 color) :none) "none" (format-color-number (color-c2 color)))
-               (if (eq (color-c3 color) :none) "none" (format-color-number (color-c3 color)))
+               (if (eq (color-c1 color) :none) "none" (%format-css-number (color-c1 color)))
+               (if (eq (color-c2 color) :none) "none" (%format-css-number (color-c2 color)))
+               (if (eq (color-c3 color) :none) "none" (%format-css-number (color-c3 color)))
                (if (and (not (eq (color-alpha color) :none))
                         (< (abs (- (color-alpha color) 1d0)) +epsilon+))
                    ""
                    (format nil " / ~a"
                            (if (eq (color-alpha color) :none) "none"
-                               (format-color-number (color-alpha color))))))))))
+                               (%format-css-number (color-alpha color))))))))))
 
 (defun %ansi6 (value)
   (cond ((< value 48) 0) ((< value 114) 1) (t (floor (- value 35) 40))))

@@ -1,0 +1,16 @@
+case_id	input	format	bun_1_3_14	clun_contract	disposition
+alpha-string-68	#1234	rgba	rgba(17, 34, 51, 0.26666668)	rgba(17, 34, 51, 0.26666668)	matched pinned f32 alpha spelling
+alpha-object-68	#1234	{rgba}	0.2666666805744171	0.2666666805744171	matched pinned f32-to-f64 object value
+ansi16-black	black	ansi-16	ESC[38;5;NULm	ESC[30m	pinned engineering correction emits valid 16-color SGR
+number-opaque-red	16711680	[rgba]	[255,0,0,0]	[255,0,0,255]	pinned engineering correction treats 24-bit numeric input as opaque
+p3-red	color(display-p3 1 0 0)	hex	color(display-p3 1 0 0)	#ff0000	pinned engineering conversion supports byte-oriented output
+xyz-d50-white	color(xyz-d50 .96422 1 .82521)	hex	color(xyz-d50 .96422 1 .82521)	#ffffff	pinned engineering conversion supports byte-oriented output
+oklch-red	oklch(62.8% .258 29.23deg)	hex	#ff0000	#ff0000	matched corrected engineering gamut boundary
+oklab-blue	oklab(45.2% -.032 -.312)	hex	#002cea	#0200ff	pinned engineering gamut correction
+lab-blue	lab(29.5683% 68.2874 -112.0297)	hex	#002cea	#0000ff	pinned engineering gamut correction
+legacy-rgb-alpha	rgb(1,2,3,.5)	[rgba]	[1,2,3,128]	[1,2,3,128]	matched pinned parser behavior
+compact-wide-css	color(display-p3 .1 .2 .3 / .4)	css	color(display-p3 .1 .2 .3 / .4)	color(display-p3 .1 .2 .3 / .4)	matched pinned CSS numeric serialization
+strict-function-space	rgb (255 0 0)	css	red	null	CSS grammar correctness improvement rejects whitespace before function parenthesis
+missing-hsl	hsl(120 none 50%)	hsl	hsl(120, nan, 0.5)	hsl(120, 0%, 50%)	pinned engineering correction resolves missing components and percentage units
+hsl-double-projection	rgb(1 2 3)	hsl	hsl(210, 0.49999994, 0.007843138)	hsl(210, 50.00000000000018%, 0.7843137254901961%)	pinned engineering percentage units plus deliberate double-precision accuracy improvement
+lab-double-projection	red	lab	lab(0.54290545, 80.80492, 69.89099)	lab(54.29054294696968% 80.80492033462421 69.89098825896272)	pinned engineering percentage units plus deliberate double-precision accuracy improvement

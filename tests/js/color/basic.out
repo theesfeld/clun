@@ -2,7 +2,8 @@ api color 2 function
 descriptor true true false
 formats red #ff0000 #FF0000 rgb(255, 0, 0) rgba(255, 0, 0, 1) 16711680
 arrays [17,34,51] [17,34,51,68]
-objects {"r":17,"g":34,"b":51} {"r":17,"g":34,"b":51,"a":0.26666666666666666}
+objects {"r":17,"g":34,"b":51} {"r":17,"g":34,"b":51,"a":0.2666666805744171}
+rgba-alpha rgba(0, 0, 0, 0.06666667) rgba(17, 34, 51, 0.26666668) rgba(18, 52, 86, 0.47058824) rgba(0, 0, 0, 0.101960786) rgba(0, 0, 0, 0.5019608)
 aliases true true true
 ansi "\u001b[30m" "\u001b[38;5;196m" "\u001b[38;2;255;0;0m"
 input [1,2,3,4] [1,2,3,127] [255,0,0,255] [255,0,0,128]
@@ -12,6 +13,7 @@ wide #a16945 #976c67 #a14203 #ff0000 #ffffff
 color-css color(srgb 1 0 0 / none) color(xyz 1 1 1)
 engineering #ff0000 #0200ff #0000ff hsl(120, 0%, 50%) lab(50% 0 30)
 normalization true true hsl(0, 100%, 0.19607843137254902%) #003231 #f20016
+precision-projections hsl(210, 50.00000000000018%, 0.7843137254901961%) lab(0.5039680125201933% -0.16776924180969544 -0.47766125028304574) lab(54.29054294696968% 80.80492033462421 69.89098825896272)
 none #0000 color(display-p3 none 0 0 / none)
 invalid true true true true true true true
 bounds true true true true

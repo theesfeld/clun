@@ -123,12 +123,15 @@
         (:hex-upper (string-upcase (format nil "#~2,'0x~2,'0x~2,'0x" r g b)))
         (:rgb (format nil "rgb(~d, ~d, ~d)" r g b))
         (:rgba (format nil "rgba(~d, ~d, ~d, ~a)" r g b
-                       (clun.color:format-color-number (/ alpha-byte 255d0) 8)))
+                       (clun.color:format-color-number (/ alpha-byte 255d0) t)))
         (:rgb-array (eng:new-array (mapcar (lambda (n) (coerce n 'double-float)) (list r g b))))
         (:rgba-array (eng:new-array (mapcar (lambda (n) (coerce n 'double-float))
                                             (list r g b alpha-byte))))
         (:rgb-object (%color-object r g b))
-        (:rgba-object (%color-object r g b (/ (coerce alpha-byte 'double-float) 255d0) t))
+        (:rgba-object
+         (%color-object r g b
+                        (coerce (/ (coerce alpha-byte 'single-float) 255f0) 'double-float)
+                        t))
         (:ansi-16m (format nil "~c[38;2;~d;~d;~dm" #\Esc r g b))
         (:ansi-256 (format nil "~c[38;5;~dm" #\Esc (clun.color:ansi256-index r g b)))
         (:ansi-16
