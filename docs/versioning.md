@@ -44,6 +44,7 @@ resource does not exist with a 404 response:
 0.1.0-dev.10
 0.1.0-dev.11
 0.1.0-dev.12
+0.1.0-dev.13
 ```
 
 Phase 25b is the compatibility program for the planned `0.1.0` release. Its first behavioral
@@ -78,6 +79,10 @@ geometric CookieMap allocation growth on both arm64 builders. No dev.11 GitHub r
 published, and the tag is immutable. The production pre-sizing correction is therefore combined with
 Phase 30's backward-compatible `Clun.Glob` API in `0.1.0-dev.12` / `v0.1.0-dev.12`, with ASDF core
 `0.1.0`. Issues #6 and #4 jointly own the release evidence; issue #4 is the active publication record.
+Phase 34 adds the sixth public compatibility-ledger `Yes`, the backward-compatible `Clun.color` parsing,
+conversion, CSS, packed, object, tuple, hex, and ANSI output surface. It targets immutable prerelease
+`0.1.0-dev.13` / `v0.1.0-dev.13`, with ASDF core `0.1.0`, after dev.12 publication is verified. Issue #8
+owns its release evidence and exact four-target receipts.
 
 ## Canonical record
 

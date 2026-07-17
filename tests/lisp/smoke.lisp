@@ -8,5 +8,5 @@
   (false (null '(t))))
 
 (define-test version-loaded
-  (is string= "0.1.0-dev.12" clun::*clun-version*)
+  (is string= "0.1.0-dev.13" clun::*clun-version*)
   (true (fboundp 'clun:main)))
