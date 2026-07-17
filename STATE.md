@@ -19,8 +19,8 @@ cannot access macOS Keychain, libsecret, or Windows Credential Manager without C
 `ERR_SECRETS_NOT_AVAILABLE`. Ledger row `security.encrypted-secrets` stays **No** (not Yes/Partial).
 **SemVer impact:** `minor`
 **Candidate release:** `0.1.0-dev.26` / `v0.1.0-dev.26`
-**Published release:** `0.1.0-dev.18` / `v0.1.0-dev.18`
-**Entry boundary:** immutable `v0.1.0-dev.18` is tagged and published; installer defaults to that tag.
+**Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
+**Entry boundary:** immutable `v0.1.0-dev.21` is tagged and published; installer defaults to that tag.
 Master tip is `0.1.0-dev.22` after transport #95. Parallel trains claim unpublished slots through `0.1.0-dev.25`;
 this unit stages free `0.1.0-dev.26` under the unpublished-intermediate prerelease gap policy. Phase 26 remains after Phase 82.
 **Next scope:** keep `security.encrypted-secrets` at No with tested fail-closed evidence; no purity
@@ -1965,3 +1965,8 @@ Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-earl
   descriptor and string edge cases, JSX coverage mapping, parallelism/concurrency,
   watch hooks, exact 52-root Bun/Clun counts, four-target receipts,
   serial/parallel agreement, and 10k RSS.
+
+## Publication boundary
+
+- Published: `v0.1.0-dev.19` @ `1a523491` (#40); `v0.1.0-dev.21` @ `a8f45013` (#11).
+- Installer / ledger previous_version: `v0.1.0-dev.21` while source candidate is `0.1.0-dev.22`.

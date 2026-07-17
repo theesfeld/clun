@@ -21,7 +21,7 @@ The canonical evidence and current limitations are in `compat/`; `make compat-va
   fail-closed `ERR_SECRETS_NOT_AVAILABLE` for every store operation.
 - Ledger row `security.encrypted-secrets` remains **No** (excluded by the purity contract).
   A pure file vault is explicitly not OS-keychain parity and is not claimed.
-- Slot map: published base `0.1.0-dev.18`; master tip `0.1.0-dev.22` (transport #95); parallel trains claim
+- Slot map: published base `0.1.0-dev.21`; master tip `0.1.0-dev.22` (transport #95); parallel trains claim
   unpublished 23–25; this candidate allocates free `0.1.0-dev.26` under the
   unpublished-intermediate prerelease gap policy (transition `0.1.0-dev.22` → `0.1.0-dev.26`).
 

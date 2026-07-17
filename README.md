@@ -11,7 +11,7 @@ Clun does not claim blanket speed parity with Bun.
 <!-- clun-generated:release:begin -->
 > **Status: pre-alpha, under active construction.** [Phase 58](https://github.com/theesfeld/clun/issues/32) is in progress.
 > Its release-bearing target is `0.1.0-dev.26` / `v0.1.0-dev.26` (SemVer impact: `minor`).
-> The verified release boundary is `v0.1.0-dev.18`, with four native archives, checksums, Pages,
+> The verified release boundary is `v0.1.0-dev.21`, with four native archives, checksums, Pages,
 > and hosted-installer evidence.
 > Phase 26 remains deferred until after Phase 82 and will
 > be rewritten for the repository state that exists then.
@@ -23,10 +23,11 @@ Clun does not claim blanket speed parity with Bun.
 This unit is the Phase 58 OS-secrets constitutional checkpoint (`0.1.0-dev.26`): `Clun.secrets`
 validates Bun-shaped arguments and fails closed with `ERR_SECRETS_NOT_AVAILABLE`. Ledger row
 `security.encrypted-secrets` stays **No** (not Yes/Partial). Published
-[`v0.1.0-dev.18`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.18) remains the verified
-release boundary. Master tip is `0.1.0-dev.22` after transport #95; parallel trains claim unpublished slots `0.1.0-dev.23`–`0.1.0-dev.25` (m3/concurrent/server/spawn/path); this unit takes free `0.1.0-dev.26` under the
-unpublished-intermediate prerelease gap policy. The hosted installer correctly remains on published dev.18 until the candidate is merged,
-tagged, and released.
+[`v0.1.0-dev.21`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.21) remains the verified
+release boundary. Master tip is `0.1.0-dev.22` after transport #95; parallel trains claim unpublished
+slots `0.1.0-dev.23`–`0.1.0-dev.25`; this unit takes free `0.1.0-dev.26` under the
+unpublished-intermediate prerelease gap policy. The hosted installer correctly remains on published
+dev.21 until the candidate is merged, tagged, and released.
 
 ## Install
 
@@ -160,7 +161,7 @@ workflows are read-only and fail closed if the canonical issues, README, or site
 <!-- clun-generated:release-summary:begin -->
 Release versions follow the actual SemVer impact recorded in the canonical issue, not the number of pushes.
 The current source is the `0.1.0-dev.26` release candidate; the immutable tag and assets are not published yet.
-The last published prerelease remains [`v0.1.0-dev.18`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.18).
+The last published prerelease remains [`v0.1.0-dev.21`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.21).
 [The versioning contract](docs/versioning.md) defines prerelease sequencing, synchronized surfaces, immutable tags, assets, and installer evidence.
 [Phase 58 issue #32](https://github.com/theesfeld/clun/issues/32) is the canonical live release record.
 <!-- clun-generated:release-summary:end -->
