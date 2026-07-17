@@ -256,3 +256,16 @@ console preservation, failure-path report creation, metrics, escaping, repeated 
 unsupported options, and unwritable destinations. Built-in reporter/JUnit scope is complete; custom
 Inspector-protocol reporters remain outside this milestone, and the row remains `Partial` for the other
 published blockers.
+
+## Milestone 66.17 - deterministic file sharding
+
+`clun test --shard INDEX/COUNT` and `--shard=INDEX/COUNT` now partition the sorted discovered file list by
+zero-based ordinal modulo `COUNT`, with the public index expressed from one. Selection occurs after all
+path/filter discovery and before seeded file shuffling, so shards are disjoint and exhaustive while every
+individual shard remains reproducible under `--seed`. Strict decimal u32 parsing rejects zero, inverted,
+overflowing, malformed, and multiply-delimited specifications before any test file loads.
+
+Checked shipped-binary evidence freezes the exact membership of three shards over six files, proves their
+union and non-overlap, covers both CLI spellings and argument order with randomization, and exercises the
+invalid matrix. Sharding is therefore no longer a Phase 66 residual. Real parallel workers and their
+serial/parallel agreement gate remain open, so the compatibility row remains `Partial`.

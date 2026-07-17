@@ -1974,8 +1974,11 @@ Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-earl
 - Milestone 66.16 adds the pinned `dot`/`dots`/`--dots` reporter aliases and console-preserving JUnit XML
   output with per-file metrics, per-test assertion counts, failure/skip/todo records, CI/commit properties,
   XML-safe hostile names, deterministic overwrite, atomic writes, and CLI/write-error validation.
+- Milestone 66.17 adds strict `--shard INDEX/COUNT` file partitioning after deterministic discovery and
+  before optional seeded shuffling. The round-robin shards are ordered, disjoint, exhaustive, independent
+  of worker timing, and accept both separated and equals CLI spellings.
 - Ledger stays `Partial`. Remaining Phase 66 scope: Bun-exact snapshot serialization across every supported
   value kind,
   module mocks, fake timers, coverage/source maps, parallelism/concurrency, setup/preload,
-  sharding/watch hooks, exact 52-root Bun/Clun counts, four-target receipts,
+  watch hooks, exact 52-root Bun/Clun counts, four-target receipts,
   serial/parallel agreement, and 10k RSS.

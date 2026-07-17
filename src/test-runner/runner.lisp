@@ -8,7 +8,7 @@
   (positionals '()) (name-pattern nil) (timeout 5000) (retry 0)
   (bail nil) (todo nil) (ci nil) (update-snapshots nil)
   (randomize nil) (seed nil) (reporter :console) (reporter-outfile nil)
-  (error-message nil))
+  (shard-index nil) (shard-count nil) (error-message nil))
 
 (defun %test-seed (value)
   (when (and value (plusp (length value)) (<= (length value) 10)
@@ -26,6 +26,27 @@
            (format nil
                    "unsupported reporter format '~a'. Available options: 'junit', 'dots'"
                    value)))))
+
+(defun %test-positive-u32 (value)
+  (let ((number (%test-seed value)))
+    (and number (plusp number) number)))
+
+(defun %test-shard-spec (value)
+  (when value
+    (let ((slash (position #\/ value)))
+      (when (and slash (plusp slash) (< slash (1- (length value)))
+                 (null (position #\/ value :start (1+ slash))))
+        (let ((index (%test-positive-u32 (subseq value 0 slash)))
+              (count (%test-positive-u32 (subseq value (1+ slash)))))
+          (when (and index count (<= index count))
+            (values index count t)))))))
+
+(defun %set-test-shard (opts value)
+  (multiple-value-bind (index count valid-p) (%test-shard-spec value)
+    (if valid-p
+        (setf (to-shard-index opts) index (to-shard-count opts) count)
+        (setf (to-error-message opts)
+              (format nil "Invalid shard value: ~a (expected INDEX/COUNT)" (or value ""))))))
 
 (defun %parse-test-args (argv)
   "ARGV = the tokens after `clun test`. Returns a test-opts."
@@ -62,6 +83,9 @@
              (if (plusp (length value))
                  (setf (to-reporter-outfile o) value)
                  (setf (to-error-message o) "--reporter-outfile requires a value"))))
+          ((string= tok "--shard") (%set-test-shard o (next)))
+          ((and (>= (length tok) 8) (string= (subseq tok 0 8) "--shard="))
+           (%set-test-shard o (subseq tok 8)))
           ((string= tok "--seed")
            (let* ((value (next)) (seed (%test-seed value)))
              (if seed
@@ -103,6 +127,14 @@
          (octets (babel:string-to-octets basename :encoding :utf-8))
          (hash (clun.hash:wyhash octets)))
     (make-test-prng (%test-u64 (+ hash seed)))))
+
+(defun %select-test-shard (files index count)
+  (if (null index)
+      files
+      (loop for file in files
+            for ordinal from 0
+            when (= (mod ordinal count) (1- index))
+              collect file)))
 
 (defun %ci-active-p (opts)
   (or (to-ci opts)
@@ -188,9 +220,11 @@ process exit code (1 on any failure, on zero tests, or on a 0-match -t filter)."
     (when (and (to-randomize opts) (null (to-seed opts)))
       (setf (to-seed opts) (%fresh-test-seed)))
     (let* ((discovered (discover-files (to-positionals opts) cwd*))
+           (selected (%select-test-shard discovered (to-shard-index opts)
+                                         (to-shard-count opts)))
            (files (if (to-randomize opts)
-                      (%shuffle-test-files discovered (make-test-prng (to-seed opts)))
-                      discovered))
+                      (%shuffle-test-files selected (make-test-prng (to-seed opts)))
+                      selected))
            (stats (make-run-stats))
            (current-file nil)
            (records '())

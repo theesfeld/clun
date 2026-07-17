@@ -3024,3 +3024,11 @@ parse console text and cannot lose file, status, or assertion ownership. XML rep
 timing to preserve Clun's established deterministic-output contract, escape invalid attribute content, and
 commit through a sibling temporary file. JUnit is additive: selecting it never suppresses or reshapes the
 console reporter.
+
+### 2026-07-17 - Phase 66 shards select before randomization
+
+File sharding applies to the canonical sorted discovery result, assigning file ordinal `n` to shard
+`1 + (n mod count)`. Only the selected subset is then passed to seeded Fisher-Yates. This order makes the
+shard union exhaustive and non-overlapping, keeps membership independent of random seeds and future worker
+timing, and still lets operators randomize execution within one shard reproducibly. The CLI uses the
+portable Jest-style one-based `INDEX/COUNT` contract and rejects invalid u32 values before loading code.
