@@ -2745,3 +2745,15 @@ drain. Pipelines containing stateful builtins currently use the bounded sequenti
 explicit Phase 65 residual rather than being mislabeled as complete. The public API addition is a SemVer
 minor unit, but the compatibility row remains below `Yes` until the complete frozen corpus, signal/lifecycle,
 stress, and four-target gates pass.
+
+### 2026-07-16 - Phase 65 composes braces and pathname globbing without promoting substitutions to syntax
+
+Shell word expansion carries two aligned values: the observable argument and a glob pattern in which every
+syntax-bearing character from interpolation, variables, command substitution, or quoted text is escaped.
+Only unquoted literal source can introduce brace or pathname-glob syntax. A brace-and-glob word first emits
+the bounded literal brace variants, then appends matches from the original protected pattern, matching the
+pinned engineering behavior without executing a substitution twice or using a host shell.
+
+This closes the three engineering brace-plus-glob sites, including the interpolated-comma regression, while
+keeping all other corpus IDs pending until executable evidence exists. The shell row remains `Partial`; this
+is a SemVer-minor behavior increment within the already allocated `0.1.0-dev.18` Phase 65 release boundary.

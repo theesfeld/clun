@@ -256,6 +256,42 @@
     (is equal "{\"bubble_up\":null,\"bubble_up_next\":null,\"atoms\":{\"many\":[]}}"
         (clun.runtime::%shell-brace-ast-json group))))
 
+(define-test shell/brace-expansion-composes-with-pathname-globbing
+  (let* ((directory (clun.runtime::%shell-temp-directory))
+         (state (shell-test-state)))
+    (unwind-protect
+         (progn
+           (setf (clun.runtime::shell-state-cwd state) directory)
+           (sys:make-directory (sys:path-join directory "src"))
+           (sys:make-directory (sys:path-join directory "lib"))
+           (dolist (path '("src/app.ts" "src/util.tsx" "lib/b.ts"
+                           "x.ts" "x.,foo" "x.]foo"))
+             (sys:write-file-octets
+              (sys:path-join directory path)
+              (make-array 0 :element-type '(unsigned-byte 8))))
+           (let ((result (clun.runtime::%shell-execute-units
+                          (shell-test-units "echo src/*.{ts,tsx}") state nil)))
+             (is equal
+                 (format nil "src/*.ts src/*.tsx src/app.ts src/util.tsx~%")
+                 (eng:utf8->code-units
+                  (clun.runtime::shell-result-stdout result))))
+           (let ((result (clun.runtime::%shell-execute-units
+                          (shell-test-units "echo {src,lib}/*.ts") state nil)))
+             (is equal
+                 (format nil "src/*.ts lib/*.ts lib/b.ts src/app.ts~%")
+                 (eng:utf8->code-units
+                  (clun.runtime::shell-result-stdout result))))
+           (let* ((units (concatenate
+                          'vector (shell-test-units "echo *.{ts,")
+                          (vector (cons :interp ",foo"))
+                          (shell-test-units "}")))
+                  (result (clun.runtime::%shell-execute-units units state nil))
+                  (output (eng:utf8->code-units
+                           (clun.runtime::shell-result-stdout result))))
+             (is equal (format nil "*.ts *.,foo x.,foo x.ts~%") output)
+             (false (search "x.]foo" output))))
+      (ignore-errors (sys:remove-recursive directory)))))
+
 (define-test shell/conditional-expression-core
   (let* ((directory (clun.runtime::%shell-temp-directory))
          (state (shell-test-state)))

@@ -100,3 +100,6 @@ stable.test_js_bun_shell_commands_which_test_ts.L9.1.test-call	covered	tests/com
 stable.test_js_bun_shell_commands_yes_test_ts.L7.1.test-call	covered	tests/compat/tooling.shell/upstream-low-hanging.js	exact pinned observable behavior executes through the shipped binary
 stable.test_js_bun_shell_commands_yes_test_ts.L13.1.test-call	covered	tests/compat/tooling.shell/upstream-low-hanging.js	exact pinned observable behavior executes through the shipped binary
 stable.test_js_bun_shell_commands_yes_test_ts.L19.1.test-call	covered	tests/compat/tooling.shell/upstream-low-hanging.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_brace_test_ts.L86.1.test-call	covered	tests/compat/tooling.shell/upstream-low-hanging.js	exact pinned brace and glob composition executes through the shipped binary
+engineering.test_js_bun_shell_brace_test_ts.L102.1.test-call	covered	tests/compat/tooling.shell/upstream-low-hanging.js	exact pinned brace and glob composition executes through the shipped binary
+engineering.test_js_bun_shell_brace_test_ts.L113.1.test-call	covered	tests/compat/tooling.shell/upstream-low-hanging.js	exact pinned brace and glob composition executes through the shipped binary
