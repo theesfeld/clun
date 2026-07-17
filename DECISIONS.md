@@ -2935,3 +2935,12 @@ settlement/timeout path; hooks use the same mechanism. When a callback also retu
 for both that Promise and `done()`, while either error rejects. This preserves Bun's async-plus-callback
 ordering, catches a rejection after an early `done()`, and keeps missing callbacks under the ordinary timeout
 classification instead of introducing a second scheduler loop.
+
+### 2026-07-17 - Phase 66 asymmetric matchers use a public object protocol
+
+Loose equality invokes a callable `asymmetricMatch(received)` method instead of recognizing only private
+host tags. The seven built-in factories use that same protocol, so user-authored asymmetric objects already
+compose through nested equality, object subsets, mock histories, property values, and thrown errors. Built-in
+state stays in native Common Lisp closures and each factory validates its sample at construction. Async
+settlement is deliberately not hidden in synchronous equality; `resolvesTo` / `rejectsTo` remain a separate
+scheduler-aware milestone.

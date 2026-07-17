@@ -1942,6 +1942,10 @@ Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-earl
 - Milestone 66.6 adds callback-style tests and hooks, including parameterized callback arity, callback error
   propagation, dual async-Promise plus `done()` completion, post-`done()` rejection, and timeout boundaries.
   Focused fixtures cover 12 tests, 9 passes, 3 deliberate boundary failures, and 6 expectations.
+- Milestone 66.7 adds seven synchronous built-in asymmetric matcher factories and a generic
+  `asymmetricMatch` deep-equality protocol. Focused integration covers 7 tests and 56 expectations across
+  nested equality/subsets, mock calls and returns, thrown errors, symbol/inherited keys, negation, primitive
+  wrappers, factory validation, and close-to boundaries.
 - Ledger stays `Partial`. Remaining Phase 66 scope: snapshots/inline updates, module mocks, fake timers,
-  coverage/source maps, asymmetric/custom matchers, parallelism/concurrency, setup/reporters/JUnit,
+  coverage/source maps, custom/async asymmetric matchers, parallelism/concurrency, setup/reporters/JUnit,
   sharding/randomization/watch hooks, frozen complete upstream manifest, four-target receipts, and 10k RSS.

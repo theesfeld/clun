@@ -30,6 +30,14 @@
 (defun %num (v) (eng:to-number v))
 (defun %nan (v) (or (eng:js-nan-p v) (not (eng:js-number-p v))))
 
+(defun %asymmetric-matcher-p (value)
+  (and (eng:js-object-p value)
+       (eng:callable-p (eng:js-get value "asymmetricMatch"))))
+
+(defun %asymmetric-match (matcher received)
+  (eng:js-truthy
+   (eng:js-call (eng:js-get matcher "asymmetricMatch") matcher (list received))))
+
 (defun %length-of (v)
   "The .length of V as a CL integer (strings by code-unit length, objects/arrays via
 the length property), or NIL when V has no numeric length."
@@ -49,6 +57,8 @@ the length property), or NIL when V has no numeric length."
 (defun %le (a b seen)
   (cond
     ((%svz a b) t)
+    ((%asymmetric-matcher-p b) (%asymmetric-match b a))
+    ((%asymmetric-matcher-p a) (%asymmetric-match a b))
     ((not (and (eng:js-object-p a) (eng:js-object-p b))) nil)
     ((gethash a seen) (eq (gethash a seen) b))
     (t
@@ -85,16 +95,156 @@ the length property), or NIL when V has no numeric length."
 (defun %match-object (actual expected)
   "Recursive subset: every own key of EXPECTED matches (loose) in ACTUAL."
   (and (eng:js-object-p actual) (eng:js-object-p expected)
-       (loop for k in (%own-string-keys expected)
+       (loop for k in (eng:jm-own-property-keys expected)
              for ve = (eng:js-getv expected k) for va = (eng:js-getv actual k)
-             always (cond ((and (eng:js-object-p ve) (eng:js-object-p va)
-                                (not (eng:callable-p ve)))
-                           (if (or (eng:js-array-p ve) (%plain-object-p ve))
-                               (%match-object va ve)
-                               (%le va ve (make-hash-table :test 'eq))))
-                          (t (%le va ve (make-hash-table :test 'eq)))))))
+             always (and (eng:has-property actual k)
+                         (cond ((%asymmetric-matcher-p ve)
+                                (%loose-equal va ve))
+                               ((and (eng:js-object-p ve) (eng:js-object-p va)
+                                     (not (eng:callable-p ve)))
+                                (if (or (eng:js-array-p ve) (%plain-object-p ve))
+                                    (%match-object va ve)
+                                    (%le va ve (make-hash-table :test 'eq))))
+                               (t (%le va ve (make-hash-table :test 'eq))))))))
 
 (defun %plain-object-p (v) (and (eng:js-object-p v) (not (eng:js-array-p v)) (not (eng:callable-p v))))
+
+;;; --- built-in asymmetric matchers ------------------------------------------
+
+(defun %make-asymmetric (label negated predicate)
+  (let ((matcher (eng:new-object)))
+    (eng:install-method matcher "asymmetricMatch" 1
+      (lambda (this args)
+        (declare (ignore this))
+        (eng:js-boolean
+         (let ((matched (funcall predicate (eng:arg args 0))))
+           (if negated (not matched) matched)))))
+    (eng:install-method matcher "toString" 0
+      (lambda (this args) (declare (ignore this args))
+        (if negated (concatenate 'string "Not" label) label)))
+    (eng:install-method matcher "toAsymmetricMatcher" 0
+      (lambda (this args) (declare (ignore this args))
+        (if negated (concatenate 'string "Not" label) label)))
+    matcher))
+
+(defun %global-constructor (name)
+  (eng:js-get (eng:realm-global eng:*realm*) name))
+
+(defun %wrapper-kind-p (value kind)
+  (and (eng:js-object-p value) (eq (eng:js-object-class value) kind)))
+
+(defun %any-match-p (value constructor)
+  (cond
+    ((eq constructor (%global-constructor "String"))
+     (or (eng:js-string-p value) (%wrapper-kind-p value :string)))
+    ((eq constructor (%global-constructor "Number"))
+     (or (eng:js-number-p value) (%wrapper-kind-p value :number)))
+    ((eq constructor (%global-constructor "Function")) (eng:callable-p value))
+    ((eq constructor (%global-constructor "Boolean"))
+     (or (eng:js-boolean-p value) (%wrapper-kind-p value :boolean)))
+    ((eq constructor (%global-constructor "BigInt"))
+     (or (eng:js-bigint-p value) (%wrapper-kind-p value :bigint)))
+    ((eq constructor (%global-constructor "Symbol"))
+     (or (eng:js-symbol-p value) (%wrapper-kind-p value :symbol)))
+    ((eq constructor (%global-constructor "Object"))
+     (string= (eng:js-typeof value) "object"))
+    ((eq constructor (%global-constructor "Array")) (eng:js-array-p value))
+    ((eng:js-object-p value) (eng:js-instanceof value constructor))
+    (t nil)))
+
+(defun %asymmetric-any (constructor negated)
+  (unless (eng:callable-p constructor)
+    (eng:throw-type-error
+     "any() expects to be passed a constructor function. Please pass one or use anything() to match any object."))
+  (%make-asymmetric "Any" negated
+                    (lambda (received) (%any-match-p received constructor))))
+
+(defun %asymmetric-anything (negated)
+  (%make-asymmetric "Anything" negated
+                    (lambda (received) (not (eng:js-nullish-p received)))))
+
+(defun %asymmetric-array-containing (sample negated)
+  (unless (eng:js-array-p sample)
+    (eng:throw-type-error "arrayContaining() expects an array"))
+  (let ((expected (eng:array-like->list sample)))
+    (%make-asymmetric
+     "ArrayContaining" negated
+     (lambda (received)
+       (and (eng:js-array-p received)
+            (let ((actual (eng:array-like->list received)))
+              (every (lambda (wanted)
+                       (some (lambda (value) (%loose-equal value wanted)) actual))
+                     expected)))))))
+
+(defun %object-containing-match-p (received sample)
+  (and (eng:js-object-p received)
+       (loop for key in (eng:jm-own-property-keys sample)
+             always (and (eng:has-property received key)
+                         (%loose-equal (eng:js-getv received key)
+                                       (eng:js-getv sample key))))))
+
+(defun %asymmetric-object-containing (sample negated)
+  (unless (eng:js-object-p sample)
+    (eng:throw-type-error "objectContaining() expects an object"))
+  (%make-asymmetric "ObjectContaining" negated
+                    (lambda (received) (%object-containing-match-p received sample))))
+
+(defun %string-like-p (value)
+  (or (eng:js-string-p value) (%wrapper-kind-p value :string)))
+
+(defun %asymmetric-string-containing (sample negated)
+  (unless (%string-like-p sample)
+    (eng:throw-type-error "stringContaining() expects a string"))
+  (let ((needle (eng:to-string sample)))
+    (%make-asymmetric
+     "StringContaining" negated
+     (lambda (received)
+       (and (eng:js-string-p received)
+            (not (null (search needle (eng:to-string received)))))))))
+
+(defun %regexp-p (value)
+  (and (eng:js-object-p value) (eq (eng:js-object-class value) :regexp)))
+
+(defun %asymmetric-string-matching (sample negated)
+  (unless (or (%string-like-p sample) (%regexp-p sample))
+    (eng:throw-type-error "stringMatching() expects a string or RegExp"))
+  (let ((regexp (if (%regexp-p sample)
+                    sample
+                    (eng:js-construct (%global-constructor "RegExp")
+                                      (list (eng:to-string sample))))))
+    (%make-asymmetric
+     "StringMatching" negated
+     (lambda (received)
+       (and (eng:js-string-p received)
+            (progn
+              (eng:js-set regexp "lastIndex" 0 nil)
+              (eng:js-truthy
+               (eng:js-call (eng:js-get regexp "test") regexp (list received)))))))))
+
+(defun %close-to-match-p (received expected precision)
+  (and (eng:js-number-p received)
+       (cond
+         ((or (eng:js-nan-p received) (eng:js-nan-p expected)) nil)
+         ((or (eng:js-infinite-p received) (eng:js-infinite-p expected))
+          (= received expected))
+         (t (< (abs (- received expected))
+               (/ (expt 10d0 (- precision)) 2))))))
+
+(defun %asymmetric-close-to (sample precision-arg negated)
+  (unless (eng:js-number-p sample)
+    (eng:throw-type-error "closeTo() expects a number"))
+  (unless (or (eng:js-undefined-p precision-arg) (eng:js-number-p precision-arg))
+    (eng:throw-type-error "closeTo() precision expects a number"))
+  (let ((precision (if (eng:js-undefined-p precision-arg)
+                       2
+                       (truncate (eng:to-number precision-arg)))))
+    ;; Bun intentionally treats a non-number receiver as no match for both closeTo
+    ;; and not.closeTo; negation applies only after the receiver type is valid.
+    (%make-asymmetric (if negated "NotCloseTo" "CloseTo") nil
+      (lambda (received)
+        (and (eng:js-number-p received)
+             (let ((matched (%close-to-match-p received sample precision)))
+               (if negated (not matched) matched)))))))
 
 ;;; --- toThrow ---------------------------------------------------------------
 
@@ -111,6 +261,7 @@ the length property), or NIL when V has no numeric length."
 (defun %throw-matches (thrown expected)
   (cond
     ((eng:js-undefined-p expected) t)                       ; any throw
+    ((%asymmetric-matcher-p expected) (%asymmetric-match expected thrown))
     ((eng:js-string-p expected)                             ; substring of message
      (search (eng:to-string expected) (%thrown-message thrown)))
     ((and (eng:js-object-p expected) (eq (eng:js-object-class expected) :regexp))
@@ -362,6 +513,31 @@ applies MATCHER to the fulfilled value (resolves) or rejection reason (rejects).
                                       (%fail "expect(received).resolves.~a() — promise rejected" name)))))))))))
     o))
 
+(defun %install-asymmetric-family (target negated &key include-any)
+  (when include-any
+    (eng:install-method target "any" 1
+      (lambda (this args) (declare (ignore this))
+        (%asymmetric-any (eng:arg args 0) negated)))
+    (eng:install-method target "anything" 0
+      (lambda (this args) (declare (ignore this args))
+        (%asymmetric-anything negated))))
+  (eng:install-method target "arrayContaining" 1
+    (lambda (this args) (declare (ignore this))
+      (%asymmetric-array-containing (eng:arg args 0) negated)))
+  (eng:install-method target "objectContaining" 1
+    (lambda (this args) (declare (ignore this))
+      (%asymmetric-object-containing (eng:arg args 0) negated)))
+  (eng:install-method target "stringContaining" 1
+    (lambda (this args) (declare (ignore this))
+      (%asymmetric-string-containing (eng:arg args 0) negated)))
+  (eng:install-method target "stringMatching" 1
+    (lambda (this args) (declare (ignore this))
+      (%asymmetric-string-matching (eng:arg args 0) negated)))
+  (eng:install-method target "closeTo" 2
+    (lambda (this args) (declare (ignore this))
+      (%asymmetric-close-to (eng:arg args 0) (eng:arg args 1) negated)))
+  target)
+
 (defun install-expect (realm ctx)
   (let ((eng:*realm* realm) (g (eng:realm-global realm)))
     (let ((expect (eng:make-native-function "expect" 1
@@ -374,4 +550,9 @@ applies MATCHER to the fulfilled value (resolves) or rejection reason (rejects).
       (eng:install-method expect "hasAssertions" 0
         (lambda (this args) (declare (ignore this args))
           (setf *has-assertions* t) eng:+undefined+))
+      (%install-asymmetric-family expect nil :include-any t)
+      (eng:install-getter expect "not"
+        (lambda (this args)
+          (declare (ignore this args))
+          (%install-asymmetric-family (eng:new-object) t)))
       (eng:hidden-prop g "expect" expect))))

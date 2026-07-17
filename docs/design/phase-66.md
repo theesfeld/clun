@@ -115,3 +115,20 @@ from becoming a false pass. A missing callback reaches the existing per-test tim
 failure that `test.failing` cannot invert. Focused shipped-binary fixtures cover synchronous and delayed
 callbacks, all hook paths, callback errors, async rejection before and after `done()`, parameterized arity,
 dual completion, and timeout classification.
+
+## Milestone 66.7 - synchronous asymmetric matcher protocol
+
+Deep loose equality recognizes any object with a callable `asymmetricMatch` method on either side of a
+comparison. That protocol composes recursively through arrays, objects, `toMatchObject`, property values,
+contain-equal, mock call/return histories, and thrown-error matching. Built-in factories provide `any`,
+`anything`, `arrayContaining`, `objectContaining`, `stringContaining`, `stringMatching`, and `closeTo`, with
+the documented negated factories on `expect.not`.
+
+Constructor matching distinguishes the realm's real primitive constructors from user functions that merely
+reuse their names, includes primitive wrappers, and preserves Bun's `expect.any(Object)` `typeof` behavior.
+Object subsets require property presence (so missing is distinct from present `undefined`), read inherited
+properties, and include symbol keys. String regular expressions reset state before each match, and close-to
+handles infinities plus Bun's non-number negated boundary. Factory type errors occur at construction.
+
+This milestone is synchronous. `expect.extend` custom matcher registration and Promise-settlement
+`resolvesTo` / `rejectsTo` asymmetric namespaces remain explicit residuals.
