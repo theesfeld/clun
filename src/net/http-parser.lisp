@@ -621,7 +621,8 @@ header, chunk-size, and trailer limits are enforced before retaining later bytes
   (remaining 0 :type (integer 0 *))
   (body-bytes 0 :type (integer 0 *))
   (framing-bytes 0 :type (integer 0 *))
-  (terminal-p nil))
+  (terminal-p nil)
+  (reusable-p t))
 
 (defun make-http-response-stream-parser
     (&key (max-header *max-header-bytes*)
@@ -738,7 +739,8 @@ Returns (values response-head error-pair)."
                (setf (hrs-phase parser) :fixed
                      (hrs-remaining parser) content-length)))
             (t
-             (setf (hrs-phase parser) :until-close)))
+             (setf (hrs-phase parser) :until-close
+                   (hrs-reusable-p parser) nil)))
           (%hrs-clear-buffer parser)
           (values
            (make-http-response
@@ -750,7 +752,8 @@ Returns (values response-head error-pair)."
 
 (defun %hrs-error (parser code reason)
   (setf (hrs-phase parser) :error
-        (hrs-terminal-p parser) t)
+        (hrs-terminal-p parser) t
+        (hrs-reusable-p parser) nil)
   (%hrs-clear-buffer parser)
   (cons :error (cons code reason)))
 
@@ -891,7 +894,18 @@ At most the bounded header or chunk-framing state is retained between calls."
                     (push (%hrs-complete parser) events)))))))
           (otherwise
            (setf index end))))
+      ;; A complete response followed by bytes in the same read cannot be safely
+      ;; returned to a sequential-request pool: Clun never pipelines requests.
+      (when (and (hrs-terminal-p parser) (< index end))
+        (setf (hrs-reusable-p parser) nil))
       (nreverse events))))
+
+(defun response-stream-reusable-p (parser)
+  "True only after a cleanly framed response with no unread or trailing bytes."
+  (and (hrs-terminal-p parser)
+       (eq (hrs-phase parser) :done)
+       (hrs-reusable-p parser)
+       (hrs-keep-alive parser)))
 
 (defun response-stream-finish (parser)
   "Finish PARSER at clean EOF and return terminal events.

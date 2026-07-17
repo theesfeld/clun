@@ -449,3 +449,32 @@ to terminate a chunk trailer section."
     (let ((events (net:response-stream-finish parser)))
       (is eq :error (caar events))
       (is = 400 (car (cdar events))))))
+
+(define-test net/response-stream-reuse-requires-an-exact-persistent-message
+  (let ((parser (net:make-http-response-stream-parser)))
+    (net:response-stream-feed
+     parser
+     (%raw (format nil "HTTP/1.1 200 OK~c~cContent-Length: 3~c~c~c~cabc"
+                   #\Return #\Newline #\Return #\Newline
+                   #\Return #\Newline)))
+    (true (net:response-stream-reusable-p parser)))
+  (let ((parser (net:make-http-response-stream-parser)))
+    (net:response-stream-feed
+     parser
+     (%raw (format nil "HTTP/1.1 200 OK~c~cContent-Length: 0~c~cConnection: close~c~c~c~c"
+                   #\Return #\Newline #\Return #\Newline #\Return #\Newline
+                   #\Return #\Newline)))
+    (false (net:response-stream-reusable-p parser)))
+  (let ((parser (net:make-http-response-stream-parser)))
+    (net:response-stream-feed
+     parser
+     (%raw (format nil "HTTP/1.1 200 OK~c~c~c~cbody"
+                   #\Return #\Newline #\Return #\Newline)))
+    (net:response-stream-finish parser)
+    (false (net:response-stream-reusable-p parser)))
+  (let ((parser (net:make-http-response-stream-parser)))
+    (net:response-stream-feed
+     parser
+     (%raw (format nil "HTTP/1.1 204 No Content~c~c~c~cunexpected"
+                   #\Return #\Newline #\Return #\Newline)))
+    (false (net:response-stream-reusable-p parser))))

@@ -156,7 +156,7 @@
    ;; loop lifecycle
    #:event-loop #:event-loop-p #:make-event-loop #:destroy-event-loop
    #:run-loop #:loop-post #:loop-stop #:el-ref-count #:now-ms
-   #:loop-on-thread-p #:run-on-loop #:*on-foreign-thread*
+   #:loop-on-thread-p #:run-on-loop #:loop-extension #:*on-foreign-thread*
    ;; queues (stub in P05; JS jobs wire in P06)
    #:enqueue-task #:enqueue-microtask #:enqueue-next-tick #:drain-microtasks
    ;; handles / refcount
@@ -288,6 +288,7 @@
    #:make-http-response-parser #:response-finish #:http-response #:http-response-p
    #:hres-status #:hres-reason #:hres-version #:hres-headers #:hres-body #:hres-keep-alive
    #:make-http-response-stream-parser #:response-stream-feed #:response-stream-finish
+   #:response-stream-reusable-p
    ;; Phase 18 — reactor HTTP client
    #:http-request-async #:http-request-stream-async #:resolve-hostname #:%header
    #:http-content-decoding-error #:http-content-decoding-error-message

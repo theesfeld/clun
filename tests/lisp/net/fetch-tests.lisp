@@ -229,6 +229,34 @@ then the final chunk after 75ms.  __tailSent exposes whether fetch waited for EO
       (is eq eng:+true+ (info-field info "ok"))
       (is string= "plain text body" (info-str info "body")))))
 
+(define-test net/fetch-reuses-an-idle-origin-connection
+  (with-fetch-server (g port)
+    (let ((loop (eng:current-loop)))
+      (multiple-value-bind (kind info) (fetch-info g eng:*realm* port "/text")
+        (declare (ignore info))
+        (is eq :fulfilled kind))
+      (let ((first-idle
+              (net::%http-pool-idle-tcps loop "127.0.0.1" port)))
+        (is = 1 (length first-idle))
+        (multiple-value-bind (kind info) (fetch-info g eng:*realm* port "/json")
+          (is eq :fulfilled kind)
+          (is = 200 (info-num info "status")))
+        (let ((second-idle
+                (net::%http-pool-idle-tcps loop "127.0.0.1" port)))
+          (is = 1 (length second-idle))
+          (is eq (first first-idle) (first second-idle)))))))
+
+(define-test net/fetch-connection-close-is-never-pooled
+  (with-fetch-server (g port)
+    (multiple-value-bind (kind info)
+        (fetch-info g eng:*realm* port "/text"
+                    "{headers: {connection: 'close'}}")
+      (declare (ignore info))
+      (is eq :fulfilled kind))
+    (is = 0
+        (length (net::%http-pool-idle-tcps
+                 (eng:current-loop) "127.0.0.1" port)))))
+
 (define-test net/fetch-json
   (with-fetch-server (g port)
     (multiple-value-bind (kind info) (fetch-info g eng:*realm* port "/json")

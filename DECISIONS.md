@@ -2731,3 +2731,22 @@ lock, GET/HEAD stream bodies fail, redirects that change to GET drop the stream,
 redirects reject rather than replay a disturbed source. This is a Phase 28 implementation slice only;
 pooling, proxy support, the complete cancellation/timeout and large-transfer matrix, four-target receipts,
 and any compatibility-ledger promotion remain open.
+
+### 2026-07-17 - Phase 28 pools safely framed plain HTTP connections per loop
+
+Plain HTTP persistence is loop-owned rather than process-global. The key is normalized host, port,
+address family, and plain transport; this prevents cross-origin or cross-family reuse and leaves room for
+TLS configuration identity in the separate TLS pool. Idle entries are bounded to eight per key and expire
+after 30 seconds. Their socket and timer handles are unreferenced, so cached connections never keep the
+event loop or a realm alive; normal loop resource destruction remains the authoritative descriptor cleanup.
+
+Reuse is deliberately fail-closed. It requires a completed request upload, an empty socket write queue,
+persistent semantics on both messages, a clean `Content-Length`, chunked, HEAD, or no-body response, and
+no bytes beyond the response boundary. EOF-framed responses, `Connection: close`, parse errors, trailing
+bytes, idle EOF, and unsolicited idle data all close or evict the socket. One-shot HTTP and TLS callers keep
+their existing `Connection: close` serializer behavior; only the pooling path advertises keep-alive.
+
+The implementation gate is 111 network tests / 3,678 assertions with zero failures, plus a clean build,
+718-file purity scan, exact TCP identity reuse evidence, and parser rejection tests. This is still an
+internal Phase 28 slice: TLS pooling, proxy support, the remaining stress/cancellation matrix, four-target
+receipts, and the public compatibility promotion remain open.

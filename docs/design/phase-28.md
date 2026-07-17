@@ -114,6 +114,16 @@ use the same bounded source contract. User-provided `Content-Length` and
 bounded by `*max-body-bytes*`; cancellation wakes upload and response wait sites;
 and a source rejection remains the fetch rejection reason.
 
+Plain HTTP/1.1 now reuses eligible connections from a pool owned by the event
+loop. Pool keys include the normalized origin host, port, selected address family,
+and transport kind. A connection is admitted only after exact response framing,
+no trailing bytes, persistent request and response semantics, a completed upload,
+and an empty write queue. Idle sockets retain their read registration so EOF or
+unsolicited bytes evict them, but both the socket handle and 30-second eviction
+timer are unreferenced and therefore cannot keep a realm alive. Each key retains
+at most eight idle sockets. Loop destruction closes the registered TCP resources
+before releasing the loop-owned pool state.
+
 ## 4. Trust and signature policy
 
 The trust bundle follows the established `SSL_CERT_FILE` override and system CA
@@ -153,6 +163,12 @@ byte-exact HTTP chunk framing, mandatory half-duplex validation, framing-header
 rejection, source-error identity, reader lock release, and the HTTPS
 worker-to-loop pull bridge.
 
+The plain HTTP pool tests prove that two sequential fetches to one origin return
+the same TCP wrapper to the idle pool, while an explicit `Connection: close`
+request is never pooled. Parser tests separately reject EOF-delimited bodies,
+close responses, and bytes trailing a complete message as reusable. The complete
+network subset currently passes 111 tests and 3,678 assertions.
+
 `make test-tls12` runs that focused suite, then starts OpenSSL TLS 1.2-only peers
 with `ECDHE-RSA-AES128-GCM-SHA256` and forces `rsa_pkcs1_sha256`. It proves a
 trusted HTTP round trip, incremental response delivery, a streamed POST whose
@@ -169,7 +185,7 @@ and executes the installed package with the shipped Clun binary.
 Before Phase 28 can close, the canonical issue still requires implementation and
 evidence for at least:
 
-- reusable origin-keyed connection pooling;
+- TLS connection reuse and broader pool stress/eviction coverage;
 - proxy support and the complete cancellation/timeout matrix;
 - the issue's large-transfer and adversarial transport fixtures;
 - required Linux and macOS x64/arm64 evidence; and

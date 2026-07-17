@@ -23,11 +23,18 @@ gzip or deflate response from expanding beyond the parser's body budget.")
   (or (assoc "content-length" headers :test #'string-equal)
       (assoc "transfer-encoding" headers :test #'string-equal)))
 
+(defun %request-keep-alive-p (headers)
+  (not (find "close"
+             (%comma-members
+              (loop for (name . value) in headers
+                    when (string-equal name "connection") collect value))
+             :test #'string-equal)))
+
 (defun %serialize-request (method path host-header headers body
                            &optional (default-accept-encoding "gzip")
-                                     stream-body-p)
+                                     stream-body-p persistent-p)
   "Build the request bytes: request line + Host + user headers + framing + Accept-Encoding
-+ Connection: close (v1 does not pool) + body. HOST-HEADER is the ORIGIN authority
++ a default persistent-connection header + body. HOST-HEADER is the ORIGIN authority
 (hostname + non-default port) for the Host: line — NOT the resolved dotted-quad we dial."
   (when (and stream-body-p body)
     (error "a request cannot have both buffered and streaming bodies"))
@@ -49,7 +56,9 @@ gzip or deflate response from expanding beyond the parser's body budget.")
        (format head "Transfer-Encoding: chunked~c~c" #\Return #\Newline))
       ((plusp blen)
        (format head "Content-Length: ~d~c~c" blen #\Return #\Newline)))
-    (format head "Connection: close~c~c" #\Return #\Newline)
+    (unless (assoc "connection" headers :test #'string-equal)
+      (format head "Connection: ~a~c~c"
+              (if persistent-p "keep-alive" "close") #\Return #\Newline))
     (format head "~c~c" #\Return #\Newline)
     (let ((hbytes (%client-ascii-octets (get-output-stream-string head))))
       (if (plusp blen)
@@ -215,6 +224,127 @@ for the Host: line) defaults to HOST when the caller does not pass a distinct va
   (let ((value (%header (hres-headers response) "content-encoding")))
     (and value (string-downcase value))))
 
+;;; --- per-loop HTTP/1.1 connection pool ------------------------------------
+
+(defparameter *http-pool-max-idle-per-key* 8)
+(defparameter *http-pool-idle-timeout-ms* 30000)
+(defconstant +http-pool-extension-key+ 'http-connection-pool)
+
+(defstruct (http-connection-pool (:constructor %make-http-connection-pool (loop)))
+  loop
+  (buckets (make-hash-table :test #'equal)))
+
+(defstruct (http-pool-entry (:constructor %make-http-pool-entry (pool key tcp)))
+  pool key tcp timer (idle-p t))
+
+(defun %http-pool (loop)
+  (or (lp:loop-extension loop +http-pool-extension-key+)
+      (setf (lp:loop-extension loop +http-pool-extension-key+)
+            (%make-http-connection-pool loop))))
+
+(defun %tcp-address-family (tcp)
+  (multiple-value-bind (address port) (tcp-peer tcp)
+    (declare (ignore port))
+    (case (and address (length address))
+      (4 :ipv4)
+      (16 :ipv6)
+      (otherwise :unknown))))
+
+(defun %http-pool-key (host port family)
+  (list (string-downcase host) port family :plain))
+
+(defun %http-pool-drop-entry (entry &key close)
+  (when (http-pool-entry-idle-p entry)
+    (setf (http-pool-entry-idle-p entry) nil)
+    (let* ((pool (http-pool-entry-pool entry))
+           (key (http-pool-entry-key entry))
+           (bucket (gethash key (http-connection-pool-buckets pool)))
+           (timer (http-pool-entry-timer entry)))
+      (setf (gethash key (http-connection-pool-buckets pool))
+            (delete entry bucket :test #'eq))
+      (unless (gethash key (http-connection-pool-buckets pool))
+        (remhash key (http-connection-pool-buckets pool)))
+      (when timer
+        (setf (http-pool-entry-timer entry) nil)
+        (lp:clear-timer timer))
+      (when close
+        (tcp-close (http-pool-entry-tcp entry)))))
+  (values))
+
+(defun %http-pool-release (loop host port tcp)
+  "Return TCP to LOOP's origin/family pool. Call only on the reactor thread."
+  (unless (and (eq (tcp-state tcp) :open)
+               (zerop (tcp-queued-bytes tcp)))
+    (return-from %http-pool-release nil))
+  (let* ((pool (%http-pool loop))
+         (key (%http-pool-key host port (%tcp-address-family tcp)))
+         (bucket (gethash key (http-connection-pool-buckets pool))))
+    (when (>= (length bucket) *http-pool-max-idle-per-key*)
+      (return-from %http-pool-release nil))
+    (let ((entry (%make-http-pool-entry pool key tcp)))
+      (push entry (gethash key (http-connection-pool-buckets pool)))
+      (setf (tcp-on-drain tcp) nil
+            (tcp-on-data tcp)
+            (lambda (connection octets)
+              (declare (ignore connection octets))
+              ;; No request is outstanding, so any application bytes make this
+              ;; sequential HTTP/1.1 connection unsafe to hand out again.
+              (%http-pool-drop-entry entry :close t))
+            (tcp-on-error tcp)
+            (lambda (connection code)
+              (declare (ignore connection code))
+              (%http-pool-drop-entry entry))
+            (tcp-on-close tcp)
+            (lambda (connection code)
+              (declare (ignore connection code))
+              (%http-pool-drop-entry entry)))
+      (setf (http-pool-entry-timer entry)
+            (lp:set-timer loop *http-pool-idle-timeout-ms*
+                          (lambda () (%http-pool-drop-entry entry :close t))
+                          :refd nil))
+      (lp:handle-unref (tcp-handle tcp))
+      (tcp-resume tcp)
+      t)))
+
+(defun %http-pool-acquire (loop host port)
+  "Take one live idle connection for HOST:PORT, preferring IPv6 when available."
+  (let ((pool (%http-pool loop)))
+    (dolist (family '(:ipv6 :ipv4 :unknown))
+      (let* ((key (%http-pool-key host port family))
+             (bucket (gethash key (http-connection-pool-buckets pool))))
+        (loop while bucket do
+          (let ((entry (pop bucket)))
+            (setf (gethash key (http-connection-pool-buckets pool)) bucket)
+            (unless bucket
+              (remhash key (http-connection-pool-buckets pool)))
+            (when (http-pool-entry-idle-p entry)
+              (setf (http-pool-entry-idle-p entry) nil)
+              (let ((timer (http-pool-entry-timer entry))
+                    (tcp (http-pool-entry-tcp entry)))
+                (when timer
+                  (setf (http-pool-entry-timer entry) nil)
+                  (lp:clear-timer timer))
+                (when (eq (tcp-state tcp) :open)
+                  (setf (tcp-on-data tcp) nil
+                        (tcp-on-close tcp) nil
+                        (tcp-on-error tcp) nil
+                        (tcp-on-drain tcp) nil)
+                  (lp:handle-ref (tcp-handle tcp))
+                  (return-from %http-pool-acquire tcp)))))))))
+  nil)
+
+(defun %http-pool-idle-tcps (loop host port)
+  "Internal test probe: snapshot idle TCP wrappers for one plain HTTP origin."
+  (let ((pool (lp:loop-extension loop +http-pool-extension-key+))
+        (result '()))
+    (when pool
+      (dolist (family '(:ipv6 :ipv4 :unknown))
+        (dolist (entry (gethash (%http-pool-key host port family)
+                                (http-connection-pool-buckets pool)))
+          (when (http-pool-entry-idle-p entry)
+            (push (http-pool-entry-tcp entry) result)))))
+    result))
+
 (defun http-request-stream-async
     (loop &key host port method path headers body timeout host-header
                request-body-stream-p on-request-ready
@@ -247,6 +377,7 @@ CONTINUATION runs on the drain edge. FINISH emits the sole terminal chunk."
         (request-finished-p (not request-body-stream-p))
         (content-format nil)
         (encoded-body nil)
+        (request-keep-alive-p (%request-keep-alive-p headers))
         (hh (or host-header host)))
     (labels
         ((cleanup ()
@@ -279,7 +410,21 @@ CONTINUATION runs on the drain edge. FINISH emits the sole terminal chunk."
                                       (fill-pointer encoded-body)))))
                        (when (plusp (length decoded))
                          (funcall on-data decoded))))
-                   (cleanup)
+                   (let ((connection conn)
+                         (reusable-p
+                           (and conn
+                                request-keep-alive-p
+                                request-finished-p
+                                (response-stream-reusable-p parser)
+                                (eq (tcp-state conn) :open)
+                                (zerop (tcp-queued-bytes conn)))))
+                     ;; Keep CLEANUP as the sole terminal-state transition, but
+                     ;; detach an eligible connection before it closes resources.
+                     (when reusable-p (setf conn nil))
+                     (cleanup)
+                     (when reusable-p
+                       (unless (%http-pool-release loop host port connection)
+                         (tcp-close connection))))
                    (when on-complete (funcall on-complete)))
                (http-content-decoding-error (condition)
                  (fail (princ-to-string condition))))))
@@ -311,81 +456,117 @@ CONTINUATION runs on the drain edge. FINISH emits the sole terminal chunk."
                  (:complete (finish))
                  (:error
                   (fail (format nil "HTTP parse error ~a" (car (cdr event)))))))))
+         (connection-data (connection data)
+           (declare (ignore connection))
+           (deliver-events (response-stream-feed parser data)))
+         (connection-close (connection code)
+           (declare (ignore connection))
+           (unless done
+             (let ((events (response-stream-finish parser)))
+               (if events
+                   (deliver-events events)
+                   (fail (or code "connection closed"))))))
+         (connection-error (connection code)
+           (declare (ignore connection))
+           (fail code))
+         (start-request (connection)
+           (unless done
+             (setf conn connection
+                   connect-cancel nil
+                   (tcp-on-data connection) #'connection-data
+                   (tcp-on-close connection) #'connection-close
+                   (tcp-on-error connection) #'connection-error
+                   (tcp-on-drain connection) nil)
+             ;; Fetch duplex "half" does not expose a response until the
+             ;; upload is complete. The kernel may receive it, but the
+             ;; reactor leaves it unread until the terminal chunk is queued.
+             (when (or paused request-body-stream-p)
+               (tcp-pause connection))
+             (tcp-write
+              connection
+              (%serialize-request method path hh headers body "identity"
+                                  request-body-stream-p t))
+             (when request-body-stream-p
+               (handler-case
+                   (if on-request-ready
+                       (funcall
+                        on-request-ready
+                        (lambda (chunk continuation)
+                          (if (or done request-finished-p)
+                              nil
+                              (let ((framed (%chunked-request-frame chunk)))
+                                (if (zerop (length framed))
+                                    t
+                                    (progn
+                                      (incf request-body-bytes (length chunk))
+                                      (when (> request-body-bytes *max-body-bytes*)
+                                        (error
+                                         "streaming request body exceeded the size limit"))
+                                      (setf (tcp-on-drain connection)
+                                            (lambda (drained)
+                                              (declare (ignore drained))
+                                              (setf (tcp-on-drain connection) nil)
+                                              (unless done
+                                                (funcall continuation))))
+                                      (let ((queued (tcp-write connection framed)))
+                                        (when (zerop queued)
+                                          (setf (tcp-on-drain connection) nil))
+                                        (zerop queued)))))))
+                        (lambda ()
+                          (unless (or done request-finished-p)
+                            (setf request-finished-p t
+                                  (tcp-on-drain connection) nil)
+                            (tcp-write connection +chunked-request-end+)
+                            (unless paused
+                              (tcp-resume connection)))))
+                       (fail "streaming request body has no producer"))
+                 (error (condition)
+                   (fail (princ-to-string condition)))))
+             (when paused (tcp-pause connection))))
          (start-connect (addresses)
            (unless done
-             (setf connect-cancel
-                   (tcp-connect-happy
-                    loop addresses port
-                    :on-connect
-                    (lambda (connection)
-                      (setf conn connection)
-                      ;; Fetch duplex "half" does not expose a response until the
-                      ;; upload is complete. The kernel may receive it, but the
-                      ;; reactor leaves it unread until the terminal chunk is queued.
-                      (when (or paused request-body-stream-p)
-                        (tcp-pause connection))
-                      (tcp-write
-                       connection
-                       (%serialize-request method path hh headers body "identity"
-                                           request-body-stream-p))
-                      (when request-body-stream-p
-                        (handler-case
-                            (if on-request-ready
-                                (funcall
-                                 on-request-ready
-                                 (lambda (chunk continuation)
-                                   (if (or done request-finished-p)
-                                       nil
-                                       (let ((framed
-                                               (%chunked-request-frame chunk)))
-                                         (if (zerop (length framed))
-                                             t
-                                             (progn
-                                               (incf request-body-bytes
-                                                     (length chunk))
-                                               (when (> request-body-bytes
-                                                        *max-body-bytes*)
-                                                 (error
-                                                  "streaming request body exceeded the size limit"))
-                                               (setf
-                                                (tcp-on-drain connection)
-                                                (lambda (drained)
-                                                  (declare (ignore drained))
-                                                  (setf (tcp-on-drain connection) nil)
-                                                  (unless done
-                                                    (funcall continuation))))
-                                               (let ((queued
-                                                       (tcp-write connection framed)))
-                                                 (when (zerop queued)
-                                                   (setf (tcp-on-drain connection) nil))
-                                                 (zerop queued)))))))
-                                 (lambda ()
-                                   (unless (or done request-finished-p)
-                                     (setf request-finished-p t)
-                                     (setf (tcp-on-drain connection) nil)
-                                     (tcp-write connection +chunked-request-end+)
-                                     (unless paused
-                                       (tcp-resume connection)))))
-                                (fail "streaming request body has no producer"))
-                          (error (condition)
-                            (fail (princ-to-string condition)))))
-                      (when paused (tcp-pause connection)))
-                    :on-data
-                    (lambda (connection data)
-                      (declare (ignore connection))
-                      (deliver-events (response-stream-feed parser data)))
-                    :on-close
-                    (lambda (connection code)
-                      (declare (ignore connection))
-                      (unless done
-                        (let ((events (response-stream-finish parser)))
-                          (if events
-                              (deliver-events events)
-                              (fail (or code "connection closed"))))))
-                    :on-error
-                    (lambda (connection code)
-                      (declare (ignore connection))
-                      (fail code))))))
+             (let ((cancel
+                     (tcp-connect-happy
+                      loop addresses port
+                      :on-connect #'start-request
+                      :on-data #'connection-data
+                      :on-close #'connection-close
+                      :on-error #'connection-error)))
+               ;; TCP-CONNECT-HAPPY may settle synchronously. Never retain its
+               ;; cancel thunk after a winner has become a pooled candidate.
+               (cond
+                 (done (funcall cancel))
+                 (conn nil)
+                 (t (setf connect-cancel cancel))))))
+         (start-dns ()
+           (setf dns-job
+                 (lp:worker-submit-cancellable
+                  loop
+                  (lambda (token)
+                    (when (lp:worker-cancelled-p token)
+                      (error 'socket-open-error :code "ECANCELED" :op "resolve"))
+                    (resolve-hostname-all host))
+                  (lambda (result)
+                    (setf dns-job nil)
+                    (unless done
+                      (case (first result)
+                        (:ok (start-connect (second result)))
+                        (:cancelled nil)
+                        (t
+                         (fail
+                          (if (and (second result)
+                                   (typep (second result) 'socket-open-error))
+                              (socket-open-error-code (second result))
+                              "ENOTFOUND")))))))))
+         (begin ()
+           (unless done
+             (when (and timeout (plusp timeout))
+               (setf timer
+                     (lp:set-timer loop timeout (lambda () (fail "timeout")))))
+             (let ((pooled (%http-pool-acquire loop host port)))
+               (if pooled
+                   (start-request pooled)
+                   (start-dns)))))
          (cancel (&optional (code "abort")) (fail code))
          (pause ()
            (unless done
@@ -395,25 +576,5 @@ CONTINUATION runs on the drain edge. FINISH emits the sole terminal chunk."
            (unless done
              (setf paused nil)
              (when (and conn request-finished-p) (tcp-resume conn)))))
-      (setf dns-job
-            (lp:worker-submit-cancellable
-             loop
-             (lambda (token)
-               (when (lp:worker-cancelled-p token)
-                 (error 'socket-open-error :code "ECANCELED" :op "resolve"))
-               (resolve-hostname-all host))
-             (lambda (result)
-               (unless done
-                 (case (first result)
-                   (:ok (start-connect (second result)))
-                   (:cancelled nil)
-                   (t
-                    (fail
-                     (if (and (second result)
-                              (typep (second result) 'socket-open-error))
-                         (socket-open-error-code (second result))
-                         "ENOTFOUND"))))))))
-      (when (and timeout (plusp timeout))
-        (setf timer
-              (lp:set-timer loop timeout (lambda () (fail "timeout")))))
+      (lp:run-on-loop loop #'begin)
       (values #'cancel #'pause #'resume))))
