@@ -7,22 +7,23 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **37 - Modern ECMAScript gap wave**  (M2 CHECKPOINT)
+## Current phase: **66 - Jest-compatible test-runner parity**  (CONCURRENT PARTIAL)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/11
-**Next phase issue:** https://github.com/theesfeld/clun/issues/11
+**Canonical issue:** https://github.com/theesfeld/clun/issues/40
+**Next phase issue:** https://github.com/theesfeld/clun/issues/40
 **Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/2,
-https://github.com/theesfeld/clun/issues/39, and https://github.com/theesfeld/clun/issues/40
-**Current implementation unit:** Phase 37 milestone 2 on draft PR #96 — pure-CL `Array.fromAsync`
-plus lexer/parser admission of nullish coalescing and numeric separators required by the frozen
-Test262 helpers. Converts 95 frozen `built-ins/Array/fromAsync` failures. No compatibility-table
-`Yes` is claimed; Phase 37 remains open with residual ownership after reclassification.
+https://github.com/theesfeld/clun/issues/11, and https://github.com/theesfeld/clun/issues/39
+**Current implementation unit:** Phase 66 concurrent/serial scheduling residual on PR #110 — pure-CL
+`test.concurrent` / `describe.concurrent` / `test.serial` / `describe.serial`, `concurrentIf` /
+`serialIf`, CLI `--concurrent` and `--max-concurrency`, and Bun-shaped consecutive concurrent groups
+with overlapping async settlement on the realm event loop. Compatibility row stays **Partial** (not
+Yes); parallel files, watch, full frozen-root receipts, and residual exotic surfaces remain open.
 **SemVer impact:** `minor`
-****Candidate release:** `0.1.0-dev.23` / `v0.1.0-dev.23`
+**Candidate release:** `0.1.0-dev.25` / `v0.1.0-dev.25`
 **Published release:** `0.1.0-dev.18` / `v0.1.0-dev.18`
-**Entry boundary:** immutable `v0.1.0-dev.18` is tagged at exact master `b5ecdb5defeef8ddede72ef794e41f14fb423b86` with four native archives + checksums (release run 29596302229); installer defaults to that tag. Master source is `0.1.0-dev.19` after test-runner PR #88. Transport holds unpublished `0.1.0-dev.20`; this unit stages `0.1.0-dev.23` under the unpublished-intermediate prerelease gap policy (transition 19→21). Phase 26 remains after Phase 82.
-**Next scope:** keep Phase 37 open (no matrix Yes); green exact-head CI on the staged candidate; residual
-modern ECMAScript inventory continues after m2; pass-list reclassification is owned by the release unit.
+**Entry boundary:** immutable `v0.1.0-dev.18` is tagged at exact master `b5ecdb5defeef8ddede72ef794e41f14fb423b86` with four native archives + checksums (release run 29596302229); installer defaults to that tag. Master tip is `0.1.0-dev.21` after Phase 37 m2 (#96). Parallel trains may hold unpublished intermediate slots; this unit stages `0.1.0-dev.25` under the unpublished-intermediate prerelease gap policy. Phase 26 remains after Phase 82.
+**Next scope:** keep Phase 66 Partial (no matrix Yes); green exact-head CI on the staged candidate; residual
+test-runner inventory continues after concurrent scheduling.
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
 easiest to hardest among dependency-ready rows. Core engine/runtime/network/tooling changes are expected.
@@ -1964,7 +1965,7 @@ Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-earl
   watch hooks, exact 52-root Bun/Clun counts, four-target receipts,
   serial/parallel agreement, and 10k RSS.
 
-## Phase 66 concurrent scheduling (Issue #40, 0.1.0-dev.23)
+## Phase 66 concurrent scheduling (Issue #40, 0.1.0-dev.25)
 
 - Implemented pure-CL `test.concurrent` / `describe.concurrent` / `test.serial` / `describe.serial`, `concurrentIf` / `serialIf`, CLI `--concurrent` and `--max-concurrency`.
 - Bun-shaped consecutive concurrent groups with overlapping async settlement; serial tests form isolation boundaries.
