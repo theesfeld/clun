@@ -1,7 +1,7 @@
 <!-- clun-generated:release-notes:begin -->
-# Clun 0.1.0-dev.34
+# Clun 0.1.0-dev.35
 
-Phase 76: Cron, scheduling, and interactive REPL.
+Phase 74: Archive and compression APIs.
 
 - SemVer impact: `minor` within the selected `0.1.0` prerelease train.
 - Compatibility snapshot: 10 Yes / 7 Partial / 13 No across 30 generated rows.
@@ -22,5 +22,5 @@ The canonical evidence and current limitations are in `compat/`; `make compat-va
     cannot shell out to crontab/launchd/schtasks).
 - Tests: 18 parachute cases + `tests/js/cron/{parse,job}.js` fixtures.
 - Does **not** claim full Phase 76 Yes (REPL, OS cron, four-target `make compat FEATURE=cron-scheduling`
-  remain open). Slot: free `0.1.0-dev.34` / `v0.1.0-dev.34` after master `0.1.0-dev.33` shell Yes.
+  remain open). Slot: free `0.1.0-dev.35` / `v0.1.0-dev.35` after master `0.1.0-dev.33` shell Yes.
 - Hosted installer remains on published `v0.1.0-dev.21` until a later unit publishes.

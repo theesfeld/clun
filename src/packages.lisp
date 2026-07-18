@@ -350,6 +350,16 @@
    #:make-text-frame #:make-binary-frame
    #:make-ping-frame #:make-pong-frame #:make-close-frame))
 
+(defpackage :clun.compress
+  (:use :cl)
+  (:documentation "Phase 74 pure-CL gzip/zlib/raw-deflate codecs (salza2 compress + chipz inflate).")
+  (:export
+   #:compress-error #:compress-error-message
+   #:*max-decompressed-bytes*
+   #:gzip-compress #:zlib-compress #:raw-deflate-compress
+   #:gunzip #:zlib-decompress #:raw-inflate
+   #:gzip-magic-p))
+
 ;; --- dependent layer (local-nicknames into the base packages above) ---------
 
 (defpackage :clun.cli
@@ -361,7 +371,8 @@
 (defpackage :clun.runtime
   (:use :cl)
   (:local-nicknames (:eng :clun.engine) (:sys :clun.sys) (:lp :clun.loop)
-                    (:net :clun.net) (:ws :clun.websocket))
+                    (:net :clun.net) (:ws :clun.websocket)
+                    (:cmp :clun.compress))
   (:documentation "Globals wiring: console/inspector, process, timers, Clun global, node/ modules.")
   (:export #:install-runtime #:process-exit #:process-exit-code
            #:run-exit-handlers #:*runtime* #:runtime-exit-code #:format-log-args
@@ -447,6 +458,15 @@ hardened verify-then-commit extractor + content-addressed cache.")
    #:inflate-gzip #:read-tar-entries #:extract-package
    #:cache-root #:cache-path #:cache-store #:cache-fetch
    #:*max-inflated-bytes* #:*max-entry-size*))
+
+(defpackage :clun.archive
+  (:use :cl)
+  (:local-nicknames (:sys :clun.sys) (:tb :clun.tarball) (:cmp :clun.compress))
+  (:documentation "Phase 74 pure-CL ustar writer + tar/tar.gz extract helpers for Clun.Archive.")
+  (:export
+   #:write-tar #:build-archive-bytes #:parse-archive-bytes #:extract-archive
+   #:%glob-match
+   #:build-zip #:read-zip-entries))
 
 (defpackage :clun.installer
   (:use :cl)

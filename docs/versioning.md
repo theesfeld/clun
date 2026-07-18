@@ -63,7 +63,7 @@ resource does not exist with a 404 response:
 0.1.0-dev.31
 0.1.0-dev.32
 0.1.0-dev.33
-0.1.0-dev.34
+0.1.0-dev.35
 0.1.0-dev.30
 ```
 
@@ -282,4 +282,6 @@ the prerelease immutable. The ASDF core remains `0.1.0`. The non-release-bearing
 the remaining closeout evidence.
 
 Phase 65 shell Partial→Yes (#120) stages `0.1.0-dev.33` / `v0.1.0-dev.33` with zero pending corpus sites and four-target supported receipts.
-Phase 76 cron scheduling (#50) stages free `0.1.0-dev.34` / `v0.1.0-dev.34`: pure-CL `Clun.cron` parse + in-process jobs (OS-level fail-closed); SemVer impact is `minor`.
+Phase 76 cron scheduling (#50) stages free `0.1.0-dev.35` / `v0.1.0-dev.35`: pure-CL `Clun.cron` parse + in-process jobs (OS-level fail-closed); SemVer impact is `minor`.
+
+Phase 74 archive/compression pure-CL APIs (#134) stages `0.1.0-dev.35` / `v0.1.0-dev.35` without a 31st features.tsv row (matrix locked at 30).

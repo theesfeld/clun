@@ -7,16 +7,15 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **76 - Cron, scheduling, and interactive REPL**  (Issue #50)
+## Current phase: **74 - Archive and compression APIs**  (unit #134)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/50
-**Current implementation unit:** Phase 76 pure-CL `Clun.cron` parse + in-process jobs (Partial).
-OS-level crontab/launchd/schtasks fail-closed; REPL remains open.
+**Canonical issue:** https://github.com/theesfeld/clun/issues/134
+**Current implementation unit:** Phase 74 pure-CL Clun.gzipSync/Archive/zipSync APIs (no 31st features.tsv Yes row).
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.34` / `v0.1.0-dev.34`
+**Candidate release:** `0.1.0-dev.35` / `v0.1.0-dev.35`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
-**Entry boundary:** installer on `v0.1.0-dev.21`; this unit stages `0.1.0-dev.34`.
-**Next scope:** REPL, OS scheduler (purity path), four-target cron-scheduling compat gate.
+**Entry boundary:** installer on `v0.1.0-dev.21`; free slot after master cron `0.1.0-dev.34`.
+**Next scope:** next Yes/Partial conversions; matrix remains 30 features.
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
 easiest to hardest among dependency-ready rows. Core engine/runtime/network/tooling changes are expected.
