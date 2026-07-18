@@ -272,6 +272,140 @@ until the server closes, loop-stop, and return the response as a latin-1 string.
        (false (search "should-not-run" resp))))
    :max-request-body-size 4))
 
+(define-test net/server-stream-response-chunked
+  "Issue #128: Response(ReadableStream) is served with Transfer-Encoding: chunked."
+  (serve-and
+   (lambda (g req loop)
+     (declare (ignore req loop))
+     (let* ((rs-ctor (eng:js-get g "ReadableStream"))
+            (te-ctor (eng:js-get g "TextEncoder"))
+            (encoder (eng:js-construct te-ctor '()))
+            (encode (eng:js-get encoder "encode"))
+            (source (eng:new-object))
+            (start
+              (eng:make-native-function
+               "start" 1
+               (lambda (this args)
+                 (declare (ignore this))
+                 (let ((controller (eng:arg args 0))
+                       (enqueue (eng:js-get (eng:arg args 0) "enqueue"))
+                       (close (eng:js-get (eng:arg args 0) "close")))
+                   (eng:js-call enqueue controller
+                                (list (eng:js-call encode encoder
+                                                   (list "hello-"))))
+                   (eng:js-call enqueue controller
+                                (list (eng:js-call encode encoder
+                                                   (list "stream"))))
+                   (eng:js-call close controller '()))
+                 eng:+undefined+))))
+       (eng:data-prop source "start" start)
+       (let ((stream (eng:js-construct rs-ctor (list source))))
+         (%resp g stream))))
+   (lambda (loop port g server)
+     (declare (ignore g server))
+     (let ((resp (client-request
+                  loop port
+                  (req (crlf "GET /stream HTTP/1.1" "Host: x"
+                             "Connection: close")))))
+       (true (search "200 OK" resp))
+       (true (search "Transfer-Encoding: chunked" resp))
+       (false (search "Content-Length:" resp))
+       ;; Chunks are framed separately; wire text is not a contiguous payload.
+       (true (search "hello-" resp))
+       (true (search "stream" resp))
+       (true (search (format nil "6~c~chello-" #\Return #\Newline) resp))
+       (true (search (format nil "0~c~c~c~c" #\Return #\Newline #\Return #\Newline)
+                     resp))))))
+
+(define-test net/server-stream-response-async-chunks
+  "Issue #128: async enqueue after start still pumps chunked body."
+  (serve-and
+   (lambda (g req loop)
+     (declare (ignore req))
+     (let* ((rs-ctor (eng:js-get g "ReadableStream"))
+            (te-ctor (eng:js-get g "TextEncoder"))
+            (encoder (eng:js-construct te-ctor '()))
+            (encode (eng:js-get encoder "encode"))
+            (source (eng:new-object))
+            (start
+              (eng:make-native-function
+               "start" 1
+               (lambda (this args)
+                 (declare (ignore this))
+                 (let ((controller (eng:arg args 0)))
+                   (lp:set-timer
+                    loop 15
+                    (lambda ()
+                      (eng:js-call (eng:js-get controller "enqueue") controller
+                                   (list (eng:js-call encode encoder
+                                                      (list "later"))))
+                      (eng:js-call (eng:js-get controller "close")
+                                   controller '()))))
+                 eng:+undefined+))))
+       (eng:data-prop source "start" start)
+       (%resp g (eng:js-construct rs-ctor (list source)))))
+   (lambda (loop port g server)
+     (declare (ignore g server))
+     (let ((resp (client-request
+                  loop port
+                  (req (crlf "GET /async HTTP/1.1" "Host: x"
+                             "Connection: close")))))
+       (true (search "200 OK" resp))
+       (true (search "Transfer-Encoding: chunked" resp))
+       (true (search "later" resp))))))
+
+(define-test net/server-request-body-stream-and-echo
+  "Issue #128: Request.body is a ReadableStream; Response(req.body) streams through."
+  (serve-and
+   (lambda (g req loop)
+     (declare (ignore loop))
+     (let ((body (eng:js-get req "body")))
+       (true (not (eng:js-null-p body)))
+       ;; Consume via getReader then also exercise stream-through on a clone path:
+       ;; build a new stream Response from the request body stream.
+       (%resp g body)))
+   (lambda (loop port g server)
+     (declare (ignore g server))
+     (let ((resp (client-request
+                  loop port
+                  (req (format nil "POST /echo HTTP/1.1~c~cHost: x~c~cContent-Length: 7~c~cConnection: close~c~c~c~cpayload"
+                               #\Return #\Newline #\Return #\Newline #\Return #\Newline
+                               #\Return #\Newline #\Return #\Newline)))))
+       (true (search "200 OK" resp))
+       (true (search "Transfer-Encoding: chunked" resp))
+       (true (search "payload" resp))))))
+
+(define-test net/server-request-body-get-reader
+  "Issue #128: server Request.body.getReader() yields the buffered body octets."
+  (serve-and
+   (lambda (g req loop)
+     (declare (ignore loop))
+     (let* ((stream (eng:js-get req "body"))
+            (reader (eng:js-call (eng:js-get stream "getReader") stream '()))
+            (read-p (eng:js-call (eng:js-get reader "read") reader '())))
+       (eng:js-call
+        (eng:js-get read-p "then") read-p
+        (list
+         (eng:make-native-function
+          "" 1
+          (lambda (this args)
+            (declare (ignore this))
+            (let* ((chunk (eng:arg args 0))
+                   (value (eng:js-get chunk "value"))
+                   (td (eng:js-construct (eng:js-get g "TextDecoder") '()))
+                   (text (eng:js-call (eng:js-get td "decode") td
+                                      (list value))))
+              (%resp g (format nil "got:~a" (eng:to-string text))))))))))
+   (lambda (loop port g server)
+     (declare (ignore g server))
+     (let ((resp (client-request
+                  loop port
+                  (req (format nil "POST /r HTTP/1.1~c~cHost: x~c~cContent-Length: 3~c~cConnection: close~c~c~c~cxyz"
+                               #\Return #\Newline #\Return #\Newline #\Return #\Newline
+                               #\Return #\Newline #\Return #\Newline)))))
+       (true (search "200 OK" resp))
+       (true (search "got:xyz" resp))))))
+
 (define-test net/server-idle-timeout-closes-quiet-connection
   "Phase 49: idleTimeout closes a connection that sends no bytes."
   (serve-and

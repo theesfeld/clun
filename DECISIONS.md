@@ -3287,3 +3287,18 @@ additional shell-language inventory sites after #122/#123 (overall
 - Pure-CL background `&` + `wait`, ENAMETOOLONG, multi-error lex, EACCES globs, ls flag order.
 - Four-target platforms.tsv `supported`; ledger `clun_state=Yes`.
 - Release train: `0.1.0-dev.33`.
+
+## 2026-07-18 — Clun.serve streaming request/response bodies (#128)
+
+Pure-CL Phase 49 streaming slice (not ledger Yes):
+
+1. `new Response(ReadableStream)` preserves the stream; serve writes
+   `Transfer-Encoding: chunked` and pumps via a stream-send-plan (backpressure on
+   `tcp-queued-bytes`).
+2. User ReadableStream `reader.read()` parks when the queue is empty (async enqueue).
+3. Server `Request.body` remains a ReadableStream; handlers may `getReader()` or
+   stream-through `new Response(req.body)`.
+4. Scalar/`Clun.file` responses keep Content-Length / file-send-plan paths.
+
+**Deliberate residual:** server TLS, HTTP/2, Unix sockets, multi-listen, four-target
+Yes receipts. Ledger `server.http` stays **Partial**. SemVer: `0.1.0-dev.34` minor.
