@@ -3288,13 +3288,30 @@ additional shell-language inventory sites after #122/#123 (overall
 - Four-target platforms.tsv `supported`; ledger `clun_state=Yes`.
 - Release train: `0.1.0-dev.33`.
 
-## 2026-07-18 — Phase 76 Clun.cron pure-CL checkpoint (#50)
+## 2026-07-18 — Phase 74 archive/compression pure-CL APIs (#134)
 
-Ship pure-CL Bun-shaped cron under `Clun.cron`:
+Ship Bun-shaped pure-CL compression and archive surface without a new ledger row:
 
-1. 5-field expression parser + next-occurrence (UTC), nicknames, named fields, DOM/DOW OR
-2. In-process `Clun.cron(schedule, handler)` → CronJob (stop/ref/unref; setTimeout arming)
-3. OS-level path/title overloads and `remove` fail closed (no crontab/launchd/schtasks shell-out)
+- **Matrix lock:** `compat-validate` requires exactly 30 `features.tsv` rows. There is no
+  `archive-compression` summary ID. Do **not** invent a 31st Yes row.
+- **APIs on `Clun`:** `gzipSync`/`gunzipSync`/`deflateSync`/`inflateSync`,
+  `zipSync`/`unzipSync`, `Archive` (tar + optional gzip), fail-closed `zstd*`.
+- **Codecs:** vendored **salza2** (compress) + existing **chipz** (decompress); ustar
+  writer + hardened extract reusing Phase-22 path checks; pure-CL ZIP (store+deflate).
+- **Evidence:** `tests/lisp/archive/*`, `tests/js/archive/basic.js`; claim lives under
+  Phase 74 / issue #134, not a matrix Yes promotion.
+- SemVer minor → `0.1.0-dev.34` / `v0.1.0-dev.34`.
 
-Does not claim full Phase 76 Yes (REPL + OS + four-target compat open). SemVer `minor`
-at free slot `0.1.0-dev.34` / `v0.1.0-dev.34`.
+
+## 2026-07-18 — Phase 74 archive/compression pure-CL APIs (#134)
+
+Ship Bun-shaped pure-CL compression and archive surface without a new ledger row:
+
+- **Matrix lock:** `compat-validate` requires exactly 30 `features.tsv` rows. No
+  `archive-compression` summary ID — do **not** invent a 31st Yes row.
+- **APIs on `Clun`:** `gzipSync`/`gunzipSync`/`deflateSync`/`inflateSync`,
+  `zipSync`/`unzipSync`, `Archive` (tar + optional gzip), fail-closed `zstd*`.
+- **Codecs:** vendored **salza2** (compress) + existing **chipz** (decompress); ustar
+  writer + hardened extract; pure-CL ZIP (store+deflate).
+- SemVer minor → `0.1.0-dev.35` (free slot after master cron `0.1.0-dev.34`).
+
