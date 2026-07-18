@@ -296,3 +296,4 @@ Phase 74 archive/compression pure-CL APIs (#134) stages `0.1.0-dev.35` / `v0.1.0
 Phase 38 runtime.web-standard-apis Partial→Yes (#130) stages `0.1.0-dev.38` / `v0.1.0-dev.38` with Writable/Transform/BYOB streams, proxy object options, hermetic stress, and four-target supported receipts; SemVer impact is `minor`.
 
 Phase 75 Markdown + HTMLRewriter pure-CL (#135) stages `0.1.0-dev.39` / `v0.1.0-dev.39` without expanding the frozen 30-row summary ledger. SemVer impact is `minor`.
+Phase 49 server.http Partial→Yes (#128) stages free `0.1.0-dev.40` / `v0.1.0-dev.40`.

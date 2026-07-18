@@ -3345,3 +3345,9 @@ supported platforms, and ledger Yes. Stages `0.1.0-dev.38`.
 
 **Decision:** Ship pure-CL `Clun.markdown` + global `HTMLRewriter` under #135 without expanding `features.tsv` past 30 rows.
 **Consequences:** SemVer `minor` on `0.1.0-dev.39`; no matrix Yes claim; parent #49 keeps TOML/JSON5/JSONL.
+
+## 2026-07-18 — server.http Partial→Yes (#128)
+
+- Streaming response bodies pure-CL (chunked Transfer-Encoding for ReadableStream).
+- request.body ReadableStream consumers; null-body Content-Length: 0 guard.
+- Ledger Yes + four-target supported. Train: `0.1.0-dev.40`.
