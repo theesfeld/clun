@@ -7,9 +7,9 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **59 - Package registry and dependency-spec breadth**  (YES CONVERSION #131)
+## Current phase: **59 - Package registry and dependency-spec breadth**
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/131
+**Canonical issue:** https://github.com/theesfeld/clun/issues/33
 **Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/2,
 https://github.com/theesfeld/clun/issues/33, https://github.com/theesfeld/clun/issues/34,
 and https://github.com/theesfeld/clun/issues/35
