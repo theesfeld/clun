@@ -1262,18 +1262,26 @@ Used by Clun.serve for progressive request-body delivery."
   "True when RESPONSE should be written with Transfer-Encoding: chunked.
 
 Buffered string/typed-array/Blob Responses keep their original body value and are
-serialized with Content-Length. ReadableStream / null-body stream Responses are
-chunked even when the stream has already closed with queued chunks."
+serialized with Content-Length. Explicit null bodies (bodyUsed null) are not
+streamed. ReadableStream Responses (body-null-p false, body null, stream live)
+are chunked even when the stream has already closed with queued chunks."
   (let* ((response (%require-response response))
          (body (js-response-body response))
          (stream (js-response-body-stream response)))
-    (or (js-readable-stream-p stream)
-        (js-readable-stream-p body)
-        (js-body-stream-p body)
-        (and (js-body-stream-p stream)
-             (or (null body)
-                 (eng:js-null-p body)
-                 (eng:js-undefined-p body))))))
+    (cond
+      ;; `new Response(null)` / no body → Content-Length: 0, not chunked.
+      ((js-response-body-null-p response) nil)
+      ((js-readable-stream-p stream) t)
+      ((js-readable-stream-p body) t)
+      ((js-body-stream-p body) t)
+      ;; Stream Response construction stores body as null while body-null-p is
+      ;; false and body-stream holds the live ReadableStream / body-stream.
+      ((and (js-body-stream-p stream)
+            (or (null body)
+                (eng:js-null-p body)
+                (eng:js-undefined-p body)))
+       t)
+      (t nil))))
 
 (defun %make-request (method url headers-alist body-octets)
   "Compatibility entry used by Clun.serve; server requests get the private subtype."
