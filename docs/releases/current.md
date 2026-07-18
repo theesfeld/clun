@@ -1,7 +1,7 @@
 <!-- clun-generated:release-notes:begin -->
-# Clun 0.1.0-dev.27
+# Clun 0.1.0-dev.28
 
-Phase 66: Jest-compatible test-runner parity.
+Phase 47: Node compatibility certification.
 
 - SemVer impact: `minor` within the selected `0.1.0` prerelease train.
 - Compatibility snapshot: 9 Yes / 7 Partial / 14 No across 30 generated rows.
@@ -14,16 +14,8 @@ The canonical evidence and current limitations are in `compat/`; `make compat-va
 
 ## Highlights
 
-- Stages Phase 66 concurrent/serial scheduling as a bounded Partial checkpoint under Issue #40:
-  pure-CL `test.concurrent` / `describe.concurrent` / `test.serial` / `describe.serial`,
-  `concurrentIf` / `serialIf`, CLI `--concurrent` and `--max-concurrency`, and Bun-shaped
-  consecutive concurrent groups with overlapping async settlement on the realm event loop.
-- Fixtures prove serial isolation between concurrent groups, sync concurrent ordering, and
-  `--concurrent` defaulting with serial override.
-- Does **not** promote `tooling.test-runner` to ledger `Yes`. Parallel files, watch, full
-  frozen-root counts, four-target receipts, and residual exotic surfaces remain open.
-- Slot map: published base `v0.1.0-dev.21`; master tip `0.1.0-dev.26` (shell #111 unpublished
-  correction); this candidate allocates next free `0.1.0-dev.27` (transition `0.1.0-dev.26` →
-  `0.1.0-dev.27`).
+- Ships pure-CL `node:path.win32` so `require('path').win32` no longer throws.
+- Does **not** promote `runtime.node-compatibility` to ledger `Yes`.
+- Transition `0.1.0-dev.27` → `0.1.0-dev.28` after concurrent #110 on master.
 
-The release candidate stages honest test-runner residual work without promoting any matrix row to `Yes`.
+The release candidate stages honest Node path residual work without promoting any matrix row to `Yes`.

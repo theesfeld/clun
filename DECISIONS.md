@@ -755,7 +755,7 @@ closure + KATs belongs to Phase 19 (§5) where the crypto suite lands. **Gate ME
 fixtures (tests/js/node/{modules,events,assertions,globals}) green; build/test(**parachute + 42 TS + 53 JS**)/
 purity(**159 files**) green; conformance parse 17,512 / exec **22,638** (0 crashes, 0 regressions — the
 engine is behaviorally untouched; the builtin hook is inert in bare realms). **Accepted divergences (matrix
-🟡):** path.win32 throws; util.format `%d` truncates like the Bun-faithful console (Node prints the full
+🟡):** path.win32 pure-CL residual shipped (#108); util.format `%d` truncates like the Bun-faithful console (Node prints the full
 Number); pathToFileURL returns a string (URL object is Phase 18); util.promisify.custom + the
 once-fire/removeAll `removeListener` emissions + full `instanceof assert.AssertionError` are documented gaps.
 **Fan-out mechanism:** the 5 non-reference modules were authored by parallel write-only subagents (one file
@@ -3249,3 +3249,12 @@ matches. Inventory disposition after merge with master residual closes is
 closed permission-sensitive `ls` corpus sites on master). SemVer impact is `patch` as an
 unpublished correction of master `0.1.0-dev.26` after secrets #106 (no new prerelease slot; does not allocate `0.1.0-dev.27`); `tooling.shell` stays
 `Partial` (no Yes claim).
+
+### 2026-07-17 - node:path.win32 pure-CL residual (#108)
+
+`path.win32` is no longer present-but-throwing. Pure Common Lisp string algorithms implement
+Node-shaped win32 path math (`sep`, `delimiter`, basename/dirname/extname, isAbsolute, normalize,
+join, resolve, relative, parse, format, toNamespacedPath/`_makeLong`) with `/`↔`\\` awareness and
+UNC/device roots. Cross-links match Node (`path.posix.win32 === path.win32`, self-`win32`/`posix`).
+Host cwd for resolve rewrites `/` → `\\` (Node-on-POSIX). Fixture: `tests/js/node/path-win32.js`.
+Does **not** promote `runtime.node-compatibility` to ledger Yes. SemVer: `0.1.0-dev.28` minor.

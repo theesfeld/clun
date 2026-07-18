@@ -7,24 +7,20 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **66 - Jest-compatible test-runner parity**  (CONCURRENT PARTIAL)
+## Current phase: **47 - Node.js compatibility residual** (path.win32)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/40
+**Canonical issue:** https://github.com/theesfeld/clun/issues/108
 **Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/32,
 https://github.com/theesfeld/clun/issues/11, https://github.com/theesfeld/clun/issues/2, and https://github.com/theesfeld/clun/issues/39
-**Current implementation unit:** Phase 66 concurrent/serial scheduling residual on PR #110 — pure-CL
-`test.concurrent` / `describe.concurrent` / `test.serial` / `describe.serial`, `concurrentIf` /
-`serialIf`, CLI `--concurrent` and `--max-concurrency`, and Bun-shaped consecutive concurrent groups
-with overlapping async settlement on the realm event loop. Compatibility row stays **Partial** (not
-Yes); parallel files, watch, full frozen-root receipts, and residual exotic surfaces remain open.
+**Current implementation unit:** pure-CL `node:path.win32` residual on PR #114 — sep/delimiter,
+basename/dirname/extname, isAbsolute, normalize, join, resolve, relative, parse, format,
+toNamespacedPath/`_makeLong`, cross-links. `runtime.node-compatibility` stays **Partial** (not Yes).
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.27` / `v0.1.0-dev.27`
+**Candidate release:** `0.1.0-dev.28` / `v0.1.0-dev.28`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
 **Entry boundary:** immutable `v0.1.0-dev.21` is tagged; installer defaults to that tag. Master tip is
-`0.1.0-dev.26` after shell inventory #111 (unpublished correction on the secrets candidate). This unit
-stages free `0.1.0-dev.27` under the unpublished-intermediate prerelease gap policy. Phase 26 remains after Phase 82.
-**Next scope:** keep Phase 66 Partial (no matrix Yes); green exact-head CI on the staged candidate; residual
-test-runner inventory continues after concurrent scheduling.
+`0.1.0-dev.27` after concurrent #110; this unit stages free `0.1.0-dev.28`. Phase 26 remains after Phase 82.
+**Next scope:** keep node-compat Partial (no matrix Yes); land path.win32 residual with green CI.
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
 easiest to hardest among dependency-ready rows. Core engine/runtime/network/tooling changes are expected.
 Every conversion requires a legitimate canonical issue, accepted design, full declared behavior, executable
