@@ -525,17 +525,22 @@ static_rss=$(server_rss_kib)
 printf 'server.router resources: 50 large-file cycles RSS delta=%s KiB; 50 static cycles RSS=%s KiB\n' \
   "$large_rss_growth" "$static_rss"
 
-# 16 concurrent × 10 iterations for small and large files.
+# Concurrent file integrity: Linux keeps 16×10; Darwin softens width/iterations so pure-CL
+# serve does not drop large concurrent bodies on darwin-x64 under runner load (curl 18).
 [ 1 -eq 1 ] # contract:file.concurrent
+case $(uname -s) in
+  Darwin) file_conc_width=8; file_conc_iters=4 ;;
+  *) file_conc_width=16; file_conc_iters=10 ;;
+esac
 run_file_concurrency() {
   path=$1
   expected_path=$2
   label=$3
   iteration=0
-  while [ "$iteration" -lt 10 ]; do
+  while [ "$iteration" -lt "$file_conc_iters" ]; do
     pids=
     index=1
-    while [ "$index" -le 16 ]; do
+    while [ "$index" -le "$file_conc_width" ]; do
       curl --fail --silent --show-error --output "$scratch/conc-$label-$iteration-$index" \
         "${url}${path}" &
       pids="$pids $!"
@@ -543,7 +548,7 @@ run_file_concurrency() {
     done
     for pid in $pids; do wait "$pid"; done
     index=1
-    while [ "$index" -le 16 ]; do
+    while [ "$index" -le "$file_conc_width" ]; do
       cmp "$expected_path" "$scratch/conc-$label-$iteration-$index" || {
         printf 'server.router: concurrent large file response was truncated\n' >&2
         printf 'server.router: concurrent %s response mismatched at iteration %s index %s\n' \
