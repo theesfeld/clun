@@ -3292,21 +3292,6 @@ additional shell-language inventory sites after #122/#123 (overall
 
 Ship Bun-shaped pure-CL compression and archive surface without a new ledger row:
 
-- **Matrix lock:** `compat-validate` requires exactly 30 `features.tsv` rows. There is no
-  `archive-compression` summary ID. Do **not** invent a 31st Yes row.
-- **APIs on `Clun`:** `gzipSync`/`gunzipSync`/`deflateSync`/`inflateSync`,
-  `zipSync`/`unzipSync`, `Archive` (tar + optional gzip), fail-closed `zstd*`.
-- **Codecs:** vendored **salza2** (compress) + existing **chipz** (decompress); ustar
-  writer + hardened extract reusing Phase-22 path checks; pure-CL ZIP (store+deflate).
-- **Evidence:** `tests/lisp/archive/*`, `tests/js/archive/basic.js`; claim lives under
-  Phase 74 / issue #134, not a matrix Yes promotion.
-- SemVer minor → `0.1.0-dev.34` / `v0.1.0-dev.34`.
-
-
-## 2026-07-18 — Phase 74 archive/compression pure-CL APIs (#134)
-
-Ship Bun-shaped pure-CL compression and archive surface without a new ledger row:
-
 - **Matrix lock:** `compat-validate` requires exactly 30 `features.tsv` rows. No
   `archive-compression` summary ID — do **not** invent a 31st Yes row.
 - **APIs on `Clun`:** `gzipSync`/`gunzipSync`/`deflateSync`/`inflateSync`,
@@ -3345,3 +3330,19 @@ supported platforms, and ledger Yes. Stages `0.1.0-dev.38`.
 
 **Decision:** Ship pure-CL `Clun.markdown` + global `HTMLRewriter` under #135 without expanding `features.tsv` past 30 rows.
 **Consequences:** SemVer `minor` on `0.1.0-dev.39`; no matrix Yes claim; parent #49 keeps TOML/JSON5/JSONL.
+
+### 2026-07-18 — language.typescript Partial→Yes (Issue #133)
+
+Bun-compatible TypeScript **execution** closes as ledger **Yes** without a full tsc typechecker:
+
+1. **Erasable strip** (Phase 09) remains length-preserving for pure type erasure.
+2. **Runtime transforms** emit Bun/TS-shaped JS for value `enum` / `const enum` (IIFE reverse maps;
+   const enums emit as objects rather than full inlining), runtime `namespace`/`module` (IIFE +
+   export assignment + free-ref rewrite), and constructor **parameter properties** (`this.x=x`
+   injection; no class-field declarations — engine ES2017 tier).
+3. **Still out of scope / hard-error:** experimental decorators, `.tsx`, angle-bracket casts,
+   `import =` / `export =`. No full type checking; no sourcemaps for length-changing emits yet.
+4. Four-target **supported** with fixtures: annotations, enum-basic, namespace-runtime, param-prop.
+5. Honest ledger detail: first-class execution transforms, not Deno-style typecheck parity.
+
+Release train: `0.1.0-dev.40`. SemVer **minor**.

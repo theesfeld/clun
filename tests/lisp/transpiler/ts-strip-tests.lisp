@@ -63,15 +63,11 @@
     (is eql (position #\Newline src) (position #\Newline out))))
 
 (define-test ts/error-catalog
-  (is equal "TypeScript enum is not supported in strip-only mode" (strip-errs "enum E { A }"))
-  (is equal "TypeScript enum is not supported in strip-only mode" (strip-errs "const enum E { A }"))
-  (true (search "parameter property" (or (strip-errs "class C { constructor(private x: number) {} }") "")))
+  ;; remaining non-transform residuals still hard-error
   (true (search "import =" (or (strip-errs "import x = require(\"y\");") "")))
   (true (search "export =" (or (strip-errs "export = foo;") "")))
   (true (search "decorators" (or (strip-errs "class C { @dec m() {} }") "")))
-  (true (search "namespace" (or (strip-errs "namespace N { const x = 1; }") "")))
-  ;; bare value enum inside a namespace is runtime → error (not silent erase)
-  (true (search "namespace" (or (strip-errs "namespace N { enum E { A } }") "")))
+  (true (search "angle brackets" (or (strip-errs "const x = <T>y;") "")))
   ;; a type-only namespace is erased, not an error
   (is equal "" (collapse-ws (strip "namespace T { export interface X { a: number; } }"))))
 
@@ -80,6 +76,34 @@
   ;; export declare keeps leading export like other export-declare forms today
   (is equal "" (collapse-ws (strip "declare enum E { A, B }")))
   (is equal "" (collapse-ws (strip "declare const enum Dir { Up, Down }")))
-  (is equal "export" (collapse-ws (strip "export declare enum E { A = 1, B }")))
-  ;; value enums still hard-error
-  (is equal "TypeScript enum is not supported in strip-only mode" (strip-errs "export enum E { A }")))
+  (is equal "export" (collapse-ws (strip "export declare enum E { A = 1, B }"))))
+
+(define-test ts/enum-transform
+  (let ((out (strip "enum E { A, B }")))
+    (true (search "var E" out))
+    (true (search "E[E[\"A\"]=0]=\"A\"" out))
+    (true (search "E[E[\"B\"]=1]=\"B\"" out)))
+  (let ((out (strip "const enum CE { X = 1, Y = X + 1 }")))
+    (true (search "var CE" out))
+    (true (search "CE[CE[\"Y\"]=2]=\"Y\"" out)))
+  (let ((out (strip "export enum EE { Foo = \"foo\" }")))
+    (true (search "export var EE" out))
+    (true (search "EE[\"Foo\"]=\"foo\"" out))))
+
+(define-test ts/namespace-transform
+  (let ((out (strip "namespace N { export const x = 1; export function f() { return x + 1; } }")))
+    (true (search "var N" out))
+    (true (search "N.x=1" out))
+    (true (search "function f()" out))
+    (true (search "return N.x + 1" out))
+    (true (search "N.f=f" out))))
+
+(define-test ts/param-prop-transform
+  (let ((out (strip "class C { constructor(public x: number, private y: string) {} }")))
+    (true (search "constructor(" out))
+    (true (search "this.x=x" out))
+    (true (search "this.y=y" out))
+    ;; modifiers and types erased (not present as keywords before binding)
+    (false (search "public" out))
+    (false (search "private" out))
+    (false (search "number" out))))

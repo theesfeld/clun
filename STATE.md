@@ -7,21 +7,20 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **75 - Data formats, Markdown, and HTMLRewriter**  (#135)
+## Current phase: **39 - Full TypeScript transforms**  (YES CONVERSION #133)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/135
-**Parent phase issue:** https://github.com/theesfeld/clun/issues/49
-**Current implementation unit:** Phase 75 Markdown + HTMLRewriter pure-CL APIs (#135).
-Ships `Clun.markdown` (`html`/`render`/`ansi`; `react` fail-closed) and global `HTMLRewriter`
-(`on`/`onDocument`/`transform`) in pure Common Lisp. **30-feature honesty:** `compat/features.tsv`
-still has exactly 30 rows — Markdown/HTMLRewriter have no matrix row, so this unit does **not**
-claim a ledger `Yes` and does **not** invent a 31st feature ID (same constraint as archives #134).
-TOML/JSON5/JSONL and full streaming HTMLRewriter corpora remain open under #49.
+**Canonical issue:** https://github.com/theesfeld/clun/issues/133
+**Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/135,
+https://github.com/theesfeld/clun/issues/130, https://github.com/theesfeld/clun/issues/129
+**Current implementation unit:** language.typescript Partial→Yes (#133).
+`language.typescript` is **Yes** (erasable strip + Bun-compatible enum/namespace/parameter-property
+runtime transforms; four-target supported; no full tsc typecheck; `.tsx`/decorators deferred).
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.39` / `v0.1.0-dev.39`
+**Candidate release:** `0.1.0-dev.40` / `v0.1.0-dev.40`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
-**Entry boundary:** installer on `v0.1.0-dev.21`; free slot after master tip `0.1.0-dev.38`.
-**Next scope:** remaining Phase 75 formats + four-target receipts under #49; parallel Yes trains continue.
+**Entry boundary:** installer on `v0.1.0-dev.21`; free slot after master markdown Yes `0.1.0-dev.39`.
+**Next scope:** remaining Partial ledger rows (server-http, npm, node-compat, …).
+
 
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
