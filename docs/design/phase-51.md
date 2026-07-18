@@ -1,7 +1,7 @@
 # Phase 51 — WebSocket and Pub/Sub (constitutional checkpoint)
 
 Status: **design + fail-closed skeleton**. Full protocol implementation is not in this unit.
-Ledger row `server.websocket` remains **`No`** until Autobahn-style and Bun-differential gates pass
+Ledger row `server.websocket` is **`Partial`** after M1 (handshake + framing + echo). Full **`Yes`** still waits for Autobahn-style and Bun-differential gates
 with four-target receipts.
 
 Canonical live SoT: [issue #25](https://github.com/theesfeld/clun/issues/25).
@@ -172,9 +172,9 @@ prohibition (contrast `runtime.native-addons` / Phase 48).
 
 ### M1 — Server handshake + unmasked/masked framing
 
-- Detect upgrade requests; compute `Sec-WebSocket-Accept`; 101 response.
-- Parse/write frames; ping/pong/close; basic `message` / `open` / `close` handlers.
-- Resource tests: 10k connect/message/close without handle leaks (local gate).
+- [x] Detect upgrade requests; compute `Sec-WebSocket-Accept`; 101 response.
+- [x] Parse/write frames; ping/pong/close; basic `message` / `open` / `close` handlers.
+- [ ] Resource tests: 10k connect/message/close without handle leaks (local gate; residual).
 
 ### M2 — ServerWebSocket API + backpressure
 
@@ -204,7 +204,7 @@ capability claims.
 
 ## 6. Fail-closed contract (shipped in M0)
 
-Until M1+:
+Until M1 (superseded once M1 lands):
 
 1. `Clun.serve({ websocket: … })` and `server.reload({ websocket: … })` throw a **TypeError** whose
    message states that WebSocket support is not implemented (Phase 51) and that a pure-CL path is

@@ -9,8 +9,8 @@ targets are workload-specific and published;
 Clun does not claim blanket speed parity with Bun.
 
 <!-- clun-generated:release:begin -->
-> **Status: pre-alpha, under active construction.** [Phase 49](https://github.com/theesfeld/clun/issues/23) is in progress.
-> Its release-bearing target is `0.1.0-dev.30` / `v0.1.0-dev.30` (SemVer impact: `minor`).
+> **Status: pre-alpha, under active construction.** [Phase 51](https://github.com/theesfeld/clun/issues/121) is in progress.
+> Its release-bearing target is `0.1.0-dev.31` / `v0.1.0-dev.31` (SemVer impact: `minor`).
 > The verified release boundary is `v0.1.0-dev.21`, with four native archives, checksums, Pages,
 > and hosted-installer evidence.
 > Phase 26 remains deferred until after Phase 82 and will
@@ -20,11 +20,13 @@ Clun does not claim blanket speed parity with Bun.
 > the local resume checklist.
 <!-- clun-generated:release:end -->
 
-Source stages the `0.1.0-dev.30` Phase 49 HTTP server lifecycle Partial (`idleTimeout`,
-`maxRequestBodySize`, `server.stop(true)`). `server.http` remains Partial — no matrix `Yes`.
-Published [`v0.1.0-dev.21`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.21) is the
-verified release boundary. Master tip is `0.1.0-dev.29` (spawn #112); this unit allocates free `0.1.0-dev.30` under the unpublished-intermediate prerelease gap policy. The hosted
-installer correctly remains on published dev.21 until the candidate is merged, tagged, and released.
+This unit is Phase 51 M1 WebSocket handshake + framing (`0.1.0-dev.31`): pure-CL RFC 6455
+accept-key and frames, wired into `Clun.serve` for a minimal upgrade/echo path. Ledger row
+`server.websocket` is **Partial** (not Yes — no Pub/Sub, client, compression, or Autobahn gate).
+Published [`v0.1.0-dev.21`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.21) remains the
+verified release boundary. Master tip is `0.1.0-dev.28` (path.win32 #108 / concurrent #110); this unit takes free
+`0.1.0-dev.31` under the unpublished-intermediate prerelease gap policy. The hosted installer correctly
+remains on published dev.21 until the candidate is merged, tagged, and released.
 
 ## Install
 
@@ -112,7 +114,7 @@ July 16, 2026. Engineering references are separately pinned to Bun commit `c1076
 | SQL database drivers | No | Phases [55](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-55), [56](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-56), [57](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-57) |
 | S3 cloud storage | No | [Phase 53](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-53) |
 | Redis client | No | [Phase 54](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-54) |
-| WebSocket server | No: pure-CL path feasible; fail-closed stubs only (design docs/design/phase-51.md) | [Phase 51](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-51) |
+| WebSocket server | Partial: RFC 6455 handshake + framing; Clun.serve upgrade/echo path (Phase 51 M1) | [Phase 51](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-51) |
 | HTTP server | Partial: HTTP/1.1 with buffered bodies; idleTimeout/maxRequestBodySize/stop(force) | [Phase 49](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-49) |
 | HTTP router | Yes: `Clun.serve({ routes })` and `Clun.FileSystemRouter` | [Phase 50](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-50) |
 | Single-file executables | No: Clun ships a runtime executable only | Phases [52](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-52), [77](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-77) |
@@ -157,10 +159,10 @@ workflows are read-only and fail closed if the canonical issues, README, or site
 
 <!-- clun-generated:release-summary:begin -->
 Release versions follow the actual SemVer impact recorded in the canonical issue, not the number of pushes.
-The current source is the `0.1.0-dev.30` release candidate; the immutable tag and assets are not published yet.
+The current source is the `0.1.0-dev.31` release candidate; the immutable tag and assets are not published yet.
 The last published prerelease remains [`v0.1.0-dev.21`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.21).
 [The versioning contract](docs/versioning.md) defines prerelease sequencing, synchronized surfaces, immutable tags, assets, and installer evidence.
-[Phase 49 issue #23](https://github.com/theesfeld/clun/issues/23) is the canonical live release record.
+[Phase 51 issue #121](https://github.com/theesfeld/clun/issues/121) is the canonical live release record.
 <!-- clun-generated:release-summary:end -->
 
 ## The purity contract
@@ -200,7 +202,7 @@ vendored under `vendor/` and located via `scripts/registry.lisp`.
 make build     # compile everything, save build/clun (save-lisp-and-die)
 make test      # run the CL suites and JS/TS fixture harnesses
 make purity    # fail on any CFFI/foreign-code token
-./build/clun --version   # => clun 0.1.0-dev.30
+./build/clun --version   # => clun 0.1.0-dev.31
 ```
 
 A fresh clone builds with `make build` alone: ASDF compiles the vendored closure and `src/` into
