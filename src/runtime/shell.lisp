@@ -776,6 +776,14 @@
                   (zerop brace-depth)
                   (zerop control-depth)
                   (eq (shell-token-kind token) :operator)
+                  (string= (shell-token-value token) "&"))
+             ;; Match frozen Bun: background forms are recognized then rejected.
+             (%shell-syntax "Background commands \"&\" are not supported yet."))
+            ((and (not in-condition)
+                  (zerop depth)
+                  (zerop brace-depth)
+                  (zerop control-depth)
+                  (eq (shell-token-kind token) :operator)
                   (member (shell-token-value token) '(";" "&&" "||") :test #'string=))
              (flush (cond ((string= (shell-token-value token) "&&") :and)
                           ((string= (shell-token-value token) "||") :or)
@@ -837,7 +845,10 @@
     (case (shell-fragment-kind fragment)
       (:literal (values (list (shell-fragment-value fragment)) nil))
       (:interpolation
-       (values (%shell-flatten-interpolation (shell-fragment-value fragment)) nil))
+       (let ((value (shell-fragment-value fragment)))
+         (when (and quoted (%shell-js-object-ref-p value))
+           (%shell-syntax "JS object reference not allowed in double quotes"))
+         (values (%shell-flatten-interpolation value) nil)))
       (:variable
        (let ((value (%shell-env-get (shell-state-env state)
                                     (shell-fragment-value fragment) "")))
@@ -1014,6 +1025,28 @@ pattern only in assignment position; elsewhere it fails with
   ;; Multiple pathname matches join with a single space so later unquoted
   ;; expansions re-split into the same argv fields Bun freezes in tests.
   (format nil "~{~a~^ ~}" (%shell-word-values word state g :null-glob-ok t)))
+
+(defun %shell-js-object-ref-p (value)
+  "True when VALUE is a Bun-style shell JS object reference (buffer-like)."
+  (or (eng:js-typed-array-p value)
+      (eng:js-array-buffer-p value)
+      (and (eng:js-object-p value)
+           (or (js-blob-p value) (js-response-p value)))))
+
+(defun %shell-apply-assignments (assignments state g)
+  "Expand ASSIGNMENTS left-to-right into a fresh env overlay.
+
+Later assignment values see earlier names on the same command, matching the
+pinned Bun assignment statement behavior used by lex/env_vars fixtures."
+  (let ((env (%shell-env-copy (shell-state-env state)))
+        (saved (shell-state-env state)))
+    (unwind-protect
+         (dolist (assignment assignments env)
+           (setf (shell-state-env state) env)
+           (setf env (%shell-env-set env (car assignment)
+                                     (%shell-assignment-value
+                                      (cdr assignment) state g))))
+      (setf (shell-state-env state) saved))))
 
 ;;; --- builtins and direct external execution --------------------------------
 
@@ -3228,11 +3261,19 @@ integer conversions are deliberately rejected because seq values are f32."
          (string= (shell-fragment-value (first fragments)) "[["))))
 
 (defun %shell-command-argv (command state g)
-  (if (%shell-condition-command-p command)
-      (mapcar (lambda (word) (%shell-condition-word-value word state g))
-              (shell-command-words command))
-      (mapcan (lambda (word) (%shell-word-values word state g))
-              (shell-command-words command))))
+  (let ((words (shell-command-words command)))
+    (when (and (= (length words) 1)
+               (let ((fragments (shell-word-fragments (first words))))
+                 (and (= (length fragments) 1)
+                      (eq (shell-fragment-kind (first fragments)) :interpolation)
+                      (%shell-js-object-ref-p
+                       (shell-fragment-value (first fragments))))))
+      (%shell-syntax "expected a command or assignment but got: \"JSObjRef\""))
+    (if (%shell-condition-command-p command)
+        (mapcar (lambda (word) (%shell-condition-word-value word state g))
+                words)
+        (mapcan (lambda (word) (%shell-word-values word state g))
+                words))))
 
 (defun %shell-append-results (left right &optional exit-code)
   (make-shell-result
@@ -3265,10 +3306,8 @@ integer conversions are deliberately rejected because seq values are f32."
                            :exit-code 0))))
 
 (defun %shell-execute-command-core (command state g stdin)
-  (let ((env (%shell-env-copy (shell-state-env state))))
-    (dolist (assignment (shell-command-assignments command))
-      (setf env (%shell-env-set env (car assignment)
-                                (%shell-assignment-value (cdr assignment) state g))))
+  (let ((env (%shell-apply-assignments (shell-command-assignments command)
+                                       state g)))
     (cond
       ((shell-command-if-form command)
        (multiple-value-bind (input output-redirections)
@@ -3399,13 +3438,9 @@ integer conversions are deliberately rejected because seq values are f32."
                 (rest commands)))))
 
 (defun %shell-prepare-external (command state g)
-  (let ((env (%shell-env-copy (shell-state-env state))))
-    (dolist (assignment (shell-command-assignments command))
-      (setf env (%shell-env-set env (car assignment)
-                                (%shell-assignment-value (cdr assignment) state g))))
-    (values (mapcan (lambda (word) (%shell-word-values word state g))
-                    (shell-command-words command))
-            env)))
+  (values (%shell-command-argv command state g)
+          (%shell-apply-assignments (shell-command-assignments command)
+                                    state g)))
 
 (defun %shell-kill-processes (processes)
   (dolist (process processes)
