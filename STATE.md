@@ -7,20 +7,19 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **47 - Node.js compatibility residual** (path.win32)
+## Current phase: **46 - Processes, VM, workers, and async hooks**  (spawn residual #104)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/108
-**Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/32,
-https://github.com/theesfeld/clun/issues/11, https://github.com/theesfeld/clun/issues/2, and https://github.com/theesfeld/clun/issues/39
-**Current implementation unit:** pure-CL `node:path.win32` residual on PR #114 — sep/delimiter,
-basename/dirname/extname, isAbsolute, normalize, join, resolve, relative, parse, format,
-toNamespacedPath/`_makeLong`, cross-links. `runtime.node-compatibility` stays **Partial** (not Yes).
+**Canonical issue:** https://github.com/theesfeld/clun/issues/104
+**Next phase issue:** https://github.com/theesfeld/clun/issues/20
+**Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/2,
+https://github.com/theesfeld/clun/issues/39, and https://github.com/theesfeld/clun/issues/40
+**Current implementation unit:** Issue #104 spawn residual — object form, AbortSignal, timeout/killSignal, killed, ref/unref on Clun.spawn/spawnSync. Pure CL only; ledger Partial only (no IPC, no ReadableStream stdout, no #61 loop ownership).
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.28` / `v0.1.0-dev.28`
+**Candidate release:** `0.1.0-dev.29` / `v0.1.0-dev.29`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
-**Entry boundary:** immutable `v0.1.0-dev.21` is tagged; installer defaults to that tag. Master tip is
-`0.1.0-dev.27` after concurrent #110; this unit stages free `0.1.0-dev.28`. Phase 26 remains after Phase 82.
-**Next scope:** keep node-compat Partial (no matrix Yes); land path.win32 residual with green CI.
+**Entry boundary:** immutable `v0.1.0-dev.21` is tagged and published; installer defaults to that tag.
+Master tip is `0.1.0-dev.28` after path.win32 #114. This unit stages free `0.1.0-dev.29` under the unpublished-intermediate prerelease gap policy. Phase 26 remains after Phase 82.
+**Next scope:** keep spawn Partial; optional maxBuffer/IPC/ReadableStream and #61 lifecycle remain future units.
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
 easiest to hardest among dependency-ready rows. Core engine/runtime/network/tooling changes are expected.
 Every conversion requires a legitimate canonical issue, accepted design, full declared behavior, executable

@@ -1568,7 +1568,7 @@ Legend: ✅ as documented · 🟡 partial (note what's missing) · ❌ non-goal 
 | node:stream / net / http / crypto / child_process / worker_threads / vm / zlib | ❌ | Loud non-goals — `stream` is the biggest compat cliff |
 | fetch | 🟡 | Buffered bodies; HTTPS experimental (unaudited TLS); no HTTP/2, FormData, streams |
 | Clun.serve | 🟡 | HTTP/1.1 fetch-handler; buffered bodies; no routes/static/WebSocket/TLS-server |
-| Clun.file / write / spawn | 🟡 | Read/write-full + exists/size; spawn pipe/inherit/ignore, no IPC/AbortSignal |
+| Clun.file / write / spawn | 🟡 | Read/write-full + exists/size; spawn pipe/inherit/ignore + AbortSignal/timeout/object form/ref-unref residual (#104); still no IPC/ReadableStream stdout |
 | clun test | 🟡 | Hooks/modifiers/-t/timeout/bail + ~22 matchers; no snapshots/coverage/mocks/concurrency |
 | clun install/add/remove | 🟡 | npm registry, hoisted, clun.lock, frozen; **no lifecycle scripts ever**, no workspaces/git-deps/bunx |
 | clun run scripts | ✅ | sh -c, ancestor .bin PATH, pre/post, npm_* env (always /bin/sh — Bun prefers bash) |
