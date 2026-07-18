@@ -24,9 +24,10 @@ This unit stages `0.1.0-dev.27` Phase 66 concurrent/serial test scheduling under
 (`test.concurrent`, `describe.concurrent`, `test.serial`, `--concurrent`, `--max-concurrency`).
 The compatibility row stays **Partial** (not Yes). Published
 [`v0.1.0-dev.21`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.21) is the verified release
-boundary. Master tip is `0.1.0-dev.26` after secrets #106; this unit takes the next free slot
-`0.1.0-dev.27` under the unpublished-intermediate prerelease gap policy. The hosted installer
-correctly remains on published dev.21 until the candidate is merged, tagged, and released.
+boundary. Master tip is `0.1.0-dev.26` after shell inventory #111 (unpublished correction on secrets
+slot); this unit takes free `0.1.0-dev.27` under the unpublished-intermediate prerelease gap policy.
+The hosted installer correctly remains on published dev.21 until the candidate is merged, tagged,
+and released.
 
 ## Install
 
@@ -123,7 +124,7 @@ July 16, 2026. Engineering references are separately pinned to Bun commit `c1076
 | Encrypted secrets storage | No: excluded by the purity contract | [Phase 58](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-58) |
 | npm package management | Partial: fixture-tested; a pinned public npm install smoke passes over verified TLS | Phases [28](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-28), [59](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-59), [60](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-60), [61](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-61) |
 | Bundler | No: not included in the v0.1 scope | Phases [62](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-62), [63](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-63), [64](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-64), [77](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-77) |
-| Cross-platform shell API | Partial: `Clun.$`, `clun exec`, standalone `.bun.sh` files with positional parameters, dollar and backtick command substitution, merged stdout/stderr pipelines, grouped subshells and brace groups nested across `if` control flow, Blob/Response I/O, positive extended-glob conditions, compound-word field splitting, 100-level arrays, Unicode, tilde and continuation expansion, builtins, and 1,251/1,630 pinned shell sites | [Phase 65](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-65) |
+| Cross-platform shell API | Partial: `Clun.$`, `clun exec`, standalone `.bun.sh` files with positional parameters, dollar and backtick command substitution, merged stdout/stderr pipelines, grouped subshells and brace groups nested across `if` control flow, Blob/Response I/O, positive extended-glob conditions, compound-word field splitting, 100-level arrays, Unicode, tilde and continuation expansion, builtins, and 1,286/1,630 pinned shell sites | [Phase 65](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-65) |
 | Jest-compatible test runner | Partial: 62 core and extended matchers, snapshot lifecycles with stable property tokens and Bun-formatted core values, source-aligned ESM/CommonJS/TypeScript statement and function coverage with Bun-shaped text and LCOV reporters, filters, config, and thresholds, custom and Promise-settlement asymmetric matchers, per-realm ESM/CJS module mocks, CLI and bunfig setup preloads, realm-local Jest and vi fake timers with Date and performance clock control, seeded Bun-pinned randomization, deterministic file sharding, dots and JUnit reporters, function mocks/spies, callbacks, cleanup, parameterization, retries, repeats, and cooperative `test.concurrent` / `describe.concurrent` / `test.serial` scheduling with `--concurrent` and `--max-concurrency` (parallel files, watch, and full frozen-root receipts remain open) | [Phase 66](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-66) |
 | Hot reloading | No | [Phase 67](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-67) |
 | Monorepo support | No: workspaces are unsupported | [Phase 60](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-60) |

@@ -22,8 +22,8 @@ The canonical evidence and current limitations are in `compat/`; `make compat-va
   `--concurrent` defaulting with serial override.
 - Does **not** promote `tooling.test-runner` to ledger `Yes`. Parallel files, watch, full
   frozen-root counts, four-target receipts, and residual exotic surfaces remain open.
-- Slot map: published base `v0.1.0-dev.21`; master tip `0.1.0-dev.26` (secrets #106); this
-  candidate allocates next free `0.1.0-dev.27` under the unpublished-intermediate prerelease
-  gap policy (transition `0.1.0-dev.26` → `0.1.0-dev.27`).
+- Slot map: published base `v0.1.0-dev.21`; master tip `0.1.0-dev.26` (shell #111 unpublished
+  correction); this candidate allocates next free `0.1.0-dev.27` (transition `0.1.0-dev.26` →
+  `0.1.0-dev.27`).
 
 The release candidate stages honest test-runner residual work without promoting any matrix row to `Yes`.

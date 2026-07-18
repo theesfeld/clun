@@ -3237,3 +3237,15 @@ integration is excluded by the purity contract. Ship `Clun.secrets` with Bun-sha
 `get` / `set` / `delete` argument validation and fail-closed `ERR_SECRETS_NOT_AVAILABLE` for every
 store operation. Do not claim `Yes` or `Partial`. Evidence is the design decision, Lisp suite, and
 shipped fixture under `make compat FEATURE=security.encrypted-secrets`.
+
+### 2026-07-17 - Phase 65 unmatched pathname globs fail outside assignment
+
+Command-position unmatched globs now fail with `clun: no matches found: <pattern>` and
+exit status 1, matching Bun Expansion.rs. Assignment position keeps the literal pattern, and
+multi-match assignment values join with a single space so later unquoted expansions re-split.
+Brace+glob composition still keeps every brace variant as a literal while appending pathname
+matches. Inventory disposition after merge with master residual closes is
+**1,286 covered / 312 pending / 32 upstream-inactive** (35 sites closed this unit; #102 also
+closed permission-sensitive `ls` corpus sites on master). SemVer impact is `patch` as an
+unpublished correction of master `0.1.0-dev.26` after secrets #106 (no new prerelease slot; does not allocate `0.1.0-dev.27`); `tooling.shell` stays
+`Partial` (no Yes claim).
