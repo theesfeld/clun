@@ -7,19 +7,21 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **65 - Cross-platform shell API**
+## Current phase: **59 - Package registry and dependency-spec breadth**  (YES CONVERSION #131)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/39
-**Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/120,
-https://github.com/theesfeld/clun/issues/23, https://github.com/theesfeld/clun/issues/40,
-and https://github.com/theesfeld/clun/issues/25
-**Current implementation unit:** Phase 65 tooling.shell Partial→Yes complete (#120 under parent #39).
-`tooling.shell` is **Yes** (1,598 covered / 0 pending / 32 upstream-inactive; four-target supported).
+**Canonical issue:** https://github.com/theesfeld/clun/issues/131
+**Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/2,
+https://github.com/theesfeld/clun/issues/33, https://github.com/theesfeld/clun/issues/34,
+and https://github.com/theesfeld/clun/issues/35
+**Current implementation unit:** package-manager.npm Partial→Yes (#131).
+`package-manager.npm` is **Yes** (hermetic install + depspec residual + four-target supported;
+public npm smoke over verified pure-CL TLS; workspaces remain `package-manager.monorepo` No;
+publish/git+ssh remain Phase 61/59 follow-ons outside this Yes bar matching Bun `bun install`).
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.33` / `v0.1.0-dev.33`
+**Candidate release:** `0.1.0-dev.34` / `v0.1.0-dev.34`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
-**Entry boundary:** installer on `v0.1.0-dev.21`; candidate `0.1.0-dev.33` remains staged after #126.
-**Next scope:** next Yes conversions on Partial rows (test-runner, websocket, webstd, npm, node, TS, HTTP); shell ledger Yes held.
+**Entry boundary:** installer on `v0.1.0-dev.21`; this unit stages `0.1.0-dev.34` after shell Yes `0.1.0-dev.33`.
+**Next scope:** monorepo workspaces (#34), package tools/publish (#35), advanced git specs.
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
 easiest to hardest among dependency-ready rows. Core engine/runtime/network/tooling changes are expected.

@@ -3287,3 +3287,14 @@ additional shell-language inventory sites after #122/#123 (overall
 - Pure-CL background `&` + `wait`, ENAMETOOLONG, multi-error lex, EACCES globs, ls flag order.
 - Four-target platforms.tsv `supported`; ledger `clun_state=Yes`.
 - Release train: `0.1.0-dev.33`.
+
+### 2026-07-18 - package-manager.npm Partial→Yes (#131)
+
+**Decision:** Promote `package-manager.npm` to ledger **Yes** with four-target supported receipts after
+closing the dependency-spec residual pure-CL (optionalDependencies soft-fail; `file:` local packages)
+and retaining hermetic install + public npm smoke. Publishing is not required for Yes versus Bun's
+`bun install` detail; workspaces stay `package-manager.monorepo` **No**; git/SSH and registry publish
+remain Phase 59/61 follow-ons and are not claimed in the Yes detail.
+
+**Evidence:** `ev.package-manager.npm.hermetic-install.v1`, `ev.package-manager.npm.depspec.v1`;
+`make compat FEATURE=package-manager.npm`; opt-in `make smoke-npm`. Stages `0.1.0-dev.34`.

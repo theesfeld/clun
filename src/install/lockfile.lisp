@@ -83,20 +83,26 @@ skips an entry whose value is not an object or whose version is not a string."
                   (push (cons physical (format nil "~a@~a" name version)) plan))))))))
     (values (nreverse plan) nodes)))
 
-(defun lock-satisfies-p (lock root-deps)
-  "T iff LOCK is a usable object AND has a root-level (hoisted) version for every ROOT-DEPS name that
-satisfies its range — the freshness/no-drift test. A dist-tag range (not a valid semver range, e.g.
-`latest`) is considered pinned once locked (satisfied by any concrete locked version), mirroring
-pick-version + npm/bun. A malformed lock is simply not fresh (→ re-resolve, or drift under --frozen);
-it never raises a raw error."
-  (let ((packages (%packages-object lock)))
+(defun lock-satisfies-p (lock root-deps &key optional-names)
+  "T iff LOCK is a usable object AND has a root-level (hoisted) version for every required ROOT-DEPS
+name that satisfies its range — the freshness/no-drift test. OPTIONAL-NAMES may be absent from the
+lock (soft-failed optionalDependencies). A dist-tag or non-range spec (`latest`, `file:…`) is
+considered pinned once locked. A malformed lock is simply not fresh; it never raises a raw error."
+  (let ((packages (%packages-object lock))
+        (optional (make-hash-table :test 'equal)))
+    (dolist (n optional-names) (setf (gethash n optional) t))
     (and packages (not (eq packages :malformed))
          (every (lambda (d)
                   (let* ((name (car d)) (range (cdr d))
                          (obj (cdr (assoc (format nil "node_modules/~a" name) packages :test #'string=))))
-                    (and (consp obj)
-                         (let ((v (sys:jget obj "version")))
-                           (and (stringp v)
-                                (or (not (sv:range-valid-p range))   ; a dist-tag — pinned once locked
-                                    (sv:version-satisfies v range)))))))
+                    (cond
+                      ;; Soft-failed optional root dep may be missing from the lock.
+                      ((and (null obj) (gethash name optional)) t)
+                      ((not (consp obj)) nil)
+                      (t
+                       (let ((v (sys:jget obj "version")))
+                         (and (stringp v)
+                              (or (file-spec-p range)
+                                  (not (sv:range-valid-p range))   ; dist-tag / alias — pinned
+                                  (sv:version-satisfies v range))))))))
                 root-deps))))
