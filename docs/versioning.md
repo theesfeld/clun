@@ -288,3 +288,5 @@ Phase 76 cron scheduling (#50) stages free `0.1.0-dev.35` / `v0.1.0-dev.35`: pur
 Phase 74 archive/compression pure-CL APIs (#134) stages `0.1.0-dev.35` / `v0.1.0-dev.35` without a 31st features.tsv row (matrix locked at 30).
 
 Phase 66 test-runner Partial→Yes (#127) stages `0.1.0-dev.36` / `v0.1.0-dev.36` after master archive Yes landed as `.35`. Multi-file `--parallel`, concurrent evidence, exotic snapshots, 52-root disposition, four-target supported, gap cleared.
+
+Phase 59 package-manager.npm Partial→Yes (#131) stages `0.1.0-dev.37` / `v0.1.0-dev.37` with dependency-spec breadth (registry, npm: aliases, file:/link:, optional soft-fail), hermetic four-target install receipts, and platforms supported.

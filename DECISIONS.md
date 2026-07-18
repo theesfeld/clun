@@ -3325,3 +3325,6 @@ Ship Bun-shaped pure-CL compression and archive surface without a new ledger row
 - Watch integration deferred to Phase 67; JSX coverage mapping follows language JSX.
 - Four-target platforms.tsv `supported`; ledger `clun_state=Yes`.
 - Release train: `0.1.0-dev.36` (reslot after archive Yes landed as `.35`).
+### 2026-07-18 - package-manager.npm Partial→Yes (#131)
+
+`package-manager.npm` promotes to **Yes** at candidate `0.1.0-dev.37` (reslotted after master advanced through cron/archive/test-runner Yes units). Dependency-spec residual closes for the install surface: registry ranges/dist-tags, `npm:` aliases, `file:`/`link:` local packages, and `optionalDependencies` soft-fail with os/cpu filtering. Four-target hermetic install evidence (`examples/e2e-install.sh`) is registered and platforms are **supported**. Publishing remains an honest residual outside this Yes claim (Bun matrix Yes is `bun install`; workspaces stay `package-manager.monorepo`; pure-CL git/SSH remains later Phase 59/61 work). SemVer impact is **minor**.

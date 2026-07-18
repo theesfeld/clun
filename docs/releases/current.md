@@ -1,10 +1,10 @@
 <!-- clun-generated:release-notes:begin -->
-# Clun 0.1.0-dev.36
+# Clun 0.1.0-dev.37
 
-Phase 66: Jest-compatible test-runner parity.
+Phase 59: Package registry and dependency-spec breadth.
 
 - SemVer impact: `minor` within the selected `0.1.0` prerelease train.
-- Compatibility snapshot: 11 Yes / 6 Partial / 13 No across 30 generated rows.
+- Compatibility snapshot: 12 Yes / 5 Partial / 13 No across 30 generated rows.
 - Public baseline: Bun 1.3.14; engineering baseline: Bun `c1076ce95e`.
 - Target release platforms: Linux and macOS, x64 and arm64.
 - License: `GPL-3.0-or-later`.
@@ -13,11 +13,31 @@ The canonical evidence and current limitations are in `compat/`; `make compat-va
 <!-- clun-generated:release-notes:end -->
 ## Highlights
 
-- Issue #127 (Phase 66): tooling.test-runner Partial→Yes —
-  - Cooperative `test.concurrent` / `describe.concurrent` / `test.serial` with `--concurrent` and `--max-concurrency`
-  - Pure-CL multi-file `--parallel` process pools with serial/parallel count agreement
-  - Exotic snapshot property tokens (own-accessor Getter, control-byte escapes)
-  - `expect.unreachable` and runtime `expectTypeOf`
-  - Measured 52-root disposition; four-target supported; ledger Yes; gap cleared
-- SemVer slot: free `0.1.0-dev.36` / `v0.1.0-dev.36` after master archive/cron at `0.1.0-dev.35`
-- Hosted installer remains on published `v0.1.0-dev.21` until a later unit publishes.
+- Issue #131: `package-manager.npm` Partial→**Yes**. Dependency-spec residual closed for the
+  install surface: registry packages (semver ranges, dist-tags), `npm:` aliases, `file:`/`link:`
+  local packages, and `optionalDependencies` soft-fail with os/cpu filtering.
+- Four-target hermetic install receipts (`examples/e2e-install.sh`) are registered; platforms are
+  **supported**. Offline reinstall remains byte-identical on `clun.lock`.
+- Publishing remains an honest residual outside this Yes claim (Bun matrix Yes is install-class;
+  workspaces stay `package-manager.monorepo` No; pure-CL git/SSH remains later Phase 59/61 work).
+- Slot map: published base `v0.1.0-dev.21`; master tip `0.1.0-dev.36` (test-runner Yes); this
+  candidate allocates `0.1.0-dev.37` / `v0.1.0-dev.37` (SemVer `minor`). Hosted installer remains
+  on published dev.21 until a later unit publishes.
+
+The release candidate promotes one compatibility matrix row to `Yes` without claiming monorepo,
+registry publish, or git dependency protocols.
+## Highlights
+
+- Issue #131: `package-manager.npm` Partial→**Yes**. Dependency-spec residual closed for the
+  install surface: registry packages (semver ranges, dist-tags), `npm:` aliases, `file:`/`link:`
+  local packages, and `optionalDependencies` soft-fail with os/cpu filtering.
+- Four-target hermetic install receipts (`examples/e2e-install.sh`) are registered; platforms are
+  **supported**. Offline reinstall remains byte-identical on `clun.lock`.
+- Publishing remains an honest residual outside this Yes claim (Bun matrix Yes is install-class;
+  workspaces stay `package-manager.monorepo` No; pure-CL git/SSH remains later Phase 59/61 work).
+- Slot map: published base `v0.1.0-dev.21`; master tip `0.1.0-dev.36` (test-runner Yes); this
+  candidate allocates `0.1.0-dev.37` / `v0.1.0-dev.37` (SemVer `minor`). Hosted installer remains
+  on published dev.21 until a later unit publishes.
+
+The release candidate promotes one compatibility matrix row to `Yes` without claiming monorepo,
+registry publish, or git dependency protocols.

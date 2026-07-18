@@ -25,11 +25,21 @@
       v)))
 
 (defun root-deps (pkg &key production)
-  "The root dependency set: `dependencies` plus (unless PRODUCTION) `devDependencies`, as an alist of
-(name . range). A name in both prefers `dependencies`."
+  "The root dependency set as a list of entries:
+  (name . range) for required dependencies / devDependencies, and
+  (name range :optional t) for optionalDependencies.
+A name present in both `dependencies` and `devDependencies` prefers `dependencies`.
+Optional entries soft-fail during resolution."
   (let* ((deps (%obj->alist (sys:jget pkg "dependencies")))
-         (dev (unless production (%obj->alist (sys:jget pkg "devDependencies")))))
-    (append deps (remove-if (lambda (d) (assoc (car d) deps :test #'string=)) dev))))
+         (dev (unless production (%obj->alist (sys:jget pkg "devDependencies"))))
+         (opt (%obj->alist (sys:jget pkg "optionalDependencies")))
+         (required (append deps
+                           (remove-if (lambda (d) (assoc (car d) deps :test #'string=)) dev)))
+         (required-names (mapcar #'car required)))
+    (append required
+            (loop for (n . r) in opt
+                  unless (member n required-names :test #'string=)
+                    collect (list n r :optional t)))))
 
 (defstruct (install-result (:conc-name ir-))
   (source :resolved)                    ; :resolved (fresh) | :from-lock (reused)
@@ -132,7 +142,7 @@ rather than a raw condition escaping onto the caller's loop (§6)."
                                                                            :node-count (hash-table-count nodes)))))
                    :on-err (lambda (e) (when on-err (funcall on-err e))))))
              (resolve-fresh ()
-               (resolve-install loop deps :registry registry
+               (resolve-install loop deps :registry registry :project-root root
                  :on-ok (lambda (nodes ev)
                           (handler-case
                               (let ((plan (plan-layout nodes ev deps)))
