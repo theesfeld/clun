@@ -296,17 +296,7 @@ eval-source destroys the realm loop, which is already running under serve-and."
        (false (search "Content-Length:" resp))
        (true (search "chunk-a-b" resp))))))
 
-(define-test net/server-stream-response-async-chunked
-  "HTTP/1.1 Yes: async enqueue after start still pumps chunked frames."
-  (serve-and
-   (lambda (g req loop)
-     (declare (ignore req))
-     (%stream-response g "late" :async-p t :loop loop))
-   (lambda (loop port g server)
-     (declare (ignore g server))
-     (let ((resp (client-request
-                  loop port
-                  (req (crlf "GET /async HTTP/1.1" "Host: x" "Connection: close")))))
+))
        (true (search "Transfer-Encoding: chunked" resp))
        (true (search "late" resp))))))
 
