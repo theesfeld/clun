@@ -123,7 +123,7 @@ Phase 66 stages `0.1.0-dev.19` / `v0.1.0-dev.19` under Issue #40 (test-runner PR
 Phase 28 stages `0.1.0-dev.22` under Issue #2 (transport PR #95). Phase 37 m2/m3 land on
 `0.1.0-dev.21` / `0.1.0-dev.29` under Issue #11. Phase 58 secrets and shell inventory retain
 `0.1.0-dev.26`. Phase 66 concurrent test-runner stages `0.1.0-dev.29` under Issue #40 (PR #110).
-Phase 49 stages a bounded HTTP server lifecycle Partial slice as `0.1.0-dev.29` / `v0.1.0-dev.29`
+Phase 49 stages a bounded HTTP server lifecycle Partial slice as `0.1.0-dev.30` / `v0.1.0-dev.30` under Issue #23 (idleTimeout, maxRequestBodySize, stop(force)); `server.http` remains Partial.
 under Issue #23 (idleTimeout, maxRequestBodySize, stop(force)); `server.http` remains Partial.
 Version-transition allows multi-step prerelease advances only while every skipped intermediate remains
 unpublished. Until gates complete, the installer and immutable published boundary remain dev.21; no
