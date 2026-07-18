@@ -7,23 +7,25 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **49 - HTTP server parity**  (LIFECYCLE PARTIAL SLICE)
+## Current phase: **51 - WebSocket and Pub/Sub (M1 framing)**
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/23
+**Canonical issue:** https://github.com/theesfeld/clun/issues/121
+**Next phase issue:** https://github.com/theesfeld/clun/issues/25
 **Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/2,
-https://github.com/theesfeld/clun/issues/11, https://github.com/theesfeld/clun/issues/39,
-and https://github.com/theesfeld/clun/issues/40
-**Current implementation unit:** Phase 49 bounded Bun-compatible `Clun.serve` lifecycle slice —
-`idleTimeout`, `maxRequestBodySize`, and `server.stop(true)`. `server.http` remains **Partial**
-(streaming bodies, TLS serve, HTTP/2, Unix sockets, and full inventory stay open). No matrix Yes.
+https://github.com/theesfeld/clun/issues/11, https://github.com/theesfeld/clun/issues/25,
+https://github.com/theesfeld/clun/issues/39, https://github.com/theesfeld/clun/issues/40,
+and https://github.com/theesfeld/clun/issues/108
+**Current implementation unit:** Phase 51 M1 — pure-CL RFC 6455 handshake + frame encode/decode,
+wired into `Clun.serve` for a minimal upgrade/echo path. Ledger `server.websocket` **No → Partial**.
+Pub/Sub, client `WebSocket`, compression, and Yes remain later milestones (parent #25).
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.30` / `v0.1.0-dev.30`
+**Candidate release:** `0.1.0-dev.31` / `v0.1.0-dev.31`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
 **Entry boundary:** immutable `v0.1.0-dev.21` is tagged and published; installer defaults to that tag.
-Master tip is `0.1.0-dev.29` after spawn residual #112. This unit stages free `0.1.0-dev.30` under the
-unpublished-intermediate prerelease gap policy (transition 29→30). Phase 26 remains after Phase 82.
-**Next scope:** continue Phase 49 residuals without Yes; full `make compat FEATURE=http-server` remains open.
-
+Master tip is `0.1.0-dev.28` (path.win32 #108). This unit stages free `0.1.0-dev.31`
+under the unpublished-intermediate prerelease gap policy. Phase 26 remains after Phase 82.
+**Next scope:** M2 ServerWebSocket backpressure/cork; M3 Pub/Sub; keep Partial honest until Autobahn
+and four-target Bun-differential receipts.
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
 easiest to hardest among dependency-ready rows. Core engine/runtime/network/tooling changes are expected.
@@ -41,9 +43,9 @@ closed complete with exact asset digests. Phase 37 milestone 1 adds `Object.hasO
 well-formedness, `Error.isError`, and `Promise.withResolvers`, producing 173 measured execution-pass gains;
 its frozen inventory still has 603 residual failures after m2 and no full ledger row is claimed. Parallel durable
 checkpoints include transport request streaming plus origin-keyed HTTP pooling and shell parser/runtime,
-guarded filesystem builtins, bounded `yes`, and isolated pipeline state. Merged `master` is **9 Yes /
-7 Partial / 14 No** with shell Partial (PR #86) and test-runner Partial (PR #88) on master; this unit
-does not change the public matrix counts and claims no Yes.
+guarded filesystem builtins, bounded `yes`, and isolated pipeline state. This unit advances the matrix to
+**9 Yes / 8 Partial / 13 No** by promoting `server.websocket` No → Partial (handshake/framing/echo only;
+no Pub/Sub Yes).
 
 **M5 entry boundary:** immutable dev.4 diagnostic set **56 total / 0 pass / 56 fail / 0 skip / 0 crash**:
 **43 m5-owned** (32 intrinsic/prototype, 7 parser, 4 raw delegation), **12 m11** direct-eval/`with`
@@ -1968,12 +1970,12 @@ Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-earl
 ## Publication boundary
 
 - Published: `v0.1.0-dev.19` @ `1a523491` (#40); `v0.1.0-dev.21` @ `a8f45013` (#11).
-- Installer / ledger previous_version: `v0.1.0-dev.21` while source candidate is `0.1.0-dev.26`.
+- Installer / ledger previous_version: `v0.1.0-dev.21` while source candidate is `0.1.0-dev.28`.
 - Shell inventory PR #111: unpublished patch correction of `0.1.0-dev.26` (Partial; no tooling.shell Yes).
+- Phase 66 concurrent PR #110: candidate `0.1.0-dev.27` on master (tooling.test-runner remains Partial).
 
-## Phase 66 concurrent scheduling (Issue #40, 0.1.0-dev.27)
+## Phase 51 M1 WebSocket framing (Issue #121, 0.1.0-dev.28)
 
-- Implemented pure-CL `test.concurrent` / `describe.concurrent` / `test.serial` / `describe.serial`, `concurrentIf` / `serialIf`, CLI `--concurrent` and `--max-concurrency`.
-- Bun-shaped consecutive concurrent groups with overlapping async settlement; serial tests form isolation boundaries.
-- Fixtures: `tests/js/testrunner/concurrent{,immediate,serial,flag,isol}/`.
-- Ledger remains **Partial** (not Yes). Master base after shell #111 is `0.1.0-dev.26`; this candidate is `0.1.0-dev.27`.
+- Pure-CL RFC 6455 Sec-WebSocket-Accept + frame encode/decode; Clun.serve upgrade/echo path.
+- Ledger `server.websocket` No → Partial (honest residuals: no Pub/Sub/client/compression/Yes).
+- Parent #25 remains open for M2/M3/Yes.
