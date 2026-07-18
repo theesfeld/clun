@@ -14,7 +14,28 @@
 (defstruct (serve-request-context
             (:constructor %make-serve-request-context))
   (committed-p nil)
-  (connection-closed-p nil))
+  (connection-closed-p nil)
+  ;; Phase 51 M1: upgrade hijacks the TCP connection out of the HTTP driver.
+  (upgraded-p nil)
+  connection
+  server
+  websocket-handlers)
+
+;;; --- Phase 51 M1: ServerWebSocket session -----------------------------------
+
+(defstruct (ws-session
+            (:constructor %make-ws-session)
+            (:conc-name ws-session-))
+  "Per-connection WebSocket state after a successful server.upgrade."
+  connection
+  handlers
+  js-ws
+  (ready-state 1)                       ; 0 CONNECTING 1 OPEN 2 CLOSING 3 CLOSED
+  (buffer (make-array 0 :element-type '(unsigned-byte 8)
+                        :adjustable t :fill-pointer 0))
+  (close-sent-p nil)
+  (close-received-p nil)
+  (data eng:+undefined+))
 
 (defun %http-date-at (universal-time)
   (multiple-value-bind (s mi h d mo y dow) (decode-universal-time universal-time 0)
@@ -514,10 +535,15 @@ while the JavaScript Request receives an absolute URL as required by the web API
       ;; connection fail-closed if an internal invariant is ever violated.
       (%simple-response-octets 500 "Internal Server Error" nil))))
 
-(defun %dispatch (req fetch err-handler routes commit)
+(defun %dispatch (req fetch err-handler routes commit
+                  &key connection server websocket-handlers)
   "Run one request and call COMMIT exactly once with (payload keep-alive context).
-COMMIT is connection-owned, so late Promise settlement cannot write after teardown."
-  (let* ((context (%make-serve-request-context))
+COMMIT is connection-owned, so late Promise settlement cannot write after teardown.
+When CONTEXT is upgraded to WebSocket, COMMIT is not invoked with HTTP payload."
+  (let* ((context (%make-serve-request-context
+                   :connection connection
+                   :server server
+                   :websocket-handlers websocket-handlers))
          (request (%make-server-request
                    (net:hr-method req) (%server-request-url req)
                    (net:hr-headers req) (net:hr-body req) context))
@@ -526,48 +552,68 @@ COMMIT is connection-owned, so late Promise settlement cannot write after teardo
          (settled-p nil)
          (error-handler-started-p nil))
     (labels
-        ((commit-default ()
-           (unless settled-p
+        ((upgraded-p ()
+           (serve-request-context-upgraded-p context))
+         (commit-default ()
+           (unless (or settled-p (upgraded-p))
              (setf settled-p t
                    (serve-request-context-committed-p context) t)
              (funcall commit (%default-error-octets method request) nil context)))
          (call-action (action &optional static-p)
            (cond
+             ((upgraded-p)
+              (setf settled-p t
+                    (serve-request-context-committed-p context) t))
              ((%response-like-p action) (commit-response action static-p))
              ((js-clun-file-p action)
               (commit-response (%new-response action eng:+undefined+) static-p))
              ((eng:callable-p action)
               (let ((result
-                      (eng:js-call action eng:+undefined+ (list request))))
-                (if (eng:js-promise-p result)
-                    (%promise-then result #'commit-response #'route-error)
-                    (commit-response result))))
+                      (eng:js-call action eng:+undefined+
+                                   (list request (or server eng:+undefined+)))))
+                (cond
+                  ((upgraded-p)
+                   (setf settled-p t
+                         (serve-request-context-committed-p context) t))
+                  ((eng:js-promise-p result)
+                   (%promise-then result #'commit-response #'route-error))
+                  (t (commit-response result)))))
              (t (commit-response (%not-found-response)))))
          (commit-response (response &optional static-p)
-           (unless settled-p
-             (if (%response-like-p response)
-                 (handler-case
-                     (let ((file (%response-body-value response)))
-                       (when (and static-p (js-clun-file-p file))
-                         (%file-response-available-p file))
-                       (let ((payload
-                               (%serialize-response response method keep-alive
-                                                    request static-p)))
-                       (setf settled-p t
-                             (serve-request-context-committed-p context) t)
-                         (funcall commit payload keep-alive context)))
-                   (file-response-unavailable ()
-                     (if (and static-p fetch)
-                         (call-action fetch)
-                         (commit-response (%not-found-response))))
-                   (condition () (commit-default)))
-                 (route-error response))))
+           (cond
+             ((or settled-p (upgraded-p))
+              (setf settled-p t
+                    (serve-request-context-committed-p context) t))
+             ((%response-like-p response)
+              (handler-case
+                  (let ((file (%response-body-value response)))
+                    (when (and static-p (js-clun-file-p file))
+                      (%file-response-available-p file))
+                    (let ((payload
+                            (%serialize-response response method keep-alive
+                                                 request static-p)))
+                      (setf settled-p t
+                            (serve-request-context-committed-p context) t)
+                      (funcall commit payload keep-alive context)))
+                (file-response-unavailable ()
+                  (if (and static-p fetch)
+                      (call-action fetch)
+                      (commit-response (%not-found-response))))
+                (condition () (commit-default))))
+             ((or (eng:js-undefined-p response) (eng:js-null-p response))
+              ;; Bun: upgrade success often returns undefined — do not 500.
+              (when (upgraded-p)
+                (setf settled-p t
+                      (serve-request-context-committed-p context) t))
+              (unless settled-p
+                (route-error response)))
+             (t (route-error response))))
          (finish-error-handler (response)
            (if (%response-like-p response)
                (commit-response response)
                (commit-default)))
          (route-error (error-value)
-           (unless (or settled-p error-handler-started-p)
+           (unless (or settled-p error-handler-started-p (upgraded-p))
              (setf error-handler-started-p t)
              (if (not (eng:callable-p err-handler))
                  (commit-default)
@@ -641,6 +687,7 @@ COMMIT is connection-owned, so late Promise settlement cannot write after teardo
       (pump))))
 
 (defun %serve-connection (conn fetch-cell err-handler-cell routes-cell
+                          server websocket-cell
                           &key (max-body net:*max-body-bytes*)
                                (idle-timeout-sec 10)
                                event-loop)
@@ -648,7 +695,8 @@ COMMIT is connection-owned, so late Promise settlement cannot write after teardo
 
 MAX-BODY is the parser payload budget (Bun maxRequestBodySize).
 IDLE-TIMEOUT-SEC is Bun idleTimeout in seconds (0 disables; default 10; max 255).
-Wire activity (read or write) re-arms the idle timer."
+Wire activity (read or write) re-arms the idle timer.
+SERVER / WEBSOCKET-CELL enable Phase 51 M1 upgrade when handlers are configured."
   (let* ((event-loop (or event-loop (eng:current-loop)))
          (parser (net:make-http-parser :max-body max-body))
          (next-sequence 0)
@@ -658,6 +706,7 @@ Wire activity (read or write) re-arms the idle timer."
          (active-file-plan nil)
          (closed-p nil)
          (final-request-seen-p nil)
+         (upgraded-p nil)
          (idle-timer nil)
          (outer-close (net:tcp-on-close conn)))
     (labels
@@ -740,6 +789,7 @@ Wire activity (read or write) re-arms the idle timer."
                  (file-response-source-request source))
                 nil))))
          (flush-ready ()
+           (when upgraded-p (return-from flush-ready nil))
            (loop while (null active-file-plan) do
              (multiple-value-bind (entry present-p) (gethash next-commit ready)
                (unless (and present-p (not closed-p)) (return))
@@ -766,16 +816,19 @@ Wire activity (read or write) re-arms the idle timer."
                          (mark-contexts-closed)
                          (net:tcp-shutdown conn))))))))
          (queue-response (sequence payload keep-alive context)
-           (if closed-p
-               (progn
-                 (when (file-send-plan-p payload)
-                   (%close-file-send-plan payload))
-                 (setf (serve-request-context-connection-closed-p context) t))
-               (progn
-                 (register-context context)
-                 (setf (gethash sequence ready)
-                       (list payload keep-alive context))
-                 (flush-ready)))))
+           (cond
+             ((or closed-p upgraded-p
+                  (serve-request-context-upgraded-p context))
+              (when (file-send-plan-p payload)
+                (%close-file-send-plan payload))
+              (when (serve-request-context-upgraded-p context)
+                (setf upgraded-p t
+                      final-request-seen-p t)))
+             (t
+              (register-context context)
+              (setf (gethash sequence ready)
+                    (list payload keep-alive context))
+              (flush-ready)))))
       (setf (net:tcp-on-close conn)
             (lambda (c code)
               (setf closed-p t)
@@ -785,7 +838,7 @@ Wire activity (read or write) re-arms the idle timer."
             (lambda (c octets)
               (declare (ignore c))
               (arm-idle)
-              (unless final-request-seen-p
+              (unless (or final-request-seen-p upgraded-p)
                 (loop
                   (multiple-value-bind (event data) (net:parser-feed parser octets)
                     (setf octets (make-array 0 :element-type '(unsigned-byte 8)))
@@ -805,7 +858,14 @@ Wire activity (read or write) re-arms the idle timer."
                                    (car routes-cell)
                                    (lambda (bytes keep-alive request-context)
                                      (queue-response sequence bytes keep-alive
-                                                     request-context))))))
+                                                     request-context))
+                                   :connection conn
+                                   :server server
+                                   :websocket-handlers (car websocket-cell)))))
+                         (when (serve-request-context-upgraded-p context)
+                           (setf upgraded-p t
+                                 final-request-seen-p t)
+                           (return))
                          (unless (serve-request-context-committed-p context)
                            (register-context context))
                          (when closed-p
@@ -835,20 +895,357 @@ Wire activity (read or write) re-arms the idle timer."
           (format nil "Clun.serve: `~a` must be a function" name))))))
 
 (defun %throw-websocket-not-implemented (&optional (surface "WebSocket"))
-  "Fail closed for Phase 51: clear TypeError, never a silent half-upgrade."
+  "Fail closed for Phase 51 surfaces not yet implemented (Pub/Sub, client)."
   (eng:throw-type-error (ws:websocket-not-implemented-message surface)))
 
-(defun %reject-websocket-serve-option (opts)
-  "Clun.serve rejects an explicit `websocket` option until Phase 51 M1+."
-  (unless (eng:js-undefined-p (eng:js-get opts "websocket"))
-    (%throw-websocket-not-implemented "Clun.serve({ websocket })")))
+(defun %compile-websocket-handlers (opts)
+  "Compile Clun.serve `websocket` option into WS-HANDLER-OPTIONS, or NIL."
+  (let ((value (eng:js-get opts "websocket")))
+    (cond
+      ((eng:js-undefined-p value) nil)
+      ((not (eng:js-object-p value))
+       (eng:throw-type-error "Clun.serve: `websocket` must be an object"))
+      (t
+       (flet ((opt-fn (name)
+                (let ((fn (eng:js-get value name)))
+                  (cond
+                    ((eng:js-undefined-p fn) nil)
+                    ((eng:callable-p fn) fn)
+                    (t (eng:throw-type-error
+                        (format nil "Clun.serve: websocket.~a must be a function"
+                                name))))))
+              (opt-int (name default)
+                (let ((v (eng:js-get value name)))
+                  (cond
+                    ((eng:js-undefined-p v) default)
+                    ((eng:js-number-p v)
+                     (max 0 (truncate (eng:to-number v))))
+                    (t default)))))
+         (ws:make-ws-handler-options
+          :open (opt-fn "open")
+          :message (opt-fn "message")
+          :close (opt-fn "close")
+          :ping (opt-fn "ping")
+          :pong (opt-fn "pong")
+          :drain (opt-fn "drain")
+          :max-payload-length
+          (opt-int "maxPayloadLength" ws:+default-max-payload-bytes+)
+          :backpressure-limit
+          (opt-int "backpressureLimit" ws:+default-backpressure-limit+)
+          :idle-timeout-seconds
+          (opt-int "idleTimeout" 120)
+          :send-pings
+          (let ((v (eng:js-get value "sendPings")))
+            (if (eng:js-undefined-p v) t (eng:js-truthy v)))
+          :publish-to-self
+          (let ((v (eng:js-get value "publishToSelf")))
+            (if (eng:js-undefined-p v) nil (eng:js-truthy v)))
+          :close-on-backpressure-limit
+          (let ((v (eng:js-get value "closeOnBackpressureLimit")))
+            (if (eng:js-undefined-p v) nil (eng:js-truthy v)))))))))
 
-(defun %install-websocket-fail-closed-methods (server)
-  "Expose Bun-shaped names that refuse WebSocket work with a clear error."
-  (eng:install-method server "upgrade" 1
+(defun %ws-payload-js (payload opcode)
+  "Map a WebSocket payload to a JS string (text) or Array of byte numbers (binary)."
+  (cond
+    ((= opcode ws:+opcode-text+)
+     (handler-case
+         (sb-ext:octets-to-string payload :external-format :utf-8)
+       (error ()
+         (eng:throw-type-error "WebSocket text frame is not valid UTF-8"))))
+    (t
+     ;; Binary / control app data: plain Array of numbers for M1.
+     ;; Full TypedArray brand lands with broader binary surface work.
+     (eng:new-array
+      (loop for b across payload collect (coerce b 'double-float))))))
+
+(defun %ws-write-frame (session frame)
+  (when (and session
+             (not (eq (net:tcp-state (ws-session-connection session)) :closed))
+             (< (ws-session-ready-state session) 3))
+    (net:tcp-write (ws-session-connection session) (ws:encode-frame frame))))
+
+(defun %ws-set-ready-state (session state)
+  (setf (ws-session-ready-state session) state)
+  (when (ws-session-js-ws session)
+    (eng:data-prop (ws-session-js-ws session) "readyState"
+                    (coerce state 'double-float))))
+
+(defun %ws-close-session (session code reason &key (send-close t))
+  "Transition SESSION toward CLOSED, optionally emitting a close frame."
+  (when (>= (ws-session-ready-state session) 3)
+    (return-from %ws-close-session nil))
+  (when (and send-close (not (ws-session-close-sent-p session))
+             (< (ws-session-ready-state session) 3)
+             (not (eq (net:tcp-state (ws-session-connection session)) :closed)))
+    (handler-case
+        (%ws-write-frame session (ws:make-close-frame code reason))
+      (condition () nil))
+    (setf (ws-session-close-sent-p session) t)
+    (%ws-set-ready-state session 2))
+  (when (or (ws-session-close-received-p session)
+            (not send-close))
+    (%ws-set-ready-state session 3)
+    (let ((close-fn (ws:ws-handler-options-close (ws-session-handlers session)))
+          (js (ws-session-js-ws session)))
+      (when (and close-fn js)
+        (handler-case
+            (eng:js-call close-fn eng:+undefined+
+                         (list js
+                               (coerce code 'double-float)
+                               (or reason "")))
+          (condition () nil))))
+    (ignore-errors (net:tcp-shutdown (ws-session-connection session))))
+  t)
+
+(defun %ws-handle-frame (session frame)
+  (let ((opcode (ws:ws-frame-opcode frame))
+        (payload (ws:ws-frame-payload frame))
+        (handlers (ws-session-handlers session))
+        (js (ws-session-js-ws session)))
+    (cond
+      ((= opcode ws:+opcode-ping+)
+       (%ws-write-frame session (ws:make-pong-frame payload))
+       (when (ws:ws-handler-options-ping handlers)
+         (handler-case
+             (eng:js-call (ws:ws-handler-options-ping handlers) eng:+undefined+
+                          (list js (%ws-payload-js payload ws:+opcode-binary+)))
+           (condition () nil))))
+      ((= opcode ws:+opcode-pong+)
+       (when (ws:ws-handler-options-pong handlers)
+         (handler-case
+             (eng:js-call (ws:ws-handler-options-pong handlers) eng:+undefined+
+                          (list js (%ws-payload-js payload ws:+opcode-binary+)))
+           (condition () nil))))
+      ((= opcode ws:+opcode-close+)
+       (setf (ws-session-close-received-p session) t)
+       (multiple-value-bind (code reason)
+           (handler-case (ws:parse-close-payload payload)
+             (ws:websocket-protocol-error ()
+               (values 1002 "protocol error")))
+         (unless (ws-session-close-sent-p session)
+           (%ws-write-frame session (ws:make-close-frame code reason))
+           (setf (ws-session-close-sent-p session) t))
+         (%ws-close-session session code reason :send-close nil)))
+      ((or (= opcode ws:+opcode-text+)
+           (= opcode ws:+opcode-binary+))
+       (unless (ws:ws-frame-fin frame)
+         ;; M1: reject fragmented data frames; full reassembly is later.
+         (%ws-close-session session 1003 "fragmentation not supported yet")
+         (return-from %ws-handle-frame nil))
+       (let ((max (ws:ws-handler-options-max-payload-length handlers)))
+         (when (> (length payload) max)
+           (%ws-close-session session 1009 "message too big")
+           (return-from %ws-handle-frame nil)))
+       (when (ws:ws-handler-options-message handlers)
+         (handler-case
+             (eng:js-call (ws:ws-handler-options-message handlers)
+                          eng:+undefined+
+                          (list js (%ws-payload-js payload opcode)))
+           (condition () nil))))
+      ((= opcode ws:+opcode-continuation+)
+       (%ws-close-session session 1003 "fragmentation not supported yet"))
+      (t
+       (%ws-close-session session 1002 "unknown opcode")))))
+
+(defun %ws-attach-frame-loop (session)
+  "Replace the HTTP on-data driver with a WebSocket frame pump."
+  (let ((conn (ws-session-connection session)))
+    (setf (net:tcp-on-data conn)
+          (lambda (c octets)
+            (declare (ignore c))
+            (block ws-data
+              (when (>= (ws-session-ready-state session) 3)
+                (return-from ws-data nil))
+              (let ((buf (ws-session-buffer session)))
+                (loop for b across octets do (vector-push-extend b buf))
+                (loop
+                  (multiple-value-bind (frame next)
+                      (handler-case
+                          (ws:decode-frame buf :start 0 :end (length buf))
+                        (ws:websocket-protocol-error ()
+                          (%ws-close-session session 1002 "protocol error")
+                          (return-from ws-data nil)))
+                    (unless frame (return))
+                    (let* ((remaining (- (length buf) next))
+                           (kept (if (plusp remaining)
+                                     (subseq buf next)
+                                     (make-array 0 :element-type '(unsigned-byte 8)))))
+                      (setf (fill-pointer buf) 0)
+                      (loop for b across kept do (vector-push-extend b buf)))
+                    (%ws-handle-frame session frame)
+                    (when (>= (ws-session-ready-state session) 3)
+                      (return))))))))
+    session))
+
+(defun %ws-coerce-send-payload (value)
+  "Return (values opcode payload-octets) for ws.send / sendText / sendBinary."
+  (cond
+    ((eng:js-string-p value)
+     (values ws:+opcode-text+
+             (sb-ext:string-to-octets (eng:to-string value)
+                                      :external-format :utf-8)))
+    ((eng:js-number-p value)
+     (values ws:+opcode-text+
+             (sb-ext:string-to-octets
+              (princ-to-string (eng:to-number value))
+              :external-format :utf-8)))
+    ((typep value '(vector (unsigned-byte 8)))
+     (values ws:+opcode-binary+
+             (coerce value '(simple-array (unsigned-byte 8) (*)))))
+    ((eng:js-object-p value)
+     ;; Best-effort: Array-like of byte numbers.
+     (let* ((len-v (eng:js-get value "length"))
+            (len (if (eng:js-number-p len-v)
+                     (max 0 (truncate (eng:to-number len-v)))
+                     0))
+            (out (make-array len :element-type '(unsigned-byte 8))))
+       (dotimes (i len)
+         (let ((b (eng:js-get value i)))
+           (setf (aref out i)
+                 (if (eng:js-number-p b)
+                     (logand (truncate (eng:to-number b)) #xff)
+                     0))))
+       (values ws:+opcode-binary+ out)))
+    (t
+     (values ws:+opcode-text+
+             (sb-ext:string-to-octets (eng:to-string value)
+                                      :external-format :utf-8)))))
+
+(defun %make-server-websocket (session)
+  "Build the JS ServerWebSocket brand for SESSION."
+  (let ((ws-obj (eng:new-object)))
+    (setf (ws-session-js-ws session) ws-obj)
+    (eng:data-prop ws-obj "readyState" 1d0)
+    (eng:data-prop ws-obj "data" (ws-session-data session))
+    (eng:data-prop ws-obj "binaryType" "nodebuffer")
+    (eng:install-method ws-obj "send" 1
+      (lambda (this args)
+        (declare (ignore this))
+        (block send
+          (when (>= (ws-session-ready-state session) 2)
+            (return-from send -1d0))
+          (multiple-value-bind (opcode payload)
+              (%ws-coerce-send-payload (eng:arg args 0))
+            (let ((frame (ws:make-ws-frame :fin t :opcode opcode :payload payload)))
+              (%ws-write-frame session frame)
+              (coerce (length payload) 'double-float))))))
+    (eng:install-method ws-obj "sendText" 1
+      (lambda (this args)
+        (declare (ignore this))
+        (block send-text
+          (when (>= (ws-session-ready-state session) 2)
+            (return-from send-text -1d0))
+          (let* ((text (eng:to-string (eng:arg args 0)))
+                 (payload (sb-ext:string-to-octets text :external-format :utf-8)))
+            (%ws-write-frame session (ws:make-text-frame text))
+            (coerce (length payload) 'double-float)))))
+    (eng:install-method ws-obj "sendBinary" 1
+      (lambda (this args)
+        (declare (ignore this))
+        (block send-binary
+          (when (>= (ws-session-ready-state session) 2)
+            (return-from send-binary -1d0))
+          (multiple-value-bind (opcode payload)
+              (%ws-coerce-send-payload (eng:arg args 0))
+            (declare (ignore opcode))
+            (%ws-write-frame session (ws:make-binary-frame payload))
+            (coerce (length payload) 'double-float)))))
+    (eng:install-method ws-obj "close" 2
+      (lambda (this args)
+        (declare (ignore this))
+        (let* ((code-v (eng:arg args 0))
+               (reason-v (eng:arg args 1))
+               (code (if (eng:js-number-p code-v)
+                         (truncate (eng:to-number code-v))
+                         1000))
+               (reason (if (eng:js-undefined-p reason-v)
+                           ""
+                           (eng:to-string reason-v))))
+          (%ws-close-session session code reason)
+          eng:+undefined+)))
+    (eng:install-method ws-obj "ping" 1
+      (lambda (this args)
+        (declare (ignore this))
+        (multiple-value-bind (opcode payload)
+            (if (eng:js-undefined-p (eng:arg args 0))
+                (values ws:+opcode-ping+
+                        (make-array 0 :element-type '(unsigned-byte 8)))
+                (%ws-coerce-send-payload (eng:arg args 0)))
+          (declare (ignore opcode))
+          (%ws-write-frame session (ws:make-ping-frame payload))
+          eng:+undefined+)))
+    (eng:install-method ws-obj "pong" 1
+      (lambda (this args)
+        (declare (ignore this))
+        (multiple-value-bind (opcode payload)
+            (if (eng:js-undefined-p (eng:arg args 0))
+                (values ws:+opcode-pong+
+                        (make-array 0 :element-type '(unsigned-byte 8)))
+                (%ws-coerce-send-payload (eng:arg args 0)))
+          (declare (ignore opcode))
+          (%ws-write-frame session (ws:make-pong-frame payload))
+          eng:+undefined+)))
+    ws-obj))
+
+(defun %try-server-upgrade (server request &optional options)
+  "Attempt HTTP→WebSocket upgrade. Returns T on success, NIL on refusal."
+  (unless (js-server-request-p request)
+    (return-from %try-server-upgrade nil))
+  (let* ((context (js-server-request-context request))
+         (handlers (and context (serve-request-context-websocket-handlers context)))
+         (conn (and context (serve-request-context-connection context)))
+         (headers (js-request-headers-alist request)))
+    (declare (ignore server))
+    (unless (and context conn handlers
+                 (not (serve-request-context-upgraded-p context))
+                 (not (serve-request-context-committed-p context))
+                 (ws:websocket-upgrade-request-p headers))
+      (return-from %try-server-upgrade nil))
+    (let* ((key (string-trim
+                 '(#\Space #\Tab)
+                 (or (cdr (assoc "sec-websocket-key" headers :test #'string-equal))
+                     "")))
+           (protocol
+             (let ((p (and options (not (eng:js-undefined-p options))
+                           (eng:js-object-p options)
+                           (eng:js-get options "headers"))))
+               ;; M1: optional headers object may carry Sec-WebSocket-Protocol.
+               (when (and p (eng:js-object-p p))
+                 (let ((v (eng:js-get p "Sec-WebSocket-Protocol")))
+                   (unless (eng:js-undefined-p v) (eng:to-string v))))))
+           (data
+             (if (and options (eng:js-object-p options)
+                      (not (eng:js-undefined-p (eng:js-get options "data"))))
+                 (eng:js-get options "data")
+                 eng:+undefined+))
+           (response (ws:opening-handshake-response key :protocol protocol))
+           (session (%make-ws-session
+                     :connection conn
+                     :handlers handlers
+                     :data data)))
+      (setf (serve-request-context-upgraded-p context) t
+            (serve-request-context-committed-p context) t)
+      (net:tcp-write conn response)
+      (%make-server-websocket session)
+      (%ws-attach-frame-loop session)
+      (let ((open (ws:ws-handler-options-open handlers)))
+        (when open
+          (handler-case
+              (eng:js-call open eng:+undefined+ (list (ws-session-js-ws session)))
+            (condition () nil))))
+      t)))
+
+(defun %install-websocket-methods (server websocket-cell)
+  "Install Bun-shaped upgrade/publish/subscriberCount on SERVER."
+  (eng:install-method server "upgrade" 2
     (lambda (this args)
-      (declare (ignore this args))
-      (%throw-websocket-not-implemented "server.upgrade")))
+      (declare (ignore this))
+      (unless (car websocket-cell)
+        (%throw-websocket-not-implemented "server.upgrade"))
+      (let ((req (eng:arg args 0))
+            (opts (eng:arg args 1)))
+        (eng:js-boolean
+         (%try-server-upgrade server req opts)))))
   (eng:install-method server "publish" 2
     (lambda (this args)
       (declare (ignore this args))
@@ -895,17 +1292,17 @@ Wire activity (read or write) re-arms the idle timer."
 (defun %compile-serve-dispatch-options (opts)
   (unless (eng:js-object-p opts)
     (eng:throw-type-error "Clun.serve requires an options object"))
-  (%reject-websocket-serve-option opts)
   (let* ((fetch (%serve-callable-option opts "fetch"))
          (err-handler (%serve-callable-option opts "error"))
          (routes (%compile-serve-route-table
-                  (eng:js-get opts "routes") (eng:js-get opts "static"))))
+                  (eng:js-get opts "routes") (eng:js-get opts "static")))
+         (websocket (%compile-websocket-handlers opts)))
     (unless (or fetch (and routes (plusp (route-table-count routes))))
       (eng:throw-type-error
        "Clun.serve requires a fetch function or at least one active route"))
-    (values fetch err-handler routes)))
+    (values fetch err-handler routes websocket)))
 (defun %clun-serve (g opts)
-  (multiple-value-bind (fetch err-handler routes)
+  (multiple-value-bind (fetch err-handler routes websocket)
       (%compile-serve-dispatch-options opts)
     (let* ((port (let ((p (eng:js-get opts "port")))
                    (if (eng:js-number-p p) (truncate (eng:to-number p)) 3000)))
@@ -920,6 +1317,7 @@ Wire activity (read or write) re-arms the idle timer."
            (fetch-cell (list fetch))
            (err-handler-cell (list err-handler))
            (routes-cell (list routes))
+           (websocket-cell (list websocket))
            (server (eng:new-object)))
       (let ((listener
               (net:tcp-listen loop host port :backlog 1024
@@ -944,6 +1342,7 @@ Wire activity (read or write) re-arms the idle timer."
                            (lambda (c code) (declare (ignore c code)) nil))
                      (%serve-connection
                       conn fetch-cell err-handler-cell routes-cell
+                      server websocket-cell
                       :max-body max-body
                       :idle-timeout-sec idle-timeout-sec
                       :event-loop loop)))))))
@@ -1003,11 +1402,12 @@ Wire activity (read or write) re-arms the idle timer."
         (eng:install-method server "reload" 1
           (lambda (this args)
             (declare (ignore this))
-            (multiple-value-bind (new-fetch new-error new-routes)
+            (multiple-value-bind (new-fetch new-error new-routes new-ws)
                 (%compile-serve-dispatch-options (eng:arg args 0))
               (setf (car fetch-cell) new-fetch
                     (car err-handler-cell) new-error
-                    (car routes-cell) new-routes))
+                    (car routes-cell) new-routes
+                    (car websocket-cell) new-ws))
             server))
         (eng:install-method server "stop" 1
           (lambda (this args)
@@ -1045,5 +1445,5 @@ Wire activity (read or write) re-arms the idle timer."
           (lambda (th a) (declare (ignore th a)) eng:+undefined+))
         (eng:install-method server "unref" 0
           (lambda (th a) (declare (ignore th a)) eng:+undefined+))
-        (%install-websocket-fail-closed-methods server)
+        (%install-websocket-methods server websocket-cell)
         server))))

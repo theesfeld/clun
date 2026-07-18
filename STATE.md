@@ -7,24 +7,19 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **65 - Cross-platform shell API**  (LANGUAGE RESIDUAL PARTIAL)
+## Current phase: **65 - Cross-platform shell API**  (YES CONVERSION #120)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/39
-**Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/120,
-https://github.com/theesfeld/clun/issues/32, https://github.com/theesfeld/clun/issues/11,
-and https://github.com/theesfeld/clun/issues/2
-**Current implementation unit:** Phase 65 shell-language residual (#120 under parent #39) —
-export isolation, `which` not-found lines, silent `cd -`, command-substitution stderr, glob
-diagnostic spelling, plus 118 covered shell-language corpus sites after #122/#123. Disposition
-**1,551 covered / 47 pending / 32 upstream-inactive**. `tooling.shell` remains **Partial**; no Yes claim.
+**Canonical issue:** https://github.com/theesfeld/clun/issues/120
+**Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/39,
+https://github.com/theesfeld/clun/issues/23, https://github.com/theesfeld/clun/issues/40,
+and https://github.com/theesfeld/clun/issues/25
+**Current implementation unit:** Phase 65 tooling.shell language residual for Yes path #120.
+`tooling.shell` remains **Partial** (~1551/1630 covered). No matrix Yes yet.
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.31` / `v0.1.0-dev.31`
+**Candidate release:** `0.1.0-dev.32` / `v0.1.0-dev.32`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
-**Entry boundary:** immutable `v0.1.0-dev.21` is tagged; installer defaults to that tag. Master tip is
-`0.1.0-dev.30` after Phase 49 #113. This unit stages free `0.1.0-dev.31` for release-bearing shell
-language residual fixes. Phase 26 remains after Phase 82.
-**Next scope:** residual background/ENAMETOOLONG/four-target Yes gates under Issue #120.
-
+**Entry boundary:** installer on `v0.1.0-dev.21`; this unit stages `0.1.0-dev.32` after websocket Partial `0.1.0-dev.31`.
+**Next scope:** remaining ~47 shell pending + four-target supported for Yes.
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
 easiest to hardest among dependency-ready rows. Core engine/runtime/network/tooling changes are expected.
@@ -42,9 +37,9 @@ closed complete with exact asset digests. Phase 37 milestone 1 adds `Object.hasO
 well-formedness, `Error.isError`, and `Promise.withResolvers`, producing 173 measured execution-pass gains;
 its frozen inventory still has 603 residual failures after m2 and no full ledger row is claimed. Parallel durable
 checkpoints include transport request streaming plus origin-keyed HTTP pooling and shell parser/runtime,
-guarded filesystem builtins, bounded `yes`, and isolated pipeline state. Merged `master` is **9 Yes /
-7 Partial / 14 No** with shell Partial (PR #86) and test-runner Partial (PR #88) on master; this unit
-does not change the public matrix counts and claims no Yes.
+guarded filesystem builtins, bounded `yes`, and isolated pipeline state. This unit advances the matrix to
+**9 Yes / 8 Partial / 13 No** by promoting `server.websocket` No → Partial (handshake/framing/echo only;
+no Pub/Sub Yes).
 
 **M5 entry boundary:** immutable dev.4 diagnostic set **56 total / 0 pass / 56 fail / 0 skip / 0 crash**:
 **43 m5-owned** (32 intrinsic/prototype, 7 parser, 4 raw delegation), **12 m11** direct-eval/`with`
@@ -1969,12 +1964,12 @@ Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-earl
 ## Publication boundary
 
 - Published: `v0.1.0-dev.19` @ `1a523491` (#40); `v0.1.0-dev.21` @ `a8f45013` (#11).
-- Installer / ledger previous_version: `v0.1.0-dev.21` while source candidate is `0.1.0-dev.26`.
+- Installer / ledger previous_version: `v0.1.0-dev.21` while source candidate is `0.1.0-dev.28`.
 - Shell inventory PR #111: unpublished patch correction of `0.1.0-dev.26` (Partial; no tooling.shell Yes).
+- Phase 66 concurrent PR #110: candidate `0.1.0-dev.27` on master (tooling.test-runner remains Partial).
 
-## Phase 66 concurrent scheduling (Issue #40, 0.1.0-dev.27)
+## Phase 51 M1 WebSocket framing (Issue #121, 0.1.0-dev.28)
 
-- Implemented pure-CL `test.concurrent` / `describe.concurrent` / `test.serial` / `describe.serial`, `concurrentIf` / `serialIf`, CLI `--concurrent` and `--max-concurrency`.
-- Bun-shaped consecutive concurrent groups with overlapping async settlement; serial tests form isolation boundaries.
-- Fixtures: `tests/js/testrunner/concurrent{,immediate,serial,flag,isol}/`.
-- Ledger remains **Partial** (not Yes). Master base after shell #111 is `0.1.0-dev.26`; this candidate is `0.1.0-dev.27`.
+- Pure-CL RFC 6455 Sec-WebSocket-Accept + frame encode/decode; Clun.serve upgrade/echo path.
+- Ledger `server.websocket` No → Partial (honest residuals: no Pub/Sub/client/compression/Yes).
+- Parent #25 remains open for M2/M3/Yes.

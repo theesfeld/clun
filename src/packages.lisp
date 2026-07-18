@@ -313,18 +313,21 @@
    ;; TLS client (Phase 20): blocking HTTPS request for the worker pool + error mapping.
    #:https-request #:https-request-stream #:tls-error-message))
 
-;; Phase 51 — WebSocket types + fail-closed stubs (pure CL; framing later).
+;; Phase 51 — WebSocket protocol (RFC 6455 handshake + framing; M1 Partial).
 (defpackage :clun.websocket
   (:use :cl)
+  (:local-nicknames (:crypto :ironclad))
   (:documentation
-   "Pure Common Lisp WebSocket scaffold (RFC 6455 types and Phase 51 fail-closed errors).
-    Full handshake/framing/Pub/Sub are not implemented yet; see docs/design/phase-51.md.")
+   "Pure Common Lisp WebSocket (RFC 6455 handshake + framing).
+    Pub/Sub, client WebSocket, and compression land in later Phase 51 milestones;
+    see docs/design/phase-51.md.")
   (:export
    #:+opcode-continuation+ #:+opcode-text+ #:+opcode-binary+
    #:+opcode-close+ #:+opcode-ping+ #:+opcode-pong+
    #:+ws-guid+ #:+default-max-payload-bytes+ #:+default-backpressure-limit+
+   #:+max-control-payload+
    #:websocket-error #:websocket-error-message
-   #:websocket-unsupported
+   #:websocket-unsupported #:websocket-protocol-error
    #:websocket-not-implemented-message #:signal-websocket-unsupported
    #:ws-frame #:ws-frame-p #:make-ws-frame
    #:ws-frame-fin #:ws-frame-rsv1 #:ws-frame-rsv2 #:ws-frame-rsv3
@@ -337,7 +340,14 @@
    #:ws-handler-options-publish-to-self
    #:ws-handler-options-send-pings
    #:ws-handler-options-permessage-deflate
-   #:handshake-accept-key #:encode-frame #:decode-frame))
+   #:ws-handler-options-open #:ws-handler-options-message
+   #:ws-handler-options-close #:ws-handler-options-ping
+   #:ws-handler-options-pong #:ws-handler-options-drain
+   #:handshake-accept-key #:encode-frame #:decode-frame
+   #:mask-payload #:websocket-upgrade-request-p #:opening-handshake-response
+   #:make-close-payload #:parse-close-payload
+   #:make-text-frame #:make-binary-frame
+   #:make-ping-frame #:make-pong-frame #:make-close-frame))
 
 ;; --- dependent layer (local-nicknames into the base packages above) ---------
 
