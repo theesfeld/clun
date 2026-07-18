@@ -7,9 +7,9 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **65 - Cross-platform shell API**  (YES CONVERSION #120)
+## Current phase: **65 - Cross-platform shell API**  (Yes ledger; unit #120 closed)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/120
+**Canonical issue:** https://github.com/theesfeld/clun/issues/39
 **Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/39,
 https://github.com/theesfeld/clun/issues/23, https://github.com/theesfeld/clun/issues/40,
 and https://github.com/theesfeld/clun/issues/25
@@ -19,7 +19,7 @@ and https://github.com/theesfeld/clun/issues/25
 **Candidate release:** `0.1.0-dev.33` / `v0.1.0-dev.33`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
 **Entry boundary:** installer on `v0.1.0-dev.21`; this unit stages `0.1.0-dev.33` after websocket Partial `0.1.0-dev.31`.
-**Next scope:** remaining ~47 shell pending + four-target supported for Yes.
+**Next scope:** publish `0.1.0-dev.33` when release-gated; parallel Yes trains (#127+).
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
 easiest to hardest among dependency-ready rows. Core engine/runtime/network/tooling changes are expected.
