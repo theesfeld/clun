@@ -3264,3 +3264,19 @@ Bounded pure-CL residual on Phase 24 spawn without #61 lifecycle ownership and w
 `Clun.spawn`/`spawnSync` accept Bun object form `{cmd,...}`; `signal` (AbortSignal), `timeout`,
 and `killSignal` kill the child; async Subprocess exposes `killed`, `ref()`, and `unref()`.
 stdout/stderr remain Promise&lt;Uint8Array&gt; (Partial divergence). SemVer minor → `0.1.0-dev.29`.
+
+### 2026-07-18 - tooling.shell language residual burn-down (export isolation)
+
+Issue #120 advances the shell-language owner slice of the finite `tooling.shell`
+corpus without claiming ledger `Yes`. Pure-CL fixes:
+
+1. Shell-local assignments stay out of child process environments until `export`
+2. `which` prints `NAME not found` for missing commands (Bun order)
+3. `cd -` is silent (Bun, not bash)
+4. Command-substitution stderr surfaces on the surrounding command
+5. Unmatched-glob diagnostics use the user-visible pattern spelling
+
+Fixtures under `tests/compat/tooling.shell/upstream-language.js` close 118
+additional shell-language inventory sites after #122/#123 (overall
+1,551/1,630 covered). SemVer impact is `minor`; source advances to
+`0.1.0-dev.31` / `v0.1.0-dev.31`. The row remains Partial.

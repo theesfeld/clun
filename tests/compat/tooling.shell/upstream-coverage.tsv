@@ -69,7 +69,14 @@ engineering.test_js_bun_shell_bunshell_instance_test_ts.L53.1.test-call	covered	
 engineering.test_js_bun_shell_bunshell_instance_test_ts.L66.1.test-call	covered	tests/compat/tooling.shell/upstream-public-api.js	exact pinned public shell API behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_instance_test_ts.L71.1.test-call	covered	tests/compat/tooling.shell/upstream-public-api.js	exact pinned public shell API behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_instance_test_ts.L79.1.test-call	covered	tests/compat/tooling.shell/upstream-public-api.js	exact pinned public shell API behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L1005.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L1016.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L1044.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L105.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L1092.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L1107.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L1128.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L1133.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L1159.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned shell language behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L1160.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned shell language behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L1161.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned shell language behavior executes through the shipped binary
@@ -95,9 +102,9 @@ engineering.test_js_bun_shell_bunshell_test_ts.L1184.1.builder-test	covered	test
 engineering.test_js_bun_shell_bunshell_test_ts.L1185.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned shell language behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L1186.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned shell language behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L1187.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned shell language behavior executes through the shipped binary
-engineering.test_js_bun_shell_bunshell_test_ts.L119.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned shell language behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L1190.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned shell language behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L1191.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned shell language behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L119.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned shell language behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L1194.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned shell language behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L1195.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned shell language behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L1198.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned shell language behavior executes through the shipped binary
@@ -129,7 +136,9 @@ engineering.test_js_bun_shell_bunshell_test_ts.L1246.1.builder-test	covered	test
 engineering.test_js_bun_shell_bunshell_test_ts.L1249.1.builder-test	covered	tests/compat/tooling.shell/upstream-deno-task.js	exact pinned Deno-task observable behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L1253.1.builder-test	covered	tests/compat/tooling.shell/upstream-deno-task.js	exact pinned Deno-task observable behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L1254.1.builder-test	covered	tests/compat/tooling.shell/upstream-deno-task.js	exact pinned Deno-task observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L1261.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L1263.1.builder-test	covered	tests/compat/tooling.shell/upstream-deno-task.js	exact pinned Deno-task observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L1268.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L1274.1.builder-test	covered	tests/compat/tooling.shell/upstream-deno-task.js	exact pinned Deno-task observable behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L1278.1.builder-test	covered	tests/compat/tooling.shell/upstream-deno-task.js	exact pinned Deno-task observable behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L1284.1.builder-test	covered	tests/compat/tooling.shell/upstream-deno-task.js	exact pinned Deno-task observable behavior executes through the shipped binary
@@ -137,6 +146,7 @@ engineering.test_js_bun_shell_bunshell_test_ts.L1286.1.builder-test	covered	test
 engineering.test_js_bun_shell_bunshell_test_ts.L129.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned shell language behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L1295.1.builder-test	covered	tests/compat/tooling.shell/upstream-deno-task.js	exact pinned Deno-task observable behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L1300.1.builder-test	covered	tests/compat/tooling.shell/upstream-deno-task.js	exact pinned Deno-task observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L1314.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L1318.1.builder-test	covered	tests/compat/tooling.shell/upstream-deno-task.js	exact pinned Deno-task observable behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L1322.1.builder-test	covered	tests/compat/tooling.shell/upstream-deno-task.js	exact pinned Deno-task observable behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L1325.1.builder-test	covered	tests/compat/tooling.shell/upstream-deno-task.js	exact pinned Deno-task observable behavior executes through the shipped binary
@@ -187,9 +197,14 @@ engineering.test_js_bun_shell_bunshell_test_ts.L1566.1.test-call	covered	tests/c
 engineering.test_js_bun_shell_bunshell_test_ts.L159.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned shell language behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L1759.1.builder-test	covered	tests/compat/tooling.shell/upstream-control-flow.js	exact pinned control-flow behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L1774.1.builder-test	covered	tests/compat/tooling.shell/upstream-control-flow.js	exact pinned control-flow behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L1786.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L1802.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L1814.1.builder-test	covered	tests/compat/tooling.shell/upstream-control-flow.js	exact pinned control-flow behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L1818.1.builder-test	covered	tests/compat/tooling.shell/upstream-control-flow.js	exact pinned control-flow behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L1823.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L1835.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L1849.1.builder-test	covered	tests/compat/tooling.shell/upstream-control-flow.js	exact pinned control-flow behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L1855.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L1859.1.builder-test	covered	tests/compat/tooling.shell/upstream-control-flow.js	exact pinned control-flow behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L1863.1.builder-test	covered	tests/compat/tooling.shell/upstream-control-flow.js	exact pinned control-flow behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L1867.1.builder-test	covered	tests/compat/tooling.shell/upstream-control-flow.js	exact pinned control-flow behavior executes through the shipped binary
@@ -212,8 +227,8 @@ engineering.test_js_bun_shell_bunshell_test_ts.L1937.1.builder-test	covered	test
 engineering.test_js_bun_shell_bunshell_test_ts.L1943.1.builder-test	covered	tests/compat/tooling.shell/upstream-control-flow.js	exact pinned control-flow behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L1949.1.builder-test	covered	tests/compat/tooling.shell/upstream-control-flow.js	exact pinned control-flow behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L1954.1.builder-test	covered	tests/compat/tooling.shell/upstream-control-flow.js	exact pinned control-flow behavior executes through the shipped binary
-engineering.test_js_bun_shell_bunshell_test_ts.L196.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned shell language behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L1960.1.builder-test	covered	tests/compat/tooling.shell/upstream-control-flow.js	exact pinned control-flow behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L196.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned shell language behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L1966.1.builder-test	covered	tests/compat/tooling.shell/upstream-control-flow.js	exact pinned control-flow behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L197.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned shell language behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L1972.1.builder-test	covered	tests/compat/tooling.shell/upstream-control-flow.js	exact pinned control-flow behavior executes through the shipped binary
@@ -292,16 +307,24 @@ engineering.test_js_bun_shell_bunshell_test_ts.L2297.1.builder-test	covered	test
 engineering.test_js_bun_shell_bunshell_test_ts.L2298.1.builder-test	covered	tests/compat/tooling.shell/upstream-conditions.js	exact pinned observable behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L2300.1.builder-test	covered	tests/compat/tooling.shell/upstream-conditions.js	exact pinned observable behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L2301.1.builder-test	covered	tests/compat/tooling.shell/upstream-conditions.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2305.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2308.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2311.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L2315.1.builder-test	covered	tests/compat/tooling.shell/upstream-conditions.js	exact pinned observable behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L2318.1.builder-test	covered	tests/compat/tooling.shell/upstream-conditions.js	exact pinned observable behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L2322.1.builder-test	covered	tests/compat/tooling.shell/upstream-conditions.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2329.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L2332.1.builder-test	covered	tests/compat/tooling.shell/upstream-conditions.js	exact pinned observable behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L2335.1.builder-test	covered	tests/compat/tooling.shell/upstream-conditions.js	exact pinned observable behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L2342.1.builder-test	covered	tests/compat/tooling.shell/upstream-conditions.js	exact pinned observable behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L2351.1.builder-test	covered	tests/compat/tooling.shell/upstream-conditions.js	exact pinned observable behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L2360.1.builder-test	covered	tests/compat/tooling.shell/upstream-conditions.js	exact pinned observable behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L2366.1.builder-test	covered	tests/compat/tooling.shell/upstream-conditions.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2373.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L2382.1.builder-test	covered	tests/compat/tooling.shell/upstream-conditions.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2391.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2397.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2406.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L2415.1.builder-test	covered	tests/compat/tooling.shell/upstream-conditions.js	exact pinned observable behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L2422.1.builder-test	covered	tests/compat/tooling.shell/upstream-conditions.js	exact pinned observable behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L2430.1.builder-test	covered	tests/compat/tooling.shell/upstream-conditions.js	exact pinned observable behavior executes through the shipped binary
@@ -310,7 +333,9 @@ engineering.test_js_bun_shell_bunshell_test_ts.L2446.1.builder-test	covered	test
 engineering.test_js_bun_shell_bunshell_test_ts.L2454.1.builder-test	covered	tests/compat/tooling.shell/upstream-conditions.js	exact pinned observable behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L246.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L2464.1.builder-test	covered	tests/compat/tooling.shell/upstream-conditions.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L250.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L2515.1.builder-test	covered	tests/compat/tooling.shell/upstream-conditions.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2565.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L2567.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned grouping behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L2573.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned grouping behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L2574.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned grouping behavior executes through the shipped binary
@@ -318,18 +343,45 @@ engineering.test_js_bun_shell_bunshell_test_ts.L2575.1.builder-test	covered	test
 engineering.test_js_bun_shell_bunshell_test_ts.L2590.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned grouping behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L2603.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned grouping behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L2617.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned grouping behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2619.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2620.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L2632.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned grouping behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L2642.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned grouping behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L2652.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned grouping behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L2661.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned grouping behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2667.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2679.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L2686.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned grouping behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2696.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L2703.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned grouping behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2713.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L2722.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned grouping behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2732.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L2740.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned brace-group behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L2749.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned brace-group behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L2757.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned brace-group behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2767.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L2777.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned brace-group behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2795.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2796.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2797.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2798.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2799.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2800.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2804.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2850.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2857.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2864.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2867.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2874.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2879.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2884.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2889.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L289.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2894.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2899.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L2904.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L302.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L316.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L319.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L325.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
@@ -346,6 +398,8 @@ engineering.test_js_bun_shell_bunshell_test_ts.L418.1.builder-test	covered	tests
 engineering.test_js_bun_shell_bunshell_test_ts.L419.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned shell language behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L423.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L433.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L442.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L452.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L468.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned shell language behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L475.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned shell language behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L476.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned shell language behavior executes through the shipped binary
@@ -388,7 +442,22 @@ engineering.test_js_bun_shell_bunshell_test_ts.L725.1.builder-test	covered	tests
 engineering.test_js_bun_shell_bunshell_test_ts.L730.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned unmatched-glob and assignment nullglob policy executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L735.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned unmatched-glob and assignment nullglob policy executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L745.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned unmatched-glob and assignment nullglob policy executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L758.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L765.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L779.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L791.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L803.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L813.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L829.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L839.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L842.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L89.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L907.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L937.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L944.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
 engineering.test_js_bun_shell_bunshell_test_ts.L95.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L954.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+engineering.test_js_bun_shell_bunshell_test_ts.L961.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
 engineering.test_js_bun_shell_commands_basename_test_ts.L12.1.builder-test	covered	tests/compat/tooling.shell/upstream-low-hanging.js	exact pinned observable behavior executes through the shipped binary
 engineering.test_js_bun_shell_commands_basename_test_ts.L18.1.builder-test	covered	tests/compat/tooling.shell/upstream-low-hanging.js	exact pinned observable behavior executes through the shipped binary
 engineering.test_js_bun_shell_commands_basename_test_ts.L24.1.builder-test	covered	tests/compat/tooling.shell/upstream-low-hanging.js	exact pinned observable behavior executes through the shipped binary
@@ -438,13 +507,13 @@ engineering.test_js_bun_shell_commands_echo_test_ts.L46.1.builder-test	covered	t
 engineering.test_js_bun_shell_commands_echo_test_ts.L52.1.builder-test	covered	tests/compat/tooling.shell/upstream-echo.js	exact pinned echo behavior executes through the shipped binary
 engineering.test_js_bun_shell_commands_echo_test_ts.L56.1.builder-test	covered	tests/compat/tooling.shell/upstream-echo.js	exact pinned echo behavior executes through the shipped binary
 engineering.test_js_bun_shell_commands_echo_test_ts.L58.1.builder-test	covered	tests/compat/tooling.shell/upstream-echo.js	exact pinned echo behavior executes through the shipped binary
-engineering.test_js_bun_shell_commands_echo_test_ts.L6.1.builder-test	covered	tests/compat/tooling.shell/upstream-echo.js	exact pinned echo behavior executes through the shipped binary
 engineering.test_js_bun_shell_commands_echo_test_ts.L60.1.builder-test	covered	tests/compat/tooling.shell/upstream-echo.js	exact pinned echo behavior executes through the shipped binary
+engineering.test_js_bun_shell_commands_echo_test_ts.L6.1.builder-test	covered	tests/compat/tooling.shell/upstream-echo.js	exact pinned echo behavior executes through the shipped binary
 engineering.test_js_bun_shell_commands_echo_test_ts.L64.1.builder-test	covered	tests/compat/tooling.shell/upstream-echo.js	exact pinned echo behavior executes through the shipped binary
 engineering.test_js_bun_shell_commands_echo_test_ts.L70.1.builder-test	covered	tests/compat/tooling.shell/upstream-echo.js	exact pinned echo behavior executes through the shipped binary
 engineering.test_js_bun_shell_commands_echo_test_ts.L72.1.builder-test	covered	tests/compat/tooling.shell/upstream-echo.js	exact pinned echo behavior executes through the shipped binary
-engineering.test_js_bun_shell_commands_echo_test_ts.L8.1.builder-test	covered	tests/compat/tooling.shell/upstream-echo.js	exact pinned echo behavior executes through the shipped binary
 engineering.test_js_bun_shell_commands_echo_test_ts.L81.1.builder-test	covered	tests/compat/tooling.shell/upstream-echo.js	exact pinned echo behavior executes through the shipped binary
+engineering.test_js_bun_shell_commands_echo_test_ts.L8.1.builder-test	covered	tests/compat/tooling.shell/upstream-echo.js	exact pinned echo behavior executes through the shipped binary
 engineering.test_js_bun_shell_commands_echo_test_ts.L87.1.builder-test	covered	tests/compat/tooling.shell/upstream-echo.js	exact pinned echo behavior executes through the shipped binary
 engineering.test_js_bun_shell_commands_echo_test_ts.L93.1.builder-test	covered	tests/compat/tooling.shell/upstream-echo.js	exact pinned echo behavior executes through the shipped binary
 engineering.test_js_bun_shell_commands_exit_test_ts.L10.1.builder-test	covered	tests/compat/tooling.shell/upstream-low-hanging.js	exact pinned observable behavior executes through the shipped binary
@@ -538,6 +607,8 @@ engineering.test_js_bun_shell_env_positionals_test_ts.L19.1.test-call	covered	te
 engineering.test_js_bun_shell_env_positionals_test_ts.L38.1.test-call	covered	tests/compat/tooling.shell/upstream-positionals.js	exact pinned positional-parameter behavior executes through the shipped binary
 engineering.test_js_bun_shell_env_positionals_test_ts.L57.1.test-call	covered	tests/compat/tooling.shell/upstream-positionals.js	exact pinned positional-parameter behavior executes through the shipped binary
 engineering.test_js_bun_shell_env_positionals_test_ts.L76.1.test-call	covered	tests/compat/tooling.shell/upstream-positionals.js	exact pinned positional-parameter behavior executes through the shipped binary
+engineering.test_js_bun_shell_epipe_test_ts.L10.1.builder-test	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
+engineering.test_js_bun_shell_epipe_test_ts.L12.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
 engineering.test_js_bun_shell_exec_test_ts.L12.1.builder-test	covered	tests/compat/tooling.shell/upstream-exec.js	exact pinned clun exec behavior executes through the shipped binary
 engineering.test_js_bun_shell_exec_test_ts.L17.1.builder-test	covered	tests/compat/tooling.shell/upstream-exec.js	exact pinned clun exec behavior executes through the shipped binary
 engineering.test_js_bun_shell_exec_test_ts.L24.1.builder-test	covered	tests/compat/tooling.shell/upstream-exec.js	exact pinned clun exec behavior executes through the shipped binary
@@ -574,6 +645,12 @@ engineering.test_js_bun_shell_file_io_test_ts.L84.1.builder-test	covered	tests/c
 engineering.test_js_bun_shell_file_io_test_ts.L91.1.builder-test	covered	tests/compat/tooling.shell/upstream-file-io.js	exact pinned file-redirection behavior executes through the shipped binary
 engineering.test_js_bun_shell_file_io_test_ts.L96.1.builder-test	covered	tests/compat/tooling.shell/upstream-file-io.js	exact pinned file-redirection behavior executes through the shipped binary
 engineering.test_js_bun_shell_lazy_test_ts.L7.1.test-call	covered	tests/compat/tooling.shell/upstream-public-api.js	exact pinned public shell API behavior executes through the shipped binary
+engineering.test_js_bun_shell_leak_test_ts.L116.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
+engineering.test_js_bun_shell_leak_test_ts.L129.1.builder-test	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
+engineering.test_js_bun_shell_leak_test_ts.L212.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
+engineering.test_js_bun_shell_leak_test_ts.L405.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
+engineering.test_js_bun_shell_leak_test_ts.L438.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
+engineering.test_js_bun_shell_leak_test_ts.L58.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
 engineering.test_js_bun_shell_lex_test_ts.L102.1.test-call	covered	tests/compat/tooling.shell/upstream-lex-parse.js	exact pinned observable lex/parse behavior executes through the shipped binary
 engineering.test_js_bun_shell_lex_test_ts.L115.1.test-call	covered	tests/compat/tooling.shell/upstream-lex-parse.js	exact pinned observable lex/parse behavior executes through the shipped binary
 engineering.test_js_bun_shell_lex_test_ts.L12.1.test-call	covered	tests/compat/tooling.shell/upstream-lex-parse.js	exact pinned observable lex/parse behavior executes through the shipped binary
@@ -649,8 +726,8 @@ engineering.test_js_bun_shell_pipeline_stack_test_ts.L185.1.builder-test	covered
 engineering.test_js_bun_shell_pipeline_stack_test_ts.L187.1.builder-test	covered	tests/compat/tooling.shell/upstream-pipeline-stack.js	exact pinned pipeline-stack behavior executes through the shipped binary
 engineering.test_js_bun_shell_pipeline_stack_test_ts.L194.1.builder-test	covered	tests/compat/tooling.shell/upstream-pipeline-stack.js	exact pinned pipeline-stack behavior executes through the shipped binary
 engineering.test_js_bun_shell_pipeline_stack_test_ts.L198.1.builder-test	covered	tests/compat/tooling.shell/upstream-pipeline-stack.js	exact pinned pipeline-stack behavior executes through the shipped binary
-engineering.test_js_bun_shell_pipeline_stack_test_ts.L20.1.builder-test	covered	tests/compat/tooling.shell/upstream-pipeline-stack.js	exact pinned pipeline-stack behavior executes through the shipped binary
 engineering.test_js_bun_shell_pipeline_stack_test_ts.L200.1.builder-test	covered	tests/compat/tooling.shell/upstream-pipeline-stack.js	exact pinned pipeline-stack behavior executes through the shipped binary
+engineering.test_js_bun_shell_pipeline_stack_test_ts.L20.1.builder-test	covered	tests/compat/tooling.shell/upstream-pipeline-stack.js	exact pinned pipeline-stack behavior executes through the shipped binary
 engineering.test_js_bun_shell_pipeline_stack_test_ts.L204.1.builder-test	covered	tests/compat/tooling.shell/upstream-pipeline-stack.js	exact pinned pipeline-stack behavior executes through the shipped binary
 engineering.test_js_bun_shell_pipeline_stack_test_ts.L208.1.builder-test	covered	tests/compat/tooling.shell/upstream-pipeline-stack.js	exact pinned pipeline-stack behavior executes through the shipped binary
 engineering.test_js_bun_shell_pipeline_stack_test_ts.L212.1.builder-test	covered	tests/compat/tooling.shell/upstream-pipeline-stack.js	exact pinned pipeline-stack behavior executes through the shipped binary
@@ -661,8 +738,8 @@ engineering.test_js_bun_shell_pipeline_stack_test_ts.L226.1.builder-test	covered
 engineering.test_js_bun_shell_pipeline_stack_test_ts.L230.1.builder-test	covered	tests/compat/tooling.shell/upstream-pipeline-stack.js	exact pinned pipeline-stack behavior executes through the shipped binary
 engineering.test_js_bun_shell_pipeline_stack_test_ts.L232.1.builder-test	covered	tests/compat/tooling.shell/upstream-pipeline-stack.js	exact pinned pipeline-stack behavior executes through the shipped binary
 engineering.test_js_bun_shell_pipeline_stack_test_ts.L237.1.builder-test	covered	tests/compat/tooling.shell/upstream-pipeline-stack.js	exact pinned pipeline-stack behavior executes through the shipped binary
-engineering.test_js_bun_shell_pipeline_stack_test_ts.L24.1.builder-test	covered	tests/compat/tooling.shell/upstream-pipeline-stack.js	exact pinned pipeline-stack behavior executes through the shipped binary
 engineering.test_js_bun_shell_pipeline_stack_test_ts.L241.1.builder-test	covered	tests/compat/tooling.shell/upstream-pipeline-stack.js	exact pinned pipeline-stack behavior executes through the shipped binary
+engineering.test_js_bun_shell_pipeline_stack_test_ts.L24.1.builder-test	covered	tests/compat/tooling.shell/upstream-pipeline-stack.js	exact pinned pipeline-stack behavior executes through the shipped binary
 engineering.test_js_bun_shell_pipeline_stack_test_ts.L243.1.builder-test	covered	tests/compat/tooling.shell/upstream-pipeline-stack.js	exact pinned pipeline-stack behavior executes through the shipped binary
 engineering.test_js_bun_shell_pipeline_stack_test_ts.L247.1.builder-test	covered	tests/compat/tooling.shell/upstream-pipeline-stack.js	exact pinned pipeline-stack behavior executes through the shipped binary
 engineering.test_js_bun_shell_pipeline_stack_test_ts.L249.1.builder-test	covered	tests/compat/tooling.shell/upstream-pipeline-stack.js	exact pinned pipeline-stack behavior executes through the shipped binary
@@ -688,13 +765,32 @@ engineering.test_js_bun_shell_pipeline_stack_test_ts.L80.1.builder-test	covered	
 engineering.test_js_bun_shell_pipeline_stack_test_ts.L85.1.builder-test	covered	tests/compat/tooling.shell/upstream-pipeline-stack.js	exact pinned pipeline-stack behavior executes through the shipped binary
 engineering.test_js_bun_shell_pipeline_stack_test_ts.L93.1.builder-test	covered	tests/compat/tooling.shell/upstream-pipeline-stack.js	exact pinned pwd|cd|pwd pipeline isolation executes through the shipped binary
 engineering.test_js_bun_shell_pipeline_stack_test_ts.L99.1.builder-test	covered	tests/compat/tooling.shell/upstream-pipeline-stack.js	exact pinned pipeline-stack behavior executes through the shipped binary
+engineering.test_js_bun_shell_shell_blocking_pipe_test_ts.L26.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
+engineering.test_js_bun_shell_shell_blocking_pipe_test_ts.L9.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
+engineering.test_js_bun_shell_shell_hang_test_ts.L20.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
+engineering.test_js_bun_shell_shell_hang_test_ts.L30.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
+engineering.test_js_bun_shell_shell_leak_args_test_ts.L36.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
+engineering.test_js_bun_shell_shell_leak_args_test_ts.L5.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
+engineering.test_js_bun_shell_shell_leak_args_test_ts.L61.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
+engineering.test_js_bun_shell_shell_load_test_ts.L6.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
+engineering.test_js_bun_shell_shelloutput_test_ts.L14.1.test-call	covered	tests/compat/tooling.shell/upstream-public-api.js	exact pinned public shell API behavior executes through the shipped binary
+engineering.test_js_bun_shell_shelloutput_test_ts.L5.1.test-call	covered	tests/compat/tooling.shell/upstream-public-api.js	exact pinned public shell API behavior executes through the shipped binary
+engineering.test_js_bun_shell_shell_pipe_read_fault_test_ts.L315.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
+engineering.test_js_bun_shell_shell_pipe_read_fault_test_ts.L322.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
+engineering.test_js_bun_shell_shell_pipe_read_fault_test_ts.L329.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
+engineering.test_js_bun_shell_shell_pipe_read_fault_test_ts.L336.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
+engineering.test_js_bun_shell_shell_pipe_read_fault_test_ts.L348.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
+engineering.test_js_bun_shell_shell_pipe_read_fault_test_ts.L361.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
+engineering.test_js_bun_shell_shell_pipe_read_fault_test_ts.L382.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
+engineering.test_js_bun_shell_shell_sentinel_hardening_test_ts.L21.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
+engineering.test_js_bun_shell_shell_sentinel_hardening_test_ts.L28.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
+engineering.test_js_bun_shell_shell_sentinel_hardening_test_ts.L6.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
 engineering.test_js_bun_shell_shell_seq_condexpr_test_ts.L21.1.test-call	covered	tests/compat/tooling.shell/upstream-seq.js	exact pinned non-finite seq and empty conditional behavior executes through the shipped binary
 engineering.test_js_bun_shell_shell_seq_condexpr_test_ts.L38.1.test-call	covered	tests/compat/tooling.shell/upstream-seq.js	exact pinned non-finite seq and empty conditional behavior executes through the shipped binary
 engineering.test_js_bun_shell_shell_seq_condexpr_test_ts.L4.1.test-call	covered	tests/compat/tooling.shell/upstream-seq.js	exact pinned non-finite seq and empty conditional behavior executes through the shipped binary
 engineering.test_js_bun_shell_shell_seq_condexpr_test_ts.L55.1.test-call	covered	tests/compat/tooling.shell/upstream-seq.js	exact pinned non-finite seq and empty conditional behavior executes through the shipped binary
 engineering.test_js_bun_shell_shell_seq_condexpr_test_ts.L71.1.test-call	covered	tests/compat/tooling.shell/upstream-seq.js	exact pinned non-finite seq and empty conditional behavior executes through the shipped binary
-engineering.test_js_bun_shell_shelloutput_test_ts.L14.1.test-call	covered	tests/compat/tooling.shell/upstream-public-api.js	exact pinned public shell API behavior executes through the shipped binary
-engineering.test_js_bun_shell_shelloutput_test_ts.L5.1.test-call	covered	tests/compat/tooling.shell/upstream-public-api.js	exact pinned public shell API behavior executes through the shipped binary
+engineering.test_js_bun_shell_shell_write_fault_test_ts.L82.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
 engineering.test_js_bun_shell_throw_test_ts.L21.1.test-call	covered	tests/compat/tooling.shell/upstream-public-api.js	exact pinned public shell API behavior executes through the shipped binary
 engineering.test_js_bun_shell_throw_test_ts.L32.1.test-call	covered	tests/compat/tooling.shell/upstream-public-api.js	exact pinned public shell API behavior executes through the shipped binary
 engineering.test_js_bun_shell_throw_test_ts.L42.1.test-call	covered	tests/compat/tooling.shell/upstream-public-api.js	exact pinned public shell API behavior executes through the shipped binary
@@ -790,13 +886,16 @@ stable.test_js_bun_shell_bunshell_test_ts.L1034.1.builder-test	covered	tests/com
 stable.test_js_bun_shell_bunshell_test_ts.L1038.1.builder-test	covered	tests/compat/tooling.shell/upstream-deno-task.js	exact pinned Deno-task observable behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L1039.1.builder-test	covered	tests/compat/tooling.shell/upstream-deno-task.js	exact pinned Deno-task observable behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L104.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L1046.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L1048.1.builder-test	covered	tests/compat/tooling.shell/upstream-deno-task.js	exact pinned Deno-task observable behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L1053.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L1059.1.builder-test	covered	tests/compat/tooling.shell/upstream-deno-task.js	exact pinned Deno-task observable behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L1063.1.builder-test	covered	tests/compat/tooling.shell/upstream-deno-task.js	exact pinned Deno-task observable behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L1069.1.builder-test	covered	tests/compat/tooling.shell/upstream-deno-task.js	exact pinned Deno-task observable behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L1071.1.builder-test	covered	tests/compat/tooling.shell/upstream-deno-task.js	exact pinned Deno-task observable behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L1080.1.builder-test	covered	tests/compat/tooling.shell/upstream-deno-task.js	exact pinned Deno-task observable behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L1085.1.builder-test	covered	tests/compat/tooling.shell/upstream-deno-task.js	exact pinned Deno-task observable behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L1099.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L1103.1.builder-test	covered	tests/compat/tooling.shell/upstream-deno-task.js	exact pinned Deno-task observable behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L1107.1.builder-test	covered	tests/compat/tooling.shell/upstream-deno-task.js	exact pinned Deno-task observable behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L1110.1.builder-test	covered	tests/compat/tooling.shell/upstream-deno-task.js	exact pinned Deno-task observable behavior executes through the shipped binary
@@ -853,9 +952,14 @@ stable.test_js_bun_shell_bunshell_test_ts.L151.1.builder-test	covered	tests/comp
 stable.test_js_bun_shell_bunshell_test_ts.L154.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L1544.1.builder-test	covered	tests/compat/tooling.shell/upstream-control-flow.js	exact pinned control-flow behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L1559.1.builder-test	covered	tests/compat/tooling.shell/upstream-control-flow.js	exact pinned control-flow behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L1571.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L1587.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L1599.1.builder-test	covered	tests/compat/tooling.shell/upstream-control-flow.js	exact pinned control-flow behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L1603.1.builder-test	covered	tests/compat/tooling.shell/upstream-control-flow.js	exact pinned control-flow behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L1608.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L1620.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L1634.1.builder-test	covered	tests/compat/tooling.shell/upstream-control-flow.js	exact pinned control-flow behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L1640.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L164.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned shell language behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L1644.1.builder-test	covered	tests/compat/tooling.shell/upstream-control-flow.js	exact pinned control-flow behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L1648.1.builder-test	covered	tests/compat/tooling.shell/upstream-control-flow.js	exact pinned control-flow behavior executes through the shipped binary
@@ -915,8 +1019,8 @@ stable.test_js_bun_shell_bunshell_test_ts.L1966.1.builder-test	covered	tests/com
 stable.test_js_bun_shell_bunshell_test_ts.L1972.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned brace-group control-flow behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L1978.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned brace-group control-flow behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L1984.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned brace-group control-flow behavior executes through the shipped binary
-stable.test_js_bun_shell_bunshell_test_ts.L199.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L1990.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned brace-group control-flow behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L199.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L1996.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned brace-group control-flow behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L2006.1.builder-test	covered	tests/compat/tooling.shell/upstream-control-flow.js	exact pinned control-flow behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L2011.1.builder-test	covered	tests/compat/tooling.shell/upstream-conditions.js	exact pinned conditional-expression behavior executes through the shipped binary
@@ -933,6 +1037,7 @@ stable.test_js_bun_shell_bunshell_test_ts.L2027.1.builder-test	covered	tests/com
 stable.test_js_bun_shell_bunshell_test_ts.L2028.1.builder-test	covered	tests/compat/tooling.shell/upstream-conditions.js	exact pinned conditional-expression behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L2030.1.builder-test	covered	tests/compat/tooling.shell/upstream-conditions.js	exact pinned conditional-expression behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L2031.1.builder-test	covered	tests/compat/tooling.shell/upstream-conditions.js	exact pinned conditional-expression behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L203.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L2033.1.builder-test	covered	tests/compat/tooling.shell/upstream-conditions.js	exact pinned conditional-expression behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L2035.1.builder-test	covered	tests/compat/tooling.shell/upstream-conditions.js	exact pinned conditional-expression behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L2036.1.builder-test	covered	tests/compat/tooling.shell/upstream-conditions.js	exact pinned conditional-expression behavior executes through the shipped binary
@@ -952,16 +1057,24 @@ stable.test_js_bun_shell_bunshell_test_ts.L2082.1.builder-test	covered	tests/com
 stable.test_js_bun_shell_bunshell_test_ts.L2083.1.builder-test	covered	tests/compat/tooling.shell/upstream-conditions.js	exact pinned conditional-expression behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L2085.1.builder-test	covered	tests/compat/tooling.shell/upstream-conditions.js	exact pinned conditional-expression behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L2086.1.builder-test	covered	tests/compat/tooling.shell/upstream-conditions.js	exact pinned conditional-expression behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L2090.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L2093.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L2096.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L2100.1.builder-test	covered	tests/compat/tooling.shell/upstream-conditions.js	exact pinned conditional-expression behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L2103.1.builder-test	covered	tests/compat/tooling.shell/upstream-conditions.js	exact pinned conditional-expression behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L2107.1.builder-test	covered	tests/compat/tooling.shell/upstream-conditions.js	exact pinned conditional-expression behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L2114.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L2117.1.builder-test	covered	tests/compat/tooling.shell/upstream-conditions.js	exact pinned conditional-expression behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L2120.1.builder-test	covered	tests/compat/tooling.shell/upstream-conditions.js	exact pinned conditional-expression behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L2127.1.builder-test	covered	tests/compat/tooling.shell/upstream-conditions.js	exact pinned conditional-expression behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L2136.1.builder-test	covered	tests/compat/tooling.shell/upstream-conditions.js	exact pinned conditional-expression behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L2145.1.builder-test	covered	tests/compat/tooling.shell/upstream-conditions.js	exact pinned conditional-expression behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L2151.1.builder-test	covered	tests/compat/tooling.shell/upstream-conditions.js	exact pinned conditional-expression behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L2158.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L2167.1.builder-test	covered	tests/compat/tooling.shell/upstream-conditions.js	exact pinned conditional-expression behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L2176.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L2182.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L2191.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L2200.1.builder-test	covered	tests/compat/tooling.shell/upstream-conditions.js	exact pinned conditional-expression behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L2207.1.builder-test	covered	tests/compat/tooling.shell/upstream-conditions.js	exact pinned conditional-expression behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L2215.1.builder-test	covered	tests/compat/tooling.shell/upstream-conditions.js	exact pinned conditional-expression behavior executes through the shipped binary
@@ -970,6 +1083,7 @@ stable.test_js_bun_shell_bunshell_test_ts.L2231.1.builder-test	covered	tests/com
 stable.test_js_bun_shell_bunshell_test_ts.L2239.1.builder-test	covered	tests/compat/tooling.shell/upstream-conditions.js	exact pinned conditional-expression behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L2249.1.builder-test	covered	tests/compat/tooling.shell/upstream-conditions.js	exact pinned conditional-expression behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L2300.1.builder-test	covered	tests/compat/tooling.shell/upstream-conditions.js	exact pinned conditional-expression behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L2350.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L2352.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned grouping behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L2358.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned grouping behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L2359.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned grouping behavior executes through the shipped binary
@@ -977,19 +1091,34 @@ stable.test_js_bun_shell_bunshell_test_ts.L2360.1.builder-test	covered	tests/com
 stable.test_js_bun_shell_bunshell_test_ts.L2375.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned grouping behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L2388.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned grouping behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L2402.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned grouping behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L2404.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L2405.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L2417.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned grouping behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L242.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L2427.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned grouping behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L2437.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned grouping behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L2446.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned grouping behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L2452.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L2464.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L2471.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned grouping behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L2481.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L2488.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned grouping behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L2498.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L2507.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned grouping behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L2517.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L2525.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned brace-group behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L2534.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned brace-group behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L2542.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned brace-group behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L255.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L2552.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L2562.1.builder-test	covered	tests/compat/tooling.shell/upstream-groups.js	exact pinned brace-group behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L2580.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L2581.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L2582.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L2583.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L2584.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L2585.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L2589.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L269.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L272.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L278.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
@@ -1006,6 +1135,8 @@ stable.test_js_bun_shell_bunshell_test_ts.L371.1.builder-test	covered	tests/comp
 stable.test_js_bun_shell_bunshell_test_ts.L372.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned shell language behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L376.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L386.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L395.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L405.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L421.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned shell language behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L428.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned shell language behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L429.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned shell language behavior executes through the shipped binary
@@ -1044,6 +1175,20 @@ stable.test_js_bun_shell_bunshell_test_ts.L667.1.builder-test	covered	tests/comp
 stable.test_js_bun_shell_bunshell_test_ts.L672.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned unmatched-glob and assignment nullglob policy executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L677.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned unmatched-glob and assignment nullglob policy executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L687.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned unmatched-glob and assignment nullglob policy executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L692.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L722.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L729.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L739.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L746.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L756.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L790.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L801.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L829.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L877.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L88.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L892.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L913.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
+stable.test_js_bun_shell_bunshell_test_ts.L918.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L94.1.test-call	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned observable behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L944.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned shell language behavior executes through the shipped binary
 stable.test_js_bun_shell_bunshell_test_ts.L945.1.builder-test	covered	tests/compat/tooling.shell/upstream-language.js	exact pinned shell language behavior executes through the shipped binary
@@ -1131,8 +1276,8 @@ stable.test_js_bun_shell_commands_echo_test_ts.L46.1.builder-test	covered	tests/
 stable.test_js_bun_shell_commands_echo_test_ts.L52.1.builder-test	covered	tests/compat/tooling.shell/upstream-echo.js	exact pinned echo behavior executes through the shipped binary
 stable.test_js_bun_shell_commands_echo_test_ts.L56.1.builder-test	covered	tests/compat/tooling.shell/upstream-echo.js	exact pinned echo behavior executes through the shipped binary
 stable.test_js_bun_shell_commands_echo_test_ts.L58.1.builder-test	covered	tests/compat/tooling.shell/upstream-echo.js	exact pinned echo behavior executes through the shipped binary
-stable.test_js_bun_shell_commands_echo_test_ts.L6.1.builder-test	covered	tests/compat/tooling.shell/upstream-echo.js	exact pinned echo behavior executes through the shipped binary
 stable.test_js_bun_shell_commands_echo_test_ts.L60.1.builder-test	covered	tests/compat/tooling.shell/upstream-echo.js	exact pinned echo behavior executes through the shipped binary
+stable.test_js_bun_shell_commands_echo_test_ts.L6.1.builder-test	covered	tests/compat/tooling.shell/upstream-echo.js	exact pinned echo behavior executes through the shipped binary
 stable.test_js_bun_shell_commands_echo_test_ts.L64.1.builder-test	covered	tests/compat/tooling.shell/upstream-echo.js	exact pinned echo behavior executes through the shipped binary
 stable.test_js_bun_shell_commands_echo_test_ts.L70.1.builder-test	covered	tests/compat/tooling.shell/upstream-echo.js	exact pinned echo behavior executes through the shipped binary
 stable.test_js_bun_shell_commands_echo_test_ts.L72.1.builder-test	covered	tests/compat/tooling.shell/upstream-echo.js	exact pinned echo behavior executes through the shipped binary
@@ -1226,6 +1371,8 @@ stable.test_js_bun_shell_env_positionals_test_ts.L19.1.test-call	covered	tests/c
 stable.test_js_bun_shell_env_positionals_test_ts.L38.1.test-call	covered	tests/compat/tooling.shell/upstream-positionals.js	exact pinned positional-parameter behavior executes through the shipped binary
 stable.test_js_bun_shell_env_positionals_test_ts.L57.1.test-call	covered	tests/compat/tooling.shell/upstream-positionals.js	exact pinned positional-parameter behavior executes through the shipped binary
 stable.test_js_bun_shell_env_positionals_test_ts.L76.1.test-call	covered	tests/compat/tooling.shell/upstream-positionals.js	exact pinned positional-parameter behavior executes through the shipped binary
+stable.test_js_bun_shell_epipe_test_ts.L10.1.builder-test	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
+stable.test_js_bun_shell_epipe_test_ts.L12.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
 stable.test_js_bun_shell_exec_test_ts.L12.1.builder-test	covered	tests/compat/tooling.shell/upstream-exec.js	exact pinned clun exec behavior executes through the shipped binary
 stable.test_js_bun_shell_exec_test_ts.L17.1.builder-test	covered	tests/compat/tooling.shell/upstream-exec.js	exact pinned clun exec behavior executes through the shipped binary
 stable.test_js_bun_shell_exec_test_ts.L24.1.builder-test	covered	tests/compat/tooling.shell/upstream-exec.js	exact pinned clun exec behavior executes through the shipped binary
@@ -1235,8 +1382,8 @@ stable.test_js_bun_shell_exec_test_ts.L70.1.builder-test	covered	tests/compat/to
 stable.test_js_bun_shell_exec_test_ts.L79.1.builder-test	covered	tests/compat/tooling.shell/upstream-exec.js	exact pinned clun exec behavior executes through the shipped binary
 stable.test_js_bun_shell_exec_test_ts.L81.1.test-call	covered	tests/compat/tooling.shell/upstream-exec.js	exact pinned clun exec behavior executes through the shipped binary
 stable.test_js_bun_shell_exec_test_ts.L87.1.test-call	covered	tests/compat/tooling.shell/upstream-exec.js	exact pinned clun exec behavior executes through the shipped binary
-stable.test_js_bun_shell_file_io_test_ts.L10.1.builder-test	covered	tests/compat/tooling.shell/upstream-file-io.js	exact pinned file-redirection behavior executes through the shipped binary
 stable.test_js_bun_shell_file_io_test_ts.L100.1.builder-test	covered	tests/compat/tooling.shell/upstream-file-io.js	exact pinned file-redirection behavior executes through the shipped binary
+stable.test_js_bun_shell_file_io_test_ts.L10.1.builder-test	covered	tests/compat/tooling.shell/upstream-file-io.js	exact pinned file-redirection behavior executes through the shipped binary
 stable.test_js_bun_shell_file_io_test_ts.L121.1.builder-test	covered	tests/compat/tooling.shell/upstream-file-io.js	exact pinned file-redirection behavior executes through the shipped binary
 stable.test_js_bun_shell_file_io_test_ts.L126.1.builder-test	covered	tests/compat/tooling.shell/upstream-file-io.js	exact pinned file-redirection behavior executes through the shipped binary
 stable.test_js_bun_shell_file_io_test_ts.L131.1.builder-test	covered	tests/compat/tooling.shell/upstream-file-io.js	exact pinned file-redirection behavior executes through the shipped binary
@@ -1261,6 +1408,12 @@ stable.test_js_bun_shell_file_io_test_ts.L83.1.builder-test	covered	tests/compat
 stable.test_js_bun_shell_file_io_test_ts.L90.1.builder-test	covered	tests/compat/tooling.shell/upstream-file-io.js	exact pinned file-redirection behavior executes through the shipped binary
 stable.test_js_bun_shell_file_io_test_ts.L95.1.builder-test	covered	tests/compat/tooling.shell/upstream-file-io.js	exact pinned file-redirection behavior executes through the shipped binary
 stable.test_js_bun_shell_lazy_test_ts.L7.1.test-call	covered	tests/compat/tooling.shell/upstream-public-api.js	exact pinned public shell API behavior executes through the shipped binary
+stable.test_js_bun_shell_leak_test_ts.L114.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
+stable.test_js_bun_shell_leak_test_ts.L127.1.builder-test	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
+stable.test_js_bun_shell_leak_test_ts.L211.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
+stable.test_js_bun_shell_leak_test_ts.L404.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
+stable.test_js_bun_shell_leak_test_ts.L437.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
+stable.test_js_bun_shell_leak_test_ts.L56.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
 stable.test_js_bun_shell_lex_test_ts.L102.1.test-call	covered	tests/compat/tooling.shell/upstream-lex-parse.js	exact pinned observable lex/parse behavior executes through the shipped binary
 stable.test_js_bun_shell_lex_test_ts.L115.1.test-call	covered	tests/compat/tooling.shell/upstream-lex-parse.js	exact pinned observable lex/parse behavior executes through the shipped binary
 stable.test_js_bun_shell_lex_test_ts.L12.1.test-call	covered	tests/compat/tooling.shell/upstream-lex-parse.js	exact pinned observable lex/parse behavior executes through the shipped binary
@@ -1335,8 +1488,8 @@ stable.test_js_bun_shell_pipeline_stack_test_ts.L185.1.builder-test	covered	test
 stable.test_js_bun_shell_pipeline_stack_test_ts.L187.1.builder-test	covered	tests/compat/tooling.shell/upstream-pipeline-stack.js	exact pinned pipeline-stack behavior executes through the shipped binary
 stable.test_js_bun_shell_pipeline_stack_test_ts.L194.1.builder-test	covered	tests/compat/tooling.shell/upstream-pipeline-stack.js	exact pinned pipeline-stack behavior executes through the shipped binary
 stable.test_js_bun_shell_pipeline_stack_test_ts.L198.1.builder-test	covered	tests/compat/tooling.shell/upstream-pipeline-stack.js	exact pinned pipeline-stack behavior executes through the shipped binary
-stable.test_js_bun_shell_pipeline_stack_test_ts.L20.1.builder-test	covered	tests/compat/tooling.shell/upstream-pipeline-stack.js	exact pinned pipeline-stack behavior executes through the shipped binary
 stable.test_js_bun_shell_pipeline_stack_test_ts.L200.1.builder-test	covered	tests/compat/tooling.shell/upstream-pipeline-stack.js	exact pinned pipeline-stack behavior executes through the shipped binary
+stable.test_js_bun_shell_pipeline_stack_test_ts.L20.1.builder-test	covered	tests/compat/tooling.shell/upstream-pipeline-stack.js	exact pinned pipeline-stack behavior executes through the shipped binary
 stable.test_js_bun_shell_pipeline_stack_test_ts.L204.1.builder-test	covered	tests/compat/tooling.shell/upstream-pipeline-stack.js	exact pinned pipeline-stack behavior executes through the shipped binary
 stable.test_js_bun_shell_pipeline_stack_test_ts.L208.1.builder-test	covered	tests/compat/tooling.shell/upstream-pipeline-stack.js	exact pinned pipeline-stack behavior executes through the shipped binary
 stable.test_js_bun_shell_pipeline_stack_test_ts.L212.1.builder-test	covered	tests/compat/tooling.shell/upstream-pipeline-stack.js	exact pinned pipeline-stack behavior executes through the shipped binary
@@ -1347,8 +1500,8 @@ stable.test_js_bun_shell_pipeline_stack_test_ts.L226.1.builder-test	covered	test
 stable.test_js_bun_shell_pipeline_stack_test_ts.L230.1.builder-test	covered	tests/compat/tooling.shell/upstream-pipeline-stack.js	exact pinned pipeline-stack behavior executes through the shipped binary
 stable.test_js_bun_shell_pipeline_stack_test_ts.L232.1.builder-test	covered	tests/compat/tooling.shell/upstream-pipeline-stack.js	exact pinned pipeline-stack behavior executes through the shipped binary
 stable.test_js_bun_shell_pipeline_stack_test_ts.L237.1.builder-test	covered	tests/compat/tooling.shell/upstream-pipeline-stack.js	exact pinned pipeline-stack behavior executes through the shipped binary
-stable.test_js_bun_shell_pipeline_stack_test_ts.L24.1.builder-test	covered	tests/compat/tooling.shell/upstream-pipeline-stack.js	exact pinned pipeline-stack behavior executes through the shipped binary
 stable.test_js_bun_shell_pipeline_stack_test_ts.L241.1.builder-test	covered	tests/compat/tooling.shell/upstream-pipeline-stack.js	exact pinned pipeline-stack behavior executes through the shipped binary
+stable.test_js_bun_shell_pipeline_stack_test_ts.L24.1.builder-test	covered	tests/compat/tooling.shell/upstream-pipeline-stack.js	exact pinned pipeline-stack behavior executes through the shipped binary
 stable.test_js_bun_shell_pipeline_stack_test_ts.L243.1.builder-test	covered	tests/compat/tooling.shell/upstream-pipeline-stack.js	exact pinned pipeline-stack behavior executes through the shipped binary
 stable.test_js_bun_shell_pipeline_stack_test_ts.L247.1.builder-test	covered	tests/compat/tooling.shell/upstream-pipeline-stack.js	exact pinned pipeline-stack behavior executes through the shipped binary
 stable.test_js_bun_shell_pipeline_stack_test_ts.L249.1.builder-test	covered	tests/compat/tooling.shell/upstream-pipeline-stack.js	exact pinned pipeline-stack behavior executes through the shipped binary
@@ -1374,53 +1527,6 @@ stable.test_js_bun_shell_pipeline_stack_test_ts.L80.1.builder-test	covered	tests
 stable.test_js_bun_shell_pipeline_stack_test_ts.L85.1.builder-test	covered	tests/compat/tooling.shell/upstream-pipeline-stack.js	exact pinned pipeline-stack behavior executes through the shipped binary
 stable.test_js_bun_shell_pipeline_stack_test_ts.L93.1.builder-test	covered	tests/compat/tooling.shell/upstream-pipeline-stack.js	exact pinned pwd|cd|pwd pipeline isolation executes through the shipped binary
 stable.test_js_bun_shell_pipeline_stack_test_ts.L99.1.builder-test	covered	tests/compat/tooling.shell/upstream-pipeline-stack.js	exact pinned pipeline-stack behavior executes through the shipped binary
-stable.test_js_bun_shell_shell_seq_condexpr_test_ts.L21.1.test-call	covered	tests/compat/tooling.shell/upstream-seq.js	exact pinned non-finite seq and empty conditional behavior executes through the shipped binary
-stable.test_js_bun_shell_shell_seq_condexpr_test_ts.L38.1.test-call	covered	tests/compat/tooling.shell/upstream-seq.js	exact pinned non-finite seq and empty conditional behavior executes through the shipped binary
-stable.test_js_bun_shell_shell_seq_condexpr_test_ts.L4.1.test-call	covered	tests/compat/tooling.shell/upstream-seq.js	exact pinned non-finite seq and empty conditional behavior executes through the shipped binary
-stable.test_js_bun_shell_shell_seq_condexpr_test_ts.L55.1.test-call	covered	tests/compat/tooling.shell/upstream-seq.js	exact pinned non-finite seq and empty conditional behavior executes through the shipped binary
-stable.test_js_bun_shell_shell_seq_condexpr_test_ts.L71.1.test-call	covered	tests/compat/tooling.shell/upstream-seq.js	exact pinned non-finite seq and empty conditional behavior executes through the shipped binary
-stable.test_js_bun_shell_shelloutput_test_ts.L14.1.test-call	covered	tests/compat/tooling.shell/upstream-public-api.js	exact pinned public shell API behavior executes through the shipped binary
-stable.test_js_bun_shell_shelloutput_test_ts.L5.1.test-call	covered	tests/compat/tooling.shell/upstream-public-api.js	exact pinned public shell API behavior executes through the shipped binary
-stable.test_js_bun_shell_throw_test_ts.L21.1.test-call	covered	tests/compat/tooling.shell/upstream-public-api.js	exact pinned public shell API behavior executes through the shipped binary
-stable.test_js_bun_shell_throw_test_ts.L32.1.test-call	covered	tests/compat/tooling.shell/upstream-public-api.js	exact pinned public shell API behavior executes through the shipped binary
-stable.test_js_bun_shell_throw_test_ts.L42.1.test-call	covered	tests/compat/tooling.shell/upstream-public-api.js	exact pinned public shell API behavior executes through the shipped binary
-stable.test_js_bun_shell_throw_test_ts.L9.1.test-call	covered	tests/compat/tooling.shell/upstream-public-api.js	exact pinned public shell API behavior executes through the shipped binary
-stable.test_js_bun_shell_yield_test_ts.L10.1.builder-test	covered	tests/compat/tooling.shell/upstream-public-api.js	exact pinned public shell API behavior executes through the shipped binary
-engineering.test_js_bun_shell_epipe_test_ts.L10.1.builder-test	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
-engineering.test_js_bun_shell_epipe_test_ts.L12.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
-engineering.test_js_bun_shell_leak_test_ts.L116.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
-engineering.test_js_bun_shell_leak_test_ts.L129.1.builder-test	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
-engineering.test_js_bun_shell_leak_test_ts.L212.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
-engineering.test_js_bun_shell_leak_test_ts.L405.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
-engineering.test_js_bun_shell_leak_test_ts.L438.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
-engineering.test_js_bun_shell_leak_test_ts.L58.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
-engineering.test_js_bun_shell_shell_blocking_pipe_test_ts.L26.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
-engineering.test_js_bun_shell_shell_blocking_pipe_test_ts.L9.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
-engineering.test_js_bun_shell_shell_hang_test_ts.L20.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
-engineering.test_js_bun_shell_shell_hang_test_ts.L30.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
-engineering.test_js_bun_shell_shell_leak_args_test_ts.L36.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
-engineering.test_js_bun_shell_shell_leak_args_test_ts.L5.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
-engineering.test_js_bun_shell_shell_leak_args_test_ts.L61.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
-engineering.test_js_bun_shell_shell_load_test_ts.L6.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
-engineering.test_js_bun_shell_shell_pipe_read_fault_test_ts.L315.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
-engineering.test_js_bun_shell_shell_pipe_read_fault_test_ts.L322.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
-engineering.test_js_bun_shell_shell_pipe_read_fault_test_ts.L329.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
-engineering.test_js_bun_shell_shell_pipe_read_fault_test_ts.L336.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
-engineering.test_js_bun_shell_shell_pipe_read_fault_test_ts.L348.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
-engineering.test_js_bun_shell_shell_pipe_read_fault_test_ts.L361.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
-engineering.test_js_bun_shell_shell_pipe_read_fault_test_ts.L382.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
-engineering.test_js_bun_shell_shell_sentinel_hardening_test_ts.L21.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
-engineering.test_js_bun_shell_shell_sentinel_hardening_test_ts.L28.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
-engineering.test_js_bun_shell_shell_sentinel_hardening_test_ts.L6.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
-engineering.test_js_bun_shell_shell_write_fault_test_ts.L82.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
-stable.test_js_bun_shell_epipe_test_ts.L10.1.builder-test	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
-stable.test_js_bun_shell_epipe_test_ts.L12.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
-stable.test_js_bun_shell_leak_test_ts.L114.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
-stable.test_js_bun_shell_leak_test_ts.L127.1.builder-test	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
-stable.test_js_bun_shell_leak_test_ts.L211.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
-stable.test_js_bun_shell_leak_test_ts.L404.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
-stable.test_js_bun_shell_leak_test_ts.L437.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
-stable.test_js_bun_shell_leak_test_ts.L56.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
 stable.test_js_bun_shell_shell_blocking_pipe_test_ts.L26.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
 stable.test_js_bun_shell_shell_blocking_pipe_test_ts.L9.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
 stable.test_js_bun_shell_shell_hang_test_ts.L20.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
@@ -1429,6 +1535,18 @@ stable.test_js_bun_shell_shell_leak_args_test_ts.L28.1.test-call	covered	tests/c
 stable.test_js_bun_shell_shell_leak_args_test_ts.L4.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
 stable.test_js_bun_shell_shell_leak_args_test_ts.L49.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
 stable.test_js_bun_shell_shell_load_test_ts.L6.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
+stable.test_js_bun_shell_shelloutput_test_ts.L14.1.test-call	covered	tests/compat/tooling.shell/upstream-public-api.js	exact pinned public shell API behavior executes through the shipped binary
+stable.test_js_bun_shell_shelloutput_test_ts.L5.1.test-call	covered	tests/compat/tooling.shell/upstream-public-api.js	exact pinned public shell API behavior executes through the shipped binary
 stable.test_js_bun_shell_shell_sentinel_hardening_test_ts.L21.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
 stable.test_js_bun_shell_shell_sentinel_hardening_test_ts.L28.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
 stable.test_js_bun_shell_shell_sentinel_hardening_test_ts.L6.1.test-call	covered	tests/compat/tooling.shell/upstream-lifecycle.js	exact pinned lifecycle/pipeline residual behavior executes through the shipped binary
+stable.test_js_bun_shell_shell_seq_condexpr_test_ts.L21.1.test-call	covered	tests/compat/tooling.shell/upstream-seq.js	exact pinned non-finite seq and empty conditional behavior executes through the shipped binary
+stable.test_js_bun_shell_shell_seq_condexpr_test_ts.L38.1.test-call	covered	tests/compat/tooling.shell/upstream-seq.js	exact pinned non-finite seq and empty conditional behavior executes through the shipped binary
+stable.test_js_bun_shell_shell_seq_condexpr_test_ts.L4.1.test-call	covered	tests/compat/tooling.shell/upstream-seq.js	exact pinned non-finite seq and empty conditional behavior executes through the shipped binary
+stable.test_js_bun_shell_shell_seq_condexpr_test_ts.L55.1.test-call	covered	tests/compat/tooling.shell/upstream-seq.js	exact pinned non-finite seq and empty conditional behavior executes through the shipped binary
+stable.test_js_bun_shell_shell_seq_condexpr_test_ts.L71.1.test-call	covered	tests/compat/tooling.shell/upstream-seq.js	exact pinned non-finite seq and empty conditional behavior executes through the shipped binary
+stable.test_js_bun_shell_throw_test_ts.L21.1.test-call	covered	tests/compat/tooling.shell/upstream-public-api.js	exact pinned public shell API behavior executes through the shipped binary
+stable.test_js_bun_shell_throw_test_ts.L32.1.test-call	covered	tests/compat/tooling.shell/upstream-public-api.js	exact pinned public shell API behavior executes through the shipped binary
+stable.test_js_bun_shell_throw_test_ts.L42.1.test-call	covered	tests/compat/tooling.shell/upstream-public-api.js	exact pinned public shell API behavior executes through the shipped binary
+stable.test_js_bun_shell_throw_test_ts.L9.1.test-call	covered	tests/compat/tooling.shell/upstream-public-api.js	exact pinned public shell API behavior executes through the shipped binary
+stable.test_js_bun_shell_yield_test_ts.L10.1.builder-test	covered	tests/compat/tooling.shell/upstream-public-api.js	exact pinned public shell API behavior executes through the shipped binary

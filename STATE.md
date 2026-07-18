@@ -7,25 +7,19 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **51 - WebSocket and Pub/Sub (M1 framing)**
+## Current phase: **65 - Cross-platform shell API**  (YES CONVERSION #120)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/121
-**Next phase issue:** https://github.com/theesfeld/clun/issues/25
-**Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/2,
-https://github.com/theesfeld/clun/issues/11, https://github.com/theesfeld/clun/issues/25,
-https://github.com/theesfeld/clun/issues/39, https://github.com/theesfeld/clun/issues/40,
-and https://github.com/theesfeld/clun/issues/108
-**Current implementation unit:** Phase 51 M1 — pure-CL RFC 6455 handshake + frame encode/decode,
-wired into `Clun.serve` for a minimal upgrade/echo path. Ledger `server.websocket` **No → Partial**.
-Pub/Sub, client `WebSocket`, compression, and Yes remain later milestones (parent #25).
+**Canonical issue:** https://github.com/theesfeld/clun/issues/120
+**Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/39,
+https://github.com/theesfeld/clun/issues/23, https://github.com/theesfeld/clun/issues/40,
+and https://github.com/theesfeld/clun/issues/25
+**Current implementation unit:** Phase 65 tooling.shell language residual for Yes path #120.
+`tooling.shell` remains **Partial** (~1551/1630 covered). No matrix Yes yet.
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.31` / `v0.1.0-dev.31`
+**Candidate release:** `0.1.0-dev.32` / `v0.1.0-dev.32`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
-**Entry boundary:** immutable `v0.1.0-dev.21` is tagged and published; installer defaults to that tag.
-Master tip is `0.1.0-dev.28` (path.win32 #108). This unit stages free `0.1.0-dev.31`
-under the unpublished-intermediate prerelease gap policy. Phase 26 remains after Phase 82.
-**Next scope:** M2 ServerWebSocket backpressure/cork; M3 Pub/Sub; keep Partial honest until Autobahn
-and four-target Bun-differential receipts.
+**Entry boundary:** installer on `v0.1.0-dev.21`; this unit stages `0.1.0-dev.32` after websocket Partial `0.1.0-dev.31`.
+**Next scope:** remaining ~47 shell pending + four-target supported for Yes.
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
 easiest to hardest among dependency-ready rows. Core engine/runtime/network/tooling changes are expected.

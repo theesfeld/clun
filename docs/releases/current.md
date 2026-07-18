@@ -1,7 +1,7 @@
 <!-- clun-generated:release-notes:begin -->
-# Clun 0.1.0-dev.31
+# Clun 0.1.0-dev.32
 
-Phase 51: WebSocket and Pub/Sub.
+Phase 65: Cross-platform shell API.
 
 - SemVer impact: `minor` within the selected `0.1.0` prerelease train.
 - Compatibility snapshot: 9 Yes / 8 Partial / 13 No across 30 generated rows.
@@ -11,17 +11,21 @@ Phase 51: WebSocket and Pub/Sub.
 
 The canonical evidence and current limitations are in `compat/`; `make compat-validate` and `make docs-check` reject claim drift.
 <!-- clun-generated:release-notes:end -->
-
 ## Highlights
 
-- Phase 51 **M1** implements pure-CL RFC 6455 server handshake (`Sec-WebSocket-Accept`) and
-  frame encode/decode for text, binary, ping, pong, and close.
-- `Clun.serve({ websocket })` accepts handlers; `server.upgrade(req)` performs the 101 upgrade
-  and drives a minimal frame loop sufficient for an echo server.
-- Ledger row `server.websocket` promotes **No → Partial**. Residuals: no Pub/Sub
-  (`publish` / `subscriberCount` remain fail-closed), no client `WebSocket`, no permessage-deflate,
-  no fragmentation reassembly, no Autobahn / four-target Yes gate.
-- Child Issue #121; parent phase Issue #25. Slot: free `0.1.0-dev.31` after master `0.1.0-dev.30`.
+- Issue #120 (parent #39) shell-language residual burn-down after #122 parser and #123 lifecycle:
+  pure-CL **export isolation** (shell-local assignments stay out of child environments until
+  `export`), `which` prints `NAME not found`, silent Bun-compatible `cd -`, command-substitution
+  stderr surfaces on the surrounding command, and unmatched-glob diagnostics use the
+  user-visible pattern spelling.
+- Corpus disposition: **1,551 covered / 47 pending / 32 upstream-inactive** (was 1,433 / 165
+  after #123). Shell-language owner residual closes 118 sites. Fixture:
+  `tests/compat/tooling.shell/upstream-language.js`.
+- Does **not** claim `tooling.shell` Yes. Residual background, ENAMETOOLONG, and four-target
+  receipts remain under Issue #120 / #39.
+- Slot map: published base `v0.1.0-dev.21`; master tip `0.1.0-dev.30` (#113); this candidate
+  allocates free `0.1.0-dev.31` / `v0.1.0-dev.31` (SemVer `minor`). Hosted installer remains on
+  published dev.21 until a later unit publishes.
 
-The release candidate stages an honest Partial capability with parachute evidence and does **not**
-claim ledger Yes.
+The release candidate stages honest Partial shell progress without promoting any matrix row to
+`Yes`.

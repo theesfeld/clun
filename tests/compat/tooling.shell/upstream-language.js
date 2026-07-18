@@ -290,5 +290,188 @@ chain = chain
     assert(words[0] === "bar.js" && words[1] === "foo.js", "glob with different cwd");
   }));
 
+// Issue #120 shell-language burn-down: additional bunshell.test.ts sites.
+const bangRun = "!".repeat(11);
+chain = chain
+  .then(() => job(`rm -rf ${root}; mkdir -p ${root}/sub`).quiet())
+  .then(() => job(
+    `touch ${root}/ax.txt ${root}/foo1.txt ${root}/foo2.txt ${root}/bar.txt ` +
+    `${root}/keep.txt ${root}/other.txt ${root}/f.txt ${root}/a.txt ` +
+    `${root}/sub/b.txt ${root}/sub/deep.txt ${root}/ab.txt ${root}/ac.txt ` +
+    `${root}/prefix${bangRun}x.txt ${root}/prefixy.txt ${root}/keep2.txt`,
+  ).quiet())
+  .then(() => job(`touch ${root}/'!keep1.txt' ${root}/'a[bc].txt' ${root}/'${bangRun}keep1.txt'`).quiet())
+  .then(() => expectJob(Clun.$`echo ${"**/"}*`.cwd(root), 1, "",
+    "clun: no matches found: **/*\n", "injected ** does not recurse"))
+  .then(() => expectJob(Clun.$`echo a${"?"}*`.cwd(root), 1, "",
+    "clun: no matches found: a?*\n", "injected ? is literal"))
+  .then(() => Clun.$`echo ${"!keep"}*`.cwd(root).quiet().nothrow().then(result => {
+    assert(result.exitCode === 0, "inject ! exit");
+    const words = result.text().trim().split(/\s+/);
+    assert(words.some(w => w.includes("!keep1.txt")), "inject ! match");
+    assert(!words.includes("other.txt"), "inject ! no other");
+    assert(!words.includes("keep.txt"), "inject ! no bare keep.txt");
+  }))
+  .then(() => Clun.$`echo a${"[bc]"}*`.cwd(root).quiet().nothrow().then(result => {
+    assert(result.exitCode === 0, "inject [] exit");
+    assert(result.text().includes("a[bc].txt"), "inject [] match");
+    assert(!result.text().includes("ab.txt"), "inject [] no ab");
+    assert(!result.text().includes("ac.txt"), "inject [] no ac");
+  }))
+  .then(() => Clun.$`echo ${"foo"}*`.cwd(root).quiet().nothrow().then(result => {
+    assert(result.exitCode === 0, "foo* exit");
+    assert(result.text().includes("foo1.txt") && result.text().includes("foo2.txt"), "foo*");
+    assert(!result.text().includes("bar.txt"), "foo* no bar");
+  }))
+  .then(() => Clun.$`echo **/*.txt`.cwd(root).quiet().nothrow().then(result => {
+    assert(result.exitCode === 0, "**/* exit");
+    assert(result.text().replaceAll("\\", "/").includes("sub/b.txt"), "**/* recurse");
+  }))
+  .then(() => Clun.$`echo prefix${bangRun}*`.cwd(root).quiet().nothrow().then(result => {
+    assert(result.exitCode === 0, "long bang exit");
+    assert(result.text().includes(`prefix${bangRun}x.txt`), "long bang match");
+    assert(!result.text().includes("prefixy.txt"), "long bang no prefixy");
+  }))
+  .then(() => Clun.$`echo ${bangRun}keep*`.cwd(root).quiet().nothrow().then(result => {
+    assert(result.exitCode === 0, "lead bang exit");
+    assert(result.text().includes(`${bangRun}keep1.txt`), "lead bang match");
+    assert(!result.text().includes("keep2.txt"), "lead bang no keep2");
+  }))
+  .then(() => expectJob(Clun.$`echo /no/such/abs/dir/for-clun/*`, 1, "",
+    "clun: no matches found: /no/such/abs/dir/for-clun/*\n",
+    "glob missing absolute directory"))
+  .then(() => expectJob(job("{echo,a,b,c} {d,e,f}"), 0, "a b c d e f\n", "",
+    "brace expansion command"))
+  .then(() => expectJob(job("echo {a,b,c}"), 0, "a b c\n", "", "brace list"))
+  .then(() => expectJob(job("echo a{b,c}d"), 0, "abd acd\n", "", "brace middle"))
+  .then(() => expectJob(job("echo {a,b}{c,d}"), 0, "ac ad bc bd\n", "", "brace concat"))
+  .then(() => expectJob(job("FOO=bar BAR=baz; echo $FOO $BAR"), 0, "bar baz\n", "",
+    "expand shell vars"))
+  .then(() => expectJob(job("VAR=1 && echo $VAR$VAR"), 0, "11\n", "", "shell var concat"))
+  .then(() => expectJob(
+    job("VAR=1 && echo Test$VAR && echo $(echo \"Test: $VAR\") ; echo CommandSub$($VAR) ; echo $ ; echo \\$VAR"),
+    0, "Test1\nTest: 1\nCommandSub\n$\n$VAR\n",
+    "clun: command not found: 1\n", "shell var 3"))
+  .then(() => expectJob(
+    job("echo $ISOVAR && ISOVAR=1 && echo $ISOVAR && printenv ISOVAR || echo undefined"),
+    0, "\n1\nundefined\n", "", "shell-local not exported"))
+  .then(() => expectJob(
+    job("export EVAR=1 EVAR2=testing EVAR3=\"test this out\" && echo $EVAR $EVAR2 $EVAR3"),
+    0, "1 testing test this out\n", "", "multiple exports"))
+  .then(() => expectJob(
+    job("echo $EVARX && export EVARX=1 && echo $EVARX && printenv EVARX"),
+    0, "\n1\n1\n", "", "exported vars"))
+  .then(async () => {
+    const start = (await Clun.$`pwd`.quiet()).text().trim();
+    const abs = start + "/" + root;
+    return expectJob(job(`cd ${abs} && pwd && cd - && pwd`), 0,
+      abs + "\n" + start + "\n", "", "cd - silent");
+  })
+  .then(async () => {
+    const result = await Clun.$`which echo nosuch_shell_cmd_zzz`.quiet().nothrow();
+    assert(result.exitCode === 1, "which exit");
+    const lines = result.text().split("\n");
+    assert(lines[0].length > 0 && !lines[0].includes("not found"), "which path");
+    assert(lines[1] === "nosuch_shell_cmd_zzz not found", "which missing line");
+  })
+  .then(() => job(`mkdir -p ${root}/rmdir`).quiet())
+  .then(() => expectJob(job(`rm -v ${root}/rmdir`), 1, "",
+    `rm: ${root}/rmdir: Is a directory\n`, "rm directory error"))
+  .then(() => job(`mkdir -p ${root}/rmtree/a; touch ${root}/rmtree/a/f`).quiet())
+  .then(() => Clun.$`rm -vrf ${root}/rmtree`.quiet().nothrow().then(result => {
+    assert(result.exitCode === 0, "rm -vrf exit");
+    const lines = result.text().trim().split("\n").filter(Boolean).sort();
+    assert(lines.length === 3, "rm -vrf lines");
+  }))
+  .then(() => expectJob(
+    job("if lkfjslkdjfsldf; then echo no; else echo okay here; fi"),
+    0, "okay here\n", "clun: command not found: lkfjslkdjfsldf\n", "if else basic"))
+  .then(() => expectJob(
+    job("if lkfjslkdjfsldf; then echo no; elif sdfkjsldf; then echo no2; else echo okay here; fi"),
+    0, "okay here\n",
+    "clun: command not found: lkfjslkdjfsldf\nclun: command not found: sdfkjsldf\n",
+    "if elif else"))
+  .then(() => expectJob(
+    job("if BUNISBAD; then echo not true; fi && echo bun is good"),
+    0, "bun is good\n", "clun: command not found: BUNISBAD\n", "if false no else"))
+  .then(() => job(`echo lol > ${root}/package.json`).quiet())
+  .then(() => expectJob(
+    Clun.$`if [[ -f package.json ]]; [[ -f lkdfjlskdf ]]; then echo yeah; else echo okay; echo makes sense!; fi`.cwd(root),
+    0, "okay\nmakes sense!\n", "", "multi statement conditions"))
+  .then(() => expectJob(job('"if"'), 127, "", "clun: command not found: if\n",
+    "quoted if keyword"))
+  .then(() => expectJob(job("echo lksdfjklsdjfif"), 0, "lksdfjklsdjfif\n", "",
+    "if token in word"))
+  .then(() => expectJob(job("echo lksdfjklsdjffi"), 0, "lksdfjklsdjffi\n", "",
+    "fi token in word"))
+  .then(() => expectJob(job("( ( ( ( echo HI! ) ) ) )"), 0, "HI!\n", "",
+    "nested subshells"))
+  .then(() => expectJob(job("(echo HELLO!; echo HELLO AGAIN!)"), 0,
+    "HELLO!\nHELLO AGAIN!\n", "", "multiline subshell"))
+  .then(() => expectJob(job("(exit 42)"), 42, "", "", "subshell exit"))
+  .then(() => expectJob(job("(exit 42); echo hi"), 0, "hi\n", "", "subshell exit 2"))
+  .then(() => expectJob(
+    job("VAR1=VALUE1; VAR2=VALUE2; VAR3=VALUE3; ( echo $VAR1 $VAR2 $VAR3; VAR1=a; VAR2=b; VAR3=c; echo $VAR1 $VAR2 $VAR3 ); echo $VAR1 $VAR2 $VAR3"),
+    0, "VALUE1 VALUE2 VALUE3\na b c\nVALUE1 VALUE2 VALUE3\n", "",
+    "subshell env copy"))
+  .then(() => expectJob(job("\\(echo hi \\)"), 127, "",
+    "clun: command not found: (echo\n", "escaped subshell"))
+  // Live Bun prints `(hi)` for shell source `echo \(hi\)` (backslash removes
+  // operator meaning). The frozen TestBuilder stdout string is double-escaped.
+  .then(() => expectJob(job("echo \\(hi\\)"), 0, "(hi)\n", "",
+    "escaped parens echo"))
+  .then(() => expectJob(job("{ echo a; echo b; }"), 0, "a\nb\n", "", "brace group"))
+  .then(() => expectJob(job("[[ -n $UNSET && $UNSET == foo ]]; echo $?"), 0, "1\n", "",
+    "cond && short-circuit"))
+  .then(() => expectJob(job("[[ -z $UNSET && $UNSET == foo ]]; echo $?"), 0, "1\n", "",
+    "cond z &&"))
+  .then(() => expectJob(job("IVAR=4+3; [[ $IVAR -eq 7 ]]; echo $?"), 0, "0\n", "",
+    "cond arithmetic -eq"))
+  .then(() => expectJob(job("IVAR=7; A=7; [[ \"$IVAR\" -eq \"A\" ]]; echo $?"), 0, "0\n", "",
+    "cond arithmetic name"))
+  .then(() => expectJob(job("filename=foo.c; [[ $filename == *.c ]]; echo $?"), 0, "0\n", "",
+    "cond glob match"))
+  .then(() => expectJob(job("unset filename; [[ $filename == *.c ]]; echo $?"), 0, "1\n", "",
+    "cond glob no match"))
+  .then(() => expectJob(job("TDIR=/tmp; [[ $TDIR == '/usr/homes/*' ]]; echo $?"), 0, "1\n", "",
+    "cond quoted pattern"))
+  .then(() => {
+    const buffer = Buffer.alloc(64, 0);
+    return Clun.$`ls /no/such/stderr/target 2> ${buffer}`.quiet().nothrow().then(result => {
+      assert(result.exitCode === 1, "stderr redirect exit");
+      const text = buffer.toString().replace(/\0+$/, "");
+      assert(text.includes("No such file") || text.includes("no such"),
+        "stderr redirect contents");
+    });
+  })
+  .then(() => {
+    try {
+      // force throw path
+    } catch (_) {}
+    return Clun.$`false`.nothrow().then(async () => {
+      try {
+        await Clun.$`false`;
+        assert(false, "false should throw");
+      } catch (error) {
+        assert(error instanceof Error, "ShellError is Error");
+        assert(error.name === "ShellError", "ShellError name");
+        assert(error.exitCode === 1, "ShellError exitCode");
+        assert(error.stdout instanceof Uint8Array, "ShellError stdout");
+        assert(error.stderr instanceof Uint8Array, "ShellError stderr");
+      }
+    });
+  })
+  .then(() => {
+    const error = new Clun.$.ShellError();
+    assert(error instanceof Error, "ShellError constructor");
+    assert(error.name === "ShellError", "ShellError ctor name");
+  })
+  .then(() => expectJob(Clun.$`echo quiet-arg`.quiet(true), 0, "quiet-arg\n", "",
+    "quiet(true)"))
+  .then(() => expectJob(Clun.$`echo quiet-arg`.quiet(false), 0, "quiet-arg\n", "",
+    "quiet(false)"))
+  .then(() => expectJob(Clun.$`echo quiet-arg`.quiet(), 0, "quiet-arg\n", "",
+    "quiet()"));
+
 chain = chain.then(() => job(`rm -rf ${root}`).quiet())
-  .then(() => console.log("upstream-language: 207 exact sites"));
+  .then(() => console.log("upstream-language: 280 exact sites"));

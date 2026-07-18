@@ -34,8 +34,16 @@
 (defstruct shell-output-sink kind target)
 (defstruct shell-prepared-redirection kind target)
 (defstruct shell-state
-  (env '()) cwd old-cwd (last-exit-code 0) (throws t) (quiet nil)
-  (terminated nil) (positionals '()))
+  (env '())
+  ;; Names marked for child-process inheritance. Bun keeps ordinary shell
+  ;; assignments shell-local until `export`; the initial process environment is
+  ;; treated as already exported.
+  (exported '())
+  cwd old-cwd (last-exit-code 0) (throws t) (quiet nil)
+  (terminated nil) (positionals '())
+  ;; Stderr produced while expanding command substitutions is attributed to the
+  ;; surrounding command (Bun Expansion / shell-var-3).
+  (pending-stderr (make-array 0 :element-type '(unsigned-byte 8))))
 (defstruct shell-job
   units state g result error (started nil))
 (defstruct (shell-condition-operand
@@ -87,6 +95,17 @@
 
 (defun %shell-env-vector (env)
   (mapcar (lambda (entry) (format nil "~a=~a" (car entry) (cdr entry))) env))
+
+(defun %shell-exported-names (env)
+  "Every key in ENV is considered exported (used for process-env bootstrap)."
+  (mapcar #'car env))
+
+(defun %shell-env-vector-exported (env exported &optional (extra-keys '()))
+  "Serialize ENV for a child process: exported names plus command-local keys."
+  (loop for (name . value) in env
+        when (or (member name exported :test #'string=)
+                 (member name extra-keys :test #'string=))
+          collect (format nil "~a=~a" name value)))
 
 (defun %shell-valid-name-p (name)
   (and (plusp (length name))
@@ -864,7 +883,10 @@
                        (shell-fragment-value fragment) sub-state g))
               (value (%shell-trim-command-output
                       (%shell-string (shell-result-stdout result)))))
-         (setf (shell-state-last-exit-code state) (shell-result-exit-code result))
+         (setf (shell-state-last-exit-code state) (shell-result-exit-code result)
+               (shell-state-pending-stderr state)
+               (%shell-concat-octets (shell-state-pending-stderr state)
+                                     (shell-result-stderr result)))
          (values (if quoted (list value) (%shell-whitespace-fields value)) (not quoted))))
       (otherwise (values (list "") nil)))))
 
@@ -920,11 +942,14 @@
 
 Matches replace the pattern. When there are no matches Bun keeps the literal
 pattern only in assignment position; elsewhere it fails with
-\"no matches found\". NULL-GLOB-OK selects the assignment policy."
+\"no matches found\". NULL-GLOB-OK selects the assignment policy.
+
+PATTERN may contain protected metacharacters for matching; FALLBACK is the
+user-visible spelling used in diagnostics."
   (or (%shell-glob-matches pattern state)
       (if null-glob-ok
           (list fallback)
-          (%shell-syntax "no matches found: ~a" pattern))))
+          (%shell-syntax "no matches found: ~a" fallback))))
 
 (defun %shell-expand-brace-pattern (pattern fallback)
   (let ((tokens (%shell-brace-tokenize pattern)))
@@ -3000,10 +3025,8 @@ integer conversions are deliberately rejected because seq values are f32."
                      (%shell-env-set (shell-state-env state) "OLDPWD" previous)
                      (shell-state-env state)
                      (%shell-env-set (shell-state-env state) "PWD" destination))
-               (values (%shell-result-from-strings
-                        (if (string= argument "-")
-                            (concatenate 'string destination (string #\Newline)) "")
-                        "" 0) t))
+               ;; Bun's `cd -` is silent (unlike bash); only update OLDPWD/PWD.
+               (values (%shell-result-from-strings "" "" 0) t))
              (values (%shell-result-from-strings
                       "" (format nil "clun: cd: ~a: No such directory~%" argument) 1) t))))
       ((or (string= name "true") (string= name ":"))
@@ -3018,17 +3041,26 @@ integer conversions are deliberately rejected because seq values are f32."
                  (when (%shell-valid-name-p key)
                    (setf (shell-state-env state)
                          (%shell-env-set (shell-state-env state) key
-                                         (subseq argument (1+ equals))))))
-               (unless (%shell-valid-name-p argument)
-                 (return-from %shell-run-builtin
-                   (values (%shell-result-from-strings
-                            "" (format nil "clun: export: invalid name: ~a~%" argument) 1) t))))))
+                                         (subseq argument (1+ equals)))
+                         (shell-state-exported state)
+                         (adjoin key (shell-state-exported state) :test #'string=))))
+               (if (%shell-valid-name-p argument)
+                   (setf (shell-state-exported state)
+                         (adjoin argument (shell-state-exported state)
+                                 :test #'string=))
+                   (return-from %shell-run-builtin
+                     (values (%shell-result-from-strings
+                              "" (format nil "clun: export: invalid name: ~a~%" argument)
+                              1)
+                             t))))))
        (values (%shell-result-from-strings "" "" 0) t))
       ((string= name "unset")
        (dolist (argument args)
          (when (%shell-valid-name-p argument)
            (setf (shell-state-env state)
-                 (%shell-env-unset (shell-state-env state) argument))))
+                 (%shell-env-unset (shell-state-env state) argument)
+                 (shell-state-exported state)
+                 (remove argument (shell-state-exported state) :test #'string=))))
        (values (%shell-result-from-strings "" "" 0) t))
       ((string= name "shopt")
        (if (and (= (length args) 2)
@@ -3038,12 +3070,18 @@ integer conversions are deliberately rejected because seq values are f32."
            (values (%shell-result-from-strings
                     "" (format nil "clun: shopt: unsupported option~%") 1) t)))
       ((string= name "which")
-       (let ((found (loop for argument in args
-                          for path = (%shell-which argument env (shell-state-cwd state))
-                          when path collect path)))
+       ;; Bun prints resolved paths and "NAME not found" lines in argv order.
+       (let* ((lines
+                (loop for argument in args
+                      for path = (%shell-which argument env (shell-state-cwd state))
+                      collect (if path path (format nil "~a not found" argument))))
+              (missing (loop for argument in args
+                             for path = (%shell-which argument env
+                                                      (shell-state-cwd state))
+                             count (null path))))
          (values (%shell-result-from-strings
-                  (if found (format nil "~{~a~%~}" found) "") ""
-                  (if (= (length found) (length args)) 0 1)) t)))
+                  (if lines (format nil "~{~a~%~}" lines) "") ""
+                  (if (zerop missing) 0 1)) t)))
       ((string= name "exit")
        (setf (shell-state-terminated state) t)
        (cond
@@ -3063,6 +3101,13 @@ integer conversions are deliberately rejected because seq values are f32."
 (defun %shell-temp-directory ()
   (clun.sys:make-temp-dir
    (clun.sys:path-join (clun.sys:tmpdir) "clun-shell-")))
+
+(defun %shell-filter-child-env (env exported &optional (extra-keys '()))
+  "Keep only exported names (plus command-local EXTRA-KEYS) for child processes."
+  (loop for (name . value) in env
+        when (or (member name exported :test #'string=)
+                 (member name extra-keys :test #'string=))
+          collect (cons name value)))
 
 (defun %shell-run-external (argv env cwd stdin)
   (let ((directory (%shell-temp-directory))
@@ -3339,6 +3384,10 @@ integer conversions are deliberately rejected because seq values are f32."
           (make-shell-result :stdout stdin)))
       (t
        (let* ((condition-p (%shell-condition-command-p command))
+              (assignment-keys (mapcar #'car (shell-command-assignments command)))
+              (child-env
+                (%shell-filter-child-env env (shell-state-exported state)
+                                         assignment-keys))
               (condition-arguments
                 (when condition-p
                   (mapcar (lambda (word)
@@ -3366,7 +3415,8 @@ integer conversions are deliberately rejected because seq values are f32."
                      (t (%shell-run-builtin argv state env input)))
                  (%shell-apply-output-redirections
                   (if handled builtin
-                      (%shell-run-external argv env (shell-state-cwd state) input))
+                      (%shell-run-external argv child-env
+                                           (shell-state-cwd state) input))
                   output-redirections state g)))))))))
 
 (defun %shell-redirection-error-result (condition)
@@ -3377,6 +3427,11 @@ integer conversions are deliberately rejected because seq values are f32."
            (clun.sys:fs-error-path condition))
    1))
 
+(defun %shell-take-pending-stderr (state)
+  (let ((pending (shell-state-pending-stderr state)))
+    (setf (shell-state-pending-stderr state) *shell-empty-octets*)
+    pending))
+
 (defun %shell-execute-command (command state g stdin)
   (let ((result
           (handler-case (%shell-execute-command-core command state g stdin)
@@ -3386,6 +3441,13 @@ integer conversions are deliberately rejected because seq values are f32."
               (%shell-result-from-strings
                "" (format nil "clun: ~a~%"
                           (shell-syntax-error-message condition)) 1)))))
+    (let ((pending (%shell-take-pending-stderr state)))
+      (when (plusp (length pending))
+        (setf result
+              (make-shell-result
+               :stdout (shell-result-stdout result)
+               :stderr (%shell-concat-octets pending (shell-result-stderr result))
+               :exit-code (shell-result-exit-code result)))))
     (if (shell-command-negated command)
         (make-shell-result
          :stdout (shell-result-stdout result)
@@ -3438,9 +3500,17 @@ integer conversions are deliberately rejected because seq values are f32."
                 (rest commands)))))
 
 (defun %shell-prepare-external (command state g)
-  (values (%shell-command-argv command state g)
-          (%shell-apply-assignments (shell-command-assignments command)
-                                    state g)))
+  "Build argv and a child env with export isolation.
+
+Shell-local assignments expand left-to-right (parser residual) but only
+exported names plus this command's assignment keys reach the child process
+(language residual / Bun export isolation)."
+  (let* ((assignment-keys (mapcar #'car (shell-command-assignments command)))
+         (env (%shell-apply-assignments (shell-command-assignments command)
+                                        state g)))
+    (values (%shell-command-argv command state g)
+            (%shell-filter-child-env env (shell-state-exported state)
+                                     assignment-keys))))
 
 (defun %shell-kill-processes (processes)
   (dolist (process processes)
@@ -3697,7 +3767,9 @@ deadlock even when commands produce output larger than kernel pipe capacity."
   "Execute SOURCE with Clun's shell engine and return stdout, stderr, and status values."
   (unless (stringp source)
     (error 'type-error :datum source :expected-type 'string))
-  (let* ((state (make-shell-state :cwd cwd :env (%shell-env-copy env)
+  (let* ((copied (%shell-env-copy env))
+         (state (make-shell-state :cwd cwd :env copied
+                                  :exported (%shell-exported-names copied)
                                   :positionals (copy-list positionals)))
          (result (%shell-execute-units (coerce source 'vector) state nil)))
     (values (copy-seq (shell-result-stdout result))
@@ -3944,8 +4016,12 @@ deadlock even when commands produce output larger than kernel pipe capacity."
         this))
     (eng:install-method object "env" 1
       (lambda (this args)
-        (setf (shell-state-env state)
-              (%shell-object-env (shell-job-g job) (eng:arg args 0)))
+        (let ((env (%shell-object-env (shell-job-g job) (eng:arg args 0))))
+          (setf (shell-state-env state) env
+                ;; Replacing the job environment also resets the export set to
+                ;; that environment's keys (Bun `$.env({...})` replaces process
+                ;; inheritance wholesale).
+                (shell-state-exported state) (%shell-exported-names env)))
         this))
     (eng:install-method object "quiet" 1
       (lambda (this args)
@@ -4229,6 +4305,7 @@ deadlock even when commands produce output larger than kernel pipe capacity."
                     (expressions (rest args))
                     (state (make-shell-state
                             :env (%shell-env-copy default-env)
+                            :exported (%shell-exported-names default-env)
                             :cwd default-cwd :throws default-throws
                             :positionals (%shell-process-positionals g))))
                (%shell-promise-object
