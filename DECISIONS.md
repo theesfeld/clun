@@ -3287,3 +3287,16 @@ additional shell-language inventory sites after #122/#123 (overall
 - Pure-CL background `&` + `wait`, ENAMETOOLONG, multi-error lex, EACCES globs, ls flag order.
 - Four-target platforms.tsv `supported`; ledger `clun_state=Yes`.
 - Release train: `0.1.0-dev.33`.
+
+### 2026-07-18 — language.typescript Partial→Yes (#133)
+
+Complete erasable TypeScript execution strip is the ledger Yes bar (not full tsc
+typecheck; not Bun first-class emit). Policy:
+
+- Erasable annotations, ambient `declare enum`, type-only namespaces, and related
+  strip surface execute through the shipped binary (length-preserving erase).
+- Value `enum` / `const enum`, parameter properties, runtime namespaces, decorators,
+  `import =` / `export =`, and angle-cast hard-error as JS `SyntaxError` (Node-style
+  strip). Bun enum/param-prop emit remains Phase 39 (#13).
+- Four-target `platforms.tsv` → `supported`; `clun_state=Yes` with honest detail.
+- Release train: `0.1.0-dev.34`.

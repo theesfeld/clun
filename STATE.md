@@ -7,39 +7,27 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **65 - Cross-platform shell API**
+## Current phase: **39 - Full TypeScript transforms**  (erasable Yes; unit #133)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/39
-**Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/120,
-https://github.com/theesfeld/clun/issues/23, https://github.com/theesfeld/clun/issues/40,
-and https://github.com/theesfeld/clun/issues/25
-**Current implementation unit:** Phase 65 tooling.shell Partial→Yes complete (#120 under parent #39).
-`tooling.shell` is **Yes** (1,598 covered / 0 pending / 32 upstream-inactive; four-target supported).
+**Canonical issue:** https://github.com/theesfeld/clun/issues/13
+**Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/133,
+https://github.com/theesfeld/clun/issues/13
+**Current implementation unit:** language.typescript Partial→Yes (#133 under parent Phase 39 #13).
+Erasable TypeScript execution strip complete; non-erasable constructs reject. Four-target supported.
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.33` / `v0.1.0-dev.33`
+**Candidate release:** `0.1.0-dev.34` / `v0.1.0-dev.34`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
-**Entry boundary:** installer on `v0.1.0-dev.21`; candidate `0.1.0-dev.33` remains staged after #126.
-**Next scope:** next Yes conversions on Partial rows (test-runner, websocket, webstd, npm, node, TS, HTTP); shell ledger Yes held.
+**Entry boundary:** installer on `v0.1.0-dev.21`; this unit stages `0.1.0-dev.34`.
+**Next scope:** residual Bun-first-class emit beyond Yes bar if claimed separately.
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
 easiest to hardest among dependency-ready rows. Core engine/runtime/network/tooling changes are expected.
 Every conversion requires a legitimate canonical issue, accepted design, full declared behavior, executable
-four-target evidence, synchronized public surfaces, and the correct SemVer transition. The active parallel
-queue is YAML, transport streaming, shell, test-runner parity, and the dependency-enabling modern ECMAScript
-wave; exact canonical ledger IDs are frozen in `PLAN.md`.
+four-target evidence, synchronized public surfaces, and the correct SemVer transition.
 
-**Current checkpoint:** the integrated YAML parser reports **402 pass / 0 fail / 402 total** and **408
-assertions** in the exact pinned corpus. Exact master CI **29560539473**, Documentation **29560539481**,
-Pages validation **29560539500**, and four-target Compatibility plus receipt aggregation **29560539518**
-pass at `7c7377780413b98da1396f5d8e5d84611cf6cca3`; annotated tag `v0.1.0-dev.16` peels to that commit and
-release run **29561031150** published the immutable four-platform archives plus checksums. Issue #5 is
-closed complete with exact asset digests. Phase 37 milestone 1 adds `Object.hasOwn`, array copy-by-change methods, String
-well-formedness, `Error.isError`, and `Promise.withResolvers`, producing 173 measured execution-pass gains;
-its frozen inventory still has 603 residual failures after m2 and no full ledger row is claimed. Parallel durable
-checkpoints include transport request streaming plus origin-keyed HTTP pooling and shell parser/runtime,
-guarded filesystem builtins, bounded `yes`, and isolated pipeline state. This unit advances the matrix to
-**9 Yes / 8 Partial / 13 No** by promoting `server.websocket` No → Partial (handshake/framing/echo only;
-no Pub/Sub Yes).
+**Current checkpoint:** `language.typescript` is **Yes** (erasable strip complete; non-erasable constructs
+rejected; no typechecker; no `.tsx`). Matrix advances to **11 Yes / 6 Partial / 13 No**. Phase 39 emit
+(enums/param-props/runtime-namespaces) remains open under #13 beyond the Yes bar.
 
 **M5 entry boundary:** immutable dev.4 diagnostic set **56 total / 0 pass / 56 fail / 0 skip / 0 crash**:
 **43 m5-owned** (32 intrinsic/prototype, 7 parser, 4 raw delegation), **12 m11** direct-eval/`with`

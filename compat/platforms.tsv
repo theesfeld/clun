@@ -23,10 +23,10 @@ language.jsx	darwin-arm64	unsupported	-	Capability is not implemented.
 language.jsx	darwin-x64	unsupported	-	Capability is not implemented.
 language.jsx	linux-arm64	unsupported	-	Capability is not implemented.
 language.jsx	linux-x64	unsupported	-	Capability is not implemented.
-language.typescript	darwin-arm64	unverified	ev.language.typescript.annotations.v1	Registered evidence is target-scoped; the feature remains incomplete.
-language.typescript	darwin-x64	unverified	ev.language.typescript.annotations.v1	Registered evidence is target-scoped; the feature remains incomplete.
-language.typescript	linux-arm64	unverified	ev.language.typescript.annotations.v1	Registered evidence is target-scoped; the feature remains incomplete.
-language.typescript	linux-x64	unverified	ev.language.typescript.annotations.v1	Registered evidence is target-scoped; the feature remains incomplete.
+language.typescript	darwin-arm64	supported	ev.language.typescript.annotations.v1,ev.language.typescript.erasable-surface.v1,ev.language.typescript.reject-enum.v1,ev.language.typescript.reject-ns-runtime.v1,ev.language.typescript.reject-param-prop.v1,ev.language.typescript.reject-policy.v1,ev.language.typescript.strip-suite.v1	The complete erasable TypeScript strip surface and non-erasable reject policy execute through the shipped binary.
+language.typescript	darwin-x64	supported	ev.language.typescript.annotations.v1,ev.language.typescript.erasable-surface.v1,ev.language.typescript.reject-enum.v1,ev.language.typescript.reject-ns-runtime.v1,ev.language.typescript.reject-param-prop.v1,ev.language.typescript.reject-policy.v1,ev.language.typescript.strip-suite.v1	The complete erasable TypeScript strip surface and non-erasable reject policy execute through the shipped binary.
+language.typescript	linux-arm64	supported	ev.language.typescript.annotations.v1,ev.language.typescript.erasable-surface.v1,ev.language.typescript.reject-enum.v1,ev.language.typescript.reject-ns-runtime.v1,ev.language.typescript.reject-param-prop.v1,ev.language.typescript.reject-policy.v1,ev.language.typescript.strip-suite.v1	The complete erasable TypeScript strip surface and non-erasable reject policy execute through the shipped binary.
+language.typescript	linux-x64	supported	ev.language.typescript.annotations.v1,ev.language.typescript.erasable-surface.v1,ev.language.typescript.reject-enum.v1,ev.language.typescript.reject-ns-runtime.v1,ev.language.typescript.reject-param-prop.v1,ev.language.typescript.reject-policy.v1,ev.language.typescript.strip-suite.v1	The complete erasable TypeScript strip surface and non-erasable reject policy execute through the shipped binary.
 package-manager.monorepo	darwin-arm64	unsupported	-	Capability is not implemented.
 package-manager.monorepo	darwin-x64	unsupported	-	Capability is not implemented.
 package-manager.monorepo	linux-arm64	unsupported	-	Capability is not implemented.
