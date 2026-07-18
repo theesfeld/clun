@@ -21,9 +21,9 @@ The canonical evidence and current limitations are in `compat/`; `make compat-va
 - Exposes `server.idleTimeout` and `server.maxRequestBodySize` as readback properties.
 - Keeps `server.http` **Partial**: streaming request/response bodies, TLS server, HTTP/2, Unix
   sockets, multi-listen, and full lifecycle inventory remain open for later Phase 49 work.
-- Slot map: published base `0.1.0-dev.21`; master tip `0.1.0-dev.30` (concurrent #110); this
-  candidate allocates free `0.1.0-dev.30` under the unpublished-intermediate prerelease gap policy
-  (transition `0.1.0-dev.30` → `0.1.0-dev.30`).
+- Slot map: published base `0.1.0-dev.21`; master tip `0.1.0-dev.31` (concurrent #110); this
+  candidate allocates free `0.1.0-dev.31` under the unpublished-intermediate prerelease gap policy
+  (transition `0.1.0-dev.31` → `0.1.0-dev.31`).
 
 The release candidate stages honest HTTP server Partial work without promoting any matrix row to `Yes`.
 Merge and publication remain separate from full Phase 49 closure.

@@ -88,7 +88,7 @@ types, fixtures, and upstream licenses. `upstream-files.tsv` binds every file to
 
 `upstream-corpus.tsv` enumerates 1,630 lexical test sites from those exact snapshots. The initial conservative
 disposition was 1,598 pending and 32 explicitly inactive at the pinned revisions. The current executable
-mapping is 1,433 covered, 165 pending, and 32 upstream-inactive. `upstream-coverage.tsv` binds each credited
+mapping is 1,551 covered, 47 pending, and 32 upstream-inactive. `upstream-coverage.tsv` binds each credited
 inventory ID to a checked-in shipped-binary fixture; regeneration rejects duplicate, stale, or unknown IDs,
 and the corpus validator rejects missing evidence. `shell-upstream-corpus-check.sh` rejects inventory drift
 or an unexplained disposition. Its `--yes` mode is the finite closure gate: it rejects any pending row and

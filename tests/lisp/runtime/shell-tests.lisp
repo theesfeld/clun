@@ -7,7 +7,9 @@
 
 (defun shell-test-state (&optional env)
   (clun.runtime::make-shell-state
-   :env env :cwd (sys:current-directory) :throws t))
+   :env env
+   :exported (clun.runtime::%shell-exported-names env)
+   :cwd (sys:current-directory) :throws t))
 
 (defun shell-test-output (source &optional env)
   (let ((result (clun.runtime::%shell-execute-units
@@ -83,7 +85,8 @@
 
 (define-test shell/positional-parameters
   (let* ((state (clun.runtime::make-shell-state
-                 :env nil :cwd (sys:current-directory) :throws t
+                 :env nil :exported nil
+                 :cwd (sys:current-directory) :throws t
                  :positionals '("/tmp/script.bun.sh" "a b" "c")))
          (result (clun.runtime::%shell-execute-units
                   (shell-test-units
@@ -1001,4 +1004,77 @@
                 (sys:read-file-octets (sys:path-join directory "preserved"))))
            (is = 1 (clun.runtime::shell-result-exit-code
                     (clun.runtime::%shell-run-cp '("source" "source") state))))
+      (ignore-errors (sys:remove-recursive directory)))))
+
+(define-test shell/which-reports-not-found
+  (multiple-value-bind (output exit-code stderr)
+      (shell-test-output "which nosuch_shell_cmd_zzz")
+    (declare (ignore output))
+    (is = 1 exit-code)
+    (is equal (format nil "nosuch_shell_cmd_zzz not found~%")
+        (let ((result (clun.runtime::%shell-execute-units
+                       (shell-test-units "which nosuch_shell_cmd_zzz")
+                       (shell-test-state) nil)))
+          (eng:utf8->code-units (clun.runtime::shell-result-stdout result))))))
+
+(define-test shell/cd-dash-is-silent
+  (let* ((directory (clun.runtime::%shell-temp-directory))
+         (state (shell-test-state)))
+    (unwind-protect
+         (progn
+           (setf (clun.runtime::shell-state-cwd state) directory
+                 (clun.runtime::shell-state-old-cwd state)
+                 (sys:current-directory))
+           (let ((result (clun.runtime::%shell-execute-units
+                          (shell-test-units "cd - && pwd") state nil)))
+             (is = 0 (clun.runtime::shell-result-exit-code result))
+             (is equal (format nil "~a~%" (sys:current-directory))
+                 (eng:utf8->code-units
+                  (clun.runtime::shell-result-stdout result)))))
+      (ignore-errors (sys:remove-recursive directory)))))
+
+(define-test shell/cmdsubst-stderr-surfaces
+  (multiple-value-bind (output exit-code stderr)
+      (shell-test-output "echo X$(nosuch_shell_cmd_zzz)Y")
+    (is equal (format nil "XY~%") output)
+    (is = 0 exit-code)
+    (is equal (format nil "clun: command not found: nosuch_shell_cmd_zzz~%") stderr)))
+
+(define-test shell/export-isolation-for-children
+  "Shell-local assignments are not inherited by external children until export."
+  (let* ((directory (clun.runtime::%shell-temp-directory))
+         (env (list (cons "PATH" (clun.sys:getenv "PATH" ""))
+                    (cons "HOME" (clun.sys:getenv "HOME" ""))))
+         (state (shell-test-state env)))
+    (unwind-protect
+         (progn
+           (setf (clun.runtime::shell-state-cwd state) directory)
+           (let ((result (clun.runtime::%shell-execute-units
+                          (shell-test-units
+                           "FOO=onlyshell; printenv FOO || echo NO; export FOO; printenv FOO")
+                          state nil))
+                 (stdout nil))
+             (setf stdout (eng:utf8->code-units
+                           (clun.runtime::shell-result-stdout result)))
+             (is = 0 (clun.runtime::shell-result-exit-code result))
+             (is equal (format nil "NO~%onlyshell~%") stdout)))
+      (ignore-errors (sys:remove-recursive directory)))))
+
+(define-test shell/inject-glob-message-uses-display-pattern
+  (let* ((directory (clun.runtime::%shell-temp-directory))
+         (state (shell-test-state)))
+    (unwind-protect
+         (progn
+           (setf (clun.runtime::shell-state-cwd state) directory)
+           (sys:write-file-octets (sys:path-join directory "ax.txt")
+                                  (make-array 0 :element-type '(unsigned-byte 8)))
+           (let* ((units (concatenate
+                          'vector (shell-test-units "echo a")
+                          (vector (cons :interp "?"))
+                          (shell-test-units "*")))
+                  (result (clun.runtime::%shell-execute-units units state nil)))
+             (is = 1 (clun.runtime::shell-result-exit-code result))
+             (is equal (format nil "clun: no matches found: a?*~%")
+                 (eng:utf8->code-units
+                  (clun.runtime::shell-result-stderr result)))))
       (ignore-errors (sys:remove-recursive directory)))))
