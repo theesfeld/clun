@@ -161,6 +161,44 @@
    #:+max-source-length+ #:+max-depth+ #:+max-documents+ #:+max-nodes+
    #:+max-edges+ #:+max-anchors+ #:+max-aliases+ #:+max-scalar-length+))
 
+(defpackage :clun.markdown
+  (:use :cl)
+  (:documentation "Bounded pure-CL Markdown parser and HTML renderer (Phase 75).")
+  (:export
+   #:+max-source-length+ #:+max-depth+ #:+max-nodes+
+   #:markdown-error #:markdown-error-code #:markdown-error-reason
+   #:parse-markdown #:markdown-html #:markdown-render
+   #:md-node #:md-node-p #:md-node-kind #:md-node-children #:md-node-meta #:md-node-text
+   #:make-markdown-options #:markdown-options-p
+   #:markdown-options-tables #:markdown-options-strikethrough
+   #:markdown-options-tasklists #:markdown-options-autolinks
+   #:markdown-options-headings #:markdown-options-hard-soft-breaks
+   #:markdown-options-no-html-blocks #:markdown-options-no-html-spans
+   #:markdown-options-tag-filter #:markdown-options-collapse-whitespace))
+
+(defpackage :clun.html
+  (:use :cl)
+  (:documentation "Bounded pure-CL HTML tokenizer and HTMLRewriter substrate (Phase 75).")
+  (:export
+   #:+max-source-length+ #:+max-nodes+ #:+max-depth+
+   #:html-error #:html-error-code #:html-error-reason
+   #:parse-html #:serialize-html #:rewrite-html
+   #:html-node #:html-node-p #:html-node-kind #:html-node-name
+   #:html-node-attrs #:html-node-children #:html-node-text
+   #:html-node-self-closing #:html-node-removed
+   #:make-rewriter #:rewriter-on #:rewriter-on-document #:rewriter-transform
+   #:element-tag-name #:element-namespace-uri #:element-self-closing
+   #:element-can-have-content #:element-removed
+   #:element-get-attribute #:element-has-attribute #:element-set-attribute
+   #:element-remove-attribute #:element-attributes
+   #:element-before #:element-after #:element-prepend #:element-append
+   #:element-set-inner-content #:element-remove #:element-remove-and-keep-content
+   #:text-chunk-text #:text-chunk-last-in-text-node #:text-chunk-removed
+   #:text-chunk-before #:text-chunk-after #:text-chunk-replace #:text-chunk-remove
+   #:comment-text #:comment-removed
+   #:comment-before #:comment-after #:comment-replace #:comment-remove
+   #:void-element-p #:selector-matches-p))
+
 ;; Defined before clun.engine so the engine's :lp local-nickname can target it.
 (defpackage :clun.loop
   (:use :cl)

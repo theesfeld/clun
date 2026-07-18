@@ -10,6 +10,7 @@
     (install-buffer-global g)
     (install-abort g)                       ; AbortController/AbortSignal (Phase 14)
     (install-web-http realm)                ; Headers/Request/Response (Phase 17)
+    (install-html-rewriter realm)           ; HTMLRewriter (Phase 75)
     (install-web-cookies realm)             ; Clun.Cookie/CookieMap (Phase 32)
     (install-web-url realm)                 ; URL/URLSearchParams (Phase 18)
     (install-fetch realm)                   ; fetch (Phase 18)

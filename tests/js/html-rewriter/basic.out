@@ -1,0 +1,8 @@
+ctor function HTMLRewriter
+transform true true
+wrap true
+remove true true
+inner true true
+text true true
+no-new TypeError
+response true true

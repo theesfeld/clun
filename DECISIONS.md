@@ -3340,3 +3340,8 @@ Builds on #156 WritableStream/TransformStream. Adds pure-CL BYOB
 `getReader({mode:'byob'})`, Bun proxy object `{url,headers}` on absolute-form
 HTTP and HTTPS CONNECT, hermetic 8 MiB Transform+BYOB stress evidence, four-target
 supported platforms, and ledger Yes. Stages `0.1.0-dev.38`.
+
+### 2026-07-18 — Phase 75 Markdown + HTMLRewriter pure-CL without ledger expansion (#135)
+
+**Decision:** Ship pure-CL `Clun.markdown` + global `HTMLRewriter` under #135 without expanding `features.tsv` past 30 rows.
+**Consequences:** SemVer `minor` on `0.1.0-dev.39`; no matrix Yes claim; parent #49 keeps TOML/JSON5/JSONL.
