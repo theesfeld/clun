@@ -93,13 +93,47 @@ scripts. clun NEVER runs them (stricter than Bun) — the caller logs this list.
   ;; is surfaced by the CLI in milestone 2 from the installed package.json); this stays a no-op hook.
   '())
 
+;;; --- local package materialisation (file:) ----------------------------------
+
+(defun %copy-tree (src dst)
+  "Recursively copy directory SRC to DST (DST must not exist). Regular files, directories, and
+symlinks are preserved; device nodes are skipped. Used for file: dependencies."
+  (let ((st (sys:stat* src :lstat t)))
+    (cond
+      ((sys:fstat-dir-p st)
+       (sys:make-directory dst :recursive t :mode #o755)
+       (dolist (e (sys:read-directory src))
+         (%copy-tree (sys:path-join src e) (sys:path-join dst e))))
+      ((sys:fstat-symlink-p st)
+       (sys:make-symlink (sys:read-symlink src) dst))
+      ((sys:fstat-file-p st)
+       (let ((parent (sys:path-dirname dst)))
+         (unless (sys:path-exists-p parent)
+           (sys:make-directory parent :recursive t :mode #o755)))
+       (sys:copy-file-stream src dst :mode (logand (sys:fstat-mode st) #o777)))
+      (t nil))))
+
+(defun %materialise-file-node (node dest)
+  "Copy a file: package from NODE's local-path into DEST."
+  (let ((src (or (in-local-path node)
+                 (let ((tb (in-tarball node)))
+                   (when (and (stringp tb) (>= (length tb) 5) (string= "file:" tb :end2 5))
+                     (subseq tb 5))))))
+    (unless (and src (sys:directory-p src))
+      (error 'install-error :message (format nil "file: package missing at ~a" src)))
+    (let ((parent (sys:path-dirname dest)))
+      (unless (sys:path-exists-p parent)
+        (sys:make-directory parent :recursive t :mode #o755)))
+    (when (sys:path-exists-p dest) (sys:remove-recursive dest))
+    (%copy-tree src dest)))
+
 ;;; --- link a whole plan ------------------------------------------------------
 
 (defun link-plan (loop root plan nodes &key on-ok on-err)
   "Materialise PLAN (list of (physical-dir . node-key)) under ROOT: obtain each tarball (cache by
-integrity, else download), verify + extract (Phase-22) into ROOT/physical, then create bin symlinks.
-Async (downloads in flight on the loop); ON-OK () when everything is extracted + linked, ON-ERR
-(condition)."
+integrity, else download), verify + extract (Phase-22) into ROOT/physical, copy file: packages, then
+create bin symlinks. Async (downloads in flight on the loop); ON-OK () when everything is extracted +
+linked, ON-ERR (condition)."
   (let ((pending 0) (err nil) (finished nil))
     (labels ((fail (e) (unless err
                          (setf err (if (typep e 'condition) e
@@ -119,28 +153,44 @@ Async (downloads in flight on the loop); ON-OK () when everything is extracted +
                      ;; (recursively — a nested node_modules/<pkg>/node_modules/<dep>).
                      (unless (sys:path-exists-p parent)
                        (sys:make-directory parent :recursive t :mode #o755))
-                     (tb:extract-package bytes dest :integrity (in-integrity node) :strip-components 1))
+                     (let ((integrity (in-integrity node)))
+                       (tb:extract-package bytes dest
+                                           :integrity (if (and integrity (plusp (length integrity)))
+                                                          integrity
+                                                          nil)
+                                           :strip-components 1)))
                  (error (e) (fail e))))
              (do-one (physical key)
                (let* ((node (gethash key nodes))
-                      (dest (sys:path-join root physical))
-                      (integrity (in-integrity node))
-                      (cached (and integrity (ignore-errors (tb:cache-fetch integrity)))))
+                      (dest (sys:path-join root physical)))
                  (cond
-                   (cached (extract node dest cached))
-                   ((null (in-tarball node))
+                   ((null node)
                     (fail (make-condition 'install-error
-                            :message (format nil "no tarball for ~a" key))))
+                            :message (format nil "missing node for ~a" key))))
+                   ((eq (in-kind node) :file)
+                    (handler-case (%materialise-file-node node dest)
+                      (error (e) (fail e))))
                    (t
-                    (incf pending)
-                    (%download-tarball loop (in-tarball node)
-                      :on-ok (lambda (bytes)
-                               (when integrity (ignore-errors (tb:cache-store integrity bytes)))
-                               (extract node dest bytes)
-                               (decf pending) (finish))
-                      :on-err (lambda (code)
-                                (fail (make-condition 'install-error
-                                        :message (format nil "download failed for ~a: ~a" key code)))
-                                (decf pending) (finish))))))))
+                    (let* ((integrity (in-integrity node))
+                           (cached (and integrity (plusp (length integrity))
+                                        (ignore-errors (tb:cache-fetch integrity)))))
+                      (cond
+                        (cached (extract node dest cached))
+                        ((null (in-tarball node))
+                         (fail (make-condition 'install-error
+                                 :message (format nil "no tarball for ~a" key))))
+                        (t
+                         (incf pending)
+                         (%download-tarball loop (in-tarball node)
+                           :on-ok (lambda (bytes)
+                                    (when (and integrity (plusp (length integrity)))
+                                      (ignore-errors (tb:cache-store integrity bytes)))
+                                    (extract node dest bytes)
+                                    (decf pending) (finish))
+                           :on-err (lambda (code)
+                                     (fail (make-condition 'install-error
+                                             :message (format nil "download failed for ~a: ~a"
+                                                              key code)))
+                                     (decf pending) (finish)))))))))))
       (dolist (p plan) (unless err (do-one (car p) (cdr p))))
       (finish))))

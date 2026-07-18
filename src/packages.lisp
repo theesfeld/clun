@@ -532,7 +532,8 @@ extractor + cache and the clun.lock lockfile.")
    #:install-error #:install-error-message #:lock-drift-error
    ;; resolution
    #:inst-node #:inst-node-p #:in-name #:in-version #:in-deps #:in-tarball #:in-integrity #:in-bin
-   #:resolve-install #:pick-version
+   #:in-kind #:in-local-path #:in-optional #:in-real-name
+   #:resolve-install #:pick-version #:classify-dep-spec
    ;; placement
    #:plan-layout
    ;; linker
