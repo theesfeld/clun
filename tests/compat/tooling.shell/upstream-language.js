@@ -209,5 +209,86 @@ for (const [source, output, label] of gnuQuoteCases) {
   chain = chain.then(() => expectJob(job(source), 0, output, "", label));
 }
 
+// Inventory burn-down: pending bunshell sites that already execute through Clun.$
+// (exact observables; clun-branded diagnostics where Bun prints "bun:").
+chain = chain
+  .then(async () => {
+    const results = await Promise.all([
+      Clun.$`echo 1`.quiet(),
+      Clun.$`echo 2`.quiet(),
+      Clun.$`echo 3`.quiet(),
+    ]);
+    const texts = results.map(result => result.text()).sort().join("");
+    assert(texts === "1\n2\n3\n", "concurrent writing to stdout");
+  })
+  .then(() => expectJob(Clun.$`echo ${1}`, 0, "1\n", "", "js number"))
+  .then(() => expectJob(Clun.$`echo ${new String("1")}`, 0, "1\n", "", "js String object"))
+  .then(() => expectJob(Clun.$`echo ${true}`, 0, "true\n", "", "js bool"))
+  .then(() => expectJob(Clun.$`echo ${null}`, 0, "null\n", "", "js null"))
+  .then(() => expectJob(Clun.$`echo ${undefined}`, 0, "undefined\n", "", "js undefined"))
+  .then(() => {
+    const date = new Date("2020-01-01T00:00:00.000Z");
+    return expectJob(Clun.$`echo hello ${date}`, 0, `hello ${date.toString()}\n`, "", "js Date");
+  })
+  .then(() => expectJob(Clun.$`echo ${BigInt("9007199254740991")}`, 0,
+    "9007199254740991\n", "", "js BigInt"))
+  .then(() => expectJob(Clun.$`echo ${[1, 2, 3]}`, 0, "1 2 3\n", "", "js Array"))
+  .then(() => {
+    const shellvar = "$FOO";
+    return expectJob(Clun.$`FOO=bar && echo \\${shellvar}`, 0, "\\$FOO\n", "",
+      "cannot escape js string ref");
+  })
+  .then(() => expectJob(Clun.$`echo $(echo hi)`.quiet(), 0, "hi\n", "", "quiet cmd subst"))
+  .then(() => expectJob(Clun.$``, 0, "", "", "empty input"))
+  .then(() => expectJob(Clun.$`     `, 0, "", "", "whitespace-only input"))
+  .then(() => expectJob(Clun.$`
+`, 0, "", "", "newline-only input"))
+  .then(() => expectJob(Clun.$`echo "$(echo 1; echo 2)"`, 0, "1\n2\n", "",
+    "quoted cmdsubst newlines"))
+  .then(() => expectJob(Clun.$`echo $(echo 1; echo 2)`, 0, "1 2\n", "",
+    "unquoted cmdsubst word split"))
+  .then(() => expectJob(Clun.$`echo $(echo id)/$(echo region)`, 0, "id/region\n", "",
+    "concatenated cmd substs"))
+  .then(() => expectJob(Clun.$`echo $(echo hi id)/$(echo region)`, 0, "hi id/region\n", "",
+    "cmd subst whitespace composition"))
+  .then(() => expectJob(Clun.$`printf '%s\n' $(echo id)/$(echo region)`, 0, "id/region\n", "",
+    "concatenated cmd subst single argv"))
+  .then(() => expectJob(Clun.$`printf '%s\n' $(echo hi id)/$(echo region)`, 0,
+    "hi\nid/region\n", "", "split cmd subst multi argv"))
+  .then(() => {
+    const bytes = new Uint8Array(16);
+    return Clun.$`echo hello > ${bytes}`.quiet().nothrow().then(result => {
+      assert(result.exitCode === 0, "redirect Uint8Array exit");
+      assert(new TextDecoder().decode(bytes).replace(/\0+$/, "") === "hello\n",
+        "redirect Uint8Array contents");
+    });
+  })
+  .then(() => {
+    const buffer = Buffer.alloc(16);
+    return Clun.$`echo hello > ${buffer}`.quiet().nothrow().then(result => {
+      assert(result.exitCode === 0, "redirect Buffer exit");
+      assert(buffer.toString().replace(/\0+$/, "") === "hello\n", "redirect Buffer contents");
+    });
+  })
+  .then(() => expectJob(Clun.$`ls *.sdfljsfsdf`.cwd(root), 1, "",
+    "clun: no matches found: *.sdfljsfsdf\n", "no matches should fail"))
+  .then(() => expectJob(Clun.$`FOO=*.lolwut; echo $FOO`.cwd(root), 0, "*.lolwut\n", "",
+    "no matches in assignment position"))
+  .then(() => expectJob(Clun.$`FOO=hi*; echo $FOO`.cwd(root), 0, "hi*\n", "",
+    "trailing asterisk with no matches"))
+  .then(() => job(`touch hihello hifriends`).cwd(root).quiet())
+  .then(() => Clun.$`FOO=hi*; echo $FOO`.cwd(root).quiet().nothrow().then(result => {
+    assert(result.exitCode === 0, "trailing asterisk matches exit");
+    const words = result.text().trim().split(/\s+/).sort();
+    assert(words[0] === "hifriends" && words[1] === "hihello",
+      "trailing asterisk with matches");
+  }))
+  .then(() => job(`touch foo.js bar.js`).cwd(root).quiet())
+  .then(() => Clun.$`ls *.js`.cwd(root).quiet().nothrow().then(result => {
+    assert(result.exitCode === 0, "glob with different cwd exit");
+    const words = result.text().trim().split(/\n/).sort();
+    assert(words[0] === "bar.js" && words[1] === "foo.js", "glob with different cwd");
+  }));
+
 chain = chain.then(() => job(`rm -rf ${root}`).quiet())
-  .then(() => console.log("upstream-language: 177 exact sites"));
+  .then(() => console.log("upstream-language: 207 exact sites"));

@@ -1,9 +1,9 @@
 <!-- clun-generated:release-notes:begin -->
 # Clun 0.1.0-dev.26
 
-Phase 58: Operating-system secrets constitutional checkpoint.
+Phase 65: Cross-platform shell API.
 
-- SemVer impact: `minor` within the selected `0.1.0` prerelease train.
+- SemVer impact: `patch` within the selected `0.1.0` prerelease train.
 - Compatibility snapshot: 9 Yes / 7 Partial / 14 No across 30 generated rows.
 - Public baseline: Bun 1.3.14; engineering baseline: Bun `c1076ce95e`.
 - Target release platforms: Linux and macOS, x64 and arm64.
@@ -14,16 +14,20 @@ The canonical evidence and current limitations are in `compat/`; `make compat-va
 
 ## Highlights
 
-- Phase 58 records the OS-secrets **constitutional checkpoint**: pure Common Lisp cannot
-  deliver Bun-compatible OS keychain storage (macOS Keychain, libsecret, Windows Credential
-  Manager) without a purity-contract amendment.
-- Ships `Clun.secrets` with Bun-shaped `get` / `set` / `delete` argument validation and
-  fail-closed `ERR_SECRETS_NOT_AVAILABLE` for every store operation.
-- Ledger row `security.encrypted-secrets` remains **No** (excluded by the purity contract).
-  A pure file vault is explicitly not OS-keychain parity and is not claimed.
-- Slot map: published base `0.1.0-dev.21`; master tip `0.1.0-dev.22` (transport #95); parallel trains claim
-  unpublished 23–25; this candidate allocates free `0.1.0-dev.26` under the
-  unpublished-intermediate prerelease gap policy (transition `0.1.0-dev.22` → `0.1.0-dev.26`).
+- Unpublished correction of master `0.1.0-dev.26` (Phase 58 secrets #106; no new
+  prerelease slot): pure-CL unmatched pathname globs fail in command position with
+  `clun: no matches found: <pattern>` (exit 1); assignment position keeps the literal
+  pattern; multi-match assignment values join with a space.
+- Inventory burn-down after merge with master residual closes: **1,286 covered / 312 pending /
+  32 upstream-inactive**. Closes 35 pending sites across language, glob, and `pwd | cd | pwd`
+  pipeline isolation fixtures (plus #102 permission-sensitive `ls` closes already on master).
+- Does **not** claim `tooling.shell` Yes. Residual parser, lifecycle, and background rows remain
+  pending under Issue #39.
+- Absorbs master through Phase 58 secrets M0 (#106), Phase 37 m3 (#109), and Phase 28 transport (#95).
+  Public matrix rows remain honest Partial/No where already stated.
+- Slot map: published base `v0.1.0-dev.21`; master source `0.1.0-dev.26` after #106. This unit
+  retains that candidate as an unpublished patch correction. Hosted installer remains on published
+  dev.21 until a later unit publishes.
 
-The release candidate stages an honest constitutional disposition with tested clear errors and
-does not promote any matrix row to `Yes` or `Partial`.
+The release candidate stages honest Partial shell inventory work without promoting any matrix
+row to `Yes`.

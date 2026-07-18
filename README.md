@@ -9,8 +9,8 @@ targets are workload-specific and published;
 Clun does not claim blanket speed parity with Bun.
 
 <!-- clun-generated:release:begin -->
-> **Status: pre-alpha, under active construction.** [Phase 58](https://github.com/theesfeld/clun/issues/32) is in progress.
-> Its release-bearing target is `0.1.0-dev.26` / `v0.1.0-dev.26` (SemVer impact: `minor`).
+> **Status: pre-alpha, under active construction.** [Phase 65](https://github.com/theesfeld/clun/issues/39) is in progress.
+> Its release-bearing target is `0.1.0-dev.26` / `v0.1.0-dev.26` (SemVer impact: `patch`).
 > The verified release boundary is `v0.1.0-dev.21`, with four native archives, checksums, Pages,
 > and hosted-installer evidence.
 > Phase 26 remains deferred until after Phase 82 and will
@@ -20,14 +20,13 @@ Clun does not claim blanket speed parity with Bun.
 > the local resume checklist.
 <!-- clun-generated:release:end -->
 
-This unit is the Phase 58 OS-secrets constitutional checkpoint (`0.1.0-dev.26`): `Clun.secrets`
-validates Bun-shaped arguments and fails closed with `ERR_SECRETS_NOT_AVAILABLE`. Ledger row
-`security.encrypted-secrets` stays **No** (not Yes/Partial). Published
+Phase 65 inventory burn-down under Issue #39 (PR #111) is an **unpublished correction** of master
+`0.1.0-dev.26` (Phase 58 secrets #106 landed that candidate):
+unmatched-glob failure policy, assignment multi-match join, and 35 closed pending corpus sites
+(post-merge disposition **1,286 covered / 312 pending / 32 upstream-inactive**, including master
+#102 `ls` residual closes). **No** `tooling.shell` Yes claim and **no** new prerelease slot. Published
 [`v0.1.0-dev.21`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.21) remains the verified
-release boundary. Master tip is `0.1.0-dev.23` after m3 #109 / transport #95; parallel trains may claim unpublished
-slots `0.1.0-dev.24`–`0.1.0-dev.25`; this unit takes free `0.1.0-dev.26` under the
-unpublished-intermediate prerelease gap policy. The hosted installer correctly remains on published
-dev.21 until the candidate is merged, tagged, and released.
+release boundary; the hosted installer stays on that tag until a later unit publishes.
 
 ## Install
 
@@ -124,7 +123,7 @@ July 16, 2026. Engineering references are separately pinned to Bun commit `c1076
 | Encrypted secrets storage | No: excluded by the purity contract | [Phase 58](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-58) |
 | npm package management | Partial: fixture-tested; a pinned public npm install smoke passes over verified TLS | Phases [28](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-28), [59](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-59), [60](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-60), [61](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-61) |
 | Bundler | No: not included in the v0.1 scope | Phases [62](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-62), [63](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-63), [64](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-64), [77](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-77) |
-| Cross-platform shell API | Partial: `Clun.$`, `clun exec`, standalone `.bun.sh` files with positional parameters, dollar and backtick command substitution, merged stdout/stderr pipelines, grouped subshells and brace groups nested across `if` control flow, Blob/Response I/O, positive extended-glob conditions, compound-word field splitting, 100-level arrays, Unicode, tilde and continuation expansion, builtins, and 1,251/1,630 pinned shell sites | [Phase 65](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-65) |
+| Cross-platform shell API | Partial: `Clun.$`, `clun exec`, standalone `.bun.sh` files with positional parameters, dollar and backtick command substitution, merged stdout/stderr pipelines, grouped subshells and brace groups nested across `if` control flow, Blob/Response I/O, positive extended-glob conditions, compound-word field splitting, 100-level arrays, Unicode, tilde and continuation expansion, builtins, and 1,286/1,630 pinned shell sites | [Phase 65](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-65) |
 | Jest-compatible test runner | Partial: 62 core and extended matchers, snapshot lifecycles with stable property tokens and Bun-formatted core values, source-aligned ESM/CommonJS/TypeScript statement and function coverage with Bun-shaped text and LCOV reporters, filters, config, and thresholds, custom and Promise-settlement asymmetric matchers, per-realm ESM/CJS module mocks, CLI and bunfig setup preloads, realm-local Jest and vi fake timers with Date and performance clock control, seeded Bun-pinned randomization, deterministic file sharding, dots and JUnit reporters, function mocks/spies, callbacks, cleanup, parameterization, retries, and repeats | [Phase 66](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-66) |
 | Hot reloading | No | [Phase 67](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-67) |
 | Monorepo support | No: workspaces are unsupported | [Phase 60](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-60) |
@@ -163,7 +162,7 @@ Release versions follow the actual SemVer impact recorded in the canonical issue
 The current source is the `0.1.0-dev.26` release candidate; the immutable tag and assets are not published yet.
 The last published prerelease remains [`v0.1.0-dev.21`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.21).
 [The versioning contract](docs/versioning.md) defines prerelease sequencing, synchronized surfaces, immutable tags, assets, and installer evidence.
-[Phase 58 issue #32](https://github.com/theesfeld/clun/issues/32) is the canonical live release record.
+[Phase 65 issue #39](https://github.com/theesfeld/clun/issues/39) is the canonical live release record.
 <!-- clun-generated:release-summary:end -->
 
 ## The purity contract

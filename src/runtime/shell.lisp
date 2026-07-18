@@ -904,8 +904,16 @@
         (and (plusp (length matches)) (coerce matches 'list)))
     (error () nil)))
 
-(defun %shell-expand-glob (pattern fallback state)
-  (or (%shell-glob-matches pattern state) (list fallback)))
+(defun %shell-expand-glob (pattern fallback state &key (null-glob-ok nil))
+  "Expand PATHNAME PATTERN.
+
+Matches replace the pattern. When there are no matches Bun keeps the literal
+pattern only in assignment position; elsewhere it fails with
+\"no matches found\". NULL-GLOB-OK selects the assignment policy."
+  (or (%shell-glob-matches pattern state)
+      (if null-glob-ok
+          (list fallback)
+          (%shell-syntax "no matches found: ~a" pattern))))
 
 (defun %shell-expand-brace-pattern (pattern fallback)
   (let ((tokens (%shell-brace-tokenize pattern)))
@@ -913,7 +921,7 @@
         (%shell-brace-expand-parsed (%shell-brace-parse tokens))
         (list fallback))))
 
-(defun %shell-word-values (word state g)
+(defun %shell-word-values (word state g &key (null-glob-ok nil))
   (let ((fields (list "")) (patterns (list "")) (has-value nil))
     (labels ((append-scalar (current value)
                (if current
@@ -975,6 +983,9 @@
                       append (%shell-expand-brace-pattern pattern value))))
           (setf fields
                 (if glob-p
+                    ;; Brace+glob keeps every brace variant as a literal and
+                    ;; also appends any pathname matches, matching Bun's
+                    ;; composition for partial matches.
                     (append literal-variants
                             (mapcan (lambda (pattern)
                                       (%shell-glob-matches pattern state))
@@ -984,7 +995,8 @@
         (setf fields
               (loop for value in fields
                     for pattern in patterns
-                    append (%shell-expand-glob pattern value state)))))
+                    append (%shell-expand-glob pattern value state
+                                               :null-glob-ok null-glob-ok)))))
     (if has-value fields nil))))
 
 (defun %shell-word-raw-target (word state g)
@@ -998,7 +1010,10 @@
           (first values)))))
 
 (defun %shell-assignment-value (word state g)
-  (format nil "~{~a~}" (%shell-word-values word state g)))
+  ;; Assignment position keeps unmatched globs as literals (Bun Expansion.rs).
+  ;; Multiple pathname matches join with a single space so later unquoted
+  ;; expansions re-split into the same argv fields Bun freezes in tests.
+  (format nil "~{~a~^ ~}" (%shell-word-values word state g :null-glob-ok t)))
 
 ;;; --- builtins and direct external execution --------------------------------
 
