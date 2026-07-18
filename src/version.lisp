@@ -2,7 +2,7 @@
 
 (in-package :clun)
 
-(defparameter *clun-version* "0.1.0-dev.26"
+(defparameter *clun-version* "0.1.0-dev.27"
   "The clun release version string.")
 
 (defparameter *clun-revision* "unknown"

@@ -370,7 +370,8 @@
 
 (defpackage :clun.test-runner
   (:use :cl)
-  (:local-nicknames (:eng :clun.engine) (:sys :clun.sys) (:rt :clun.runtime))
+  (:local-nicknames (:eng :clun.engine) (:sys :clun.sys) (:rt :clun.runtime)
+                    (:lp :clun.loop))
   (:documentation "clun test: discovery, scheduler, matchers, diff, reporter.")
   (:export #:run-test-command))
 

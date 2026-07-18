@@ -7,26 +7,24 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **65 - Cross-platform shell API**  (INVENTORY PARTIAL)
+## Current phase: **66 - Jest-compatible test-runner parity**  (CONCURRENT PARTIAL)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/39
+**Canonical issue:** https://github.com/theesfeld/clun/issues/40
 **Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/32,
-https://github.com/theesfeld/clun/issues/11, https://github.com/theesfeld/clun/issues/2, and https://github.com/theesfeld/clun/issues/40
-**Current implementation unit:** Phase 65 inventory burn-down — pure-CL unmatched-glob failure
-policy, assignment multi-match join, and 35 closed pending corpus sites. After merge with master
-(including #106 secrets M0, #109 m3, #95 transport, #102 ls residual closes) disposition is
-**1,286 covered / 312 pending / 32 upstream-inactive**. `tooling.shell` remains **Partial**; no Yes claim.
-Master holds Phase 58 secrets checkpoint at unpublished candidate `0.1.0-dev.26`.
-**SemVer impact:** `patch`
-**Candidate release:** `0.1.0-dev.26` / `v0.1.0-dev.26`
+https://github.com/theesfeld/clun/issues/11, https://github.com/theesfeld/clun/issues/2, and https://github.com/theesfeld/clun/issues/39
+**Current implementation unit:** Phase 66 concurrent/serial scheduling residual on PR #110 — pure-CL
+`test.concurrent` / `describe.concurrent` / `test.serial` / `describe.serial`, `concurrentIf` /
+`serialIf`, CLI `--concurrent` and `--max-concurrency`, and Bun-shaped consecutive concurrent groups
+with overlapping async settlement on the realm event loop. Compatibility row stays **Partial** (not
+Yes); parallel files, watch, full frozen-root receipts, and residual exotic surfaces remain open.
+**SemVer impact:** `minor`
+**Candidate release:** `0.1.0-dev.27` / `v0.1.0-dev.27`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
-**Entry boundary:** immutable `v0.1.0-dev.21` is tagged; installer defaults to that tag. Master
-source is `0.1.0-dev.26` after Phase 58 #106. This unit is an **unpublished correction** of that
-candidate (release-bearing shell behavior fix; no new prerelease slot). Phase 26 remains after Phase 82.
-**Next scope:** residual parser/lifecycle/background shell rows; keep Partial until four-target
-Yes gates.
-
-
+**Entry boundary:** immutable `v0.1.0-dev.21` is tagged; installer defaults to that tag. Master tip is
+`0.1.0-dev.26` after shell inventory #111 (unpublished correction on the secrets candidate). This unit
+stages free `0.1.0-dev.27` under the unpublished-intermediate prerelease gap policy. Phase 26 remains after Phase 82.
+**Next scope:** keep Phase 66 Partial (no matrix Yes); green exact-head CI on the staged candidate; residual
+test-runner inventory continues after concurrent scheduling.
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
 easiest to hardest among dependency-ready rows. Core engine/runtime/network/tooling changes are expected.
 Every conversion requires a legitimate canonical issue, accepted design, full declared behavior, executable
@@ -1972,3 +1970,10 @@ Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-earl
 - Published: `v0.1.0-dev.19` @ `1a523491` (#40); `v0.1.0-dev.21` @ `a8f45013` (#11).
 - Installer / ledger previous_version: `v0.1.0-dev.21` while source candidate is `0.1.0-dev.26`.
 - Shell inventory PR #111: unpublished patch correction of `0.1.0-dev.26` (Partial; no tooling.shell Yes).
+
+## Phase 66 concurrent scheduling (Issue #40, 0.1.0-dev.27)
+
+- Implemented pure-CL `test.concurrent` / `describe.concurrent` / `test.serial` / `describe.serial`, `concurrentIf` / `serialIf`, CLI `--concurrent` and `--max-concurrency`.
+- Bun-shaped consecutive concurrent groups with overlapping async settlement; serial tests form isolation boundaries.
+- Fixtures: `tests/js/testrunner/concurrent{,immediate,serial,flag,isol}/`.
+- Ledger remains **Partial** (not Yes). Master base after shell #111 is `0.1.0-dev.26`; this candidate is `0.1.0-dev.27`.

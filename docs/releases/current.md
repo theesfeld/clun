@@ -1,9 +1,9 @@
 <!-- clun-generated:release-notes:begin -->
-# Clun 0.1.0-dev.26
+# Clun 0.1.0-dev.27
 
-Phase 65: Cross-platform shell API.
+Phase 66: Jest-compatible test-runner parity.
 
-- SemVer impact: `patch` within the selected `0.1.0` prerelease train.
+- SemVer impact: `minor` within the selected `0.1.0` prerelease train.
 - Compatibility snapshot: 9 Yes / 7 Partial / 14 No across 30 generated rows.
 - Public baseline: Bun 1.3.14; engineering baseline: Bun `c1076ce95e`.
 - Target release platforms: Linux and macOS, x64 and arm64.
@@ -14,20 +14,16 @@ The canonical evidence and current limitations are in `compat/`; `make compat-va
 
 ## Highlights
 
-- Unpublished correction of master `0.1.0-dev.26` (Phase 58 secrets #106; no new
-  prerelease slot): pure-CL unmatched pathname globs fail in command position with
-  `clun: no matches found: <pattern>` (exit 1); assignment position keeps the literal
-  pattern; multi-match assignment values join with a space.
-- Inventory burn-down after merge with master residual closes: **1,286 covered / 312 pending /
-  32 upstream-inactive**. Closes 35 pending sites across language, glob, and `pwd | cd | pwd`
-  pipeline isolation fixtures (plus #102 permission-sensitive `ls` closes already on master).
-- Does **not** claim `tooling.shell` Yes. Residual parser, lifecycle, and background rows remain
-  pending under Issue #39.
-- Absorbs master through Phase 58 secrets M0 (#106), Phase 37 m3 (#109), and Phase 28 transport (#95).
-  Public matrix rows remain honest Partial/No where already stated.
-- Slot map: published base `v0.1.0-dev.21`; master source `0.1.0-dev.26` after #106. This unit
-  retains that candidate as an unpublished patch correction. Hosted installer remains on published
-  dev.21 until a later unit publishes.
+- Stages Phase 66 concurrent/serial scheduling as a bounded Partial checkpoint under Issue #40:
+  pure-CL `test.concurrent` / `describe.concurrent` / `test.serial` / `describe.serial`,
+  `concurrentIf` / `serialIf`, CLI `--concurrent` and `--max-concurrency`, and Bun-shaped
+  consecutive concurrent groups with overlapping async settlement on the realm event loop.
+- Fixtures prove serial isolation between concurrent groups, sync concurrent ordering, and
+  `--concurrent` defaulting with serial override.
+- Does **not** promote `tooling.test-runner` to ledger `Yes`. Parallel files, watch, full
+  frozen-root counts, four-target receipts, and residual exotic surfaces remain open.
+- Slot map: published base `v0.1.0-dev.21`; master tip `0.1.0-dev.26` (shell #111 unpublished
+  correction); this candidate allocates next free `0.1.0-dev.27` (transition `0.1.0-dev.26` →
+  `0.1.0-dev.27`).
 
-The release candidate stages honest Partial shell inventory work without promoting any matrix
-row to `Yes`.
+The release candidate stages honest test-runner residual work without promoting any matrix row to `Yes`.

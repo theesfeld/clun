@@ -8,11 +8,13 @@
 (defstruct (t-describe (:conc-name td-) (:predicate td-p))
   name parent (children '())            ; children in registration order (reversed on close)
   (before-all '()) (before-each '()) (after-all '()) (after-each '())
-  (mode :normal))                       ; :normal :skip :todo :only
+  (mode :normal)                        ; :normal :skip :todo :only
+  (concurrent :inherit))                ; :inherit :yes :no (serial)
 
 (defstruct (t-test (:conc-name tt-) (:predicate tt-p))
   name fn parent (args '()) (mode :normal) (failing nil)
-  (timeout nil) (retry nil) (repeats nil))
+  (timeout nil) (retry nil) (repeats nil)
+  (concurrent :inherit))                ; :inherit :yes :no (serial)
 
 (defstruct (test-context (:conc-name ctx-))
   root current path (default-timeout 5000) (has-only nil) (expect-calls 0)
@@ -44,10 +46,11 @@
       (when (eng:js-number-p value)
         (max 0 (truncate (eng:to-number value)))))))
 
-(defun %register-describe (ctx name fn mode)
+(defun %register-describe (ctx name fn mode &optional (concurrent :inherit))
   (when (ctx-preloading ctx)
     (eng:throw-type-error "Cannot use describe() during preload."))
-  (let ((d (make-t-describe :name name :parent (ctx-current ctx) :mode mode)))
+  (let ((d (make-t-describe :name name :parent (ctx-current ctx) :mode mode
+                            :concurrent concurrent)))
     (push d (td-children (ctx-current ctx)))
     (when (eq mode :only) (setf (ctx-has-only ctx) t))
     (when (eng:callable-p fn)
@@ -57,7 +60,8 @@
           (setf (ctx-current ctx) prev))))
     eng:+undefined+))
 
-(defun %register-test (ctx name fn mode opts &optional failing call-args)
+(defun %register-test (ctx name fn mode opts &optional failing call-args
+                       (concurrent :inherit))
   (when (ctx-preloading ctx)
     (eng:throw-type-error "Cannot use test() during preload."))
   (when (and failing (not (eng:callable-p fn)))
@@ -69,7 +73,8 @@
     (let ((tt (make-t-test :name name :fn (and (eng:callable-p fn) fn)
                            :parent (ctx-current ctx) :args (or call-args '())
                            :mode mode :failing failing
-                           :timeout (%opt-timeout opts) :retry retry :repeats repeats)))
+                           :timeout (%opt-timeout opts) :retry retry :repeats repeats
+                           :concurrent concurrent)))
       (push tt (td-children (ctx-current ctx)))
       (when (eq mode :only) (setf (ctx-has-only ctx) t))
       eng:+undefined+)))
@@ -159,22 +164,25 @@
 (defun %fn (name arity impl) (eng:make-native-function name arity impl))
 
 (defun %make-test-callable (ctx)
-  "Build the `test` function object with its modifier properties. `it` is an alias."
+  "Build the `test` function object with its modifier properties. `it` is an alias.
+Concurrent/serial are orthogonal to selection mode and expected-failure state."
   (labels
-      ((member-name (mode failing)
-         (if failing
-             "failing"
-             (ecase mode
-               (:normal "test") (:skip "skip") (:only "only") (:todo "todo"))))
-       (register-one (mode failing args)
+      ((member-name (mode failing concurrent)
+         (cond
+           (failing "failing")
+           ((eq concurrent :yes) "concurrent")
+           ((eq concurrent :no) "serial")
+           (t (ecase mode
+                (:normal "test") (:skip "skip") (:only "only") (:todo "todo")))))
+       (register-one (mode failing concurrent args)
          (%register-test ctx (eng:to-string (eng:arg args 0)) (eng:arg args 1)
-                         mode (eng:arg args 2) failing))
-       (make-member (mode failing rows bound-p)
-         (%fn (member-name mode failing) 2
+                         mode (eng:arg args 2) failing nil concurrent))
+       (make-member (mode failing concurrent rows bound-p)
+         (%fn (member-name mode failing concurrent) 2
            (lambda (this args)
              (declare (ignore this))
              (if (not bound-p)
-                 (register-one mode failing args)
+                 (register-one mode failing concurrent args)
                  (let ((tmpl (eng:to-string (eng:arg args 0)))
                        (fn (eng:arg args 1))
                        (opts (eng:arg args 2))
@@ -187,74 +195,94 @@
                                        (eng:array-like->list row)
                                        (list row)))
                             (nm (%each-name tmpl rargs idx)))
-                       (%register-test ctx nm fn mode opts failing rargs))
+                       (%register-test ctx nm fn mode opts failing rargs concurrent))
                      (incf idx))
                    eng:+undefined+)))))
-       (make-family (rows bound-p requested-mode requested-failing)
+       (make-family (rows bound-p requested-mode requested-failing requested-concurrent)
          (let ((members (make-hash-table :test #'equal)))
            (dolist (mode '(:normal :skip :only :todo))
              (dolist (failing '(nil t))
-               (setf (gethash (list mode failing) members)
-                     (make-member mode failing rows bound-p))))
-           (flet ((lookup (mode failing)
-                    (gethash (list mode failing) members)))
+               (dolist (concurrent '(:inherit :yes :no))
+                 (setf (gethash (list mode failing concurrent) members)
+                       (make-member mode failing concurrent rows bound-p)))))
+           (flet ((lookup (mode failing concurrent)
+                    (gethash (list mode failing concurrent) members)))
              (maphash
               (lambda (key member)
-                (destructuring-bind (mode failing) key
-                  (eng:data-prop member "skip" (lookup :skip failing))
-                  (eng:data-prop member "only" (lookup :only failing))
-                  (eng:data-prop member "todo" (lookup :todo failing))
-                  (eng:data-prop member "failing" (lookup mode t))
+                (destructuring-bind (mode failing concurrent) key
+                  (eng:data-prop member "skip" (lookup :skip failing concurrent))
+                  (eng:data-prop member "only" (lookup :only failing concurrent))
+                  (eng:data-prop member "todo" (lookup :todo failing concurrent))
+                  (eng:data-prop member "failing" (lookup mode t concurrent))
+                  (eng:data-prop member "concurrent" (lookup mode failing :yes))
+                  (eng:data-prop member "serial" (lookup mode failing :no))
                   (eng:data-prop member "if"
                     (%fn "if" 1
                       (lambda (this args)
                         (declare (ignore this))
                         (if (eng:js-truthy (eng:arg args 0))
                             member
-                            (lookup :skip failing)))))
+                            (lookup :skip failing concurrent)))))
                   (eng:data-prop member "skipIf"
                     (%fn "skipIf" 1
                       (lambda (this args)
                         (declare (ignore this))
                         (if (eng:js-truthy (eng:arg args 0))
-                            (lookup :skip failing)
+                            (lookup :skip failing concurrent)
                             member))))
                   (eng:data-prop member "todoIf"
                     (%fn "todoIf" 1
                       (lambda (this args)
                         (declare (ignore this))
                         (if (eng:js-truthy (eng:arg args 0))
-                            (lookup :todo failing)
+                            (lookup :todo failing concurrent)
                             member))))
                   (eng:data-prop member "failingIf"
                     (%fn "failingIf" 1
                       (lambda (this args)
                         (declare (ignore this))
                         (if (eng:js-truthy (eng:arg args 0))
-                            (lookup mode t)
+                            (lookup mode t concurrent)
+                            member))))
+                  (eng:data-prop member "concurrentIf"
+                    (%fn "concurrentIf" 1
+                      (lambda (this args)
+                        (declare (ignore this))
+                        (if (eng:js-truthy (eng:arg args 0))
+                            (lookup mode failing :yes)
+                            member))))
+                  (eng:data-prop member "serialIf"
+                    (%fn "serialIf" 1
+                      (lambda (this args)
+                        (declare (ignore this))
+                        (if (eng:js-truthy (eng:arg args 0))
+                            (lookup mode failing :no)
                             member))))
                   (eng:data-prop member "each"
                     (%fn "each" 1
                       (lambda (this args)
                         (declare (ignore this))
                         (make-family (%each-rows (eng:arg args 0)) t
-                                     mode failing))))))
+                                     mode failing concurrent))))))
               members)
-             (lookup requested-mode requested-failing)))))
-    (make-family '() nil :normal nil)))
+             (lookup requested-mode requested-failing requested-concurrent)))))
+    (make-family '() nil :normal nil :inherit)))
 
 (defun %make-describe-callable (ctx)
   (labels
-      ((member-name (mode)
-         (ecase mode
-           (:normal "describe") (:skip "skip") (:only "only") (:todo "todo")))
-       (make-member (mode rows bound-p)
-         (%fn (member-name mode) 2
+      ((member-name (mode concurrent)
+         (cond
+           ((eq concurrent :yes) "concurrent")
+           ((eq concurrent :no) "serial")
+           (t (ecase mode
+                (:normal "describe") (:skip "skip") (:only "only") (:todo "todo")))))
+       (make-member (mode concurrent rows bound-p)
+         (%fn (member-name mode concurrent) 2
            (lambda (this args)
              (declare (ignore this))
              (if (not bound-p)
                  (%register-describe ctx (eng:to-string (eng:arg args 0))
-                                     (eng:arg args 1) mode)
+                                     (eng:arg args 1) mode concurrent)
                  (let ((tmpl (eng:to-string (eng:arg args 0)))
                        (fn (eng:arg args 1))
                        (idx 0))
@@ -272,42 +300,55 @@
                           (lambda (tt2 aa2)
                             (declare (ignore tt2 aa2))
                             (eng:js-call fn eng:+undefined+ rargs)))
-                        mode))
+                        mode concurrent))
                      (incf idx))
                    eng:+undefined+)))))
-       (make-family (rows bound-p requested-mode)
-         (let ((members (make-hash-table :test #'eq)))
+       (make-family (rows bound-p requested-mode requested-concurrent)
+         (let ((members (make-hash-table :test #'equal)))
            (dolist (mode '(:normal :skip :only :todo))
-             (setf (gethash mode members) (make-member mode rows bound-p)))
-           (flet ((lookup (mode) (gethash mode members)))
+             (dolist (concurrent '(:inherit :yes :no))
+               (setf (gethash (list mode concurrent) members)
+                     (make-member mode concurrent rows bound-p))))
+           (flet ((lookup (mode concurrent)
+                    (gethash (list mode concurrent) members)))
              (maphash
-              (lambda (mode member)
-                (eng:data-prop member "skip" (lookup :skip))
-                (eng:data-prop member "only" (lookup :only))
-                (eng:data-prop member "todo" (lookup :todo))
-                (eng:data-prop member "if"
-                  (%fn "if" 1
-                    (lambda (this args)
-                      (declare (ignore this))
-                      (if (eng:js-truthy (eng:arg args 0)) member (lookup :skip)))))
-                (eng:data-prop member "skipIf"
-                  (%fn "skipIf" 1
-                    (lambda (this args)
-                      (declare (ignore this))
-                      (if (eng:js-truthy (eng:arg args 0)) (lookup :skip) member))))
-                (eng:data-prop member "todoIf"
-                  (%fn "todoIf" 1
-                    (lambda (this args)
-                      (declare (ignore this))
-                      (if (eng:js-truthy (eng:arg args 0)) (lookup :todo) member))))
-                (eng:data-prop member "each"
-                  (%fn "each" 1
-                    (lambda (this args)
-                      (declare (ignore this))
-                      (make-family (%each-rows (eng:arg args 0)) t mode)))))
+              (lambda (key member)
+                (destructuring-bind (mode concurrent) key
+                  (eng:data-prop member "skip" (lookup :skip concurrent))
+                  (eng:data-prop member "only" (lookup :only concurrent))
+                  (eng:data-prop member "todo" (lookup :todo concurrent))
+                  (eng:data-prop member "concurrent" (lookup mode :yes))
+                  (eng:data-prop member "serial" (lookup mode :no))
+                  (eng:data-prop member "if"
+                    (%fn "if" 1
+                      (lambda (this args)
+                        (declare (ignore this))
+                        (if (eng:js-truthy (eng:arg args 0))
+                            member
+                            (lookup :skip concurrent)))))
+                  (eng:data-prop member "skipIf"
+                    (%fn "skipIf" 1
+                      (lambda (this args)
+                        (declare (ignore this))
+                        (if (eng:js-truthy (eng:arg args 0))
+                            (lookup :skip concurrent)
+                            member))))
+                  (eng:data-prop member "todoIf"
+                    (%fn "todoIf" 1
+                      (lambda (this args)
+                        (declare (ignore this))
+                        (if (eng:js-truthy (eng:arg args 0))
+                            (lookup :todo concurrent)
+                            member))))
+                  (eng:data-prop member "each"
+                    (%fn "each" 1
+                      (lambda (this args)
+                        (declare (ignore this))
+                        (make-family (%each-rows (eng:arg args 0)) t
+                                     mode concurrent))))))
               members)
-             (lookup requested-mode)))))
-    (make-family '() nil :normal)))
+             (lookup requested-mode requested-concurrent)))))
+    (make-family '() nil :normal :inherit)))
 
 (defun %hook (ctx slot)
   "A before*/after* hook global: append the callback to the CURRENT describe's list."

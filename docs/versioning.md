@@ -58,6 +58,7 @@ resource does not exist with a 404 response:
 0.1.0-dev.24
 0.1.0-dev.25
 0.1.0-dev.26
+0.1.0-dev.27
 ```
 
 Phase 25b is the compatibility program for the planned `0.1.0` release. Its first behavioral
@@ -117,7 +118,7 @@ Phase 50 stages `0.1.0-dev.17` / `v0.1.0-dev.17` under Issue #24 (router PR #85)
 master. Phase 65 stages `0.1.0-dev.18` / `v0.1.0-dev.18` under Issue #39 (shell PR #86; published).
 Phase 66 stages `0.1.0-dev.19` / `v0.1.0-dev.19` under Issue #40 (test-runner PR #88 on master).
 Phase 28 stages `0.1.0-dev.20` / `v0.1.0-dev.20` under Issue #2. Phase 37 milestone 2 stages
-`0.1.0-dev.21` / `v0.1.0-dev.21` under Issue #11 (PR #96). Phase 65 inventory burn-down under Issue #39 (PR #111) is an unpublished correction of master candidate `0.1.0-dev.26` / `v0.1.0-dev.26` after later parallel landings (unmatched-glob failure policy; `tooling.shell` remains Partial; no new prerelease slot); its SemVer impact is `patch`. Parallel topic branches claim unpublished `0.1.0-dev.22`–`0.1.0-dev.25`. Phase 58
+`0.1.0-dev.21` / `v0.1.0-dev.21` under Issue #11 (PR #96). Phase 65 inventory burn-down under Issue #39 (PR #111) is an unpublished correction of master candidate `0.1.0-dev.26` / `v0.1.0-dev.26` after later parallel landings (unmatched-glob failure policy; `tooling.shell` remains Partial; no new prerelease slot); its SemVer impact is `patch`. This Phase 66 concurrent-scheduling residual stages the next free slot `0.1.0-dev.27` / `v0.1.0-dev.27` under Issue #40 (PR #110). Concurrent/serial test scheduling is a backward-compatible test-runner API addition and therefore its SemVer impact is `minor` within the selected `0.1.0` core. The compatibility row remains `Partial` (not Yes). Parallel topic branches claim unpublished `0.1.0-dev.22`–`0.1.0-dev.25`. Phase 58
 constitutional secrets checkpoint stages free `0.1.0-dev.26` / `v0.1.0-dev.26` under Issue #32. Version-transition allows multi-step
 prerelease advances only while every skipped intermediate remains unpublished, so parallel drafts
 may allocate later slots without claiming each other's tags. Phase 37 m2 adds backward-compatible
