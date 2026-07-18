@@ -11,19 +11,21 @@ Phase 65: Cross-platform shell API.
 
 The canonical evidence and current limitations are in `compat/`; `make compat-validate` and `make docs-check` reject claim drift.
 <!-- clun-generated:release-notes:end -->
-
 ## Highlights
 
-- Stages Phase 49 as a bounded Bun-compatible `Clun.serve` lifecycle slice:
-  - `idleTimeout` (seconds; default 10; `0` disables; max 255)
-  - `maxRequestBodySize` (bytes; parser 413 when exceeded)
-  - `server.stop(true)` force-closes in-flight connections
-- Exposes `server.idleTimeout` and `server.maxRequestBodySize` as readback properties.
-- Keeps `server.http` **Partial**: streaming request/response bodies, TLS server, HTTP/2, Unix
-  sockets, multi-listen, and full lifecycle inventory remain open for later Phase 49 work.
-- Slot map: published base `0.1.0-dev.21`; master tip `0.1.0-dev.31` (concurrent #110); this
-  candidate allocates free `0.1.0-dev.31` under the unpublished-intermediate prerelease gap policy
-  (transition `0.1.0-dev.31` → `0.1.0-dev.31`).
+- Issue #120 (parent #39) shell-language residual burn-down after #122 parser and #123 lifecycle:
+  pure-CL **export isolation** (shell-local assignments stay out of child environments until
+  `export`), `which` prints `NAME not found`, silent Bun-compatible `cd -`, command-substitution
+  stderr surfaces on the surrounding command, and unmatched-glob diagnostics use the
+  user-visible pattern spelling.
+- Corpus disposition: **1,551 covered / 47 pending / 32 upstream-inactive** (was 1,433 / 165
+  after #123). Shell-language owner residual closes 118 sites. Fixture:
+  `tests/compat/tooling.shell/upstream-language.js`.
+- Does **not** claim `tooling.shell` Yes. Residual background, ENAMETOOLONG, and four-target
+  receipts remain under Issue #120 / #39.
+- Slot map: published base `v0.1.0-dev.21`; master tip `0.1.0-dev.30` (#113); this candidate
+  allocates free `0.1.0-dev.31` / `v0.1.0-dev.31` (SemVer `minor`). Hosted installer remains on
+  published dev.21 until a later unit publishes.
 
-The release candidate stages honest HTTP server Partial work without promoting any matrix row to `Yes`.
-Merge and publication remain separate from full Phase 49 closure.
+The release candidate stages honest Partial shell progress without promoting any matrix row to
+`Yes`.

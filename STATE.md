@@ -7,19 +7,24 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **65 - Cross-platform shell API**  (YES CONVERSION #120)
+## Current phase: **65 - Cross-platform shell API**  (LANGUAGE RESIDUAL PARTIAL)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/120
-**Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/39,
-https://github.com/theesfeld/clun/issues/23, https://github.com/theesfeld/clun/issues/40,
-and https://github.com/theesfeld/clun/issues/25
-**Current implementation unit:** Phase 65 tooling.shell language residual for Yes path #120.
-`tooling.shell` remains **Partial** (1551/1630 covered; 47 pending). No matrix Yes yet.
+**Canonical issue:** https://github.com/theesfeld/clun/issues/39
+**Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/120,
+https://github.com/theesfeld/clun/issues/32, https://github.com/theesfeld/clun/issues/11,
+and https://github.com/theesfeld/clun/issues/2
+**Current implementation unit:** Phase 65 shell-language residual (#120 under parent #39) —
+export isolation, `which` not-found lines, silent `cd -`, command-substitution stderr, glob
+diagnostic spelling, plus 118 covered shell-language corpus sites after #122/#123. Disposition
+**1,551 covered / 47 pending / 32 upstream-inactive**. `tooling.shell` remains **Partial**; no Yes claim.
 **SemVer impact:** `minor`
 **Candidate release:** `0.1.0-dev.31` / `v0.1.0-dev.31`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
-**Entry boundary:** installer defaults to `v0.1.0-dev.21`; this unit stages `0.1.0-dev.31`.
-**Next scope:** remaining ~47 pending sites + four-target supported for Yes.
+**Entry boundary:** immutable `v0.1.0-dev.21` is tagged; installer defaults to that tag. Master tip is
+`0.1.0-dev.30` after Phase 49 #113. This unit stages free `0.1.0-dev.31` for release-bearing shell
+language residual fixes. Phase 26 remains after Phase 82.
+**Next scope:** residual background/ENAMETOOLONG/four-target Yes gates under Issue #120.
+
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
 easiest to hardest among dependency-ready rows. Core engine/runtime/network/tooling changes are expected.
