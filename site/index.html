@@ -22,7 +22,7 @@
 <!-- clun-generated:release:begin -->
 <a href="https://github.com/theesfeld/clun/issues/49">
   <span>In development</span>
-  v0.1.0-dev.34 / Phase 75
+  v0.1.0-dev.37 / Phase 75
   <span aria-hidden="true">-&gt;</span>
 </a>
 <!-- clun-generated:release:end -->
@@ -56,7 +56,7 @@
             <img class="hero-mark" src="assets/clun.jpg" alt="Clun mascot wearing a Lisp helmet" width="250" height="250">
           </div>
 <!-- clun-generated:version:begin -->
-<p class="eyebrow"><span class="status-dot" aria-hidden="true"></span> v0.1.0-dev.34 release candidate / pre-alpha</p>
+<p class="eyebrow"><span class="status-dot" aria-hidden="true"></span> v0.1.0-dev.37 release candidate / pre-alpha</p>
 <!-- clun-generated:version:end -->
           <h1>Clun is JavaScript tooling,<br> rewritten in pure Common Lisp.</h1>
           <p class="hero-copy">
@@ -361,7 +361,7 @@ Linked phase labels are planned acceptance gates, not capabilities available tod
   <thead>
     <tr>
       <th scope="col">Capability</th>
-      <th scope="col" class="clun-col"><a href="https://github.com/theesfeld/clun">Clun</a><span>0.1.0-dev.34 candidate / pre-alpha</span></th>
+      <th scope="col" class="clun-col"><a href="https://github.com/theesfeld/clun">Clun</a><span>0.1.0-dev.37 candidate / pre-alpha</span></th>
       <th scope="col"><a href="https://bun.sh/">Bun</a><span>1.3.14 / toolkit</span></th>
       <th scope="col"><a href="https://nodejs.org/">Node.js</a><span>26.5.0 / current</span></th>
       <th scope="col"><a href="https://deno.com/">Deno</a><span>2.9.3 / runtime</span></th>
@@ -516,7 +516,7 @@ Linked phase labels are planned acceptance gates, not capabilities available tod
     </tr>
     <tr data-compat-feature="tooling.test-runner">
       <th scope="row"><strong>Jest-compatible test runner</strong><span>Tests with familiar Jest-style APIs</span></th>
-      <td class="clun-col"><b class="state partial">Partial</b> 62 core and extended matchers, snapshot lifecycles with stable property tokens and Bun-formatted core values, source-aligned ESM/CommonJS/TypeScript statement and function coverage with Bun-shaped text and LCOV reporters, filters, config, and thresholds, custom and Promise-settlement asymmetric matchers, per-realm ESM/CJS module mocks, CLI and bunfig setup preloads, realm-local Jest and vi fake timers with Date and performance clock control, seeded Bun-pinned randomization, deterministic file sharding, dots and JUnit reporters, function mocks/spies, callbacks, cleanup, parameterization, retries, repeats, and cooperative <code>test.concurrent</code> / <code>describe.concurrent</code> / <code>test.serial</code> scheduling with <code>--concurrent</code> and <code>--max-concurrency</code> (parallel files, watch, and full frozen-root receipts remain open)<a class="phase-link" data-roadmap-phase="66" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-66">Phase 66</a></td>
+      <td class="clun-col"><b class="state yes">Yes</b> 62 core and extended matchers, snapshot lifecycles with stable property tokens and Bun-formatted core values including own-accessor Getter tokens and control-byte escapes, source-aligned ESM/CommonJS/TypeScript statement and function coverage with Bun-shaped text and LCOV reporters, filters, config, and thresholds, custom and Promise-settlement asymmetric matchers, per-realm ESM/CJS module mocks, CLI and bunfig setup preloads, realm-local Jest and vi fake timers with Date and performance clock control, seeded Bun-pinned randomization, deterministic file sharding, dots and JUnit reporters, function mocks/spies, callbacks, cleanup, parameterization, retries, repeats, cooperative test.concurrent / describe.concurrent / test.serial scheduling with --concurrent and --max-concurrency, pure-CL --parallel multi-file process pools with serial/parallel count agreement, expect.unreachable, and runtime expectTypeOf<a class="phase-link" data-roadmap-phase="66" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-66">Phase 66</a></td>
       <td><b class="state yes">Yes</b> <code>bun test</code></td>
       <td><b class="state no">No</b> <code>node:test</code> uses its own API</td>
       <td><b class="state no">No</b> <code>Deno.test</code> uses its own API</td>

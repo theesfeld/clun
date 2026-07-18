@@ -14,11 +14,11 @@ custom-matchers	test/js/bun/test/expect-extend.test.js	c4ff8263620d7dda27f6a995f
 expect	test/js/bun/test/expect-label.test.ts	d644946f9bdf5600152435cffafb802c247179b40b80c8fab6f89c1d8b1efc11	0	1	0	0	1	0
 expect	test/js/bun/test/expect-stack-overflow-crash.test.ts	c39efcaf450b10bf9714c23aaacf2af2695647187e0521a32f13341fd71dd24a	1	0	0	0	1	0
 expect	test/js/bun/test/expect-symbol-toPrimitive-crash.test.ts	7d378b67c45b590bb2f0bd12b80b9c0b82981ab3de5adba8f09d479d9d8084a6	1	0	0	0	1	0
-mocks	test/js/bun/test/expect-toHaveReturnedWith.test.js	17351e176557fc4b3f2c0820ca1d88d854ac69667a045e5669eeb4b064b882d3	13	0	0	12	1	0
-expect	test/js/bun/test/expect-type-doctest.test.ts	a448e633da2b3f9ef26912e449d9234516eef42a60b3b7a2a47f08d6c45ff515	0	0	0	0	1	0
-expect	test/js/bun/test/expect-type-global.test.ts	0920786a7f9e8fc64bf5e7df41c2ea7e37e720d98ee8d77304cd9d2bd390d6b8	1	0	0	0	1	0
-expect	test/js/bun/test/expect-type.test.ts	cec79283398119513b607ed0c35ef2a029f2d776dd230c3ce51553cf234395cb	1	0	0	0	1	0
-expect	test/js/bun/test/expect-unreaachable.test.ts	3a16dabfc76934b4400f8f0c5be00b1f27d1d1d9dc9eac80fe69acaa713f7208	1	0	0	0	1	0
+mocks	test/js/bun/test/expect-toHaveReturnedWith.test.js	17351e176557fc4b3f2c0820ca1d88d854ac69667a045e5669eeb4b064b882d3	13	0	0	13	0	0
+expect	test/js/bun/test/expect-type-doctest.test.ts	a448e633da2b3f9ef26912e449d9234516eef42a60b3b7a2a47f08d6c45ff515	0	0	0	0	0	0
+expect	test/js/bun/test/expect-type-global.test.ts	0920786a7f9e8fc64bf5e7df41c2ea7e37e720d98ee8d77304cd9d2bd390d6b8	1	0	0	1	0	0
+expect	test/js/bun/test/expect-type.test.ts	cec79283398119513b607ed0c35ef2a029f2d776dd230c3ce51553cf234395cb	1	0	0	1	0	0
+expect	test/js/bun/test/expect-unreaachable.test.ts	3a16dabfc76934b4400f8f0c5be00b1f27d1d1d9dc9eac80fe69acaa713f7208	1	0	0	1	0	0
 expect	test/js/bun/test/expect.test.js	816baede77aef36d249c2602f2c300363d569c800a8da373c10e9cbb92c40821	398	8	10	0	1	0
 mocks	test/js/bun/test/expect/toHaveReturnedWith.test.ts	075f9ea24fc8f4377bdf576bcffca3bee59cda67531b838b3edc2b89fe1d7e42	41	0	0	41	0	0
 lifecycle	test/js/bun/test/failure-skip.test.ts	16b97c93cfb50c22e475e66a0bf662ff00b9ed85423745a7cdb2cdb8fe8be388	11	0	0	0	1	0

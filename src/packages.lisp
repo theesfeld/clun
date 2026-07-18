@@ -41,7 +41,8 @@
            #:fstat-file-p #:fstat-dir-p #:fstat-symlink-p
            #:open-regular-file-stream
            #:make-directory #:remove-directory #:remove-file #:rename-path #:make-symlink
-           #:read-symlink #:change-mode #:truncate-file #:make-temp-dir #:check-access
+           #:make-hard-link #:read-symlink #:change-mode #:change-owner #:truncate-file
+           #:set-times #:make-temp-dir #:check-access
            #:touch-file #:remove-recursive #:read-file-octets #:write-file-octets
            #:write-fd-octets #:copy-file* #:copy-file-stream))
 
@@ -283,7 +284,8 @@
    #:js-getv #:to-object #:to-boolean #:to-integer-or-infinity #:js-strict-eq
    #:js-same-value #:js-typeof #:make-error-object #:well-known #:length-of-array-like
    #:js-null-p #:js-number-p #:js-string-p #:js-deep-equal #:*builtin-module-builder*
-   #:js-construct #:obj-own-desc #:pd-value #:pd-enumerable #:crypto-fill-random
+   #:js-construct #:obj-own-desc #:pd-value #:pd-enumerable
+   #:pd-get #:pd-set #:accessor-descriptor-p #:crypto-fill-random
    #:js-loose-eq #:js-instanceof #:throw-js-value #:js-object-class
    #:js-typed-array-p #:make-u8-array #:u8-from-octets #:ta-octets #:u8-over-arraybuffer #:js-array-buffer-bytes #:js-array-buffer-p
    #:buffer-source-octets
@@ -376,6 +378,16 @@
    #:make-text-frame #:make-binary-frame
    #:make-ping-frame #:make-pong-frame #:make-close-frame))
 
+(defpackage :clun.compress
+  (:use :cl)
+  (:documentation "Phase 74 pure-CL gzip/zlib/raw-deflate codecs (salza2 compress + chipz inflate).")
+  (:export
+   #:compress-error #:compress-error-message
+   #:*max-decompressed-bytes*
+   #:gzip-compress #:zlib-compress #:raw-deflate-compress
+   #:gunzip #:zlib-decompress #:raw-inflate
+   #:gzip-magic-p))
+
 ;; --- dependent layer (local-nicknames into the base packages above) ---------
 
 (defpackage :clun.cli
@@ -387,7 +399,8 @@
 (defpackage :clun.runtime
   (:use :cl)
   (:local-nicknames (:eng :clun.engine) (:sys :clun.sys) (:lp :clun.loop)
-                    (:net :clun.net) (:ws :clun.websocket))
+                    (:net :clun.net) (:ws :clun.websocket)
+                    (:cmp :clun.compress))
   (:documentation "Globals wiring: console/inspector, process, timers, Clun global, node/ modules.")
   (:export #:install-runtime #:process-exit #:process-exit-code
            #:run-exit-handlers #:*runtime* #:runtime-exit-code #:format-log-args
@@ -473,6 +486,15 @@ hardened verify-then-commit extractor + content-addressed cache.")
    #:inflate-gzip #:read-tar-entries #:extract-package
    #:cache-root #:cache-path #:cache-store #:cache-fetch
    #:*max-inflated-bytes* #:*max-entry-size*))
+
+(defpackage :clun.archive
+  (:use :cl)
+  (:local-nicknames (:sys :clun.sys) (:tb :clun.tarball) (:cmp :clun.compress))
+  (:documentation "Phase 74 pure-CL ustar writer + tar/tar.gz extract helpers for Clun.Archive.")
+  (:export
+   #:write-tar #:build-archive-bytes #:parse-archive-bytes #:extract-archive
+   #:%glob-match
+   #:build-zip #:read-zip-entries))
 
 (defpackage :clun.installer
   (:use :cl)

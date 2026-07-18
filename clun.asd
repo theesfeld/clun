@@ -16,7 +16,7 @@
                ;; the vendored TLS 1.3 stack (ironclad + the Phase-19 closure come with it).
                ;; flexi-streams (in pure-tls's closure) gives an in-memory octet input stream for
                ;; the Phase-22 bounded gzip inflate (chipz decompressing stream).
-               "cl-ppcre" "chipz" "pure-tls" "flexi-streams" "ironclad")
+               "cl-ppcre" "chipz" "salza2" "pure-tls" "flexi-streams" "ironclad")
   :serial t
   :components ((:module "src"
                 :serial t
@@ -113,6 +113,12 @@
                                            (:file "linker")
                                            (:file "lockfile")
                                            (:file "installer")))
+                             ;; Phase 74: pure-CL compress + ustar/zip (Clun.Archive / gzipSync).
+                             (:module "archive"
+                              :serial t
+                              :components ((:file "compress")
+                                           (:file "tar-write")
+                                           (:file "zip")))
                              (:module "engine"
                               :serial t
                               :components ((:file "values")
@@ -208,7 +214,9 @@
                                            (:file "clun-yaml") ; Clun.YAML (Phase 31) — before clun-global
                                            (:file "clun-markdown") ; Clun.markdown (Phase 75)
                                            (:file "html-rewriter") ; HTMLRewriter global (Phase 75)
+                                           (:file "clun-cron") ; Clun.cron (Phase 76) — before clun-global
                                            (:file "clun-global")
+                                           (:file "clun-archive") ; gzip/deflate/zip + Archive (Phase 74); needs %async
                                            (:file "abort")     ; AbortController/AbortSignal (Phase 14)
                                            (:file "globals")   ; structuredClone, crypto (Phase 12)
                                            (:file "web-http")  ; Headers/Request/Response (Phase 17)
@@ -330,7 +338,8 @@
                                                          (:file "url-tests")
                                                          (:file "spawn-tests")
                                                          (:file "shell-tests")
-                                                         (:file "scripts-tests")))
+                                                         (:file "scripts-tests")
+                                                         (:file "cron-tests")))
                                            (:module "transpiler"
                                             :serial t
                                             :components ((:file "ts-strip-tests")))
@@ -357,4 +366,8 @@
                                                          (:file "tarball-tests")
                                                          (:file "resolver-tests")
                                                          (:file "install-tests")
-                                                         (:file "cli-tests")))))))))
+                                                         (:file "cli-tests")))
+                                           (:module "archive"
+                                            :serial t
+                                            :components ((:file "compress-tests")
+                                                         (:file "archive-tests")))))))))

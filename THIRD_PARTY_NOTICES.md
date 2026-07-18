@@ -36,3 +36,8 @@ This corpus is not incorporated into Clun's runtime executable.
 The corresponding Clun source for each binary release is the Git tag bearing
 the same version. System-library and vendored-component terms apply in addition
 to Clun's GPL terms where required.
+
+## salza2
+
+Vendored pure Common Lisp DEFLATE/gzip/zlib compressor (Zachary Beane et al.), BSD-style license.
+Source: `vendor/salza2/`. Used for `Clun.gzipSync` / `deflateSync` / ZIP deflate (Issue #134).

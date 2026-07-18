@@ -185,19 +185,53 @@
        (or (eng:js-array-p value)
            (eq (eng:js-object-class value) :object))))
 
+(defun %snapshot-accessor-label (descriptor)
+  "Bun-shaped accessor tokens for own enumerable getters/setters."
+  (let* ((get-slot (eng:pd-get descriptor))
+         (set-slot (eng:pd-set descriptor))
+         (getter (and (not (eq get-slot :unset)) (eng:callable-p get-slot)))
+         (setter (and (not (eq set-slot :unset)) (eng:callable-p set-slot))))
+    (cond ((and getter setter) "[Getter/Setter]")
+          (getter "[Getter]")
+          (setter "[Setter]")
+          (t "undefined"))))
+
+(defun %snapshot-accessor-token-p (value)
+  (and (stringp value)
+       (or (string= value "[Getter]")
+           (string= value "[Setter]")
+           (string= value "[Getter/Setter]"))))
+
+(defun %snapshot-own-property-value (object key)
+  "Read an own enumerable property for snapshots without invoking accessors."
+  (let ((descriptor (eng:obj-own-desc object key)))
+    (cond
+      ((null descriptor) eng:+undefined+)
+      ((eng:accessor-descriptor-p descriptor)
+       (%snapshot-accessor-label descriptor))
+      ((eq (eng:pd-value descriptor) :unset) eng:+undefined+)
+      (t (eng:pd-value descriptor)))))
+
 (defun %snapshot-quote-string (value)
+  "Quote VALUE with Bun snapshot escapes (control bytes as \\xHH, standard escapes)."
   (with-output-to-string (output)
     (write-char #\" output)
     (loop for character across value do
       (case character
         (#\" (write-string "\\\"" output))
         (#\\ (write-string "\\\\" output))
+        (#\` (write-string "\\`" output))
         (#\Newline (write-char #\Newline output))
         (#\Tab (write-string "\\t" output))
         (#\Return (write-string "\\r" output))
-        (t (if (< (char-code character) #x20)
-               (format output "\\x~2,'0X" (char-code character))
-               (write-char character output)))))
+        (t
+         (let ((code (char-code character)))
+           (cond
+             ((< code #x20)
+              (format output "\\x~2,'0x" code))
+             ((or (<= #xd800 code #xdfff) (= code #xfffe) (= code #xffff))
+              (format output "\\u~4,'0x" code))
+             (t (write-char character output)))))))
     (write-char #\" output)))
 
 (defun %snapshot-constructor-name (value)
@@ -222,7 +256,8 @@
               (write-string (%snapshot-indent (+ indent 2)) output)
               (write-string
                (%snapshot-format-matched
-                (eng:js-getv value key) (and present-p child-spec)
+                (%snapshot-own-property-value value key)
+                (and present-p child-spec)
                 matcher-label (+ indent 2) seen)
                output)
               (write-char #\, output)
@@ -246,11 +281,14 @@
               (write-string (%snapshot-indent (+ indent 2)) output)
               (write-string (%snapshot-format-key key) output)
               (write-string ": " output)
-              (write-string
-               (%snapshot-format-matched
-                (eng:js-getv value key) (and present-p child-spec)
-                matcher-label (+ indent 2) seen)
-               output)
+              (let ((child (%snapshot-own-property-value value key)))
+                (write-string
+                 (if (%snapshot-accessor-token-p child)
+                     child
+                     (%snapshot-format-matched
+                      child (and present-p child-spec)
+                      matcher-label (+ indent 2) seen))
+                 output))
               (write-char #\, output)
               (write-char #\Newline output)))
           (write-string (%snapshot-indent indent) output)
@@ -357,6 +395,7 @@
   (let ((token (and properties matcher-label (funcall matcher-label properties))))
     (cond
       (token token)
+      ((%snapshot-accessor-token-p value) value)
       ((and properties (%snapshot-structural-properties-p properties)
             (eng:js-object-p value))
        (when (gethash value seen)

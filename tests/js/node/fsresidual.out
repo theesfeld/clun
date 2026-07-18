@@ -1,0 +1,11 @@
+link payload true
+chown true true
+utimes-num true true
+utimes-date true true
+readlink true
+chmod true
+trunc pay
+copy pay
+promises function function function function function function function function function function function function
+callbacks function function function function function function function function function function function function
+done true

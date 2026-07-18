@@ -3288,6 +3288,44 @@ additional shell-language inventory sites after #122/#123 (overall
 - Four-target platforms.tsv `supported`; ledger `clun_state=Yes`.
 - Release train: `0.1.0-dev.33`.
 
+## 2026-07-18 — Phase 74 archive/compression pure-CL APIs (#134)
+
+Ship Bun-shaped pure-CL compression and archive surface without a new ledger row:
+
+- **Matrix lock:** `compat-validate` requires exactly 30 `features.tsv` rows. There is no
+  `archive-compression` summary ID. Do **not** invent a 31st Yes row.
+- **APIs on `Clun`:** `gzipSync`/`gunzipSync`/`deflateSync`/`inflateSync`,
+  `zipSync`/`unzipSync`, `Archive` (tar + optional gzip), fail-closed `zstd*`.
+- **Codecs:** vendored **salza2** (compress) + existing **chipz** (decompress); ustar
+  writer + hardened extract reusing Phase-22 path checks; pure-CL ZIP (store+deflate).
+- **Evidence:** `tests/lisp/archive/*`, `tests/js/archive/basic.js`; claim lives under
+  Phase 74 / issue #134, not a matrix Yes promotion.
+- SemVer minor → `0.1.0-dev.34` / `v0.1.0-dev.34`.
+
+
+## 2026-07-18 — Phase 74 archive/compression pure-CL APIs (#134)
+
+Ship Bun-shaped pure-CL compression and archive surface without a new ledger row:
+
+- **Matrix lock:** `compat-validate` requires exactly 30 `features.tsv` rows. No
+  `archive-compression` summary ID — do **not** invent a 31st Yes row.
+- **APIs on `Clun`:** `gzipSync`/`gunzipSync`/`deflateSync`/`inflateSync`,
+  `zipSync`/`unzipSync`, `Archive` (tar + optional gzip), fail-closed `zstd*`.
+- **Codecs:** vendored **salza2** (compress) + existing **chipz** (decompress); ustar
+  writer + hardened extract; pure-CL ZIP (store+deflate).
+- SemVer minor → `0.1.0-dev.35` (free slot after master cron `0.1.0-dev.34`).
+
+
+## 2026-07-18 — tooling.test-runner Partial→Yes (#127)
+
+- Multi-file `--parallel` pure-CL process pool with serial/parallel agreement.
+- Exotic snapshot accessor tokens + pathological string/Unicode escapes.
+- `expect.unreachable` + `expectTypeOf` runtime chain close additional 52-root residuals.
+- 52-root residual owners dispositioned (engine/runtime/upstream-meta dominate).
+- Watch integration deferred to Phase 67; JSX coverage mapping follows language JSX.
+- Four-target platforms.tsv `supported`; ledger `clun_state=Yes`.
+- Release train: `0.1.0-dev.36` (reslot after archive Yes landed as `.35`).
+
 ## 2026-07-18 — Phase 75 Markdown + HTMLRewriter pure-CL checkpoint
 
-Ship Bun-shaped `Clun.markdown` and `HTMLRewriter` in pure CL under issues #49/#135 as beyond-matrix evidence (not a frozen 30-row Yes). Candidate `0.1.0-dev.34`.
+Ship Bun-shaped `Clun.markdown` and `HTMLRewriter` in pure CL under issues #49/#135 as beyond-matrix evidence (not a frozen 30-row Yes). Candidate `0.1.0-dev.37` after rebase onto master `0.1.0-dev.36`.

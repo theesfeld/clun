@@ -14,11 +14,11 @@ test/js/bun/test/expect-extend.test.js	custom-matchers	28	0	0	0	1	0	upstream-met
 test/js/bun/test/expect-label.test.ts	expect	0	1	0	0	1	0	upstream-meta:strip-ansi-dep	strip-ansi dependency not resolved under clun test
 test/js/bun/test/expect-stack-overflow-crash.test.ts	expect	1	0	0	0	1	0	engine:using-or-typescript-syntax	Parser rejects using/TS form (missing semicolon before ident)
 test/js/bun/test/expect-symbol-toPrimitive-crash.test.ts	expect	1	0	0	0	1	0	engine:using-or-typescript-syntax	Parser rejects using/TS form (missing semicolon before ident)
-test/js/bun/test/expect-toHaveReturnedWith.test.js	mocks	13	0	0	12	1	0	test-runner:partial-assert-gap	bun:test resolves; residual assertion/behavior gap vs Bun
-test/js/bun/test/expect-type-doctest.test.ts	expect	0	0	0	0	1	0	test-runner:expectTypeOf-or-api-gap	expectTypeOf / type-level or related API residual after bun:test resolve
-test/js/bun/test/expect-type-global.test.ts	expect	1	0	0	0	1	0	test-runner:loaded-zero-pass	bun:test resolves and file loads; residual failure at runtime
-test/js/bun/test/expect-type.test.ts	expect	1	0	0	0	1	0	test-runner:loaded-zero-pass	bun:test resolves and file loads; residual failure at runtime
-test/js/bun/test/expect-unreaachable.test.ts	expect	1	0	0	0	1	0	test-runner:loaded-zero-pass	bun:test resolves and file loads; residual failure at runtime
+test/js/bun/test/expect-toHaveReturnedWith.test.js	mocks	13	0	0	13	0	0	closed	root matches Bun pass set after mock matcher message parity
+test/js/bun/test/expect-type-doctest.test.ts	expect	0	0	0	0	0	0	upstream-meta:type-only-doctest	type-only top-level expectTypeOf doctest has no runtime test() cases
+test/js/bun/test/expect-type-global.test.ts	expect	1	0	0	1	0	0	closed	expectTypeOf runtime no-op chain + global install
+test/js/bun/test/expect-type.test.ts	expect	1	0	0	1	0	0	closed	expectTypeOf runtime no-op chain
+test/js/bun/test/expect-unreaachable.test.ts	expect	1	0	0	1	0	0	closed	expect.unreachable installed on expect
 test/js/bun/test/expect.test.js	expect	398	8	10	0	1	0	engine:class-fields	ES2017+ class fields required by root source
 test/js/bun/test/expect/toHaveReturnedWith.test.ts	mocks	41	0	0	41	0	0	closed	bun:test ESM resolve closed; root matches Bun pass set on this measurement
 test/js/bun/test/failure-skip.test.ts	lifecycle	11	0	0	0	1	0	upstream-meta:bun-harness+cli-meta-spawn	Upstream harness module / host-spawn residual after bun:test resolve
@@ -48,6 +48,6 @@ test/js/bun/test/test-error-code-done-callback.test.ts	lifecycle	1	0	0	0	1	0	ups
 test/js/bun/test/test-failing.test.ts	lifecycle	8	0	0	0	1	0	runtime:bun-namespace-module	import from bun package/namespace not provided
 test/js/bun/test/test-on-test-finished.test.ts	core	12	0	0	0	1	0	test-runner:expectTypeOf-or-api-gap	expectTypeOf / type-level or related API residual after bun:test resolve
 test/js/bun/test/test-only.test.ts	lifecycle	4	0	0	0	1	0	runtime:bun-namespace-module	import from bun package/namespace not provided
-test/js/bun/test/test-retry-repeats-basic.test.ts	lifecycle	12	0	0	11	1	0	test-runner:partial-assert-gap	bun:test resolves; residual assertion/behavior gap vs Bun
+test/js/bun/test/test-retry-repeats-basic.test.ts	lifecycle	12	0	0	11	1	0	test-runner:partial-assert-gap	11/12 pass; residual nested afterAll log assertion under retry
 test/js/bun/test/test-test.test.ts	lifecycle	24	0	16	0	1	0	runtime:bun-namespace-module	import from bun package/namespace not provided
 test/js/bun/test/test-timers.test.ts	timers	1	3	0	0	1	0	engine:using-or-typescript-syntax	Parser rejects using/TS form (missing semicolon before ident)

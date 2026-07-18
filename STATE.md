@@ -10,23 +10,18 @@ Update when work completes; keep consistent with the Issue, README, and site.
 ## Current phase: **75 - Data formats, Markdown, and HTMLRewriter**
 
 **Canonical issue:** https://github.com/theesfeld/clun/issues/49
-**Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/120,
-https://github.com/theesfeld/clun/issues/23, https://github.com/theesfeld/clun/issues/40,
-and https://github.com/theesfeld/clun/issues/25
+**Child Yes issue:** https://github.com/theesfeld/clun/issues/135
 **Current implementation unit:** Phase 75 Markdown + HTMLRewriter pure-CL checkpoint (#49 / #135).
 Ships Bun-shaped `Clun.markdown` and global `HTMLRewriter` (beyond-matrix; not a 30-row Yes).
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.34` / `v0.1.0-dev.34`
+**Candidate release:** `0.1.0-dev.37` / `v0.1.0-dev.37`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
-**Entry boundary:** installer on `v0.1.0-dev.21`; candidate `0.1.0-dev.34` remains staged after #126.
-**Next scope:** next Yes conversions on Partial rows (test-runner, websocket, webstd, npm, node, TS, HTTP); shell ledger Yes held.
+**Entry boundary:** installer on `v0.1.0-dev.21`; free slot after master test-runner Yes `0.1.0-dev.36`.
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
 easiest to hardest among dependency-ready rows. Core engine/runtime/network/tooling changes are expected.
 Every conversion requires a legitimate canonical issue, accepted design, full declared behavior, executable
-four-target evidence, synchronized public surfaces, and the correct SemVer transition. The active parallel
-queue is YAML, transport streaming, shell, test-runner parity, and the dependency-enabling modern ECMAScript
-wave; exact canonical ledger IDs are frozen in `PLAN.md`.
+four-target evidence, synchronized public surfaces, and the correct SemVer transition.
 
 **Current checkpoint:** the integrated YAML parser reports **402 pass / 0 fail / 402 total** and **408
 assertions** in the exact pinned corpus. Exact master CI **29560539473**, Documentation **29560539481**,

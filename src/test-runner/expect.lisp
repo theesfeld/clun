@@ -554,7 +554,7 @@ the length property), or NIL when V has no numeric length."
 (defun %apply-mock-matcher (name actual negated args)
   (let* ((canonical (%canonical-mock-matcher name))
          (record (mock-record-for actual)))
-    (unless record (%fail "expect(received).~a(...) requires a mock function" name))
+    (unless record (%fail "Expected value must be a mock function"))
     (let* ((calls (reverse (mock-calls record)))
            (results (reverse (mock-results record)))
            (returns (remove-if-not (lambda (entry) (eq (result-kind entry) :return)) results))
@@ -1089,6 +1089,47 @@ applies MATCHER to the fulfilled value (resolves) or rejection reason (rejects).
       (%install-custom-static expect ctx (car entry) (cdr entry))))
   eng:+undefined+)
 
+(defun %expect-unreachable (this args)
+  "Bun `expect.unreachable([message|Error])` — always fails the current test."
+  (declare (ignore this))
+  (let ((argument (eng:arg args 0)))
+    (cond
+      ((eng:js-undefined-p argument)
+       (%fail "reached unreachable code"))
+      ((and (eng:js-object-p argument)
+            (eq (eng:js-object-class argument) :error))
+       (eng:throw-js-value argument))
+      (t (%fail "~a" (eng:to-string argument))))))
+
+(defun %make-expect-type-of ()
+  "Runtime no-op surface for Bun's type-level `expectTypeOf` chain.
+Type assertions are compile-time only; Clun exposes a chainable object so files
+that import `expectTypeOf` load and run without engine TypeScript types."
+  (let ((chain (eng:new-object)))
+    (labels ((install-noop (name)
+               (eng:install-method chain name 1
+                 (lambda (this args)
+                   (declare (ignore this args))
+                   chain)))
+             (install-getter-noop (name)
+               (eng:install-getter chain name
+                 (lambda (this args)
+                   (declare (ignore this args))
+                   chain))))
+      (dolist (name '("toEqualTypeOf" "toMatchTypeOf" "toMatchObjectType"
+                      "toBeAny" "toBeUnknown" "toBeNever" "toBeFunction"
+                      "toBeObject" "toBeArray" "toBeString" "toBeNumber"
+                      "toBeBoolean" "toBeVoid" "toBeUndefined" "toBeNull"
+                      "toBeNullable" "toBeOptional" "brands" "toHaveProperty"
+                      "toBeCallableWith" "extract" "exclude" "parameter"))
+        (install-noop name))
+      ;; Chain properties used as `expectTypeOf(fn).parameters.toEqualTypeOf(...)`.
+      (dolist (name '("not" "resolves" "rejects" "parameters" "returns"
+                      "constructorParameters" "instance" "items" "flags"
+                      "value" "thisParameter"))
+        (install-getter-noop name))
+      chain)))
+
 (defun install-expect (realm ctx)
   (let ((eng:*realm* realm) (g (eng:realm-global realm)))
     (let ((expect (eng:make-native-function "expect" 1
@@ -1105,6 +1146,7 @@ applies MATCHER to the fulfilled value (resolves) or rejection reason (rejects).
         (lambda (this args)
           (declare (ignore this))
           (%extend-expect expect ctx (eng:arg args 0))))
+      (eng:install-method expect "unreachable" 1 #'%expect-unreachable)
       (%install-asymmetric-family expect nil :include-any t :ctx ctx)
       (%install-settlement-getters expect nil ctx)
       (eng:install-getter expect "not"
@@ -1113,4 +1155,12 @@ applies MATCHER to the fulfilled value (resolves) or rejection reason (rejects).
           (let ((namespace
                   (%install-asymmetric-family (eng:new-object) t :ctx ctx)))
             (%install-settlement-getters namespace t ctx))))
-      (eng:hidden-prop g "expect" expect))))
+      (eng:hidden-prop g "expect" expect)
+      (let ((expect-type-of
+              (eng:make-native-function "expectTypeOf" 1
+                (lambda (this args)
+                  (declare (ignore this args))
+                  (%make-expect-type-of)))))
+        (eng:hidden-prop g "expectTypeOf" expect-type-of)
+        (eng:data-prop expect "typeOf" expect-type-of))
+      expect)))
