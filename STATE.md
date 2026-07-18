@@ -19,8 +19,7 @@ toNamespacedPath/`_makeLong`, cross-links. `runtime.node-compatibility` stays **
 **Candidate release:** `0.1.0-dev.28` / `v0.1.0-dev.28`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
 **Entry boundary:** immutable `v0.1.0-dev.21` is tagged; installer defaults to that tag. Master tip is
-`0.1.0-dev.26` after shell #111; concurrent #110 claims `0.1.0-dev.27`; this unit stages free
-`0.1.0-dev.28`. Phase 26 remains after Phase 82.
+`0.1.0-dev.27` after concurrent #110; this unit stages free `0.1.0-dev.28`. Phase 26 remains after Phase 82.
 **Next scope:** keep node-compat Partial (no matrix Yes); land path.win32 residual with green CI.
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
 easiest to hardest among dependency-ready rows. Core engine/runtime/network/tooling changes are expected.
@@ -1967,3 +1966,10 @@ Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-earl
 - Published: `v0.1.0-dev.19` @ `1a523491` (#40); `v0.1.0-dev.21` @ `a8f45013` (#11).
 - Installer / ledger previous_version: `v0.1.0-dev.21` while source candidate is `0.1.0-dev.26`.
 - Shell inventory PR #111: unpublished patch correction of `0.1.0-dev.26` (Partial; no tooling.shell Yes).
+
+## Phase 66 concurrent scheduling (Issue #40, 0.1.0-dev.27)
+
+- Implemented pure-CL `test.concurrent` / `describe.concurrent` / `test.serial` / `describe.serial`, `concurrentIf` / `serialIf`, CLI `--concurrent` and `--max-concurrency`.
+- Bun-shaped consecutive concurrent groups with overlapping async settlement; serial tests form isolation boundaries.
+- Fixtures: `tests/js/testrunner/concurrent{,immediate,serial,flag,isol}/`.
+- Ledger remains **Partial** (not Yes). Master base after shell #111 is `0.1.0-dev.26`; this candidate is `0.1.0-dev.27`.

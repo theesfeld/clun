@@ -14,11 +14,8 @@ The canonical evidence and current limitations are in `compat/`; `make compat-va
 
 ## Highlights
 
-- Ships pure-CL `node:path.win32` string algorithms so `require('path').win32` no longer throws.
-- Implements sep/delimiter, basename/dirname/extname, isAbsolute, normalize, join, resolve,
-  relative, parse, format, toNamespacedPath/`_makeLong`, and Node-shaped posix/win32 cross-links.
+- Ships pure-CL `node:path.win32` so `require('path').win32` no longer throws.
 - Does **not** promote `runtime.node-compatibility` to ledger `Yes`.
-- Slot map: master tip `0.1.0-dev.26`; concurrent #110 claims `0.1.0-dev.27`; this candidate is
-  `0.1.0-dev.28`.
+- Transition `0.1.0-dev.27` → `0.1.0-dev.28` after concurrent #110 on master.
 
 The release candidate stages honest Node path residual work without promoting any matrix row to `Yes`.

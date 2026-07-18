@@ -1,0 +1,11 @@
+(pass) c1
+(pass) c2
+(pass) serial-mid
+(pass) c3
+(pass) c4
+(pass) assert isolation
+
+ 6 pass
+ 0 fail
+ 8 expect() calls
+Ran 6 tests across 1 file.

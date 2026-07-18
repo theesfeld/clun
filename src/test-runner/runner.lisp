@@ -14,7 +14,9 @@
   (coverage-include-test-files nil) (coverage-files-explicit-p nil)
   (coverage-ignore-patterns '())
   (coverage-threshold-lines nil) (coverage-threshold-functions nil)
-  (coverage-threshold-statements nil) (error-message nil))
+  (coverage-threshold-statements nil)
+  (concurrent nil) (max-concurrency 20)
+  (error-message nil))
 
 (defun %test-seed (value)
   (when (and value (plusp (length value)) (<= (length value) 10)
@@ -168,6 +170,24 @@
                        (format nil "Invalid seed value: ~a" value)))))
           ((or (string= tok "-u") (string= tok "--update-snapshots"))
            (setf (to-update-snapshots o) t))
+          ((string= tok "--concurrent") (setf (to-concurrent o) t))
+          ((string= tok "--max-concurrency")
+           (let ((v (next)))
+             (if v
+                 (let ((n (parse-integer v :junk-allowed t)))
+                   (if n
+                       (setf (to-max-concurrency o) (max 0 n))
+                       (setf (to-error-message o)
+                             (format nil "Invalid max-concurrency: ~a" v))))
+                 (setf (to-error-message o) "--max-concurrency requires a value"))))
+          ((and (>= (length tok) 18)
+                (string= (subseq tok 0 18) "--max-concurrency="))
+           (let* ((value (subseq tok 18))
+                  (n (parse-integer value :junk-allowed t)))
+             (if n
+                 (setf (to-max-concurrency o) (max 0 n))
+                 (setf (to-error-message o)
+                       (format nil "Invalid max-concurrency: ~a" value)))))
           ((string= tok "--bail") (setf (to-bail o) 1))
           ((and (>= (length tok) 7) (string= (subseq tok 0 7) "--bail="))
            (setf (to-bail o) (max 1 (or (parse-integer (subseq tok 7) :junk-allowed t) 1))))
@@ -338,6 +358,8 @@ error (syntax / top-level throw) is reported as a fail. Always tears the realm d
                                               :name-re (%build-regexp realm (to-name-pattern opts))
                                               :bail (to-bail opts)
                                               :snapshot snapshot
+                                              :default-concurrent (to-concurrent opts)
+                                              :max-concurrency (to-max-concurrency opts)
                                               :random-state
                                               (and (to-randomize opts)
                                                    (%test-file-prng path (to-seed opts))))))
