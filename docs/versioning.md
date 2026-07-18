@@ -57,6 +57,8 @@ resource does not exist with a 404 response:
 0.1.0-dev.23
 0.1.0-dev.24
 0.1.0-dev.25
+0.1.0-dev.26
+0.1.0-dev.27
 ```
 
 Phase 25b is the compatibility program for the planned `0.1.0` release. Its first behavioral
@@ -115,16 +117,23 @@ but Phase 37 and Issue #11 remain in progress and make no full language-parity c
 Phase 50 stages `0.1.0-dev.17` / `v0.1.0-dev.17` under Issue #24 (router PR #85) and is published on
 master. Phase 65 stages `0.1.0-dev.18` / `v0.1.0-dev.18` under Issue #39 (shell PR #86; published).
 Phase 66 stages `0.1.0-dev.19` / `v0.1.0-dev.19` under Issue #40 (test-runner PR #88 on master).
-Phase 28 stages `0.1.0-dev.20` / `v0.1.0-dev.20` under Issue #2. Phase 37 milestone 2 merged as
-`0.1.0-dev.21` / `v0.1.0-dev.21` under Issue #11 (PR #96). Parallel trains may hold unpublished
-intermediate slots (`0.1.0-dev.22`–`0.1.0-dev.24`). This Phase 66 concurrent-scheduling unit stages
-`0.1.0-dev.25` / `v0.1.0-dev.25` under Issue #40. Version-transition allows multi-step prerelease
-advances only while every skipped intermediate remains unpublished, so parallel drafts may allocate
-later slots without claiming each other's tags. Concurrent/serial test scheduling is a
+Phase 28 stages `0.1.0-dev.20` / `v0.1.0-dev.20` under Issue #2. Phase 37 milestone 2 stages
+`0.1.0-dev.21` / `v0.1.0-dev.21` under Issue #11 (PR #96). Parallel topic branches claimed unpublished intermediate slots through `0.1.0-dev.25`. Phase 58
+constitutional secrets checkpoint merged as free `0.1.0-dev.26` / `v0.1.0-dev.26` under Issue #32.
+This Phase 66 concurrent-scheduling residual stages the next free slot `0.1.0-dev.27` / `v0.1.0-dev.27` under Issue #40 (PR #110). Concurrent/serial test scheduling is a
 backward-compatible test-runner API addition and therefore its SemVer impact is `minor` within the
-selected `0.1.0` core. The compatibility row remains `Partial` (not Yes). Until gates complete, the
-installer and immutable published boundary remain dev.18; Phase 66 remains open and makes no full
-test-runner or matrix Yes claim.
+selected `0.1.0` core. The compatibility row remains `Partial` (not Yes). Version-transition allows
+multi-step prerelease advances only while every skipped intermediate remains unpublished, so
+parallel drafts may allocate later slots without claiming each other's tags. Phase 37 m2 adds backward-compatible
+`Array.fromAsync` and supporting lexer/parser admissions and therefore its SemVer impact is `minor`
+within the selected `0.1.0` core. Until gates complete, the installer and immutable published
+boundary remain dev.18; Phase 37 remains open and makes no full language-parity or matrix Yes claim.
+Phase 51 M0 (WebSocket constitutional checkpoint, Issue #25 / PR #107) retains unpublished
+`0.1.0-dev.21` / `v0.1.0-dev.21` as a release-bearing correction: fail-closed `Clun.serve` refusal of
+WebSocket options/APIs with SemVer impact is `minor`; ledger `server.websocket` remains No and no new
+prerelease slot is allocated.
+
+Phase 28 stages `0.1.0-dev.22` / `v0.1.0-dev.22` under Issue #2 (transport PR #95) as the exact next prerelease on top of master `0.1.0-dev.21` (slot `dev.20` remains unused/unpublished). Phase 28 adds backward-compatible pure-CL TLS 1.2 registry transport, DNS and Happy Eyeballs, streaming Fetch, HTTP pooling, and proxy/CONNECT support and therefore its SemVer impact is `minor` within the selected `0.1.0` core. Until Phase 28 gates complete, `runtime.web-standard-apis` and `package-manager.npm` remain Partial and are not claimed as Yes.
 
 ## Canonical record
 

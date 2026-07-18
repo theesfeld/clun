@@ -155,6 +155,37 @@
   (is eq eng:+true+ (ev "var s=new Set();s.add(-0);1/[...s.values()][0] === Infinity"))
   (is eq eng:+true+ (ev "var e=[...new Set([-0]).entries()][0]; 1/e[0]===Infinity && 1/e[1]===Infinity")))
 
+(define-test builtins/set-methods
+  ;; Phase 37 m3: Set.prototype set-methods (ES2025).
+  (is string= "union,1,intersection,1,difference,1,symmetricDifference,1,isSubsetOf,1,isSupersetOf,1,isDisjointFrom,1"
+      (ev "['union','intersection','difference','symmetricDifference','isSubsetOf','isSupersetOf','isDisjointFrom'].map(function(n){var f=Set.prototype[n];return [f.name,f.length].join(',')}).join(',')"))
+  (is string= "1,2,3"
+      (ev "[...new Set([1,2]).union(new Set([2,3]))].join(',')"))
+  (is string= "2"
+      (ev "[...new Set([1,2]).intersection(new Set([2,3]))].join(',')"))
+  (is string= "1"
+      (ev "[...new Set([1,2]).difference(new Set([2,3]))].join(',')"))
+  (is string= "1,3"
+      (ev "[...new Set([1,2]).symmetricDifference(new Set([2,3]))].join(',')"))
+  (is eq eng:+true+ (ev "new Set([1,2]).isSubsetOf(new Set([1,2,3]))"))
+  (is eq eng:+true+ (ev "new Set([1,2,3]).isSupersetOf(new Set([1,2]))"))
+  (is eq eng:+true+ (ev "new Set([1,2]).isDisjointFrom(new Set([3,4]))"))
+  (is eq eng:+false+ (ev "new Set([1,2]).isDisjointFrom(new Set([2,3]))"))
+  ;; Result is always a base Set, never species/subclass.
+  (is eq eng:+true+
+      (ev "class MySet extends Set { static get [Symbol.species](){return MySet} } var r=new MySet([1]).union(new Set([2])); r instanceof Set && !(r instanceof MySet)"))
+  ;; Set-like object: size/has/keys; union does not call has.
+  (is string= "1,2,3"
+      (ev "var o={size:2,has:function(){throw 'has'},keys:function(){return [2,3][Symbol.iterator]()}}; [...new Set([1,2]).union(o)].join(',')"))
+  ;; -0 canonicalization across methods
+  (is eq eng:+true+
+      (ev "var s=new Set([-0]).union(new Set([0])); s.size===1 && 1/[...s][0]===Infinity"))
+  ;; GetSetRecord rejects non-objects / arrays / NaN size
+  (is eq eng:+true+
+      (ev "(function(){try{new Set().union([1]);return false}catch(e){return e instanceof TypeError}})()"))
+  (is eq eng:+true+
+      (ev "(function(){try{new Set().union({size:NaN,has:function(){},keys:function(){return [][Symbol.iterator]()}});return false}catch(e){return e instanceof TypeError}})()")))
+
 (define-test builtins/date-utc
   (is string= "1970-01-01T00:00:00.000Z" (ev "new Date(0).toISOString()"))
   (is eql 2020d0 (ev "new Date('2020-01-15T12:30:00Z').getUTCFullYear()"))

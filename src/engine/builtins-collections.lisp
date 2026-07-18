@@ -129,6 +129,213 @@
 
 ;;; --- Set --------------------------------------------------------------------
 
+;;; Set methods (ES2025 / Phase 37 m3): GetSetRecord + union/intersection/
+;;; difference/symmetricDifference/isSubsetOf/isSupersetOf/isDisjointFrom.
+;;; Results always use %Set.prototype% (never Symbol.species / subclass).
+;;; Elements are written into [[SetData]] directly — Set.prototype.add is never
+;;; invoked for construction of the result.
+
+(defstruct (set-record (:conc-name sr-) (:constructor %make-set-record (object size has keys)))
+  object size has keys)
+
+(defun get-set-record (obj)
+  "GetSetRecord (obj) — §24.2.1.2."
+  (unless (js-object-p obj)
+    (throw-type-error "Set method argument is not an object"))
+  (let* ((raw-size (js-get obj "size"))
+         (number-size (to-number raw-size)))
+    (when (js-nan-p number-size)
+      (throw-type-error "Set-like size is NaN"))
+    (let ((int-size (to-integer-or-infinity number-size)))
+      (when (< int-size 0d0)
+        (throw-range-error "Set-like size is negative"))
+      (let ((has (js-get obj "has")))
+        (unless (callable-p has)
+          (throw-type-error "Set-like has is not callable"))
+        (let ((keys (js-get obj "keys")))
+          (unless (callable-p keys)
+            (throw-type-error "Set-like keys is not callable"))
+          (%make-set-record obj int-size has keys))))))
+
+(defun md-copy (md)
+  "Shallow-copy map/set data: new index + order of non-deleted entries (compact)."
+  (let ((out (make-map-data)))
+    (loop for e across (md-order md)
+          do (unless (me-deleted e)
+               (md-set out (me-key e) (me-value e))))
+    out))
+
+(defun md-copy-with-empties (md)
+  "Copy map/set data preserving deleted holes and order indices (for difference)."
+  (let* ((n (fill-pointer (md-order md)))
+         (out (make-map-data))
+         (order (make-array n :adjustable t :fill-pointer n)))
+    (setf (md-order out) order
+          (md-live out) (md-live md))
+    (dotimes (i n)
+      (let* ((e (aref (md-order md) i))
+             (ne (make-mentry :key (me-key e) :value (me-value e)
+                              :deleted (me-deleted e))))
+        (setf (aref order i) ne)
+        (unless (me-deleted e)
+          (setf (gethash (%svz-key (me-key e)) (md-index out)) ne))))
+    out))
+
+(defun md-mark-empty (md key)
+  "Mark KEY empty in MD if present (difference / symmetricDifference)."
+  (md-delete md key))
+
+(defun md-setdata-size (md)
+  "SetDataSize — count of non-empty entries."
+  (md-live md))
+
+(defun md-setdata-length (md)
+  "Number of elements in [[SetData]] including empties."
+  (fill-pointer (md-order md)))
+
+(defun md-append-value (md value)
+  "Append VALUE to set data without going through Set.prototype.add."
+  (let ((k (%svz-store value)))
+    (md-set md k k)))
+
+(defun %set-from-data (md)
+  "Ordinary Set instance with %Set.prototype% and the given [[SetData]]."
+  (%make-js-set :proto (intrinsic :set-prototype) :data md))
+
+(defun %set-call-has (record entry)
+  "ToBoolean(Call(other.has, other, « entry »))."
+  (js-truthy (js-call (sr-has record) (sr-object record) (list entry))))
+
+(defun %set-keys-iterator (record)
+  "GetIteratorFromMethod(other, other.keys)."
+  (get-iterator-record (sr-object record) (sr-keys record)))
+
+(defun %set-union (this other)
+  (let* ((md (this-set-data this))
+         (record (get-set-record other))
+         (result (md-copy md))
+         (keys-it (%set-keys-iterator record)))
+    (loop
+      (multiple-value-bind (value done) (iterator-step-value keys-it)
+        (when done (return (%set-from-data result)))
+        (let ((v (%svz-store value)))
+          (unless (md-get-entry result v)
+            (md-append-value result v)))))))
+
+(defun %set-intersection (this other)
+  (let* ((md (this-set-data this))
+         (record (get-set-record other))
+         (result (make-map-data)))
+    (if (<= (md-setdata-size md) (sr-size record))
+        (let ((this-size (md-setdata-length md))
+              (index 0))
+          (loop while (< index this-size)
+                do (let ((e (aref (md-order md) index)))
+                     (incf index)
+                     (unless (me-deleted e)
+                       (when (%set-call-has record (me-key e))
+                         (unless (md-get-entry result (me-key e))
+                           (md-append-value result (me-key e))))
+                       (setf this-size (md-setdata-length md))))))
+        (let ((keys-it (%set-keys-iterator record)))
+          (loop
+            (multiple-value-bind (value done) (iterator-step-value keys-it)
+              (when done (return))
+              (let ((v (%svz-store value)))
+                (when (and (md-get-entry md v)
+                           (not (md-get-entry result v)))
+                  (md-append-value result v)))))))
+    (%set-from-data result)))
+
+(defun %set-difference (this other)
+  (let* ((md (this-set-data this))
+         (record (get-set-record other))
+         ;; Copy after GetSetRecord so side effects on `this` are included.
+         (result (md-copy-with-empties md)))
+    (if (<= (md-setdata-size md) (sr-size record))
+        (let ((this-size (md-setdata-length md))
+              (index 0))
+          (loop while (< index this-size)
+                do (let ((e (aref (md-order result) index)))
+                     (when (and e (not (me-deleted e)))
+                       (when (%set-call-has record (me-key e))
+                         (md-mark-empty result (me-key e))))
+                     (incf index))))
+        (let ((keys-it (%set-keys-iterator record)))
+          (loop
+            (multiple-value-bind (value done) (iterator-step-value keys-it)
+              (when done (return))
+              (let ((v (%svz-store value)))
+                (when (md-get-entry result v)
+                  (md-mark-empty result v)))))))
+    (%set-from-data result)))
+
+(defun %set-symmetric-difference (this other)
+  (let* ((md (this-set-data this))
+         (record (get-set-record other))
+         (keys-it (%set-keys-iterator record))
+         (result (md-copy md)))
+    (loop
+      (multiple-value-bind (value done) (iterator-step-value keys-it)
+        (when done (return (%set-from-data result)))
+        (let* ((v (%svz-store value))
+               (already (and (md-get-entry result v) t))
+               (in-this (and (md-get-entry md v) t)))
+          (if in-this
+              (when already (md-mark-empty result v))
+              (unless already (md-append-value result v))))))))
+
+(defun %set-is-subset-of (this other)
+  (let* ((md (this-set-data this))
+         (record (get-set-record other)))
+    (when (> (md-setdata-size md) (sr-size record))
+      (return-from %set-is-subset-of +false+))
+    (let ((this-size (md-setdata-length md))
+          (index 0))
+      (loop while (< index this-size)
+            do (let ((e (aref (md-order md) index)))
+                 (incf index)
+                 (unless (me-deleted e)
+                   (unless (%set-call-has record (me-key e))
+                     (return-from %set-is-subset-of +false+))
+                   (setf this-size (md-setdata-length md)))))
+      +true+)))
+
+(defun %set-is-superset-of (this other)
+  (let* ((md (this-set-data this))
+         (record (get-set-record other)))
+    (when (< (md-setdata-size md) (sr-size record))
+      (return-from %set-is-superset-of +false+))
+    (let ((keys-it (%set-keys-iterator record)))
+      (loop
+        (multiple-value-bind (value done) (iterator-step-value keys-it)
+          (when done (return +true+))
+          (unless (md-get-entry md value)
+            (iterator-close keys-it)
+            (return +false+)))))))
+
+(defun %set-is-disjoint-from (this other)
+  (let* ((md (this-set-data this))
+         (record (get-set-record other)))
+    (if (<= (md-setdata-size md) (sr-size record))
+        (let ((this-size (md-setdata-length md))
+              (index 0))
+          (loop while (< index this-size)
+                do (let ((e (aref (md-order md) index)))
+                     (incf index)
+                     (unless (me-deleted e)
+                       (when (%set-call-has record (me-key e))
+                         (return-from %set-is-disjoint-from +false+))
+                       (setf this-size (md-setdata-length md)))))
+          +true+)
+        (let ((keys-it (%set-keys-iterator record)))
+          (loop
+            (multiple-value-bind (value done) (iterator-step-value keys-it)
+              (when done (return +true+))
+              (when (md-get-entry md value)
+                (iterator-close keys-it)
+                (return +false+))))))))
+
 (defun %bootstrap-set ()
   (let ((sp (js-make-object (intrinsic :object-prototype))))
     (setf (realm-intrinsic *realm* :set-prototype) sp)
@@ -142,7 +349,14 @@
       (m "clear" 0 (lambda (this args) (declare (ignore args)) (md-clear (this-set-data this)) +undefined+))
       (m "forEach" 1 (lambda (this args) (md-foreach (this-set-data this) (arg args 0) (arg args 1) this t) +undefined+))
       (m "values" 0 (lambda (this args) (declare (ignore args)) (make-map-iterator (this-set-data this) :value :set-iterator-prototype)))
-      (m "entries" 0 (lambda (this args) (declare (ignore args)) (make-map-iterator (this-set-data this) :entry :set-iterator-prototype))))
+      (m "entries" 0 (lambda (this args) (declare (ignore args)) (make-map-iterator (this-set-data this) :entry :set-iterator-prototype)))
+      (m "union" 1 (lambda (this args) (%set-union this (arg args 0))))
+      (m "intersection" 1 (lambda (this args) (%set-intersection this (arg args 0))))
+      (m "difference" 1 (lambda (this args) (%set-difference this (arg args 0))))
+      (m "symmetricDifference" 1 (lambda (this args) (%set-symmetric-difference this (arg args 0))))
+      (m "isSubsetOf" 1 (lambda (this args) (%set-is-subset-of this (arg args 0))))
+      (m "isSupersetOf" 1 (lambda (this args) (%set-is-superset-of this (arg args 0))))
+      (m "isDisjointFrom" 1 (lambda (this args) (%set-is-disjoint-from this (arg args 0)))))
     (obj-set-desc sp "keys" (obj-own-desc sp "values"))
     (obj-set-desc sp (well-known :iterator) (obj-own-desc sp "values"))
     (install-getter sp "size" (lambda (this args) (declare (ignore args)) (coerce (md-live (this-set-data this)) 'double-float)))

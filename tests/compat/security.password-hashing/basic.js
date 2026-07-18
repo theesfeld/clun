@@ -139,13 +139,24 @@ try {
 }
 console.log("async-verify-admission", asyncInvalidReturned, asyncInvalidCode);
 
+// Wait for both the async hash and a macrotimer so the golden line is
+// deterministic. Clun's loop drains worker completions before timers; on fast
+// hosts (notably darwin-arm64 CI) argon2 with cheap options can settle before
+// setTimeout(0), so printing `tick` inside hash.then alone races (0 vs 1).
 let tick = 0;
-setTimeout(function () { tick++; }, 0);
-password.hash("password", {
+const timerP = new Promise(function (resolve) {
+  setTimeout(function () {
+    tick++;
+    resolve();
+  }, 0);
+});
+const hashP = password.hash("password", {
   algorithm: "argon2id",
   memoryCost: 8,
   timeCost: 1,
-}).then(function (encoded) {
+});
+Promise.all([hashP, timerP]).then(function (results) {
+  const encoded = results[0];
   console.log(
     "async-hash",
     tick,

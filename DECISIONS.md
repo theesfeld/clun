@@ -2715,6 +2715,98 @@ corpus, security/resource gates, and four-target receipts pass. The pinned sourc
 Clun translation, and case-level baseline are committed together; no case can be dropped or reclassified
 silently. The dev.14 SemVer target remains valid because Phase 36's password/hash APIs are independent real
 backward-compatible functionality.
+### 2026-07-17 - Phase 28 streams fetch request bodies with bounded half-duplex flow
+
+Fetch normalization preserves runtime-owned `ReadableStream` bodies instead of collecting them. Streaming
+requests require `duplex: "half"`, reject user-controlled `Content-Length` and `Transfer-Encoding`, and use
+HTTP/1.1 chunked coding. Plain HTTP keeps at most one chunk in flight and resumes the producer only on the
+socket drain edge; it does not expose inbound bytes until the terminal chunk is queued. HTTPS permits one
+outstanding JavaScript reader promise across the worker boundary and applies the same aggregate body bound
+before authenticated TLS 1.3 or TLS 1.2 record writes. Abort wakes both upload and response wait sites.
+
+The TLS 1.2 fallback remains replay-safe: the preferred TLS 1.3 handshake must fail with the exact
+`protocol_version` alert before the source is pulled, then the source is consumed once on a fresh connection.
+Source rejection values are preserved as fetch rejection reasons, successful completion releases the reader
+lock, GET/HEAD stream bodies fail, redirects that change to GET drop the stream, and method-preserving
+redirects reject rather than replay a disturbed source. This is a Phase 28 implementation slice only;
+pooling, proxy support, the complete cancellation/timeout and large-transfer matrix, four-target receipts,
+and any compatibility-ledger promotion remain open.
+
+### 2026-07-17 - Phase 28 pools safely framed plain HTTP connections per loop
+
+Plain HTTP persistence is loop-owned rather than process-global. The key is normalized host, port,
+address family, and plain transport; this prevents cross-origin or cross-family reuse and leaves room for
+TLS configuration identity in the separate TLS pool. Idle entries are bounded to eight per key and expire
+after 30 seconds. Their socket and timer handles are unreferenced, so cached connections never keep the
+event loop or a realm alive; normal loop resource destruction remains the authoritative descriptor cleanup.
+
+Reuse is deliberately fail-closed. It requires a completed request upload, an empty socket write queue,
+persistent semantics on both messages, a clean `Content-Length`, chunked, HEAD, or no-body response, and
+no bytes beyond the response boundary. EOF-framed responses, `Connection: close`, parse errors, trailing
+bytes, idle EOF, and unsolicited idle data all close or evict the socket. One-shot HTTP and TLS callers keep
+their existing `Connection: close` serializer behavior; only the pooling path advertises keep-alive.
+
+The implementation gate is 113 network tests / 3,694 assertions with zero failures, plus a clean build,
+718-file purity scan, exact TCP identity reuse, stale-peer eviction/reconnect, cross-origin isolation,
+and parser rejection evidence. This is still an
+internal Phase 28 slice: TLS pooling, proxy support, the remaining stress/cancellation matrix, four-target
+receipts, and the public compatibility promotion remain open.
+
+### 2026-07-17 - Phase 28 makes fetch deadlines operation-wide and DNS cancellation prompt
+
+Fetch fixes its internal monotonic safety deadline when the operation is created. Redirects receive only
+the remaining budget, so a chain cannot renew the deadline at each hop. User-directed cancellation remains
+separate: `AbortSignal.timeout()` preserves its `TimeoutError` reason before headers and while consuming a
+partial response, and cancelling a response reader closes the incomplete transport rather than pooling it.
+
+The pure Common Lisp resolver accepts a cancellation predicate and checks it around socket readiness waits.
+Readiness waits are sliced at 25 ms, which bounds cancellation observation without adding a thread or an
+external resolver dependency. `ECANCELED` is terminal across resolver retries, nameservers, address families,
+and CNAME recursion. Both reactor HTTP and worker HTTPS pass their cancellable worker token through this
+path, preventing an aborted fetch from occupying a fixed worker until the DNS timeout. The deterministic
+network, TLS interoperability, build, and purity gates pass. Proxy/CONNECT, TLS pooling, incremental
+decompression, HTTPS race/leak stress, the 1 GiB fixture, and four-target receipts remain open.
+
+### 2026-07-17 - Phase 28 routes Fetch through HTTP proxies and HTTPS CONNECT tunnels
+
+Proxy selection lives at the Fetch operation boundary so it is recomputed for each redirect target.
+Explicit string proxies and conventional HTTP/HTTPS proxy environment variables share one parser;
+`NO_PROXY` applies wildcard, exact-domain, suffix, IPv6, and exact optional-port rules. URL credentials are
+percent-decoded for Basic authentication, stripped from the absolute request target, and kept out of the
+origin request after a CONNECT tunnel is established.
+
+Plain HTTP proxy connections are intentionally one-shot and excluded from the direct-origin pool. HTTPS
+CONNECT reads exactly one bounded response head across arbitrary socket splits before TLS construction;
+2xx headers are discarded, while non-2xx replies are parsed as proxy responses and cannot enter origin
+redirect handling. Origin hostname and certificate verification remain unchanged. A TLS 1.2 fallback uses
+a fresh proxy connection and repeats CONNECT before sending a new ClientHello.
+
+The executable inventory maps nine contracts from Bun engineering commit
+`c1076ce95effb909bfe9f596919b5dba5567d550` to six hermetic Clun suites. This is not a `Yes` conversion:
+HTTPS proxy endpoints, proxy object options and pooling, the broader stress/error matrix, TLS pooling,
+large-transfer/leak evidence, and four-target receipts remain open on Issue #2.
+
+Checkpoint receipts: `make test-proxy` passes all nine inventory contracts across six suites,
+`make test-net` passes 124 top-level network suites / 3,764 assertions, and `make test-tls12` passes 15
+focused suites plus the existing OpenSSL TLS 1.2 interoperability matrix.
+
+### 2026-07-17 - Phase 28 pools pure-tls HTTPS connections with HTTP fail-closed rules
+
+HTTPS idle reuse is loop-owned and mutexed for worker access. The key is normalized host, port,
+address family, `:tls`, CA file path, and verify flag so plaintext HTTP, distinct origins, and
+mismatched trust configuration never share a session. Idle entries are capped at eight per key and
+expire after 30 seconds via unref'd loop timers; each idle entry is registered as a loop resource so
+destruction closes descriptors.
+
+Reuse requires a completed request upload, persistent semantics on the request and response, a clean
+Content-Length / chunked / HEAD / no-body framing, no trailing application bytes, an open pure-tls
+stream with an empty decrypt buffer, and a TCP peer that has neither closed nor sent unsolicited idle
+data. `Connection: close`, EOF-framed bodies, parse errors, proxy CONNECT tunnels, and TLS 1.2
+fallback transports remain one-shot. Only the pooling path advertises `Connection: keep-alive`.
+
+This is still an internal Phase 28 slice: HTTPS proxy endpoints, proxy object options, broader
+stress/leak evidence, and four-target receipts remain open on Issue #2.
+
 ### 2026-07-16 - Phase 65 starts at the tagged-template call boundary
 
 The shell API will use ordinary ECMAScript tagged-template semantics rather than a shell-specific parser
@@ -3113,3 +3205,35 @@ binary for that commit). Clun counts come from `0.1.0-dev.19` single-file absolu
 `bun:test` ESM resolve, `bun` namespace imports, parser tier gaps, and upstream harness/host-spawn meta
 tests. Numeric coincidence of failing 0/1/0 roots is not treated as a closed residual. Ledger remains
 Partial; re-measure under a true `c1076ce95e` engineering binary when available.
+
+### 2026-07-17 — language.typescript Partial: ambient declare enum strip
+
+Erasable-strip gap close (not Phase 39 Yes): ambient `declare enum` / `declare const enum` /
+`export declare enum` now erase under the existing declare branch (`scan-enum-ambient`), matching
+Node/amaro erasable ambient semantics. Value `enum` / `const enum` still hard-error (need emit —
+Phase 39). `namespace-type-only-p` now treats bare `enum` as a runtime leader so
+`namespace N { enum E { A } }` errors instead of silently erasing the value object. Ledger stays
+`Partial`. Corpus: strip declare-enum / declare-const-enum / export-declare-enum; error
+enum-in-namespace; runtime declare-enum; parachute `ts/ambient-enum-strip`.
+
+### 2026-07-17 - Phase 58 OS secrets remain No — constitutional
+
+Bun.secrets stores credentials in OS keychains (macOS Security.framework, Linux libsecret /
+Secret Service, Windows Credential Manager). Every Bun backend uses a native foreign boundary
+(`Security.framework`, `dlopen(libsecret)`, Win32 Credential Manager). Pure Common Lisp cannot
+deliver four-target OS-keychain parity without CFFI, subprocess disguise, or an operator-approved
+purity amendment.
+
+Spikes recorded in `docs/design/phase-58.md`:
+
+1. Darwin Keychain has no pure user-space protocol under the purity contract.
+2. Pure D-Bus Secret Service is theoretically possible on Linux only and does not clear the
+   four-target `Yes` gate.
+3. A pure-CL encrypted file vault is not OS keychain parity and must never be relabeled as such.
+4. No purity-contract amendment is requested or recorded.
+
+**Decision:** ledger row `security.encrypted-secrets` stays **No** with detail that OS keychain
+integration is excluded by the purity contract. Ship `Clun.secrets` with Bun-shaped
+`get` / `set` / `delete` argument validation and fail-closed `ERR_SECRETS_NOT_AVAILABLE` for every
+store operation. Do not claim `Yes` or `Partial`. Evidence is the design decision, Lisp suite, and
+shipped fixture under `make compat FEATURE=security.encrypted-secrets`.

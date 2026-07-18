@@ -2,8 +2,8 @@
 
 (in-package :clun)
 
-(defparameter *clun-version* "0.1.0-dev.25"
+(defparameter *clun-version* "0.1.0-dev.27"
   "The clun release version string.")
 
 (defparameter *clun-revision* "unknown"
-  "Git revision stamp filled by scripts/build.lisp at image-save time.")
+  "Short git revision; stamped at build time by scripts/build.lisp.")

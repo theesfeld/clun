@@ -19,9 +19,11 @@ https://github.com/theesfeld/clun/issues/11, and https://github.com/theesfeld/cl
 with overlapping async settlement on the realm event loop. Compatibility row stays **Partial** (not
 Yes); parallel files, watch, full frozen-root receipts, and residual exotic surfaces remain open.
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.25` / `v0.1.0-dev.25`
-**Published release:** `0.1.0-dev.18` / `v0.1.0-dev.18`
-**Entry boundary:** immutable `v0.1.0-dev.18` is tagged at exact master `b5ecdb5defeef8ddede72ef794e41f14fb423b86` with four native archives + checksums (release run 29596302229); installer defaults to that tag. Master tip is `0.1.0-dev.21` after Phase 37 m2 (#96). Parallel trains may hold unpublished intermediate slots; this unit stages `0.1.0-dev.25` under the unpublished-intermediate prerelease gap policy. Phase 26 remains after Phase 82.
+**Candidate release:** `0.1.0-dev.27` / `v0.1.0-dev.27`
+**Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
+**Entry boundary:** immutable `v0.1.0-dev.21` is tagged and published; installer defaults to that tag.
+Master tip is `0.1.0-dev.26` after secrets #106. This unit stages next free `0.1.0-dev.27` under the
+unpublished-intermediate prerelease gap policy. Phase 26 remains after Phase 82.
 **Next scope:** keep Phase 66 Partial (no matrix Yes); green exact-head CI on the staged candidate; residual
 test-runner inventory continues after concurrent scheduling.
 
@@ -1965,9 +1967,14 @@ Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-earl
   watch hooks, exact 52-root Bun/Clun counts, four-target receipts,
   serial/parallel agreement, and 10k RSS.
 
-## Phase 66 concurrent scheduling (Issue #40, 0.1.0-dev.25)
+## Publication boundary
+
+- Published: `v0.1.0-dev.19` @ `1a523491` (#40); `v0.1.0-dev.21` @ `a8f45013` (#11).
+- Installer / ledger previous_version: `v0.1.0-dev.21` while source candidate is `0.1.0-dev.22`.
+
+## Phase 66 concurrent scheduling (Issue #40, 0.1.0-dev.27)
 
 - Implemented pure-CL `test.concurrent` / `describe.concurrent` / `test.serial` / `describe.serial`, `concurrentIf` / `serialIf`, CLI `--concurrent` and `--max-concurrency`.
 - Bun-shaped consecutive concurrent groups with overlapping async settlement; serial tests form isolation boundaries.
 - Fixtures: `tests/js/testrunner/concurrent{,immediate,serial,flag,isol}/`.
-- Ledger remains **Partial** (not Yes).
+- Ledger remains **Partial** (not Yes). Master base after secrets is `0.1.0-dev.26`; this candidate is `0.1.0-dev.27`.

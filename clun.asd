@@ -57,7 +57,8 @@
                               :serial t
                               :components ((:file "csrf")
                                            (:file "password")
-                                           (:file "noncrypto-hash")))
+                                           (:file "noncrypto-hash")
+                                           (:file "secrets")))
                              ;; Cookie parsing/serialization is engine-free so HTTP
                              ;; transport and runtime bindings share one contract.
                              (:module "http"
@@ -85,9 +86,12 @@
                              (:module "net"
                               :serial t
                               :components ((:file "sockets")
+                                           (:file "dns")
                                            (:file "http-parser")
                                            (:file "http-client")
-                                           (:file "tls-client")))
+                                           (:file "tls12-client")
+                                           (:file "tls-client")
+                                           (:file "websocket"))) ; Phase 51
                              ;; install (Phase 21): pure-CL package-manager substrate.
                              ;; It has no engine dependency, so the public runtime can
                              ;; reuse the one SemVer implementation without a late bind.
@@ -188,6 +192,7 @@
                                            (:file "clun-semver"); Clun.semver (Phase 29) — before clun-global
                                            (:file "clun-csrf")  ; Clun.CSRF (Phase 35) — before clun-global
                                            (:file "clun-password-hash") ; Clun.password/hash (Phase 36)
+                                           (:file "clun-secrets") ; Clun.secrets (Phase 58 constitutional)
                                            (:file "clun-string-width") ; Clun.stringWidth (Phase 33) — before clun-global
                                            (:file "clun-glob") ; Clun.Glob (Phase 30) — before clun-global
                                            (:file "clun-filesystem-router") ; Clun.FileSystemRouter (Phase 50)
@@ -201,6 +206,7 @@
                                            (:file "clun-router") ; Clun.serve route table (Phase 50)
                                            (:file "clun-serve"); Clun.serve HTTP server (Phase 17)
                                            (:file "web-url")   ; URL/URLSearchParams (Phase 18)
+                                           (:file "web-proxy") ; fetch proxy selection/auth/bypass (Phase 28)
                                            (:file "web-fetch") ; fetch (Phase 18)
                                            ;; node builtin modules (Phase 12): registry +
                                            ;; one file per module; each self-registers.
@@ -210,6 +216,7 @@
                                                          (:file "path")
                                                          (:file "os")
                                                          (:file "querystring")
+                                                         (:file "url")      ; node:url legacy (Phase 47 residual)
                                                          (:file "util")
                                                          (:file "events")
                                                          (:file "assert")
@@ -257,7 +264,8 @@
                                            (:module "security"
                                             :serial t
                                             :components ((:file "csrf-tests")
-                                                         (:file "password-hash-tests")))
+                                                         (:file "password-hash-tests")
+                                                         (:file "secrets-tests")))
                                            (:module "http"
                                             :serial t
                                             :components ((:file "cookies-tests")))
@@ -315,11 +323,15 @@
                                             :components ((:file "loop-tests")))
                                            (:module "net"
                                             :serial t
-                                            :components ((:file "sockets-tests")
+                                            :components ((:file "dns-tests")
+                                                         (:file "sockets-tests")
                                                          (:file "http-parser-tests")
                                                          (:file "http-server-tests")
                                                          (:file "router-tests")
                                                          (:file "fetch-tests")
+                                                         (:file "tls12-tests")
+                                                         (:file "websocket-tests")
+                                                         (:file "web-streams-tests")
                                                          (:file "https-tests")))
                                            (:module "install"
                                             :serial t

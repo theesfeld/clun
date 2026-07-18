@@ -375,9 +375,31 @@ Concurrent/serial are orthogonal to selection mode and expected-failure state."
         (push callback *test-finished-callbacks*))
       eng:+undefined+)))
 
+(defun %bun-test-exports (realm)
+  "Enumerable exports object for the virtual `bun:test` module — same callables as
+the file-local test globals (describe/test/expect/hooks/mocks/jest/…)."
+  (let ((g (eng:realm-global realm))
+        (exports (eng:new-object)))
+    (dolist (name '("describe" "test" "it" "expect"
+                    "beforeAll" "beforeEach" "afterAll" "afterEach"
+                    "onTestFinished" "setDefaultTimeout"
+                    "mock" "spyOn" "jest" "vi"))
+      (eng:data-prop exports name (eng:js-get g name)))
+    ;; Top-level bun:test also re-exports setSystemTime (lives on jest/vi).
+    (let ((jest (eng:js-get g "jest")))
+      (when (eng:js-object-p jest)
+        (eng:data-prop exports "setSystemTime" (eng:js-get jest "setSystemTime"))))
+    exports))
+
+(defun install-bun-test-module (realm)
+  "Register pure-CL `bun:test` so ESM `import { … } from \"bun:test\"` and CJS
+`require(\"bun:test\")` resolve to the file-local test APIs. Per-realm; no FS."
+  (eng:register-bun-builtin realm "test" (%bun-test-exports realm)))
+
 (defun install-test-globals (realm ctx)
   "Install describe/test/it + hooks + setDefaultTimeout on REALM's global, all
-registering into CTX's tree. expect is installed separately (install-expect)."
+registering into CTX's tree. expect is installed separately (install-expect).
+Also registers the pure-CL `bun:test` virtual module for ESM/CJS import resolve."
   (let ((eng:*realm* realm) (g (eng:realm-global realm)))
     (eng:hidden-prop g "describe" (%make-describe-callable ctx))
     (let ((test (%make-test-callable ctx)))
@@ -395,4 +417,5 @@ registering into CTX's tree. expect is installed separately (install-expect)."
           eng:+undefined+)))
     (install-test-mocks realm ctx)
     (install-expect realm ctx)
+    (install-bun-test-module realm)
     ctx))
