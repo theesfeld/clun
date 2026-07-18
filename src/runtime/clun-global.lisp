@@ -26,6 +26,7 @@
     (install-clun-yaml clun)
     (install-clun-cron clun g)                               ; Clun.cron (Phase 76)
     (install-clun-archive clun g)           ; gzip/deflate/zip + Archive (Phase 74)
+    (install-clun-markdown clun)            ; Clun.markdown (Phase 75)
     ;; env / argv mirror process (same objects)
     (when (eng:js-object-p proc)
       (eng:data-prop clun "env" (eng:js-get proc "env"))

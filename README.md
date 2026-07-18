@@ -9,8 +9,8 @@ targets are workload-specific and published;
 Clun does not claim blanket speed parity with Bun.
 
 <!-- clun-generated:release:begin -->
-> **Status: pre-alpha, under active construction.** [Phase 38](https://github.com/theesfeld/clun/issues/130) is in progress.
-> Its release-bearing target is `0.1.0-dev.38` / `v0.1.0-dev.38` (SemVer impact: `minor`).
+> **Status: pre-alpha, under active construction.** [Phase 75](https://github.com/theesfeld/clun/issues/135) is in progress.
+> Its release-bearing target is `0.1.0-dev.39` / `v0.1.0-dev.39` (SemVer impact: `minor`).
 > The verified release boundary is `v0.1.0-dev.21`, with four native archives, checksums, Pages,
 > and hosted-installer evidence.
 > Phase 26 remains deferred until after Phase 82 and will
@@ -20,9 +20,10 @@ Clun does not claim blanket speed parity with Bun.
 > the local resume checklist.
 <!-- clun-generated:release:end -->
 
-Source stages pure-CL `Clun.cron` (parse + in-process jobs; OS-level fail-closed) under
-Issue [#50](https://github.com/theesfeld/clun/issues/50) / Phase 76 as `0.1.0-dev.34`.
-Published [`v0.1.0-dev.21`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.21) is the
+Source stages pure-CL `Clun.markdown` + global `HTMLRewriter` under
+Issue [#135](https://github.com/theesfeld/clun/issues/135) / Phase 75 as `0.1.0-dev.39`
+(beyond the frozen 30-row matrix — no forged ledger Yes). Published
+[`v0.1.0-dev.21`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.21) remains the
 verified release boundary. The hosted installer correctly remains on published dev.21 until the
 candidate is merged, tagged, and released.
 
@@ -137,10 +138,15 @@ July 16, 2026. Engineering references are separately pinned to Bun commit `c1076
 
 ### Beyond the 30-row matrix
 
-Bun exposes additional public APIs outside its homepage matrix. These links are planned gates, not
-current Clun capabilities: [73 inventory freeze](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-73),
+Bun exposes additional public APIs outside its homepage matrix. Clun may ship pure-CL implementations
+here **without** inventing a 31st `features.tsv` row or forging a matrix Yes:
+
+- **Shipped (Issue [#135](https://github.com/theesfeld/clun/issues/135), Phase 75 slice):**
+  `Clun.markdown.html` / `render` / `ansi` (GFM-oriented; `react` fail-closed) and global
+  `HTMLRewriter` (`on` / `onDocument` / `transform`). Not a ledger Yes — no feature ID exists.
+- **Still planned gates (not claims):** [73 inventory freeze](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-73),
 [74 archive/compression](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-74),
-[75 data/document formats, Markdown, and HTMLRewriter](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-75),
+[75 remaining formats (TOML/JSON5/JSONL) and full streaming rewriter](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-75),
 [76 Cron and REPL](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-76),
 [77 transpiler/build APIs](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-77),
 [78 image processing](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-78),
@@ -157,10 +163,10 @@ workflows are read-only and fail closed if the canonical issues, README, or site
 
 <!-- clun-generated:release-summary:begin -->
 Release versions follow the actual SemVer impact recorded in the canonical issue, not the number of pushes.
-The current source is the `0.1.0-dev.38` release candidate; the immutable tag and assets are not published yet.
+The current source is the `0.1.0-dev.39` release candidate; the immutable tag and assets are not published yet.
 The last published prerelease remains [`v0.1.0-dev.21`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.21).
 [The versioning contract](docs/versioning.md) defines prerelease sequencing, synchronized surfaces, immutable tags, assets, and installer evidence.
-[Phase 38 issue #130](https://github.com/theesfeld/clun/issues/130) is the canonical live release record.
+[Phase 75 issue #135](https://github.com/theesfeld/clun/issues/135) is the canonical live release record.
 <!-- clun-generated:release-summary:end -->
 
 ## The purity contract
@@ -200,7 +206,7 @@ vendored under `vendor/` and located via `scripts/registry.lisp`.
 make build     # compile everything, save build/clun (save-lisp-and-die)
 make test      # run the CL suites and JS/TS fixture harnesses
 make purity    # fail on any CFFI/foreign-code token
-./build/clun --version   # => clun 0.1.0-dev.38
+./build/clun --version   # => clun 0.1.0-dev.39
 ```
 
 A fresh clone builds with `make build` alone: ASDF compiles the vendored closure and `src/` into

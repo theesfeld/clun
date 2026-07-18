@@ -51,6 +51,14 @@
                              (:module "yaml"
                               :serial t
                               :components ((:file "yaml")))
+                             ;; Phase 75 Markdown substrate (engine-free).
+                             (:module "markdown"
+                              :serial t
+                              :components ((:file "markdown")))
+                             ;; Phase 75 HTMLRewriter substrate (engine-free).
+                             (:module "html"
+                              :serial t
+                              :components ((:file "rewriter")))
                              ;; Security substrate (Phase 35): engine-free CSRF token
                              ;; encoding/authentication over vendored crypto primitives.
                              (:module "security"
@@ -205,11 +213,13 @@
                                            (:file "clun-color") ; Clun.color (Phase 34) — before clun-global
                                            (:file "clun-yaml") ; Clun.YAML (Phase 31) — before clun-global
                                            (:file "clun-cron") ; Clun.cron (Phase 76) — before clun-global
+                                           (:file "clun-markdown") ; Clun.markdown (Phase 75) — before clun-global
                                            (:file "clun-global")
                                            (:file "clun-archive") ; gzip/deflate/zip + Archive (Phase 74); needs %async
                                            (:file "abort")     ; AbortController/AbortSignal (Phase 14)
                                            (:file "globals")   ; structuredClone, crypto (Phase 12)
                                            (:file "web-http")  ; Headers/Request/Response (Phase 17)
+                                           (:file "html-rewriter") ; HTMLRewriter global (Phase 75)
                                            (:file "web-cookies") ; Clun.Cookie/CookieMap (Phase 32)
                                            (:file "clun-router") ; Clun.serve route table (Phase 50)
                                            (:file "clun-serve"); Clun.serve HTTP server (Phase 17)
@@ -291,6 +301,12 @@
                                            (:module "yaml"
                                             :serial t
                                             :components ((:file "yaml-tests")))
+                                           (:module "markdown"
+                                            :serial t
+                                            :components ((:file "markdown-tests")))
+                                           (:module "html"
+                                            :serial t
+                                            :components ((:file "rewriter-tests")))
                                            (:module "resolver"
                                             :serial t
                                             :components ((:file "resolver-tests")))

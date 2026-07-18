@@ -9,5 +9,6 @@
                     (:reg :clun.registry)
                     (:tb :clun.tarball) (:integ :clun.integrity) (:inst :clun.installer)
                     (:csrf :clun.csrf) (:cookies :clun.cookies)
-                    (:glob :clun.glob) (:yaml :clun.yaml))
+                    (:glob :clun.glob) (:yaml :clun.yaml)
+                    (:md :clun.markdown) (:html :clun.html))
   (:import-from :parachute #:define-test #:is #:isnt #:true #:false #:of-type #:fail))
