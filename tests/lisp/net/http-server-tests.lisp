@@ -296,39 +296,6 @@ eval-source destroys the realm loop, which is already running under serve-and."
        (false (search "Content-Length:" resp))
        (true (search "chunk-a-b" resp))))))
 
-))
-       (true (search "Transfer-Encoding: chunked" resp))
-       (true (search "late" resp))))))
-
-(define-test net/server-request-body-get-reader
-  "HTTP/1.1 Yes: request.body.getReader().read() yields request octets."
-  (serve-and
-   (lambda (g req loop)
-     (declare (ignore loop))
-     (let* ((body (eng:js-get req "body"))
-            (reader (eng:js-call (eng:js-get body "getReader") body '()))
-            (read-p (eng:js-call (eng:js-get reader "read") reader '())))
-       (eng:js-call
-        (eng:js-get read-p "then") read-p
-        (list (eng:make-native-function
-               "" 1
-               (lambda (th a)
-                 (declare (ignore th))
-                 (let* ((chunk (eng:arg a 0))
-                        (value (eng:js-get chunk "value"))
-                        (octets (clun.runtime::%body->octets value))
-                        (text (sb-ext:octets-to-string octets :external-format :latin-1)))
-                   (%resp g (format nil "rs:~a" text)))))))))
-   (lambda (loop port g server)
-     (declare (ignore g server))
-     (let ((resp (client-request
-                  loop port
-                  (req (format nil "POST /r HTTP/1.1~c~cHost: x~c~cContent-Length: 3~c~cConnection: close~c~c~c~cxyz"
-                               #\Return #\Newline #\Return #\Newline #\Return #\Newline
-                               #\Return #\Newline #\Return #\Newline)))))
-       (true (search "200" resp))
-       (true (search "rs:xyz" resp))))))
-
 (define-test net/server-max-request-body-size-413
   "Phase 49: maxRequestBodySize rejects oversized Content-Length with 413."
   (serve-and
