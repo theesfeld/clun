@@ -14,14 +14,11 @@ Update when work completes; keep consistent with the Issue, README, and site.
 **Current implementation unit:** Phase 75 Markdown + HTMLRewriter pure-CL checkpoint (#49 / #135).
 Ships Bun-shaped `Clun.markdown` and global `HTMLRewriter` (beyond-matrix; not a 30-row Yes).
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.38` / `v0.1.0-dev.38`
+**Candidate release:** `0.1.0-dev.39` / `v0.1.0-dev.39`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
-**Entry boundary:** installer on `v0.1.0-dev.21`; free slot after master websocket Yes `0.1.0-dev.37`.
+**Entry boundary:** installer on `v0.1.0-dev.21`; free slot after master `0.1.0-dev.38`.
 
-**Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
-easiest to hardest among dependency-ready rows. Core engine/runtime/network/tooling changes are expected.
-Every conversion requires a legitimate canonical issue, accepted design, full declared behavior, executable
-four-target evidence, synchronized public surfaces, and the correct SemVer transition.
+**Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue.
 
 **Current checkpoint:** the integrated YAML parser reports **402 pass / 0 fail / 402 total** and **408
 assertions** in the exact pinned corpus. Exact master CI **29560539473**, Documentation **29560539481**,

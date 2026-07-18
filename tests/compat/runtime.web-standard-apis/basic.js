@@ -13,38 +13,39 @@ console.log(response.body != null && typeof response.body.getReader === "functio
 
 const streamResponse = new Response("stream-chunk");
 void streamResponse.body;
-streamResponse.body
-  .getReader()
-  .read()
-  .then((chunk) => {
-    console.log(chunk.done === false);
-    console.log(new TextDecoder().decode(chunk.value));
-    console.log(streamResponse.bodyUsed === true);
+
+async function main() {
+  const chunk = await streamResponse.body.getReader().read();
+  console.log(chunk.done === false);
+  console.log(new TextDecoder().decode(chunk.value));
+  console.log(streamResponse.bodyUsed === true);
+
+  const byobView = new Uint8Array(4);
+  const byobSource = new ReadableStream({
+    start(c) {
+      c.enqueue(new TextEncoder().encode("byob"));
+      c.close();
+    },
   });
+  const byob = await byobSource.getReader({ mode: "byob" }).read(byobView);
+  console.log(new TextDecoder().decode(byob.value));
 
-response.text().then((body) => console.log(body));
+  const ts = new TransformStream({
+    transform(chunk, controller) {
+      controller.enqueue(
+        new TextEncoder().encode(new TextDecoder().decode(chunk).toUpperCase()),
+      );
+    },
+  });
+  const w = ts.writable.getWriter();
+  const readP = ts.readable.getReader().read();
+  await w.write(new TextEncoder().encode("ok"));
+  await w.close();
+  const out = await readP;
+  console.log(new TextDecoder().decode(out.value));
 
-const chunks = [];
-const ws = new WritableStream({
-  write(chunk) {
-    chunks.push(chunk);
-  },
-});
-const w = ws.getWriter();
-w.write("w1");
-w.close().then(() => {
-  console.log(chunks.join("+"));
-});
+  const body = await response.text();
+  console.log(body);
+}
 
-const ts = new TransformStream({
-  transform(chunk, controller) {
-    controller.enqueue(chunk.toUpperCase());
-  },
-});
-const tw = ts.writable.getWriter();
-tw.write("ok");
-tw.close().then(() =>
-  ts.readable.getReader().read().then((r) => {
-    console.log(r.value);
-  }),
-);
+main();

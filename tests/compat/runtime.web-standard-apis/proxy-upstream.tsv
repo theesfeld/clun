@@ -8,3 +8,4 @@ connect.failure-response	c1076ce95effb909bfe9f596919b5dba5567d550	test/js/bun/ht
 connect.redirect-not-followed	c1076ce95effb909bfe9f596919b5dba5567d550	test/js/bun/http/proxy-stress-errors.test.ts	CONNECT 3xx reply is exposed and its Location is not followed	NET/FETCH-HTTPS-CONNECT-REDIRECT-IS-NOT-FOLLOWED
 connect.unrequested-upgrade	c1076ce95effb909bfe9f596919b5dba5567d550	test/js/bun/http/proxy-stress-errors.test.ts	CONNECT 101 is rejected instead of interpreted as an origin response	NET/HTTPS-CONNECT-PROXY-101-IS-REJECTED
 proxy.unsupported-schemes	c1076ce95effb909bfe9f596919b5dba5567d550	test/js/bun/http/proxy-stress-errors.test.ts	ftp socks4 socks5 socks5h and ws proxy URLs reject before dialing	NET/FETCH-PROXY-PARSER-AND-NO-PROXY-PORT-SEMANTICS
+proxy.object-headers	c1076ce95effb909bfe9f596919b5dba5567d550	test/js/bun/http/proxy-stress-protocol.test.ts	proxy object url and headers ride absolute-form and CONNECT envelopes	NET/FETCH-PROXY-OBJECT-URL-AND-HEADERS

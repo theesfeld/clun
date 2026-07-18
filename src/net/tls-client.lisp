@@ -90,7 +90,7 @@ for response completion."
       (format nil "[~a]:~d" host port)
       (format nil "~a:~d" host port)))
 
-(defun %proxy-connect-request (host port authorization)
+(defun %proxy-connect-request (host port authorization &optional extra-headers)
   (let ((authority (%proxy-connect-authority host port)))
     (%client-ascii-octets
      (with-output-to-string (output)
@@ -103,6 +103,23 @@ for response completion."
                               (member character '(#\Return #\Newline)))
                             authorization)
                  #\Return #\Newline))
+       (dolist (header extra-headers)
+         (let ((name (car header))
+               (value (cdr header)))
+           (when (and name value
+                      (not (member name
+                                   '("host" "proxy-authorization"
+                                     "proxy-connection" "content-length"
+                                     "transfer-encoding")
+                                   :test #'string-equal)))
+             (format output "~a: ~a~c~c"
+                     (remove-if (lambda (character)
+                                  (member character '(#\Return #\Newline)))
+                                (string name))
+                     (remove-if (lambda (character)
+                                  (member character '(#\Return #\Newline)))
+                                (string value))
+                     #\Return #\Newline))))
        (format output "~c~c" #\Return #\Newline)))))
 
 (defun %read-proxy-connect-head (stream cancelled-p)
@@ -135,8 +152,9 @@ for response completion."
         (values status octets)))))
 
 (defun %establish-http-connect
-    (stream host port authorization cancelled-p)
-  (write-sequence (%proxy-connect-request host port authorization) stream)
+    (stream host port authorization cancelled-p &optional extra-headers)
+  (write-sequence
+   (%proxy-connect-request host port authorization extra-headers) stream)
   (force-output stream)
   (%read-proxy-connect-head stream cancelled-p))
 
@@ -594,7 +612,7 @@ Returns true when the transport was accepted into the idle pool."
 
 (defun https-request-stream
     (&key host port method path headers body host-header
-          proxy-host proxy-port proxy-authorization
+          proxy-host proxy-port proxy-authorization proxy-headers
           (ca-file (%system-ca-file)) (verify t) socket-box
           (connect-timeout-ms 30000) cancelled-p request-body-source
           pool-loop (pooling-p t)
@@ -660,7 +678,8 @@ to LOOP's origin-keyed idle pool under the same fail-closed rules as plain HTTP.
                  (if proxy-host
                      (multiple-value-bind (status head)
                          (%establish-http-connect
-                          raw host port proxy-authorization cancelled-p)
+                          raw host port proxy-authorization cancelled-p
+                          proxy-headers)
                        (when (= status 101)
                          (error "proxy CONNECT returned an unrequested protocol upgrade"))
                        (values (<= 200 status 299) head))
