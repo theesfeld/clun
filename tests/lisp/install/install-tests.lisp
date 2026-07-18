@@ -190,3 +190,58 @@ return (values install-result error)."
            (false (clun.sys:path-exists-p (clun.sys:path-join root "node_modules/@scope/.bin/widget"))
                   "not under node_modules/@scope/.bin"))
       (ignore-errors (clun.sys:remove-recursive root)))))
+
+(define-test install/file-and-alias-e2e
+  "file: local package + npm: alias install through the full link path and are require()-able."
+  (with-temp-cache (cache)
+    (let ((proj (clun.sys:make-temp-dir "/tmp/clun-spec-")))
+      (unwind-protect
+           (progn
+             (clun.sys:make-directory (clun.sys:path-join proj "vendor" "local-pkg")
+                                      :recursive t :mode #o755)
+             (clun.sys:write-file-octets
+              (clun.sys:path-join proj "vendor" "local-pkg" "package.json")
+              (sb-ext:string-to-octets
+               "{\"name\":\"local-pkg\",\"version\":\"9.9.9\"}"
+               :external-format :utf-8))
+             (clun.sys:write-file-octets
+              (clun.sys:path-join proj "vendor" "local-pkg" "index.js")
+              (map '(simple-array (unsigned-byte 8) (*)) #'char-code
+                   "module.exports='local-pkg@9.9.9';"))
+             (%write-package-json
+              proj
+              (format nil "{\"pad\":\"npm:left-pad@1.3.0\",\"local-pkg\":\"file:./vendor/local-pkg\"}"))
+             (multiple-value-bind (result err) (%fresh-install proj)
+               (false err)
+               (true (inst:install-result-p result))
+               (true (%has-pkg proj "pad") "alias pad installed")
+               (true (%has-pkg proj "local-pkg") "file: local-pkg installed")
+               (is equal "1.3.0"
+                   (clun.sys:jget (clun.sys:parse-json
+                                   (clun.sys:read-file-string (%nm proj "pad" "package.json")))
+                                  "version"))
+               (is equal "9.9.9"
+                   (clun.sys:jget (clun.sys:parse-json
+                                   (clun.sys:read-file-string (%nm proj "local-pkg" "package.json")))
+                                  "version"))
+               (true (clun.sys:path-exists-p (clun.sys:path-join proj "clun.lock")))))
+        (ignore-errors (clun.sys:remove-recursive proj))))))
+
+(define-test install/optional-missing-does-not-fail
+  (with-temp-cache (cache)
+    (let ((proj (clun.sys:make-temp-dir "/tmp/clun-opt-")))
+      (unwind-protect
+           (progn
+             (clun.sys:write-file-octets
+              (clun.sys:path-join proj "package.json")
+              (sb-ext:string-to-octets
+               (format nil "{\"name\":\"root\",\"version\":\"1.0.0\",~
+\"dependencies\":{\"left-pad\":\"1.3.0\"},~
+\"optionalDependencies\":{\"does-not-exist-xyz\":\"1.0.0\"}}~%")
+               :external-format :utf-8))
+             (multiple-value-bind (result err) (%fresh-install proj)
+               (false err "optional miss soft-fails")
+               (true (inst:install-result-p result))
+               (true (%has-pkg proj "left-pad"))
+               (false (%has-pkg proj "does-not-exist-xyz"))))
+        (ignore-errors (clun.sys:remove-recursive proj))))))

@@ -7,17 +7,24 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **39 - Full TypeScript transforms**  (Yes conversion #133)
+## Current phase: **59 - Package registry and dependency-spec breadth**  (YES CONVERSION #131)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/133
-**Related residual:** https://github.com/theesfeld/clun/issues/13
-**Current implementation unit:** language.typescript Partial→Yes (#133) — erasable strip plus
-Bun-compatible enum / runtime-namespace / parameter-property transforms; no tsc typecheck.
+**Canonical issue:** https://github.com/theesfeld/clun/issues/131
+**Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/33,
+https://github.com/theesfeld/clun/issues/2, https://github.com/theesfeld/clun/issues/34,
+and https://github.com/theesfeld/clun/issues/35
+**Current implementation unit:** `package-manager.npm` Partial→Yes (#131).
+`package-manager.npm` is **Yes** — `clun install`/`add`/`remove` with registry packages (semver
+ranges, dist-tags), npm: aliases, file:/link: local packages, optionalDependencies soft-fail,
+hoisted node_modules, clun.lock offline reinstall, SRI-verified tarballs, and four-target hermetic
+install receipts. Workspaces remain `package-manager.monorepo` No; publish and git-deps stay Phase
+61/59 residual outside this Yes claim (Bun matrix Yes is install-class; Deno Partial for publish).
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.40` / `v0.1.0-dev.40`
+**Candidate release:** `0.1.0-dev.41` / `v0.1.0-dev.41`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
-**Entry boundary:** installer on `v0.1.0-dev.21`; this unit stages `0.1.0-dev.40`.
-**Next scope:** remaining Partial→Yes fleet; decorators/tsx remain deferred.
+**Entry boundary:** installer on `v0.1.0-dev.21`; this unit stages `0.1.0-dev.41` after master tip
+`0.1.0-dev.40` (TypeScript Yes #133/#154).
+**Next scope:** fleet Yes queue; monorepo / publish / git+ssh remain separate phases.
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue.
 
