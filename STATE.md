@@ -1970,4 +1970,5 @@ Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-earl
 ## Publication boundary
 
 - Published: `v0.1.0-dev.19` @ `1a523491` (#40); `v0.1.0-dev.21` @ `a8f45013` (#11).
-- Installer / ledger previous_version: `v0.1.0-dev.21` while source candidate is `0.1.0-dev.22`.
+- Installer / ledger previous_version: `v0.1.0-dev.21` while source candidate is `0.1.0-dev.26`.
+- Shell inventory PR #111: unpublished patch correction of `0.1.0-dev.26` (Partial; no tooling.shell Yes).
