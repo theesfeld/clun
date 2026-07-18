@@ -254,6 +254,91 @@ until the server closes, loop-stop, and return the response as a latin-1 string.
        (lp:run-loop loop)
        (true stopped)))))                             ; stop() resolved after the connection closed
 
+(defun %stream-response (g text &key (async-p nil) loop)
+  "Build `new Response(new ReadableStream(...))` without eval-source.
+eval-source destroys the realm loop, which is already running under serve-and."
+  (let* ((octets (sb-ext:string-to-octets text :external-format :utf-8))
+         (src (eng:new-object)))
+    (eng:data-prop
+     src "start"
+     (eng:make-native-function
+      "start" 1
+      (lambda (this args)
+        (declare (ignore this))
+        (let ((controller (eng:arg args 0)))
+          (flet ((enqueue-and-close ()
+                   (eng:js-call (eng:js-get controller "enqueue") controller
+                                (list (eng:u8-from-octets octets)))
+                   (eng:js-call (eng:js-get controller "close") controller '())
+                   eng:+undefined+))
+            (if (and async-p loop)
+                (progn
+                  (lp:set-timer loop 1 #'enqueue-and-close)
+                  eng:+undefined+)
+                (enqueue-and-close)))))))
+    (eng:js-construct
+     (eng:js-get g "Response")
+     (list (clun.runtime::%construct-readable-stream src) eng:+undefined+))))
+
+(define-test net/server-stream-response-chunked
+  "HTTP/1.1 Yes: ReadableStream Response body is sent Transfer-Encoding: chunked."
+  (serve-and
+   (lambda (g req loop)
+     (declare (ignore req loop))
+     (%stream-response g "chunk-a-b"))
+   (lambda (loop port g server)
+     (declare (ignore g server))
+     (let ((resp (client-request
+                  loop port
+                  (req (crlf "GET /stream HTTP/1.1" "Host: x" "Connection: close")))))
+       (true (search "HTTP/1.1 200" resp))
+       (true (search "Transfer-Encoding: chunked" resp))
+       (false (search "Content-Length:" resp))
+       (true (search "chunk-a-b" resp))))))
+
+(define-test net/server-stream-response-async-chunked
+  "HTTP/1.1 Yes: async enqueue after start still pumps chunked frames."
+  (serve-and
+   (lambda (g req loop)
+     (declare (ignore req))
+     (%stream-response g "late" :async-p t :loop loop))
+   (lambda (loop port g server)
+     (declare (ignore g server))
+     (let ((resp (client-request
+                  loop port
+                  (req (crlf "GET /async HTTP/1.1" "Host: x" "Connection: close")))))
+       (true (search "Transfer-Encoding: chunked" resp))
+       (true (search "late" resp))))))
+
+(define-test net/server-request-body-get-reader
+  "HTTP/1.1 Yes: request.body.getReader().read() yields request octets."
+  (serve-and
+   (lambda (g req loop)
+     (declare (ignore loop))
+     (let* ((body (eng:js-get req "body"))
+            (reader (eng:js-call (eng:js-get body "getReader") body '()))
+            (read-p (eng:js-call (eng:js-get reader "read") reader '())))
+       (eng:js-call
+        (eng:js-get read-p "then") read-p
+        (list (eng:make-native-function
+               "" 1
+               (lambda (th a)
+                 (declare (ignore th))
+                 (let* ((chunk (eng:arg a 0))
+                        (value (eng:js-get chunk "value"))
+                        (octets (clun.runtime::%body->octets value))
+                        (text (sb-ext:octets-to-string octets :external-format :latin-1)))
+                   (%resp g (format nil "rs:~a" text)))))))))
+   (lambda (loop port g server)
+     (declare (ignore g server))
+     (let ((resp (client-request
+                  loop port
+                  (req (format nil "POST /r HTTP/1.1~c~cHost: x~c~cContent-Length: 3~c~cConnection: close~c~c~c~cxyz"
+                               #\Return #\Newline #\Return #\Newline #\Return #\Newline
+                               #\Return #\Newline #\Return #\Newline)))))
+       (true (search "200" resp))
+       (true (search "rs:xyz" resp))))))
+
 (define-test net/server-max-request-body-size-413
   "Phase 49: maxRequestBodySize rejects oversized Content-Length with 413."
   (serve-and

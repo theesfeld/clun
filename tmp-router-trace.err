@@ -1,0 +1,1716 @@
++ set -eu
++++ dirname -- tests/compat/server.router/run.sh
+++ CDPATH=
+++ cd -- tests/compat/server.router/../../..
+++ pwd
++ repo_root=/home/glenda/Projects/clun-worktrees/yes-http
++ clun=/home/glenda/Projects/clun-worktrees/yes-http/build/clun
++ '[' -x /home/glenda/Projects/clun-worktrees/yes-http/build/clun ']'
++ command -v curl
++ command -v ps
+++ mktemp -d /tmp/clun-compat-router.XXXXXX
++ scratch=/tmp/clun-compat-router.CPUxnx
++ printf 0123456789ABCDEF
++ :
++ printf '\000\001\002\003\377\376\375'
++ printf '{"message":"test","number":42}\n'
++ printf 'Hello \344\270\226\347\225\214 \360\237\214\215 \303\251mojis'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/nested
++ printf nested-file
++ printf special-file
++ dd if=/dev/zero of=/tmp/clun-compat-router.CPUxnx/large.bin bs=1048576 count=16
++ ln -s /tmp/clun-compat-router.CPUxnx/file.txt /tmp/clun-compat-router.CPUxnx/file-link.txt
++ mkfifo /tmp/clun-compat-router.CPUxnx/file.fifo
++ mkdir -p /tmp/clun-compat-router.CPUxnx/pages/posts/wow /tmp/clun-compat-router.CPUxnx/pages/optional '/tmp/clun-compat-router.CPUxnx/pages/precedence/[id]' /tmp/clun-compat-router.CPUxnx/pages/precedence/static /tmp/clun-compat-router.CPUxnx/pages/files /tmp/clun-compat-router.CPUxnx/outside /tmp/clun-compat-router.CPUxnx/invalid-pages /tmp/clun-compat-router.CPUxnx/empty-pages /tmp/clun-compat-router.CPUxnx/stress-pages
++ for route in index posts posts/hey 'posts/[id]' 'posts/[...rest]' 'posts/wow/[[...id]]' 'optional/[[...parts]]'
++ printf 'export default 1;\n'
++ for route in index posts posts/hey 'posts/[id]' 'posts/[...rest]' 'posts/wow/[[...id]]' 'optional/[[...parts]]'
++ printf 'export default 1;\n'
++ for route in index posts posts/hey 'posts/[id]' 'posts/[...rest]' 'posts/wow/[[...id]]' 'optional/[[...parts]]'
++ printf 'export default 1;\n'
++ for route in index posts posts/hey 'posts/[id]' 'posts/[...rest]' 'posts/wow/[[...id]]' 'optional/[[...parts]]'
++ printf 'export default 1;\n'
++ for route in index posts posts/hey 'posts/[id]' 'posts/[...rest]' 'posts/wow/[[...id]]' 'optional/[[...parts]]'
++ printf 'export default 1;\n'
++ for route in index posts posts/hey 'posts/[id]' 'posts/[...rest]' 'posts/wow/[[...id]]' 'optional/[[...parts]]'
++ printf 'export default 1;\n'
++ for route in index posts posts/hey 'posts/[id]' 'posts/[...rest]' 'posts/wow/[[...id]]' 'optional/[[...parts]]'
++ printf 'export default 1;\n'
++ printf 'export default 1;\n'
++ printf 'export default 2;\n'
++ index=0
++ '[' 0 -lt 65 ']'
++ printf 'export default %s;\n' 0
++ index=1
++ '[' 1 -lt 65 ']'
++ printf 'export default %s;\n' 1
++ index=2
++ '[' 2 -lt 65 ']'
++ printf 'export default %s;\n' 2
++ index=3
++ '[' 3 -lt 65 ']'
++ printf 'export default %s;\n' 3
++ index=4
++ '[' 4 -lt 65 ']'
++ printf 'export default %s;\n' 4
++ index=5
++ '[' 5 -lt 65 ']'
++ printf 'export default %s;\n' 5
++ index=6
++ '[' 6 -lt 65 ']'
++ printf 'export default %s;\n' 6
++ index=7
++ '[' 7 -lt 65 ']'
++ printf 'export default %s;\n' 7
++ index=8
++ '[' 8 -lt 65 ']'
++ printf 'export default %s;\n' 8
++ index=9
++ '[' 9 -lt 65 ']'
++ printf 'export default %s;\n' 9
++ index=10
++ '[' 10 -lt 65 ']'
++ printf 'export default %s;\n' 10
++ index=11
++ '[' 11 -lt 65 ']'
++ printf 'export default %s;\n' 11
++ index=12
++ '[' 12 -lt 65 ']'
++ printf 'export default %s;\n' 12
++ index=13
++ '[' 13 -lt 65 ']'
++ printf 'export default %s;\n' 13
++ index=14
++ '[' 14 -lt 65 ']'
++ printf 'export default %s;\n' 14
++ index=15
++ '[' 15 -lt 65 ']'
++ printf 'export default %s;\n' 15
++ index=16
++ '[' 16 -lt 65 ']'
++ printf 'export default %s;\n' 16
++ index=17
++ '[' 17 -lt 65 ']'
++ printf 'export default %s;\n' 17
++ index=18
++ '[' 18 -lt 65 ']'
++ printf 'export default %s;\n' 18
++ index=19
++ '[' 19 -lt 65 ']'
++ printf 'export default %s;\n' 19
++ index=20
++ '[' 20 -lt 65 ']'
++ printf 'export default %s;\n' 20
++ index=21
++ '[' 21 -lt 65 ']'
++ printf 'export default %s;\n' 21
++ index=22
++ '[' 22 -lt 65 ']'
++ printf 'export default %s;\n' 22
++ index=23
++ '[' 23 -lt 65 ']'
++ printf 'export default %s;\n' 23
++ index=24
++ '[' 24 -lt 65 ']'
++ printf 'export default %s;\n' 24
++ index=25
++ '[' 25 -lt 65 ']'
++ printf 'export default %s;\n' 25
++ index=26
++ '[' 26 -lt 65 ']'
++ printf 'export default %s;\n' 26
++ index=27
++ '[' 27 -lt 65 ']'
++ printf 'export default %s;\n' 27
++ index=28
++ '[' 28 -lt 65 ']'
++ printf 'export default %s;\n' 28
++ index=29
++ '[' 29 -lt 65 ']'
++ printf 'export default %s;\n' 29
++ index=30
++ '[' 30 -lt 65 ']'
++ printf 'export default %s;\n' 30
++ index=31
++ '[' 31 -lt 65 ']'
++ printf 'export default %s;\n' 31
++ index=32
++ '[' 32 -lt 65 ']'
++ printf 'export default %s;\n' 32
++ index=33
++ '[' 33 -lt 65 ']'
++ printf 'export default %s;\n' 33
++ index=34
++ '[' 34 -lt 65 ']'
++ printf 'export default %s;\n' 34
++ index=35
++ '[' 35 -lt 65 ']'
++ printf 'export default %s;\n' 35
++ index=36
++ '[' 36 -lt 65 ']'
++ printf 'export default %s;\n' 36
++ index=37
++ '[' 37 -lt 65 ']'
++ printf 'export default %s;\n' 37
++ index=38
++ '[' 38 -lt 65 ']'
++ printf 'export default %s;\n' 38
++ index=39
++ '[' 39 -lt 65 ']'
++ printf 'export default %s;\n' 39
++ index=40
++ '[' 40 -lt 65 ']'
++ printf 'export default %s;\n' 40
++ index=41
++ '[' 41 -lt 65 ']'
++ printf 'export default %s;\n' 41
++ index=42
++ '[' 42 -lt 65 ']'
++ printf 'export default %s;\n' 42
++ index=43
++ '[' 43 -lt 65 ']'
++ printf 'export default %s;\n' 43
++ index=44
++ '[' 44 -lt 65 ']'
++ printf 'export default %s;\n' 44
++ index=45
++ '[' 45 -lt 65 ']'
++ printf 'export default %s;\n' 45
++ index=46
++ '[' 46 -lt 65 ']'
++ printf 'export default %s;\n' 46
++ index=47
++ '[' 47 -lt 65 ']'
++ printf 'export default %s;\n' 47
++ index=48
++ '[' 48 -lt 65 ']'
++ printf 'export default %s;\n' 48
++ index=49
++ '[' 49 -lt 65 ']'
++ printf 'export default %s;\n' 49
++ index=50
++ '[' 50 -lt 65 ']'
++ printf 'export default %s;\n' 50
++ index=51
++ '[' 51 -lt 65 ']'
++ printf 'export default %s;\n' 51
++ index=52
++ '[' 52 -lt 65 ']'
++ printf 'export default %s;\n' 52
++ index=53
++ '[' 53 -lt 65 ']'
++ printf 'export default %s;\n' 53
++ index=54
++ '[' 54 -lt 65 ']'
++ printf 'export default %s;\n' 54
++ index=55
++ '[' 55 -lt 65 ']'
++ printf 'export default %s;\n' 55
++ index=56
++ '[' 56 -lt 65 ']'
++ printf 'export default %s;\n' 56
++ index=57
++ '[' 57 -lt 65 ']'
++ printf 'export default %s;\n' 57
++ index=58
++ '[' 58 -lt 65 ']'
++ printf 'export default %s;\n' 58
++ index=59
++ '[' 59 -lt 65 ']'
++ printf 'export default %s;\n' 59
++ index=60
++ '[' 60 -lt 65 ']'
++ printf 'export default %s;\n' 60
++ index=61
++ '[' 61 -lt 65 ']'
++ printf 'export default %s;\n' 61
++ index=62
++ '[' 62 -lt 65 ']'
++ printf 'export default %s;\n' 62
++ index=63
++ '[' 63 -lt 65 ']'
++ printf 'export default %s;\n' 63
++ index=64
++ '[' 64 -lt 65 ']'
++ printf 'export default %s;\n' 64
++ index=65
++ '[' 65 -lt 65 ']'
++ printf 'ignored\n'
++ printf 'outside\n'
++ ln -s /tmp/clun-compat-router.CPUxnx/outside /tmp/clun-compat-router.CPUxnx/pages/escape
++ printf 'invalid\n'
+++ uname -s
++ '[' Linux = Linux ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/raw-pages
+++ printf '\377'
++ raw_byte=$'\377'
++ printf 'export default 1;\n'
++ printf 'export default 2;\n'
++ printf 'export default 3;\n'
++ index=0
++ '[' 0 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route0
++ printf 'export default %s;\n' 0
++ index=1
++ '[' 1 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route1
++ printf 'export default %s;\n' 1
++ index=2
++ '[' 2 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route2
++ printf 'export default %s;\n' 2
++ index=3
++ '[' 3 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route3
++ printf 'export default %s;\n' 3
++ index=4
++ '[' 4 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route4
++ printf 'export default %s;\n' 4
++ index=5
++ '[' 5 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route5
++ printf 'export default %s;\n' 5
++ index=6
++ '[' 6 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route6
++ printf 'export default %s;\n' 6
++ index=7
++ '[' 7 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route7
++ printf 'export default %s;\n' 7
++ index=8
++ '[' 8 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route8
++ printf 'export default %s;\n' 8
++ index=9
++ '[' 9 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route9
++ printf 'export default %s;\n' 9
++ index=10
++ '[' 10 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route10
++ printf 'export default %s;\n' 10
++ index=11
++ '[' 11 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route11
++ printf 'export default %s;\n' 11
++ index=12
++ '[' 12 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route12
++ printf 'export default %s;\n' 12
++ index=13
++ '[' 13 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route13
++ printf 'export default %s;\n' 13
++ index=14
++ '[' 14 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route14
++ printf 'export default %s;\n' 14
++ index=15
++ '[' 15 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route15
++ printf 'export default %s;\n' 15
++ index=16
++ '[' 16 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route16
++ printf 'export default %s;\n' 16
++ index=17
++ '[' 17 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route17
++ printf 'export default %s;\n' 17
++ index=18
++ '[' 18 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route18
++ printf 'export default %s;\n' 18
++ index=19
++ '[' 19 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route19
++ printf 'export default %s;\n' 19
++ index=20
++ '[' 20 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route20
++ printf 'export default %s;\n' 20
++ index=21
++ '[' 21 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route21
++ printf 'export default %s;\n' 21
++ index=22
++ '[' 22 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route22
++ printf 'export default %s;\n' 22
++ index=23
++ '[' 23 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route23
++ printf 'export default %s;\n' 23
++ index=24
++ '[' 24 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route24
++ printf 'export default %s;\n' 24
++ index=25
++ '[' 25 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route25
++ printf 'export default %s;\n' 25
++ index=26
++ '[' 26 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route26
++ printf 'export default %s;\n' 26
++ index=27
++ '[' 27 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route27
++ printf 'export default %s;\n' 27
++ index=28
++ '[' 28 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route28
++ printf 'export default %s;\n' 28
++ index=29
++ '[' 29 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route29
++ printf 'export default %s;\n' 29
++ index=30
++ '[' 30 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route30
++ printf 'export default %s;\n' 30
++ index=31
++ '[' 31 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route31
++ printf 'export default %s;\n' 31
++ index=32
++ '[' 32 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route32
++ printf 'export default %s;\n' 32
++ index=33
++ '[' 33 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route33
++ printf 'export default %s;\n' 33
++ index=34
++ '[' 34 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route34
++ printf 'export default %s;\n' 34
++ index=35
++ '[' 35 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route35
++ printf 'export default %s;\n' 35
++ index=36
++ '[' 36 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route36
++ printf 'export default %s;\n' 36
++ index=37
++ '[' 37 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route37
++ printf 'export default %s;\n' 37
++ index=38
++ '[' 38 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route38
++ printf 'export default %s;\n' 38
++ index=39
++ '[' 39 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route39
++ printf 'export default %s;\n' 39
++ index=40
++ '[' 40 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route40
++ printf 'export default %s;\n' 40
++ index=41
++ '[' 41 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route41
++ printf 'export default %s;\n' 41
++ index=42
++ '[' 42 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route42
++ printf 'export default %s;\n' 42
++ index=43
++ '[' 43 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route43
++ printf 'export default %s;\n' 43
++ index=44
++ '[' 44 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route44
++ printf 'export default %s;\n' 44
++ index=45
++ '[' 45 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route45
++ printf 'export default %s;\n' 45
++ index=46
++ '[' 46 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route46
++ printf 'export default %s;\n' 46
++ index=47
++ '[' 47 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route47
++ printf 'export default %s;\n' 47
++ index=48
++ '[' 48 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route48
++ printf 'export default %s;\n' 48
++ index=49
++ '[' 49 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route49
++ printf 'export default %s;\n' 49
++ index=50
++ '[' 50 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route50
++ printf 'export default %s;\n' 50
++ index=51
++ '[' 51 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route51
++ printf 'export default %s;\n' 51
++ index=52
++ '[' 52 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route52
++ printf 'export default %s;\n' 52
++ index=53
++ '[' 53 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route53
++ printf 'export default %s;\n' 53
++ index=54
++ '[' 54 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route54
++ printf 'export default %s;\n' 54
++ index=55
++ '[' 55 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route55
++ printf 'export default %s;\n' 55
++ index=56
++ '[' 56 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route56
++ printf 'export default %s;\n' 56
++ index=57
++ '[' 57 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route57
++ printf 'export default %s;\n' 57
++ index=58
++ '[' 58 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route58
++ printf 'export default %s;\n' 58
++ index=59
++ '[' 59 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route59
++ printf 'export default %s;\n' 59
++ index=60
++ '[' 60 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route60
++ printf 'export default %s;\n' 60
++ index=61
++ '[' 61 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route61
++ printf 'export default %s;\n' 61
++ index=62
++ '[' 62 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route62
++ printf 'export default %s;\n' 62
++ index=63
++ '[' 63 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route63
++ printf 'export default %s;\n' 63
++ index=64
++ '[' 64 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route64
++ printf 'export default %s;\n' 64
++ index=65
++ '[' 65 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route65
++ printf 'export default %s;\n' 65
++ index=66
++ '[' 66 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route66
++ printf 'export default %s;\n' 66
++ index=67
++ '[' 67 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route67
++ printf 'export default %s;\n' 67
++ index=68
++ '[' 68 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route68
++ printf 'export default %s;\n' 68
++ index=69
++ '[' 69 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route69
++ printf 'export default %s;\n' 69
++ index=70
++ '[' 70 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route70
++ printf 'export default %s;\n' 70
++ index=71
++ '[' 71 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route71
++ printf 'export default %s;\n' 71
++ index=72
++ '[' 72 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route72
++ printf 'export default %s;\n' 72
++ index=73
++ '[' 73 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route73
++ printf 'export default %s;\n' 73
++ index=74
++ '[' 74 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route74
++ printf 'export default %s;\n' 74
++ index=75
++ '[' 75 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route75
++ printf 'export default %s;\n' 75
++ index=76
++ '[' 76 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route76
++ printf 'export default %s;\n' 76
++ index=77
++ '[' 77 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route77
++ printf 'export default %s;\n' 77
++ index=78
++ '[' 78 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route78
++ printf 'export default %s;\n' 78
++ index=79
++ '[' 79 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route79
++ printf 'export default %s;\n' 79
++ index=80
++ '[' 80 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route80
++ printf 'export default %s;\n' 80
++ index=81
++ '[' 81 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route81
++ printf 'export default %s;\n' 81
++ index=82
++ '[' 82 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route82
++ printf 'export default %s;\n' 82
++ index=83
++ '[' 83 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route83
++ printf 'export default %s;\n' 83
++ index=84
++ '[' 84 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route84
++ printf 'export default %s;\n' 84
++ index=85
++ '[' 85 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route85
++ printf 'export default %s;\n' 85
++ index=86
++ '[' 86 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route86
++ printf 'export default %s;\n' 86
++ index=87
++ '[' 87 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route87
++ printf 'export default %s;\n' 87
++ index=88
++ '[' 88 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route88
++ printf 'export default %s;\n' 88
++ index=89
++ '[' 89 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route89
++ printf 'export default %s;\n' 89
++ index=90
++ '[' 90 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route90
++ printf 'export default %s;\n' 90
++ index=91
++ '[' 91 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route91
++ printf 'export default %s;\n' 91
++ index=92
++ '[' 92 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route92
++ printf 'export default %s;\n' 92
++ index=93
++ '[' 93 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route93
++ printf 'export default %s;\n' 93
++ index=94
++ '[' 94 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route94
++ printf 'export default %s;\n' 94
++ index=95
++ '[' 95 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route95
++ printf 'export default %s;\n' 95
++ index=96
++ '[' 96 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route96
++ printf 'export default %s;\n' 96
++ index=97
++ '[' 97 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route97
++ printf 'export default %s;\n' 97
++ index=98
++ '[' 98 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route98
++ printf 'export default %s;\n' 98
++ index=99
++ '[' 99 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route99
++ printf 'export default %s;\n' 99
++ index=100
++ '[' 100 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route100
++ printf 'export default %s;\n' 100
++ index=101
++ '[' 101 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route101
++ printf 'export default %s;\n' 101
++ index=102
++ '[' 102 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route102
++ printf 'export default %s;\n' 102
++ index=103
++ '[' 103 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route103
++ printf 'export default %s;\n' 103
++ index=104
++ '[' 104 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route104
++ printf 'export default %s;\n' 104
++ index=105
++ '[' 105 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route105
++ printf 'export default %s;\n' 105
++ index=106
++ '[' 106 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route106
++ printf 'export default %s;\n' 106
++ index=107
++ '[' 107 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route107
++ printf 'export default %s;\n' 107
++ index=108
++ '[' 108 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route108
++ printf 'export default %s;\n' 108
++ index=109
++ '[' 109 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route109
++ printf 'export default %s;\n' 109
++ index=110
++ '[' 110 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route110
++ printf 'export default %s;\n' 110
++ index=111
++ '[' 111 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route111
++ printf 'export default %s;\n' 111
++ index=112
++ '[' 112 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route112
++ printf 'export default %s;\n' 112
++ index=113
++ '[' 113 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route113
++ printf 'export default %s;\n' 113
++ index=114
++ '[' 114 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route114
++ printf 'export default %s;\n' 114
++ index=115
++ '[' 115 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route115
++ printf 'export default %s;\n' 115
++ index=116
++ '[' 116 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route116
++ printf 'export default %s;\n' 116
++ index=117
++ '[' 117 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route117
++ printf 'export default %s;\n' 117
++ index=118
++ '[' 118 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route118
++ printf 'export default %s;\n' 118
++ index=119
++ '[' 119 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route119
++ printf 'export default %s;\n' 119
++ index=120
++ '[' 120 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route120
++ printf 'export default %s;\n' 120
++ index=121
++ '[' 121 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route121
++ printf 'export default %s;\n' 121
++ index=122
++ '[' 122 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route122
++ printf 'export default %s;\n' 122
++ index=123
++ '[' 123 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route123
++ printf 'export default %s;\n' 123
++ index=124
++ '[' 124 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route124
++ printf 'export default %s;\n' 124
++ index=125
++ '[' 125 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route125
++ printf 'export default %s;\n' 125
++ index=126
++ '[' 126 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route126
++ printf 'export default %s;\n' 126
++ index=127
++ '[' 127 -lt 128 ']'
++ mkdir -p /tmp/clun-compat-router.CPUxnx/stress-pages/route127
++ printf 'export default %s;\n' 127
++ index=128
++ '[' 128 -lt 128 ']'
++ mkdir -p '/tmp/clun-compat-router.CPUxnx/stress-pages/[a]/[b]/[c]'
++ printf 'export default 1;\n'
++ server_pid=
++ trap cleanup 0 HUP INT TERM
++ server_pid=1358584
++ attempt=0
++ url=
++ '[' 0 -lt 100 ']'
++ CLUN_ROUTER_FILE=/tmp/clun-compat-router.CPUxnx/file.txt
++ CLUN_ROUTER_EMPTY=/tmp/clun-compat-router.CPUxnx/empty.txt
++ CLUN_ROUTER_BINARY=/tmp/clun-compat-router.CPUxnx/binary.bin
++ CLUN_ROUTER_JSON=/tmp/clun-compat-router.CPUxnx/data.json
++ CLUN_ROUTER_UNICODE=/tmp/clun-compat-router.CPUxnx/unicode.txt
++ CLUN_ROUTER_NESTED=/tmp/clun-compat-router.CPUxnx/nested/deep.txt
++ CLUN_ROUTER_SPECIAL_NAME='/tmp/clun-compat-router.CPUxnx/special chars & file.txt'
++ CLUN_ROUTER_LARGE=/tmp/clun-compat-router.CPUxnx/large.bin
++ CLUN_ROUTER_MISSING=/tmp/clun-compat-router.CPUxnx/missing.txt
++ CLUN_ROUTER_SYMLINK=/tmp/clun-compat-router.CPUxnx/file-link.txt
++ CLUN_ROUTER_SPECIAL=/tmp/clun-compat-router.CPUxnx/file.fifo
++ /home/glenda/Projects/clun-worktrees/yes-http/build/clun /home/glenda/Projects/clun-worktrees/yes-http/tests/compat/server.router/server.js
+++ sed -n 1p /tmp/clun-compat-router.CPUxnx/server.out
++ url=
++ '[' -z '' ']'
++ kill -0 1358584
++ sleep 0.1
++ attempt=1
++ '[' 1 -lt 100 ']'
+++ sed -n 1p /tmp/clun-compat-router.CPUxnx/server.out
++ url=http://127.0.0.1:39131/
++ '[' -z http://127.0.0.1:39131/ ']'
++ break
++ '[' -n http://127.0.0.1:39131/ ']'
++ /home/glenda/Projects/clun-worktrees/yes-http/build/clun /home/glenda/Projects/clun-worktrees/yes-http/tests/compat/server.router/server-fetch.js
++ grep -x 'server.router: server.fetch API passed'
++ assert_body static static
++ path=static
++ expected=static
++ method=GET
+++ curl --fail --silent --show-error -X GET http://127.0.0.1:39131/static
++ actual=static
++ '[' static = static ']'
++ assert_body static static
++ path=static
++ expected=static
++ method=GET
+++ curl --fail --silent --show-error -X GET http://127.0.0.1:39131/static
++ actual=static
++ '[' static = static ']'
++ assert_body legacy-static legacy-static
++ path=legacy-static
++ expected=legacy-static
++ method=GET
+++ curl --fail --silent --show-error -X GET http://127.0.0.1:39131/legacy-static
++ actual=legacy-static
++ '[' legacy-static = legacy-static ']'
++ curl --silent --show-error --head http://127.0.0.1:39131/legacy-static
++ tr -d '\r'
++ grep -i -x 'content-length: 13'
++ curl --silent --show-error --dump-header /tmp/clun-compat-router.CPUxnx/static-headers-1 --output /tmp/clun-compat-router.CPUxnx/static-body-1 http://127.0.0.1:39131/static
+++ awk $'\n  tolower($0) ~ /^etag:/ { sub(/^[^:]*:[[:space:]]*/, ""); print; exit }\n'
+++ tr -d '\r'
++ etag='"sha256-2053dbbf6ec7135c4e994d3464c478db6f48d3ca21052c8f44915edc96e02c39"'
++ '[' -n '"sha256-2053dbbf6ec7135c4e994d3464c478db6f48d3ca21052c8f44915edc96e02c39"' ']'
+++ cat /tmp/clun-compat-router.CPUxnx/static-body-1
++ '[' static = static ']'
++ curl --silent --show-error --dump-header /tmp/clun-compat-router.CPUxnx/static-headers-2 --output /tmp/clun-compat-router.CPUxnx/static-body-2 http://127.0.0.1:39131/static
+++ tr -d '\r'
+++ awk $'\n  tolower($0) ~ /^etag:/ { sub(/^[^:]*:[[:space:]]*/, ""); print; exit }\n'
++ etag_again='"sha256-2053dbbf6ec7135c4e994d3464c478db6f48d3ca21052c8f44915edc96e02c39"'
++ '[' '"sha256-2053dbbf6ec7135c4e994d3464c478db6f48d3ca21052c8f44915edc96e02c39"' = '"sha256-2053dbbf6ec7135c4e994d3464c478db6f48d3ca21052c8f44915edc96e02c39"' ']'
+++ curl --silent --show-error --output /tmp/clun-compat-router.CPUxnx/not-modified --write-out '%{http_code}' -H 'If-None-Match: "unrelated", W/"sha256-2053dbbf6ec7135c4e994d3464c478db6f48d3ca21052c8f44915edc96e02c39"' http://127.0.0.1:39131/static
++ status=304
++ '[' 304 = 304 ']'
++ '[' '!' -s /tmp/clun-compat-router.CPUxnx/not-modified ']'
+++ curl --silent --show-error --dump-header /tmp/clun-compat-router.CPUxnx/created-headers --output /tmp/clun-compat-router.CPUxnx/created-body --write-out '%{http_code}' http://127.0.0.1:39131/static-created
++ status=201
++ '[' 201 '!=' 201 ']'
+++ cat /tmp/clun-compat-router.CPUxnx/created-body
++ '[' created '!=' created ']'
++ tr -d '\r'
++ grep -i -x 'x-created: yes'
++ tr -d '\r'
++ grep -i -x 'content-type: text/plain;charset=utf-8'
++ assert_body static-explicit-type typed
++ path=static-explicit-type
++ expected=typed
++ method=GET
+++ curl --fail --silent --show-error -X GET http://127.0.0.1:39131/static-explicit-type
++ actual=typed
++ '[' typed = typed ']'
++ curl --silent --show-error --head http://127.0.0.1:39131/static-explicit-type
++ tr -d '\r'
++ grep -i -x 'content-type: text/foo'
++ assert_body static-json '{"a":1}'
++ path=static-json
++ expected='{"a":1}'
++ method=GET
+++ curl --fail --silent --show-error -X GET http://127.0.0.1:39131/static-json
++ actual='{"a":1}'
++ '[' '{"a":1}' = '{"a":1}' ']'
++ curl --silent --show-error --head http://127.0.0.1:39131/static-json
++ grep -i -x 'content-type: application/json;charset=utf-8'
++ tr -d '\r'
++ curl --fail --silent --show-error --output /tmp/clun-compat-router.CPUxnx/static-bytes-body http://127.0.0.1:39131/static-bytes
++ printf '\001\002\003'
++ cmp /tmp/clun-compat-router.CPUxnx/static-bytes-expected /tmp/clun-compat-router.CPUxnx/static-bytes-body
++ curl --silent --show-error --head http://127.0.0.1:39131/static-bytes
++ tr -d '\r'
++ grep -i '^content-type:'
++ assert_body shared-a shared-static
++ path=shared-a
++ expected=shared-static
++ method=GET
+++ curl --fail --silent --show-error -X GET http://127.0.0.1:39131/shared-a
++ actual=shared-static
++ '[' shared-static = shared-static ']'
++ assert_body shared-b shared-static
++ path=shared-b
++ expected=shared-static
++ method=GET
+++ curl --fail --silent --show-error -X GET http://127.0.0.1:39131/shared-b
++ actual=shared-static
++ '[' shared-static = shared-static ']'
++ for blob_path in static-blob-a static-blob-b
++ assert_body static-blob-a '<h1>hi</h1>'
++ path=static-blob-a
++ expected='<h1>hi</h1>'
++ method=GET
+++ curl --fail --silent --show-error -X GET http://127.0.0.1:39131/static-blob-a
++ actual='<h1>hi</h1>'
++ '[' '<h1>hi</h1>' = '<h1>hi</h1>' ']'
++ curl --silent --show-error --head http://127.0.0.1:39131/static-blob-a
++ tr -d '\r'
++ grep -i -x 'content-type: text/html;charset=utf-8'
++ for blob_path in static-blob-a static-blob-b
++ assert_body static-blob-b '<h1>hi</h1>'
++ path=static-blob-b
++ expected='<h1>hi</h1>'
++ method=GET
+++ curl --fail --silent --show-error -X GET http://127.0.0.1:39131/static-blob-b
++ actual='<h1>hi</h1>'
++ '[' '<h1>hi</h1>' = '<h1>hi</h1>' ']'
++ curl --silent --show-error --head http://127.0.0.1:39131/static-blob-b
++ tr -d '\r'
++ grep -i -x 'content-type: text/html;charset=utf-8'
++ assert_body static-blob-touched touched
++ path=static-blob-touched
++ expected=touched
++ method=GET
+++ curl --fail --silent --show-error -X GET http://127.0.0.1:39131/static-blob-touched
++ actual=touched
++ '[' touched = touched ']'
++ curl --silent --show-error --head http://127.0.0.1:39131/static-blob-touched
++ tr -d '\r'
++ grep -i -x 'content-type: text/html;charset=utf-8'
+++ curl --silent --show-error --dump-header /tmp/clun-compat-router.CPUxnx/redirect-headers --output /tmp/clun-compat-router.CPUxnx/redirect-body --write-out '%{http_code}' http://127.0.0.1:39131/redirect
++ status=302
++ '[' 302 '!=' 302 ']'
++ '[' -s /tmp/clun-compat-router.CPUxnx/redirect-body ']'
++ grep -i -x 'location: /foo/bar'
++ tr -d '\r'
++ assert_body foo/bar /foo/bar
++ path=foo/bar
++ expected=/foo/bar
++ method=GET
+++ curl --fail --silent --show-error -X GET http://127.0.0.1:39131/foo/bar
++ actual=/foo/bar
++ '[' /foo/bar = /foo/bar ']'
+++ curl --fail --silent --show-error --location http://127.0.0.1:39131/redirect
++ redirected=/foo/bar
++ '[' /foo/bar = /foo/bar ']'
+++ curl --fail --silent --show-error --location http://127.0.0.1:39131/redirect/fallback
++ redirected=fallback:GET:http://127.0.0.1:39131/foo/bar/fallback
++ '[' fallback:GET:http://127.0.0.1:39131/foo/bar/fallback = fallback:GET:http://127.0.0.1:39131/foo/bar/fallback ']'
++ curl --silent --show-error --head http://127.0.0.1:39131/static-big
++ tr -d '\r'
++ grep -i -x 'content-length: 4194304'
++ pids=
++ index=1
++ '[' 1 -le 12 ']'
++ pids=' 1358701'
++ index=2
++ '[' 2 -le 12 ']'
++ pids=' 1358701 1358702'
++ index=3
++ '[' 3 -le 12 ']'
++ curl --fail --silent --show-error --output /tmp/clun-compat-router.CPUxnx/static-big-1 http://127.0.0.1:39131/static-big
++ pids=' 1358701 1358702 1358703'
++ index=4
++ '[' 4 -le 12 ']'
++ curl --fail --silent --show-error --output /tmp/clun-compat-router.CPUxnx/static-big-2 http://127.0.0.1:39131/static-big
++ pids=' 1358701 1358702 1358703 1358704'
++ index=5
++ '[' 5 -le 12 ']'
++ curl --fail --silent --show-error --output /tmp/clun-compat-router.CPUxnx/static-big-3 http://127.0.0.1:39131/static-big
++ pids=' 1358701 1358702 1358703 1358704 1358705'
++ index=6
++ '[' 6 -le 12 ']'
++ curl --fail --silent --show-error --output /tmp/clun-compat-router.CPUxnx/static-big-4 http://127.0.0.1:39131/static-big
++ curl --fail --silent --show-error --output /tmp/clun-compat-router.CPUxnx/static-big-5 http://127.0.0.1:39131/static-big
++ pids=' 1358701 1358702 1358703 1358704 1358705 1358706'
++ index=7
++ '[' 7 -le 12 ']'
++ pids=' 1358701 1358702 1358703 1358704 1358705 1358706 1358707'
++ index=8
++ '[' 8 -le 12 ']'
++ curl --fail --silent --show-error --output /tmp/clun-compat-router.CPUxnx/static-big-6 http://127.0.0.1:39131/static-big
++ pids=' 1358701 1358702 1358703 1358704 1358705 1358706 1358707 1358708'
++ index=9
++ '[' 9 -le 12 ']'
++ curl --fail --silent --show-error --output /tmp/clun-compat-router.CPUxnx/static-big-7 http://127.0.0.1:39131/static-big
++ curl --fail --silent --show-error --output /tmp/clun-compat-router.CPUxnx/static-big-8 http://127.0.0.1:39131/static-big
++ pids=' 1358701 1358702 1358703 1358704 1358705 1358706 1358707 1358708 1358709'
++ index=10
++ '[' 10 -le 12 ']'
++ pids=' 1358701 1358702 1358703 1358704 1358705 1358706 1358707 1358708 1358709 1358710'
++ index=11
++ '[' 11 -le 12 ']'
++ pids=' 1358701 1358702 1358703 1358704 1358705 1358706 1358707 1358708 1358709 1358710 1358711'
++ index=12
++ '[' 12 -le 12 ']'
++ pids=' 1358701 1358702 1358703 1358704 1358705 1358706 1358707 1358708 1358709 1358710 1358711 1358712'
++ index=13
++ '[' 13 -le 12 ']'
++ for pid in $pids
++ wait 1358701
++ curl --fail --silent --show-error --output /tmp/clun-compat-router.CPUxnx/static-big-9 http://127.0.0.1:39131/static-big
++ curl --fail --silent --show-error --output /tmp/clun-compat-router.CPUxnx/static-big-12 http://127.0.0.1:39131/static-big
++ curl --fail --silent --show-error --output /tmp/clun-compat-router.CPUxnx/static-big-10 http://127.0.0.1:39131/static-big
++ curl --fail --silent --show-error --output /tmp/clun-compat-router.CPUxnx/static-big-11 http://127.0.0.1:39131/static-big
++ for pid in $pids
++ wait 1358702
++ for pid in $pids
++ wait 1358703
++ for pid in $pids
++ wait 1358704
++ for pid in $pids
++ wait 1358705
++ for pid in $pids
++ wait 1358706
++ for pid in $pids
++ wait 1358707
++ for pid in $pids
++ wait 1358708
++ for pid in $pids
++ wait 1358709
++ for pid in $pids
++ wait 1358710
++ for pid in $pids
++ wait 1358711
++ for pid in $pids
++ wait 1358712
++ index=1
++ '[' 1 -le 12 ']'
+++ wc -c
+++ tr -d ' '
++ '[' 4194304 = 4194304 ']'
++ index=2
++ '[' 2 -le 12 ']'
+++ wc -c
+++ tr -d ' '
++ '[' 4194304 = 4194304 ']'
++ index=3
++ '[' 3 -le 12 ']'
+++ tr -d ' '
+++ wc -c
++ '[' 4194304 = 4194304 ']'
++ index=4
++ '[' 4 -le 12 ']'
+++ tr -d ' '
+++ wc -c
++ '[' 4194304 = 4194304 ']'
++ index=5
++ '[' 5 -le 12 ']'
+++ wc -c
+++ tr -d ' '
++ '[' 4194304 = 4194304 ']'
++ index=6
++ '[' 6 -le 12 ']'
+++ wc -c
+++ tr -d ' '
++ '[' 4194304 = 4194304 ']'
++ index=7
++ '[' 7 -le 12 ']'
+++ wc -c
+++ tr -d ' '
++ '[' 4194304 = 4194304 ']'
++ index=8
++ '[' 8 -le 12 ']'
+++ wc -c
+++ tr -d ' '
++ '[' 4194304 = 4194304 ']'
++ index=9
++ '[' 9 -le 12 ']'
+++ wc -c
+++ tr -d ' '
++ '[' 4194304 = 4194304 ']'
++ index=10
++ '[' 10 -le 12 ']'
+++ wc -c
+++ tr -d ' '
++ '[' 4194304 = 4194304 ']'
++ index=11
++ '[' 11 -le 12 ']'
+++ wc -c
+++ tr -d ' '
++ '[' 4194304 = 4194304 ']'
++ index=12
++ '[' 12 -le 12 ']'
+++ wc -c
+++ tr -d ' '
++ '[' 4194304 = 4194304 ']'
++ index=13
++ '[' 13 -le 12 ']'
++ for _ in 1 2 3 4 5 6 7 8 9 10
++ assert_body static static
++ path=static
++ expected=static
++ method=GET
+++ curl --fail --silent --show-error -X GET http://127.0.0.1:39131/static
++ actual=static
++ '[' static = static ']'
++ for _ in 1 2 3 4 5 6 7 8 9 10
++ assert_body static static
++ path=static
++ expected=static
++ method=GET
+++ curl --fail --silent --show-error -X GET http://127.0.0.1:39131/static
++ actual=static
++ '[' static = static ']'
++ for _ in 1 2 3 4 5 6 7 8 9 10
++ assert_body static static
++ path=static
++ expected=static
++ method=GET
+++ curl --fail --silent --show-error -X GET http://127.0.0.1:39131/static
++ actual=static
++ '[' static = static ']'
++ for _ in 1 2 3 4 5 6 7 8 9 10
++ assert_body static static
++ path=static
++ expected=static
++ method=GET
+++ curl --fail --silent --show-error -X GET http://127.0.0.1:39131/static
++ actual=static
++ '[' static = static ']'
++ for _ in 1 2 3 4 5 6 7 8 9 10
++ assert_body static static
++ path=static
++ expected=static
++ method=GET
+++ curl --fail --silent --show-error -X GET http://127.0.0.1:39131/static
++ actual=static
++ '[' static = static ']'
++ for _ in 1 2 3 4 5 6 7 8 9 10
++ assert_body static static
++ path=static
++ expected=static
++ method=GET
+++ curl --fail --silent --show-error -X GET http://127.0.0.1:39131/static
++ actual=static
++ '[' static = static ']'
++ for _ in 1 2 3 4 5 6 7 8 9 10
++ assert_body static static
++ path=static
++ expected=static
++ method=GET
+++ curl --fail --silent --show-error -X GET http://127.0.0.1:39131/static
++ actual=static
++ '[' static = static ']'
++ for _ in 1 2 3 4 5 6 7 8 9 10
++ assert_body static static
++ path=static
++ expected=static
++ method=GET
+++ curl --fail --silent --show-error -X GET http://127.0.0.1:39131/static
++ actual=static
++ '[' static = static ']'
++ for _ in 1 2 3 4 5 6 7 8 9 10
++ assert_body static static
++ path=static
++ expected=static
++ method=GET
+++ curl --fail --silent --show-error -X GET http://127.0.0.1:39131/static
++ actual=static
++ '[' static = static ']'
++ for _ in 1 2 3 4 5 6 7 8 9 10
++ assert_body static static
++ path=static
++ expected=static
++ method=GET
+++ curl --fail --silent --show-error -X GET http://127.0.0.1:39131/static
++ actual=static
++ '[' static = static ']'
++ curl --silent --show-error --dump-header /tmp/clun-compat-router.CPUxnx/file-headers --output /tmp/clun-compat-router.CPUxnx/file-body http://127.0.0.1:39131/file
+++ cat /tmp/clun-compat-router.CPUxnx/file-body
++ '[' 0123456789ABCDEF = 0123456789ABCDEF ']'
+++ tr -d '\r'
++ file_headers=$'HTTP/1.1 200 OK\nDate: Sat, 18 Jul 2026 23:27:30 GMT\nLast-Modified: Sat, 18 Jul 2026 23:27:30 GMT\nContent-Type: text/plain;charset=utf-8\nContent-Length: 16\nConnection: keep-alive'
++ printf '%s\n' $'HTTP/1.1 200 OK\nDate: Sat, 18 Jul 2026 23:27:30 GMT\nLast-Modified: Sat, 18 Jul 2026 23:27:30 GMT\nContent-Type: text/plain;charset=utf-8\nContent-Length: 16\nConnection: keep-alive'
++ grep -i -x 'content-length: 16'
++ printf '%s\n' $'HTTP/1.1 200 OK\nDate: Sat, 18 Jul 2026 23:27:30 GMT\nLast-Modified: Sat, 18 Jul 2026 23:27:30 GMT\nContent-Type: text/plain;charset=utf-8\nContent-Length: 16\nConnection: keep-alive'
++ grep -i -x 'content-type: text/plain;charset=utf-8'
+++ awk $'\n  tolower($0) ~ /^last-modified:/ { sub(/^[^:]*:[[:space:]]*/, ""); print; exit }\n'
+++ printf '%s\n' $'HTTP/1.1 200 OK\nDate: Sat, 18 Jul 2026 23:27:30 GMT\nLast-Modified: Sat, 18 Jul 2026 23:27:30 GMT\nContent-Type: text/plain;charset=utf-8\nContent-Length: 16\nConnection: keep-alive'
++ last_modified='Sat, 18 Jul 2026 23:27:30 GMT'
++ '[' -n 'Sat, 18 Jul 2026 23:27:30 GMT' ']'
++ curl --silent --show-error --head http://127.0.0.1:39131/file-custom
++ grep -i -x 'x-file: custom'
++ tr -d '\r'
++ assert_body file-direct 0123456789ABCDEF
++ path=file-direct
++ expected=0123456789ABCDEF
++ method=GET
+++ curl --fail --silent --show-error -X GET http://127.0.0.1:39131/file-direct
++ actual=0123456789ABCDEF
++ '[' 0123456789ABCDEF = 0123456789ABCDEF ']'
++ assert_body file-direct 0123456789ABCDEF
++ path=file-direct
++ expected=0123456789ABCDEF
++ method=GET
+++ curl --fail --silent --show-error -X GET http://127.0.0.1:39131/file-direct
++ actual=0123456789ABCDEF
++ '[' 0123456789ABCDEF = 0123456789ABCDEF ']'
+++ curl --silent --show-error --dump-header /tmp/clun-compat-router.CPUxnx/empty-headers --output /tmp/clun-compat-router.CPUxnx/empty-body --write-out '%{http_code}' http://127.0.0.1:39131/file-empty
++ status=200
++ '[' 200 '!=' 200 ']'
++ '[' -s /tmp/clun-compat-router.CPUxnx/empty-body ']'
++ tr -d '\r'
++ grep -i -x 'content-length: 0'
+++ curl --silent --show-error --dump-header /tmp/clun-compat-router.CPUxnx/dynamic-empty-get-headers --output /tmp/clun-compat-router.CPUxnx/dynamic-empty-get-body --write-out '%{http_code}' http://127.0.0.1:39131/dynamic-empty
++ status=200
++ '[' 200 '!=' 200 ']'
++ '[' -s /tmp/clun-compat-router.CPUxnx/dynamic-empty-get-body ']'
++ grep -i -x 'content-length: 0'
++ tr -d '\r'
+++ curl --silent --show-error --head --output /tmp/clun-compat-router.CPUxnx/dynamic-empty-head --write-out '%{http_code}' http://127.0.0.1:39131/dynamic-empty
++ status=200
++ '[' 200 '!=' 200 ']'
++ tr -d '\r'
++ grep -i -x 'content-length: 0'
+++ curl --silent --show-error --output /tmp/clun-compat-router.CPUxnx/empty-400-body --write-out '%{http_code}' http://127.0.0.1:39131/file-empty-400
++ status=400
++ '[' 400 = 400 ']'
++ '[' '!' -s /tmp/clun-compat-router.CPUxnx/empty-400-body ']'
++ curl --fail --silent --show-error --output /tmp/clun-compat-router.CPUxnx/binary-body http://127.0.0.1:39131/file-binary
++ cmp /tmp/clun-compat-router.CPUxnx/binary.bin /tmp/clun-compat-router.CPUxnx/binary-body
++ curl --silent --show-error --head http://127.0.0.1:39131/file-binary
++ tr -d '\r'
++ grep -i -x 'content-type: application/octet-stream'
++ assert_body file-json '{"message":"test","number":42}'
++ path=file-json
++ expected='{"message":"test","number":42}'
++ method=GET
+++ curl --fail --silent --show-error -X GET http://127.0.0.1:39131/file-json
++ actual='{"message":"test","number":42}'
++ '[' '{"message":"test","number":42}' = '{"message":"test","number":42}' ']'
++ curl --silent --show-error --head http://127.0.0.1:39131/file-json
++ tr -d '\r'
++ grep -i -x 'content-type: application/json;charset=utf-8'
++ tr -d '\r'
++ grep -i -x 'content-type: application/json;charset=utf-8'
++ assert_body file-unicode 'Hello 世界 🌍 émojis'
++ path=file-unicode
++ expected='Hello 世界 🌍 émojis'
++ method=GET
+++ curl --fail --silent --show-error -X GET http://127.0.0.1:39131/file-unicode
++ actual='Hello 世界 🌍 émojis'
++ '[' 'Hello 世界 🌍 émojis' = 'Hello 世界 🌍 émojis' ']'
++ assert_body file-nested nested-file
++ path=file-nested
++ expected=nested-file
++ method=GET
+++ curl --fail --silent --show-error -X GET http://127.0.0.1:39131/file-nested
++ actual=nested-file
++ '[' nested-file = nested-file ']'
++ assert_body file-special-name special-file
++ path=file-special-name
++ expected=special-file
++ method=GET
+++ curl --fail --silent --show-error -X GET http://127.0.0.1:39131/file-special-name
++ actual=special-file
++ '[' special-file = special-file ']'
+++ curl --silent --show-error --dump-header /tmp/clun-compat-router.CPUxnx/slice-headers --output /tmp/clun-compat-router.CPUxnx/slice-body --write-out '%{http_code}' -H 'Range: bytes=12-15' http://127.0.0.1:39131/file-slice
++ status=200
++ '[' 200 '!=' 200 ']'
+++ cat /tmp/clun-compat-router.CPUxnx/slice-body
++ '[' 56789 '!=' 56789 ']'
++ grep -i '^content-range:'
++ tr -d '\r'
++ for path in file dynamic-file
++ assert_range file bytes=0-3 206 0123 'bytes 0-3/16' 4
++ path=file
++ value=bytes=0-3
++ expected_status=206
++ expected_body=0123
++ expected_range='bytes 0-3/16'
++ expected_length=4
+++ curl --silent --show-error --dump-header /tmp/clun-compat-router.CPUxnx/range-headers --output /tmp/clun-compat-router.CPUxnx/range-body --write-out '%{http_code}' -H 'Range: bytes=0-3' http://127.0.0.1:39131/file
++ status=206
+++ cat /tmp/clun-compat-router.CPUxnx/range-body
++ actual_body=0123
+++ tr -d '\r'
+++ awk $'\n    tolower($0) ~ /^content-range:/ { sub(/^[^:]*:[[:space:]]*/, ""); print; exit }\n  '
++ actual_range='bytes 0-3/16'
+++ tr -d '\r'
+++ awk $'\n    tolower($0) ~ /^content-length:/ { sub(/^[^:]*:[[:space:]]*/, ""); print; exit }\n  '
++ actual_length=4
++ body_ok=0
++ '[' 206 = 416 ']'
++ '[' 0123 = 0123 ']'
++ body_ok=1
++ '[' 206 = 206 ']'
++ '[' 1 = 1 ']'
++ '[' 'bytes 0-3/16' = 'bytes 0-3/16' ']'
++ '[' 4 = 4 ']'
++ assert_range file bytes=4- 206 456789ABCDEF 'bytes 4-15/16' 12
++ path=file
++ value=bytes=4-
++ expected_status=206
++ expected_body=456789ABCDEF
++ expected_range='bytes 4-15/16'
++ expected_length=12
+++ curl --silent --show-error --dump-header /tmp/clun-compat-router.CPUxnx/range-headers --output /tmp/clun-compat-router.CPUxnx/range-body --write-out '%{http_code}' -H 'Range: bytes=4-' http://127.0.0.1:39131/file
++ status=206
+++ cat /tmp/clun-compat-router.CPUxnx/range-body
++ actual_body=456789ABCDEF
+++ tr -d '\r'
+++ awk $'\n    tolower($0) ~ /^content-range:/ { sub(/^[^:]*:[[:space:]]*/, ""); print; exit }\n  '
++ actual_range='bytes 4-15/16'
+++ tr -d '\r'
+++ awk $'\n    tolower($0) ~ /^content-length:/ { sub(/^[^:]*:[[:space:]]*/, ""); print; exit }\n  '
++ actual_length=12
++ body_ok=0
++ '[' 206 = 416 ']'
++ '[' 456789ABCDEF = 456789ABCDEF ']'
++ body_ok=1
++ '[' 206 = 206 ']'
++ '[' 1 = 1 ']'
++ '[' 'bytes 4-15/16' = 'bytes 4-15/16' ']'
++ '[' 12 = 12 ']'
++ assert_range file bytes=-4 206 CDEF 'bytes 12-15/16' 4
++ path=file
++ value=bytes=-4
++ expected_status=206
++ expected_body=CDEF
++ expected_range='bytes 12-15/16'
++ expected_length=4
+++ curl --silent --show-error --dump-header /tmp/clun-compat-router.CPUxnx/range-headers --output /tmp/clun-compat-router.CPUxnx/range-body --write-out '%{http_code}' -H 'Range: bytes=-4' http://127.0.0.1:39131/file
++ status=206
+++ cat /tmp/clun-compat-router.CPUxnx/range-body
++ actual_body=CDEF
+++ tr -d '\r'
+++ awk $'\n    tolower($0) ~ /^content-range:/ { sub(/^[^:]*:[[:space:]]*/, ""); print; exit }\n  '
++ actual_range='bytes 12-15/16'
+++ tr -d '\r'
+++ awk $'\n    tolower($0) ~ /^content-length:/ { sub(/^[^:]*:[[:space:]]*/, ""); print; exit }\n  '
++ actual_length=4
++ body_ok=0
++ '[' 206 = 416 ']'
++ '[' CDEF = CDEF ']'
++ body_ok=1
++ '[' 206 = 206 ']'
++ '[' 1 = 1 ']'
++ '[' 'bytes 12-15/16' = 'bytes 12-15/16' ']'
++ '[' 4 = 4 ']'
++ assert_range file bytes=0-999 206 0123456789ABCDEF 'bytes 0-15/16' 16
++ path=file
++ value=bytes=0-999
++ expected_status=206
++ expected_body=0123456789ABCDEF
++ expected_range='bytes 0-15/16'
++ expected_length=16
+++ curl --silent --show-error --dump-header /tmp/clun-compat-router.CPUxnx/range-headers --output /tmp/clun-compat-router.CPUxnx/range-body --write-out '%{http_code}' -H 'Range: bytes=0-999' http://127.0.0.1:39131/file
++ status=206
+++ cat /tmp/clun-compat-router.CPUxnx/range-body
++ actual_body=0123456789ABCDEF
+++ tr -d '\r'
+++ awk $'\n    tolower($0) ~ /^content-range:/ { sub(/^[^:]*:[[:space:]]*/, ""); print; exit }\n  '
++ actual_range='bytes 0-15/16'
+++ tr -d '\r'
+++ awk $'\n    tolower($0) ~ /^content-length:/ { sub(/^[^:]*:[[:space:]]*/, ""); print; exit }\n  '
++ actual_length=16
++ body_ok=0
++ '[' 206 = 416 ']'
++ '[' 0123456789ABCDEF = 0123456789ABCDEF ']'
++ body_ok=1
++ '[' 206 = 206 ']'
++ '[' 1 = 1 ']'
++ '[' 'bytes 0-15/16' = 'bytes 0-15/16' ']'
++ '[' 16 = 16 ']'
++ assert_range file 'Bytes = 2-5' 206 2345 'bytes 2-5/16' 4
++ path=file
++ value='Bytes = 2-5'
++ expected_status=206
++ expected_body=2345
++ expected_range='bytes 2-5/16'
++ expected_length=4
+++ curl --silent --show-error --dump-header /tmp/clun-compat-router.CPUxnx/range-headers --output /tmp/clun-compat-router.CPUxnx/range-body --write-out '%{http_code}' -H 'Range: Bytes = 2-5' http://127.0.0.1:39131/file
++ status=206
+++ cat /tmp/clun-compat-router.CPUxnx/range-body
++ actual_body=2345
+++ tr -d '\r'
+++ awk $'\n    tolower($0) ~ /^content-range:/ { sub(/^[^:]*:[[:space:]]*/, ""); print; exit }\n  '
++ actual_range='bytes 2-5/16'
+++ tr -d '\r'
+++ awk $'\n    tolower($0) ~ /^content-length:/ { sub(/^[^:]*:[[:space:]]*/, ""); print; exit }\n  '
++ actual_length=4
++ body_ok=0
++ '[' 206 = 416 ']'
++ '[' 2345 = 2345 ']'
++ body_ok=1
++ '[' 206 = 206 ']'
++ '[' 1 = 1 ']'
++ '[' 'bytes 2-5/16' = 'bytes 2-5/16' ']'
++ '[' 4 = 4 ']'
++ assert_range file bytes=100-200 416 '' 'bytes */16' 0
++ path=file
++ value=bytes=100-200
++ expected_status=416
++ expected_body=
++ expected_range='bytes */16'
++ expected_length=0
+++ curl --silent --show-error --dump-header /tmp/clun-compat-router.CPUxnx/range-headers --output /tmp/clun-compat-router.CPUxnx/range-body --write-out '%{http_code}' -H 'Range: bytes=100-200' http://127.0.0.1:39131/file
++ status=416
+++ cat /tmp/clun-compat-router.CPUxnx/range-body
++ actual_body=
+++ tr -d '\r'
+++ awk $'\n    tolower($0) ~ /^content-range:/ { sub(/^[^:]*:[[:space:]]*/, ""); print; exit }\n  '
++ actual_range='bytes */16'
+++ tr -d '\r'
+++ awk $'\n    tolower($0) ~ /^content-length:/ { sub(/^[^:]*:[[:space:]]*/, ""); print; exit }\n  '
++ actual_length=0
++ body_ok=0
++ '[' 416 = 416 ']'
++ '[' '!' -s /tmp/clun-compat-router.CPUxnx/range-body ']'
++ body_ok=1
++ '[' 416 = 416 ']'
++ '[' 1 = 1 ']'
++ '[' 'bytes */16' = 'bytes */16' ']'
++ '[' 0 = 0 ']'
++ for path in file dynamic-file
++ assert_range dynamic-file bytes=0-3 206 0123 'bytes 0-3/16' 4
++ path=dynamic-file
++ value=bytes=0-3
++ expected_status=206
++ expected_body=0123
++ expected_range='bytes 0-3/16'
++ expected_length=4
+++ curl --silent --show-error --dump-header /tmp/clun-compat-router.CPUxnx/range-headers --output /tmp/clun-compat-router.CPUxnx/range-body --write-out '%{http_code}' -H 'Range: bytes=0-3' http://127.0.0.1:39131/dynamic-file
++ status=206
+++ cat /tmp/clun-compat-router.CPUxnx/range-body
++ actual_body=0123
+++ tr -d '\r'
+++ awk $'\n    tolower($0) ~ /^content-range:/ { sub(/^[^:]*:[[:space:]]*/, ""); print; exit }\n  '
++ actual_range='bytes 0-3/16'
+++ tr -d '\r'
+++ awk $'\n    tolower($0) ~ /^content-length:/ { sub(/^[^:]*:[[:space:]]*/, ""); print; exit }\n  '
++ actual_length=4
++ body_ok=0
++ '[' 206 = 416 ']'
++ '[' 0123 = 0123 ']'
++ body_ok=1
++ '[' 206 = 206 ']'
++ '[' 1 = 1 ']'
++ '[' 'bytes 0-3/16' = 'bytes 0-3/16' ']'
++ '[' 4 = 4 ']'
++ assert_range dynamic-file bytes=4- 206 456789ABCDEF 'bytes 4-15/16' 12
++ path=dynamic-file
++ value=bytes=4-
++ expected_status=206
++ expected_body=456789ABCDEF
++ expected_range='bytes 4-15/16'
++ expected_length=12
+++ curl --silent --show-error --dump-header /tmp/clun-compat-router.CPUxnx/range-headers --output /tmp/clun-compat-router.CPUxnx/range-body --write-out '%{http_code}' -H 'Range: bytes=4-' http://127.0.0.1:39131/dynamic-file
++ status=206
+++ cat /tmp/clun-compat-router.CPUxnx/range-body
++ actual_body=456789ABCDEF
+++ tr -d '\r'
+++ awk $'\n    tolower($0) ~ /^content-range:/ { sub(/^[^:]*:[[:space:]]*/, ""); print; exit }\n  '
++ actual_range='bytes 4-15/16'
+++ tr -d '\r'
+++ awk $'\n    tolower($0) ~ /^content-length:/ { sub(/^[^:]*:[[:space:]]*/, ""); print; exit }\n  '
++ actual_length=12
++ body_ok=0
++ '[' 206 = 416 ']'
++ '[' 456789ABCDEF = 456789ABCDEF ']'
++ body_ok=1
++ '[' 206 = 206 ']'
++ '[' 1 = 1 ']'
++ '[' 'bytes 4-15/16' = 'bytes 4-15/16' ']'
++ '[' 12 = 12 ']'
++ assert_range dynamic-file bytes=-4 206 CDEF 'bytes 12-15/16' 4
++ path=dynamic-file
++ value=bytes=-4
++ expected_status=206
++ expected_body=CDEF
++ expected_range='bytes 12-15/16'
++ expected_length=4
+++ curl --silent --show-error --dump-header /tmp/clun-compat-router.CPUxnx/range-headers --output /tmp/clun-compat-router.CPUxnx/range-body --write-out '%{http_code}' -H 'Range: bytes=-4' http://127.0.0.1:39131/dynamic-file
++ status=206
+++ cat /tmp/clun-compat-router.CPUxnx/range-body
++ actual_body=CDEF
+++ tr -d '\r'
+++ awk $'\n    tolower($0) ~ /^content-range:/ { sub(/^[^:]*:[[:space:]]*/, ""); print; exit }\n  '
++ actual_range='bytes 12-15/16'
+++ awk $'\n    tolower($0) ~ /^content-length:/ { sub(/^[^:]*:[[:space:]]*/, ""); print; exit }\n  '
+++ tr -d '\r'
++ actual_length=4
++ body_ok=0
++ '[' 206 = 416 ']'
++ '[' CDEF = CDEF ']'
++ body_ok=1
++ '[' 206 = 206 ']'
++ '[' 1 = 1 ']'
++ '[' 'bytes 12-15/16' = 'bytes 12-15/16' ']'
++ '[' 4 = 4 ']'
++ assert_range dynamic-file bytes=0-999 206 0123456789ABCDEF 'bytes 0-15/16' 16
++ path=dynamic-file
++ value=bytes=0-999
++ expected_status=206
++ expected_body=0123456789ABCDEF
++ expected_range='bytes 0-15/16'
++ expected_length=16
+++ curl --silent --show-error --dump-header /tmp/clun-compat-router.CPUxnx/range-headers --output /tmp/clun-compat-router.CPUxnx/range-body --write-out '%{http_code}' -H 'Range: bytes=0-999' http://127.0.0.1:39131/dynamic-file
++ status=206
+++ cat /tmp/clun-compat-router.CPUxnx/range-body
++ actual_body=0123456789ABCDEF
+++ tr -d '\r'
+++ awk $'\n    tolower($0) ~ /^content-range:/ { sub(/^[^:]*:[[:space:]]*/, ""); print; exit }\n  '
++ actual_range='bytes 0-15/16'
+++ tr -d '\r'
+++ awk $'\n    tolower($0) ~ /^content-length:/ { sub(/^[^:]*:[[:space:]]*/, ""); print; exit }\n  '
++ actual_length=16
++ body_ok=0
++ '[' 206 = 416 ']'
++ '[' 0123456789ABCDEF = 0123456789ABCDEF ']'
++ body_ok=1
++ '[' 206 = 206 ']'
++ '[' 1 = 1 ']'
++ '[' 'bytes 0-15/16' = 'bytes 0-15/16' ']'
++ '[' 16 = 16 ']'
++ assert_range dynamic-file 'Bytes = 2-5' 206 2345 'bytes 2-5/16' 4
++ path=dynamic-file
++ value='Bytes = 2-5'
++ expected_status=206
++ expected_body=2345
++ expected_range='bytes 2-5/16'
++ expected_length=4
+++ curl --silent --show-error --dump-header /tmp/clun-compat-router.CPUxnx/range-headers --output /tmp/clun-compat-router.CPUxnx/range-body --write-out '%{http_code}' -H 'Range: Bytes = 2-5' http://127.0.0.1:39131/dynamic-file
++ status=206
+++ cat /tmp/clun-compat-router.CPUxnx/range-body
++ actual_body=2345
+++ tr -d '\r'
+++ awk $'\n    tolower($0) ~ /^content-range:/ { sub(/^[^:]*:[[:space:]]*/, ""); print; exit }\n  '
++ actual_range='bytes 2-5/16'
+++ awk $'\n    tolower($0) ~ /^content-length:/ { sub(/^[^:]*:[[:space:]]*/, ""); print; exit }\n  '
+++ tr -d '\r'
++ actual_length=4
++ body_ok=0
++ '[' 206 = 416 ']'
++ '[' 2345 = 2345 ']'
++ body_ok=1
++ '[' 206 = 206 ']'
++ '[' 1 = 1 ']'
++ '[' 'bytes 2-5/16' = 'bytes 2-5/16' ']'
++ '[' 4 = 4 ']'
++ assert_range dynamic-file bytes=100-200 416 '' 'bytes */16' 0
++ path=dynamic-file
++ value=bytes=100-200
++ expected_status=416
++ expected_body=
++ expected_range='bytes */16'
++ expected_length=0
+++ curl --silent --show-error --dump-header /tmp/clun-compat-router.CPUxnx/range-headers --output /tmp/clun-compat-router.CPUxnx/range-body --write-out '%{http_code}' -H 'Range: bytes=100-200' http://127.0.0.1:39131/dynamic-file
++ status=416
+++ cat /tmp/clun-compat-router.CPUxnx/range-body
++ actual_body=
+++ tr -d '\r'
+++ awk $'\n    tolower($0) ~ /^content-range:/ { sub(/^[^:]*:[[:space:]]*/, ""); print; exit }\n  '
++ actual_range='bytes */16'
+++ tr -d '\r'
+++ awk $'\n    tolower($0) ~ /^content-length:/ { sub(/^[^:]*:[[:space:]]*/, ""); print; exit }\n  '
++ actual_length=0
++ body_ok=0
++ '[' 416 = 416 ']'
++ '[' '!' -s /tmp/clun-compat-router.CPUxnx/range-body ']'
++ body_ok=1
++ '[' 416 = 416 ']'
++ '[' 1 = 1 ']'
++ '[' 'bytes */16' = 'bytes */16' ']'
++ '[' 0 = 0 ']'
++ assert_range range-after-size bytes=4-7 206 4567 'bytes 4-7/16' 4
++ path=range-after-size
++ value=bytes=4-7
++ expected_status=206
++ expected_body=4567
++ expected_range='bytes 4-7/16'
++ expected_length=4
+++ curl --silent --show-error --dump-header /tmp/clun-compat-router.CPUxnx/range-headers --output /tmp/clun-compat-router.CPUxnx/range-body --write-out '%{http_code}' -H 'Range: bytes=4-7' http://127.0.0.1:39131/range-after-size
++ status=206
+++ cat /tmp/clun-compat-router.CPUxnx/range-body
++ actual_body=4567
+++ tr -d '\r'
+++ awk $'\n    tolower($0) ~ /^content-range:/ { sub(/^[^:]*:[[:space:]]*/, ""); print; exit }\n  '
++ actual_range='bytes 4-7/16'
+++ tr -d '\r'
+++ awk $'\n    tolower($0) ~ /^content-length:/ { sub(/^[^:]*:[[:space:]]*/, ""); print; exit }\n  '
++ actual_length=4
++ body_ok=0
++ '[' 206 = 416 ']'
++ '[' 4567 = 4567 ']'
++ body_ok=1
++ '[' 206 = 206 ']'
++ '[' 1 = 1 ']'
++ '[' 'bytes 4-7/16' = 'bytes 4-7/16' ']'
++ '[' 4 = 4 ']'
++ '[' 1 -eq 1 ']'
++ '[' 1 -eq 1 ']'
++ '[' 1 -eq 1 ']'
++ for path in file dynamic-file
+++ curl --silent --show-error --dump-header /tmp/clun-compat-router.CPUxnx/multi-range-headers --output /tmp/clun-compat-router.CPUxnx/multi-range-body --write-out '%{http_code}' -H 'Range: bytes=0-1,4-5' http://127.0.0.1:39131/file
++ status=200
++ '[' 200 '!=' 200 ']'
+++ cat /tmp/clun-compat-router.CPUxnx/multi-range-body
++ '[' 0123456789ABCDEF '!=' 0123456789ABCDEF ']'
++ tr -d '\r'
++ grep -i '^content-range:'
++ for path in file dynamic-file
+++ curl --silent --show-error --dump-header /tmp/clun-compat-router.CPUxnx/multi-range-headers --output /tmp/clun-compat-router.CPUxnx/multi-range-body --write-out '%{http_code}' -H 'Range: bytes=0-1,4-5' http://127.0.0.1:39131/dynamic-file
++ status=200
++ '[' 200 '!=' 200 ']'
+++ cat /tmp/clun-compat-router.CPUxnx/multi-range-body
++ '[' 0123456789ABCDEF '!=' 0123456789ABCDEF ']'
++ tr -d '\r'
++ grep -i '^content-range:'
+++ curl --silent --show-error --dump-header /tmp/clun-compat-router.CPUxnx/dynamic-range-headers --output /tmp/clun-compat-router.CPUxnx/dynamic-range-body --write-out '%{http_code}' -H 'Range: bytes=0-3' http://127.0.0.1:39131/dynamic-range-custom
++ status=206
++ '[' 206 '!=' 206 ']'
+++ cat /tmp/clun-compat-router.CPUxnx/dynamic-range-body
++ '[' 0123 '!=' 0123 ']'
++ tr -d '\r'
++ grep -i -x 'cache-control: max-age=3600'
++ tr -d '\r'
++ grep -i -x 'x-custom: abc'
+++ curl --silent --show-error --dump-header /tmp/clun-compat-router.CPUxnx/unsatisfied-range-headers --output /tmp/clun-compat-router.CPUxnx/unsatisfied-range-body --write-out '%{http_code}' -H 'Range: bytes=100-200' http://127.0.0.1:39131/dynamic-range-custom
++ status=416
++ '[' 416 '!=' 416 ']'
++ '[' -s /tmp/clun-compat-router.CPUxnx/unsatisfied-range-body ']'
++ tr -d '\r'
++ grep -i -x 'cache-control: max-age=3600'
++ tr -d '\r'
++ grep -i -x 'x-custom: abc'
++ tr -d '\r'
++ grep -i -x 'accept-ranges: bytes'
++ tr -d '\r'
++ grep -i -F -x 'content-range: bytes */16'
+++ curl --silent --show-error --dump-header /tmp/clun-compat-router.CPUxnx/post-range-headers --output /tmp/clun-compat-router.CPUxnx/post-range-body --write-out '%{http_code}' -X POST -H 'Range: bytes=0-3' http://127.0.0.1:39131/dynamic-file
++ status=200
++ '[' 200 '!=' 200 ']'
+++ cat /tmp/clun-compat-router.CPUxnx/post-range-body
++ '[' 0123456789ABCDEF '!=' 0123456789ABCDEF ']'
++ tr -d '\r'
++ grep -i '^content-range:'
+++ curl --silent --show-error --output /tmp/clun-compat-router.CPUxnx/file-ims --write-out '%{http_code}' -H 'If-Modified-Since: Thu, 31 Dec 2099 23:59:59 GMT' http://127.0.0.1:39131/file
++ status=304
++ '[' 304 = 304 ']'
++ '[' '!' -s /tmp/clun-compat-router.CPUxnx/file-ims ']'
+++ curl --silent --show-error --head --output /tmp/clun-compat-router.CPUxnx/file-ims-head --write-out '%{http_code}' -H 'If-Modified-Since: Thu, 31 Dec 2099 23:59:59 GMT' http://127.0.0.1:39131/file
++ status=304
++ '[' 304 = 304 ']'
++ tr -d '\r'
++ grep -i '^content-length:'
+++ curl --silent --show-error --output /tmp/clun-compat-router.CPUxnx/file-ims-past --write-out '%{http_code}' -H 'If-Modified-Since: Tue, 01 Jan 1980 00:00:00 GMT' http://127.0.0.1:39131/file
++ status=200
++ '[' 200 = 200 ']'
+++ cat /tmp/clun-compat-router.CPUxnx/file-ims-past
++ '[' 0123456789ABCDEF = 0123456789ABCDEF ']'
+++ curl --silent --show-error --dump-header /tmp/clun-compat-router.CPUxnx/file-ims-range-headers --output /tmp/clun-compat-router.CPUxnx/file-ims-range --write-out '%{http_code}' -H 'If-Modified-Since: Thu, 31 Dec 2099 23:59:59 GMT' -H 'Range: bytes=0-3' http://127.0.0.1:39131/file
++ status=304
++ '[' 304 = 304 ']'
++ '[' '!' -s /tmp/clun-compat-router.CPUxnx/file-ims-range ']'
++ tr -d '\r'
++ grep -i '^content-range:'
+++ curl --silent --show-error --output /tmp/clun-compat-router.CPUxnx/file-post-ims --write-out '%{http_code}' -X POST -H 'If-Modified-Since: Thu, 31 Dec 2099 23:59:59 GMT' http://127.0.0.1:39131/dynamic-file
++ status=200
++ '[' 200 = 200 ']'
+++ cat /tmp/clun-compat-router.CPUxnx/file-post-ims
++ '[' 0123456789ABCDEF = 0123456789ABCDEF ']'
+++ curl --silent --show-error --output /tmp/clun-compat-router.CPUxnx/file-star --write-out '%{http_code}' -H 'If-None-Match: *' http://127.0.0.1:39131/file
++ status=304
++ '[' 304 = 304 ']'
++ '[' '!' -s /tmp/clun-compat-router.CPUxnx/file-star ']'
+++ curl --silent --show-error --output /tmp/clun-compat-router.CPUxnx/file-star-ims --write-out '%{http_code}' -H 'If-None-Match: *' -H 'If-Modified-Since: Tue, 01 Jan 1980 00:00:00 GMT' http://127.0.0.1:39131/file
++ status=304
++ '[' 304 = 304 ']'
++ '[' '!' -s /tmp/clun-compat-router.CPUxnx/file-star-ims ']'
+++ curl --silent --show-error --output /tmp/clun-compat-router.CPUxnx/file-post-star --write-out '%{http_code}' -X POST -H 'If-None-Match: *' http://127.0.0.1:39131/dynamic-file
++ status=200
++ '[' 200 = 200 ']'
+++ cat /tmp/clun-compat-router.CPUxnx/file-post-star
++ '[' 0123456789ABCDEF = 0123456789ABCDEF ']'
+++ curl --silent --show-error --output /tmp/clun-compat-router.CPUxnx/file-precedence --write-out '%{http_code}' -H 'If-None-Match: "not-a-match"' -H 'If-Modified-Since: Thu, 31 Dec 2099 23:59:59 GMT' http://127.0.0.1:39131/file
++ status=200
++ '[' 200 = 200 ']'
+++ cat /tmp/clun-compat-router.CPUxnx/file-precedence
++ '[' 0123456789ABCDEF = 0123456789ABCDEF ']'
+++ curl --silent --show-error --output /tmp/clun-compat-router.CPUxnx/file-custom --write-out '%{http_code}' -H 'If-None-Match: "file-custom"' http://127.0.0.1:39131/file-custom
++ status=304
++ '[' 304 = 304 ']'
++ '[' '!' -s /tmp/clun-compat-router.CPUxnx/file-custom ']'
+++ curl --silent --show-error --output /tmp/clun-compat-router.CPUxnx/file-custom-miss --write-out '%{http_code}' -H 'If-None-Match: "other"' http://127.0.0.1:39131/file-custom
++ status=200
++ '[' 200 = 200 ']'
+++ cat /tmp/clun-compat-router.CPUxnx/file-custom-miss
++ '[' 0123456789ABCDEF = 0123456789ABCDEF ']'
+++ curl --silent --show-error --output /tmp/clun-compat-router.CPUxnx/file-custom-last-modified --write-out '%{http_code}' -H 'If-Modified-Since: Wed, 21 Oct 2015 07:28:00 GMT' http://127.0.0.1:39131/file-last-modified
++ status=304
++ '[' 304 = 304 ']'
++ '[' '!' -s /tmp/clun-compat-router.CPUxnx/file-custom-last-modified ']'
+++ curl --silent --show-error --dump-header /tmp/clun-compat-router.CPUxnx/user-range-headers --output /tmp/clun-compat-router.CPUxnx/user-range-body -H 'Range: bytes=2-5' http://127.0.0.1:39131/file-content-range
+++ tr -d '\r'
+++ awk $'\n    tolower($0) ~ /^content-range:/ { sub(/^[^:]*:[[:space:]]*/, ""); print; exit }\n  '
++ content_range='bytes 0-15/100'
++ '[' 'bytes 0-15/100' = 'bytes 0-15/100' ']'
+++ cat /tmp/clun-compat-router.CPUxnx/user-range-body
++ '[' 0123456789ABCDEF = 0123456789ABCDEF ']'
+++ curl --silent --show-error --dump-header /tmp/clun-compat-router.CPUxnx/dynamic-user-range-headers --output /tmp/clun-compat-router.CPUxnx/dynamic-user-range-body -H 'Range: bytes=2-5' http://127.0.0.1:39131/dynamic-content-range
+++ tr -d '\r'
+++ awk $'\n    tolower($0) ~ /^content-range:/ { sub(/^[^:]*:[[:space:]]*/, ""); print; exit }\n  '
++ dynamic_content_range='bytes 0-15/100'
++ '[' 'bytes 0-15/100' = 'bytes 0-15/100' ']'
+++ cat /tmp/clun-compat-router.CPUxnx/dynamic-user-range-body
++ '[' 0123456789ABCDEF = 0123456789ABCDEF ']'
++ grep -x 'server.router: static clone and concurrent body API matrix passed'
++ CLUN_ROUTER_URL=http://127.0.0.1:39131/
++ /home/glenda/Projects/clun-worktrees/yes-http/build/clun /home/glenda/Projects/clun-worktrees/yes-http/tests/compat/server.router/static-contracts.js
+Terminated                 CLUN_ROUTER_URL="$url" "$clun" "$repo_root/tests/compat/server.router/static-contracts.js" | grep -x 'server.router: static clone and concurrent body API matrix passed' > /dev/null
+++ cleanup
+++ '[' -z 1358584 ']'
+++ kill 1358584
+++ true
+++ '[' -z 1358584 ']'
+++ wait 1358584
+++ rm -rf /tmp/clun-compat-router.CPUxnx
++ cleanup
++ '[' -z 1358584 ']'
++ kill 1358584
++ true
++ '[' -z 1358584 ']'
++ wait 1358584
++ true
++ rm -rf /tmp/clun-compat-router.CPUxnx

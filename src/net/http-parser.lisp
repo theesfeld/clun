@@ -19,6 +19,13 @@
   ;; Fetch exposes this response but must not apply origin redirect handling.
   (proxy-response-p nil))
 
+(defstruct (http-headers-ready (:conc-name hhr-))
+  "Headers-complete event for progressive request-body streaming.
+BODY-REMAINING is the Content-Length budget (NIL for chunked)."
+  method target version headers keep-alive
+  (body-remaining nil)
+  (chunked-p nil))
+
 (defstruct (http-parser (:conc-name hp-))
   (buf (make-array 4096 :element-type '(unsigned-byte 8) :adjustable t :fill-pointer 0))
   (phase :headers)                      ; :headers | :body
@@ -32,6 +39,12 @@
   ;; set once the head is parsed:
   method target version status reason headers keep-alive
   (body-start 0) (content-length nil) (chunked nil) (until-close nil)
+  ;; Progressive request body: emit :headers then :body-chunk / :body-end.
+  ;; Opt-in via MAKE-HTTP-PARSER :STREAM-BODY T (Clun.serve enables it).
+  (want-stream-body-p nil)
+  (stream-body-p nil)
+  (headers-emitted-p nil)
+  (body-remaining 0 :type (integer 0 *))
   ;; Incremental chunk decoder state.  Consumed wire bytes are compacted out of
   ;; BUF; decoded bytes live in CHUNK-BODY and are copied once per chunk.
   (chunk-state :size)                   ; :size | :data | :trailers
@@ -316,13 +329,27 @@ combination rules. Invalid names/values, obs-fold, and colon-less lines return n
         (fill-pointer (hp-chunk-body p)) 0)
   (%discard-buffer-prefix p body-start))
 
+(defun %headers-ready-event (p)
+  (make-http-headers-ready
+   :method (hp-method p)
+   :target (hp-target p)
+   :version (hp-version p)
+   :headers (hp-headers p)
+   :keep-alive (hp-keep-alive p)
+   :body-remaining (hp-content-length p)
+   :chunked-p (and (hp-chunked p) t)))
+
 (defun %frame-body (p headers version body-start no-body)
   (declare (ignore version))
   (let* ((te-values (%header-values headers "transfer-encoding"))
          (cl-values (%header-values headers "content-length"))
          (cl-members (%comma-members cl-values))
          (lengths (mapcar #'%safe-parse-int cl-members)))
-    (setf (hp-body-start p) body-start (hp-phase p) :body)
+    (setf (hp-body-start p) body-start
+          (hp-phase p) :body
+          (hp-stream-body-p p) nil
+          (hp-headers-emitted-p p) nil
+          (hp-body-remaining p) 0)
     (cond
       ;; Reject ambiguous framing before considering a response's no-body status.
       ((and te-values cl-values)
@@ -341,10 +368,39 @@ combination rules. Invalid names/values, obs-fold, and colon-less lines return n
        (let ((n (first lengths)))
          (if (> n (hp-max-body p))
              (return-from %frame-body (values :error '(413 . "Payload Too Large")))
-             (setf (hp-content-length p) n))))
+             (setf (hp-content-length p) n
+                   (hp-body-remaining p) n))))
       ((hp-response p) (setf (hp-until-close p) t))    ; no framing → read until the peer closes
       (t (setf (hp-content-length p) 0)))
+    ;; Progressive request streaming (opt-in): headers first when a non-empty
+    ;; body is expected. Default buffered mode preserves the historic :request event.
+    (when (and (hp-want-stream-body-p p) (not (hp-response p)))
+      (cond
+        ((and (hp-content-length p) (plusp (hp-content-length p)))
+         (setf (hp-stream-body-p p) t
+               (hp-headers-emitted-p p) t)
+         (return-from %frame-body (values :headers (%headers-ready-event p))))
+        ((hp-chunked p)
+         (setf (hp-stream-body-p p) t
+               (hp-headers-emitted-p p) t)
+         (return-from %frame-body (values :headers (%headers-ready-event p))))))
     (%step-body p)))
+
+(defun %reset-parser-head (p leftover-start)
+  "Reset head/body state after a completed message; retain leftover wire bytes."
+  (let* ((buf (hp-buf p))
+         (leftover (subseq buf leftover-start (fill-pointer buf))))
+    (setf (hp-phase p) :headers (hp-method p) nil (hp-target p) nil (hp-version p) nil
+          (hp-status p) nil (hp-reason p) nil
+          (hp-headers p) nil (hp-content-length p) nil (hp-chunked p) nil (hp-until-close p) nil
+          (hp-body-start p) 0 (hp-header-scan-start p) 0
+          (hp-stream-body-p p) nil (hp-headers-emitted-p p) nil (hp-body-remaining p) 0
+          (hp-chunk-state p) :size (hp-chunk-size p) nil
+          (hp-chunk-scan-start p) 0 (hp-chunk-trailer-scan-start p) 0
+          (hp-chunk-framing-bytes p) 0
+          (fill-pointer (hp-chunk-body p)) 0)
+    (setf (fill-pointer buf) 0)
+    (%hp-append p leftover)))
 
 (defun %emit (p body leftover-start)
   "Build the request/response, reset the parser keeping any leftover (pipelined) bytes."
@@ -353,20 +409,15 @@ combination rules. Invalid names/values, obs-fold, and colon-less lines return n
               (make-http-response :status (hp-status p) :reason (hp-reason p) :version (hp-version p)
                                   :headers (hp-headers p) :body body :keep-alive (hp-keep-alive p))
               (make-http-request :method (hp-method p) :target (hp-target p) :version (hp-version p)
-                                 :headers (hp-headers p) :body body :keep-alive (hp-keep-alive p))))
-        (buf (hp-buf p)))
-    (let ((leftover (subseq buf leftover-start (fill-pointer buf))))
-      (setf (hp-phase p) :headers (hp-method p) nil (hp-target p) nil (hp-version p) nil
-            (hp-status p) nil (hp-reason p) nil
-            (hp-headers p) nil (hp-content-length p) nil (hp-chunked p) nil (hp-until-close p) nil
-            (hp-body-start p) 0 (hp-header-scan-start p) 0
-            (hp-chunk-state p) :size (hp-chunk-size p) nil
-            (hp-chunk-scan-start p) 0 (hp-chunk-trailer-scan-start p) 0
-            (hp-chunk-framing-bytes p) 0
-            (fill-pointer (hp-chunk-body p)) 0)
-      (setf (fill-pointer buf) 0)
-      (%hp-append p leftover))
+                                 :headers (hp-headers p) :body body :keep-alive (hp-keep-alive p)))))
+    (%reset-parser-head p leftover-start)
     (values (if (http-response-p result) :response :request) result)))
+
+(defun %emit-body-end (p leftover-start)
+  "Finish a progressive request body stream and reset the parser."
+  (let ((keep-alive (hp-keep-alive p)))
+    (%reset-parser-head p leftover-start)
+    (values :body-end keep-alive)))
 
 (defun %step-body (p)
   (let ((buf (hp-buf p)) (start (hp-body-start p)))
@@ -376,6 +427,29 @@ combination rules. Invalid names/values, obs-fold, and colon-less lines return n
        (if (> (- (fill-pointer buf) start) (hp-max-body p))
            (values :error '(413 . "Payload Too Large"))   ; bound the unframed body too (DoS guard)
            (values :need-more nil)))
+      ((and (hp-stream-body-p p) (not (hp-response p)))
+       ;; Progressive Content-Length body: emit available octets as :body-chunk,
+       ;; and :body-end (with optional final chunk) when the budget is exhausted.
+       (let* ((available (- (fill-pointer buf) start))
+              (want (hp-body-remaining p))
+              (n (min available want)))
+         (cond
+           ((zerop want)
+            (%emit-body-end p start))
+           ((zerop n)
+            (values :need-more nil))
+           (t
+            (let ((chunk (subseq buf start (+ start n)))
+                  (left (- want n)))
+              (setf (hp-body-start p) (+ start n)
+                    (hp-body-remaining p) left)
+              (%discard-buffer-prefix p (hp-body-start p))
+              (setf (hp-body-start p) 0)
+              (if (zerop left)
+                  (let ((keep-alive (hp-keep-alive p)))
+                    (%reset-parser-head p 0)
+                    (values :body-end (cons chunk keep-alive)))
+                  (values :body-chunk chunk)))))))
       (t (let ((n (hp-content-length p)))
            (if (>= (- (fill-pointer buf) start) n)
                (%emit p (subseq buf start (+ start n)) (+ start n))
@@ -454,18 +528,34 @@ The second value is :MALFORMED, :TOO-LARGE, or NIL."
              (return (values :error '(400 . "Bad Request"))))
            (unless (%chunk-add-framing p 2)
              (return (values :error '(400 . "Bad Request"))))
-           (%chunk-body-append p buf size)
-           (%discard-buffer-prefix p (+ size 2))
-           (setf (hp-chunk-size p) nil
-                 (hp-chunk-state p) :size
-                 (hp-chunk-scan-start p) 0)))
+           (cond
+             ((hp-stream-body-p p)
+              (let ((chunk (subseq buf 0 size)))
+                (%discard-buffer-prefix p (+ size 2))
+                (setf (hp-chunk-size p) nil
+                      (hp-chunk-state p) :size
+                      (hp-chunk-scan-start p) 0)
+                (return (values :body-chunk chunk))))
+             (t
+              (%chunk-body-append p buf size)
+              (%discard-buffer-prefix p (+ size 2))
+              (setf (hp-chunk-size p) nil
+                    (hp-chunk-state p) :size
+                    (hp-chunk-scan-start p) 0)))))
         (:trailers
          (cond
            ;; Empty trailer section: the CRLF directly follows the zero-size line.
            ((and (>= end 2) (= (aref buf 0) +cr+) (= (aref buf 1) +lf+))
             (unless (%chunk-add-framing p 2)
               (return (values :error '(400 . "Bad Request"))))
-            (return (%emit p (%chunk-body-copy p) 2)))
+            (return
+              (if (hp-stream-body-p p)
+                  (let ((keep-alive (hp-keep-alive p)))
+                    (%reset-parser-head p 2)
+                    (values :body-end (cons
+                                       (make-array 0 :element-type '(unsigned-byte 8))
+                                       keep-alive)))
+                  (%emit p (%chunk-body-copy p) 2))))
            (t
             (let ((trailer-end
                     (%find-crlfcrlf buf
@@ -600,9 +690,18 @@ header, chunk-size, and trailer limits are enforced before retaining later bytes
            ;; A bounded state boundary was consumed; apply the next state's
            ;; preflight to the unretained suffix in this same socket read.
            ((and (eq event :need-more) (< start end)))
+           ;; Progressive body events: keep feeding the same socket read so a
+           ;; large body can surface as multiple :body-chunk events without
+           ;; waiting for another readable notification.
+           ((and (eq event :body-chunk) (< start end))
+            ;; Stash the remaining feed for the next parser-feed invocation by
+            ;; appending after the current body state has retained its own bytes.
+            (%hp-append p octets :start start :end end)
+            (return (values event data)))
            ;; Preserve pipelined bytes after emitting one message. They are parsed
            ;; by the caller's next feed, matching the existing one-event contract.
-           ((and (member event '(:request :response)) (< start end))
+           ((and (member event '(:request :response :headers :body-end))
+                 (< start end))
             (%hp-append p octets :start start :end end)
             (return (values event data)))
            (t

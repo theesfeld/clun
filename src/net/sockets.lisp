@@ -51,6 +51,8 @@
   (backpressured nil)                   ; a partial send registered :output → on-drain owed
   (close-after-drain nil)               ; tcp-shutdown: close once the write queue empties
   (read-buf nil)
+  ;; When NIL, %on-acceptable will not auto-start the input handler (TLS handoff).
+  (auto-read-p t)
   on-connect on-data on-close on-error on-drain)
 
 (defstruct (listener (:conc-name listener-) (:predicate listener-p))
@@ -296,14 +298,22 @@ soon as it drains (the response's bytes are guaranteed to go out first)."
       (lp:unregister-loop-resource (listener-resource listener))
       (setf (listener-resource listener) nil))))
 
-(defun tcp-listen (loop host port &key ipv6 (backlog 128) on-connection)
+(defun tcp-listen (loop host port &key ipv6 (backlog 128) on-connection
+                                   (reuse-port nil))
   "Bind + listen on HOST:PORT (PORT 0 → an ephemeral port, read back via listener-port).
 ON-CONNECTION is (lambda (tcp)) for each accepted connection — set its on-data/on-close
-inside; reading starts after it returns."
+inside; reading starts after it returns.
+When REUSE-PORT is true, best-effort SO_REUSEPORT is enabled (Linux/macOS)."
   (let ((socket (%new-socket ipv6)) (listener nil))
     (handler-case
         (progn
           (setf (sb-bsd-sockets:sockopt-reuse-address socket) t)
+          (when reuse-port
+            (ignore-errors
+              ;; SO_REUSEPORT = 15 on Linux; SBCL may expose sockopt-reuse-port.
+              (let ((sym (find-symbol "SOCKOPT-REUSE-PORT" :sb-bsd-sockets)))
+                (when (and sym (fboundp sym))
+                  (funcall (fdefinition `(setf ,sym)) t socket)))))
           (%nonblock socket)
           (sb-bsd-sockets:socket-bind socket (%inet-address host ipv6) port)
           (sb-bsd-sockets:socket-listen socket backlog)
@@ -330,6 +340,43 @@ inside; reading starts after it returns."
             (error 'socket-open-error :code (socket-error-code e) :op "listen")
             (error e))))))
 
+(defun unix-listen (loop path &key (backlog 128) on-connection)
+  "Bind + listen on a Unix domain socket at PATH. Accepted children are ordinary
+TCP handles (same on-data/on-close contract as tcp-listen)."
+  (let ((socket (make-instance 'sb-bsd-sockets:local-socket :type :stream))
+        (listener nil))
+    (handler-case
+        (progn
+          (ignore-errors (delete-file path))
+          (%nonblock socket)
+          (sb-bsd-sockets:socket-bind socket path)
+          (sb-bsd-sockets:socket-listen socket backlog)
+          (let* ((fd (sb-bsd-sockets:socket-file-descriptor socket))
+                 (h (lp:make-handle loop :kind :listener))
+                 (l (make-listener :socket socket :fd fd :loop loop :handle h
+                                   :address path :port 0
+                                   :on-connection on-connection)))
+            (setf listener l)
+            (setf (listener-resource l)
+                  (lp:register-loop-handle-resource
+                   loop l
+                   (lambda ()
+                     (%finish-listener-close l)
+                     (ignore-errors (delete-file path)))
+                   h))
+            (lp:run-on-loop loop
+              (lambda ()
+                (setf (listener-read-handler l)
+                      (lp:reactor-add loop fd :input
+                                      (lambda (fd) (declare (ignore fd))
+                                        (%on-acceptable l))))))
+            l))
+      (error (e)
+        (if listener (%finish-listener-close listener) (%safe-close-socket socket))
+        (if (typep e 'sb-bsd-sockets:socket-error)
+            (error 'socket-open-error :code (socket-error-code e) :op "unix-listen")
+            (error e))))))
+
 (defun %on-acceptable (listener)
   "Accept every pending connection (until EAGAIN), wrap + hand to on-connection, start reading."
   (when (not (listener-closed listener))
@@ -345,7 +392,8 @@ inside; reading starts after it returns."
           (when tcp
             (when (listener-on-connection listener)
               (funcall (listener-on-connection listener) tcp))
-            (when (eq (tcp-state tcp) :open) (%start-reading tcp))))))))
+            (when (and (eq (tcp-state tcp) :open) (tcp-auto-read-p tcp))
+              (%start-reading tcp))))))))
 
 (defun listener-close (listener)
   (lp:run-on-loop (listener-loop listener)

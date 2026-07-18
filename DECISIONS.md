@@ -3325,3 +3325,9 @@ Ship Bun-shaped pure-CL compression and archive surface without a new ledger row
 - Watch integration deferred to Phase 67; JSX coverage mapping follows language JSX.
 - Four-target platforms.tsv `supported`; ledger `clun_state=Yes`.
 - Release train: `0.1.0-dev.36` (reslot after archive Yes landed as `.35`).
+
+## 2026-07-18 — server.http Partial→Yes (#128)
+
+- Streaming request/response bodies pure-CL (chunked Transfer-Encoding; progressive request body stream).
+- HTTP/1.1 Yes bar: lifecycle, optional pure-tls serve, unix/reusePort.
+- Ledger Yes + four-target supported. Train: `0.1.0-dev.37`.

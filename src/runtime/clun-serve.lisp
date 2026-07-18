@@ -1,10 +1,10 @@
-;;;; clun-serve.lisp — Clun.serve (PLAN.md Phase 17, §3.6; Phase 49 lifecycle slice).
+;;;; clun-serve.lisp — Clun.serve (PLAN.md Phase 17, §3.6; Phase 49 HTTP/1.1 Yes bar).
 ;;;; Wires the Phase-16 socket layer + the HTTP parser + the web classes + the user's
 ;;;; JS `fetch` handler. Fully async on the reactor: a synchronous Response is written
 ;;;; immediately; a Promise<Response> is written from its .then continuation (drained
-;;;; after the reactor, P17 loop change). Keep-alive, chunked in / content-length out,
-;;;; 431/413 limits, HEAD, Date header, 503 shedding, idleTimeout, maxRequestBodySize,
-;;;; graceful stop, and force stop(true).
+;;;; after the reactor, P17 loop change). Keep-alive, chunked in/out, streaming
+;;;; ReadableStream response bodies, 431/413 limits, HEAD, Date header, 503 shedding,
+;;;; idleTimeout, maxRequestBodySize, graceful stop, and force stop(true).
 
 (in-package :clun.runtime)
 
@@ -19,7 +19,11 @@
   (upgraded-p nil)
   connection
   server
-  websocket-handlers)
+  websocket-handlers
+  ;; Bun server.timeout(req, seconds) override; NIL means use server idleTimeout.
+  (idle-timeout-sec nil)
+  ;; Cached peer address for server.requestIP (address/port/family object).
+  peer-address)
 
 ;;; --- Phase 51 M1: ServerWebSocket session -----------------------------------
 
@@ -150,6 +154,34 @@
   status
   status-text
   headers)
+
+(defstruct (stream-send-plan (:constructor %make-stream-send-plan))
+  "Progressive Transfer-Encoding: chunked write plan for a ReadableStream body."
+  head
+  body-stream
+  method
+  keep-alive
+  (active-p t)
+  reader)
+
+(defparameter +chunked-response-end+
+  (%ascii-octets (format nil "0~c~c~c~c" #\Return #\Newline #\Return #\Newline))
+  "Final zero-length chunk + trailer terminator for HTTP/1.1 chunked responses.")
+
+(defun %chunked-response-frame (octets)
+  "Frame one non-empty response body chunk using HTTP/1.1 chunked coding."
+  (when (zerop (length octets))
+    (return-from %chunked-response-frame
+      (make-array 0 :element-type '(unsigned-byte 8))))
+  (let* ((prefix (%ascii-octets
+                  (format nil "~x~c~c" (length octets) #\Return #\Newline)))
+         (suffix (%ascii-octets (format nil "~c~c" #\Return #\Newline)))
+         (result (make-array (+ (length prefix) (length octets) (length suffix))
+                             :element-type '(unsigned-byte 8))))
+    (replace result prefix)
+    (replace result octets :start1 (length prefix))
+    (replace result suffix :start1 (+ (length prefix) (length octets)))
+    result))
 
 (defun %close-file-send-plan (plan)
   (when (file-send-plan-stream plan)
@@ -404,9 +436,36 @@
           (when stream (ignore-errors (close stream)))
           (error error))))))
 
+(defun %serialize-stream-response (resp method keep-alive request)
+  "Build a progressive chunked write plan for a ReadableStream Response body."
+  (multiple-value-bind (status status-text) (%response-status-and-text resp)
+    (let* ((user (%response-headers-for-wire resp request))
+           (user (remove-if (lambda (pair)
+                              (member (car pair)
+                                      '("content-length" "transfer-encoding"
+                                        "connection" "date")
+                                      :test #'string=))
+                            user))
+           (head (make-string-output-stream)))
+      (format head "HTTP/1.1 ~d ~a~c~c" status status-text #\Return #\Newline)
+      (format head "Date: ~a~c~c" (%http-date) #\Return #\Newline)
+      (dolist (p user)
+        (format head "~a: ~a~c~c" (%header-title-case (car p))
+                (cdr p) #\Return #\Newline))
+      (format head "Transfer-Encoding: chunked~c~c" #\Return #\Newline)
+      (format head "Connection: ~a~c~c"
+              (if keep-alive "keep-alive" "close") #\Return #\Newline)
+      (format head "~c~c" #\Return #\Newline)
+      (%make-stream-send-plan
+       :head (%ascii-octets (get-output-stream-string head))
+       :body-stream (js-response-body-stream resp)
+       :method method
+       :keep-alive keep-alive))))
+
 (defun %serialize-response (resp method keep-alive &optional request static-p)
-  "Freeze a Response into wire octets or a lazy file source. HEAD omits the body.
-Date/Content-Length/Connection are set by us (user copies of those are dropped)."
+  "Freeze a Response into wire octets, a lazy file source, or a stream-send plan.
+HEAD omits the body. Date/Content-Length/Connection/Transfer-Encoding are set by
+us (user copies of those are dropped)."
   (%require-response resp)
   (when (js-clun-file-p (%response-body-value resp))
     (multiple-value-bind (status status-text) (%response-status-and-text resp)
@@ -416,6 +475,9 @@ Date/Content-Length/Connection are set by us (user copies of those are dropped).
          :keep-alive keep-alive :request request :status status
          :status-text status-text
          :headers (%response-headers-for-wire resp request)))))
+  (when (%response-streaming-body-p resp)
+    (return-from %serialize-response
+      (%serialize-stream-response resp method keep-alive request)))
   (multiple-value-bind (body default-ct) (%response-body-octets resp)
     (let* ((status-value (eng:js-get resp "status"))
            (status (if (eng:js-number-p status-value)
@@ -535,22 +597,47 @@ while the JavaScript Request receives an absolute URL as required by the web API
       ;; connection fail-closed if an internal invariant is ever violated.
       (%simple-response-octets 500 "Internal Server Error" nil))))
 
+(defun %server-request-url-from-parts (headers target &key (tls-p nil))
+  (let* ((host (or (cdr (assoc "host" headers :test #'string-equal))
+                   "localhost"))
+         (scheme (if tls-p "https://" "http://")))
+    (concatenate 'string scheme host
+                 (%request-target-path target)
+                 (%request-target-query target))))
+
 (defun %dispatch (req fetch err-handler routes commit
-                  &key connection server websocket-handlers)
+                  &key connection server websocket-handlers
+                       request keep-alive method target headers body
+                       (tls-p nil))
   "Run one request and call COMMIT exactly once with (payload keep-alive context).
 COMMIT is connection-owned, so late Promise settlement cannot write after teardown.
-When CONTEXT is upgraded to WebSocket, COMMIT is not invoked with HTTP payload."
+When CONTEXT is upgraded to WebSocket, COMMIT is not invoked with HTTP payload.
+
+REQ is a net:http-request, or NIL when REQUEST is already built (progressive
+streaming path)."
   (let* ((context (%make-serve-request-context
                    :connection connection
                    :server server
-                   :websocket-handlers websocket-handlers))
-         (request (%make-server-request
-                   (net:hr-method req) (%server-request-url req)
-                   (net:hr-headers req) (net:hr-body req) context))
-         (keep-alive (net:hr-keep-alive req))
-         (method (net:hr-method req))
+                   :websocket-handlers websocket-handlers
+                   :peer-address
+                   (when connection
+                     (multiple-value-list (net:tcp-peer connection)))))
+         (method (or method (and req (net:hr-method req))))
+         (keep-alive (if req (net:hr-keep-alive req) keep-alive))
+         (headers (or headers (and req (net:hr-headers req))))
+         (target (or target (and req (net:hr-target req))))
+         (body (if req (net:hr-body req) (or body #())))
+         (request
+           (or request
+               (%make-server-request
+                method
+                (%server-request-url-from-parts headers target :tls-p tls-p)
+                headers body context)))
          (settled-p nil)
          (error-handler-started-p nil))
+    ;; Stash context on the request for requestIP/timeout lookups.
+    (when (js-server-request-p request)
+      (setf (js-server-request-context request) context))
     (labels
         ((upgraded-p ()
            (serve-request-context-upgraded-p context))
@@ -630,7 +717,7 @@ When CONTEXT is upgraded to WebSocket, COMMIT is not invoked with HTTP payload."
                    (condition () (commit-default)))))))
       (handler-case
           (multiple-value-bind (route-action params)
-              (%match-route-table routes (net:hr-target req) method)
+              (%match-route-table routes (or target "") method)
             (when route-action
               (%install-request-route-params request params))
             (call-action (or route-action fetch) (and route-action t)))
@@ -686,6 +773,92 @@ When CONTEXT is upgraded to WebSocket, COMMIT is not invoked with HTTP payload."
       (net:tcp-write connection (file-send-plan-head plan))
       (pump))))
 
+(defun %serve-stream-get-reader (stream)
+  (cond
+    ((js-body-stream-p stream) (%body-stream-reader stream))
+    ((js-readable-stream-p stream) (%make-default-reader stream))
+    (t (eng:throw-type-error "Response body stream is not readable"))))
+
+(defun %serve-stream-reader-read (reader)
+  (cond
+    ((js-body-reader-p reader) (%body-reader-read reader))
+    ((js-readable-stream-reader-p reader) (%reader-read reader))
+    (t (eng:throw-type-error "Invalid body stream reader"))))
+
+(defun %send-stream-plan (connection plan complete)
+  "Write PLAN headers, then pump ReadableStream body chunks as Transfer-Encoding: chunked."
+  (let ((active-p t)
+        (head-sent-p nil)
+        (reader nil))
+    (labels
+        ((finish (success-p)
+           (when active-p
+             (setf active-p nil
+                   (stream-send-plan-active-p plan) nil
+                   (net:tcp-on-drain connection) nil)
+             (funcall complete success-p)))
+         (write-and-maybe-wait (octets continue)
+           (cond
+             ((not active-p) nil)
+             ((eq (net:tcp-state connection) :closed) (finish nil) nil)
+             (t
+              (when (plusp (length octets))
+                (net:tcp-write connection octets))
+              (if (plusp (net:tcp-queued-bytes connection))
+                  (progn
+                    (setf (net:tcp-on-drain connection)
+                          (lambda (c)
+                            (declare (ignore c))
+                            (when active-p (funcall continue))))
+                    nil)
+                  t))))
+         (end-body ()
+           (when (write-and-maybe-wait +chunked-response-end+ #'end-body)
+             (finish t)))
+         (pull ()
+           (when active-p
+             (handler-case
+                 (cond
+                   ((eq (net:tcp-state connection) :closed) (finish nil))
+                   ((string= (stream-send-plan-method plan) "HEAD")
+                    (finish t))
+                   (t
+                    (%promise-then
+                     (%serve-stream-reader-read reader)
+                     (lambda (result)
+                       (when active-p
+                         (handler-case
+                             (if (eng:js-truthy (eng:js-get result "done"))
+                                 (end-body)
+                                 (let* ((chunk
+                                          (%body->octets
+                                           (eng:js-get result "value")))
+                                        (framed (%chunked-response-frame chunk)))
+                                   (if (write-and-maybe-wait framed #'pull)
+                                       (pull)
+                                       nil)))
+                           (eng:js-condition () (finish nil))
+                           (condition () (finish nil)))))
+                     (lambda (ignored)
+                       (declare (ignore ignored))
+                       (finish nil)))))
+               (eng:js-condition () (finish nil))
+               (condition () (finish nil))))))
+      (handler-case
+          (progn
+            (setf reader
+                  (%serve-stream-get-reader (stream-send-plan-body-stream plan)))
+            (setf (stream-send-plan-reader plan) reader)
+            (when (write-and-maybe-wait (stream-send-plan-head plan)
+                                        (lambda ()
+                                          (unless head-sent-p
+                                            (setf head-sent-p t)
+                                            (pull))))
+              (setf head-sent-p t)
+              (pull)))
+        (eng:js-condition () (finish nil))
+        (condition () (finish nil))))))
+
 (defun %serve-connection (conn fetch-cell err-handler-cell routes-cell
                           server websocket-cell
                           &key (max-body net:*max-body-bytes*)
@@ -698,17 +871,22 @@ IDLE-TIMEOUT-SEC is Bun idleTimeout in seconds (0 disables; default 10; max 255)
 Wire activity (read or write) re-arms the idle timer.
 SERVER / WEBSOCKET-CELL enable Phase 51 M1 upgrade when handlers are configured."
   (let* ((event-loop (or event-loop (eng:current-loop)))
-         (parser (net:make-http-parser :max-body max-body))
+         (parser (net:make-http-parser :max-body max-body
+                                       :want-stream-body-p t))
          (next-sequence 0)
          (next-commit 0)
          (ready (make-hash-table :test #'eql))
          (contexts '())
          (active-file-plan nil)
+         (active-stream-plan nil)
          (closed-p nil)
          (final-request-seen-p nil)
          (upgraded-p nil)
          (idle-timer nil)
-         (outer-close (net:tcp-on-close conn)))
+         (outer-close (net:tcp-on-close conn))
+         ;; Progressive request-body stream state (headers-first path).
+         (pending-body-stream nil)
+         (pending-keep-alive t))
     (labels
         ((clear-idle ()
            (when idle-timer
@@ -740,12 +918,17 @@ SERVER / WEBSOCKET-CELL enable Phase 51 M1 upgrade when handlers are configured.
            (when active-file-plan
              (%close-file-send-plan active-file-plan)
              (setf active-file-plan nil))
+           (when active-stream-plan
+             (setf (stream-send-plan-active-p active-stream-plan) nil
+                   active-stream-plan nil))
            (maphash
             (lambda (sequence entry)
               (declare (ignore sequence))
               (let ((payload (first entry)))
                 (when (file-send-plan-p payload)
-                  (%close-file-send-plan payload))))
+                  (%close-file-send-plan payload))
+                (when (stream-send-plan-p payload)
+                  (setf (stream-send-plan-active-p payload) nil))))
             ready)
            (dolist (context contexts)
              (setf (serve-request-context-connection-closed-p context) t))
@@ -753,6 +936,7 @@ SERVER / WEBSOCKET-CELL enable Phase 51 M1 upgrade when handlers are configured.
            (clrhash ready))
          (finish-slot (keep-alive context success-p)
            (setf active-file-plan nil
+                 active-stream-plan nil
                  contexts (delete context contexts :test #'eq))
            (cond
              ((or closed-p (not success-p))
@@ -788,9 +972,11 @@ SERVER / WEBSOCKET-CELL enable Phase 51 M1 upgrade when handlers are configured.
                  (file-response-source-method source)
                  (file-response-source-request source))
                 nil))))
+         (busy-p ()
+           (or active-file-plan active-stream-plan))
          (flush-ready ()
            (when upgraded-p (return-from flush-ready nil))
-           (loop while (null active-file-plan) do
+           (loop while (not (busy-p)) do
              (multiple-value-bind (entry present-p) (gethash next-commit ready)
                (unless (and present-p (not closed-p)) (return))
                (remhash next-commit ready)
@@ -798,29 +984,38 @@ SERVER / WEBSOCKET-CELL enable Phase 51 M1 upgrade when handlers are configured.
                  (when (file-response-source-p payload)
                    (multiple-value-setq (payload keep-alive)
                      (materialize-file-source payload)))
-                 (if (file-send-plan-p payload)
-                     (progn
-                       (setf active-file-plan payload)
-                       (arm-idle)
-                       (%send-file-plan
-                        conn payload
-                        (lambda (success-p)
-                          (finish-slot keep-alive context success-p))))
-                     (progn
-                       (incf next-commit)
-                       (setf contexts (delete context contexts :test #'eq))
-                       (write-octets payload)
-                       (unless keep-alive
-                         (setf closed-p t
-                               (serve-request-context-connection-closed-p context) t)
-                         (mark-contexts-closed)
-                         (net:tcp-shutdown conn))))))))
+                 (cond
+                   ((file-send-plan-p payload)
+                    (setf active-file-plan payload)
+                    (arm-idle)
+                    (%send-file-plan
+                     conn payload
+                     (lambda (success-p)
+                       (finish-slot keep-alive context success-p))))
+                   ((stream-send-plan-p payload)
+                    (setf active-stream-plan payload)
+                    (arm-idle)
+                    (%send-stream-plan
+                     conn payload
+                     (lambda (success-p)
+                       (finish-slot keep-alive context success-p))))
+                   (t
+                    (incf next-commit)
+                    (setf contexts (delete context contexts :test #'eq))
+                    (write-octets payload)
+                    (unless keep-alive
+                      (setf closed-p t
+                            (serve-request-context-connection-closed-p context) t)
+                      (mark-contexts-closed)
+                      (net:tcp-shutdown conn))))))))
          (queue-response (sequence payload keep-alive context)
            (cond
              ((or closed-p upgraded-p
                   (serve-request-context-upgraded-p context))
               (when (file-send-plan-p payload)
                 (%close-file-send-plan payload))
+              (when (stream-send-plan-p payload)
+                (setf (stream-send-plan-active-p payload) nil))
               (when (serve-request-context-upgraded-p context)
                 (setf upgraded-p t
                       final-request-seen-p t)))
@@ -844,6 +1039,57 @@ SERVER / WEBSOCKET-CELL enable Phase 51 M1 upgrade when handlers are configured.
                     (setf octets (make-array 0 :element-type '(unsigned-byte 8)))
                     (case event
                       (:need-more (return))
+                      (:headers
+                       ;; Progressive body: dispatch before the full body arrives.
+                       (let* ((stream (%new-body-stream))
+                              (sequence next-sequence)
+                              (keep-alive (net:hhr-keep-alive data)))
+                         (incf next-sequence)
+                         (setf pending-body-stream stream
+                               pending-keep-alive keep-alive)
+                         (unless keep-alive (setf final-request-seen-p t))
+                         (let ((context
+                                 (%dispatch
+                                  nil (car fetch-cell) (car err-handler-cell)
+                                  (car routes-cell)
+                                  (lambda (bytes ka request-context)
+                                    (queue-response sequence bytes ka
+                                                    request-context))
+                                  :connection conn
+                                  :server server
+                                  :websocket-handlers (car websocket-cell)
+                                  :request
+                                  (%make-server-request-streaming
+                                   (net:hhr-method data)
+                                   (%server-request-url-from-parts
+                                    (net:hhr-headers data) (net:hhr-target data))
+                                   (net:hhr-headers data) stream)
+                                  :keep-alive keep-alive
+                                  :method (net:hhr-method data)
+                                  :target (net:hhr-target data)
+                                  :headers (net:hhr-headers data))))
+                           (when (serve-request-context-upgraded-p context)
+                             (setf upgraded-p t final-request-seen-p t)
+                             (return))
+                           (unless (serve-request-context-committed-p context)
+                             (register-context context))
+                           (when closed-p
+                             (setf (serve-request-context-connection-closed-p
+                                    context) t)))))
+                      (:body-chunk
+                       (when pending-body-stream
+                         (when (plusp (length data))
+                           (%body-stream-enqueue pending-body-stream data))))
+                      (:body-end
+                       (let ((chunk (if (consp data) (car data) #()))
+                             (keep-alive (if (consp data) (cdr data)
+                                             pending-keep-alive)))
+                         (when pending-body-stream
+                           (when (and chunk (plusp (length chunk)))
+                             (%body-stream-enqueue pending-body-stream chunk))
+                           (%body-stream-close pending-body-stream)
+                           (setf pending-body-stream nil))
+                         (unless keep-alive (return))))
                       (:request
                        (unless (net:hr-keep-alive data)
                          ;; Latch before invoking the handler. A later read callback
@@ -874,6 +1120,12 @@ SERVER / WEBSOCKET-CELL enable Phase 51 M1 upgrade when handlers are configured.
                        ;; A request that asks to close owns the final pipeline slot.
                        (unless (net:hr-keep-alive data) (return)))
                       (:error
+                       (when pending-body-stream
+                         (%body-stream-error
+                          pending-body-stream
+                          (%body-stream-error-object
+                           (format nil "HTTP ~a" (cdr data))))
+                         (setf pending-body-stream nil))
                        (setf final-request-seen-p t)
                        (let ((sequence next-sequence))
                          (incf next-sequence)
@@ -1301,149 +1553,378 @@ SERVER / WEBSOCKET-CELL enable Phase 51 M1 upgrade when handlers are configured.
       (eng:throw-type-error
        "Clun.serve requires a fetch function or at least one active route"))
     (values fetch err-handler routes websocket)))
+
+(defun %serve-development-option (opts)
+  "Bun defaults development to true unless NODE_ENV is production."
+  (let ((value (eng:js-get opts "development")))
+    (cond
+      ((or (eng:js-undefined-p value) (eng:js-null-p value)) t)
+      (t (eng:js-truthy value)))))
+
+(defun %serve-tls-paths (opts)
+  "Return (values cert-path key-path) or NIL when tls is unset.
+Accepts Bun-shaped tls: { cert, key } as string paths or Clun.file."
+  (let ((tls (eng:js-get opts "tls")))
+    (cond
+      ((or (eng:js-undefined-p tls) (eng:js-null-p tls)) (values nil nil))
+      ((not (eng:js-object-p tls))
+       (eng:throw-type-error "Clun.serve: tls must be an object"))
+      (t
+       (flet ((path-of (name)
+                (let ((v (eng:js-get tls name)))
+                  (cond
+                    ((eng:js-undefined-p v) nil)
+                    ((eng:js-string-p v) (eng:to-string v))
+                    ((js-clun-file-p v)
+                     (eng:to-string (eng:js-get v "name")))
+                    (t (eng:to-string v))))))
+         (let ((cert (path-of "cert"))
+               (key (path-of "key")))
+           (unless (and cert key)
+             (eng:throw-type-error
+              "Clun.serve: tls requires cert and key paths"))
+           (values cert key)))))))
+
+(defun %peer-address-js (peer)
+  "Build Bun-shaped { address, port, family } from (address port) list."
+  (if (or (null peer) (not (consp peer)))
+      eng:+null+
+      (let* ((addr (first peer))
+             (port (or (second peer) 0))
+             (o (eng:new-object))
+             (text
+               (cond
+                 ((stringp addr) addr)
+                 ((and (vectorp addr) (= (length addr) 4))
+                  (format nil "~d.~d.~d.~d"
+                          (aref addr 0) (aref addr 1)
+                          (aref addr 2) (aref addr 3)))
+                 ((and (vectorp addr) (= (length addr) 16))
+                  "ipv6")
+                 (t "unknown"))))
+        (eng:data-prop o "address" text)
+        (eng:data-prop o "port" (coerce port 'double-float))
+        (eng:data-prop o "family"
+                       (if (and (vectorp addr) (= (length addr) 16))
+                           "IPv6" "IPv4"))
+        o)))
+
+(defun %install-serve-lifecycle-methods (server idle-timeout-cell)
+  "Install requestIP and timeout on SERVER."
+  (declare (ignore idle-timeout-cell))
+  (eng:install-method server "requestIP" 1
+    (lambda (this args)
+      (declare (ignore this))
+      (let ((req (eng:arg args 0)))
+        (unless (js-request-p req)
+          (eng:throw-type-error "server.requestIP expects a Request"))
+        (let ((ctx (and (js-server-request-p req)
+                        (js-server-request-context req))))
+          (if (and ctx (serve-request-context-peer-address ctx))
+              (%peer-address-js (serve-request-context-peer-address ctx))
+              eng:+null+)))))
+  (eng:install-method server "timeout" 2
+    (lambda (this args)
+      (declare (ignore this))
+      (let ((req (eng:arg args 0))
+            (seconds (eng:arg args 1)))
+        (unless (js-server-request-p req)
+          (eng:throw-type-error "server.timeout expects a server Request"))
+        (let* ((n (if (eng:js-number-p seconds)
+                      (truncate (eng:to-number seconds))
+                      0))
+               (ctx (js-server-request-context req)))
+          (when ctx
+            (setf (serve-request-context-idle-timeout-sec ctx)
+                  (max 0 (min 255 n))))
+          eng:+undefined+))))
+  server)
+
+(defun %tls-drive-connection
+    (conn cert-path key-path fetch-cell err-handler-cell routes-cell
+     server websocket-cell max-body idle-timeout-sec event-loop
+     on-closed)
+  "Drive one accepted TLS connection on a worker thread using pure-tls.
+Marshals fetch dispatch onto EVENT-LOOP so JS remains single-threaded."
+  (declare (ignore idle-timeout-sec websocket-cell))
+  (sb-thread:make-thread
+   (lambda ()
+     (block tls-conn
+       (let ((tls nil) (raw nil))
+         (unwind-protect
+              (handler-case
+                  (progn
+                    ;; pure-tls expects a blocking stream.
+                    (setf (sb-bsd-sockets:non-blocking-mode
+                           (net:tcp-socket conn))
+                          nil)
+                    (setf raw (sb-bsd-sockets:socket-make-stream
+                               (net:tcp-socket conn)
+                               :input t :output t
+                               :element-type '(unsigned-byte 8)
+                               :auto-close nil)
+                          tls (pure-tls:make-tls-server-stream
+                               raw :certificate cert-path :key key-path))
+                    (let ((parser (net:make-http-parser :max-body max-body))
+                          (buf (make-array 8192
+                                           :element-type '(unsigned-byte 8))))
+                      (loop
+                        (let ((n (read-sequence buf tls)))
+                          (when (zerop n) (return-from tls-conn))
+                          (let ((chunk (subseq buf 0 n)))
+                            (loop
+                              (multiple-value-bind (event data)
+                                  (net:parser-feed parser chunk)
+                                (setf chunk
+                                      (make-array 0
+                                                  :element-type
+                                                  '(unsigned-byte 8)))
+                                (case event
+                                  (:need-more (return))
+                                  (:request
+                                   (let* ((done nil)
+                                          (payload nil)
+                                          (lock (sb-thread:make-mutex))
+                                          (cv (sb-thread:make-waitqueue))
+                                          (keep-alive (net:hr-keep-alive data)))
+                                     (lp:run-on-loop
+                                      event-loop
+                                      (lambda ()
+                                        (handler-case
+                                            (%dispatch
+                                             data
+                                             (car fetch-cell)
+                                             (car err-handler-cell)
+                                             (car routes-cell)
+                                             (lambda (bytes ka ctx)
+                                               (declare (ignore ka ctx))
+                                               (sb-thread:with-mutex (lock)
+                                                 (setf payload bytes done t)
+                                                 (sb-thread:condition-notify
+                                                  cv)))
+                                             :connection conn
+                                             :server server
+                                             :tls-p t)
+                                          (condition ()
+                                            (sb-thread:with-mutex (lock)
+                                              (setf payload
+                                                    (%simple-response-octets
+                                                     500
+                                                     "Internal Server Error"
+                                                     nil)
+                                                    done t)
+                                              (sb-thread:condition-notify
+                                               cv))))))
+                                     (sb-thread:with-mutex (lock)
+                                       (loop until done
+                                             do (sb-thread:condition-wait
+                                                 cv lock)))
+                                     (when (vectorp payload)
+                                       (write-sequence payload tls)
+                                       (force-output tls))
+                                     (unless keep-alive
+                                       (return-from tls-conn))))
+                                  (:headers
+                                   ;; TLS progressive path: drain body before
+                                   ;; dispatching (blocking worker can buffer).
+                                   nil)
+                                  (:body-chunk nil)
+                                  (:body-end nil)
+                                  (:error
+                                   (write-sequence
+                                    (%simple-response-octets
+                                     (car data) (cdr data) nil)
+                                    tls)
+                                   (force-output tls)
+                                   (return-from tls-conn))
+                                  (t (return))))))))))
+                (condition () nil))
+           (ignore-errors (when tls (close tls)))
+           (ignore-errors (when raw (close raw)))
+           (ignore-errors (net:tcp-close conn))
+           (when on-closed (funcall on-closed))))))
+   :name "clun-serve-tls"))
+
 (defun %clun-serve (g opts)
   (multiple-value-bind (fetch err-handler routes websocket)
       (%compile-serve-dispatch-options opts)
-    (let* ((port (let ((p (eng:js-get opts "port")))
-                   (if (eng:js-number-p p) (truncate (eng:to-number p)) 3000)))
-           (host (let ((h (eng:js-get opts "hostname")))
-                   (if (eng:js-string-p h) (eng:to-string h) "0.0.0.0")))
-           (idle-timeout-sec (%serve-idle-timeout-option opts))
-           (max-body (%serve-max-request-body-size-option opts))
-           (loop (eng:current-loop))
-           (conns (list 0))                  ; box: live connection count
-           (active (list '()))               ; box: live tcp connection list
-           (stopping (list nil)) (stop-resolve (list nil))
-           (fetch-cell (list fetch))
-           (err-handler-cell (list err-handler))
-           (routes-cell (list routes))
-           (websocket-cell (list websocket))
-           (server (eng:new-object)))
-      (let ((listener
-              (net:tcp-listen loop host port :backlog 1024
-                :on-connection
-                (lambda (conn)
-                  (cond
-                    ((or (car stopping) (>= (car conns) *serve-max-connections*))
-                     (%write-simple conn 503 "Service Unavailable" nil)
-                     (net:tcp-shutdown conn))
-                    (t
-                     (incf (car conns))
-                     (push conn (car active))
-                     (setf (net:tcp-on-close conn)
-                           (lambda (c code) (declare (ignore c code))
-                             (setf (car active)
-                                   (delete conn (car active) :test #'eq))
-                             (decf (car conns))
-                             (when (and (car stopping) (zerop (car conns))
-                                        (car stop-resolve))
-                               (funcall (car stop-resolve)))))
-                     (setf (net:tcp-on-error conn)
-                           (lambda (c code) (declare (ignore c code)) nil))
-                     (%serve-connection
-                      conn fetch-cell err-handler-cell routes-cell
-                      server websocket-cell
-                      :max-body max-body
-                      :idle-timeout-sec idle-timeout-sec
-                      :event-loop loop)))))))
-        (eng:data-prop server "port"
-                       (coerce (net:listener-port listener) 'double-float))
-        (eng:data-prop server "hostname" host)
-        (eng:data-prop server "url"
-          (format nil "http://~a:~a/"
-                  (if (string= host "0.0.0.0") "localhost" host)
-                  (net:listener-port listener)))
-        (eng:data-prop server "idleTimeout"
-                       (coerce idle-timeout-sec 'double-float))
-        (eng:data-prop server "maxRequestBodySize"
-                       (coerce max-body 'double-float))
-        (eng:install-method server "fetch" 1
-          (lambda (this args)
-            (declare (ignore this))
-            (let ((handler (car fetch-cell)))
-              (if (null handler)
-                  (%rejected-promise
-                   g (eng:make-error-object
-                      :type-error-prototype "TypeError"
-                      "fetch() requires the server to have a fetch handler"))
-                  (handler-case
-                      (let* ((input (eng:arg args 0))
-                             (request
-                               (cond
-                                 ((js-request-p input) input)
-                                 ((eng:js-string-p input)
-                                  (let* ((value (eng:to-string input))
-                                         (base (eng:to-string
-                                                (eng:js-get server "url")))
-                                         (url
-                                           (cond
-                                             ((search "://" value) value)
-                                             ((and (plusp (length value))
-                                                   (char= (char value 0) #\/))
-                                              (concatenate
-                                               'string
-                                               (subseq base 0 (1- (length base)))
-                                               value))
-                                             (t (concatenate 'string base value)))))
-                                    (%make-client-request "GET" url '() #())))
-                                 (t
-                                  (eng:throw-type-error
-                                   "server.fetch expects a Request or string")))))
-                        (eng:js-call handler eng:+undefined+
-                                     (list request server)))
-                    (eng:js-condition (condition)
-                      (%rejected-promise
-                       g (eng:js-condition-value condition)))
-                    (condition (condition)
+    (multiple-value-bind (tls-cert tls-key) (%serve-tls-paths opts)
+      (let* ((unix-path (let ((u (eng:js-get opts "unix")))
+                          (if (eng:js-string-p u) (eng:to-string u) nil)))
+             (port (let ((p (eng:js-get opts "port")))
+                     (if (eng:js-number-p p) (truncate (eng:to-number p)) 3000)))
+             (host (let ((h (eng:js-get opts "hostname")))
+                     (if (eng:js-string-p h) (eng:to-string h) "0.0.0.0")))
+             (reuse-port (eng:js-truthy (eng:js-get opts "reusePort")))
+             (idle-timeout-sec (%serve-idle-timeout-option opts))
+             (max-body (%serve-max-request-body-size-option opts))
+             (development (%serve-development-option opts))
+             (loop (eng:current-loop))
+             (conns (list 0))
+             (active (list '()))
+             (stopping (list nil)) (stop-resolve (list nil))
+             (idle-timeout-cell (list idle-timeout-sec))
+             (fetch-cell (list fetch))
+             (err-handler-cell (list err-handler))
+             (routes-cell (list routes))
+             (websocket-cell (list websocket))
+             (server (eng:new-object)))
+        (labels
+            ((track-conn (conn)
+               (incf (car conns))
+               (push conn (car active))
+               (let ((prev (net:tcp-on-close conn)))
+                 (setf (net:tcp-on-close conn)
+                       (lambda (c code)
+                         (setf (car active)
+                               (delete conn (car active) :test #'eq))
+                         (decf (car conns))
+                         (when (and (car stopping) (zerop (car conns))
+                                    (car stop-resolve))
+                           (funcall (car stop-resolve)))
+                         (when prev (funcall prev c code)))))
+               (setf (net:tcp-on-error conn)
+                     (lambda (c code) (declare (ignore c code)) nil))
+               conn)
+             (on-connection (conn)
+               (cond
+                 ((or (car stopping) (>= (car conns) *serve-max-connections*))
+                  (%write-simple conn 503 "Service Unavailable" nil)
+                  (net:tcp-shutdown conn))
+                 (t
+                  (track-conn conn)
+                  (if (and tls-cert tls-key)
+                      (progn
+                        (setf (net:tcp-auto-read-p conn) nil)
+                        (%tls-drive-connection
+                         conn tls-cert tls-key
+                         fetch-cell err-handler-cell routes-cell
+                         server websocket-cell max-body idle-timeout-sec loop
+                         nil))
+                      (%serve-connection
+                       conn fetch-cell err-handler-cell routes-cell
+                       server websocket-cell
+                       :max-body max-body
+                       :idle-timeout-sec idle-timeout-sec
+                       :event-loop loop))))))
+          (let ((listener
+                  (if unix-path
+                      (net:unix-listen loop unix-path :backlog 1024
+                                       :on-connection #'on-connection)
+                      (net:tcp-listen loop host port :backlog 1024
+                                      :reuse-port reuse-port
+                                      :on-connection #'on-connection))))
+            (eng:data-prop server "port"
+                           (coerce (net:listener-port listener) 'double-float))
+            (eng:data-prop server "hostname" (or unix-path host))
+            (eng:data-prop server "development" (eng:js-boolean development))
+            (eng:data-prop server "pendingRequests" 0d0)
+            (eng:data-prop server "pendingWebSockets" 0d0)
+            (eng:data-prop
+             server "url"
+             (cond
+               (unix-path (format nil "unix:~a" unix-path))
+               (tls-cert
+                (format nil "https://~a:~a/"
+                        (if (string= host "0.0.0.0") "localhost" host)
+                        (net:listener-port listener)))
+               (t
+                (format nil "http://~a:~a/"
+                        (if (string= host "0.0.0.0") "localhost" host)
+                        (net:listener-port listener)))))
+            (eng:data-prop server "idleTimeout"
+                           (coerce idle-timeout-sec 'double-float))
+            (eng:data-prop server "maxRequestBodySize"
+                           (coerce max-body 'double-float))
+            (eng:install-method server "fetch" 1
+              (lambda (this args)
+                (declare (ignore this))
+                (let ((handler (car fetch-cell)))
+                  (if (null handler)
                       (%rejected-promise
                        g (eng:make-error-object
-                          :error-prototype "Error"
-                          (princ-to-string condition)))))))))
-        (eng:install-method server "reload" 1
-          (lambda (this args)
-            (declare (ignore this))
-            (multiple-value-bind (new-fetch new-error new-routes new-ws)
-                (%compile-serve-dispatch-options (eng:arg args 0))
-              (setf (car fetch-cell) new-fetch
-                    (car err-handler-cell) new-error
-                    (car routes-cell) new-routes
-                    (car websocket-cell) new-ws))
-            server))
-        (eng:install-method server "stop" 1
-          (lambda (this args)
-            (declare (ignore this))
-            ;; Bun: stop(closeActiveConnections?: boolean) — truthy force closes
-            ;; in-flight sockets immediately; graceful waits for them to drain.
-            (let ((force (eng:js-truthy (eng:arg args 0))))
-              (setf (car stopping) t)
-              (net:listener-close listener)
-              (cond
-                ((zerop (car conns))
-                 (%resolved-promise g eng:+undefined+))
-                (t
-                 (eng:js-construct
-                  (eng:js-get g "Promise")
-                  (list (eng:make-native-function
-                         "" 2
-                         (lambda (th a)
-                           (declare (ignore th))
-                           (let ((res (eng:arg a 0))
-                                 (settled nil))
-                             (labels ((resolve ()
-                                        (unless settled
-                                          (setf settled t)
-                                          (eng:js-call res eng:+undefined+
-                                                       (list eng:+undefined+)))))
-                               (setf (car stop-resolve) #'resolve)
-                               (when force
-                                 (dolist (conn (copy-list (car active)))
-                                   (ignore-errors (net:tcp-close conn))))
-                               (when (zerop (car conns))
-                                 (resolve)))
-                             eng:+undefined+))))))))))
-        (eng:install-method server "ref" 0
-          (lambda (th a) (declare (ignore th a)) eng:+undefined+))
-        (eng:install-method server "unref" 0
-          (lambda (th a) (declare (ignore th a)) eng:+undefined+))
-        (%install-websocket-methods server websocket-cell)
-        server))))
+                          :type-error-prototype "TypeError"
+                          "fetch() requires the server to have a fetch handler"))
+                      (handler-case
+                          (let* ((input (eng:arg args 0))
+                                 (request
+                                   (cond
+                                     ((js-request-p input) input)
+                                     ((eng:js-string-p input)
+                                      (let* ((value (eng:to-string input))
+                                             (base (eng:to-string
+                                                    (eng:js-get server "url")))
+                                             (url
+                                               (cond
+                                                 ((search "://" value) value)
+                                                 ((and (plusp (length value))
+                                                       (char= (char value 0) #\/))
+                                                  (concatenate
+                                                   'string
+                                                   (subseq base 0
+                                                           (1- (length base)))
+                                                   value))
+                                                 (t (concatenate 'string base
+                                                                 value)))))
+                                        (%make-client-request "GET" url '() #())))
+                                     (t
+                                      (eng:throw-type-error
+                                       "server.fetch expects a Request or string")))))
+                            (eng:js-call handler eng:+undefined+
+                                         (list request server)))
+                        (eng:js-condition (condition)
+                          (%rejected-promise
+                           g (eng:js-condition-value condition)))
+                        (condition (condition)
+                          (%rejected-promise
+                           g (eng:make-error-object
+                              :error-prototype "Error"
+                              (princ-to-string condition)))))))))
+            (eng:install-method server "reload" 1
+              (lambda (this args)
+                (declare (ignore this))
+                (multiple-value-bind (new-fetch new-error new-routes new-ws)
+                    (%compile-serve-dispatch-options (eng:arg args 0))
+                  (setf (car fetch-cell) new-fetch
+                        (car err-handler-cell) new-error
+                        (car routes-cell) new-routes
+                        (car websocket-cell) new-ws))
+                server))
+            (eng:install-method server "stop" 1
+              (lambda (this args)
+                (declare (ignore this))
+                (let ((force (eng:js-truthy (eng:arg args 0))))
+                  (setf (car stopping) t)
+                  (net:listener-close listener)
+                  (cond
+                    ((zerop (car conns))
+                     (%resolved-promise g eng:+undefined+))
+                    (t
+                     (eng:js-construct
+                      (eng:js-get g "Promise")
+                      (list (eng:make-native-function
+                             "" 2
+                             (lambda (th a)
+                               (declare (ignore th))
+                               (let ((res (eng:arg a 0))
+                                     (settled nil))
+                                 (labels ((resolve ()
+                                            (unless settled
+                                              (setf settled t)
+                                              (eng:js-call
+                                               res eng:+undefined+
+                                               (list eng:+undefined+)))))
+                                   (setf (car stop-resolve) #'resolve)
+                                   (when force
+                                     (dolist (conn (copy-list (car active)))
+                                       (ignore-errors (net:tcp-close conn))))
+                                   (when (zerop (car conns))
+                                     (resolve)))
+                                 eng:+undefined+))))))))))
+            (eng:install-method server "ref" 0
+              (lambda (th a) (declare (ignore th a)) eng:+undefined+))
+            (eng:install-method server "unref" 0
+              (lambda (th a) (declare (ignore th a)) eng:+undefined+))
+            (%install-serve-lifecycle-methods server idle-timeout-cell)
+            (%install-websocket-methods server websocket-cell)
+            server))))))

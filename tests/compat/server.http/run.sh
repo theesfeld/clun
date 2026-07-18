@@ -62,4 +62,26 @@ status=$(curl --silent --show-error --output "$scratch/missing" --write-out '%{h
   exit 1
 }
 
-printf 'server.http: shipped binary served exact 200/header/body and 404 evidence\n'
+# Streaming ReadableStream response bodies (Transfer-Encoding: chunked).
+stream_body=$(curl --fail --silent --show-error -D "$scratch/stream.headers" \
+  "${url}stream")
+[ "$stream_body" = stream-yes ] || {
+  printf 'server.http: stream body mismatch: %s\n' "$stream_body" >&2
+  exit 1
+}
+tr -d '\r' < "$scratch/stream.headers" |
+  grep -i -x 'transfer-encoding: chunked' >/dev/null 2>&1 || {
+  printf 'server.http: expected Transfer-Encoding: chunked on /stream\n' >&2
+  cat "$scratch/stream.headers" >&2
+  exit 1
+}
+
+# Request body consumption (buffered within maxRequestBodySize, ReadableStream API).
+echo_body=$(printf 'ping' | curl --fail --silent --show-error \
+  -H 'content-type: text/plain' --data-binary @- "${url}echo")
+[ "$echo_body" = echo:ping ] || {
+  printf 'server.http: echo body mismatch: %s\n' "$echo_body" >&2
+  exit 1
+}
+
+printf 'server.http: shipped binary served 200/header/body, 404, chunked stream, and POST echo evidence\n'
