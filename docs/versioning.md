@@ -61,6 +61,7 @@ resource does not exist with a 404 response:
 0.1.0-dev.27
 0.1.0-dev.28
 0.1.0-dev.29
+0.1.0-dev.30
 ```
 
 Phase 25b is the compatibility program for the planned `0.1.0` release. Its first behavioral
@@ -119,20 +120,14 @@ but Phase 37 and Issue #11 remain in progress and make no full language-parity c
 Phase 50 stages `0.1.0-dev.17` / `v0.1.0-dev.17` under Issue #24 (router PR #85) and is published on
 master. Phase 65 stages `0.1.0-dev.18` / `v0.1.0-dev.18` under Issue #39 (shell PR #86; published).
 Phase 66 stages `0.1.0-dev.19` / `v0.1.0-dev.19` under Issue #40 (test-runner PR #88 on master).
-Phase 28 stages `0.1.0-dev.20` / `v0.1.0-dev.20` under Issue #2. Phase 37 milestone 2 stages
-`0.1.0-dev.21` / `v0.1.0-dev.21` under Issue #11 (PR #96). Phase 65 inventory burn-down under Issue #39 (PR #111) is an unpublished correction of master candidate `0.1.0-dev.26` / `v0.1.0-dev.26` after later parallel landings (unmatched-glob failure policy; `tooling.shell` remains Partial; no new prerelease slot); its SemVer impact is `patch`. This Phase 66 concurrent-scheduling residual stages the next free slot `0.1.0-dev.27` / `v0.1.0-dev.27` under Issue #40 (PR #110). Concurrent/serial test scheduling is a backward-compatible test-runner API addition and therefore its SemVer impact is `minor` within the selected `0.1.0` core. The compatibility row remains `Partial` (not Yes). This Phase 47 node:path.win32 residual stages free `0.1.0-dev.28` / `v0.1.0-dev.28` under Issue #108 (PR #114). Pure-CL path.win32 is a backward-compatible Node compatibility residual and therefore its SemVer impact is `minor` within the selected `0.1.0` core. The `runtime.node-compatibility` row remains `Partial` (not Yes). Parallel topic branches claim unpublished `0.1.0-dev.22`–`0.1.0-dev.25`. Phase 58
-constitutional secrets checkpoint stages free `0.1.0-dev.26` / `v0.1.0-dev.26` under Issue #32. Version-transition allows multi-step
-prerelease advances only while every skipped intermediate remains unpublished, so parallel drafts
-may allocate later slots without claiming each other's tags. Phase 37 m2 adds backward-compatible
-`Array.fromAsync` and supporting lexer/parser admissions and therefore its SemVer impact is `minor`
-within the selected `0.1.0` core. Until gates complete, the installer and immutable published
-boundary remain dev.18; Phase 37 remains open and makes no full language-parity or matrix Yes claim.
-Phase 51 M0 (WebSocket constitutional checkpoint, Issue #25 / PR #107) retains unpublished
-`0.1.0-dev.21` / `v0.1.0-dev.21` as a release-bearing correction: fail-closed `Clun.serve` refusal of
-WebSocket options/APIs with SemVer impact is `minor`; ledger `server.websocket` remains No and no new
-prerelease slot is allocated.
-
-Phase 28 stages `0.1.0-dev.22` / `v0.1.0-dev.22` under Issue #2 (transport PR #95) as the exact next prerelease on top of master `0.1.0-dev.21` (slot `dev.20` remains unused/unpublished). Phase 28 adds backward-compatible pure-CL TLS 1.2 registry transport, DNS and Happy Eyeballs, streaming Fetch, HTTP pooling, and proxy/CONNECT support and therefore its SemVer impact is `minor` within the selected `0.1.0` core. Until Phase 28 gates complete, `runtime.web-standard-apis` and `package-manager.npm` remain Partial and are not claimed as Yes.
+Phase 28 stages `0.1.0-dev.22` under Issue #2 (transport PR #95). Phase 37 m2/m3 land on
+`0.1.0-dev.21` / `0.1.0-dev.29` under Issue #11. Phase 58 secrets and shell inventory retain
+`0.1.0-dev.26`. Phase 66 concurrent test-runner stages `0.1.0-dev.29` under Issue #40 (PR #110).
+Phase 49 stages a bounded HTTP server lifecycle Partial slice as `0.1.0-dev.30` / `v0.1.0-dev.30` under Issue #23 (idleTimeout, maxRequestBodySize, stop(force)); `server.http` remains Partial.
+under Issue #23 (idleTimeout, maxRequestBodySize, stop(force)); `server.http` remains Partial.
+Version-transition allows multi-step prerelease advances only while every skipped intermediate remains
+unpublished. Until gates complete, the installer and immutable published boundary remain dev.21; no
+matrix Yes is claimed for this unit.
 
 Phase 46 residual Issue #104 stages `0.1.0-dev.29` / `v0.1.0-dev.29` for the Phase 24 spawn residual (object form,
 AbortSignal, timeout/killSignal, killed, ref/unref). SemVer impact is `minor`. Spawn remains

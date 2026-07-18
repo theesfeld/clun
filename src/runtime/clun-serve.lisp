@@ -1,9 +1,10 @@
-;;;; clun-serve.lisp — Clun.serve (PLAN.md Phase 17, §3.6). Wires the Phase-16 socket
-;;;; layer + the HTTP parser + the web classes + the user's JS `fetch` handler. Fully
-;;;; async on the reactor: a synchronous Response is written immediately; a Promise<
-;;;; Response> is written from its .then continuation (drained after the reactor, P17
-;;;; loop change). Keep-alive, chunked in / content-length out, 431/413 limits, HEAD,
-;;;; Date header, 503 shedding, graceful stop.
+;;;; clun-serve.lisp — Clun.serve (PLAN.md Phase 17, §3.6; Phase 49 lifecycle slice).
+;;;; Wires the Phase-16 socket layer + the HTTP parser + the web classes + the user's
+;;;; JS `fetch` handler. Fully async on the reactor: a synchronous Response is written
+;;;; immediately; a Promise<Response> is written from its .then continuation (drained
+;;;; after the reactor, P17 loop change). Keep-alive, chunked in / content-length out,
+;;;; 431/413 limits, HEAD, Date header, 503 shedding, idleTimeout, maxRequestBodySize,
+;;;; graceful stop, and force stop(true).
 
 (in-package :clun.runtime)
 
@@ -639,21 +640,54 @@ COMMIT is connection-owned, so late Promise settlement cannot write after teardo
       (net:tcp-write connection (file-send-plan-head plan))
       (pump))))
 
-(defun %serve-connection (conn fetch-cell err-handler-cell routes-cell)
-  (let ((parser (net:make-http-parser))
-        (next-sequence 0)
-        (next-commit 0)
-        (ready (make-hash-table :test #'eql))
-        (contexts '())
-        (active-file-plan nil)
-        (closed-p nil)
-        (final-request-seen-p nil)
-        (outer-close (net:tcp-on-close conn)))
+(defun %serve-connection (conn fetch-cell err-handler-cell routes-cell
+                          &key (max-body net:*max-body-bytes*)
+                               (idle-timeout-sec 10)
+                               event-loop)
+  "Drive one accepted connection.
+
+MAX-BODY is the parser payload budget (Bun maxRequestBodySize).
+IDLE-TIMEOUT-SEC is Bun idleTimeout in seconds (0 disables; default 10; max 255).
+Wire activity (read or write) re-arms the idle timer."
+  (let* ((event-loop (or event-loop (eng:current-loop)))
+         (parser (net:make-http-parser :max-body max-body))
+         (next-sequence 0)
+         (next-commit 0)
+         (ready (make-hash-table :test #'eql))
+         (contexts '())
+         (active-file-plan nil)
+         (closed-p nil)
+         (final-request-seen-p nil)
+         (idle-timer nil)
+         (outer-close (net:tcp-on-close conn)))
     (labels
-        ((register-context (context)
+        ((clear-idle ()
+           (when idle-timer
+             (lp:clear-timer idle-timer)
+             (setf idle-timer nil)))
+         (arm-idle ()
+           (clear-idle)
+           (when (and (not closed-p)
+                      idle-timeout-sec
+                      (plusp idle-timeout-sec))
+             (setf idle-timer
+                   (lp:set-timer
+                    event-loop
+                    (* idle-timeout-sec 1000)
+                    (lambda ()
+                      (unless closed-p
+                        (setf closed-p t)
+                        (mark-contexts-closed)
+                        (net:tcp-close conn)))))))
+         (write-octets (octets)
+           (unless closed-p
+             (net:tcp-write conn octets)
+             (arm-idle)))
+         (register-context (context)
            (pushnew context contexts :test #'eq)
            context)
          (mark-contexts-closed ()
+           (clear-idle)
            (when active-file-plan
              (%close-file-send-plan active-file-plan)
              (setf active-file-plan nil))
@@ -680,7 +714,9 @@ COMMIT is connection-owned, so late Promise settlement cannot write after teardo
              (t
               (incf next-commit)
               (if keep-alive
-                  (flush-ready)
+                  (progn
+                    (arm-idle)
+                    (flush-ready))
                   (progn
                     (setf closed-p t
                           (serve-request-context-connection-closed-p context) t)
@@ -715,6 +751,7 @@ COMMIT is connection-owned, so late Promise settlement cannot write after teardo
                  (if (file-send-plan-p payload)
                      (progn
                        (setf active-file-plan payload)
+                       (arm-idle)
                        (%send-file-plan
                         conn payload
                         (lambda (success-p)
@@ -722,7 +759,7 @@ COMMIT is connection-owned, so late Promise settlement cannot write after teardo
                      (progn
                        (incf next-commit)
                        (setf contexts (delete context contexts :test #'eq))
-                       (net:tcp-write conn payload)
+                       (write-octets payload)
                        (unless keep-alive
                          (setf closed-p t
                                (serve-request-context-connection-closed-p context) t)
@@ -747,6 +784,7 @@ COMMIT is connection-owned, so late Promise settlement cannot write after teardo
       (setf (net:tcp-on-data conn)
             (lambda (c octets)
               (declare (ignore c))
+              (arm-idle)
               (unless final-request-seen-p
                 (loop
                   (multiple-value-bind (event data) (net:parser-feed parser octets)
@@ -783,7 +821,8 @@ COMMIT is connection-owned, so late Promise settlement cannot write after teardo
                           sequence
                           (%simple-response-octets (car data) (cdr data) nil)
                           nil (%make-serve-request-context)))
-                       (return)))))))))))
+                       (return))))))))
+      (arm-idle))))
 
 ;;; --- Clun.serve -------------------------------------------------------------
 
@@ -820,6 +859,39 @@ COMMIT is connection-owned, so late Promise settlement cannot write after teardo
       (%throw-websocket-not-implemented "server.subscriberCount")))
   server)
 
+(defun %serve-idle-timeout-option (opts)
+  "Bun.serve idleTimeout in seconds: default 10, 0 disables, max 255."
+  (let ((value (eng:js-get opts "idleTimeout")))
+    (cond
+      ((or (eng:js-undefined-p value) (eng:js-null-p value)) 10)
+      ((eng:js-number-p value)
+       (let* ((raw (eng:to-number value))
+              (n (truncate raw)))
+         (when (or (eng:js-nan-p raw) (eng:js-infinite-p raw) (/= raw n)
+                   (minusp n) (> n 255))
+           (eng:throw-range-error
+            "Clun.serve: idleTimeout must be an integer between 0 and 255"))
+         n))
+      (t (eng:throw-type-error
+          "Clun.serve: idleTimeout must be a number")))))
+
+(defun %serve-max-request-body-size-option (opts)
+  "Bun.serve maxRequestBodySize in bytes. Unset keeps the parser default."
+  (let ((value (eng:js-get opts "maxRequestBodySize")))
+    (cond
+      ((or (eng:js-undefined-p value) (eng:js-null-p value))
+       net:*max-body-bytes*)
+      ((eng:js-number-p value)
+       (let* ((raw (eng:to-number value))
+              (n (truncate raw)))
+         (when (or (eng:js-nan-p raw) (eng:js-infinite-p raw) (/= raw n)
+                   (minusp n))
+           (eng:throw-range-error
+            "Clun.serve: maxRequestBodySize must be a non-negative integer"))
+         n))
+      (t (eng:throw-type-error
+          "Clun.serve: maxRequestBodySize must be a number")))))
+
 (defun %compile-serve-dispatch-options (opts)
   (unless (eng:js-object-p opts)
     (eng:throw-type-error "Clun.serve requires an options object"))
@@ -839,8 +911,11 @@ COMMIT is connection-owned, so late Promise settlement cannot write after teardo
                    (if (eng:js-number-p p) (truncate (eng:to-number p)) 3000)))
            (host (let ((h (eng:js-get opts "hostname")))
                    (if (eng:js-string-p h) (eng:to-string h) "0.0.0.0")))
+           (idle-timeout-sec (%serve-idle-timeout-option opts))
+           (max-body (%serve-max-request-body-size-option opts))
            (loop (eng:current-loop))
            (conns (list 0))                  ; box: live connection count
+           (active (list '()))               ; box: live tcp connection list
            (stopping (list nil)) (stop-resolve (list nil))
            (fetch-cell (list fetch))
            (err-handler-cell (list err-handler))
@@ -856,16 +931,22 @@ COMMIT is connection-owned, so late Promise settlement cannot write after teardo
                      (net:tcp-shutdown conn))
                     (t
                      (incf (car conns))
+                     (push conn (car active))
                      (setf (net:tcp-on-close conn)
                            (lambda (c code) (declare (ignore c code))
+                             (setf (car active)
+                                   (delete conn (car active) :test #'eq))
                              (decf (car conns))
                              (when (and (car stopping) (zerop (car conns))
                                         (car stop-resolve))
                                (funcall (car stop-resolve)))))
                      (setf (net:tcp-on-error conn)
                            (lambda (c code) (declare (ignore c code)) nil))
-                     (%serve-connection conn fetch-cell err-handler-cell
-                                        routes-cell)))))))
+                     (%serve-connection
+                      conn fetch-cell err-handler-cell routes-cell
+                      :max-body max-body
+                      :idle-timeout-sec idle-timeout-sec
+                      :event-loop loop)))))))
         (eng:data-prop server "port"
                        (coerce (net:listener-port listener) 'double-float))
         (eng:data-prop server "hostname" host)
@@ -873,6 +954,10 @@ COMMIT is connection-owned, so late Promise settlement cannot write after teardo
           (format nil "http://~a:~a/"
                   (if (string= host "0.0.0.0") "localhost" host)
                   (net:listener-port listener)))
+        (eng:data-prop server "idleTimeout"
+                       (coerce idle-timeout-sec 'double-float))
+        (eng:data-prop server "maxRequestBodySize"
+                       (coerce max-body 'double-float))
         (eng:install-method server "fetch" 1
           (lambda (this args)
             (declare (ignore this))
@@ -925,20 +1010,37 @@ COMMIT is connection-owned, so late Promise settlement cannot write after teardo
                     (car routes-cell) new-routes))
             server))
         (eng:install-method server "stop" 1
-          (lambda (this args) (declare (ignore this args))
-            (setf (car stopping) t)
-            (net:listener-close listener)
-            (if (zerop (car conns))
-                (%resolved-promise g eng:+undefined+)
-                (eng:js-construct (eng:js-get g "Promise")
-                  (list (eng:make-native-function "" 2
-                          (lambda (th a) (declare (ignore th))
-                            (let ((res (eng:arg a 0)))
-                              (setf (car stop-resolve)
-                                    (lambda ()
-                                      (eng:js-call res eng:+undefined+
-                                                   (list eng:+undefined+)))))
-                            eng:+undefined+)))))))
+          (lambda (this args)
+            (declare (ignore this))
+            ;; Bun: stop(closeActiveConnections?: boolean) — truthy force closes
+            ;; in-flight sockets immediately; graceful waits for them to drain.
+            (let ((force (eng:js-truthy (eng:arg args 0))))
+              (setf (car stopping) t)
+              (net:listener-close listener)
+              (cond
+                ((zerop (car conns))
+                 (%resolved-promise g eng:+undefined+))
+                (t
+                 (eng:js-construct
+                  (eng:js-get g "Promise")
+                  (list (eng:make-native-function
+                         "" 2
+                         (lambda (th a)
+                           (declare (ignore th))
+                           (let ((res (eng:arg a 0))
+                                 (settled nil))
+                             (labels ((resolve ()
+                                        (unless settled
+                                          (setf settled t)
+                                          (eng:js-call res eng:+undefined+
+                                                       (list eng:+undefined+)))))
+                               (setf (car stop-resolve) #'resolve)
+                               (when force
+                                 (dolist (conn (copy-list (car active)))
+                                   (ignore-errors (net:tcp-close conn))))
+                               (when (zerop (car conns))
+                                 (resolve)))
+                             eng:+undefined+))))))))))
         (eng:install-method server "ref" 0
           (lambda (th a) (declare (ignore th a)) eng:+undefined+))
         (eng:install-method server "unref" 0
