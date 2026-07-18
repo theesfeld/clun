@@ -281,3 +281,5 @@ the prerelease immutable. The ASDF core remains `0.1.0`. The non-release-bearing
 the remaining closeout evidence.
 
 Phase 65 shell Partial→Yes (#120) stages `0.1.0-dev.33` / `v0.1.0-dev.33` with zero pending corpus sites and four-target supported receipts.
+
+Phase 47 selected Node surface Partial→Yes (#132) stages `0.1.0-dev.34` / `v0.1.0-dev.34` with four-target supported receipts for path/fs/url/buffer/events/assert/util/timers/querystring/os (not full Node/V8 parity).

@@ -3287,3 +3287,17 @@ additional shell-language inventory sites after #122/#123 (overall
 - Pure-CL background `&` + `wait`, ENAMETOOLONG, multi-error lex, EACCES globs, ls flag order.
 - Four-target platforms.tsv `supported`; ledger `clun_state=Yes`.
 - Release train: `0.1.0-dev.33`.
+
+### 2026-07-18 - runtime.node-compatibility Partial→Yes (#132)
+
+The frozen **selected pure-CL Node surface** is complete for ledger Yes: `path`
+(posix + win32 string algorithms), `fs`, `url`, `buffer`, `events`, `assert`,
+`util`, `timers` / `timers/promises`, `querystring`, `os`, process globals, and
+crypto helpers. Evidence is the full `tests/js/node/*` fixture set (modules,
+path-win32, url, buffer/bufedge, events, assert, fs ops/edge, globals, timers)
+with four-target `supported` receipts.
+
+Honest bounds: this is **not** full Node.js module/API/CLI or V8 parity; IDNA,
+resolveObject, URLPattern, streams/net/http Node modules, and the broader Phase 47
+certification inventory remain outside the selected surface. SemVer: `0.1.0-dev.34`
+minor within the `0.1.0` train.
