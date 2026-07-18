@@ -3297,4 +3297,4 @@ and retaining hermetic install + public npm smoke. Publishing is not required fo
 remain Phase 59/61 follow-ons and are not claimed in the Yes detail.
 
 **Evidence:** `ev.package-manager.npm.hermetic-install.v1`, `ev.package-manager.npm.depspec.v1`;
-`make compat FEATURE=package-manager.npm`; opt-in `make smoke-npm`. Stages `0.1.0-dev.34`.
+`make compat FEATURE=package-manager.npm`; opt-in `make smoke-npm`. Stages `0.1.0-dev.35`.

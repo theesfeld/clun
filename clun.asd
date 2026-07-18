@@ -198,6 +198,7 @@
                                            (:file "clun-filesystem-router") ; Clun.FileSystemRouter (Phase 50)
                                            (:file "clun-color") ; Clun.color (Phase 34) — before clun-global
                                            (:file "clun-yaml") ; Clun.YAML (Phase 31) — before clun-global
+                                           (:file "clun-cron") ; Clun.cron (Phase 76) — before clun-global
                                            (:file "clun-global")
                                            (:file "abort")     ; AbortController/AbortSignal (Phase 14)
                                            (:file "globals")   ; structuredClone, crypto (Phase 12)
@@ -314,7 +315,8 @@
                                                          (:file "url-tests")
                                                          (:file "spawn-tests")
                                                          (:file "shell-tests")
-                                                         (:file "scripts-tests")))
+                                                         (:file "scripts-tests")
+                                                         (:file "cron-tests")))
                                            (:module "transpiler"
                                             :serial t
                                             :components ((:file "ts-strip-tests")))

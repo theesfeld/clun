@@ -18,9 +18,9 @@ and https://github.com/theesfeld/clun/issues/35
 public npm smoke over verified pure-CL TLS; workspaces remain `package-manager.monorepo` No;
 publish/git+ssh remain Phase 61/59 follow-ons outside this Yes bar matching Bun `bun install`).
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.34` / `v0.1.0-dev.34`
+**Candidate release:** `0.1.0-dev.35` / `v0.1.0-dev.35`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
-**Entry boundary:** installer on `v0.1.0-dev.21`; this unit stages `0.1.0-dev.34` after shell Yes `0.1.0-dev.33`.
+**Entry boundary:** installer on `v0.1.0-dev.21`; this unit stages `0.1.0-dev.35` after shell Yes `0.1.0-dev.33`.
 **Next scope:** monorepo workspaces (#34), package tools/publish (#35), advanced git specs.
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from

@@ -1,5 +1,5 @@
 <!-- clun-generated:release-notes:begin -->
-# Clun 0.1.0-dev.34
+# Clun 0.1.0-dev.35
 
 Phase 59: Package registry and dependency-spec breadth.
 
@@ -21,7 +21,7 @@ The canonical evidence and current limitations are in `compat/`; `make compat-va
 - Publishing is **not** required for Yes vs Bun (`bun install`); workspaces remain separate
   `package-manager.monorepo` **No**; git/SSH and registry publish stay Phase 59/61 follow-ons.
 - Slot map: published base `v0.1.0-dev.21`; master tip `0.1.0-dev.33` (shell Yes #120); this candidate
-  allocates free `0.1.0-dev.34` / `v0.1.0-dev.34` (SemVer `minor`). Hosted installer remains on
+  allocates free `0.1.0-dev.35` / `v0.1.0-dev.35` (SemVer `minor`). Hosted installer remains on
   published dev.21 until a later unit publishes.
 
 The release candidate promotes `package-manager.npm` to matrix **Yes** with four-target supported receipts.

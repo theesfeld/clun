@@ -297,9 +297,24 @@ created. Non-recursive returns NIL (Node returns undefined there)."
   (with-fs ("rename" old) (sb-posix:rename (native->pathname old) (native->pathname new))))
 (defun make-symlink (target linkpath)
   (with-fs ("symlink" linkpath) (sb-posix:symlink (native->pathname target) (native->pathname linkpath))))
+(defun make-hard-link (existing newpath)
+  "Create a hard link at NEWPATH pointing at EXISTING (POSIX link(2))."
+  (with-fs ("link" existing)
+    (sb-posix:link (native->pathname existing) (native->pathname newpath))))
 (defun read-symlink (path) (with-fs ("readlink" path) (sb-posix:readlink (native->pathname path))))
 (defun change-mode (path mode) (with-fs ("chmod" path) (sb-posix:chmod (native->pathname path) mode)))
+(defun change-owner (path uid gid &key (follow t))
+  "chown/lchown PATH to UID:GID. :FOLLOW NIL uses lchown (do not follow the final symlink)."
+  (if follow
+      (with-fs ("chown" path) (sb-posix:chown (native->pathname path) uid gid))
+      (with-fs ("lchown" path) (sb-posix:lchown (native->pathname path) uid gid))))
 (defun truncate-file (path len) (with-fs ("truncate" path) (sb-posix:truncate (native->pathname path) len)))
+(defun set-times (path atime-sec mtime-sec)
+  "Set PATH access/modification times to ATIME-SEC/MTIME-SEC (Unix seconds; may be fractional).
+Follows the final symlink (POSIX utimes). Returns T."
+  (with-fs ("utimes" path)
+    (sb-posix:utimes (native->pathname path) (float atime-sec 1d0) (float mtime-sec 1d0)))
+  t)
 (defun touch-file (path &key no-create)
   "Set PATH's access and modification times to now, creating an empty file unless NO-CREATE."
   (cond

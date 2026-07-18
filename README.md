@@ -10,7 +10,7 @@ Clun does not claim blanket speed parity with Bun.
 
 <!-- clun-generated:release:begin -->
 > **Status: pre-alpha, under active construction.** [Phase 59](https://github.com/theesfeld/clun/issues/33) is in progress.
-> Its release-bearing target is `0.1.0-dev.34` / `v0.1.0-dev.34` (SemVer impact: `minor`).
+> Its release-bearing target is `0.1.0-dev.35` / `v0.1.0-dev.35` (SemVer impact: `minor`).
 > The verified release boundary is `v0.1.0-dev.21`, with four native archives, checksums, Pages,
 > and hosted-installer evidence.
 > Phase 26 remains deferred until after Phase 82 and will
@@ -20,11 +20,11 @@ Clun does not claim blanket speed parity with Bun.
 > the local resume checklist.
 <!-- clun-generated:release:end -->
 
-Source stages the `0.1.0-dev.34` package-manager.npm Partial→Yes conversion (#131): install/add/remove
+Source stages the `0.1.0-dev.35` package-manager.npm Partial→Yes conversion (#131): install/add/remove
 with registry packages, optionalDependencies soft-fail, `file:` local packages, four-target hermetic and
 depspec receipts, and a pinned public npm smoke. Published
 [`v0.1.0-dev.21`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.21) is the verified release
-boundary. Master tip was `0.1.0-dev.33` (shell Yes #120); this unit allocates free `0.1.0-dev.34` under
+boundary. Master tip was `0.1.0-dev.33` (shell Yes #120); this unit allocates free `0.1.0-dev.35` under
 the unpublished-intermediate prerelease gap policy. The hosted installer correctly remains on published
 dev.21 until the candidate is merged, tagged, and released.
 
@@ -161,7 +161,7 @@ workflows are read-only and fail closed if the canonical issues, README, or site
 
 <!-- clun-generated:release-summary:begin -->
 Release versions follow the actual SemVer impact recorded in the canonical issue, not the number of pushes.
-The current source is the `0.1.0-dev.34` release candidate; the immutable tag and assets are not published yet.
+The current source is the `0.1.0-dev.35` release candidate; the immutable tag and assets are not published yet.
 The last published prerelease remains [`v0.1.0-dev.21`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.21).
 [The versioning contract](docs/versioning.md) defines prerelease sequencing, synchronized surfaces, immutable tags, assets, and installer evidence.
 [Phase 59 issue #33](https://github.com/theesfeld/clun/issues/33) is the canonical live release record.
@@ -204,7 +204,7 @@ vendored under `vendor/` and located via `scripts/registry.lisp`.
 make build     # compile everything, save build/clun (save-lisp-and-die)
 make test      # run the CL suites and JS/TS fixture harnesses
 make purity    # fail on any CFFI/foreign-code token
-./build/clun --version   # => clun 0.1.0-dev.34
+./build/clun --version   # => clun 0.1.0-dev.35
 ```
 
 A fresh clone builds with `make build` alone: ASDF compiles the vendored closure and `src/` into
