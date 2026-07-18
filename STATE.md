@@ -15,7 +15,7 @@ Update when work completes; keep consistent with the Issue, README, and site.
 **SemVer impact:** `minor`
 **Candidate release:** `0.1.0-dev.40` / `v0.1.0-dev.40`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
-**Entry boundary:** free slot `0.1.0-dev.40` after master tip `0.1.0-dev.39` (markdown Yes #135 / #164).
+**Entry boundary:** free slot `0.1.0-dev.40` after master tip `0.1.0-dev.40` (markdown Yes #135 / #164).
 **Next scope:** remaining Partial→Yes fleet; HTTP/2 multi-listen residual.
 
 ## Recent phase outcomes (most recent first)

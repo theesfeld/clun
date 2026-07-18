@@ -1,5 +1,5 @@
 <!-- clun-generated:release-notes:begin -->
-# Clun 0.1.0-dev.39
+# Clun 0.1.0-dev.40
 
 Phase 75: Data formats, Markdown, and HTMLRewriter.
 
@@ -15,4 +15,4 @@ The canonical evidence and current limitations are in `compat/`; `make compat-va
 
 - Issue #135 (parent #49, Phase 75): pure-CL **`Clun.markdown`** and global **`HTMLRewriter`**.
 - **30-feature honesty:** no forged matrix Yes / no 31st features.tsv row.
-- Slot: free after master tip `0.1.0-dev.38` → `0.1.0-dev.39` / `v0.1.0-dev.39` (SemVer `minor`).
+- Slot: free after master tip `0.1.0-dev.40` → `0.1.0-dev.40` / `v0.1.0-dev.40` (SemVer `minor`).

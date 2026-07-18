@@ -140,7 +140,7 @@ Phase 51 M1 (WebSocket handshake + framing, Issue #121) stages free `0.1.0-dev.3
 first Partial `server.websocket` capability (RFC 6455 handshake/framing + upgrade/echo); SemVer impact
 is `minor`.
 
-Phase 51 Partial→Yes (Issue #129) stages free `0.1.0-dev.38` / `v0.1.0-dev.38`: Pub/Sub
+Phase 51 Partial→Yes (Issue #129) stages free `0.1.0-dev.40` / `v0.1.0-dev.40`: Pub/Sub
 (`server.publish`/`subscriberCount`/`ws.subscribe`), fragmentation reassembly, permessage-deflate
 via chipz, browser-shaped `WebSocket` client (`ws:`), Autobahn-style + e2e suite evidence, and
 four-target `supported` receipts. SemVer impact is `minor`. Parent #25 remains open for residual
@@ -293,7 +293,7 @@ Phase 65 shell Partial→Yes (#120) stages `0.1.0-dev.33` / `v0.1.0-dev.33` with
 Phase 76 cron scheduling (#50) stages free `0.1.0-dev.34` / `v0.1.0-dev.35`: pure-CL `Clun.cron` parse + in-process jobs (OS-level fail-closed); SemVer impact is `minor`.
 
 Phase 74 archive/compression pure-CL APIs (#134) stages `0.1.0-dev.35` / `v0.1.0-dev.35` without a 31st features.tsv row (matrix locked at 30).
-Phase 38 runtime.web-standard-apis Partial→Yes (#130) stages `0.1.0-dev.38` / `v0.1.0-dev.38` with Writable/Transform/BYOB streams, proxy object options, hermetic stress, and four-target supported receipts; SemVer impact is `minor`.
+Phase 38 runtime.web-standard-apis Partial→Yes (#130) stages `0.1.0-dev.40` / `v0.1.0-dev.40` with Writable/Transform/BYOB streams, proxy object options, hermetic stress, and four-target supported receipts; SemVer impact is `minor`.
 
-Phase 75 Markdown + HTMLRewriter pure-CL (#135) stages `0.1.0-dev.39` / `v0.1.0-dev.39` without expanding the frozen 30-row summary ledger. SemVer impact is `minor`.
+Phase 75 Markdown + HTMLRewriter pure-CL (#135) stages `0.1.0-dev.40` / `v0.1.0-dev.40` without expanding the frozen 30-row summary ledger. SemVer impact is `minor`.
 Phase 49 server.http Partial→Yes (#128) stages free `0.1.0-dev.40` / `v0.1.0-dev.40`.
