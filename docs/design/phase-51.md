@@ -1,10 +1,12 @@
 # Phase 51 — WebSocket and Pub/Sub (constitutional checkpoint)
 
-Status: **design + fail-closed skeleton**. Full protocol implementation is not in this unit.
-Ledger row `server.websocket` is **`Partial`** after M1 (handshake + framing + echo). Full **`Yes`** still waits for Autobahn-style and Bun-differential gates
-with four-target receipts.
+Status: **Yes capability landed** (Issue #129): handshake, framing, fragmentation reassembly,
+Pub/Sub (`publish`/`subscriberCount`/`subscribe`), permessage-deflate (chipz inflate + stored
+compress), and browser-shaped `WebSocket` client (`ws:`). Four-target suite evidence supports the
+ledger row. Residual quality stretch under parent #25: full Autobahn corpus, 10k connect/subscriber
+stress, and `wss:` client.
 
-Canonical live SoT: [issue #25](https://github.com/theesfeld/clun/issues/25).
+Canonical live SoT: [issue #25](https://github.com/theesfeld/clun/issues/25) · Yes unit [#129](https://github.com/theesfeld/clun/issues/129).
 
 ## 1. Objective of this checkpoint
 
