@@ -69,6 +69,7 @@ resource does not exist with a 404 response:
 0.1.0-dev.37
 0.1.0-dev.38
 0.1.0-dev.39
+0.1.0-dev.40
 0.1.0-dev.30
 ```
 
