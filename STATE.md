@@ -7,18 +7,17 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **39 - Full TypeScript transforms**  (erasable Yes; unit #133)
+## Current phase: **39 - Full TypeScript transforms**  (erasable Yes #133)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/13
-**Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/133,
-https://github.com/theesfeld/clun/issues/13
-**Current implementation unit:** language.typescript Partial→Yes (#133 under parent Phase 39 #13).
-Erasable TypeScript execution strip complete; non-erasable constructs reject. Four-target supported.
+**Canonical issue:** https://github.com/theesfeld/clun/issues/133
+**Related residual:** https://github.com/theesfeld/clun/issues/13 (Bun-first-class emit beyond Yes bar)
+**Current implementation unit:** language.typescript Partial→Yes (#133) — complete erasable
+TypeScript execution strip; Node-style non-erasable rejects; four-target supported.
 **SemVer impact:** `minor`
 **Candidate release:** `0.1.0-dev.34` / `v0.1.0-dev.34`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
-**Entry boundary:** installer on `v0.1.0-dev.21`; this unit stages `0.1.0-dev.34`.
-**Next scope:** residual Bun-first-class emit beyond Yes bar if claimed separately.
+**Entry boundary:** installer on `v0.1.0-dev.21`; this unit stages `0.1.0-dev.34` after shell Yes `0.1.0-dev.33`.
+**Next scope:** remaining Partial→Yes fleet; Phase 39 emit residual tracked on #13.
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
 easiest to hardest among dependency-ready rows. Core engine/runtime/network/tooling changes are expected.
