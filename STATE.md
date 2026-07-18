@@ -7,14 +7,19 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **39 - Full TypeScript transforms**  (FULL PORT Yes #192)
+## Current phase: **37 - Modern ECMAScript gap wave**  (MILESTONE 4)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/13
-**Parent:** https://github.com/theesfeld/clun/issues/177
-**Current implementation unit:** language.typescript full port Yes (#192) pure-CL transpile+structural typecheck exceeding Bun strip.
+**Canonical issue:** https://github.com/theesfeld/clun/issues/11
+**Current implementation unit:** Phase 37 milestone 4 — pure-CL `Promise.allKeyed` /
+`Promise.allSettledKeyed` (TC39 await-dictionary). Converts 74 frozen keyed-Promise
+Test262 failures. No compatibility-table `Yes`; Phase 37 remains open with residual
+ownership **378** after reclassification.
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.59` / `v0.1.0-dev.59`
+**Candidate release:** `0.1.0-dev.63` / `v0.1.0-dev.63`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
-**Entry boundary:** installer on `v0.1.0-dev.21`; free slot after SFE Yes `0.1.0-dev.57` (leave `0.1.0-dev.58` for webstd #210).
+**Entry boundary:** installer on `v0.1.0-dev.21` (last published tag; unpublished-gap
+policy); free slot after master tip TypeScript Yes `0.1.0-dev.59` (open concurrent
+trains claim `.58`/`.60`–`.62`).
 
-**Next scope:** remaining FULL PORT ledger Nos / soft residuals under #177.
+**Next scope:** keep Phase 37 open (no matrix Yes); further residual clusters
+(upsert, Float16, RegExp.escape, groupBy, error-stack, immutable ArrayBuffer, etc.).
