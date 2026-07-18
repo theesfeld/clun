@@ -9,7 +9,7 @@ targets are workload-specific and published;
 Clun does not claim blanket speed parity with Bun.
 
 <!-- clun-generated:release:begin -->
-> **Status: pre-alpha, under active construction.** [Phase 49](https://github.com/theesfeld/clun/issues/128) streaming bodies are in progress.
+> **Status: pre-alpha, under active construction.** [Phase 49](https://github.com/theesfeld/clun/issues/23) is in progress.
 > Its release-bearing target is `0.1.0-dev.34` / `v0.1.0-dev.34` (SemVer impact: `minor`).
 > The verified release boundary is `v0.1.0-dev.21`, with four native archives, checksums, Pages,
 > and hosted-installer evidence.
@@ -115,7 +115,7 @@ July 16, 2026. Engineering references are separately pinned to Bun commit `c1076
 | S3 cloud storage | No | [Phase 53](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-53) |
 | Redis client | No | [Phase 54](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-54) |
 | WebSocket server | Partial: RFC 6455 handshake + framing; Clun.serve upgrade/echo path (Phase 51 M1) | [Phase 51](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-51) |
-| HTTP server | Partial: HTTP/1.1 with buffered bodies; idleTimeout/maxRequestBodySize/stop(force) | [Phase 49](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-49) |
+| HTTP server | Partial: HTTP/1.1 with pure-CL streaming request/response bodies (chunked Transfer-Encoding for ReadableStream responses; Request.body ReadableStream); idleTimeout/maxRequestBodySize/stop(force) | [Phase 49](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-49) |
 | HTTP router | Yes: `Clun.serve({ routes })` and `Clun.FileSystemRouter` | [Phase 50](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-50) |
 | Single-file executables | No: Clun ships a runtime executable only | Phases [52](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-52), [77](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-77) |
 | YAML | Yes: `Clun.YAML` parser/stringifier and `.yaml`/`.yml` module loading | [Phase 31](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-31) |
@@ -162,7 +162,7 @@ Release versions follow the actual SemVer impact recorded in the canonical issue
 The current source is the `0.1.0-dev.34` release candidate; the immutable tag and assets are not published yet.
 The last published prerelease remains [`v0.1.0-dev.21`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.21).
 [The versioning contract](docs/versioning.md) defines prerelease sequencing, synchronized surfaces, immutable tags, assets, and installer evidence.
-[Phase 65 issue #39](https://github.com/theesfeld/clun/issues/39) is the canonical live release record.
+[Phase 49 issue #23](https://github.com/theesfeld/clun/issues/23) is the canonical live release record.
 <!-- clun-generated:release-summary:end -->
 
 ## The purity contract

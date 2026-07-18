@@ -7,9 +7,9 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **65 - Cross-platform shell API**
+## Current phase: **49 - HTTP server parity**  (streaming residual; unit #128)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/39
+**Canonical issue:** https://github.com/theesfeld/clun/issues/23
 **Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/120,
 https://github.com/theesfeld/clun/issues/23, https://github.com/theesfeld/clun/issues/40,
 and https://github.com/theesfeld/clun/issues/25
