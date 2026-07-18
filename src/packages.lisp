@@ -61,6 +61,15 @@
    #:+default-argon-memory-cost+ #:+default-argon-time-cost+
    #:+max-password-bytes+ #:+max-encoded-hash-bytes+))
 
+(defpackage :clun.secrets
+  (:use :cl)
+  (:documentation "Engine-free OS-secrets constitutional disposition (Phase 58).")
+  (:export
+   #:secrets-error #:secrets-error-kind #:secrets-error-detail
+   #:+not-available-code+ #:+not-available-message+
+   #:os-secrets-available-p #:reject-os-secrets
+   #:validate-service-name #:validate-set-value))
+
 (defpackage :clun.hash
   (:use :cl)
   (:documentation "Pure Common Lisp implementations of Clun.hash algorithms.")

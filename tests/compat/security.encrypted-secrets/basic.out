@@ -1,0 +1,3 @@
+api object get,set,delete get 1 set 1 delete 1
+invalid TypeError|ERR_INVALID_ARG_TYPE|Expected service and name to be strings TypeError|ERR_INVALID_ARG_TYPE|Expected service and name to not be empty TypeError|ERR_INVALID_ARG_TYPE|Expected 'value' to be a string. To delete the secret, call secrets.delete instead. TypeError|ERR_INVALID_ARG_TYPE|Expected 'value' to be a string TypeError|ERR_INVALID_ARG_TYPE|Expected 'value' to be a string. To delete the secret, call secrets.delete instead. TypeError|ERR_INVALID_ARG_TYPE|Expected 'value' to be a string
+unavailable get|Error|ERR_SECRETS_NOT_AVAILABLE|purity set|Error|ERR_SECRETS_NOT_AVAILABLE|purity delete|Error|ERR_SECRETS_NOT_AVAILABLE|purity positional|Error|ERR_SECRETS_NOT_AVAILABLE|purity

@@ -1,5 +1,5 @@
 <!-- clun-generated:release-notes:begin -->
-# Clun 0.1.0-dev.23
+# Clun 0.1.0-dev.26
 
 Phase 65: Cross-platform shell API.
 
@@ -14,7 +14,7 @@ The canonical evidence and current limitations are in `compat/`; `make compat-va
 
 ## Highlights
 
-- Unpublished correction of master `0.1.0-dev.23` (Phase 37 m3 #109; no new
+- Unpublished correction of master `0.1.0-dev.26` (Phase 58 secrets #106; no new
   prerelease slot): pure-CL unmatched pathname globs fail in command position with
   `clun: no matches found: <pattern>` (exit 1); assignment position keeps the literal
   pattern; multi-match assignment values join with a space.
@@ -23,11 +23,11 @@ The canonical evidence and current limitations are in `compat/`; `make compat-va
   pipeline isolation fixtures (plus #102 permission-sensitive `ls` closes already on master).
 - Does **not** claim `tooling.shell` Yes. Residual parser, lifecycle, and background rows remain
   pending under Issue #39.
-- Absorbs master through Phase 37 m3 Set methods (#109) and Phase 28 transport foundation (#95).
+- Absorbs master through Phase 58 secrets M0 (#106), Phase 37 m3 (#109), and Phase 28 transport (#95).
   Public matrix rows remain honest Partial/No where already stated.
-- Slot map: published base `v0.1.0-dev.21`; master source `0.1.0-dev.23` after m3 #109. This unit
-  retains that candidate as an unpublished patch correction (does **not** allocate `0.1.0-dev.24`).
-  Hosted installer remains on published dev.21 until a later unit publishes.
+- Slot map: published base `v0.1.0-dev.21`; master source `0.1.0-dev.26` after #106. This unit
+  retains that candidate as an unpublished patch correction. Hosted installer remains on published
+  dev.21 until a later unit publishes.
 
 The release candidate stages honest Partial shell inventory work without promoting any matrix
 row to `Yes`.
