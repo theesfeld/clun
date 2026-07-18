@@ -1,8 +1,8 @@
 ;;;; url.lisp — node:url (Phase 18 residual / Phase 47 slice).
 ;;;; Legacy parse/format/resolve + fileURLToPath/pathToFileURL over pure string
 ;;;; algorithms. Re-exports the realm's WHATWG URL + URLSearchParams (web-url.lisp).
-;;;; Documented Partial gaps: IDNA/punycode (domainTo* ASCII-only), resolveObject,
-;;;; urlToHttpOptions, URLPattern, and full legacy edge-case parity with Node.
+;;;; Selected-surface bounds (outside Yes claim): IDNA/punycode (domainTo* ASCII-only),
+;;;; resolveObject, urlToHttpOptions, URLPattern, and full legacy edge-case Node parity.
 
 (in-package :clun.runtime)
 

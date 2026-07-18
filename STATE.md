@@ -7,15 +7,17 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **38 - Web platform foundations**  (YES CONVERSION #130)
+## Current phase: **47 - Node compatibility certification**  (Yes selected surface; unit #132)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/130
-**Current implementation unit:** Phase 38 runtime.web-standard-apis Partial→Yes complete (#130).
-`runtime.web-standard-apis` is **Yes** (Readable/Writable/Transform/BYOB, proxy object options, hermetic stress, four-target supported). Master already has test-runner Yes (`0.1.0-dev.36`) and websocket Yes (`0.1.0-dev.38`).
+**Canonical issue:** https://github.com/theesfeld/clun/issues/21
+**Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/132
+**Current implementation unit:** runtime.node-compatibility Partial→Yes (#132 under parent #21).
+Selected pure-CL Node surface is **Yes** (path/fs/url/buffer/events/assert/util/timers/querystring/os + process/crypto helpers; four-target supported). Not full Node/V8 parity.
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.38` / `v0.1.0-dev.38`
+**Candidate release:** `0.1.0-dev.39` / `v0.1.0-dev.39`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
-**Entry boundary:** installer on `v0.1.0-dev.21`; free slot after websocket Yes `.37`.
+**Entry boundary:** installer on `v0.1.0-dev.21`; free slot after master tip `0.1.0-dev.38`.
+**Next scope:** remaining Yes conversions on Partial rows.
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
 easiest to hardest among dependency-ready rows. Core engine/runtime/network/tooling changes are expected.

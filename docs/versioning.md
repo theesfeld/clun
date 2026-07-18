@@ -293,3 +293,4 @@ Phase 76 cron scheduling (#50) stages free `0.1.0-dev.34` / `v0.1.0-dev.35`: pur
 
 Phase 74 archive/compression pure-CL APIs (#134) stages `0.1.0-dev.35` / `v0.1.0-dev.35` without a 31st features.tsv row (matrix locked at 30).
 Phase 38 runtime.web-standard-apis Partial→Yes (#130) stages `0.1.0-dev.38` / `v0.1.0-dev.38` with Writable/Transform/BYOB streams, proxy object options, hermetic stress, and four-target supported receipts; SemVer impact is `minor`.
+Phase 47 runtime.node-compatibility Partial→Yes (#132) stages free `0.1.0-dev.39` / `v0.1.0-dev.39` with four-target selected Node surface receipts; SemVer impact is `minor`.
