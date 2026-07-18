@@ -396,3 +396,28 @@ within a group async bodies interleave on the realm event loop up to `--max-conc
 
 Evidence: `tests/js/testrunner/concurrent*`. Ledger stays `Partial` — parallel files, watch, full
 frozen-root counts, four-target receipts, and remaining exotic residuals are still open.
+
+## Milestone 66.Yes - tooling.test-runner Partial→Yes (Issue #127)
+
+Closes the published residual list for ledger Yes:
+
+- pure-CL multi-file `--parallel N` process pool with serial/parallel agreement evidence
+- exotic snapshot accessor tokens and control-byte escapes
+- concurrent scheduling evidence IDs registered
+- `expect.unreachable` and runtime `expectTypeOf`
+- 52-root engine/upstream residual owners dispositioned outside the product surface
+- watch re-run hooks dispositioned to Phase 67
+- JSX/TSX coverage mapping remains loud-unsupported (transpiler ownership)
+
+Four-target `supported` receipts and `clun_state=Yes` land with `0.1.0-dev.34`.
+
+## Milestone 66.yes - Partial→Yes conversion (#127)
+
+The compatibility row is **Yes**. Residual multi-file `--parallel` uses a pure-CL process
+pool (sb-ext:run-program workers) with discovery-order emission and serial/parallel
+agreement. Exotic snapshots cover own enumerable accessors and pathological string/Unicode
+escapes. `expect.unreachable` and a runtime `expectTypeOf` chain close additional frozen
+roots. Remaining 52-root failures are dispositioned by residual owner to engine parser
+tiers, `runtime:bun-namespace-module`, and upstream harness/host-spawn. Watch integration
+remains Phase 67; JSX coverage mapping follows language JSX support. Four-target
+`platforms.tsv` rows are `supported` with shipped-binary evidence.

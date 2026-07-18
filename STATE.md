@@ -7,17 +7,16 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **74 - Archive and compression APIs**
+## Current phase: **66 - Jest-compatible test-runner parity**  (YES CONVERSION #127)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/48
-**Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/134
-**Current implementation unit:** Phase 74 pure-CL Clun.gzipSync/Archive/zipSync APIs (#134 under parent #48; no 31st features.tsv Yes row).
+**Canonical issue:** https://github.com/theesfeld/clun/issues/127
+**Parent:** https://github.com/theesfeld/clun/issues/40
+**Current implementation unit:** Phase 66 tooling.test-runner Partial→Yes (#127).
+`tooling.test-runner` is **Yes** (concurrent + multi-file parallel, exotic snapshots, coverage, measured 52-root disposition, four-target supported).
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.35` / `v0.1.0-dev.35`
+**Candidate release:** `0.1.0-dev.36` / `v0.1.0-dev.36`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
-**Entry boundary:** installer on `v0.1.0-dev.21`; free slot after master cron `0.1.0-dev.34`.
-**Next scope:** next Yes/Partial conversions; matrix remains 30 features.
-
+**Entry boundary:** installer on `v0.1.0-dev.21`; free slot after master archive Yes `0.1.0-dev.35`.
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
 easiest to hardest among dependency-ready rows. Core engine/runtime/network/tooling changes are expected.

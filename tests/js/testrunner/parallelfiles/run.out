@@ -1,0 +1,9 @@
+file-a-ran
+(pass) file a
+file-b-ran
+(pass) file b
+
+ 2 pass
+ 0 fail
+ 2 expect() calls
+Ran 2 tests across 2 files.

@@ -380,7 +380,7 @@ Concurrent/serial are orthogonal to selection mode and expected-failure state."
 the file-local test globals (describe/test/expect/hooks/mocks/jest/…)."
   (let ((g (eng:realm-global realm))
         (exports (eng:new-object)))
-    (dolist (name '("describe" "test" "it" "expect"
+    (dolist (name '("describe" "test" "it" "expect" "expectTypeOf"
                     "beforeAll" "beforeEach" "afterAll" "afterEach"
                     "onTestFinished" "setDefaultTimeout"
                     "mock" "spyOn" "jest" "vi"))

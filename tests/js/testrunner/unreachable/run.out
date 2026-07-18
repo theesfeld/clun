@@ -1,0 +1,9 @@
+(pass) expect.unreachable is a function
+(pass) expect.unreachable with message
+(pass) expect.unreachable with Error
+(pass) expect.unreachable default
+
+ 4 pass
+ 0 fail
+ 4 expect() calls
+Ran 4 tests across 1 file.
