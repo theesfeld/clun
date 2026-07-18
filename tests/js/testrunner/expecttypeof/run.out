@@ -1,0 +1,6 @@
+(pass) expectTypeOf is chainable at runtime
+
+ 1 pass
+ 0 fail
+ 4 expect() calls
+Ran 1 test across 1 file.

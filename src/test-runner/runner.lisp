@@ -16,6 +16,8 @@
   (coverage-threshold-lines nil) (coverage-threshold-functions nil)
   (coverage-threshold-statements nil)
   (concurrent nil) (max-concurrency 20)
+  ;; PARALLEL: NIL = serial multi-file (default). Integer ≥1 = process-pool size.
+  (parallel nil)
   (error-message nil))
 
 (defun %test-seed (value)
@@ -188,6 +190,27 @@
                  (setf (to-max-concurrency o) (max 0 n))
                  (setf (to-error-message o)
                        (format nil "Invalid max-concurrency: ~a" value)))))
+          ((string= tok "--parallel")
+           (let ((v (car toks)))
+             (if (and v (plusp (length v)) (every #'digit-char-p v)
+                      (null (find #\- v :test #'char=)))
+                 (let ((n (parse-integer (next) :junk-allowed t)))
+                   (if (and n (plusp n))
+                       (setf (to-parallel o) n)
+                       (setf (to-error-message o)
+                             (format nil "Invalid parallel worker count: ~a" v))))
+                 ;; Flag alone: default to host CPU count (at least 1).
+                 (setf (to-parallel o) (max 1 (sys:cpu-count))))))
+          ((and (>= (length tok) 11)
+                (string= (subseq tok 0 11) "--parallel="))
+           (let* ((value (subseq tok 11))
+                  (n (and (plusp (length value))
+                          (every #'digit-char-p value)
+                          (parse-integer value :junk-allowed t))))
+             (if (and n (plusp n))
+                 (setf (to-parallel o) n)
+                 (setf (to-error-message o)
+                       (format nil "Invalid parallel worker count: ~a" value)))))
           ((string= tok "--bail") (setf (to-bail o) 1))
           ((and (>= (length tok) 7) (string= (subseq tok 0 7) "--bail="))
            (setf (to-bail o) (max 1 (or (parse-integer (subseq tok 7) :junk-allowed t) 1))))
@@ -398,6 +421,188 @@ error (syntax / top-level throw) is reported as a fail. Always tears the realm d
       (when ctx (restore-test-mocks ctx))
       (eng:teardown-realm realm))))
 
+(defun %test-current-executable ()
+  "Absolute path of the running clun binary, for --parallel worker re-exec."
+  (or (ignore-errors
+        (sys:pathname->native (truename sb-ext:*runtime-pathname*)))
+      (let ((a0 (first sb-ext:*posix-argv*)))
+        (when a0
+          (if (sys:absolute-path-p a0)
+              a0
+              (ignore-errors
+                (sys:pathname->native
+                 (truename (sys:native->pathname
+                            (sys:path-join (sys:current-directory) a0))))))))
+      "clun"))
+
+(defun %test-worker-environment (&optional result-path)
+  "Deterministic worker env (force CI=0 like the fixture harness).
+When RESULT-PATH is supplied, workers write machine-readable counts there and
+omit the human summary footer so the coordinator can aggregate cleanly."
+  (let ((base (remove-if (lambda (entry)
+                           (or (and (>= (length entry) 3)
+                                    (string= "CI=" entry :end2 3))
+                               (and (>= (length entry) 16)
+                                    (string= "CLUN_TEST_WORKER=" entry :end2 16))
+                               (and (>= (length entry) 24)
+                                    (string= "CLUN_TEST_WORKER_RESULT="
+                                             entry :end2 24))))
+                         (sb-ext:posix-environ))))
+    (list* "CI=0"
+           "CLUN_TEST_WORKER=1"
+           (if result-path
+               (cons (format nil "CLUN_TEST_WORKER_RESULT=~a" result-path) base)
+               base))))
+
+(defun %test-rebuild-worker-argv (opts file)
+  "CLI tokens for a single-file worker (no --parallel, one absolute file)."
+  (let ((argv (list "test")))
+    (labels ((push-flag (flag) (push flag argv))
+             (push-kv (flag value)
+               (push flag argv)
+               (push (princ-to-string value) argv)))
+      (when (to-name-pattern opts)
+        (push-kv "--test-name-pattern" (to-name-pattern opts)))
+      (unless (= (to-timeout opts) 5000)
+        (push-kv "--timeout" (to-timeout opts)))
+      (when (plusp (to-retry opts))
+        (push-kv "--retry" (to-retry opts)))
+      (when (to-todo opts) (push-flag "--todo"))
+      (when (to-ci opts) (push-flag "--ci"))
+      (when (to-update-snapshots opts) (push-flag "--update-snapshots"))
+      (when (to-randomize opts)
+        (if (to-seed opts)
+            (push-kv "--seed" (to-seed opts))
+            (push-flag "--randomize")))
+      (when (to-concurrent opts) (push-flag "--concurrent"))
+      (unless (= (to-max-concurrency opts) 20)
+        (push-kv "--max-concurrency" (to-max-concurrency opts)))
+      (when (to-bail opts)
+        (push-kv "--bail" (to-bail opts)))
+      (dolist (preload (to-preloads opts))
+        (push-kv "--preload" preload))
+      (ecase (to-reporter opts)
+        (:console nil)
+        (:dots (push-flag "--dots"))
+        (:junit
+         (push-kv "--reporter" "junit")
+         (when (to-reporter-outfile opts)
+           (push-kv "--reporter-outfile" (to-reporter-outfile opts)))))
+      (push file argv)
+      (nreverse argv))))
+
+(defstruct (parallel-worker-result (:conc-name pwr-))
+  file exit-code stdout stderr
+  (pass 0) (fail 0) (skip 0) (todo 0) (expect 0))
+
+(defun %write-worker-result-file (path stats expect-calls exit-code)
+  (with-open-file (out path :direction :output :if-exists :supersede
+                            :if-does-not-exist :create)
+    (format out "pass ~a~%fail ~a~%skip ~a~%todo ~a~%expect ~a~%exit ~a~%"
+            (st-pass stats) (st-fail stats) (st-skip stats) (st-todo stats)
+            expect-calls exit-code)))
+
+(defun %read-worker-result-file (path)
+  (let ((pass 0) (fail 0) (skip 0) (todo 0) (expect 0) (exit 1))
+    (when (probe-file path)
+      (with-open-file (in path :if-does-not-exist nil)
+        (when in
+          (loop for line = (read-line in nil nil)
+                while line do
+                  (let* ((space (position #\Space line))
+                         (key (if space (subseq line 0 space) line))
+                         (val (and space
+                                   (parse-integer line :start (1+ space)
+                                                       :junk-allowed t))))
+                    (when val
+                      (cond ((string= key "pass") (setf pass val))
+                            ((string= key "fail") (setf fail val))
+                            ((string= key "skip") (setf skip val))
+                            ((string= key "todo") (setf todo val))
+                            ((string= key "expect") (setf expect val))
+                            ((string= key "exit") (setf exit val)))))))))
+    (values pass fail skip todo expect exit)))
+
+(defun %start-parallel-worker (exe opts file cwd result-path)
+  "Start a non-blocking worker process for FILE; return handle list."
+  (let ((out (make-string-output-stream))
+        (err (make-string-output-stream))
+        (argv (%test-rebuild-worker-argv opts file)))
+    (list (sb-ext:run-program exe argv
+                              :output out :error err :wait nil
+                              :directory cwd
+                              :environment (%test-worker-environment result-path))
+          out err file result-path)))
+
+(defun %finish-parallel-worker (handle)
+  "Wait for a worker started by %start-parallel-worker and capture streams."
+  (destructuring-bind (proc out err file result-path) handle
+    (sb-ext:process-wait proc)
+    (let ((code (or (sb-ext:process-exit-code proc) 1)))
+      (multiple-value-bind (p f s td e exit-from-file)
+          (%read-worker-result-file result-path)
+        (declare (ignore exit-from-file))
+        (make-parallel-worker-result
+         :file file
+         :exit-code code
+         :stdout (get-output-stream-string out)
+         :stderr (get-output-stream-string err)
+         :pass p :fail f :skip s :todo td :expect e)))))
+
+(defun %run-files-in-parallel (files opts cwd workers)
+  "Run FILES with a pure-CL process pool of size WORKERS (Bun --parallel shape).
+Workers re-exec the same clun binary concurrently within each batch; per-test
+lines are flushed in discovery order; one aggregate summary is printed by the
+coordinator."
+  (let* ((n (length files))
+         (results (make-array n :initial-element nil))
+         (tmp-root (sys:make-temp-dir "/tmp/clun-test-parallel-"))
+         (next-start 0)
+         (failed-p nil)
+         (pass 0) (fail 0) (skip 0) (todo 0) (expect 0))
+    (unwind-protect
+         (labels ((ingest (index result)
+                    (setf (aref results index) result)
+                    (incf pass (pwr-pass result))
+                    (incf fail (pwr-fail result))
+                    (incf skip (pwr-skip result))
+                    (incf todo (pwr-todo result))
+                    (incf expect (pwr-expect result))
+                    (when (or (plusp (pwr-exit-code result))
+                              (and (to-bail opts) (plusp fail)))
+                      (setf failed-p t))))
+           (let ((exe (%test-current-executable)))
+             (loop while (< next-start n)
+                   do (when (and (to-bail opts) failed-p) (return))
+                      (let* ((batch-end (min n (+ next-start workers)))
+                             (handles
+                               (loop for i from next-start below batch-end
+                                     for result-path =
+                                         (format nil "~a/w~a.result" tmp-root i)
+                                     collect (cons i
+                                                   (%start-parallel-worker
+                                                    exe opts (nth i files) cwd
+                                                    result-path)))))
+                        (dolist (entry handles)
+                          (ingest (car entry)
+                                  (%finish-parallel-worker (cdr entry))))
+                        (setf next-start batch-end))))
+           (dotimes (i n)
+             (let ((result (aref results i)))
+               (when result
+                 (write-string (pwr-stdout result) *standard-output*)
+                 (when (plusp (length (pwr-stderr result)))
+                   (write-string (pwr-stderr result) *error-output*)))))
+           (finish-output *standard-output*)
+           (finish-output *error-output*)
+           (values pass fail skip todo expect failed-p))
+      (ignore-errors
+        (dolist (path (directory (merge-pathnames (make-pathname :name :wild
+                                                                 :type :wild)
+                                                  tmp-root)))
+          (ignore-errors (delete-file path)))
+        (sb-posix:rmdir tmp-root)))))
+
 (defun run-test-command (argv cwd)
   "`clun test` — discover + run test files under CWD; print the summary; return the
 process exit code (1 on any failure, on zero tests, or on a 0-match -t filter)."
@@ -417,76 +622,107 @@ process exit code (1 on any failure, on zero tests, or on a 0-match -t filter)."
         (return-from run-test-command 1)))
     (when (and (to-randomize opts) (null (to-seed opts)))
       (setf (to-seed opts) (%fresh-test-seed)))
+    (when (and (to-parallel opts)
+               (or (to-coverage opts)
+                   (eq (to-reporter opts) :junit)
+                   (to-update-snapshots opts)))
+      (format *error-output*
+              "clun test: --parallel cannot be combined with coverage, junit, or --update-snapshots~%")
+      (return-from run-test-command 1))
     (let* ((discovered (discover-files (to-positionals opts) cwd*))
            (selected (%select-test-shard discovered (to-shard-index opts)
                                          (to-shard-count opts)))
            (files (if (to-randomize opts)
                       (%shuffle-test-files selected (make-test-prng (to-seed opts)))
-                      selected))
-           (stats (make-run-stats))
-           (current-file nil)
-           (records '())
-           (report
-             (make-reporter
-              *standard-output* :mode (to-reporter opts)
-              :on-result
-              (lambda (status name detail assertions)
-                (push (make-test-report-record current-file status name detail assertions)
-                      records))))
-           (expect-total 0)
-           (suite-state (make-preload-suite-state))
-           (coverage-session (and (to-coverage opts) (eng:make-coverage-session)))
-           (report-error nil))
+                      selected)))
       (when (null files)
         (format *standard-output* "No test files found.~%")
         (return-from run-test-command 1))
-      (labels ((run-files ()
-                 (loop for remaining on files
-                       for f = (car remaining)
-                       for last-file-p = (null (cdr remaining))
-                       do (when (st-bailed stats) (return))
-                          (setf current-file f)
-                          (incf expect-total
-                                (%run-one-file f opts stats report cwd* suite-state
-                                               last-file-p coverage-session)))))
-        (if coverage-session
-            (eng:call-with-coverage-session coverage-session #'run-files)
-            (run-files)))
-      (print-summary *standard-output* stats (length files) expect-total
-                     (and (to-randomize opts) (to-seed opts)))
-      (when coverage-session
-        (handler-case
-            (let ((coverage-records
-                    (write-test-coverage
-                     coverage-session cwd* (to-coverage-reporters opts)
-                     (to-coverage-dir opts)
-                     (to-coverage-include-test-files opts)
-                     (to-coverage-ignore-patterns opts) *standard-output*)))
-              (dolist (failure
-                       (coverage-threshold-failures
-                        coverage-records
-                        (to-coverage-threshold-lines opts)
-                        (to-coverage-threshold-functions opts)
-                        (to-coverage-threshold-statements opts)))
+      ;; Multi-file process pool. Single-file and serial stay in-process.
+      (when (and (to-parallel opts) (> (length files) 1))
+        (multiple-value-bind (pass fail skip todo expect failed-p)
+            (%run-files-in-parallel files opts cwd* (to-parallel opts))
+          (let ((stats (make-run-stats)))
+            (setf (st-pass stats) pass
+                  (st-fail stats) fail
+                  (st-skip stats) skip
+                  (st-todo stats) todo)
+            (print-summary *standard-output* stats (length files) expect
+                           (and (to-randomize opts) (to-seed opts)))
+            (return-from run-test-command
+              (if (or failed-p (plusp fail)
+                      (zerop (+ pass fail skip todo))
+                      (and (to-name-pattern opts) (zerop (+ pass fail skip todo))))
+                  1 0)))))
+      (let* ((stats (make-run-stats))
+             (current-file nil)
+             (records '())
+             (report
+               (make-reporter
+                *standard-output* :mode (to-reporter opts)
+                :on-result
+                (lambda (status name detail assertions)
+                  (push (make-test-report-record current-file status name detail assertions)
+                        records))))
+             (expect-total 0)
+             (suite-state (make-preload-suite-state))
+             (coverage-session (and (to-coverage opts) (eng:make-coverage-session)))
+             (report-error nil))
+        (labels ((run-files ()
+                   (loop for remaining on files
+                         for f = (car remaining)
+                         for last-file-p = (null (cdr remaining))
+                         do (when (st-bailed stats) (return))
+                            (setf current-file f)
+                            (incf expect-total
+                                  (%run-one-file f opts stats report cwd* suite-state
+                                                 last-file-p coverage-session)))))
+          (if coverage-session
+              (eng:call-with-coverage-session coverage-session #'run-files)
+              (run-files)))
+        (let* ((worker-p (let ((v (sys:getenv "CLUN_TEST_WORKER")))
+                           (and v (not (member v '("" "0" "false") :test #'string=)))))
+               (worker-result (sys:getenv "CLUN_TEST_WORKER_RESULT")))
+          ;; Parallel workers emit per-test lines only; the coordinator prints one summary.
+          (unless worker-p
+            (print-summary *standard-output* stats (length files) expect-total
+                           (and (to-randomize opts) (to-seed opts))))
+          (when coverage-session
+            (handler-case
+                (let ((coverage-records
+                        (write-test-coverage
+                         coverage-session cwd* (to-coverage-reporters opts)
+                         (to-coverage-dir opts)
+                         (to-coverage-include-test-files opts)
+                         (to-coverage-ignore-patterns opts) *standard-output*)))
+                  (dolist (failure
+                           (coverage-threshold-failures
+                            coverage-records
+                            (to-coverage-threshold-lines opts)
+                            (to-coverage-threshold-functions opts)
+                            (to-coverage-threshold-statements opts)))
+                    (setf report-error t)
+                    (format *error-output* "clun test: ~a~%" failure)))
+              (error (condition)
                 (setf report-error t)
-                (format *error-output* "clun test: ~a~%" failure)))
-          (error (condition)
-            (setf report-error t)
-            (format *error-output* "clun test: failed to write coverage report: ~a~%"
-                    condition))))
-      (when (eq (to-reporter opts) :junit)
-        (let ((outfile (to-reporter-outfile opts)))
-          (unless (sys:absolute-path-p outfile)
-            (setf outfile (sys:path-join cwd* outfile)))
-          (handler-case
-              (write-junit-report outfile (nreverse records))
-            (error (condition)
-              (setf report-error t)
-              (format *error-output* "clun test: failed to write JUnit report to ~a: ~a~%"
-                      outfile condition)))))
-      (let ((total (+ (st-pass stats) (st-fail stats) (st-skip stats) (st-todo stats))))
-        (if (or report-error
-                (plusp (st-fail stats))
-                (zerop total)
-                (and (to-name-pattern opts) (zerop (st-matched stats))))
-            1 0)))))
+                (format *error-output* "clun test: failed to write coverage report: ~a~%"
+                        condition))))
+          (when (eq (to-reporter opts) :junit)
+            (let ((outfile (to-reporter-outfile opts)))
+              (unless (sys:absolute-path-p outfile)
+                (setf outfile (sys:path-join cwd* outfile)))
+              (handler-case
+                  (write-junit-report outfile (nreverse records))
+                (error (condition)
+                  (setf report-error t)
+                  (format *error-output* "clun test: failed to write JUnit report to ~a: ~a~%"
+                          outfile condition)))))
+          (let* ((total (+ (st-pass stats) (st-fail stats) (st-skip stats) (st-todo stats)))
+                 (exit (if (or report-error
+                               (plusp (st-fail stats))
+                               (zerop total)
+                               (and (to-name-pattern opts) (zerop (st-matched stats))))
+                           1 0)))
+            (when (and worker-result (plusp (length worker-result)))
+              (%write-worker-result-file worker-result stats expect-total exit))
+            exit))))))

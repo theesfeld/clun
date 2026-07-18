@@ -3315,3 +3315,13 @@ Ship Bun-shaped pure-CL compression and archive surface without a new ledger row
   writer + hardened extract; pure-CL ZIP (store+deflate).
 - SemVer minor → `0.1.0-dev.35` (free slot after master cron `0.1.0-dev.34`).
 
+
+## 2026-07-18 — tooling.test-runner Partial→Yes (#127)
+
+- Multi-file `--parallel` pure-CL process pool with serial/parallel agreement.
+- Exotic snapshot accessor tokens + pathological string/Unicode escapes.
+- `expect.unreachable` + `expectTypeOf` runtime chain close additional 52-root residuals.
+- 52-root residual owners dispositioned (engine/runtime/upstream-meta dominate).
+- Watch integration deferred to Phase 67; JSX coverage mapping follows language JSX.
+- Four-target platforms.tsv `supported`; ledger `clun_state=Yes`.
+- Release train: `0.1.0-dev.36` (reslot after archive Yes landed as `.35`).

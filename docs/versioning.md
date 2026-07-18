@@ -64,6 +64,7 @@ resource does not exist with a 404 response:
 0.1.0-dev.32
 0.1.0-dev.33
 0.1.0-dev.35
+0.1.0-dev.36
 0.1.0-dev.30
 ```
 
@@ -285,3 +286,5 @@ Phase 65 shell Partial→Yes (#120) stages `0.1.0-dev.33` / `v0.1.0-dev.33` with
 Phase 76 cron scheduling (#50) stages free `0.1.0-dev.35` / `v0.1.0-dev.35`: pure-CL `Clun.cron` parse + in-process jobs (OS-level fail-closed); SemVer impact is `minor`.
 
 Phase 74 archive/compression pure-CL APIs (#134) stages `0.1.0-dev.35` / `v0.1.0-dev.35` without a 31st features.tsv row (matrix locked at 30).
+
+Phase 66 test-runner Partial→Yes (#127) stages `0.1.0-dev.36` / `v0.1.0-dev.36` after master archive Yes landed as `.35`. Multi-file `--parallel`, concurrent evidence, exotic snapshots, 52-root disposition, four-target supported, gap cleared.

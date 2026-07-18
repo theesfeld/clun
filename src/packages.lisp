@@ -257,7 +257,8 @@
    #:js-getv #:to-object #:to-boolean #:to-integer-or-infinity #:js-strict-eq
    #:js-same-value #:js-typeof #:make-error-object #:well-known #:length-of-array-like
    #:js-null-p #:js-number-p #:js-string-p #:js-deep-equal #:*builtin-module-builder*
-   #:js-construct #:obj-own-desc #:pd-value #:pd-enumerable #:crypto-fill-random
+   #:js-construct #:obj-own-desc #:pd-value #:pd-enumerable
+   #:pd-get #:pd-set #:accessor-descriptor-p #:crypto-fill-random
    #:js-loose-eq #:js-instanceof #:throw-js-value #:js-object-class
    #:js-typed-array-p #:make-u8-array #:u8-from-octets #:ta-octets #:u8-over-arraybuffer #:js-array-buffer-bytes #:js-array-buffer-p
    #:buffer-source-octets

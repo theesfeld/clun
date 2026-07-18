@@ -44,3 +44,10 @@ CLUN_BUN_SOURCE=/path/to/bun-c1076ce95e make test-test-runner-manifest
 
 Bun is MIT licensed. The manifest records provenance and digests but does not copy Bun implementation code.
 Clun's implementation remains independently written in Common Lisp under GPL-3.0-or-later.
+
+## Yes disposition (Issue #127 / 0.1.0-dev.34)
+
+Ledger `tooling.test-runner` is **Yes**. Remaining non-closed 52-root residual owners are
+engine, `bun` namespace, or upstream harness meta — dispositioned outside the product
+test-runner surface. Watch re-run hooks remain Phase 67. JSX/TSX coverage mapping remains
+loud-unsupported with the TypeScript/JSX transpiler phases.
