@@ -3287,3 +3287,14 @@ additional shell-language inventory sites after #122/#123 (overall
 - Pure-CL background `&` + `wait`, ENAMETOOLONG, multi-error lex, EACCES globs, ls flag order.
 - Four-target platforms.tsv `supported`; ledger `clun_state=Yes`.
 - Release train: `0.1.0-dev.33`.
+
+## 2026-07-18 — Phase 76 Clun.cron pure-CL checkpoint (#50)
+
+Ship pure-CL Bun-shaped cron under `Clun.cron`:
+
+1. 5-field expression parser + next-occurrence (UTC), nicknames, named fields, DOM/DOW OR
+2. In-process `Clun.cron(schedule, handler)` → CronJob (stop/ref/unref; setTimeout arming)
+3. OS-level path/title overloads and `remove` fail closed (no crontab/launchd/schtasks shell-out)
+
+Does not claim full Phase 76 Yes (REPL + OS + four-target compat open). SemVer `minor`
+at free slot `0.1.0-dev.34` / `v0.1.0-dev.34`.
