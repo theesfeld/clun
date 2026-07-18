@@ -9,22 +9,17 @@ Update when work completes; keep consistent with the Issue, README, and site.
 ## Current phase: **49 - HTTP server parity**  (YES CONVERSION #128)
 
 **Canonical issue:** https://github.com/theesfeld/clun/issues/128
-**Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/23,
-https://github.com/theesfeld/clun/issues/120, https://github.com/theesfeld/clun/issues/127,
-and https://github.com/theesfeld/clun/issues/129
 **Current implementation unit:** Phase 49 `server.http` Partial→Yes (#128).
-`server.http` is **Yes** (HTTP/1.1 streaming request/response bodies, lifecycle, optional pure-tls serve; four-target supported).
+`server.http` is **Yes** (HTTP/1.1 streaming request/response bodies; four-target supported).
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.37` / `v0.1.0-dev.37`
+**Candidate release:** `0.1.0-dev.38` / `v0.1.0-dev.38`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
-**Entry boundary:** installer on `v0.1.0-dev.21`; this unit stages `0.1.0-dev.37` after master tip `0.1.0-dev.37`.
-**Next scope:** remaining Partial→Yes fleet and Phase 49 residual inventory (HTTP/2 multi-listen breadth).
+**Entry boundary:** installer on `v0.1.0-dev.21`; this unit stages `0.1.0-dev.38` after master tip `0.1.0-dev.37`.
+**Next scope:** remaining Partial→Yes fleet; HTTP/2 multi-listen residual inventory.
 
-## Recent phase outcomes (most recent first)
-
-**Phase 24 outcome:** Spawn + package scripts — the daily-driver workflow, milestoned; gate MET.
-**Milestone 1 DONE (committed):** `Clun.spawnSync` (`src/runtime/spawn.lisp`, `clun.runtime`) — the
-blocking subprocess primitive over `sb-ext:run-program :wait t`: `cmd` = `[program, ...args]`
+guarded filesystem builtins, bounded `yes`, and isolated pipeline state. This unit advances the matrix to
+**9 Yes / 8 Partial / 13 No** by promoting `server.websocket` No → Partial (handshake/framing/echo only;
+no Pub/Sub Yes).
 
 **M5 entry boundary:** immutable dev.4 diagnostic set **56 total / 0 pass / 56 fail / 0 skip / 0 crash**:
 **43 m5-owned** (32 intrinsic/prototype, 7 parser, 4 raw delegation), **12 m11** direct-eval/`with`

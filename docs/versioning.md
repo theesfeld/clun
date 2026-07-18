@@ -292,3 +292,6 @@ Phase 66 test-runner Partial→Yes (#127) stages `0.1.0-dev.36` / `v0.1.0-dev.36
 Phase 49 server.http Partial→Yes (#128) stages `0.1.0-dev.37`.
 
 Phase 49 server.http Partial→Yes (#128) stages `0.1.0-dev.37` / `v0.1.0-dev.37` with streaming bodies and four-target supported receipts.
+
+0.1.0-dev.38
+Phase 49 server.http Partial→Yes (#128) stages `0.1.0-dev.38` / `v0.1.0-dev.38`.

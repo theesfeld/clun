@@ -3331,3 +3331,8 @@ Ship Bun-shaped pure-CL compression and archive surface without a new ledger row
 - Streaming request/response bodies pure-CL (chunked Transfer-Encoding; progressive request body stream).
 - HTTP/1.1 Yes bar: lifecycle, optional pure-tls serve, unix/reusePort.
 - Ledger Yes + four-target supported. Train: `0.1.0-dev.37`.
+
+## 2026-07-18 — server.http Partial→Yes (#128)
+
+- Streaming request/response bodies pure-CL; HTTP/1.1 Yes bar.
+- Ledger Yes + four-target supported. Train: `0.1.0-dev.38`.
