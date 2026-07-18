@@ -902,6 +902,93 @@ Rejects when the body stream is locked by getReader()."
                     (list (cons resolve reject))))
       promise)))
 
+;;; --- BYOB (ReadableStreamBYOBReader) ---------------------------------------
+
+(defvar *byob-readers* (make-hash-table :test #'eq :weakness :key)
+  "Readers obtained via getReader({mode:'byob'}).")
+(defvar *byob-pending-octets* (make-hash-table :test #'eq :weakness :key)
+  "Per-stream residual octets for partial BYOB fills.")
+
+(defun %chunk-to-octets (chunk)
+  (cond
+    ((null chunk) (make-array 0 :element-type '(unsigned-byte 8)))
+    ((eng:js-typed-array-p chunk) (eng:buffer-source-octets chunk))
+    ((eng:js-array-buffer-p chunk) (eng:buffer-source-octets chunk))
+    ((or (eng:js-string-p chunk) (stringp chunk))
+     (sb-ext:string-to-octets (eng:to-string chunk) :external-format :utf-8))
+    (t (%body->octets chunk))))
+
+(defun %copy-octets-into-view (view octets)
+  (unless (eng:js-typed-array-p view)
+    (eng:throw-type-error "BYOB read requires an ArrayBufferView"))
+  (when (null (eng:js-array-buffer-bytes (eng::js-typed-array-abuffer view)))
+    (eng:throw-type-error "ArrayBuffer is detached"))
+  (multiple-value-bind (bytes offset length) (eng:ta-octets view)
+    (let ((n (min length (length octets))))
+      (when (plusp n)
+        (replace bytes octets :start1 offset :end1 (+ offset n) :end2 n))
+      (values (if (= n length) view (eng:ta-subview view 0 n))
+              n
+              (if (< n (length octets)) (subseq octets n) nil)))))
+
+(defun %byob-reader-read (reader view)
+  "Fill VIEW from the stream queue (BYOB). Returns a read-result promise."
+  (let ((global (eng:realm-global eng:*realm*)))
+    (when (js-readable-stream-reader-released-p reader)
+      (return-from %byob-reader-read
+        (%rejected-promise
+         global (%stream-error-type "This readable stream reader has been released"))))
+    (unless (eng:js-typed-array-p view)
+      (return-from %byob-reader-read
+        (%rejected-promise
+         global (%stream-error-type "BYOB read requires an ArrayBufferView"))))
+    (let ((stream (js-readable-stream-reader-stream reader)))
+      (%stream-materialize-lazy-body stream)
+      (when (js-readable-stream-error stream)
+        (return-from %byob-reader-read
+          (%rejected-promise global (js-readable-stream-error stream))))
+      (let ((octets
+              (or (gethash stream *byob-pending-octets*)
+                  (multiple-value-bind (chunk kind reason)
+                      (%stream-pull-chunk stream)
+                    (declare (ignore reason))
+                    (ecase kind
+                      (:value (%chunk-to-octets chunk))
+                      (:done nil)
+                      (:error nil)
+                      (:pending nil))))))
+        (cond
+          ((null octets)
+           (if (or (js-readable-stream-closed-p stream)
+                   (not (js-readable-stream-wait-for-data-p stream)))
+               (progn
+                 (unless (js-readable-stream-closed-p stream)
+                   (setf (js-readable-stream-closed-p stream) t))
+                 (%reader-resolve-closed reader)
+                 (%resolved-promise global (%read-result eng:+undefined+ t)))
+               ;; Park: not fully supported for BYOB pending; treat as EOF.
+               (progn
+                 (setf (js-readable-stream-closed-p stream) t)
+                 (%reader-resolve-closed reader)
+                 (%resolved-promise global (%read-result eng:+undefined+ t)))))
+          ((zerop (length octets))
+           (remhash stream *byob-pending-octets*)
+           (%byob-reader-read reader view))
+          (t
+           (multiple-value-bind (filled copied remaining)
+               (%copy-octets-into-view view octets)
+             (declare (ignore copied))
+             (if remaining
+                 (setf (gethash stream *byob-pending-octets*) remaining)
+                 (remhash stream *byob-pending-octets*))
+             (setf (js-readable-stream-disturbed-p stream) t)
+             (%notify-owner-body-used stream)
+             (when (and (js-readable-stream-closed-p stream)
+                        (null (js-readable-stream-queue stream))
+                        (null remaining))
+               (%reader-resolve-closed reader))
+             (%resolved-promise global (%read-result filled nil)))))))))
+
 (defun %reader-read (reader)
   (let ((global (eng:realm-global eng:*realm*)))
     (when (js-readable-stream-reader-released-p reader)
@@ -993,12 +1080,18 @@ Rejects when the body stream is locked by getReader()."
      (%reader-closed-deferred this))
    nil)
   (%install-prototype-method
-   prototype "read" 0
+   prototype "read" 1
    (lambda (this args)
-     (declare (ignore args))
      (unless (js-readable-stream-reader-p this)
        (eng:throw-type-error "Illegal invocation"))
-     (%reader-read this)))
+     (if (gethash this *byob-readers*)
+         (let ((view (eng:arg args 0)))
+           (if (or (eng:js-undefined-p view) (eng:js-nullish-p view))
+               (%rejected-promise
+                (eng:realm-global eng:*realm*)
+                (%stream-error-type "BYOB read requires a view argument"))
+               (%byob-reader-read this view)))
+         (%reader-read this))))
   (%install-prototype-method
    prototype "cancel" 1
    (lambda (this args)
@@ -1056,10 +1149,20 @@ Rejects when the body stream is locked by getReader()."
   (%install-prototype-method
    prototype "getReader" 0
    (lambda (this args)
-     (declare (ignore args))
      (unless (js-readable-stream-p this)
        (eng:throw-type-error "Illegal invocation"))
-     (%make-default-reader this)))
+     (let* ((options (eng:arg args 0))
+            (mode (and (eng:js-object-p options)
+                       (eng:js-get options "mode")))
+            (byob-p (and mode (eng:js-string-p mode)
+                         (string= (eng:to-string mode) "byob")))
+            (reader (%make-default-reader this)))
+       (when byob-p
+         (setf (gethash reader *byob-readers*) t)
+         ;; BYOB partial fills need residual tracking on the stream.
+         (unless (gethash this *byob-pending-octets*)
+           (setf (gethash this *byob-pending-octets*) nil)))
+       reader)))
   (%install-prototype-method
    prototype "cancel" 1
    (lambda (this args)
@@ -1071,9 +1174,78 @@ Rejects when the body stream is locked by getReader()."
           (%stream-error-type "Cannot cancel a locked stream"))
          (let ((reader (%make-default-reader this)))
            (%reader-cancel reader (eng:arg args 0))))))
+  (%install-prototype-method
+   prototype "pipeTo" 1
+   (lambda (this args)
+     (unless (js-readable-stream-p this)
+       (eng:throw-type-error "Illegal invocation"))
+     (%readable-pipe-to this (eng:arg args 0))))
+  (%install-prototype-method
+   prototype "pipeThrough" 1
+   (lambda (this args)
+     (unless (js-readable-stream-p this)
+       (eng:throw-type-error "Illegal invocation"))
+     (%readable-pipe-through this (eng:arg args 0))))
   (%define-data prototype (eng:well-known :to-string-tag) "ReadableStream"
                 :writable nil :enumerable nil :configurable t)
   prototype)
+
+(defun %readable-pipe-to (stream dest)
+  "Drain STREAM into WritableStream DEST (bounded, pure-CL)."
+  (let ((global (eng:realm-global eng:*realm*)))
+    (unless (js-writable-stream-p dest)
+      (return-from %readable-pipe-to
+        (%rejected-promise
+         global (%stream-error-type "pipeTo destination must be a WritableStream"))))
+    (when (js-readable-stream-locked-p stream)
+      (return-from %readable-pipe-to
+        (%rejected-promise global (%stream-error-type "ReadableStream is locked"))))
+    (when (js-writable-stream-locked-p dest)
+      (return-from %readable-pipe-to
+        (%rejected-promise global (%stream-error-type "WritableStream is locked"))))
+    (let ((reader (%make-default-reader stream))
+          (writer (%make-default-writer dest)))
+      (handler-case
+          (loop
+            (multiple-value-bind (chunk kind reason)
+                (%stream-pull-chunk stream)
+              (ecase kind
+                (:value
+                 (eng:js-call (eng:js-get writer "write") writer (list chunk)))
+                (:done
+                 (eng:js-call (eng:js-get writer "close") writer '())
+                 (%reader-release-lock reader)
+                 (return (%resolved-promise global eng:+undefined+)))
+                (:error
+                 (ignore-errors
+                   (eng:js-call (eng:js-get writer "abort") writer (list reason)))
+                 (%reader-release-lock reader)
+                 (return (%rejected-promise global reason)))
+                (:pending
+                 (setf (js-readable-stream-closed-p stream) t)
+                 (eng:js-call (eng:js-get writer "close") writer '())
+                 (%reader-release-lock reader)
+                 (return (%resolved-promise global eng:+undefined+))))))
+        (eng:js-condition (c)
+          (ignore-errors
+            (eng:js-call (eng:js-get writer "abort") writer
+                         (list (eng:js-condition-value c))))
+          (%reader-cancel reader (eng:js-condition-value c))
+          (%rejected-promise global (eng:js-condition-value c)))
+        (error (c)
+          (let ((reason (%stream-error-type (princ-to-string c))))
+            (ignore-errors
+              (eng:js-call (eng:js-get writer "abort") writer (list reason)))
+            (%reader-cancel reader reason)
+            (%rejected-promise global reason)))))))
+
+(defun %readable-pipe-through (stream transform)
+  (unless (js-transform-stream-p transform)
+    (eng:throw-type-error "pipeThrough requires a TransformStream"))
+  (let ((writable (js-transform-stream-writable transform))
+        (readable (js-transform-stream-readable transform)))
+    (%readable-pipe-to stream writable)
+    readable))
 
 (defun %new-readable-stream (&key queue closed-p owner owner-kind
                                    cancel-callback lazy-body-p

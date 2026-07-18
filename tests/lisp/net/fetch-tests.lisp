@@ -1101,3 +1101,47 @@ then the final chunk after 75ms.  __tailSent exposes whether fetch waited for EO
          eng:*realm* :timeout-ms 8000)
       (is eq :rejected kind)
       (is string= "TypeError" (eng:to-string (eng:js-get value "name"))))))
+(define-test net/fetch-proxy-object-url-and-headers
+  "Bun proxy: { url, headers } form merges custom hop headers into absolute-form
+HTTP proxy requests and CONNECT envelopes; string form remains supported."
+  (with-http-proxy-fixture (g proxy-port captures)
+    (let ((proxy (rt::%coerce-fetch-proxy
+                  (let ((o (eng:new-object))
+                        (h (eng:new-object)))
+                    (eng:data-prop o "url" "http://proxy.example:9090")
+                    (eng:data-prop h "X-Proxy-Token" "abc")
+                    (eng:data-prop h "X-Proxy-Id" "42")
+                    (eng:data-prop o "headers" h)
+                    o))))
+      (is string= "proxy.example" (rt::fetch-proxy-host proxy))
+      (is = 9090 (rt::fetch-proxy-port proxy))
+      (is equal "abc"
+          (cdr (assoc "X-Proxy-Token" (rt::fetch-proxy-extra-headers proxy)
+                      :test #'string-equal)))
+      (let ((merged (rt::%fetch-http-proxy-headers
+                     proxy '(("X-Origin" . "keep")))))
+        (true (assoc "X-Proxy-Token" merged :test #'string-equal))
+        (true (assoc "X-Origin" merged :test #'string-equal))
+        (true (assoc "Proxy-Connection" merged :test #'string-equal)))
+      (let ((connect (rt::%fetch-connect-proxy-headers proxy)))
+        (true (assoc "X-Proxy-Token" connect :test #'string-equal))
+        (true (assoc "X-Proxy-Id" connect :test #'string-equal))))
+    ;; Executable absolute-form path with object proxy options.
+    (multiple-value-bind (kind info)
+        (fetch-info-url
+         g eng:*realm* "http://origin.invalid:4321/resource?x=1"
+         (format nil
+                 "{proxy:{url:'http://squid_user:ASD123%40123asd@127.0.0.1:~d',headers:{'X-Proxy-Object':'yes','X-Proxy-N':'1'}}}"
+                 proxy-port))
+      (is eq :fulfilled kind)
+      (is = 200 (info-num info "status"))
+      (is string= "proxy-body" (info-str info "body")))
+    (let ((wire (first (car captures))))
+      (true (search "GET http://origin.invalid:4321/resource?x=1 HTTP/1.1" wire))
+      (true (search "X-Proxy-Object: yes" wire :test #'char-equal))
+      (true (search "X-Proxy-N: 1" wire :test #'char-equal)))
+    ;; Proxy traffic remains excluded from the direct-origin idle pool.
+    (is = 0
+        (length
+         (net::%http-pool-idle-tcps
+          (eng:current-loop) "127.0.0.1" proxy-port)))))
