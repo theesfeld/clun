@@ -12,7 +12,8 @@
     (install-web-http realm)                ; Headers/Request/Response (Phase 17)
     (install-web-cookies realm)             ; Clun.Cookie/CookieMap (Phase 32)
     (install-web-url realm)                 ; URL/URLSearchParams (Phase 18)
-    (install-fetch realm)))                 ; fetch (Phase 18)
+    (install-fetch realm)                   ; fetch (Phase 18)
+    (install-websocket-global g)))          ; WebSocket client (Phase 51)
 
 (defun install-buffer-global (g)
   "Expose the node:buffer Buffer constructor as the `Buffer` global (Node has it always).
