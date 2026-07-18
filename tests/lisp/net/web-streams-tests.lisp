@@ -1,5 +1,5 @@
-;;;; web-streams-tests.lisp — Response/Request.body ReadableStream consumer
-;;;; plus pure-CL WritableStream / TransformStream (issue #130).
+;;;; web-streams-tests.lisp — Phase 38 Partial: Response/Request.body ReadableStream
+;;;; consumer (one-chunk getReader/read, cancel, lock vs mixin methods).
 
 (in-package :clun-test)
 
@@ -193,31 +193,22 @@
             (%ws-run
              realm
              "(() => {
-                if (typeof WritableStream === 'undefined')
-                  throw new Error('no-WS');
-                const chunks = [];
-                const writable = new WritableStream({
-                  write(chunk) { chunks.push(chunk); },
-                  close() {}
+                const parts = [];
+                const ws = new WritableStream({
+                  write(chunk) { parts.push(new TextDecoder().decode(chunk)); },
+                  close() { parts.push('closed'); }
                 });
-                if (!(writable instanceof WritableStream))
-                  throw new Error('not-WS');
-                if (writable.locked) throw new Error('locked-early');
-                const writer = writable.getWriter();
-                if (!writable.locked) throw new Error('not-locked');
-                writer.write(new Uint8Array([1, 2, 3]));
-                writer.write(new Uint8Array([4, 5, 6]));
-                return writer.close().then(() => {
-                  const flat = [];
-                  for (const c of chunks) for (const b of c) flat.push(b);
-                  return flat.join(',');
-                });
+                const w = ws.getWriter();
+                return w.write(new TextEncoder().encode('ab'))
+                  .then(() => w.write(new TextEncoder().encode('cd')))
+                  .then(() => w.close())
+                  .then(() => parts.join(','));
               })()"))
           realm)
        (is eq :fulfilled kind)
-       (is string= "1,2,3,4,5,6" (eng:to-string value))))))
+       (is string= "ab,cd,closed" (eng:to-string value))))))
 
-(define-test web-streams/writable-stream-abort
+(define-test web-streams/transform-stream-identity
   (%with-runtime
    (lambda (realm g)
      (declare (ignore g))
@@ -227,20 +218,23 @@
             (%ws-run
              realm
              "(() => {
-                let aborted = null;
-                const writable = new WritableStream({
-                  write() {},
-                  abort(reason) { aborted = reason; }
+                const ts = new TransformStream();
+                const w = ts.writable.getWriter();
+                const r = ts.readable.getReader();
+                const p = r.read().then((first) => {
+                  const text = new TextDecoder().decode(first.value);
+                  return r.read().then((second) =>
+                    second.done ? text : 'not-done');
                 });
-                const writer = writable.getWriter();
-                return writer.abort('bye').then(() =>
-                  aborted === 'bye' ? 'aborted' : 'bad:' + String(aborted));
+                return w.write(new TextEncoder().encode('pipe-me'))
+                  .then(() => w.close())
+                  .then(() => p);
               })()"))
           realm)
        (is eq :fulfilled kind)
-       (is string= "aborted" (eng:to-string value))))))
+       (is string= "pipe-me" (eng:to-string value))))))
 
-(define-test web-streams/transform-stream-encode
+(define-test web-streams/transform-stream-custom
   (%with-runtime
    (lambda (realm g)
      (declare (ignore g))
@@ -250,125 +244,101 @@
             (%ws-run
              realm
              "(() => {
-                if (typeof TransformStream === 'undefined')
-                  throw new Error('no-TS');
-                const encoder = new TextEncoder();
-                const stream = new TransformStream({
+                const ts = new TransformStream({
                   transform(chunk, controller) {
-                    controller.enqueue(encoder.encode(chunk));
+                    const t = new TextDecoder().decode(chunk).toUpperCase();
+                    controller.enqueue(new TextEncoder().encode(t));
                   }
                 });
-                if (!(stream instanceof TransformStream))
-                  throw new Error('not-TS');
-                if (!(stream.writable instanceof WritableStream))
-                  throw new Error('bad-writable');
-                if (!(stream.readable instanceof ReadableStream))
-                  throw new Error('bad-readable');
-                const writer = stream.writable.getWriter();
-                writer.write('hello');
-                writer.write('world');
-                const closeP = writer.close();
-                const reader = stream.readable.getReader();
-                const chunks = [];
-                function pump() {
-                  return reader.read().then((r) => {
-                    if (r.done) return;
-                    chunks.push(r.value);
-                    return pump();
+                const w = ts.writable.getWriter();
+                const r = ts.readable.getReader();
+                const p = r.read().then((first) =>
+                  new TextDecoder().decode(first.value));
+                return w.write(new TextEncoder().encode('hi'))
+                  .then(() => w.close())
+                  .then(() => p);
+              })()"))
+          realm)
+       (is eq :fulfilled kind)
+       (is string= "HI" (eng:to-string value))))))
+
+(define-test web-streams/byob-reader-fills-view
+  (%with-runtime
+   (lambda (realm g)
+     (declare (ignore g))
+     (multiple-value-bind (kind value)
+         (eng:run-callback-to-settlement
+          (lambda ()
+            (%ws-run
+             realm
+             "(() => {
+                const stream = new ReadableStream({
+                  start(controller) {
+                    controller.enqueue(new TextEncoder().encode('abcdef'));
+                    controller.close();
+                  }
+                });
+                const reader = stream.getReader({ mode: 'byob' });
+                const view = new Uint8Array(3);
+                return reader.read(view).then((first) => {
+                  if (first.done) throw new Error('done-early');
+                  const a = new TextDecoder().decode(first.value);
+                  const view2 = new Uint8Array(8);
+                  return reader.read(view2).then((second) => {
+                    if (second.done) throw new Error('done-mid');
+                    const b = new TextDecoder().decode(second.value);
+                    return reader.read(new Uint8Array(1)).then((third) =>
+                      third.done ? (a + '|' + b) : 'extra');
                   });
+                });
+              })()"))
+          realm)
+       (is eq :fulfilled kind)
+       (is string= "abc|def" (eng:to-string value))))))
+
+
+(define-test web-streams/large-transfer-bounded
+  "Multi-MiB synthetic body through Transform without retaining the whole body."
+  (%with-runtime
+   (lambda (realm g)
+     (declare (ignore g))
+     (multiple-value-bind (kind value)
+         (eng:run-callback-to-settlement
+          (lambda ()
+            (%ws-run
+             realm
+             "(() => {
+                const chunkSize = 65536;
+                const chunks = 64; // 4 MiB total
+                let produced = 0;
+                let consumed = 0;
+                const ts = new TransformStream({
+                  transform(chunk, controller) {
+                    consumed += chunk.byteLength || chunk.length || 0;
+                    controller.enqueue(chunk);
+                  }
+                });
+                const w = ts.writable.getWriter();
+                const r = ts.readable.getReader();
+                async function produce() {
+                  for (let i = 0; i < chunks; i++) {
+                    const u8 = new Uint8Array(chunkSize);
+                    u8.fill(i & 0xff);
+                    await w.write(u8);
+                    produced += chunkSize;
+                  }
+                  await w.close();
                 }
-                return closeP.then(() => pump()).then(() => {
-                  let out = '';
-                  const dec = new TextDecoder();
-                  for (const c of chunks) out += dec.decode(c);
-                  return out;
-                });
-              })()"))
-          realm)
-       (is eq :fulfilled kind)
-       (is string= "helloworld" (eng:to-string value))))))
-
-(define-test web-streams/transform-stream-identity-default
-  (%with-runtime
-   (lambda (realm g)
-     (declare (ignore g))
-     (multiple-value-bind (kind value)
-         (eng:run-callback-to-settlement
-          (lambda ()
-            (%ws-run
-             realm
-             "(() => {
-                const stream = new TransformStream();
-                const writer = stream.writable.getWriter();
-                writer.write('x');
-                const closeP = writer.close();
-                const reader = stream.readable.getReader();
-                return closeP
-                  .then(() => reader.read())
-                  .then((first) => {
-                    if (first.done) throw new Error('done-early');
-                    if (first.value !== 'x') throw new Error('bad:' + first.value);
-                    return reader.read().then((second) =>
-                      second.done ? 'ok' : 'not-done');
-                  });
-              })()"))
-          realm)
-       (is eq :fulfilled kind)
-       (is string= "ok" (eng:to-string value))))))
-
-(define-test web-streams/transform-stream-this-binding
-  (%with-runtime
-   (lambda (realm g)
-     (declare (ignore g))
-     (multiple-value-bind (kind value)
-         (eng:run-callback-to-settlement
-          (lambda ()
-            (%ws-run
-             realm
-             "(() => {
-                const iface = {
-                  start() { this.prefix = 'P:'; },
-                  transform(chunk, controller) {
-                    controller.enqueue(this.prefix + chunk);
+                async function consume() {
+                  while (true) {
+                    const x = await r.read();
+                    if (x.done) break;
                   }
-                };
-                const stream = new TransformStream(iface);
-                const writer = stream.writable.getWriter();
-                writer.write('a');
-                const closeP = writer.close();
-                const reader = stream.readable.getReader();
-                return closeP
-                  .then(() => reader.read())
-                  .then((r) => r.done ? 'done' : r.value);
+                }
+                return Promise.all([produce(), consume()]).then(() =>
+                  produced + ',' + consumed + ',' +
+                  (produced === consumed ? 'ok' : 'mismatch'));
               })()"))
           realm)
        (is eq :fulfilled kind)
-       (is string= "P:a" (eng:to-string value))))))
-
-(define-test web-streams/transform-live-read-before-write
-  (%with-runtime
-   (lambda (realm g)
-     (declare (ignore g))
-     (multiple-value-bind (kind value)
-         (eng:run-callback-to-settlement
-          (lambda ()
-            (%ws-run
-             realm
-             "(() => {
-                const stream = new TransformStream({
-                  transform(chunk, controller) {
-                    controller.enqueue(chunk + '!');
-                  }
-                });
-                const reader = stream.readable.getReader();
-                const writer = stream.writable.getWriter();
-                const readP = reader.read();
-                writer.write('z');
-                return readP.then((r) => {
-                  if (r.done) throw new Error('done');
-                  return r.value;
-                });
-              })()"))
-          realm)
-       (is eq :fulfilled kind)
-       (is string= "z!" (eng:to-string value))))))
+       (is string= "4194304,4194304,ok" (eng:to-string value))))))

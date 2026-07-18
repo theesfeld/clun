@@ -7,19 +7,15 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **51 - WebSocket and Pub/Sub**  (YES CONVERSION #129)
+## Current phase: **38 - Web platform foundations**  (YES CONVERSION #130)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/129
-**Parent phase issue:** https://github.com/theesfeld/clun/issues/25
-**Current implementation unit:** Phase 51 `server.websocket` Partial→Yes (#129):
-Pub/Sub publish/subscriberCount, client `WebSocket` global, fragmentation reassembly,
-pure-CL permessage-deflate (chipz inflate + stored compress), four-target supported receipts.
-`server.websocket` is **Yes**.
+**Canonical issue:** https://github.com/theesfeld/clun/issues/130
+**Current implementation unit:** Phase 38 runtime.web-standard-apis Partial→Yes complete (#130).
+`runtime.web-standard-apis` is **Yes** (Readable/Writable/Transform/BYOB, proxy object options, hermetic stress, four-target supported). Master already has test-runner Yes (`0.1.0-dev.36`) and websocket Yes (`0.1.0-dev.38`).
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.37` / `v0.1.0-dev.37`
+**Candidate release:** `0.1.0-dev.38` / `v0.1.0-dev.38`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
-**Entry boundary:** installer on `v0.1.0-dev.21`; free slot `0.1.0-dev.37` after master tip `0.1.0-dev.36` (test-runner #127 / #152).
-**Next scope:** remaining Partial Yes conversions in the fleet queue.
+**Entry boundary:** installer on `v0.1.0-dev.21`; free slot after websocket Yes `.37`.
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
 easiest to hardest among dependency-ready rows. Core engine/runtime/network/tooling changes are expected.

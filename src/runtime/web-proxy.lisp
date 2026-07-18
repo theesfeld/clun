@@ -4,7 +4,9 @@
 (in-package :clun.runtime)
 
 (defstruct (fetch-proxy (:constructor %make-fetch-proxy))
-  host port authorization)
+  host port authorization
+  ;; Extra hop headers from proxy: { url, headers } (CONNECT / absolute-form only).
+  (extra-headers nil :type list))
 
 (defparameter *fetch-environment-reader* #'sb-ext:posix-getenv
   "Environment lookup hook. Tests bind this rather than mutating process-global state.")
@@ -47,7 +49,7 @@
                               #\=)
                           output)))))
 
-(defun %parse-fetch-proxy (value)
+(defun %parse-fetch-proxy (value &key extra-headers)
   "Parse Bun-compatible string proxy syntax, including an implicit http:// scheme."
   (when (%proxy-disabled-value-p value)
     (return-from %parse-fetch-proxy nil))
@@ -73,7 +75,47 @@
       (%make-fetch-proxy
        :host (%proxy-unbracket-host (ur-host record))
        :port (or (ur-port record) 80)
-       :authorization authorization))))
+       :authorization authorization
+       :extra-headers (copy-list extra-headers)))))
+
+(defun %coerce-proxy-extra-headers (headers-value)
+  "Normalize proxy.headers object/Headers into an alist of string pairs."
+  (cond
+    ((or (null headers-value)
+         (eng:js-undefined-p headers-value)
+         (eq headers-value eng:+null+))
+     nil)
+    ((js-headers-p headers-value)
+     (%headers-raw-alist headers-value))
+    ((eng:js-object-p headers-value)
+     (%coerce-headers-init headers-value))
+    (t (error "fetch: proxy.headers must be a Headers object or record"))))
+
+(defun %coerce-fetch-proxy (value)
+  "Accept string proxy URLs or Bun object form { url, headers? }."
+  (cond
+    ((or (null value)
+         (eng:js-undefined-p value)
+         (eq value eng:+null+))
+     nil)
+    ((eng:js-string-p value)
+     (%parse-fetch-proxy (eng:to-string value)))
+    ((stringp value)
+     (%parse-fetch-proxy value))
+    ((eng:js-object-p value)
+     (let* ((url-val (eng:js-get value "url"))
+            (headers-val (eng:js-get value "headers"))
+            (url
+              (cond
+                ((eng:js-string-p url-val) (eng:to-string url-val))
+                ((stringp url-val) url-val)
+                ((or (eng:js-undefined-p url-val) (null url-val)
+                     (eq url-val eng:+null+))
+                 (error "fetch: proxy object requires a url string"))
+                (t (eng:to-string url-val))))
+            (extra (%coerce-proxy-extra-headers headers-val)))
+       (%parse-fetch-proxy url :extra-headers extra)))
+    (t (error "fetch: proxy must be a string or { url, headers }"))))
 
 (defun %proxy-trim-host (host)
   (string-downcase
@@ -155,19 +197,23 @@
 (defun %fetch-select-proxy (info record port)
   (let* ((specified-p (getf info :proxy-specified-p))
          (explicit (getf info :proxy))
-         (value
+         (proxy
            (if specified-p
                (cond
-                 ((eng:js-string-p explicit) (eng:to-string explicit))
                  ((or (eng:js-undefined-p explicit)
-                      (eq explicit eng:+null+)) nil)
-                 (t (error "fetch: proxy must be a string")))
-               (%fetch-proxy-environment-value (ur-scheme record))))
+                      (eq explicit eng:+null+))
+                  nil)
+                 ((and (eng:js-string-p explicit)
+                       (%proxy-disabled-value-p (eng:to-string explicit)))
+                  nil)
+                 (t (%coerce-fetch-proxy explicit)))
+               (let ((env (%fetch-proxy-environment-value (ur-scheme record))))
+                 (and env (%parse-fetch-proxy env)))))
          (no-proxy (or (%fetch-environment "NO_PROXY")
                        (%fetch-environment "no_proxy"))))
-    (unless (or (%proxy-disabled-value-p value)
+    (unless (or (null proxy)
                 (%no-proxy-match-p (ur-host record) port no-proxy))
-      (%parse-fetch-proxy value))))
+      proxy)))
 
 (defun %fetch-remove-hop-headers (headers)
   (remove-if
@@ -180,12 +226,43 @@
   (or (fetch-proxy-authorization proxy)
       (cdr (assoc "proxy-authorization" headers :test #'string-equal))))
 
+(defun %fetch-merge-proxy-extra-headers (headers proxy)
+  "Append proxy.headers onto HEADERS without clobbering Proxy-Authorization from URL creds."
+  (let ((extra (and proxy (fetch-proxy-extra-headers proxy))))
+    (if (null extra)
+        headers
+        (append headers
+                (remove-if
+                 (lambda (header)
+                   (member (car header)
+                           '("proxy-authorization" "host" "content-length"
+                             "transfer-encoding")
+                           :test #'string-equal))
+                 extra)))))
+
 (defun %fetch-http-proxy-headers (proxy headers)
   (let ((authorization (%fetch-proxy-authorization proxy headers)))
-    (append (%fetch-remove-hop-headers headers)
-            (list (cons "Proxy-Connection" "close"))
-            (when authorization
-              (list (cons "Proxy-Authorization" authorization))))))
+    (%fetch-merge-proxy-extra-headers
+     (append (%fetch-remove-hop-headers headers)
+             (list (cons "Proxy-Connection" "close"))
+             (when authorization
+               (list (cons "Proxy-Authorization" authorization))))
+     proxy)))
+
+(defun %fetch-connect-proxy-headers (proxy)
+  "Headers exclusive to the CONNECT envelope (authorization + proxy.headers)."
+  (let ((authorization (fetch-proxy-authorization proxy))
+        (extra (fetch-proxy-extra-headers proxy)))
+    (append
+     (when authorization
+       (list (cons "Proxy-Authorization" authorization)))
+     (remove-if
+      (lambda (header)
+        (member (car header)
+                '("host" "proxy-authorization" "proxy-connection"
+                  "content-length" "transfer-encoding")
+                :test #'string-equal))
+      extra))))
 
 (defun %fetch-absolute-target (record)
   (let ((target (copy-url-record record)))

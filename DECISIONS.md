@@ -3325,3 +3325,18 @@ Ship Bun-shaped pure-CL compression and archive surface without a new ledger row
 - Watch integration deferred to Phase 67; JSX coverage mapping follows language JSX.
 - Four-target platforms.tsv `supported`; ledger `clun_state=Yes`.
 - Release train: `0.1.0-dev.37` (reslot after archive Yes landed as `.35`).
+
+## 2026-07-18 — runtime.web-standard-apis Partial→Yes (#130)
+
+- Pure-CL WritableStream / TransformStream / BYOB readers with pipeTo/pipeThrough.
+- Fetch proxy object form `{url, headers}` on absolute-form HTTP and HTTPS CONNECT.
+- Hermetic 8 MiB Transform+BYOB stress fixture.
+- Four-target platforms.tsv `supported`; ledger `clun_state=Yes`.
+- Release train: free `0.1.0-dev.38` after websocket Yes `0.1.0-dev.37` and test-runner `0.1.0-dev.36`.
+
+### 2026-07-18 - runtime.web-standard-apis Partial→Yes (#130)
+
+Builds on #156 WritableStream/TransformStream. Adds pure-CL BYOB
+`getReader({mode:'byob'})`, Bun proxy object `{url,headers}` on absolute-form
+HTTP and HTTPS CONNECT, hermetic 8 MiB Transform+BYOB stress evidence, four-target
+supported platforms, and ledger Yes. Stages `0.1.0-dev.38`.

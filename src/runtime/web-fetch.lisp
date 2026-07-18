@@ -159,7 +159,7 @@ they describe a body that no longer exists (Content-Type/Length/Encoding/Languag
 
 (defun %https-request-stream-async
     (loop &key host port method path headers body host-header timeout
-               proxy-host proxy-port proxy-authorization
+               proxy-host proxy-port proxy-authorization proxy-headers
                request-body-reader on-request-complete
                (verify t) on-headers on-data on-complete on-error)
   "Run the blocking authenticated TLS transport on a worker with bounded loop delivery.
@@ -336,6 +336,7 @@ thunks matching NET:HTTP-REQUEST-STREAM-ASYNC."
                 :headers headers :body body :host-header host-header
                 :proxy-host proxy-host :proxy-port proxy-port
                 :proxy-authorization proxy-authorization
+                :proxy-headers proxy-headers
                 :socket-box box :connect-timeout-ms (or timeout 30000)
                 :cancelled-p (lambda () (lp:worker-cancelled-p token))
                 :request-body-source
@@ -579,9 +580,13 @@ thunks matching NET:HTTP-REQUEST-STREAM-ASYNC."
                (proxy-authorization
                  (and proxy
                       (%fetch-proxy-authorization proxy original-headers)))
+               (proxy-headers
+                 (and proxy (%fetch-connect-proxy-headers proxy)))
                (request-headers
                  (cond
                    ((and proxy https)
+                    ;; CONNECT tunnel: origin headers only; proxy.headers ride
+                    ;; on the CONNECT envelope via proxy-headers.
                     (%fetch-remove-hop-headers original-headers))
                    (proxy
                     (%fetch-http-proxy-headers proxy original-headers))
@@ -730,6 +735,7 @@ thunks matching NET:HTTP-REQUEST-STREAM-ASYNC."
                  :proxy-host (and proxy (fetch-proxy-host proxy))
                  :proxy-port (and proxy (fetch-proxy-port proxy))
                  :proxy-authorization proxy-authorization
+                 :proxy-headers proxy-headers
                  :request-body-reader upload-reader
                  :on-request-complete #'finish-upload
                  :timeout timeout
