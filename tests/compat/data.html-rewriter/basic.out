@@ -1,0 +1,10 @@
+ctor function HTMLRewriter
+requires-new TypeError
+attr <img src="rick.jpg">
+mutate [<p class="x">hi</p>]
+inner <div><b>n</b></div>
+class-sel true true
+text <p>Z</p>
+remove <div></div>
+get-set <a href="/x#">l</a>
+response true true

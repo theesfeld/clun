@@ -63,6 +63,7 @@ resource does not exist with a 404 response:
 0.1.0-dev.31
 0.1.0-dev.32
 0.1.0-dev.33
+0.1.0-dev.34
 0.1.0-dev.30
 ```
 
@@ -281,3 +282,5 @@ the prerelease immutable. The ASDF core remains `0.1.0`. The non-release-bearing
 the remaining closeout evidence.
 
 Phase 65 shell Partial→Yes (#120) stages `0.1.0-dev.33` / `v0.1.0-dev.33` with zero pending corpus sites and four-target supported receipts.
+
+Phase 75 Markdown + HTMLRewriter pure-CL checkpoint (#49) stages free `0.1.0-dev.34` / `v0.1.0-dev.34`: Bun-shaped `Clun.markdown` and global `HTMLRewriter` (beyond-matrix; not a 30-row Yes promotion).

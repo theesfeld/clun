@@ -1,7 +1,7 @@
 <!-- clun-generated:release-notes:begin -->
-# Clun 0.1.0-dev.33
+# Clun 0.1.0-dev.34
 
-Phase 65: Cross-platform shell API.
+Phase 75: Markdown + HTMLRewriter pure-CL checkpoint.
 
 - SemVer impact: `minor` within the selected `0.1.0` prerelease train.
 - Compatibility snapshot: 10 Yes / 7 Partial / 13 No across 30 generated rows.

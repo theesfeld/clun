@@ -24,6 +24,7 @@
     (install-clun-string-width clun)
     (install-clun-color clun)
     (install-clun-yaml clun)
+    (install-clun-markdown clun)
     ;; env / argv mirror process (same objects)
     (when (eng:js-object-p proc)
       (eng:data-prop clun "env" (eng:js-get proc "env"))

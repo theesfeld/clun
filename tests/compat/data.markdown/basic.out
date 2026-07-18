@@ -1,0 +1,13 @@
+api object function function function html 1 true false
+html-heading "<h1>Hello <strong>world</strong></h1>\n"
+html-para "<p>hello <em>there</em></p>\n"
+html-code "<p><code>x</code></p>\n"
+html-list true
+html-strike true
+html-fence true
+render true true
+strip true true true
+react true true
+headings-ids true
+coercion string
+no-throw-empty ""

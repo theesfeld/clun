@@ -3287,3 +3287,7 @@ additional shell-language inventory sites after #122/#123 (overall
 - Pure-CL background `&` + `wait`, ENAMETOOLONG, multi-error lex, EACCES globs, ls flag order.
 - Four-target platforms.tsv `supported`; ledger `clun_state=Yes`.
 - Release train: `0.1.0-dev.33`.
+
+## 2026-07-18 — Phase 75 Markdown + HTMLRewriter pure-CL checkpoint
+
+Ship Bun-shaped `Clun.markdown` and `HTMLRewriter` in pure CL under issues #49/#135 as beyond-matrix evidence (not a frozen 30-row Yes). Candidate `0.1.0-dev.34`.

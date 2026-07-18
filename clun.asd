@@ -51,6 +51,14 @@
                              (:module "yaml"
                               :serial t
                               :components ((:file "yaml")))
+                             ;; Phase 75 Markdown (CommonMark + GFM) pure substrate.
+                             (:module "markdown"
+                              :serial t
+                              :components ((:file "markdown")))
+                             ;; Phase 75 HTMLRewriter pure substrate (lol-html shaped).
+                             (:module "html"
+                              :serial t
+                              :components ((:file "rewriter")))
                              ;; Security substrate (Phase 35): engine-free CSRF token
                              ;; encoding/authentication over vendored crypto primitives.
                              (:module "security"
@@ -198,6 +206,8 @@
                                            (:file "clun-filesystem-router") ; Clun.FileSystemRouter (Phase 50)
                                            (:file "clun-color") ; Clun.color (Phase 34) — before clun-global
                                            (:file "clun-yaml") ; Clun.YAML (Phase 31) — before clun-global
+                                           (:file "clun-markdown") ; Clun.markdown (Phase 75)
+                                           (:file "html-rewriter") ; HTMLRewriter global (Phase 75)
                                            (:file "clun-global")
                                            (:file "abort")     ; AbortController/AbortSignal (Phase 14)
                                            (:file "globals")   ; structuredClone, crypto (Phase 12)
@@ -282,6 +292,12 @@
                                            (:module "yaml"
                                             :serial t
                                             :components ((:file "yaml-tests")))
+                                           (:module "markdown"
+                                            :serial t
+                                            :components ((:file "markdown-tests")))
+                                           (:module "html"
+                                            :serial t
+                                            :components ((:file "rewriter-tests")))
                                            (:module "resolver"
                                             :serial t
                                             :components ((:file "resolver-tests")))

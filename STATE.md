@@ -7,18 +7,18 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **65 - Cross-platform shell API**
+## Current phase: **75 - Data formats, Markdown, and HTMLRewriter**
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/39
+**Canonical issue:** https://github.com/theesfeld/clun/issues/49
 **Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/120,
 https://github.com/theesfeld/clun/issues/23, https://github.com/theesfeld/clun/issues/40,
 and https://github.com/theesfeld/clun/issues/25
-**Current implementation unit:** Phase 65 tooling.shell Partial→Yes complete (#120 under parent #39).
-`tooling.shell` is **Yes** (1,598 covered / 0 pending / 32 upstream-inactive; four-target supported).
+**Current implementation unit:** Phase 75 Markdown + HTMLRewriter pure-CL checkpoint (#49 / #135).
+Ships Bun-shaped `Clun.markdown` and global `HTMLRewriter` (beyond-matrix; not a 30-row Yes).
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.33` / `v0.1.0-dev.33`
+**Candidate release:** `0.1.0-dev.34` / `v0.1.0-dev.34`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
-**Entry boundary:** installer on `v0.1.0-dev.21`; candidate `0.1.0-dev.33` remains staged after #126.
+**Entry boundary:** installer on `v0.1.0-dev.21`; candidate `0.1.0-dev.34` remains staged after #126.
 **Next scope:** next Yes conversions on Partial rows (test-runner, websocket, webstd, npm, node, TS, HTTP); shell ledger Yes held.
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from

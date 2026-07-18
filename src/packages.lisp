@@ -160,6 +160,33 @@
    #:+max-source-length+ #:+max-depth+ #:+max-documents+ #:+max-nodes+
    #:+max-edges+ #:+max-anchors+ #:+max-aliases+ #:+max-scalar-length+))
 
+(defpackage :clun.markdown
+  (:use :cl)
+  (:documentation "Bounded pure-CL Markdown (CommonMark + GFM) for Clun.markdown.")
+  (:export
+   #:md-options #:default-options #:options-from-plist
+   #:parse-document #:markdown-to-html #:markdown-render
+   #:markdown-error #:markdown-error-code #:markdown-error-reason
+   #:+max-source-length+ #:+max-nodes+ #:+max-depth+))
+
+(defpackage :clun.html
+  (:use :cl)
+  (:documentation "Bounded pure-CL HTML rewriter (Bun HTMLRewriter surface).")
+  (:export
+   #:html-rewriter #:make-empty-rewriter #:rewriter-on #:rewriter-on-document
+   #:transform-html #:html-rewriter-error #:html-rewriter-error-code
+   #:html-rewriter-error-reason
+   #:html-element #:html-text #:html-comment
+   #:element-tag-name #:element-set-tag-name
+   #:element-get-attribute #:element-has-attribute #:element-set-attribute
+   #:element-remove-attribute #:element-before #:element-after
+   #:element-prepend #:element-append #:element-set-inner-content
+   #:element-remove #:element-remove-and-keep-content
+   #:text-replace #:text-remove #:comment-replace #:comment-remove
+   #:he-tag #:ht-text #:ht-last-in-text-node #:hc-text
+   #:parse-selector #:escape-text
+   #:+max-source-length+ #:+max-tokens+ #:+max-handlers+))
+
 ;; Defined before clun.engine so the engine's :lp local-nickname can target it.
 (defpackage :clun.loop
   (:use :cl)
