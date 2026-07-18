@@ -7,9 +7,9 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **47 - Node compatibility (selected surface)**  (YES CONVERSION #132)
+## Current phase: **47 - Node compatibility certification**  (Yes selected surface; unit #132)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/132
+**Canonical issue:** https://github.com/theesfeld/clun/issues/21
 **Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/127–#133 Yes queue
 **Current implementation unit:** runtime.node-compatibility Partial→Yes (#132).
 Selected pure-CL Node surface is **Yes** (path/fs/url/buffer/events/assert/util/timers/querystring/os + process/crypto helpers; four-target supported). Not full Node/V8 parity.
