@@ -482,7 +482,7 @@ END {
           if (evidence_feature[evidence_id] == id && \
               platform_evidence_ref[key SUBSEP evidence_id] && \
               executable_evidence_id[evidence_id] && \
-              evidence_target[evidence_id SUBSEP required_targets[j]])
+              ((evidence_id SUBSEP required_targets[j]) in evidence_target))
             target_executable = 1
         }
         if (!target_executable)
