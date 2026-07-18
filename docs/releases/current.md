@@ -1,7 +1,7 @@
 <!-- clun-generated:release-notes:begin -->
-# Clun 0.1.0-dev.30
+# Clun 0.1.0-dev.31
 
-Phase 49: HTTP server parity.
+Phase 65: Cross-platform shell API.
 
 - SemVer impact: `minor` within the selected `0.1.0` prerelease train.
 - Compatibility snapshot: 9 Yes / 7 Partial / 14 No across 30 generated rows.

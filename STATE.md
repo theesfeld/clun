@@ -7,23 +7,19 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **49 - HTTP server parity**  (LIFECYCLE PARTIAL SLICE)
+## Current phase: **65 - Cross-platform shell API**  (YES CONVERSION #120)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/23
-**Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/2,
-https://github.com/theesfeld/clun/issues/11, https://github.com/theesfeld/clun/issues/39,
-and https://github.com/theesfeld/clun/issues/40
-**Current implementation unit:** Phase 49 bounded Bun-compatible `Clun.serve` lifecycle slice —
-`idleTimeout`, `maxRequestBodySize`, and `server.stop(true)`. `server.http` remains **Partial**
-(streaming bodies, TLS serve, HTTP/2, Unix sockets, and full inventory stay open). No matrix Yes.
+**Canonical issue:** https://github.com/theesfeld/clun/issues/120
+**Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/39,
+https://github.com/theesfeld/clun/issues/23, https://github.com/theesfeld/clun/issues/40,
+and https://github.com/theesfeld/clun/issues/25
+**Current implementation unit:** Phase 65 tooling.shell language residual for Yes path #120.
+`tooling.shell` remains **Partial** (1551/1630 covered; 47 pending). No matrix Yes yet.
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.30` / `v0.1.0-dev.30`
+**Candidate release:** `0.1.0-dev.31` / `v0.1.0-dev.31`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
-**Entry boundary:** immutable `v0.1.0-dev.21` is tagged and published; installer defaults to that tag.
-Master tip is `0.1.0-dev.29` after spawn residual #112. This unit stages free `0.1.0-dev.30` under the
-unpublished-intermediate prerelease gap policy (transition 29→30). Phase 26 remains after Phase 82.
-**Next scope:** continue Phase 49 residuals without Yes; full `make compat FEATURE=http-server` remains open.
-
+**Entry boundary:** installer defaults to `v0.1.0-dev.21`; this unit stages `0.1.0-dev.31`.
+**Next scope:** remaining ~47 pending sites + four-target supported for Yes.
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
 easiest to hardest among dependency-ready rows. Core engine/runtime/network/tooling changes are expected.

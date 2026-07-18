@@ -62,6 +62,7 @@ resource does not exist with a 404 response:
 0.1.0-dev.28
 0.1.0-dev.29
 0.1.0-dev.30
+0.1.0-dev.31
 ```
 
 Phase 25b is the compatibility program for the planned `0.1.0` release. Its first behavioral
@@ -270,3 +271,5 @@ Compatibility, and receipt verification. Release run `29506579486` published ann
 the prerelease immutable. The ASDF core remains `0.1.0`. The non-release-bearing publication handoff keeps
 `0.1.0-dev.7` unchanged and creates no new tag; release-gated Pages and hosted-installer verification are
 the remaining closeout evidence.
+
+Phase 65 shell Yes residual (#120) stages `0.1.0-dev.31` / `v0.1.0-dev.31` while tooling.shell remains Partial.
