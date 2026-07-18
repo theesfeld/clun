@@ -94,9 +94,9 @@
   (bytes (make-array 0 :element-type '(unsigned-byte 8)) :type vector)
   (type "" :type string))
 
-;;; Bounded Web Streams (Phase 38 Partial): one-chunk buffered body consumers.
-;;; Not full BYOB/backpressure/TransformStreams — enough for Response/Request
-;;; `.body.getReader().read()` and a minimal `new ReadableStream({start})`.
+;;; Bounded Web Streams: Response/Request.body ReadableStream consumers,
+;;; constructible ReadableStream, WritableStream, and TransformStream.
+;;; Not full BYOB / advanced queuing strategies — pure-CL core surface.
 
 (defstruct (js-readable-stream
             (:include eng:js-object (class :readable-stream))
@@ -114,7 +114,12 @@
   ;; Deferred Fetch body materialization: avoid opening Clun.file/FIFOs on
   ;; mere `.body` access; materialize one chunk on first read/cancel/mixin.
   (lazy-body-p nil)
-  lazy-body-function)
+  lazy-body-function
+  ;; When true, empty+open reads wait (TransformStream output). Default false:
+  ;; empty+open → EOF (legacy Partial body / start-only streams).
+  (wait-for-data-p nil)
+  ;; Pending reader.read() deferreds: list of (resolve . reject) callables.
+  (pending-reads '() :type list))
 
 (defstruct (js-readable-stream-reader
             (:include eng:js-object (class :readable-stream-default-reader))
@@ -128,6 +133,59 @@
 (defstruct (js-readable-stream-controller
             (:include eng:js-object (class :readable-stream-default-controller))
             (:constructor %make-js-readable-stream-controller))
+  stream)
+
+(defstruct (js-writable-stream
+            (:include eng:js-object (class :writable-stream))
+            (:constructor %make-js-writable-stream))
+  (locked-p nil)
+  writer
+  (closed-p nil)
+  error
+  start-callback
+  write-callback
+  close-callback
+  abort-callback
+  underlying-sink        ; this-arg for sink methods
+  controller
+  (closed-promise nil)
+  (closed-resolve nil)
+  (closed-reject nil)
+  ;; Optional back-link used by TransformStream write/close/abort.
+  transform
+  (in-flight-p nil)
+  (pending-writes '() :type list))
+
+(defstruct (js-writable-stream-writer
+            (:include eng:js-object (class :writable-stream-default-writer))
+            (:constructor %make-js-writable-stream-writer))
+  stream
+  (released-p nil)
+  (ready-promise nil)
+  (closed-promise nil)
+  (closed-resolve nil)
+  (closed-reject nil))
+
+(defstruct (js-writable-stream-controller
+            (:include eng:js-object (class :writable-stream-default-controller))
+            (:constructor %make-js-writable-stream-controller))
+  stream)
+
+(defstruct (js-transform-stream
+            (:include eng:js-object (class :transform-stream))
+            (:constructor %make-js-transform-stream))
+  readable
+  writable
+  transform-callback
+  flush-callback
+  transformer            ; underlying transformer object (this-arg for methods)
+  controller
+  (backpressure-promise nil)
+  (backpressure-resolve nil))
+
+(defstruct (js-transform-stream-controller
+            (:include eng:js-object (class :transform-stream-default-controller))
+            (:constructor %make-js-transform-stream-controller))
   stream)
 
 (defstruct (web-http-realm-state
@@ -145,7 +203,14 @@
   readable-stream-constructor
   readable-stream-prototype
   readable-stream-reader-prototype
-  readable-stream-controller-prototype)
+  readable-stream-controller-prototype
+  writable-stream-constructor
+  writable-stream-prototype
+  writable-stream-writer-prototype
+  writable-stream-controller-prototype
+  transform-stream-constructor
+  transform-stream-prototype
+  transform-stream-controller-prototype)
 
 (defvar *web-http-realm-states*
   (make-hash-table :test #'eq :weakness :key))
@@ -725,19 +790,51 @@ Rejects when the body stream is locked by getReader()."
            (setf (js-request-body owner)
                  (make-array 0 :element-type '(unsigned-byte 8)))))))))
 
+(defun %stream-fulfill-pending-read (stream chunk done-p)
+  "Settle one deferred reader.read() if any; otherwise enqueue CHUNK."
+  (let ((pending (js-readable-stream-pending-reads stream)))
+    (if pending
+        (let* ((pair (pop (js-readable-stream-pending-reads stream)))
+               (resolve (car pair)))
+          (setf (js-readable-stream-disturbed-p stream) t)
+          (%notify-owner-body-used stream)
+          (when (eng:callable-p resolve)
+            (eng:js-call resolve eng:+undefined+
+                         (list (%read-result (if done-p eng:+undefined+ chunk)
+                                             done-p))))
+          t)
+        nil)))
+
+(defun %stream-reject-pending-reads (stream reason)
+  (dolist (pair (js-readable-stream-pending-reads stream))
+    (let ((reject (cdr pair)))
+      (when (eng:callable-p reject)
+        (eng:js-call reject eng:+undefined+ (list reason)))))
+  (setf (js-readable-stream-pending-reads stream) '()))
+
+(defun %stream-resolve-pending-reads-done (stream)
+  (dolist (pair (js-readable-stream-pending-reads stream))
+    (let ((resolve (car pair)))
+      (when (eng:callable-p resolve)
+        (eng:js-call resolve eng:+undefined+
+                     (list (%read-result eng:+undefined+ t))))))
+  (setf (js-readable-stream-pending-reads stream) '()))
+
 (defun %stream-enqueue (stream chunk)
   (when (js-readable-stream-closed-p stream)
     (eng:throw-type-error "ReadableStream is closed"))
   (when (js-readable-stream-error stream)
     (eng:throw-type-error "ReadableStream is errored"))
-  (setf (js-readable-stream-queue stream)
-        (append (js-readable-stream-queue stream) (list chunk)))
+  (unless (%stream-fulfill-pending-read stream chunk nil)
+    (setf (js-readable-stream-queue stream)
+          (append (js-readable-stream-queue stream) (list chunk))))
   eng:+undefined+)
 
 (defun %stream-close (stream)
   (unless (or (js-readable-stream-closed-p stream)
               (js-readable-stream-error stream))
     (setf (js-readable-stream-closed-p stream) t)
+    (%stream-resolve-pending-reads-done stream)
     (let ((reader (js-readable-stream-reader stream)))
       (when (and (js-readable-stream-reader-p reader)
                  (null (js-readable-stream-queue stream)))
@@ -748,6 +845,7 @@ Rejects when the body stream is locked by getReader()."
   (unless (or (js-readable-stream-closed-p stream)
               (js-readable-stream-error stream))
     (setf (js-readable-stream-error stream) reason)
+    (%stream-reject-pending-reads stream reason)
     (let ((reader (js-readable-stream-reader stream)))
       (when (js-readable-stream-reader-p reader)
         (%reader-reject-closed reader reason))))
@@ -785,6 +883,25 @@ Rejects when the body stream is locked by getReader()."
      (values nil :done nil))
     (t (values nil :pending nil))))
 
+(defun %reader-read-pending-promise (stream)
+  "Defer a read until enqueue/close/error on a live (wait-for-data) stream."
+  (let ((global (eng:realm-global eng:*realm*))
+        resolve reject)
+    (let ((promise
+            (eng:js-construct
+             (eng:js-get global "Promise")
+             (list (eng:make-native-function
+                    "" 2
+                    (lambda (this a)
+                      (declare (ignore this))
+                      (setf resolve (eng:arg a 0)
+                            reject (eng:arg a 1))
+                      eng:+undefined+))))))
+      (setf (js-readable-stream-pending-reads stream)
+            (append (js-readable-stream-pending-reads stream)
+                    (list (cons resolve reject))))
+      promise)))
+
 (defun %reader-read (reader)
   (let ((global (eng:realm-global eng:*realm*)))
     (when (js-readable-stream-reader-released-p reader)
@@ -805,11 +922,15 @@ Rejects when the body stream is locked by getReader()."
           (:error
            (%rejected-promise global reason))
           (:pending
-           ;; Bounded Partial: only pre-buffered/start()-closed streams are
-           ;; supported; an open empty queue is treated as closed EOF.
-           (setf (js-readable-stream-closed-p stream) t)
-           (%reader-resolve-closed reader)
-           (%resolved-promise global (%read-result eng:+undefined+ t))))))))
+           (if (js-readable-stream-wait-for-data-p stream)
+               (%reader-read-pending-promise stream)
+               ;; Legacy Partial: pre-buffered/start()-closed streams only;
+               ;; an open empty queue is treated as closed EOF.
+               (progn
+                 (setf (js-readable-stream-closed-p stream) t)
+                 (%reader-resolve-closed reader)
+                 (%resolved-promise global
+                                    (%read-result eng:+undefined+ t))))))))))
 
 (defun %reader-cancel (reader reason)
   (let ((global (eng:realm-global eng:*realm*)))
@@ -825,6 +946,7 @@ Rejects when the body stream is locked by getReader()."
       (setf (js-readable-stream-disturbed-p stream) t)
       (setf (js-readable-stream-queue stream) '())
       (setf (js-readable-stream-closed-p stream) t)
+      (%stream-resolve-pending-reads-done stream)
       (%notify-owner-body-used stream)
       (when (and cb (eng:callable-p cb))
         (ignore-errors (eng:js-call cb eng:+undefined+ (list reason))))
@@ -955,7 +1077,7 @@ Rejects when the body stream is locked by getReader()."
 
 (defun %new-readable-stream (&key queue closed-p owner owner-kind
                                    cancel-callback lazy-body-p
-                                   lazy-body-function)
+                                   lazy-body-function wait-for-data-p)
   (let* ((state (%http-state))
          (stream
            (%make-js-readable-stream
@@ -966,7 +1088,8 @@ Rejects when the body stream is locked by getReader()."
             :owner-kind owner-kind
             :cancel-callback cancel-callback
             :lazy-body-p lazy-body-p
-            :lazy-body-function lazy-body-function)))
+            :lazy-body-function lazy-body-function
+            :wait-for-data-p wait-for-data-p)))
     stream))
 
 (defun %controller-for (stream)
@@ -1003,6 +1126,710 @@ Rejects when the body stream is locked by getReader()."
            (lambda (args new-target)
              (declare (ignore new-target))
              (%construct-readable-stream (eng:arg args 0))))))
+    (%set-constructor-prototype constructor prototype)
+    constructor))
+
+;;; --- WritableStream (pure-CL) ----------------------------------------------
+
+(defun %writable-closed-deferred (stream)
+  "Ensure the stream-level closed promise resolvers exist."
+  (unless (js-writable-stream-closed-promise stream)
+    (let ((global (eng:realm-global eng:*realm*))
+          resolve reject)
+      (let ((promise
+              (eng:js-construct
+               (eng:js-get global "Promise")
+               (list (eng:make-native-function
+                      "" 2
+                      (lambda (this a)
+                        (declare (ignore this))
+                        (setf resolve (eng:arg a 0)
+                              reject (eng:arg a 1))
+                        eng:+undefined+))))))
+        (setf (js-writable-stream-closed-promise stream) promise
+              (js-writable-stream-closed-resolve stream) resolve
+              (js-writable-stream-closed-reject stream) reject))))
+  (js-writable-stream-closed-promise stream))
+
+(defun %writable-resolve-closed (stream)
+  (let ((resolve (js-writable-stream-closed-resolve stream)))
+    (when resolve
+      (eng:js-call resolve eng:+undefined+ (list eng:+undefined+))
+      (setf (js-writable-stream-closed-resolve stream) nil
+            (js-writable-stream-closed-reject stream) nil)))
+  (let ((writer (js-writable-stream-writer stream)))
+    (when (js-writable-stream-writer-p writer)
+      (let ((w-resolve (js-writable-stream-writer-closed-resolve writer)))
+        (when w-resolve
+          (eng:js-call w-resolve eng:+undefined+ (list eng:+undefined+))
+          (setf (js-writable-stream-writer-closed-resolve writer) nil
+                (js-writable-stream-writer-closed-reject writer) nil))))))
+
+(defun %mark-promise-handled (promise)
+  "Avoid eval-source treating intentional closed-rejections (abort/error) as
+uncaught unhandled rejections when the user never attached writer.closed."
+  (when (eng:js-promise-p promise)
+    (setf (eng::js-promise-handled promise) t)
+    (ignore-errors (eng::untrack-rejection promise))))
+
+(defun %writable-reject-closed (stream reason)
+  (let ((reject (js-writable-stream-closed-reject stream))
+        (promise (js-writable-stream-closed-promise stream)))
+    (%mark-promise-handled promise)
+    (when reject
+      (eng:js-call reject eng:+undefined+ (list reason))
+      (setf (js-writable-stream-closed-resolve stream) nil
+            (js-writable-stream-closed-reject stream) nil)))
+  (let ((writer (js-writable-stream-writer stream)))
+    (when (js-writable-stream-writer-p writer)
+      (let ((w-reject (js-writable-stream-writer-closed-reject writer))
+            (w-promise (js-writable-stream-writer-closed-promise writer)))
+        (%mark-promise-handled w-promise)
+        (when w-reject
+          (eng:js-call w-reject eng:+undefined+ (list reason))
+          (setf (js-writable-stream-writer-closed-resolve writer) nil
+                (js-writable-stream-writer-closed-reject writer) nil))))))
+
+(defun %writable-error (stream reason)
+  (unless (or (js-writable-stream-closed-p stream)
+              (js-writable-stream-error stream))
+    (setf (js-writable-stream-error stream) reason
+          (js-writable-stream-closed-p stream) t)
+    (%writable-reject-closed stream reason))
+  eng:+undefined+)
+
+(defun %promise-from-maybe-thenable (global value)
+  "If VALUE is thenable, return it; else a resolved promise of VALUE."
+  (if (and (eng:js-object-p value)
+           (eng:callable-p (eng:js-get value "then")))
+      value
+      (%resolved-promise global value)))
+
+(defun %call-sink-method (fn this-arg args global)
+  "Call FN; return a promise that settles with its result/error."
+  (if (eng:callable-p fn)
+      (handler-case
+          (let ((result (eng:js-call fn this-arg args)))
+            (%promise-from-maybe-thenable global result))
+        (eng:js-condition (c)
+          (%rejected-promise global (eng:js-condition-value c)))
+        (error (e)
+          (%rejected-promise
+           global (%stream-error-type (princ-to-string e)))))
+      (%resolved-promise global eng:+undefined+)))
+
+(defun %writable-sink-this (stream)
+  (or (js-writable-stream-underlying-sink stream) eng:+undefined+))
+
+(defun %writable-do-write (stream chunk)
+  (let* ((global (eng:realm-global eng:*realm*))
+         (cb (js-writable-stream-write-callback stream))
+         (controller (js-writable-stream-controller stream))
+         (transform (js-writable-stream-transform stream)))
+    (cond
+      ((js-writable-stream-error stream)
+       (%rejected-promise global (js-writable-stream-error stream)))
+      ((js-writable-stream-closed-p stream)
+       (%rejected-promise
+        global (%stream-error-type "WritableStream is closed")))
+      (transform
+       (%transform-handle-write transform chunk))
+      (t
+       (%call-sink-method cb (%writable-sink-this stream)
+                          (list chunk controller) global)))))
+
+(defun %writable-do-close (stream)
+  (let* ((global (eng:realm-global eng:*realm*))
+         (cb (js-writable-stream-close-callback stream))
+         (controller (js-writable-stream-controller stream))
+         (transform (js-writable-stream-transform stream)))
+    (cond
+      ((js-writable-stream-error stream)
+       (%rejected-promise global (js-writable-stream-error stream)))
+      ((js-writable-stream-closed-p stream)
+       (%rejected-promise
+        global (%stream-error-type "WritableStream is closed")))
+      (transform
+       (%transform-handle-close transform))
+      (t
+       (multiple-value-bind (out resolve reject)
+           (%writable-make-deferred global)
+         (let ((p (%call-sink-method cb (%writable-sink-this stream)
+                                     (list controller) global)))
+           (eng:js-call
+            (eng:js-get p "then") p
+            (list (eng:make-native-function
+                   "" 1
+                   (lambda (this a)
+                     (declare (ignore this a))
+                     (setf (js-writable-stream-closed-p stream) t)
+                     (%writable-resolve-closed stream)
+                     (eng:js-call resolve eng:+undefined+
+                                  (list eng:+undefined+))
+                     eng:+undefined+))
+                  (eng:make-native-function
+                   "" 1
+                   (lambda (this a)
+                     (declare (ignore this))
+                     (let ((reason (eng:arg a 0)))
+                       (%writable-error stream reason)
+                       (eng:js-call reject eng:+undefined+ (list reason)))
+                     eng:+undefined+))))
+           out))))))
+
+(defun %writable-make-deferred (global)
+  "Return (values promise resolve reject)."
+  (let (resolve reject)
+    (let ((promise
+            (eng:js-construct
+             (eng:js-get global "Promise")
+             (list (eng:make-native-function
+                    "" 2
+                    (lambda (this a)
+                      (declare (ignore this))
+                      (setf resolve (eng:arg a 0)
+                            reject (eng:arg a 1))
+                      eng:+undefined+))))))
+      (values promise resolve reject))))
+
+(defun %writable-mark-aborted (stream err)
+  "Mark STREAM aborted without invoking closed-promise rejectors synchronously.
+Closed promises are rejected via a microtask so writer.abort() can return a
+fulfilled promise before any rejection reactions run."
+  (unless (or (js-writable-stream-closed-p stream)
+              (js-writable-stream-error stream))
+    (setf (js-writable-stream-error stream) err
+          (js-writable-stream-closed-p stream) t)
+    (let ((global (eng:realm-global eng:*realm*)))
+      ;; Prefer queue-microtask when a loop exists; else reject immediately.
+      (let ((loop (ignore-errors (eng:current-loop))))
+        (if loop
+            (lp:enqueue-microtask
+             loop
+             (lambda ()
+               (%writable-reject-closed stream err)))
+            (%writable-reject-closed stream err)))))
+  eng:+undefined+)
+
+(defun %writable-do-abort (stream reason)
+  "Error the stream with REASON after sink.abort; abort() itself fulfills."
+  (let* ((global (eng:realm-global eng:*realm*))
+         (cb (js-writable-stream-abort-callback stream))
+         (transform (js-writable-stream-transform stream))
+         (err (if (or (eng:js-undefined-p reason) (eng:js-nullish-p reason))
+                  (%stream-error-type "Aborted")
+                  reason)))
+    (cond
+      ((js-writable-stream-closed-p stream)
+       ;; Already closed/errored: abort is a no-op success (Partial).
+       (%resolved-promise global eng:+undefined+))
+      (transform
+       (%transform-handle-abort transform reason))
+      (t
+       (when (eng:callable-p cb)
+         (handler-case
+             (let ((result (eng:js-call cb (%writable-sink-this stream)
+                                        (list reason))))
+               (when (and (eng:js-object-p result)
+                          (eng:callable-p (eng:js-get result "then")))
+                 (return-from %writable-do-abort
+                   (multiple-value-bind (out resolve reject)
+                       (%writable-make-deferred global)
+                     (declare (ignore reject))
+                     (eng:js-call
+                      (eng:js-get result "then") result
+                      (list (eng:make-native-function
+                             "" 1
+                             (lambda (this a)
+                               (declare (ignore this a))
+                               (%writable-mark-aborted stream err)
+                               (eng:js-call resolve eng:+undefined+
+                                            (list eng:+undefined+))
+                               eng:+undefined+))
+                            (eng:make-native-function
+                             "" 1
+                             (lambda (this a)
+                               (declare (ignore this))
+                               (%writable-mark-aborted stream (eng:arg a 0))
+                               (eng:js-call resolve eng:+undefined+
+                                            (list eng:+undefined+))
+                               eng:+undefined+))))
+                     out))))
+           (eng:js-condition (c)
+             (%writable-mark-aborted stream (eng:js-condition-value c))
+             (return-from %writable-do-abort
+               (%resolved-promise global eng:+undefined+)))
+           (error ()
+             ;; Keep going; still abort the stream with ERR.
+             nil)))
+       (%writable-mark-aborted stream err)
+       (%resolved-promise global eng:+undefined+)))))
+
+(defun %writer-closed-deferred (writer)
+  (unless (js-writable-stream-writer-closed-promise writer)
+    (let ((stream (js-writable-stream-writer-stream writer)))
+      (%writable-closed-deferred stream)
+      (let ((global (eng:realm-global eng:*realm*))
+            resolve reject)
+        (let ((promise
+                (eng:js-construct
+                 (eng:js-get global "Promise")
+                 (list (eng:make-native-function
+                        "" 2
+                        (lambda (this a)
+                          (declare (ignore this))
+                          (setf resolve (eng:arg a 0)
+                                reject (eng:arg a 1))
+                          eng:+undefined+))))))
+          (setf (js-writable-stream-writer-closed-promise writer) promise
+                (js-writable-stream-writer-closed-resolve writer) resolve
+                (js-writable-stream-writer-closed-reject writer) reject)
+          (cond
+            ((js-writable-stream-error stream)
+             (eng:js-call reject eng:+undefined+
+                          (list (js-writable-stream-error stream)))
+             (setf (js-writable-stream-writer-closed-resolve writer) nil
+                   (js-writable-stream-writer-closed-reject writer) nil))
+            ((js-writable-stream-closed-p stream)
+             (eng:js-call resolve eng:+undefined+ (list eng:+undefined+))
+             (setf (js-writable-stream-writer-closed-resolve writer) nil
+                   (js-writable-stream-writer-closed-reject writer) nil)))))))
+  (js-writable-stream-writer-closed-promise writer))
+
+(defun %writer-ready-promise (writer)
+  (or (js-writable-stream-writer-ready-promise writer)
+      (let* ((global (eng:realm-global eng:*realm*))
+             (stream (js-writable-stream-writer-stream writer))
+             (p (if (js-writable-stream-error stream)
+                    (%rejected-promise global
+                                       (js-writable-stream-error stream))
+                    (%resolved-promise global eng:+undefined+))))
+        (setf (js-writable-stream-writer-ready-promise writer) p)
+        p)))
+
+(defun %make-default-writer (stream)
+  (when (js-writable-stream-locked-p stream)
+    (eng:throw-type-error "WritableStream is locked"))
+  (let* ((state (%http-state))
+         (writer
+           (%make-js-writable-stream-writer
+            :proto (web-http-realm-state-writable-stream-writer-prototype state)
+            :stream stream)))
+    (setf (js-writable-stream-locked-p stream) t
+          (js-writable-stream-writer stream) writer)
+    (%writable-closed-deferred stream)
+    (%writer-closed-deferred writer)
+    (%writer-ready-promise writer)
+    writer))
+
+(defun %writer-write (writer chunk)
+  (let ((global (eng:realm-global eng:*realm*)))
+    (when (js-writable-stream-writer-released-p writer)
+      (return-from %writer-write
+        (%rejected-promise
+         global (%stream-error-type
+                 "This writable stream writer has been released"))))
+    (%writable-do-write (js-writable-stream-writer-stream writer) chunk)))
+
+(defun %writer-close (writer)
+  (let ((global (eng:realm-global eng:*realm*)))
+    (when (js-writable-stream-writer-released-p writer)
+      (return-from %writer-close
+        (%rejected-promise
+         global (%stream-error-type
+                 "This writable stream writer has been released"))))
+    (%writable-do-close (js-writable-stream-writer-stream writer))))
+
+(defun %writer-abort (writer reason)
+  (let ((global (eng:realm-global eng:*realm*)))
+    (when (js-writable-stream-writer-released-p writer)
+      (return-from %writer-abort
+        (%rejected-promise
+         global (%stream-error-type
+                 "This writable stream writer has been released"))))
+    (%writable-do-abort (js-writable-stream-writer-stream writer) reason)))
+
+(defun %writer-release-lock (writer)
+  (when (js-writable-stream-writer-released-p writer)
+    (return-from %writer-release-lock eng:+undefined+))
+  (let ((stream (js-writable-stream-writer-stream writer)))
+    (setf (js-writable-stream-writer-released-p writer) t
+          (js-writable-stream-locked-p stream) nil
+          (js-writable-stream-writer stream) nil)
+    ;; Spec rejects writer.closed/ready after release; Partial resolves closed
+    ;; only if still open so consumers can drop the writer cleanly.
+    (unless (or (js-writable-stream-closed-p stream)
+                (js-writable-stream-error stream))
+      (let ((reject (js-writable-stream-writer-closed-reject writer)))
+        (when reject
+          (eng:js-call reject eng:+undefined+
+                       (list (%stream-error-type
+                              "This writable stream writer has been released")))
+          (setf (js-writable-stream-writer-closed-resolve writer) nil
+                (js-writable-stream-writer-closed-reject writer) nil)))))
+  eng:+undefined+)
+
+(defun %install-writable-stream-writer-prototype (prototype)
+  (%define-accessor
+   prototype "closed"
+   (lambda (this args)
+     (declare (ignore args))
+     (unless (js-writable-stream-writer-p this)
+       (eng:throw-type-error "Illegal invocation"))
+     (%writer-closed-deferred this))
+   nil)
+  (%define-accessor
+   prototype "ready"
+   (lambda (this args)
+     (declare (ignore args))
+     (unless (js-writable-stream-writer-p this)
+       (eng:throw-type-error "Illegal invocation"))
+     (%writer-ready-promise this))
+   nil)
+  (%define-accessor
+   prototype "desiredSize"
+   (lambda (this args)
+     (declare (ignore args))
+     (unless (js-writable-stream-writer-p this)
+       (eng:throw-type-error "Illegal invocation"))
+     (let ((stream (js-writable-stream-writer-stream this)))
+       (cond
+         ((js-writable-stream-error stream) eng:+null+)
+         ((js-writable-stream-closed-p stream) 0d0)
+         (t 1d0))))
+   nil)
+  (%install-prototype-method
+   prototype "write" 1
+   (lambda (this args)
+     (unless (js-writable-stream-writer-p this)
+       (eng:throw-type-error "Illegal invocation"))
+     (%writer-write this (eng:arg args 0))))
+  (%install-prototype-method
+   prototype "close" 0
+   (lambda (this args)
+     (declare (ignore args))
+     (unless (js-writable-stream-writer-p this)
+       (eng:throw-type-error "Illegal invocation"))
+     (%writer-close this)))
+  (%install-prototype-method
+   prototype "abort" 1
+   (lambda (this args)
+     (unless (js-writable-stream-writer-p this)
+       (eng:throw-type-error "Illegal invocation"))
+     (%writer-abort this (eng:arg args 0))))
+  (%install-prototype-method
+   prototype "releaseLock" 0
+   (lambda (this args)
+     (declare (ignore args))
+     (unless (js-writable-stream-writer-p this)
+       (eng:throw-type-error "Illegal invocation"))
+     (%writer-release-lock this)))
+  (%define-data prototype (eng:well-known :to-string-tag)
+                "WritableStreamDefaultWriter"
+                :writable nil :enumerable nil :configurable t)
+  prototype)
+
+(defun %install-writable-stream-controller-prototype (prototype)
+  (%install-prototype-method
+   prototype "error" 1
+   (lambda (this args)
+     (unless (js-writable-stream-controller-p this)
+       (eng:throw-type-error "Illegal invocation"))
+     (%writable-error (js-writable-stream-controller-stream this)
+                      (eng:arg args 0))))
+  (%define-data prototype (eng:well-known :to-string-tag)
+                "WritableStreamDefaultController"
+                :writable nil :enumerable nil :configurable t)
+  prototype)
+
+(defun %install-writable-stream-prototype (prototype)
+  (%define-accessor
+   prototype "locked"
+   (lambda (this args)
+     (declare (ignore args))
+     (unless (js-writable-stream-p this)
+       (eng:throw-type-error "Illegal invocation"))
+     (eng:js-boolean (js-writable-stream-locked-p this)))
+   nil)
+  (%install-prototype-method
+   prototype "getWriter" 0
+   (lambda (this args)
+     (declare (ignore args))
+     (unless (js-writable-stream-p this)
+       (eng:throw-type-error "Illegal invocation"))
+     (%make-default-writer this)))
+  (%install-prototype-method
+   prototype "abort" 1
+   (lambda (this args)
+     (unless (js-writable-stream-p this)
+       (eng:throw-type-error "Illegal invocation"))
+     (if (js-writable-stream-locked-p this)
+         (%rejected-promise
+          (eng:realm-global eng:*realm*)
+          (%stream-error-type "Cannot abort a locked stream"))
+         (let ((writer (%make-default-writer this)))
+           (%writer-abort writer (eng:arg args 0))))))
+  (%install-prototype-method
+   prototype "close" 0
+   (lambda (this args)
+     (declare (ignore args))
+     (unless (js-writable-stream-p this)
+       (eng:throw-type-error "Illegal invocation"))
+     (if (js-writable-stream-locked-p this)
+         (%rejected-promise
+          (eng:realm-global eng:*realm*)
+          (%stream-error-type "Cannot close a locked stream"))
+         (let ((writer (%make-default-writer this)))
+           (%writer-close writer)))))
+  (%define-data prototype (eng:well-known :to-string-tag) "WritableStream"
+                :writable nil :enumerable nil :configurable t)
+  prototype)
+
+(defun %writable-controller-for (stream)
+  (%make-js-writable-stream-controller
+   :proto (web-http-realm-state-writable-stream-controller-prototype
+           (%http-state))
+   :stream stream))
+
+(defun %construct-writable-stream (underlying-sink)
+  "Minimal `new WritableStream({ start, write, close, abort })`."
+  (let* ((stream
+           (%make-js-writable-stream
+            :proto (web-http-realm-state-writable-stream-prototype
+                    (%http-state))))
+         (controller (%writable-controller-for stream))
+         (sink (if (eng:js-object-p underlying-sink)
+                   underlying-sink
+                   eng:+undefined+)))
+    (setf (js-writable-stream-controller stream) controller)
+    (%writable-closed-deferred stream)
+    (unless (eng:js-undefined-p sink)
+      (setf (js-writable-stream-underlying-sink stream) sink)
+      (let ((write (eng:js-get sink "write")))
+        (when (eng:callable-p write)
+          (setf (js-writable-stream-write-callback stream) write)))
+      (let ((close (eng:js-get sink "close")))
+        (when (eng:callable-p close)
+          (setf (js-writable-stream-close-callback stream) close)))
+      (let ((abort (eng:js-get sink "abort")))
+        (when (eng:callable-p abort)
+          (setf (js-writable-stream-abort-callback stream) abort)))
+      (let ((start (eng:js-get sink "start")))
+        (when (eng:callable-p start)
+          (handler-case
+              (eng:js-call start sink (list controller))
+            (eng:js-condition (c)
+              (%writable-error stream (eng:js-condition-value c)))
+            (error (e)
+              (%writable-error stream
+                               (%stream-error-type (princ-to-string e))))))))
+    stream))
+
+(defun %make-writable-stream-constructor (prototype)
+  (let ((constructor
+          (eng:make-native-function
+           "WritableStream" 0
+           (lambda (this args)
+             (declare (ignore this args))
+             (eng:throw-type-error "WritableStream requires 'new'"))
+           :construct
+           (lambda (args new-target)
+             (declare (ignore new-target))
+             (%construct-writable-stream (eng:arg args 0))))))
+    (%set-constructor-prototype constructor prototype)
+    constructor))
+
+;;; --- TransformStream (pure-CL) ---------------------------------------------
+
+(defun %transform-controller-enqueue (controller chunk)
+  (let* ((ts (js-transform-stream-controller-stream controller))
+         (readable (js-transform-stream-readable ts)))
+    (%stream-enqueue readable chunk)
+    eng:+undefined+))
+
+(defun %transform-controller-error (controller reason)
+  (let* ((ts (js-transform-stream-controller-stream controller))
+         (readable (js-transform-stream-readable ts))
+         (writable (js-transform-stream-writable ts)))
+    (%stream-error readable reason)
+    (%writable-error writable reason)
+    eng:+undefined+))
+
+(defun %transform-controller-terminate (controller)
+  (let* ((ts (js-transform-stream-controller-stream controller))
+         (readable (js-transform-stream-readable ts))
+         (writable (js-transform-stream-writable ts)))
+    (%stream-close readable)
+    (%writable-error writable
+                     (%stream-error-type "TransformStream terminated"))
+    eng:+undefined+))
+
+(defun %transform-handle-write (ts chunk)
+  (let* ((global (eng:realm-global eng:*realm*))
+         (controller (js-transform-stream-controller ts))
+         (this-arg (or (js-transform-stream-transformer ts) eng:+undefined+))
+         (fn (js-transform-stream-transform-callback ts)))
+    (if (eng:callable-p fn)
+        (%call-sink-method fn this-arg (list chunk controller) global)
+        (progn
+          (%transform-controller-enqueue controller chunk)
+          (%resolved-promise global eng:+undefined+)))))
+
+(defun %transform-handle-close (ts)
+  (let* ((global (eng:realm-global eng:*realm*))
+         (controller (js-transform-stream-controller ts))
+         (readable (js-transform-stream-readable ts))
+         (writable (js-transform-stream-writable ts))
+         (this-arg (or (js-transform-stream-transformer ts) eng:+undefined+))
+         (fn (js-transform-stream-flush-callback ts))
+         (p (if (eng:callable-p fn)
+                (%call-sink-method fn this-arg (list controller) global)
+                (%resolved-promise global eng:+undefined+))))
+    (eng:js-call
+     (eng:js-get p "then") p
+     (list (eng:make-native-function
+            "" 1
+            (lambda (this a)
+              (declare (ignore this a))
+              (%stream-close readable)
+              (setf (js-writable-stream-closed-p writable) t)
+              (%writable-resolve-closed writable)
+              eng:+undefined+))
+           (eng:make-native-function
+            "" 1
+            (lambda (this a)
+              (declare (ignore this))
+              (let ((reason (eng:arg a 0)))
+                (%stream-error readable reason)
+                (%writable-error writable reason))
+              eng:+undefined+))))
+    p))
+
+(defun %transform-handle-abort (ts reason)
+  (let* ((global (eng:realm-global eng:*realm*))
+         (readable (js-transform-stream-readable ts))
+         (writable (js-transform-stream-writable ts))
+         (err (if (or (eng:js-undefined-p reason) (eng:js-nullish-p reason))
+                  (%stream-error-type "Aborted")
+                  reason)))
+    (%stream-error readable err)
+    (%writable-error writable err)
+    (%resolved-promise global eng:+undefined+)))
+
+(defun %install-transform-stream-controller-prototype (prototype)
+  (%install-prototype-method
+   prototype "enqueue" 1
+   (lambda (this args)
+     (unless (js-transform-stream-controller-p this)
+       (eng:throw-type-error "Illegal invocation"))
+     (%transform-controller-enqueue this (eng:arg args 0))))
+  (%install-prototype-method
+   prototype "error" 1
+   (lambda (this args)
+     (unless (js-transform-stream-controller-p this)
+       (eng:throw-type-error "Illegal invocation"))
+     (%transform-controller-error this (eng:arg args 0))))
+  (%install-prototype-method
+   prototype "terminate" 0
+   (lambda (this args)
+     (declare (ignore args))
+     (unless (js-transform-stream-controller-p this)
+       (eng:throw-type-error "Illegal invocation"))
+     (%transform-controller-terminate this)))
+  (%define-data prototype (eng:well-known :to-string-tag)
+                "TransformStreamDefaultController"
+                :writable nil :enumerable nil :configurable t)
+  prototype)
+
+(defun %install-transform-stream-prototype (prototype)
+  (%define-accessor
+   prototype "readable"
+   (lambda (this args)
+     (declare (ignore args))
+     (unless (js-transform-stream-p this)
+       (eng:throw-type-error "Illegal invocation"))
+     (js-transform-stream-readable this))
+   nil)
+  (%define-accessor
+   prototype "writable"
+   (lambda (this args)
+     (declare (ignore args))
+     (unless (js-transform-stream-p this)
+       (eng:throw-type-error "Illegal invocation"))
+     (js-transform-stream-writable this))
+   nil)
+  (%define-data prototype (eng:well-known :to-string-tag) "TransformStream"
+                :writable nil :enumerable nil :configurable t)
+  prototype)
+
+(defun %construct-transform-stream (transformer)
+  "Minimal `new TransformStream({ start, transform, flush })`."
+  (let* ((state (%http-state))
+         (ts
+           (%make-js-transform-stream
+            :proto (web-http-realm-state-transform-stream-prototype state)))
+         (controller
+           (%make-js-transform-stream-controller
+            :proto (web-http-realm-state-transform-stream-controller-prototype
+                    state)
+            :stream ts))
+         (readable
+           (%new-readable-stream :closed-p nil :wait-for-data-p t))
+         (writable
+           (%make-js-writable-stream
+            :proto (web-http-realm-state-writable-stream-prototype state)
+            :transform ts))
+         (source (if (eng:js-object-p transformer)
+                     transformer
+                     eng:+undefined+)))
+    (setf (js-writable-stream-controller writable)
+          (%writable-controller-for writable))
+    (%writable-closed-deferred writable)
+    (setf (js-transform-stream-readable ts) readable
+          (js-transform-stream-writable ts) writable
+          (js-transform-stream-controller ts) controller)
+    (unless (eng:js-undefined-p source)
+      (setf (js-transform-stream-transformer ts) source)
+      (let ((transform (eng:js-get source "transform")))
+        (when (eng:callable-p transform)
+          (setf (js-transform-stream-transform-callback ts) transform)))
+      (let ((flush (eng:js-get source "flush")))
+        (when (eng:callable-p flush)
+          (setf (js-transform-stream-flush-callback ts) flush)))
+      (let ((start (eng:js-get source "start")))
+        (when (eng:callable-p start)
+          (handler-case
+              (eng:js-call start source (list controller))
+            (eng:js-condition (c)
+              (%transform-controller-error
+               controller (eng:js-condition-value c)))
+            (error (e)
+              (%transform-controller-error
+               controller
+               (%stream-error-type (princ-to-string e))))))))
+    ;; Default identity transform when none provided.
+    (unless (eng:callable-p (js-transform-stream-transform-callback ts))
+      (setf (js-transform-stream-transform-callback ts)
+            (eng:make-native-function
+             "transform" 2
+             (lambda (this args)
+               (declare (ignore this))
+               (%transform-controller-enqueue
+                (eng:arg args 1) (eng:arg args 0))
+               eng:+undefined+))))
+    ts))
+
+(defun %make-transform-stream-constructor (prototype)
+  (let ((constructor
+          (eng:make-native-function
+           "TransformStream" 0
+           (lambda (this args)
+             (declare (ignore this args))
+             (eng:throw-type-error "TransformStream requires 'new'"))
+           :construct
+           (lambda (args new-target)
+             (declare (ignore new-target))
+             (%construct-transform-stream (eng:arg args 0))))))
     (%set-constructor-prototype constructor prototype)
     constructor))
 
@@ -2115,6 +2942,11 @@ but an ordinary object is never promoted into the Response brand."
                (readable-stream-prototype (eng:new-object))
                (readable-stream-reader-prototype (eng:new-object))
                (readable-stream-controller-prototype (eng:new-object))
+               (writable-stream-prototype (eng:new-object))
+               (writable-stream-writer-prototype (eng:new-object))
+               (writable-stream-controller-prototype (eng:new-object))
+               (transform-stream-prototype (eng:new-object))
+               (transform-stream-controller-prototype (eng:new-object))
                (state
                  (%make-web-http-realm-state
                   :headers-prototype headers-prototype
@@ -2127,7 +2959,15 @@ but an ordinary object is never promoted into the Response brand."
                   :readable-stream-reader-prototype
                   readable-stream-reader-prototype
                   :readable-stream-controller-prototype
-                  readable-stream-controller-prototype)))
+                  readable-stream-controller-prototype
+                  :writable-stream-prototype writable-stream-prototype
+                  :writable-stream-writer-prototype
+                  writable-stream-writer-prototype
+                  :writable-stream-controller-prototype
+                  writable-stream-controller-prototype
+                  :transform-stream-prototype transform-stream-prototype
+                  :transform-stream-controller-prototype
+                  transform-stream-controller-prototype)))
           ;; Install state before helpers allocate branded instances.
           (setf (gethash realm *web-http-realm-states*) state)
           (%install-headers-prototype headers-prototype)
@@ -2140,6 +2980,14 @@ but an ordinary object is never promoted into the Response brand."
            readable-stream-reader-prototype)
           (%install-readable-stream-controller-prototype
            readable-stream-controller-prototype)
+          (%install-writable-stream-prototype writable-stream-prototype)
+          (%install-writable-stream-writer-prototype
+           writable-stream-writer-prototype)
+          (%install-writable-stream-controller-prototype
+           writable-stream-controller-prototype)
+          (%install-transform-stream-prototype transform-stream-prototype)
+          (%install-transform-stream-controller-prototype
+           transform-stream-controller-prototype)
           (setf (web-http-realm-state-headers-constructor state)
                 (%make-headers-constructor headers-prototype)
                 (web-http-realm-state-request-constructor state)
@@ -2149,7 +2997,11 @@ but an ordinary object is never promoted into the Response brand."
                 (web-http-realm-state-response-constructor state)
                 (%make-response-constructor response-prototype)
                 (web-http-realm-state-readable-stream-constructor state)
-                (%make-readable-stream-constructor readable-stream-prototype))
+                (%make-readable-stream-constructor readable-stream-prototype)
+                (web-http-realm-state-writable-stream-constructor state)
+                (%make-writable-stream-constructor writable-stream-prototype)
+                (web-http-realm-state-transform-stream-constructor state)
+                (%make-transform-stream-constructor transform-stream-prototype))
           state))
     (let ((state (%http-state realm)))
       (eng:hidden-prop global "Headers"
@@ -2161,5 +3013,10 @@ but an ordinary object is never promoted into the Response brand."
       (eng:hidden-prop global "Response"
                        (web-http-realm-state-response-constructor state))
       (eng:hidden-prop global "ReadableStream"
-                       (web-http-realm-state-readable-stream-constructor state)))
+                       (web-http-realm-state-readable-stream-constructor state))
+      (eng:hidden-prop global "WritableStream"
+                       (web-http-realm-state-writable-stream-constructor state))
+      (eng:hidden-prop global "TransformStream"
+                       (web-http-realm-state-transform-stream-constructor
+                        state)))
     realm))
