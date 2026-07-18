@@ -3324,8 +3324,8 @@ Ship Bun-shaped pure-CL compression and archive surface without a new ledger row
 - 52-root residual owners dispositioned (engine/runtime/upstream-meta dominate).
 - Watch integration deferred to Phase 67; JSX coverage mapping follows language JSX.
 - Four-target platforms.tsv `supported`; ledger `clun_state=Yes`.
-- Release train: `0.1.0-dev.36` (reslot after archive Yes landed as `.35`).
+- Release train: `0.1.0-dev.37` (reslot after archive Yes landed as `.35`).
 
 ## 2026-07-18 — Phase 75 Markdown + HTMLRewriter pure-CL checkpoint
 
-Ship Bun-shaped `Clun.markdown` and `HTMLRewriter` in pure CL under issues #49/#135 as beyond-matrix evidence (not a frozen 30-row Yes). Candidate `0.1.0-dev.37` after rebase onto master `0.1.0-dev.36`.
+Ship Bun-shaped `Clun.markdown` and `HTMLRewriter` in pure CL under issues #49/#135 as beyond-matrix evidence. Candidate `0.1.0-dev.38` after rebase onto master `0.1.0-dev.37`.

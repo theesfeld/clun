@@ -64,8 +64,6 @@ resource does not exist with a 404 response:
 0.1.0-dev.32
 0.1.0-dev.33
 0.1.0-dev.35
-0.1.0-dev.36
-0.1.0-dev.37
 0.1.0-dev.30
 ```
 
@@ -140,6 +138,13 @@ prerelease slot was allocated.
 Phase 51 M1 (WebSocket handshake + framing, Issue #121) stages free `0.1.0-dev.31` / `v0.1.0-dev.31`:
 first Partial `server.websocket` capability (RFC 6455 handshake/framing + upgrade/echo); SemVer impact
 is `minor`.
+
+Phase 51 Partial→Yes (Issue #129) stages free `0.1.0-dev.37` / `v0.1.0-dev.37`: Pub/Sub
+(`server.publish`/`subscriberCount`/`ws.subscribe`), fragmentation reassembly, permessage-deflate
+via chipz, browser-shaped `WebSocket` client (`ws:`), Autobahn-style + e2e suite evidence, and
+four-target `supported` receipts. SemVer impact is `minor`. Parent #25 remains open for residual
+stress/Autobahn corpus quality stretch. Master tip after cron #146 is `0.1.0-dev.34`; this unit
+takes the next free unpublished slot.
 
 Phase 46 residual Issue #104 stages `0.1.0-dev.31` / `v0.1.0-dev.31` for the Phase 24 spawn residual (object form,
 AbortSignal, timeout/killSignal, killed, ref/unref). SemVer impact is `minor`. Spawn remains
@@ -284,10 +289,8 @@ the prerelease immutable. The ASDF core remains `0.1.0`. The non-release-bearing
 the remaining closeout evidence.
 
 Phase 65 shell Partial→Yes (#120) stages `0.1.0-dev.33` / `v0.1.0-dev.33` with zero pending corpus sites and four-target supported receipts.
-Phase 76 cron scheduling (#50) stages free `0.1.0-dev.35` / `v0.1.0-dev.35`: pure-CL `Clun.cron` parse + in-process jobs (OS-level fail-closed); SemVer impact is `minor`.
+Phase 76 cron scheduling (#50) stages free `0.1.0-dev.34` / `v0.1.0-dev.35`: pure-CL `Clun.cron` parse + in-process jobs (OS-level fail-closed); SemVer impact is `minor`.
 
 Phase 74 archive/compression pure-CL APIs (#134) stages `0.1.0-dev.35` / `v0.1.0-dev.35` without a 31st features.tsv row (matrix locked at 30).
 
-Phase 66 test-runner Partial→Yes (#127) stages `0.1.0-dev.36` / `v0.1.0-dev.36` after master archive Yes landed as `.35`. Multi-file `--parallel`, concurrent evidence, exotic snapshots, 52-root disposition, four-target supported, gap cleared.
-
-Phase 75 Markdown + HTMLRewriter pure-CL checkpoint (#49) stages free `0.1.0-dev.37` / `v0.1.0-dev.37` after master test-runner Yes `0.1.0-dev.36`.
+Phase 75 Markdown + HTMLRewriter pure-CL checkpoint (#49) stages free `0.1.0-dev.38` / `v0.1.0-dev.38` after master websocket Yes `0.1.0-dev.37`.

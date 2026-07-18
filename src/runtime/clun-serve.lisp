@@ -21,7 +21,13 @@
   server
   websocket-handlers)
 
-;;; --- Phase 51 M1: ServerWebSocket session -----------------------------------
+;;; --- Phase 51: ServerWebSocket session + topic hub --------------------------
+
+(defstruct (ws-topic-hub
+            (:constructor %make-ws-topic-hub)
+            (:conc-name ws-topic-hub-))
+  "In-memory Pub/Sub table: topic string → list of ws-session."
+  (topics (make-hash-table :test #'equal)))
 
 (defstruct (ws-session
             (:constructor %make-ws-session)
@@ -29,13 +35,20 @@
   "Per-connection WebSocket state after a successful server.upgrade."
   connection
   handlers
+  hub
   js-ws
   (ready-state 1)                       ; 0 CONNECTING 1 OPEN 2 CLOSING 3 CLOSED
   (buffer (make-array 0 :element-type '(unsigned-byte 8)
                         :adjustable t :fill-pointer 0))
   (close-sent-p nil)
   (close-received-p nil)
-  (data eng:+undefined+))
+  (data eng:+undefined+)
+  (subscriptions (make-hash-table :test #'equal))
+  (frag-opcode nil)
+  (frag-rsv1 nil)
+  (frag-buffer (make-array 0 :element-type '(unsigned-byte 8)
+                             :adjustable t :fill-pointer 0))
+  (deflate-negotiated-p nil))
 
 (defun %http-date-at (universal-time)
   (multiple-value-bind (s mi h d mo y dow) (decode-universal-time universal-time 0)
@@ -895,7 +908,7 @@ SERVER / WEBSOCKET-CELL enable Phase 51 M1 upgrade when handlers are configured.
           (format nil "Clun.serve: `~a` must be a function" name))))))
 
 (defun %throw-websocket-not-implemented (&optional (surface "WebSocket"))
-  "Fail closed for Phase 51 surfaces not yet implemented (Pub/Sub, client)."
+  "Fail closed for residual Phase 51 surfaces."
   (eng:throw-type-error (ws:websocket-not-implemented-message surface)))
 
 (defun %compile-websocket-handlers (opts)
@@ -942,7 +955,13 @@ SERVER / WEBSOCKET-CELL enable Phase 51 M1 upgrade when handlers are configured.
             (if (eng:js-undefined-p v) nil (eng:js-truthy v)))
           :close-on-backpressure-limit
           (let ((v (eng:js-get value "closeOnBackpressureLimit")))
-            (if (eng:js-undefined-p v) nil (eng:js-truthy v)))))))))
+            (if (eng:js-undefined-p v) nil (eng:js-truthy v)))
+          :permessage-deflate
+          (let ((v (eng:js-get value "perMessageDeflate")))
+            (cond
+              ((eng:js-undefined-p v) nil)
+              ((eng:js-object-p v) t)
+              (t (eng:js-truthy v))))))))))
 
 (defun %ws-payload-js (payload opcode)
   "Map a WebSocket payload to a JS string (text) or Array of byte numbers (binary)."
@@ -953,8 +972,6 @@ SERVER / WEBSOCKET-CELL enable Phase 51 M1 upgrade when handlers are configured.
        (error ()
          (eng:throw-type-error "WebSocket text frame is not valid UTF-8"))))
     (t
-     ;; Binary / control app data: plain Array of numbers for M1.
-     ;; Full TypedArray brand lands with broader binary surface work.
      (eng:new-array
       (loop for b across payload collect (coerce b 'double-float))))))
 
@@ -969,6 +986,64 @@ SERVER / WEBSOCKET-CELL enable Phase 51 M1 upgrade when handlers are configured.
   (when (ws-session-js-ws session)
     (eng:data-prop (ws-session-js-ws session) "readyState"
                     (coerce state 'double-float))))
+
+(defun %ws-hub-subscribe (hub session topic)
+  (let* ((topic (eng:to-string topic))
+         (table (ws-topic-hub-topics hub))
+         (list (gethash topic table)))
+    (unless (member session list :test #'eq)
+      (setf (gethash topic table) (cons session list)))
+    (setf (gethash topic (ws-session-subscriptions session)) t)
+    t))
+
+(defun %ws-hub-unsubscribe (hub session topic)
+  (let* ((topic (eng:to-string topic))
+         (table (ws-topic-hub-topics hub))
+         (list (gethash topic table)))
+    (when list
+      (setf list (delete session list :test #'eq))
+      (if list
+          (setf (gethash topic table) list)
+          (remhash topic table)))
+    (remhash topic (ws-session-subscriptions session))
+    t))
+
+(defun %ws-hub-unsubscribe-all (hub session)
+  (maphash (lambda (topic present)
+             (declare (ignore present))
+             (%ws-hub-unsubscribe hub session topic))
+           (ws-session-subscriptions session))
+  (clrhash (ws-session-subscriptions session)))
+
+(defun %ws-hub-subscriber-count (hub topic)
+  (length (gethash (eng:to-string topic) (ws-topic-hub-topics hub))))
+
+(defun %ws-hub-publish (hub topic opcode payload &key (except nil) (compress nil))
+  "Fan-out PAYLOAD to every subscriber of TOPIC. Returns delivered count."
+  (let* ((topic (eng:to-string topic))
+         (subs (copy-list (gethash topic (ws-topic-hub-topics hub))))
+         (n 0)
+         (wire-payload payload)
+         (rsv1 nil))
+    (when (and compress payload)
+      (handler-case
+          (let ((c (ws:compress-permessage-deflate payload)))
+            (setf wire-payload c rsv1 t))
+        (condition ()
+          (setf wire-payload payload rsv1 nil))))
+    (dolist (session subs)
+      (unless (or (eq session except)
+                  (>= (ws-session-ready-state session) 2))
+        (let ((frame (ws:make-ws-frame
+                      :fin t :rsv1 (and rsv1 (ws-session-deflate-negotiated-p session))
+                      :opcode opcode :payload wire-payload)))
+          (unless (and rsv1 (not (ws-session-deflate-negotiated-p session)))
+            (%ws-write-frame session
+                             (if (and rsv1 (ws-session-deflate-negotiated-p session))
+                                 frame
+                                 (ws:make-ws-frame :fin t :opcode opcode :payload payload)))
+            (incf n)))))
+    n))
 
 (defun %ws-close-session (session code reason &key (send-close t))
   "Transition SESSION toward CLOSED, optionally emitting a close frame."
@@ -985,6 +1060,8 @@ SERVER / WEBSOCKET-CELL enable Phase 51 M1 upgrade when handlers are configured.
   (when (or (ws-session-close-received-p session)
             (not send-close))
     (%ws-set-ready-state session 3)
+    (when (ws-session-hub session)
+      (%ws-hub-unsubscribe-all (ws-session-hub session) session))
     (let ((close-fn (ws:ws-handler-options-close (ws-session-handlers session)))
           (js (ws-session-js-ws session)))
       (when (and close-fn js)
@@ -996,6 +1073,35 @@ SERVER / WEBSOCKET-CELL enable Phase 51 M1 upgrade when handlers are configured.
           (condition () nil))))
     (ignore-errors (net:tcp-shutdown (ws-session-connection session))))
   t)
+
+(defun %ws-deliver-message (session opcode payload rsv1)
+  "Inflate (if needed) and invoke the message handler."
+  (let ((handlers (ws-session-handlers session))
+        (js (ws-session-js-ws session))
+        (data payload))
+    (when rsv1
+      (unless (ws-session-deflate-negotiated-p session)
+        (%ws-close-session session 1002 "unexpected RSV1")
+        (return-from %ws-deliver-message nil))
+      (handler-case
+          (setf data
+                (ws:inflate-permessage-deflate
+                 payload
+                 :max-bytes (ws:ws-handler-options-max-payload-length handlers)))
+        (ws:websocket-protocol-error ()
+          (%ws-close-session session 1002 "deflate error")
+          (return-from %ws-deliver-message nil))))
+    (let ((max (ws:ws-handler-options-max-payload-length handlers)))
+      (when (> (length data) max)
+        (%ws-close-session session 1009 "message too big")
+        (return-from %ws-deliver-message nil)))
+    (when (ws:ws-handler-options-message handlers)
+      (handler-case
+          (eng:js-call (ws:ws-handler-options-message handlers)
+                       eng:+undefined+
+                       (list js (%ws-payload-js data opcode)))
+        (condition () nil)))
+    t))
 
 (defun %ws-handle-frame (session frame)
   (let ((opcode (ws:ws-frame-opcode frame))
@@ -1027,23 +1133,58 @@ SERVER / WEBSOCKET-CELL enable Phase 51 M1 upgrade when handlers are configured.
            (setf (ws-session-close-sent-p session) t))
          (%ws-close-session session code reason :send-close nil)))
       ((or (= opcode ws:+opcode-text+)
-           (= opcode ws:+opcode-binary+))
-       (unless (ws:ws-frame-fin frame)
-         ;; M1: reject fragmented data frames; full reassembly is later.
-         (%ws-close-session session 1003 "fragmentation not supported yet")
-         (return-from %ws-handle-frame nil))
-       (let ((max (ws:ws-handler-options-max-payload-length handlers)))
-         (when (> (length payload) max)
-           (%ws-close-session session 1009 "message too big")
-           (return-from %ws-handle-frame nil)))
-       (when (ws:ws-handler-options-message handlers)
-         (handler-case
-             (eng:js-call (ws:ws-handler-options-message handlers)
-                          eng:+undefined+
-                          (list js (%ws-payload-js payload opcode)))
-           (condition () nil))))
-      ((= opcode ws:+opcode-continuation+)
-       (%ws-close-session session 1003 "fragmentation not supported yet"))
+           (= opcode ws:+opcode-binary+)
+           (= opcode ws:+opcode-continuation+))
+       (handler-case
+           (let ((frag (or (ws-session-frag-opcode session)
+                           (make-instance 'standard-object))))
+             (declare (ignore frag))
+             ;; Local fragment state lives on the session slots.
+             (cond
+               ((= opcode ws:+opcode-continuation+)
+                (unless (ws-session-frag-opcode session)
+                  (%ws-close-session session 1002 "unexpected continuation")
+                  (return-from %ws-handle-frame nil))
+                (when (ws:ws-frame-rsv1 frame)
+                  (%ws-close-session session 1002 "RSV1 on continuation")
+                  (return-from %ws-handle-frame nil))
+                (let ((max (ws:ws-handler-options-max-payload-length handlers))
+                      (buf (ws-session-frag-buffer session)))
+                  (when (> (+ (length buf) (length payload)) max)
+                    (%ws-close-session session 1009 "message too big")
+                    (return-from %ws-handle-frame nil))
+                  (loop for b across payload do (vector-push-extend b buf))
+                  (when (ws:ws-frame-fin frame)
+                    (let ((op (ws-session-frag-opcode session))
+                          (r1 (ws-session-frag-rsv1 session))
+                          (data (coerce (subseq buf 0)
+                                        '(simple-array (unsigned-byte 8) (*)))))
+                      (setf (ws-session-frag-opcode session) nil
+                            (ws-session-frag-rsv1 session) nil
+                            (fill-pointer buf) 0)
+                      (%ws-deliver-message session op data r1)))))
+               (t
+                (when (ws-session-frag-opcode session)
+                  (%ws-close-session session 1002 "nested data frame")
+                  (return-from %ws-handle-frame nil))
+                (when (and (ws:ws-frame-rsv1 frame)
+                           (not (ws-session-deflate-negotiated-p session)))
+                  (%ws-close-session session 1002 "unexpected RSV1")
+                  (return-from %ws-handle-frame nil))
+                (if (ws:ws-frame-fin frame)
+                    (%ws-deliver-message session opcode payload
+                                         (ws:ws-frame-rsv1 frame))
+                    (let ((max (ws:ws-handler-options-max-payload-length handlers))
+                          (buf (ws-session-frag-buffer session)))
+                      (when (> (length payload) max)
+                        (%ws-close-session session 1009 "message too big")
+                        (return-from %ws-handle-frame nil))
+                      (setf (ws-session-frag-opcode session) opcode
+                            (ws-session-frag-rsv1 session) (ws:ws-frame-rsv1 frame)
+                            (fill-pointer buf) 0)
+                      (loop for b across payload do (vector-push-extend b buf)))))))
+         (ws:websocket-protocol-error ()
+           (%ws-close-session session 1002 "protocol error"))))
       (t
        (%ws-close-session session 1002 "unknown opcode")))))
 
@@ -1056,12 +1197,14 @@ SERVER / WEBSOCKET-CELL enable Phase 51 M1 upgrade when handlers are configured.
             (block ws-data
               (when (>= (ws-session-ready-state session) 3)
                 (return-from ws-data nil))
-              (let ((buf (ws-session-buffer session)))
+              (let ((buf (ws-session-buffer session))
+                    (allow (ws-session-deflate-negotiated-p session)))
                 (loop for b across octets do (vector-push-extend b buf))
                 (loop
                   (multiple-value-bind (frame next)
                       (handler-case
-                          (ws:decode-frame buf :start 0 :end (length buf))
+                          (ws:decode-frame buf :start 0 :end (length buf)
+                                           :allow-rsv1 allow)
                         (ws:websocket-protocol-error ()
                           (%ws-close-session session 1002 "protocol error")
                           (return-from ws-data nil)))
@@ -1093,7 +1236,6 @@ SERVER / WEBSOCKET-CELL enable Phase 51 M1 upgrade when handlers are configured.
      (values ws:+opcode-binary+
              (coerce value '(simple-array (unsigned-byte 8) (*)))))
     ((eng:js-object-p value)
-     ;; Best-effort: Array-like of byte numbers.
      (let* ((len-v (eng:js-get value "length"))
             (len (if (eng:js-number-p len-v)
                      (max 0 (truncate (eng:to-number len-v)))
@@ -1111,9 +1253,27 @@ SERVER / WEBSOCKET-CELL enable Phase 51 M1 upgrade when handlers are configured.
              (sb-ext:string-to-octets (eng:to-string value)
                                       :external-format :utf-8)))))
 
+(defun %ws-send-payload (session opcode payload &key compress)
+  (when (>= (ws-session-ready-state session) 2)
+    (return-from %ws-send-payload -1))
+  (let ((rsv1 nil)
+        (wire payload))
+    (when (and compress (ws-session-deflate-negotiated-p session))
+      (handler-case
+          (progn
+            (setf wire (ws:compress-permessage-deflate payload)
+                  rsv1 t))
+        (condition ()
+          (setf wire payload rsv1 nil))))
+    (%ws-write-frame session
+                     (ws:make-ws-frame :fin t :rsv1 rsv1
+                                       :opcode opcode :payload wire))
+    (length payload)))
+
 (defun %make-server-websocket (session)
   "Build the JS ServerWebSocket brand for SESSION."
-  (let ((ws-obj (eng:new-object)))
+  (let ((ws-obj (eng:new-object))
+        (hub (ws-session-hub session)))
     (setf (ws-session-js-ws session) ws-obj)
     (eng:data-prop ws-obj "readyState" 1d0)
     (eng:data-prop ws-obj "data" (ws-session-data session))
@@ -1126,9 +1286,10 @@ SERVER / WEBSOCKET-CELL enable Phase 51 M1 upgrade when handlers are configured.
             (return-from send -1d0))
           (multiple-value-bind (opcode payload)
               (%ws-coerce-send-payload (eng:arg args 0))
-            (let ((frame (ws:make-ws-frame :fin t :opcode opcode :payload payload)))
-              (%ws-write-frame session frame)
-              (coerce (length payload) 'double-float))))))
+            (let ((compress (eng:js-truthy (eng:arg args 1))))
+              (coerce (%ws-send-payload session opcode payload
+                                        :compress compress)
+                      'double-float))))))
     (eng:install-method ws-obj "sendText" 1
       (lambda (this args)
         (declare (ignore this))
@@ -1137,8 +1298,7 @@ SERVER / WEBSOCKET-CELL enable Phase 51 M1 upgrade when handlers are configured.
             (return-from send-text -1d0))
           (let* ((text (eng:to-string (eng:arg args 0)))
                  (payload (sb-ext:string-to-octets text :external-format :utf-8)))
-            (%ws-write-frame session (ws:make-text-frame text))
-            (coerce (length payload) 'double-float)))))
+            (coerce (%ws-send-payload session ws:+opcode-text+ payload) 'double-float)))))
     (eng:install-method ws-obj "sendBinary" 1
       (lambda (this args)
         (declare (ignore this))
@@ -1148,8 +1308,8 @@ SERVER / WEBSOCKET-CELL enable Phase 51 M1 upgrade when handlers are configured.
           (multiple-value-bind (opcode payload)
               (%ws-coerce-send-payload (eng:arg args 0))
             (declare (ignore opcode))
-            (%ws-write-frame session (ws:make-binary-frame payload))
-            (coerce (length payload) 'double-float)))))
+            (coerce (%ws-send-payload session ws:+opcode-binary+ payload)
+                    'double-float)))))
     (eng:install-method ws-obj "close" 2
       (lambda (this args)
         (declare (ignore this))
@@ -1185,16 +1345,65 @@ SERVER / WEBSOCKET-CELL enable Phase 51 M1 upgrade when handlers are configured.
           (declare (ignore opcode))
           (%ws-write-frame session (ws:make-pong-frame payload))
           eng:+undefined+)))
+    (eng:install-method ws-obj "subscribe" 1
+      (lambda (this args)
+        (declare (ignore this))
+        (when hub
+          (%ws-hub-subscribe hub session (eng:arg args 0)))
+        eng:+undefined+))
+    (eng:install-method ws-obj "unsubscribe" 1
+      (lambda (this args)
+        (declare (ignore this))
+        (when hub
+          (%ws-hub-unsubscribe hub session (eng:arg args 0)))
+        eng:+undefined+))
+    (eng:install-method ws-obj "isSubscribed" 1
+      (lambda (this args)
+        (declare (ignore this))
+        (eng:js-boolean
+         (and hub
+              (gethash (eng:to-string (eng:arg args 0))
+                       (ws-session-subscriptions session))))))
+    (eng:install-method ws-obj "publish" 2
+      (lambda (this args)
+        (declare (ignore this))
+        (if (null hub)
+            0d0
+            (multiple-value-bind (opcode payload)
+                (%ws-coerce-send-payload (eng:arg args 1))
+              (let* ((topic (eng:arg args 0))
+                     (compress (eng:js-truthy (eng:arg args 2)))
+                     (except
+                       (unless (ws:ws-handler-options-publish-to-self
+                                (ws-session-handlers session))
+                         session)))
+                (coerce
+                 (%ws-hub-publish hub topic opcode payload
+                                  :except except :compress compress)
+                 'double-float))))))
+    (eng:install-getter ws-obj "subscriptions"
+      (lambda (this args)
+        (declare (ignore this args))
+        (eng:new-array
+         (loop for topic being the hash-keys of (ws-session-subscriptions session)
+               collect topic))))
     ws-obj))
 
-(defun %try-server-upgrade (server request &optional options)
+(defun %try-server-upgrade (server request hub &optional options)
   "Attempt HTTP→WebSocket upgrade. Returns T on success, NIL on refusal."
   (unless (js-server-request-p request)
     (return-from %try-server-upgrade nil))
   (let* ((context (js-server-request-context request))
          (handlers (and context (serve-request-context-websocket-handlers context)))
          (conn (and context (serve-request-context-connection context)))
-         (headers (js-request-headers-alist request)))
+         (headers (js-request-headers-alist request))
+         (hub (if (typep hub 'ws-topic-hub)
+                  hub
+                  (let ((from-server (serve-request-context-server context)))
+                    (cond
+                      ((typep from-server 'ws-topic-hub) from-server)
+                      ((eq from-server server) hub)
+                      (t hub))))))
     (declare (ignore server))
     (unless (and context conn handlers
                  (not (serve-request-context-upgraded-p context))
@@ -1209,7 +1418,6 @@ SERVER / WEBSOCKET-CELL enable Phase 51 M1 upgrade when handlers are configured.
              (let ((p (and options (not (eng:js-undefined-p options))
                            (eng:js-object-p options)
                            (eng:js-get options "headers"))))
-               ;; M1: optional headers object may carry Sec-WebSocket-Protocol.
                (when (and p (eng:js-object-p p))
                  (let ((v (eng:js-get p "Sec-WebSocket-Protocol")))
                    (unless (eng:js-undefined-p v) (eng:to-string v))))))
@@ -1218,11 +1426,19 @@ SERVER / WEBSOCKET-CELL enable Phase 51 M1 upgrade when handlers are configured.
                       (not (eng:js-undefined-p (eng:js-get options "data"))))
                  (eng:js-get options "data")
                  eng:+undefined+))
-           (response (ws:opening-handshake-response key :protocol protocol))
+           (want-deflate
+             (and (ws:ws-handler-options-permessage-deflate handlers)
+                  (ws:client-offers-permessage-deflate-p headers)))
+           (extensions (when want-deflate "permessage-deflate"))
+           (response (ws:opening-handshake-response key
+                                                    :protocol protocol
+                                                    :extensions extensions))
            (session (%make-ws-session
                      :connection conn
                      :handlers handlers
-                     :data data)))
+                     :hub (and (typep hub 'ws-topic-hub) hub)
+                     :data data
+                     :deflate-negotiated-p (and want-deflate t))))
       (setf (serve-request-context-upgraded-p context) t
             (serve-request-context-committed-p context) t)
       (net:tcp-write conn response)
@@ -1235,7 +1451,7 @@ SERVER / WEBSOCKET-CELL enable Phase 51 M1 upgrade when handlers are configured.
             (condition () nil))))
       t)))
 
-(defun %install-websocket-methods (server websocket-cell)
+(defun %install-websocket-methods (server websocket-cell hub-cell)
   "Install Bun-shaped upgrade/publish/subscriberCount on SERVER."
   (eng:install-method server "upgrade" 2
     (lambda (this args)
@@ -1245,17 +1461,29 @@ SERVER / WEBSOCKET-CELL enable Phase 51 M1 upgrade when handlers are configured.
       (let ((req (eng:arg args 0))
             (opts (eng:arg args 1)))
         (eng:js-boolean
-         (%try-server-upgrade server req opts)))))
-  (eng:install-method server "publish" 2
+         (%try-server-upgrade server req (car hub-cell) opts)))))
+  (eng:install-method server "publish" 3
     (lambda (this args)
-      (declare (ignore this args))
-      (%throw-websocket-not-implemented "server.publish")))
+      (declare (ignore this))
+      (let ((hub (car hub-cell)))
+        (if (null hub)
+            0d0
+            (multiple-value-bind (opcode payload)
+                (%ws-coerce-send-payload (eng:arg args 1))
+              (coerce
+               (%ws-hub-publish hub (eng:arg args 0) opcode payload
+                                :compress (eng:js-truthy (eng:arg args 2)))
+               'double-float))))))
   (eng:install-method server "subscriberCount" 1
     (lambda (this args)
-      (declare (ignore this args))
-      (%throw-websocket-not-implemented "server.subscriberCount")))
+      (declare (ignore this))
+      (let ((hub (car hub-cell)))
+        (coerce
+         (if hub
+             (%ws-hub-subscriber-count hub (eng:arg args 0))
+             0)
+         'double-float))))
   server)
-
 (defun %serve-idle-timeout-option (opts)
   "Bun.serve idleTimeout in seconds: default 10, 0 disables, max 255."
   (let ((value (eng:js-get opts "idleTimeout")))
@@ -1318,6 +1546,7 @@ SERVER / WEBSOCKET-CELL enable Phase 51 M1 upgrade when handlers are configured.
            (err-handler-cell (list err-handler))
            (routes-cell (list routes))
            (websocket-cell (list websocket))
+           (hub-cell (list (%make-ws-topic-hub)))
            (server (eng:new-object)))
       (let ((listener
               (net:tcp-listen loop host port :backlog 1024
@@ -1445,5 +1674,5 @@ SERVER / WEBSOCKET-CELL enable Phase 51 M1 upgrade when handlers are configured.
           (lambda (th a) (declare (ignore th a)) eng:+undefined+))
         (eng:install-method server "unref" 0
           (lambda (th a) (declare (ignore th a)) eng:+undefined+))
-        (%install-websocket-methods server websocket-cell)
+        (%install-websocket-methods server websocket-cell hub-cell)
         server))))

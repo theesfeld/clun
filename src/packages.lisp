@@ -342,19 +342,19 @@
    ;; TLS client (Phase 20): blocking HTTPS request for the worker pool + error mapping.
    #:https-request #:https-request-stream #:tls-error-message))
 
-;; Phase 51 — WebSocket protocol (RFC 6455 handshake + framing; M1 Partial).
+;; Phase 51 — WebSocket protocol (RFC 6455 + Pub/Sub substrate + deflate).
 (defpackage :clun.websocket
   (:use :cl)
   (:local-nicknames (:crypto :ironclad))
   (:documentation
-   "Pure Common Lisp WebSocket (RFC 6455 handshake + framing).
-    Pub/Sub, client WebSocket, and compression land in later Phase 51 milestones;
-    see docs/design/phase-51.md.")
+   "Pure Common Lisp WebSocket (RFC 6455 handshake/framing, fragmentation helpers,
+    and bounded permessage-deflate inflate via chipz). Server Pub/Sub and the
+    client WebSocket global live in clun.runtime; see docs/design/phase-51.md.")
   (:export
    #:+opcode-continuation+ #:+opcode-text+ #:+opcode-binary+
    #:+opcode-close+ #:+opcode-ping+ #:+opcode-pong+
    #:+ws-guid+ #:+default-max-payload-bytes+ #:+default-backpressure-limit+
-   #:+max-control-payload+
+   #:+max-control-payload+ #:+default-max-inflate-bytes+ #:+pmd-trailer+
    #:websocket-error #:websocket-error-message
    #:websocket-unsupported #:websocket-protocol-error
    #:websocket-not-implemented-message #:signal-websocket-unsupported
@@ -376,7 +376,20 @@
    #:mask-payload #:websocket-upgrade-request-p #:opening-handshake-response
    #:make-close-payload #:parse-close-payload
    #:make-text-frame #:make-binary-frame
-   #:make-ping-frame #:make-pong-frame #:make-close-frame))
+   #:make-ping-frame #:make-pong-frame #:make-close-frame
+   #:random-mask-key #:client-opening-handshake-request
+   #:parse-http-response-head #:extension-token-member-p
+   #:fragment-start-p #:append-octets
+   #:inflate-permessage-deflate #:compress-permessage-deflate
+   #:deflate-stored-block
+   #:ws-fragment-state #:ws-fragment-state-p #:make-ws-fragment-state
+   #:ws-fragment-state-active-p #:fragment-reset #:fragment-feed
+   #:ws-topic-hub #:ws-topic-hub-p #:make-ws-topic-hub
+   #:topic-subscribe #:topic-unsubscribe #:topic-unsubscribe-all
+   #:topic-subscribed-p #:topic-subscriptions
+   #:topic-subscriber-count #:topic-subscribers
+   #:client-offers-permessage-deflate-p #:parse-sec-websocket-extensions
+   #:make-client-key))
 
 (defpackage :clun.compress
   (:use :cl)

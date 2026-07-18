@@ -226,6 +226,7 @@
                                            (:file "web-url")   ; URL/URLSearchParams (Phase 18)
                                            (:file "web-proxy") ; fetch proxy selection/auth/bypass (Phase 28)
                                            (:file "web-fetch") ; fetch (Phase 18)
+                                           (:file "websocket-client") ; Phase 51 client WebSocket
                                            ;; node builtin modules (Phase 12): registry +
                                            ;; one file per module; each self-registers.
                                            (:module "node"

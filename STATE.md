@@ -14,9 +14,9 @@ Update when work completes; keep consistent with the Issue, README, and site.
 **Current implementation unit:** Phase 75 Markdown + HTMLRewriter pure-CL checkpoint (#49 / #135).
 Ships Bun-shaped `Clun.markdown` and global `HTMLRewriter` (beyond-matrix; not a 30-row Yes).
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.37` / `v0.1.0-dev.37`
+**Candidate release:** `0.1.0-dev.38` / `v0.1.0-dev.38`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
-**Entry boundary:** installer on `v0.1.0-dev.21`; free slot after master test-runner Yes `0.1.0-dev.36`.
+**Entry boundary:** installer on `v0.1.0-dev.21`; free slot after master websocket Yes `0.1.0-dev.37`.
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
 easiest to hardest among dependency-ready rows. Core engine/runtime/network/tooling changes are expected.
