@@ -1,5 +1,5 @@
 <!-- clun-generated:release-notes:begin -->
-# Clun 0.1.0-dev.36
+# Clun 0.1.0-dev.37
 
 Phase 51: WebSocket and Pub/Sub.
 

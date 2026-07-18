@@ -3324,4 +3324,4 @@ Ship Bun-shaped pure-CL compression and archive surface without a new ledger row
 - 52-root residual owners dispositioned (engine/runtime/upstream-meta dominate).
 - Watch integration deferred to Phase 67; JSX coverage mapping follows language JSX.
 - Four-target platforms.tsv `supported`; ledger `clun_state=Yes`.
-- Release train: `0.1.0-dev.36` (reslot after archive Yes landed as `.35`).
+- Release train: `0.1.0-dev.37` (reslot after archive Yes landed as `.35`).

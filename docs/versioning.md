@@ -139,7 +139,7 @@ Phase 51 M1 (WebSocket handshake + framing, Issue #121) stages free `0.1.0-dev.3
 first Partial `server.websocket` capability (RFC 6455 handshake/framing + upgrade/echo); SemVer impact
 is `minor`.
 
-Phase 51 Partial→Yes (Issue #129) stages free `0.1.0-dev.36` / `v0.1.0-dev.36`: Pub/Sub
+Phase 51 Partial→Yes (Issue #129) stages free `0.1.0-dev.37` / `v0.1.0-dev.37`: Pub/Sub
 (`server.publish`/`subscriberCount`/`ws.subscribe`), fragmentation reassembly, permessage-deflate
 via chipz, browser-shaped `WebSocket` client (`ws:`), Autobahn-style + e2e suite evidence, and
 four-target `supported` receipts. SemVer impact is `minor`. Parent #25 remains open for residual

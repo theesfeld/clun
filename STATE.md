@@ -15,7 +15,7 @@ Update when work completes; keep consistent with the Issue, README, and site.
 **Current implementation unit:** Phase 51 server.websocket Partial→Yes (#129).
 `server.websocket` is **Yes** (Pub/Sub, client WebSocket, fragmentation, permessage-deflate, four-target supported).
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.36` / `v0.1.0-dev.36`
+**Candidate release:** `0.1.0-dev.37` / `v0.1.0-dev.37`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
 **Entry boundary:** installer on `v0.1.0-dev.21`; free slot after master tip `0.1.0-dev.35` (archives #134 / docs bind #166).
 
@@ -33,9 +33,9 @@ four-target evidence, synchronized public surfaces, and the correct SemVer trans
 Pub/Sub publish/subscriberCount, client `WebSocket` global, fragmentation reassembly,
 pure-CL permessage-deflate (chipz inflate + stored compress), four-target supported receipts.
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.36` / `v0.1.0-dev.36`
+**Candidate release:** `0.1.0-dev.37` / `v0.1.0-dev.37`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
-**Entry boundary:** installer on `v0.1.0-dev.21`; this unit stages free `0.1.0-dev.36` after master tip `0.1.0-dev.35` (archives #134 / docs bind #166).
+**Entry boundary:** installer on `v0.1.0-dev.21`; this unit stages free `0.1.0-dev.37` after master tip `0.1.0-dev.35` (archives #134 / docs bind #166).
 **Next scope:** remaining Partial Yes conversions in the fleet queue.
 
 >>>>>>> Stashed changes
