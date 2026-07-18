@@ -554,7 +554,10 @@ the length property), or NIL when V has no numeric length."
 (defun %apply-mock-matcher (name actual negated args)
   (let* ((canonical (%canonical-mock-matcher name))
          (record (mock-record-for actual)))
-    (unless record (%fail "expect(received).~a(...) requires a mock function" name))
+    ;; Bun throws "Expected value must be a mock function" (substring-matched by
+    ;; upstream roots). Keep the name in the message for debugging.
+    (unless record
+      (%fail "Expected value must be a mock function: expect(received).~a(...)" name))
     (let* ((calls (reverse (mock-calls record)))
            (results (reverse (mock-results record)))
            (returns (remove-if-not (lambda (entry) (eq (result-kind entry) :return)) results))
@@ -1089,12 +1092,85 @@ applies MATCHER to the fulfilled value (resolves) or rejection reason (rejects).
       (%install-custom-static expect ctx (car entry) (cdr entry))))
   eng:+undefined+)
 
+(defun %unreachable-static ()
+  "expect.unreachable([message|error]) — always throws UnreachableError / value."
+  (%fn "unreachable" 1
+    (lambda (this args)
+      (declare (ignore this))
+      (let ((arg (if (plusp (length args)) (eng:arg args 0) eng:+undefined+)))
+        (cond
+          ((or (eng:js-undefined-p arg) (eng:js-null-p arg))
+           (let ((err (eng:js-construct
+                       (eng:js-get (eng:realm-global eng:*realm*) "Error")
+                       (list "reached unreachable code"))))
+             (eng:js-set err "name" "UnreachableError" nil)
+             (eng:throw-js-value err)))
+          ((eng:js-string-p arg)
+           (let ((err (eng:js-construct
+                       (eng:js-get (eng:realm-global eng:*realm*) "Error")
+                       (list (eng:to-string arg)))))
+             (eng:js-set err "name" "UnreachableError" nil)
+             (eng:throw-js-value err)))
+          (t (eng:throw-js-value arg)))))))
+
+(defun %make-expect-type-of ()
+  "Runtime no-op expectTypeOf surface (Bun erases type-level checks at runtime).
+Chainable getters return another expectTypeOf object; methods accept one arg and
+return undefined so type-only suites load and pass."
+  (let ((self nil)
+        (chain nil))
+    (labels ((void1 ()
+               (%fn "" 1 (lambda (this args)
+                           (declare (ignore this args))
+                           eng:+undefined+)))
+             (void0 ()
+               (%fn "" 0 (lambda (this args)
+                           (declare (ignore this args))
+                           eng:+undefined+)))
+             (install-chain (obj)
+               ;; Matchers that take a type argument (erased at runtime).
+               (dolist (name '("toMatchObjectType" "toExtend" "toEqualTypeOf"
+                               "toMatchTypeOf" "toHaveProperty"
+                               "toBeCallableWith" "toBeConstructibleWith"
+                               "extract" "exclude" "parameter"))
+                 (eng:data-prop obj name (void1)))
+               ;; Zero-arg type predicates.
+               (dolist (name '("toBeNumber" "toBeString" "toBeBoolean" "toBeSymbol"
+                               "toBeUndefined" "toBeNull" "toBeNullable" "toBeNever"
+                               "toBeUnknown" "toBeAny" "toBeVoid" "toBeFunction"
+                               "toBeObject" "toBeArray" "toBeTuple" "toBeBigInt"))
+                 (eng:data-prop obj name (void0)))
+               ;; Chain getters return another expectTypeOf object (Bun ExpectTypeOf).
+               (dolist (getter '("not" "branded" "resolves" "returns" "items"
+                                 "guards" "asserts" "constructorParameters"
+                                 "thisParameter" "instance" "parameters"))
+                 (eng:install-getter obj getter
+                   (lambda (this args)
+                     (declare (ignore this args))
+                     chain)))
+               (eng:data-prop obj "map"
+                 (%fn "map" 1
+                   (lambda (this args)
+                     (declare (ignore this args))
+                     chain)))
+               obj))
+      (setf chain (install-chain (eng:new-object))
+            self (eng:make-native-function "expectTypeOf" 1
+                   (lambda (this args)
+                     (declare (ignore this args))
+                     chain)))
+      ;; Type-parameter form expectTypeOf<T>() uses the same methods on the
+      ;; callable itself (Bun ExpectTypeOf constructor / static surface).
+      (install-chain self)
+      self)))
+
 (defun install-expect (realm ctx)
   (let ((eng:*realm* realm) (g (eng:realm-global realm)))
     (let ((expect (eng:make-native-function "expect" 1
                     (lambda (this args) (declare (ignore this))
                       (incf (ctx-expect-calls ctx))
-                      (%make-matcher (eng:arg args 0) nil ctx)))))
+                      (%make-matcher (eng:arg args 0) nil ctx))))
+          (expect-type-of (%make-expect-type-of)))
       (eng:install-method expect "assertions" 1
         (lambda (this args) (declare (ignore this))
           (setf *expected-assertions* (truncate (%num (eng:arg args 0)))) eng:+undefined+))
@@ -1105,6 +1181,7 @@ applies MATCHER to the fulfilled value (resolves) or rejection reason (rejects).
         (lambda (this args)
           (declare (ignore this))
           (%extend-expect expect ctx (eng:arg args 0))))
+      (eng:data-prop expect "unreachable" (%unreachable-static))
       (%install-asymmetric-family expect nil :include-any t :ctx ctx)
       (%install-settlement-getters expect nil ctx)
       (eng:install-getter expect "not"
@@ -1113,4 +1190,5 @@ applies MATCHER to the fulfilled value (resolves) or rejection reason (rejects).
           (let ((namespace
                   (%install-asymmetric-family (eng:new-object) t :ctx ctx)))
             (%install-settlement-getters namespace t ctx))))
-      (eng:hidden-prop g "expect" expect))))
+      (eng:hidden-prop g "expect" expect)
+      (eng:hidden-prop g "expectTypeOf" expect-type-of))))

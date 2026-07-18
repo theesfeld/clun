@@ -450,17 +450,34 @@ Each group is either a single non-concurrent entry or a list of consecutive conc
   (deadline-ms nil))
 
 (defun %slot-bind (slot thunk)
-  "Run THUNK with dynamic test-runner state rebound for SLOT."
-  (let ((*active-test* (cslot-test slot))
-        (*test-assertions* (cslot-assertions slot))
-        (*expected-assertions* (cslot-expected-assertions slot))
-        (*has-assertions* (cslot-has-assertions slot))
-        (*test-finished-callbacks* (cslot-finished-callbacks slot)))
+  "Run THUNK with thread-visible test-runner state rebound for SLOT.
+Uses SETF (not LET specials) so async coroutine bodies see the same values."
+  (let ((prev-test *active-test*)
+        (prev-conc *active-test-concurrent-p*)
+        (prev-assertions *test-assertions*)
+        (prev-expected *expected-assertions*)
+        (prev-has *has-assertions*)
+        (prev-finished *test-finished-callbacks*)
+        (prev-after *test-attempt-after-alls*))
+    (setf *active-test* (cslot-test slot)
+          *active-test-concurrent-p* t
+          *test-assertions* (cslot-assertions slot)
+          *expected-assertions* (cslot-expected-assertions slot)
+          *has-assertions* (cslot-has-assertions slot)
+          *test-finished-callbacks* (cslot-finished-callbacks slot)
+          *test-attempt-after-alls* '())
     (unwind-protect (funcall thunk)
       (setf (cslot-assertions slot) *test-assertions*
             (cslot-expected-assertions slot) *expected-assertions*
             (cslot-has-assertions slot) *has-assertions*
-            (cslot-finished-callbacks slot) *test-finished-callbacks*))))
+            (cslot-finished-callbacks slot) *test-finished-callbacks*
+            *active-test* prev-test
+            *active-test-concurrent-p* prev-conc
+            *test-assertions* prev-assertions
+            *expected-assertions* prev-expected
+            *has-assertions* prev-has
+            *test-finished-callbacks* prev-finished
+            *test-attempt-after-alls* prev-after))))
 
 (defun %slot-fail (slot detail kind)
   (setf (cslot-ok slot) nil
@@ -861,51 +878,89 @@ the first semantic failure while still completing later attempts."
                 (return (values ok detail failure-kind assertions)))))))))
 
 (defun %execute (test realm cfg)
-  "Run beforeEach chain → the body → afterEach chain.
+  "Run beforeEach chain → body → mid-test afterAll → afterEach → onTestFinished.
 Returns (values ok detail failure-kind); FAILURE-KIND distinguishes an expected body
-failure from framework failures that `test.failing` must not invert."
+failure from framework failures that `test.failing` must not invert.
+Thread-visible globals (not LET specials) so async coroutine bodies can register
+onTestFinished / mid-test afterAll and so assertion counters stay accurate."
   (snapshot-reset-attempt (cfg-snapshot cfg) test)
-  (let ((*test-assertions* 0) (*expected-assertions* nil) (*has-assertions* nil)
-        (*active-test* test) (*test-finished-callbacks* '())
+  (let ((prev-test *active-test*)
+        (prev-conc *active-test-concurrent-p*)
+        (prev-assertions *test-assertions*)
+        (prev-expected *expected-assertions*)
+        (prev-has *has-assertions*)
+        (prev-finished *test-finished-callbacks*)
+        (prev-after *test-attempt-after-alls*)
         (timeout (or (tt-timeout test) (cfg-default-timeout cfg)))
-        (chain (%chain test)) (ok t) (detail nil) (failure-kind nil))
-    ;; beforeEach outer→inner
-    (block body
-      (dolist (d chain)
-        (let ((err (%run-hooks (td-before-each d) realm timeout)))
-          (when err
-            (setf ok nil detail (%err-detail err) failure-kind :hook)
-            (return-from body))))
-      ;; the test body
-      (multiple-value-bind (kind val)
-          (%run-test-callback (tt-fn test) (tt-args test) realm timeout)
-        (case kind
-          (:timeout
-           (setf ok nil
-                 detail (format nil "this test timed out after ~ams" timeout)
-                 failure-kind :timeout))
-          (:rejected
-           (setf ok nil detail (%err-detail val) failure-kind :body))
-          (:fulfilled
-           ;; assertion-count expectations
-           (cond
-             ((and *expected-assertions* (/= *test-assertions* *expected-assertions*))
-              (setf ok nil
-                    detail (format nil "expect.assertions(~a) — but ~a assertion(s) ran"
-                                   *expected-assertions* *test-assertions*)
-                    failure-kind :assertion-contract))
-             ((and *has-assertions* (zerop *test-assertions*))
-              (setf ok nil
-                    detail "expect.hasAssertions() — but no assertions ran"
-                    failure-kind :assertion-contract)))))))
-    ;; afterEach inner→outer (always runs)
-    (dolist (d (reverse chain))
-      (let ((err (%run-hooks (td-after-each d) realm timeout)))
-        (when (and err ok)
-          (setf ok nil detail (%err-detail err) failure-kind :hook))))
-    ;; Per-test cleanup runs in registration order after every afterEach hook, even
-    ;; when the body or an earlier hook failed.
-    (let ((err (%run-hooks *test-finished-callbacks* realm timeout)))
-      (when (and err ok)
-        (setf ok nil detail (%err-detail err) failure-kind :hook)))
-    (values ok detail failure-kind *test-assertions*)))
+        (chain (%chain test)) (ok t) (detail nil) (failure-kind nil)
+        (final-assertions 0))
+    (setf *active-test* test
+          ;; Honour test.concurrent / describe.concurrent even when the group
+          ;; falls back to the serial multi-attempt path (single concurrent
+          ;; test, retries, etc.) so onTestFinished still rejects.
+          *active-test-concurrent-p* (%test-runs-concurrent-p test cfg)
+          *test-assertions* 0
+          *expected-assertions* nil
+          *has-assertions* nil
+          *test-finished-callbacks* '()
+          *test-attempt-after-alls* '())
+    (unwind-protect
+         (progn
+           ;; beforeEach outer→inner
+           (block body
+             (dolist (d chain)
+               (let ((err (%run-hooks (td-before-each d) realm timeout)))
+                 (when err
+                   (setf ok nil detail (%err-detail err) failure-kind :hook)
+                   (return-from body))))
+             ;; the test body
+             (multiple-value-bind (kind val)
+                 (%run-test-callback (tt-fn test) (tt-args test) realm timeout)
+               (case kind
+                 (:timeout
+                  (setf ok nil
+                        detail (format nil "this test timed out after ~ams" timeout)
+                        failure-kind :timeout))
+                 (:rejected
+                  (setf ok nil detail (%err-detail val) failure-kind :body))
+                 (:fulfilled
+                  ;; assertion-count expectations
+                  (cond
+                    ((and *expected-assertions*
+                          (/= *test-assertions* *expected-assertions*))
+                     (setf ok nil
+                           detail (format nil
+                                          "expect.assertions(~a) — but ~a assertion(s) ran"
+                                          *expected-assertions* *test-assertions*)
+                           failure-kind :assertion-contract))
+                    ((and *has-assertions* (zerop *test-assertions*))
+                     (setf ok nil
+                           detail "expect.hasAssertions() — but no assertions ran"
+                           failure-kind :assertion-contract)))))))
+           ;; Mid-test afterAll (registered during body) — Bun order: body, afterAll,
+           ;; afterEach, onTestFinished. Retries re-run these each attempt.
+           ;; *test-attempt-after-alls* is push-order (reverse reg); %run-hooks reverses.
+           (let ((attempt-after *test-attempt-after-alls*))
+             (setf *test-attempt-after-alls* '())
+             (when attempt-after
+               (let ((err (%run-hooks attempt-after realm timeout)))
+                 (when (and err ok)
+                   (setf ok nil detail (%err-detail err) failure-kind :hook)))))
+           ;; afterEach inner→outer (always runs)
+           (dolist (d (reverse chain))
+             (let ((err (%run-hooks (td-after-each d) realm timeout)))
+               (when (and err ok)
+                 (setf ok nil detail (%err-detail err) failure-kind :hook))))
+           ;; Per-test cleanup runs in registration order after every afterEach hook.
+           (let ((err (%run-hooks *test-finished-callbacks* realm timeout)))
+             (when (and err ok)
+               (setf ok nil detail (%err-detail err) failure-kind :hook)))
+           (setf final-assertions *test-assertions*))
+      (setf *active-test* prev-test
+            *active-test-concurrent-p* prev-conc
+            *test-assertions* prev-assertions
+            *expected-assertions* prev-expected
+            *has-assertions* prev-has
+            *test-finished-callbacks* prev-finished
+            *test-attempt-after-alls* prev-after))
+    (values ok detail failure-kind final-assertions)))

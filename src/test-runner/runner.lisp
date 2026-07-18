@@ -16,6 +16,9 @@
   (coverage-threshold-lines nil) (coverage-threshold-functions nil)
   (coverage-threshold-statements nil)
   (concurrent nil) (max-concurrency 20)
+  ;; Pure-CL multi-file concurrent: files matching these globs (from
+  ;; bunfig test.concurrentTestGlob) run with default concurrent.
+  (concurrent-test-globs '())
   (error-message nil))
 
 (defun %test-seed (value)
@@ -171,6 +174,11 @@
           ((or (string= tok "-u") (string= tok "--update-snapshots"))
            (setf (to-update-snapshots o) t))
           ((string= tok "--concurrent") (setf (to-concurrent o) t))
+          ;; Pure-CL multi-file concurrent: enable default concurrent for every
+          ;; discovered file (process-level --parallel workers remain residual).
+          ((string= tok "--parallel") (setf (to-concurrent o) t))
+          ((and (>= (length tok) 11) (string= (subseq tok 0 11) "--parallel="))
+           (setf (to-concurrent o) t))
           ((string= tok "--max-concurrency")
            (let ((v (next)))
              (if v
@@ -219,7 +227,9 @@
   (setf (to-coverage-ignore-patterns opts) (tbc-coverage-ignore-patterns config)
         (to-coverage-threshold-lines opts) (tbc-coverage-threshold-lines config)
         (to-coverage-threshold-functions opts) (tbc-coverage-threshold-functions config)
-        (to-coverage-threshold-statements opts) (tbc-coverage-threshold-statements config))
+        (to-coverage-threshold-statements opts) (tbc-coverage-threshold-statements config)
+        (to-concurrent-test-globs opts)
+        (append (to-concurrent-test-globs opts) (tbc-concurrent-test-globs config)))
   (when (or (to-coverage-threshold-lines opts)
             (to-coverage-threshold-functions opts)
             (to-coverage-threshold-statements opts))
@@ -324,6 +334,27 @@
       (incf (st-fail stats))
       (%maybe-bail stats cfg))))
 
+(defun %file-matches-concurrent-glob-p (path cwd globs)
+  "True when PATH (absolute) matches any concurrentTestGlob pattern relative to CWD."
+  (when globs
+    (let* ((native (sys:pathname->native path))
+           (cwd-native (sys:pathname->native cwd))
+           (relative
+             (cond
+               ((and (>= (length native) (length cwd-native))
+                     (string= native cwd-native :end1 (length cwd-native)))
+                (let ((rest (subseq native (length cwd-native))))
+                  (if (and (plusp (length rest)) (char= (char rest 0) #\/))
+                      (subseq rest 1)
+                      rest)))
+               (t (sys:path-basename native))))
+           (base (sys:path-basename native)))
+      (some (lambda (pattern)
+              (or (clun.glob:glob-match-p pattern relative)
+                  (clun.glob:glob-match-p pattern base)
+                  (clun.glob:glob-match-p pattern native)))
+            globs))))
+
 (defun %run-one-file (path opts stats report cwd suite-state last-file-p
                       &optional coverage-session)
   "Load + run one test file in a fresh realm. Returns the file's expect() count. A load
@@ -358,7 +389,10 @@ error (syntax / top-level throw) is reported as a fail. Always tears the realm d
                                               :name-re (%build-regexp realm (to-name-pattern opts))
                                               :bail (to-bail opts)
                                               :snapshot snapshot
-                                              :default-concurrent (to-concurrent opts)
+                                              :default-concurrent
+                                              (or (to-concurrent opts)
+                                                  (%file-matches-concurrent-glob-p
+                                                   path cwd (to-concurrent-test-globs opts)))
                                               :max-concurrency (to-max-concurrency opts)
                                               :random-state
                                               (and (to-randomize opts)

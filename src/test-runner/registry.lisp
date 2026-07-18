@@ -24,8 +24,19 @@
   (fake-timers nil)
   (custom-matchers (make-hash-table :test #'equal)))
 
+;;; Thread-visible execution state.
+;;; Async/await bodies run on SBCL coroutine threads that do NOT inherit the
+;;; driver's dynamic special bindings (see numbers.lisp *fp-masked* note and
+;;; coroutine.lisp). SETF these globals around a test attempt so registration
+;;; APIs (onTestFinished, mid-test afterAll) and assertion counters are visible
+;;; on both the driver and coroutine threads. Cooperative handoff keeps only one
+;;; of {driver, coroutine} runnable, so a single global is race-free.
 (defvar *active-test* nil "The test whose hooks/body are currently executing.")
+(defvar *active-test-concurrent-p* nil
+  "True while a test.concurrent / --concurrent group slot is executing.")
 (defvar *test-finished-callbacks* nil "Callbacks registered for the active test attempt.")
+(defvar *test-attempt-after-alls* nil
+  "afterAll hooks registered during the active test body (Bun execution-phase).")
 
 (defun td-ordered-children (d)
   "Children in registration order (they are pushed, so reverse)."
@@ -351,15 +362,30 @@ Concurrent/serial are orthogonal to selection mode and expected-failure state."
     (make-family '() nil :normal :inherit)))
 
 (defun %hook (ctx slot)
-  "A before*/after* hook global: append the callback to the CURRENT describe's list."
+  "A before*/after* hook global: append the callback to the CURRENT describe's list.
+When afterAll/afterEach is called during an active test (Bun execution phase),
+afterAll is treated as a per-attempt hook that runs after the body and before
+suite afterEach — matching Bun's mid-test afterAll insertion."
   (%fn "" 1 (lambda (this args) (declare (ignore this))
               (let ((fn (eng:arg args 0)) (d (ctx-current ctx)))
                 (when (eng:callable-p fn)
-                  (ecase slot
-                    (:before-all (push fn (td-before-all d)))
-                    (:before-each (push fn (td-before-each d)))
-                    (:after-all (push fn (td-after-all d)))
-                    (:after-each (push fn (td-after-each d)))))
+                  (cond
+                    ;; Mid-test afterAll: Bun appends an execution entry after the
+                    ;; test body (before afterEach / onTestFinished). Retries re-run it.
+                    ((and (eq slot :after-all) *active-test*)
+                     (when *active-test-concurrent-p*
+                       (eng:throw-type-error
+                        "Cannot call afterAll() here. It cannot be called inside a concurrent test. Call it inside describe() instead."))
+                     (push fn *test-attempt-after-alls*))
+                    ((and (eq slot :after-each) *active-test* *active-test-concurrent-p*)
+                     (eng:throw-type-error
+                      "Cannot call afterEach() here. It cannot be called inside a concurrent test. Call it inside describe() instead."))
+                    (t
+                     (ecase slot
+                       (:before-all (push fn (td-before-all d)))
+                       (:before-each (push fn (td-before-each d)))
+                       (:after-all (push fn (td-after-all d)))
+                       (:after-each (push fn (td-after-each d)))))))
                 eng:+undefined+))))
 
 (defun %on-test-finished ()
@@ -369,6 +395,9 @@ Concurrent/serial are orthogonal to selection mode and expected-failure state."
       (unless *active-test*
         (eng:throw-type-error
          "Cannot call onTestFinished() here. It must be called inside a test."))
+      (when *active-test-concurrent-p*
+        (eng:throw-type-error
+         "Cannot call onTestFinished() here. It cannot be called inside a concurrent test. Use test.serial or remove test.concurrent."))
       (let ((callback (eng:arg args 0)))
         (unless (eng:callable-p callback)
           (eng:throw-type-error "onTestFinished() expects a callback function"))
@@ -380,7 +409,7 @@ Concurrent/serial are orthogonal to selection mode and expected-failure state."
 the file-local test globals (describe/test/expect/hooks/mocks/jest/…)."
   (let ((g (eng:realm-global realm))
         (exports (eng:new-object)))
-    (dolist (name '("describe" "test" "it" "expect"
+    (dolist (name '("describe" "test" "it" "expect" "expectTypeOf"
                     "beforeAll" "beforeEach" "afterAll" "afterEach"
                     "onTestFinished" "setDefaultTimeout"
                     "mock" "spyOn" "jest" "vi"))

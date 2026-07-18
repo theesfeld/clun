@@ -1,0 +1,11 @@
+(pass) a1
+(pass) a2
+(pass) a-assert
+(pass) b1
+(pass) b2
+(pass) b-assert
+
+ 6 pass
+ 0 fail
+ 8 expect() calls
+Ran 6 tests across 2 files.

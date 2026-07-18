@@ -1,0 +1,8 @@
+(pass) g1
+(pass) g2
+(pass) g-assert
+
+ 3 pass
+ 0 fail
+ 1 expect() calls
+Ran 3 tests across 1 file.

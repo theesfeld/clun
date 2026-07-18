@@ -20,7 +20,10 @@
   (coverage-skip-test-files t) (coverage-skip-test-files-present-p nil)
   (coverage-ignore-patterns '())
   (coverage-threshold-lines nil) (coverage-threshold-functions nil)
-  (coverage-threshold-statements nil))
+  (coverage-threshold-statements nil)
+  ;; Bun test.concurrentTestGlob: files matching any pattern run with
+  ;; default concurrent (as if --concurrent for that file only).
+  (concurrent-test-globs '()))
 
 (defun %toml-trim (string)
   (string-trim '(#\Space #\Tab #\Newline #\Return) string))
@@ -256,7 +259,8 @@
                                             '("preload" "coverage" "coveragereporter"
                                               "coveragedir" "coverageskiptestfiles"
                                               "coveragepathignorepatterns"
-                                              "coveragethreshold")
+                                              "coveragethreshold"
+                                              "concurrenttestglob")
                                             :test #'string=)
                                 (when (gethash key seen)
                                   (%config-error path "test.~a is declared more than once" key))
@@ -295,6 +299,12 @@
                                     ((string= key "coveragepathignorepatterns")
                                      (setf (tbc-coverage-ignore-patterns config)
                                            (%parse-test-preload-value value path)))
+                                    ((string= key "concurrenttestglob")
+                                     (setf (tbc-concurrent-test-globs config)
+                                           (if (and (plusp (length value))
+                                                    (char= (char value 0) #\[))
+                                               (%parse-test-preload-value value path)
+                                               (list (%parse-toml-string value path)))))
                                     (t (%set-coverage-threshold config value path)))))))))))
             config)))))
 
