@@ -9,8 +9,8 @@ targets are workload-specific and published;
 Clun does not claim blanket speed parity with Bun.
 
 <!-- clun-generated:release:begin -->
-> **Status: pre-alpha, under active construction.** [Phase 65](https://github.com/theesfeld/clun/issues/39) is in progress.
-> Its release-bearing target is `0.1.0-dev.33` / `v0.1.0-dev.33` (SemVer impact: `minor`).
+> **Status: pre-alpha, under active construction.** [Phase 76](https://github.com/theesfeld/clun/issues/136) is in progress.
+> Its release-bearing target is `0.1.0-dev.34` / `v0.1.0-dev.34` (SemVer impact: `minor`).
 > The verified release boundary is `v0.1.0-dev.21`, with four native archives, checksums, Pages,
 > and hosted-installer evidence.
 > Phase 26 remains deferred until after Phase 82 and will
@@ -47,6 +47,7 @@ interoperability gap.
 
 - JavaScript, JSON, ESM, CommonJS, and erasable TypeScript execution (`.tsx` is not supported in
   v0.1; JSX/TSX is planned for Phase 40).
+- Cron scheduling: `Clun.cron(schedule, handler)`, `Clun.cron.parse`, stop/ref/unref; OS-level paths fail closed under pure-CL.
 - Object integrity and legacy accessor operations including `Object.seal`, `Object.isSealed`,
   `__defineGetter__`, `__defineSetter__`, `__lookupGetter__`, and `__lookupSetter__`. Proxy remains
   unsupported.
@@ -141,7 +142,7 @@ Bun exposes additional public APIs outside its homepage matrix. These links are 
 current Clun capabilities: [73 inventory freeze](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-73),
 [74 archive/compression](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-74),
 [75 data/document formats, Markdown, and HTMLRewriter](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-75),
-[76 Cron and REPL](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-76),
+[76 Cron and REPL](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-76) (in-process `Clun.cron` + parse shipped; OS-level fail-closed; REPL open),
 [77 transpiler/build APIs](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-77),
 [78 image processing](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-78),
 [79 WebView checkpoint](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-79),
@@ -157,10 +158,10 @@ workflows are read-only and fail closed if the canonical issues, README, or site
 
 <!-- clun-generated:release-summary:begin -->
 Release versions follow the actual SemVer impact recorded in the canonical issue, not the number of pushes.
-The current source is the `0.1.0-dev.33` release candidate; the immutable tag and assets are not published yet.
+The current source is the `0.1.0-dev.34` release candidate; the immutable tag and assets are not published yet.
 The last published prerelease remains [`v0.1.0-dev.21`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.21).
 [The versioning contract](docs/versioning.md) defines prerelease sequencing, synchronized surfaces, immutable tags, assets, and installer evidence.
-[Phase 65 issue #39](https://github.com/theesfeld/clun/issues/39) is the canonical live release record.
+[Phase 76 issue #136](https://github.com/theesfeld/clun/issues/136) is the canonical live release record.
 <!-- clun-generated:release-summary:end -->
 
 ## The purity contract
@@ -200,7 +201,7 @@ vendored under `vendor/` and located via `scripts/registry.lisp`.
 make build     # compile everything, save build/clun (save-lisp-and-die)
 make test      # run the CL suites and JS/TS fixture harnesses
 make purity    # fail on any CFFI/foreign-code token
-./build/clun --version   # => clun 0.1.0-dev.33
+./build/clun --version   # => clun 0.1.0-dev.34
 ```
 
 A fresh clone builds with `make build` alone: ASDF compiles the vendored closure and `src/` into

@@ -3287,3 +3287,15 @@ additional shell-language inventory sites after #122/#123 (overall
 - Pure-CL background `&` + `wait`, ENAMETOOLONG, multi-error lex, EACCES globs, ls flag order.
 - Four-target platforms.tsv `supported`; ledger `clun_state=Yes`.
 - Release train: `0.1.0-dev.33`.
+
+## 2026-07-18 — Clun.cron pure-CL (#136)
+
+Ship Bun-compatible `Clun.cron` in pure Common Lisp:
+
+1. 5-field expression grammar + nicknames + named months/weekdays + weekday 7
+2. UTC next-occurrence (strictly after), 8-year horizon, POSIX DOM/DOW OR
+3. In-process jobs: stop/ref/unref, no-overlap re-arm after Promise settlement
+4. OS-level register/remove fail closed (no shell-outs to system schedulers)
+
+Beyond the fixed 30-row homepage matrix. REPL remains Phase 76 residual on #50.
+SemVer minor → `0.1.0-dev.34`.

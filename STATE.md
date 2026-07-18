@@ -7,19 +7,17 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **65 - Cross-platform shell API**
+## Current phase: **76 - Cron scheduling pure-CL**  (Issue #136)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/39
-**Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/120,
-https://github.com/theesfeld/clun/issues/23, https://github.com/theesfeld/clun/issues/40,
-and https://github.com/theesfeld/clun/issues/25
-**Current implementation unit:** Phase 65 tooling.shell Partial→Yes complete (#120 under parent #39).
-`tooling.shell` is **Yes** (1,598 covered / 0 pending / 32 upstream-inactive; four-target supported).
+**Canonical issue:** https://github.com/theesfeld/clun/issues/136
+**Parent phase issue:** https://github.com/theesfeld/clun/issues/50
+**Current implementation unit:** Pure-CL `Clun.cron` in-process scheduling + parse/next-occurrence.
+OS-level register/remove fail closed (purity). REPL remains open on parent #50.
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.33` / `v0.1.0-dev.33`
+**Candidate release:** `0.1.0-dev.34` / `v0.1.0-dev.34`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
-**Entry boundary:** installer on `v0.1.0-dev.21`; candidate `0.1.0-dev.33` remains staged after #126.
-**Next scope:** next Yes conversions on Partial rows (test-runner, websocket, webstd, npm, node, TS, HTTP); shell ledger Yes held.
+**Entry boundary:** installer on `v0.1.0-dev.21`; this unit stages free `0.1.0-dev.34` after shell Yes `0.1.0-dev.33`.
+**Next scope:** Phase 76 REPL remainder; matrix stays 30 rows (cron is beyond-matrix public surface).
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
 easiest to hardest among dependency-ready rows. Core engine/runtime/network/tooling changes are expected.

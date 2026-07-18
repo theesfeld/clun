@@ -190,6 +190,7 @@
                                            (:file "spawn")     ; Clun.spawnSync (Phase 24) — before clun-global
                                            (:file "shell")     ; Clun.$ cross-platform shell — before clun-global
                                            (:file "clun-semver"); Clun.semver (Phase 29) — before clun-global
+                                           (:file "clun-cron")  ; Clun.cron (Phase 76) — before clun-global
                                            (:file "clun-csrf")  ; Clun.CSRF (Phase 35) — before clun-global
                                            (:file "clun-password-hash") ; Clun.password/hash (Phase 36)
                                            (:file "clun-secrets") ; Clun.secrets (Phase 58 constitutional)
@@ -314,7 +315,8 @@
                                                          (:file "url-tests")
                                                          (:file "spawn-tests")
                                                          (:file "shell-tests")
-                                                         (:file "scripts-tests")))
+                                                         (:file "scripts-tests")
+                                                         (:file "cron-tests")))
                                            (:module "transpiler"
                                             :serial t
                                             :components ((:file "ts-strip-tests")))

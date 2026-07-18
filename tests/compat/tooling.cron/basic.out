@@ -1,0 +1,10 @@
+api function function function cron parse
+namespace-descriptor false true false
+job * * * * * function function function
+chain true true true
+validate invalid invalid invalid notstring nofuture
+parse 2026-06-15T09:00:00.000Z 2026-06-16T09:00:00.000Z null 2026-01-02T00:00:00.000Z 2026-01-04T00:00:00.000Z
+nicknames 2026-06-15T13:00:00.000Z 2026-06-16T00:00:00.000Z
+named 0 9 * JAN-DEC MON-FRI
+os-level true true
+os-reject true true
