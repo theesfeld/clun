@@ -7,22 +7,24 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **37 - Modern ECMAScript gap wave**  (M3 CHECKPOINT)
+## Current phase: **58 - Operating-system secrets constitutional checkpoint**
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/11
-**Next phase issue:** https://github.com/theesfeld/clun/issues/11
+**Canonical issue:** https://github.com/theesfeld/clun/issues/32
+**Next phase issue:** https://github.com/theesfeld/clun/issues/32
 **Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/2,
-https://github.com/theesfeld/clun/issues/39, and https://github.com/theesfeld/clun/issues/40
-**Current implementation unit:** Phase 37 milestone 3 — pure-CL ES2025 `Set.prototype` set-methods
-(`union` / `intersection` / `difference` / `symmetricDifference` / `isSubsetOf` / `isSupersetOf` /
-`isDisjointFrom`) via `GetSetRecord`. Converts 151 frozen `set-methods` failures. No compatibility-table
-`Yes` is claimed; Phase 37 remains open with residual ownership after reclassification.
+https://github.com/theesfeld/clun/issues/11, and https://github.com/theesfeld/clun/issues/39
+**Current implementation unit:** Phase 58 OS-secrets constitutional checkpoint — pure Common Lisp
+cannot access macOS Keychain, libsecret, or Windows Credential Manager without CFFI. Decision is
+**No — constitutional**. Ship `Clun.secrets` with Bun-shaped validation and fail-closed
+`ERR_SECRETS_NOT_AVAILABLE`. Ledger row `security.encrypted-secrets` stays **No** (not Yes/Partial).
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.23` / `v0.1.0-dev.23`
-**Published release:** `0.1.0-dev.18` / `v0.1.0-dev.18`
-**Entry boundary:** immutable `v0.1.0-dev.21` is the verified published release boundary with four native archives + checksums; installer defaults to that tag. Master tip is `0.1.0-dev.22` after Phase 28 transport foundation (#95, merge `ba2e998b`, unpublished). This unit stages `0.1.0-dev.23` as the next free prerelease under the unpublished-intermediate gap policy (transition 22→23; previous_version = published `0.1.0-dev.21`). Phase 26 remains after Phase 82.
-**Next scope:** keep Phase 37 open (no matrix Yes); green exact-head CI on the staged candidate; residual
-modern ECMAScript inventory continues after m3; pass-list reclassification is owned by the release unit.
+**Candidate release:** `0.1.0-dev.26` / `v0.1.0-dev.26`
+**Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
+**Entry boundary:** immutable `v0.1.0-dev.21` is tagged and published; installer defaults to that tag.
+Master tip is `0.1.0-dev.23` after m3 #109. Parallel trains may claim unpublished slots through `0.1.0-dev.25`;
+this unit stages free `0.1.0-dev.26` under the unpublished-intermediate prerelease gap policy. Phase 26 remains after Phase 82.
+**Next scope:** keep `security.encrypted-secrets` at No with tested fail-closed evidence; no purity
+amendment; no file-vault relabel as OS secrets.
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
 easiest to hardest among dependency-ready rows. Core engine/runtime/network/tooling changes are expected.
@@ -38,7 +40,7 @@ pass at `7c7377780413b98da1396f5d8e5d84611cf6cca3`; annotated tag `v0.1.0-dev.16
 release run **29561031150** published the immutable four-platform archives plus checksums. Issue #5 is
 closed complete with exact asset digests. Phase 37 milestone 1 adds `Object.hasOwn`, array copy-by-change methods, String
 well-formedness, `Error.isError`, and `Promise.withResolvers`, producing 173 measured execution-pass gains;
-its frozen inventory still has 452 residual failures after m3 and no full ledger row is claimed. Parallel durable
+its frozen inventory still has 603 residual failures after m2 and no full ledger row is claimed. Parallel durable
 checkpoints include transport request streaming plus origin-keyed HTTP pooling and shell parser/runtime,
 guarded filesystem builtins, bounded `yes`, and isolated pipeline state. Merged `master` is **9 Yes /
 7 Partial / 14 No** with shell Partial (PR #86) and test-runner Partial (PR #88) on master; this unit

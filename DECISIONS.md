@@ -3216,13 +3216,24 @@ Phase 39). `namespace-type-only-p` now treats bare `enum` as a runtime leader so
 `Partial`. Corpus: strip declare-enum / declare-const-enum / export-declare-enum; error
 enum-in-namespace; runtime declare-enum; parachute `ts/ambient-enum-strip`.
 
-### 2026-07-17 - Phase 51 WebSocket is pure-CL feasible (not a purity No)
+### 2026-07-17 - Phase 58 OS secrets remain No — constitutional
 
-Constitutional checkpoint on issue #25: RFC 6455 handshake/framing, Bun-shaped
-`ServerWebSocket`, topic Pub/Sub, and optional permessage-deflate can be built on the
-existing reactor sockets, HTTP parser/serve path, Ironclad SHA-1 (accept key only), and
-Chipz deflate — without CFFI, uWebSockets, OpenSSL, or system zlib. The ledger row
-`server.websocket` stays **No** until Autobahn-style and Bun-differential four-target
-evidence exist. M0 ships package/types scaffold plus fail-closed `Clun.serve` errors
-when `websocket` options or `upgrade`/`publish`/`subscriberCount` are used, so absence
-is explicit rather than a silent half-shim. Design: `docs/design/phase-51.md`.
+Bun.secrets stores credentials in OS keychains (macOS Security.framework, Linux libsecret /
+Secret Service, Windows Credential Manager). Every Bun backend uses a native foreign boundary
+(`Security.framework`, `dlopen(libsecret)`, Win32 Credential Manager). Pure Common Lisp cannot
+deliver four-target OS-keychain parity without CFFI, subprocess disguise, or an operator-approved
+purity amendment.
+
+Spikes recorded in `docs/design/phase-58.md`:
+
+1. Darwin Keychain has no pure user-space protocol under the purity contract.
+2. Pure D-Bus Secret Service is theoretically possible on Linux only and does not clear the
+   four-target `Yes` gate.
+3. A pure-CL encrypted file vault is not OS keychain parity and must never be relabeled as such.
+4. No purity-contract amendment is requested or recorded.
+
+**Decision:** ledger row `security.encrypted-secrets` stays **No** with detail that OS keychain
+integration is excluded by the purity contract. Ship `Clun.secrets` with Bun-shaped
+`get` / `set` / `delete` argument validation and fail-closed `ERR_SECRETS_NOT_AVAILABLE` for every
+store operation. Do not claim `Yes` or `Partial`. Evidence is the design decision, Lisp suite, and
+shipped fixture under `make compat FEATURE=security.encrypted-secrets`.

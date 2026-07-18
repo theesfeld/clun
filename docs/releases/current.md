@@ -1,7 +1,7 @@
 <!-- clun-generated:release-notes:begin -->
-# Clun 0.1.0-dev.23
+# Clun 0.1.0-dev.26
 
-Phase 37: Modern ECMAScript gap wave.
+Phase 58: Operating-system secrets constitutional checkpoint.
 
 - SemVer impact: `minor` within the selected `0.1.0` prerelease train.
 - Compatibility snapshot: 9 Yes / 7 Partial / 14 No across 30 generated rows.
@@ -14,17 +14,16 @@ The canonical evidence and current limitations are in `compat/`; `make compat-va
 
 ## Highlights
 
-- Stages Phase 37 milestone 3 as a bounded engine residual conversion: pure-CL
-  ES2025 `Set.prototype` set-methods (`union`, `intersection`, `difference`,
-  `symmetricDifference`, `isSubsetOf`, `isSupersetOf`, `isDisjointFrom`) over
-  Set-like `GetSetRecord` arguments.
-- Converts 151 frozen `set-methods` Test262 failures; pass-list reclassification
-  is not claimed on this candidate. No compatibility-table `Yes` is claimed.
-- Slot map: published boundary `v0.1.0-dev.21`; master tip `0.1.0-dev.22`
-  after Phase 28 transport foundation (#95, unpublished); this candidate allocates
-  `0.1.0-dev.23` under the unpublished-intermediate prerelease gap policy
-  (transition `0.1.0-dev.22` → `0.1.0-dev.23`; `previous_version` remains published `0.1.0-dev.21`).
+- Phase 58 records the OS-secrets **constitutional checkpoint**: pure Common Lisp cannot
+  deliver Bun-compatible OS keychain storage (macOS Keychain, libsecret, Windows Credential
+  Manager) without a purity-contract amendment.
+- Ships `Clun.secrets` with Bun-shaped `get` / `set` / `delete` argument validation and
+  fail-closed `ERR_SECRETS_NOT_AVAILABLE` for every store operation.
+- Ledger row `security.encrypted-secrets` remains **No** (excluded by the purity contract).
+  A pure file vault is explicitly not OS-keychain parity and is not claimed.
+- Slot map: published base `0.1.0-dev.21`; master tip `0.1.0-dev.22` (transport #95); parallel trains claim
+  unpublished 23–25; this candidate allocates free `0.1.0-dev.26` under the
+  unpublished-intermediate prerelease gap policy (transition `0.1.0-dev.22` → `0.1.0-dev.26`).
 
-The release candidate stages honest engine residual work without promoting any matrix row to `Yes`.
-Merge, publication, and Phase 37 closure remain blocked on remaining inventory residuals, pass-list
-integration, and final review.
+The release candidate stages an honest constitutional disposition with tested clear errors and
+does not promote any matrix row to `Yes` or `Partial`.
