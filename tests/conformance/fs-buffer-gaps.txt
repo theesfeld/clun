@@ -57,9 +57,12 @@
 # B4. Dir handles: opendir / opendirSync / fs.Dir; recursive cp / cpSync of directories
 #     (single-file copyFile[Sync] IS implemented). readdirSync recursive:true not honoured.
 #
-# B5. Ownership / times / links beyond the core: chown/lchown/utimes/lutimes/link/
-#     realpath.native/statfs; the bigint:true stat option (times are second-granular —
-#     fstat nanosecond fields are seconds*1e9, see B7).
+# B5. Closed pure-CL residual (#132 fs train): link[Sync]/ chown/lchown[Sync],
+#     utimes[Sync] (number seconds or Date), plus callback + fs.promises parity for
+#     the path-based ops already backed by clun.sys (readlink/symlink/chmod/truncate/
+#     rmdir/rm/copyFile/realpath/mkdtemp/lstat/…). Still deferred: lutimes (no
+#     sb-posix lutimes), realpath.native, statfs, bigint:true stat option (times are
+#     second-granular — fstat nanosecond fields are seconds*1e9, see B7).
 #
 # B6. Constants: only the common subset is exposed (F_OK/R_OK/W_OK/X_OK, O_RDONLY..
 #     O_APPEND, S_IFMT/S_IFREG/S_IFDIR/S_IFLNK). Mode-string flags ('r','w','a',...) on
