@@ -304,3 +304,6 @@ Phase 75 Markdown + HTMLRewriter pure-CL (#135) stages `0.1.0-dev.39` / `v0.1.0-
 
 Phase 39 language.typescript Partial→Yes (#133) stages `0.1.0-dev.40` / `v0.1.0-dev.40` with enum, runtime namespace, and parameter-property transforms plus four-target supported receipts.
 
+
+0.1.0-dev.41
+Phase 49 server.http Partial→Yes (#128) stages `0.1.0-dev.41` / `v0.1.0-dev.41`.

@@ -59,10 +59,10 @@ security.password-hashing	darwin-arm64	supported	ev.security.password-hashing.pu
 security.password-hashing	darwin-x64	supported	ev.security.password-hashing.public.v1	The complete public surface executes through the shipped binary.
 security.password-hashing	linux-arm64	supported	ev.security.password-hashing.public.v1	The complete public surface executes through the shipped binary.
 security.password-hashing	linux-x64	supported	ev.security.password-hashing.public.v1	The complete public surface executes through the shipped binary.
-server.http	darwin-arm64	unverified	ev.server.http.binary-e2e.v1,ev.server.http.server-suite.v1	Registered executable evidence is target-scoped; static suite evidence is trace-only.
-server.http	darwin-x64	unverified	ev.server.http.binary-e2e.v1,ev.server.http.server-suite.v1	Registered executable evidence is target-scoped; static suite evidence is trace-only.
-server.http	linux-arm64	unverified	ev.server.http.binary-e2e.v1,ev.server.http.server-suite.v1	Registered executable evidence is target-scoped; static suite evidence is trace-only.
-server.http	linux-x64	unverified	ev.server.http.binary-e2e.v1,ev.server.http.server-suite.v1	Registered executable evidence is target-scoped; static suite evidence is trace-only.
+server.http	darwin-arm64	supported	ev.server.http.binary-e2e.v1	The complete public HTTP/1.1 server surface executes through the shipped binary.
+server.http	darwin-x64	supported	ev.server.http.binary-e2e.v1	The complete public HTTP/1.1 server surface executes through the shipped binary.
+server.http	linux-arm64	supported	ev.server.http.binary-e2e.v1	The complete public HTTP/1.1 server surface executes through the shipped binary.
+server.http	linux-x64	supported	ev.server.http.binary-e2e.v1	The complete public HTTP/1.1 server surface executes through the shipped binary.
 server.router	darwin-arm64	supported	ev.server.router.binary-e2e.v1,ev.server.router.inventory.v1	The complete public router surface executes through the shipped binary.
 server.router	darwin-x64	supported	ev.server.router.binary-e2e.v1,ev.server.router.inventory.v1	The complete public router surface executes through the shipped binary.
 server.router	linux-arm64	supported	ev.server.router.binary-e2e.v1,ev.server.router.inventory.v1	The complete public router surface executes through the shipped binary.

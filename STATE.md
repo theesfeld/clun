@@ -6,37 +6,17 @@ Ship path: topic branch → PR → squash-merge into `master` (not direct push).
 Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
+## Current phase: **49 - HTTP server parity**  (YES CONVERSION #128)
 
-## Current phase: **39 - Full TypeScript transforms**  (Yes conversion #133)
-
-**Canonical issue:** https://github.com/theesfeld/clun/issues/133
-**Related residual:** https://github.com/theesfeld/clun/issues/13
-**Current implementation unit:** language.typescript Partial→Yes (#133) — erasable strip plus
-Bun-compatible enum / runtime-namespace / parameter-property transforms; no tsc typecheck.
+**Canonical issue:** https://github.com/theesfeld/clun/issues/128
+**Current implementation unit:** Phase 49 `server.http` Partial→Yes (#128).
+`server.http` is **Yes** (HTTP/1.1 streaming request/response bodies; four-target supported).
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.40` / `v0.1.0-dev.40`
+**Candidate release:** `0.1.0-dev.41` / `v0.1.0-dev.41`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
-**Entry boundary:** installer on `v0.1.0-dev.21`; this unit stages `0.1.0-dev.40`.
-**Next scope:** remaining Partial→Yes fleet; decorators/tsx remain deferred.
+**Entry boundary:** installer on `v0.1.0-dev.21`; this unit stages `0.1.0-dev.41` after master tip `0.1.0-dev.40`.
+**Next scope:** remaining Partial→Yes fleet; HTTP/2 residual.
 
-**Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue.
-
-**Current checkpoint:** `language.typescript` is **Yes** with enum/namespace/param-prop emit.
-Matrix Yes count advances one row over master tip.
-
-**M5 entry boundary:** immutable dev.4 diagnostic set **56 total / 0 pass / 56 fail / 0 skip / 0 crash**:
-**43 m5-owned** (32 intrinsic/prototype, 7 parser, 4 raw delegation), **12 m11** direct-eval/`with`
-controls, and **1 Phase-37** control. The unrelated mixed-feature async-iteration row remains m6. No
-denominator or skip change. The release-bearing unit was SemVer **minor** and published as
-`0.1.0-dev.5` / `v0.1.0-dev.5`. The tracked fail-closed exit gate is **43 m5 pass / 12 m11 fail /
-1 Phase-37 fail / 0 skip / 0 timeout / 0 crash**. M5 has zero owned residual. Its post-publication
-evidence handoff is SemVer **none**, retains dev.5, and makes m6 current.
-
-**M6 entry boundary:** immutable dev.5 diagnostic set **509 total / 0 pass / 509 fail / 0 skip /
-0 timeout / 0 crash**. Ownership is **407 m6** required-pass rows (328 async-generator delegation,
-47 yield awaiting/rejection, 9 AsyncFromSync, 6 `for await` ordering/close, 6 request queue, 6
-invalid-receiver promise rejection, 5 return awaiting), **7 m11** direct-eval/`with` controls, and
-**95 Phase-37** `Array.fromAsync` controls. The focused exit gate now passes exactly **407 m6 pass /
 7 m11 fail / 95 Phase-37 fail / 0 skip / 0 timeout / 0 crash**. The confirmed default/off corpus is
 **25,461 pass / 2,702 fail / 12,491 skip / 0 crash**, or **25,461 / 28,163 = 90.405852%**: 114 above
 the fixed target. The monotonic pass-list gain is +410 from m5 and +2,818 from the frozen 22,643-row
