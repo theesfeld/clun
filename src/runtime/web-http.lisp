@@ -1271,8 +1271,8 @@ Rejects when the body stream is locked by getReader()."
    :stream stream))
 
 (defun %construct-readable-stream (underlying-source)
-  "Minimal `new ReadableStream({ start(controller), cancel })`."
-  (let* ((stream (%new-readable-stream :closed-p nil))
+  "Minimal `new ReadableStream({ start(controller), cancel })` with wait-for-data for async enqueue."
+  (let* ((stream (%new-readable-stream :closed-p nil :wait-for-data-p t))
          (controller (%controller-for stream))
          (source (if (eng:js-object-p underlying-source)
                      underlying-source
