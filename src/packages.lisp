@@ -318,8 +318,8 @@
   (:use :cl)
   (:local-nicknames (:crypto :ironclad))
   (:documentation
-   "Pure Common Lisp WebSocket (RFC 6455 handshake + framing).
-    Pub/Sub, client WebSocket, and compression land in later Phase 51 milestones;
+   "Pure Common Lisp WebSocket (RFC 6455 handshake + framing + topic hub).
+    Client WebSocket and compression land in later Phase 51 milestones;
     see docs/design/phase-51.md.")
   (:export
    #:+opcode-continuation+ #:+opcode-text+ #:+opcode-binary+
@@ -347,7 +347,12 @@
    #:mask-payload #:websocket-upgrade-request-p #:opening-handshake-response
    #:make-close-payload #:parse-close-payload
    #:make-text-frame #:make-binary-frame
-   #:make-ping-frame #:make-pong-frame #:make-close-frame))
+   #:make-ping-frame #:make-pong-frame #:make-close-frame
+   ;; Pub/Sub topic hub (pure membership; fan-out is in clun-serve)
+   #:ws-topic-hub #:ws-topic-hub-p #:make-ws-topic-hub
+   #:topic-hub-subscribe #:topic-hub-unsubscribe #:topic-hub-unsubscribe-all
+   #:topic-hub-subscribed-p #:topic-hub-subscriptions
+   #:topic-hub-subscriber-count #:topic-hub-subscribers))
 
 ;; --- dependent layer (local-nicknames into the base packages above) ---------
 

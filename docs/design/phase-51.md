@@ -183,8 +183,8 @@ prohibition (contrast `runtime.native-addons` / Phase 48).
 
 ### M3 — Pub/Sub
 
-- subscribe/unsubscribe/isSubscribed/subscriptions.
-- `ws.publish` and `server.publish` / `subscriberCount`.
+- [x] subscribe/unsubscribe/isSubscribed/subscriptions.
+- [x] `ws.publish` and `server.publish` / `subscriberCount`.
 - 10k-subscriber stress and cleanup proofs.
 
 ### M4 — Compression + client + TLS/`wss`

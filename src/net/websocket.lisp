@@ -1,8 +1,8 @@
-;;;; websocket.lisp — Phase 51 M1: pure-CL RFC 6455 handshake + framing.
+;;;; websocket.lisp — Phase 51: pure-CL RFC 6455 handshake + framing + Pub/Sub hub.
 ;;;; Server handshake (Sec-WebSocket-Accept), frame encode/decode for text,
-;;;; binary, ping, pong, and close. Pub/Sub, client WebSocket, compression,
-;;;; and full fragmentation reassembly remain later milestones.
-;;;; See docs/design/phase-51.md. No foreign libraries.
+;;;; binary, ping, pong, and close; topic hub for server.publish / subscribe.
+;;;; Client WebSocket, compression, and full fragmentation reassembly remain
+;;;; later milestones. See docs/design/phase-51.md. No foreign libraries.
 
 (in-package :clun.websocket)
 
@@ -51,10 +51,10 @@
                      (websocket-error-message c)))))
 
 (defun websocket-not-implemented-message (&optional (surface "WebSocket"))
-  "Stable user-facing text for surfaces not yet implemented (Pub/Sub, client)."
+  "Stable user-facing text for Phase 51 surfaces not yet implemented (client, etc.)."
   (format nil "~a is not implemented in Clun (Phase 51). ~
-               Pure Common Lisp WebSocket framing/handshake is available; ~
-               Pub/Sub and remaining surfaces land in later milestones ~
+               Pure Common Lisp WebSocket framing/handshake and Pub/Sub are available; ~
+               remaining surfaces land in later milestones ~
                (docs/design/phase-51.md)."
           surface))
 
@@ -433,3 +433,75 @@ WEBSOCKET-PROTOCOL-ERROR on a clear protocol violation."
   (make-ws-frame
    :fin t :opcode +opcode-close+
    :payload (make-close-payload code reason)))
+
+;;; --- Topic hub (Bun-shaped Pub/Sub) ----------------------------------------
+;;;
+;;; Pure in-memory membership tables. Subscribers are opaque EQ identities
+;;; (runtime ws-session objects). Fan-out I/O lives in clun-serve; this layer
+;;; only tracks who is subscribed to which topic.
+
+(defstruct (ws-topic-hub
+            (:constructor make-ws-topic-hub)
+            (:conc-name ws-topic-hub-))
+  "Server-wide topic → subscriber list. EQ subscribers; EQUAL topics."
+  (topics (make-hash-table :test #'equal) :type hash-table)
+  ;; Reverse index: subscriber → list of topic strings (for close cleanup).
+  (by-subscriber (make-hash-table :test #'eq) :type hash-table))
+
+(defun topic-hub-subscribe (hub subscriber topic)
+  "Subscribe SUBSCRIBER to TOPIC. Idempotent. Returns T if newly added."
+  (check-type topic string)
+  (let* ((topics (ws-topic-hub-topics hub))
+         (by (ws-topic-hub-by-subscriber hub))
+         (members (gethash topic topics))
+         (already (member subscriber members :test #'eq)))
+    (unless already
+      (setf (gethash topic topics) (cons subscriber members))
+      (setf (gethash subscriber by)
+            (cons topic (gethash subscriber by)))
+      t)))
+
+(defun topic-hub-unsubscribe (hub subscriber topic)
+  "Unsubscribe SUBSCRIBER from TOPIC. Returns T if it was a member."
+  (check-type topic string)
+  (let* ((topics (ws-topic-hub-topics hub))
+         (by (ws-topic-hub-by-subscriber hub))
+         (members (gethash topic topics))
+         (was (member subscriber members :test #'eq)))
+    (when was
+      (let ((rest (remove subscriber members :test #'eq)))
+        (if rest
+            (setf (gethash topic topics) rest)
+            (remhash topic topics)))
+      (let ((owned (remove topic (gethash subscriber by) :test #'string=)))
+        (if owned
+            (setf (gethash subscriber by) owned)
+            (remhash subscriber by)))
+      t)))
+
+(defun topic-hub-unsubscribe-all (hub subscriber)
+  "Remove SUBSCRIBER from every topic. Returns the number of topics cleared."
+  (let ((owned (copy-list (gethash subscriber (ws-topic-hub-by-subscriber hub)))))
+    (dolist (topic owned)
+      (topic-hub-unsubscribe hub subscriber topic))
+    (length owned)))
+
+(defun topic-hub-subscribed-p (hub subscriber topic)
+  "True when SUBSCRIBER is currently subscribed to TOPIC."
+  (check-type topic string)
+  (and (member subscriber (gethash topic (ws-topic-hub-topics hub)) :test #'eq)
+       t))
+
+(defun topic-hub-subscriptions (hub subscriber)
+  "Return a fresh list of topic strings SUBSCRIBER is subscribed to."
+  (copy-list (gethash subscriber (ws-topic-hub-by-subscriber hub))))
+
+(defun topic-hub-subscriber-count (hub topic)
+  "Number of live subscribers on TOPIC (0 if unknown)."
+  (check-type topic string)
+  (length (gethash topic (ws-topic-hub-topics hub))))
+
+(defun topic-hub-subscribers (hub topic)
+  "Return a fresh list of subscribers on TOPIC (may include closed sockets)."
+  (check-type topic string)
+  (copy-list (gethash topic (ws-topic-hub-topics hub))))

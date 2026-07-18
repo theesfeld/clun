@@ -29,6 +29,7 @@
   "Per-connection WebSocket state after a successful server.upgrade."
   connection
   handlers
+  hub                                  ; server-wide ws-topic-hub (may be NIL)
   js-ws
   (ready-state 1)                       ; 0 CONNECTING 1 OPEN 2 CLOSING 3 CLOSED
   (buffer (make-array 0 :element-type '(unsigned-byte 8)
@@ -895,7 +896,7 @@ SERVER / WEBSOCKET-CELL enable Phase 51 M1 upgrade when handlers are configured.
           (format nil "Clun.serve: `~a` must be a function" name))))))
 
 (defun %throw-websocket-not-implemented (&optional (surface "WebSocket"))
-  "Fail closed for Phase 51 surfaces not yet implemented (Pub/Sub, client)."
+  "Fail closed for Phase 51 surfaces not yet implemented (client, etc.)."
   (eng:throw-type-error (ws:websocket-not-implemented-message surface)))
 
 (defun %compile-websocket-handlers (opts)
@@ -984,6 +985,10 @@ SERVER / WEBSOCKET-CELL enable Phase 51 M1 upgrade when handlers are configured.
     (%ws-set-ready-state session 2))
   (when (or (ws-session-close-received-p session)
             (not send-close))
+    ;; Drop topic membership before handlers / socket teardown so
+    ;; subscriberCount and later publish calls never see a closed socket.
+    (when (ws-session-hub session)
+      (ws:topic-hub-unsubscribe-all (ws-session-hub session) session))
     (%ws-set-ready-state session 3)
     (let ((close-fn (ws:ws-handler-options-close (ws-session-handlers session)))
           (js (ws-session-js-ws session)))
@@ -996,6 +1001,35 @@ SERVER / WEBSOCKET-CELL enable Phase 51 M1 upgrade when handlers are configured.
           (condition () nil))))
     (ignore-errors (net:tcp-shutdown (ws-session-connection session))))
   t)
+
+(defun %ws-session-open-p (session)
+  "True when SESSION can still receive published frames."
+  (and session
+       (< (ws-session-ready-state session) 2)
+       (not (eq (net:tcp-state (ws-session-connection session)) :closed))))
+
+(defun %ws-hub-publish (hub topic opcode payload &key exclude)
+  "Fan-out PAYLOAD as a WebSocket frame to TOPIC subscribers on HUB.
+
+Returns Bun-shaped status: 0 when nothing was delivered (no subscribers, or
+only the excluded publisher), else the payload byte length. Full backpressure
+(-1) lands with the later ServerWebSocket backpressure milestone."
+  (unless (and hub (stringp topic))
+    (return-from %ws-hub-publish 0))
+  (let* ((subs (ws:topic-hub-subscribers hub topic))
+         (sent 0)
+         (frame (ws:make-ws-frame :fin t :opcode opcode :payload payload)))
+    (dolist (session subs)
+      (when (and (%ws-session-open-p session)
+                 (or (null exclude) (not (eq session exclude))))
+        (handler-case
+            (progn
+              (%ws-write-frame session frame)
+              (incf sent))
+          (condition () nil))))
+    (if (plusp sent)
+        (length payload)
+        0)))
 
 (defun %ws-handle-frame (session frame)
   (let ((opcode (ws:ws-frame-opcode frame))
@@ -1185,9 +1219,94 @@ SERVER / WEBSOCKET-CELL enable Phase 51 M1 upgrade when handlers are configured.
           (declare (ignore opcode))
           (%ws-write-frame session (ws:make-pong-frame payload))
           eng:+undefined+)))
+    ;; --- Pub/Sub (Phase 51 M3) --------------------------------------------
+    (eng:install-method ws-obj "subscribe" 1
+      (lambda (this args)
+        (declare (ignore this))
+        (let ((hub (ws-session-hub session))
+              (topic (eng:to-string (eng:arg args 0))))
+          (when (and hub (%ws-session-open-p session))
+            (ws:topic-hub-subscribe hub session topic))
+          eng:+undefined+)))
+    (eng:install-method ws-obj "unsubscribe" 1
+      (lambda (this args)
+        (declare (ignore this))
+        (let ((hub (ws-session-hub session))
+              (topic (eng:to-string (eng:arg args 0))))
+          (when hub
+            (ws:topic-hub-unsubscribe hub session topic))
+          eng:+undefined+)))
+    (eng:install-method ws-obj "isSubscribed" 1
+      (lambda (this args)
+        (declare (ignore this))
+        (let ((hub (ws-session-hub session))
+              (topic (eng:to-string (eng:arg args 0))))
+          (eng:js-boolean
+           (and hub (ws:topic-hub-subscribed-p hub session topic))))))
+    (eng:install-getter ws-obj "subscriptions"
+      (lambda (this args)
+        (declare (ignore this args))
+        (let* ((hub (ws-session-hub session))
+               (topics (if hub
+                           (ws:topic-hub-subscriptions hub session)
+                           '())))
+          (eng:new-array topics))))
+    (eng:install-method ws-obj "publish" 2
+      (lambda (this args)
+        (declare (ignore this))
+        (block pub
+          (when (>= (ws-session-ready-state session) 2)
+            (return-from pub 0d0))
+          (let* ((topic (eng:to-string (eng:arg args 0)))
+                 (data (eng:arg args 1))
+                 (hub (ws-session-hub session))
+                 (to-self (and (ws-session-handlers session)
+                               (ws:ws-handler-options-publish-to-self
+                                (ws-session-handlers session)))))
+            (multiple-value-bind (opcode payload)
+                (%ws-coerce-send-payload data)
+              (coerce
+               (%ws-hub-publish hub topic opcode payload
+                                :exclude (unless to-self session))
+               'double-float))))))
+    (eng:install-method ws-obj "publishText" 2
+      (lambda (this args)
+        (declare (ignore this))
+        (block pub
+          (when (>= (ws-session-ready-state session) 2)
+            (return-from pub 0d0))
+          (let* ((topic (eng:to-string (eng:arg args 0)))
+                 (text (eng:to-string (eng:arg args 1)))
+                 (payload (sb-ext:string-to-octets text :external-format :utf-8))
+                 (hub (ws-session-hub session))
+                 (to-self (and (ws-session-handlers session)
+                               (ws:ws-handler-options-publish-to-self
+                                (ws-session-handlers session)))))
+            (coerce
+             (%ws-hub-publish hub topic ws:+opcode-text+ payload
+                              :exclude (unless to-self session))
+             'double-float)))))
+    (eng:install-method ws-obj "publishBinary" 2
+      (lambda (this args)
+        (declare (ignore this))
+        (block pub
+          (when (>= (ws-session-ready-state session) 2)
+            (return-from pub 0d0))
+          (let* ((topic (eng:to-string (eng:arg args 0)))
+                 (hub (ws-session-hub session))
+                 (to-self (and (ws-session-handlers session)
+                               (ws:ws-handler-options-publish-to-self
+                                (ws-session-handlers session)))))
+            (multiple-value-bind (opcode payload)
+                (%ws-coerce-send-payload (eng:arg args 1))
+              (declare (ignore opcode))
+              (coerce
+               (%ws-hub-publish hub topic ws:+opcode-binary+ payload
+                                :exclude (unless to-self session))
+               'double-float))))))
     ws-obj))
 
-(defun %try-server-upgrade (server request &optional options)
+(defun %try-server-upgrade (server request hub &optional options)
   "Attempt HTTP→WebSocket upgrade. Returns T on success, NIL on refusal."
   (unless (js-server-request-p request)
     (return-from %try-server-upgrade nil))
@@ -1222,6 +1341,7 @@ SERVER / WEBSOCKET-CELL enable Phase 51 M1 upgrade when handlers are configured.
            (session (%make-ws-session
                      :connection conn
                      :handlers handlers
+                     :hub hub
                      :data data)))
       (setf (serve-request-context-upgraded-p context) t
             (serve-request-context-committed-p context) t)
@@ -1235,7 +1355,7 @@ SERVER / WEBSOCKET-CELL enable Phase 51 M1 upgrade when handlers are configured.
             (condition () nil))))
       t)))
 
-(defun %install-websocket-methods (server websocket-cell)
+(defun %install-websocket-methods (server websocket-cell hub-cell)
   "Install Bun-shaped upgrade/publish/subscriberCount on SERVER."
   (eng:install-method server "upgrade" 2
     (lambda (this args)
@@ -1245,15 +1365,26 @@ SERVER / WEBSOCKET-CELL enable Phase 51 M1 upgrade when handlers are configured.
       (let ((req (eng:arg args 0))
             (opts (eng:arg args 1)))
         (eng:js-boolean
-         (%try-server-upgrade server req opts)))))
+         (%try-server-upgrade server req (car hub-cell) opts)))))
   (eng:install-method server "publish" 2
     (lambda (this args)
-      (declare (ignore this args))
-      (%throw-websocket-not-implemented "server.publish")))
+      (declare (ignore this))
+      ;; Bun: server.publish always exists; returns 0 with no subscribers.
+      (let* ((topic (eng:to-string (eng:arg args 0)))
+             (data (eng:arg args 1))
+             (hub (car hub-cell)))
+        (multiple-value-bind (opcode payload)
+            (%ws-coerce-send-payload data)
+          (coerce (%ws-hub-publish hub topic opcode payload) 'double-float)))))
   (eng:install-method server "subscriberCount" 1
     (lambda (this args)
-      (declare (ignore this args))
-      (%throw-websocket-not-implemented "server.subscriberCount")))
+      (declare (ignore this))
+      (let* ((topic (eng:to-string (eng:arg args 0)))
+             (hub (car hub-cell)))
+        (coerce (if hub
+                    (ws:topic-hub-subscriber-count hub topic)
+                    0)
+                'double-float))))
   server)
 
 (defun %serve-idle-timeout-option (opts)
@@ -1318,6 +1449,8 @@ SERVER / WEBSOCKET-CELL enable Phase 51 M1 upgrade when handlers are configured.
            (err-handler-cell (list err-handler))
            (routes-cell (list routes))
            (websocket-cell (list websocket))
+           ;; One hub per server lifetime; survives reload so topics stay stable.
+           (hub-cell (list (ws:make-ws-topic-hub)))
            (server (eng:new-object)))
       (let ((listener
               (net:tcp-listen loop host port :backlog 1024
@@ -1445,5 +1578,5 @@ SERVER / WEBSOCKET-CELL enable Phase 51 M1 upgrade when handlers are configured.
           (lambda (th a) (declare (ignore th a)) eng:+undefined+))
         (eng:install-method server "unref" 0
           (lambda (th a) (declare (ignore th a)) eng:+undefined+))
-        (%install-websocket-methods server websocket-cell)
+        (%install-websocket-methods server websocket-cell hub-cell)
         server))))
