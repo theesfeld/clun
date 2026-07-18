@@ -7,23 +7,22 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **47 - Node compatibility residual (path.win32)**
+## Current phase: **47 - Node.js compatibility residual** (path.win32)
 
 **Canonical issue:** https://github.com/theesfeld/clun/issues/108
-**Related phase issue:** https://github.com/theesfeld/clun/issues/21 (Phase 47)
+**Next phase issue:** https://github.com/theesfeld/clun/issues/108
 **Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/2,
-https://github.com/theesfeld/clun/issues/39, and https://github.com/theesfeld/clun/issues/40
-**Current implementation unit:** pure-CL `node:path.win32` string algorithms so
-`require('path').win32` no longer throws. Fixture `tests/js/node/path-win32.js`.
-No compatibility-table `Yes` is claimed; `runtime.node-compatibility` stays **Partial**.
+https://github.com/theesfeld/clun/issues/11, and https://github.com/theesfeld/clun/issues/39
+**Current implementation unit:** pure-CL `node:path.win32` residual on PR #114 — sep/delimiter,
+basename/dirname/extname, isAbsolute, normalize, join, resolve, relative, parse, format,
+toNamespacedPath/`_makeLong`, cross-links. `runtime.node-compatibility` stays **Partial** (not Yes).
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.24` / `v0.1.0-dev.24`
-**Published release:** `0.1.0-dev.18` / `v0.1.0-dev.18`
-**Entry boundary:** immutable `v0.1.0-dev.18` is tagged with four native archives + checksums;
-installer defaults to that tag. Master source is `0.1.0-dev.21` after Phase 37 m2 (#96). Parallel
-drafts hold unpublished 22–23; this unit stages `0.1.0-dev.24` under the unpublished-intermediate
-prerelease gap policy. Phase 26 remains after Phase 82.
-**Next scope:** keep `runtime.node-compatibility` Partial; green CI on the staged candidate.
+**Candidate release:** `0.1.0-dev.28` / `v0.1.0-dev.28`
+**Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
+**Entry boundary:** immutable `v0.1.0-dev.21` is tagged and published; installer defaults to that tag.
+Master tip is `0.1.0-dev.26` after secrets #106; concurrent #110 claims `0.1.0-dev.27`; this unit
+stages free `0.1.0-dev.28`. Phase 26 remains after Phase 82.
+**Next scope:** keep node-compat Partial (no matrix Yes); land path.win32 residual with green CI.
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
 easiest to hardest among dependency-ready rows. Core engine/runtime/network/tooling changes are expected.
@@ -1474,7 +1473,7 @@ _(nothing blocked)_
     throws-class-validation + AssertionError export; structuredClone Date + DataCloneError; path extname
     leading-dots + format dir===root; os.userInfo $USER; and a class of outside-the-float-mask NaN checks
     (`eng:js-nan-p`, never `=`/`/=`, which trap) across util/querystring/Clun.sleep.
-  - CLOSED (#108): path.win32 pure-CL string algorithms (fixture tests/js/node/path-win32.js). DEFERRED 🟡: util.format %d truncates (Bun-faithful console, not Node's full
+  - DEFERRED 🟡 (matrix): path.win32 throws; util.format %d truncates (Bun-faithful console, not Node's full
     Number); pathToFileURL → string (URL object is Phase 18); util.promisify.custom, once-fire/removeAll
     `removeListener` emissions, full `instanceof assert.AssertionError`; full ironclad + KATs → Phase 19.
 
@@ -1964,3 +1963,8 @@ Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-earl
   descriptor and string edge cases, JSX coverage mapping, parallelism/concurrency,
   watch hooks, exact 52-root Bun/Clun counts, four-target receipts,
   serial/parallel agreement, and 10k RSS.
+
+## Publication boundary
+
+- Published: `v0.1.0-dev.19` @ `1a523491` (#40); `v0.1.0-dev.21` @ `a8f45013` (#11).
+- Installer / ledger previous_version: `v0.1.0-dev.21` while source candidate is `0.1.0-dev.22`.

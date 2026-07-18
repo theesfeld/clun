@@ -61,6 +61,15 @@
    #:+default-argon-memory-cost+ #:+default-argon-time-cost+
    #:+max-password-bytes+ #:+max-encoded-hash-bytes+))
 
+(defpackage :clun.secrets
+  (:use :cl)
+  (:documentation "Engine-free OS-secrets constitutional disposition (Phase 58).")
+  (:export
+   #:secrets-error #:secrets-error-kind #:secrets-error-detail
+   #:+not-available-code+ #:+not-available-message+
+   #:os-secrets-available-p #:reject-os-secrets
+   #:validate-service-name #:validate-set-value))
+
 (defpackage :clun.hash
   (:use :cl)
   (:documentation "Pure Common Lisp implementations of Clun.hash algorithms.")
@@ -159,7 +168,7 @@
    ;; loop lifecycle
    #:event-loop #:event-loop-p #:make-event-loop #:destroy-event-loop
    #:run-loop #:loop-post #:loop-stop #:el-ref-count #:now-ms
-   #:loop-on-thread-p #:run-on-loop #:*on-foreign-thread*
+   #:loop-on-thread-p #:run-on-loop #:loop-extension #:*on-foreign-thread*
    ;; queues (stub in P05; JS jobs wire in P06)
    #:enqueue-task #:enqueue-microtask #:enqueue-next-tick #:drain-microtasks
    ;; handles / refcount
@@ -230,7 +239,7 @@
    ;; realm accessors the runtime/CLI need
    #:run-module-file #:run-module-source #:eval-source #:realm-global #:realm-clock-now-ms
    #:realm-coverage-session
-   #:register-module-mock
+   #:register-module-mock #:register-bun-builtin
    #:teardown-realm #:run-callback-to-settlement #:drive-jobs #:current-loop
    #:make-coverage-session #:call-with-coverage-session #:coverage-results
    #:promise-and-caps
@@ -280,21 +289,55 @@
   (:local-nicknames (:lp :clun.loop) (:sys :clun.sys))
   (:documentation "Sockets, HTTP parser/server/client, fetch, TLS integration.")
   (:export ;; Phase 16 — TCP handle layer on the reactor
-   #:tcp-listen #:tcp-connect #:tcp-write #:tcp-close #:tcp-shutdown
+   #:tcp-listen #:tcp-connect #:tcp-connect-happy #:tcp-write #:tcp-close #:tcp-shutdown
+   #:tcp-pause #:tcp-resume
    #:tcp #:tcp-p #:tcp-state #:tcp-queued-bytes #:tcp-peer #:tcp-local
    #:tcp-on-data #:tcp-on-close #:tcp-on-error #:tcp-on-drain
    #:listener #:listener-p #:listener-port #:listener-close #:listener-address
    #:socket-error-code #:socket-open-error #:socket-open-error-code #:*default-read-size*
+   ;; Phase 28 -- bounded DNS + address-family racing
+   #:dns-error #:dns-error-message #:dns-address #:dns-address-text
+   #:dns-address-ipv6-p #:resolve-hostname-all #:resolve-hostname
    ;; Phase 17 — incremental HTTP/1.1 request parser
    #:make-http-parser #:parser-feed #:http-request #:http-request-p
    #:hr-method #:hr-target #:hr-version #:hr-headers #:hr-body #:hr-keep-alive
    #:*max-header-bytes* #:*max-body-bytes*
    #:make-http-response-parser #:response-finish #:http-response #:http-response-p
    #:hres-status #:hres-reason #:hres-version #:hres-headers #:hres-body #:hres-keep-alive
+   #:make-http-response-stream-parser #:response-stream-feed #:response-stream-finish
+   #:response-stream-reusable-p
    ;; Phase 18 — reactor HTTP client
-   #:http-request-async #:resolve-hostname #:%header
+   #:http-request-async #:http-request-stream-async #:resolve-hostname #:%header
+   #:http-content-decoding-error #:http-content-decoding-error-message
+   #:*max-decoded-body-bytes*
    ;; TLS client (Phase 20): blocking HTTPS request for the worker pool + error mapping.
-   #:https-request #:tls-error-message))
+   #:https-request #:https-request-stream #:tls-error-message))
+
+;; Phase 51 — WebSocket types + fail-closed stubs (pure CL; framing later).
+(defpackage :clun.websocket
+  (:use :cl)
+  (:documentation
+   "Pure Common Lisp WebSocket scaffold (RFC 6455 types and Phase 51 fail-closed errors).
+    Full handshake/framing/Pub/Sub are not implemented yet; see docs/design/phase-51.md.")
+  (:export
+   #:+opcode-continuation+ #:+opcode-text+ #:+opcode-binary+
+   #:+opcode-close+ #:+opcode-ping+ #:+opcode-pong+
+   #:+ws-guid+ #:+default-max-payload-bytes+ #:+default-backpressure-limit+
+   #:websocket-error #:websocket-error-message
+   #:websocket-unsupported
+   #:websocket-not-implemented-message #:signal-websocket-unsupported
+   #:ws-frame #:ws-frame-p #:make-ws-frame
+   #:ws-frame-fin #:ws-frame-rsv1 #:ws-frame-rsv2 #:ws-frame-rsv3
+   #:ws-frame-opcode #:ws-frame-masked #:ws-frame-payload #:ws-frame-mask-key
+   #:ws-handler-options #:ws-handler-options-p #:make-ws-handler-options
+   #:ws-handler-options-max-payload-length
+   #:ws-handler-options-backpressure-limit
+   #:ws-handler-options-close-on-backpressure-limit
+   #:ws-handler-options-idle-timeout-seconds
+   #:ws-handler-options-publish-to-self
+   #:ws-handler-options-send-pings
+   #:ws-handler-options-permessage-deflate
+   #:handshake-accept-key #:encode-frame #:decode-frame))
 
 ;; --- dependent layer (local-nicknames into the base packages above) ---------
 
@@ -306,12 +349,12 @@
 
 (defpackage :clun.runtime
   (:use :cl)
-  (:local-nicknames (:eng :clun.engine) (:sys :clun.sys) (:lp :clun.loop) (:net :clun.net))
+  (:local-nicknames (:eng :clun.engine) (:sys :clun.sys) (:lp :clun.loop)
+                    (:net :clun.net) (:ws :clun.websocket))
   (:documentation "Globals wiring: console/inspector, process, timers, Clun global, node/ modules.")
   (:export #:install-runtime #:process-exit #:process-exit-code
            #:run-exit-handlers #:*runtime* #:runtime-exit-code #:format-log-args
            #:safe-integer #:execute-shell-script))
-
 (defpackage :clun
   (:use :cl)
   (:local-nicknames (:eng :clun.engine) (:sys :clun.sys) (:cli :clun.cli) (:rt :clun.runtime))

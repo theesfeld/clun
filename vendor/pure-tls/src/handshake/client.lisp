@@ -1218,7 +1218,8 @@
     (t nil)))
 
 (defun verify-certificate-verify-signature (cert algorithm signature content
-                                           &key allowed-algorithms)
+                                           &key allowed-algorithms
+                                                (protocol-version :tls13))
   "Verify the CertificateVerify signature using the certificate's public key.
    Returns T on success, signals an error on failure."
   (let* ((public-key-info (x509-certificate-subject-public-key-info cert))
@@ -1231,9 +1232,18 @@
     (when (and key-usage (not (member :digital-signature key-usage)))
       (error 'tls-handshake-error
              :message ":KEY_USAGE_BIT_INCORRECT: Certificate lacks digitalSignature key usage"))
-    (unless (signature-algorithm-allowed-p algorithm)
-      (error 'tls-handshake-error
-             :message ":WRONG_SIGNATURE_TYPE: unsupported signature algorithm"))
+    (ecase protocol-version
+      (:tls13
+       (unless (signature-algorithm-allowed-p algorithm)
+         (error 'tls-handshake-error
+                :message ":WRONG_SIGNATURE_TYPE: unsupported TLS 1.3 signature algorithm")))
+      (:tls12
+       ;; TLS 1.2 permits PKCS#1 algorithms that TLS 1.3 deliberately bans.
+       ;; Requiring an explicit allowlist prevents this compatibility path from
+       ;; broadening the TLS 1.3 policy or accepting legacy SHA-1 algorithms.
+       (unless (and allowed-algorithms (member algorithm allowed-algorithms))
+         (error 'tls-handshake-error
+                :message ":WRONG_SIGNATURE_TYPE: unsupported TLS 1.2 signature algorithm"))))
     (when (and allowed-algorithms (not (member algorithm allowed-algorithms)))
       (error 'tls-handshake-error
              :message ":WRONG_SIGNATURE_TYPE: signature algorithm not permitted"))
@@ -1325,8 +1335,8 @@
       (let ((public-key (ironclad:make-public-key :rsa
                           :n (parse-rsa-public-key-n public-key-der)
                           :e (parse-rsa-public-key-e public-key-der))))
-        (unless (ironclad:verify-signature public-key content signature
-                                           :pkcs1v15 hash-algo)
+        (unless (verify-rsa-pkcs1v15-signature
+                 public-key content signature hash-algo)
           (error 'tls-handshake-error
                  :message ":BAD_SIGNATURE:")))
     (error (e)

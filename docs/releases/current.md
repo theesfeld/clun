@@ -1,5 +1,5 @@
 <!-- clun-generated:release-notes:begin -->
-# Clun 0.1.0-dev.24
+# Clun 0.1.0-dev.28
 
 Phase 47: Node compatibility certification.
 
@@ -14,18 +14,12 @@ The canonical evidence and current limitations are in `compat/`; `make compat-va
 
 ## Highlights
 
-- Implements pure Common Lisp `path.win32` string algorithms (sep, delimiter,
-  basename, dirname, extname, isAbsolute, normalize, join, resolve, relative,
-  parse, format, toNamespacedPath / `_makeLong`) so `require('path').win32` no
-  longer throws.
-- Cross-links match Node: `path.win32 === path.win32.win32`, `path.posix.win32`,
-  `path.win32.posix`.
-- Host cwd for resolve/relative/namespaced paths rewrites `/` → `\` (Node-on-POSIX).
-- Fixture-covered by `tests/js/node/path-win32.js`. **Does not** promote
-  `runtime.node-compatibility` to ledger Yes.
-- Slot map after published shell (`v0.1.0-dev.18`) and master Phase 37 m2
-  (`0.1.0-dev.21`): parallel drafts hold 22–23; this candidate allocates
-  `0.1.0-dev.24` under the unpublished-intermediate prerelease gap policy.
+- Ships pure-CL `node:path.win32` string algorithms so `require('path').win32` no longer throws.
+- Implements `sep`, `delimiter`, basename/dirname/extname, isAbsolute, normalize, join, resolve,
+  relative, parse, format, toNamespacedPath/`_makeLong`, and Node-shaped posix/win32 cross-links.
+- Does **not** promote `runtime.node-compatibility` to ledger `Yes`.
+- Slot map: published base `v0.1.0-dev.21`; master tip `0.1.0-dev.26`; concurrent #110 claims
+  `0.1.0-dev.27`; this candidate allocates free `0.1.0-dev.28` (transition `0.1.0-dev.26` →
+  `0.1.0-dev.28` under unpublished-intermediate gap policy).
 
-The release candidate stages honest node:path residual work without promoting any
-matrix row to `Yes`.
+The release candidate stages honest Node path residual work without promoting any matrix row to `Yes`.

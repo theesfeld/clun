@@ -1,0 +1,8 @@
+(pass) bun:test ESM resolve > named imports bind to live test APIs
+(pass) bun:test ESM resolve > aliases test as it
+(pass) bun:test CJS require > require surface
+
+ 3 pass
+ 0 fail
+ 6 expect() calls
+Ran 3 tests across 2 files.

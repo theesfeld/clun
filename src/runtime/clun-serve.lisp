@@ -795,9 +795,35 @@ COMMIT is connection-owned, so late Promise settlement cannot write after teardo
       (t (eng:throw-type-error
           (format nil "Clun.serve: `~a` must be a function" name))))))
 
+(defun %throw-websocket-not-implemented (&optional (surface "WebSocket"))
+  "Fail closed for Phase 51: clear TypeError, never a silent half-upgrade."
+  (eng:throw-type-error (ws:websocket-not-implemented-message surface)))
+
+(defun %reject-websocket-serve-option (opts)
+  "Clun.serve rejects an explicit `websocket` option until Phase 51 M1+."
+  (unless (eng:js-undefined-p (eng:js-get opts "websocket"))
+    (%throw-websocket-not-implemented "Clun.serve({ websocket })")))
+
+(defun %install-websocket-fail-closed-methods (server)
+  "Expose Bun-shaped names that refuse WebSocket work with a clear error."
+  (eng:install-method server "upgrade" 1
+    (lambda (this args)
+      (declare (ignore this args))
+      (%throw-websocket-not-implemented "server.upgrade")))
+  (eng:install-method server "publish" 2
+    (lambda (this args)
+      (declare (ignore this args))
+      (%throw-websocket-not-implemented "server.publish")))
+  (eng:install-method server "subscriberCount" 1
+    (lambda (this args)
+      (declare (ignore this args))
+      (%throw-websocket-not-implemented "server.subscriberCount")))
+  server)
+
 (defun %compile-serve-dispatch-options (opts)
   (unless (eng:js-object-p opts)
     (eng:throw-type-error "Clun.serve requires an options object"))
+  (%reject-websocket-serve-option opts)
   (let* ((fetch (%serve-callable-option opts "fetch"))
          (err-handler (%serve-callable-option opts "error"))
          (routes (%compile-serve-route-table
@@ -806,7 +832,6 @@ COMMIT is connection-owned, so late Promise settlement cannot write after teardo
       (eng:throw-type-error
        "Clun.serve requires a fetch function or at least one active route"))
     (values fetch err-handler routes)))
-
 (defun %clun-serve (g opts)
   (multiple-value-bind (fetch err-handler routes)
       (%compile-serve-dispatch-options opts)
@@ -918,4 +943,5 @@ COMMIT is connection-owned, so late Promise settlement cannot write after teardo
           (lambda (th a) (declare (ignore th a)) eng:+undefined+))
         (eng:install-method server "unref" 0
           (lambda (th a) (declare (ignore th a)) eng:+undefined+))
+        (%install-websocket-fail-closed-methods server)
         server))))

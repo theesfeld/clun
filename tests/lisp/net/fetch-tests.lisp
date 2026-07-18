@@ -70,6 +70,21 @@
      setCookies: JSON.stringify(r.headers.getSetCookie()),
      body: await r.text() }));")
 
+(defparameter +fetch-signal-probe-src+
+  "globalThis.__fetchSignalProbe = (url) => {
+     let added = 0, removed = 0, listener = null;
+     const signal = { aborted: false, reason: undefined };
+     signal.addEventListener = (type, fn) => {
+       if (type === 'abort') { added++; listener = fn; }
+     };
+     signal.removeEventListener = (type, fn) => {
+       if (type === 'abort' && fn === listener) { removed++; listener = null; }
+     };
+     return fetch(url, { signal }).then(async r => ({
+       body: await r.text(), added, removed, attached: listener !== null
+     }));
+   };")
+
 (defmacro with-fetch-server ((g port) &body body)
   "Start Clun.serve (routing via %fetch-route) on 127.0.0.1:0; bind G + PORT and install
 __fetchInfo; run BODY (which drives fetches via FETCH-INFO); tear the realm down."
@@ -89,8 +104,223 @@ __fetchInfo; run BODY (which drives fetches via FETCH-INFO); tear the realm down
                   (,port (truncate (eng:js-get ,server "port"))))
              (declare (ignorable ,port))
              (eng:run-program (eng:parse-program +fetch-info-src+) ,realm)
+             (eng:run-program (eng:parse-program +fetch-signal-probe-src+) ,realm)
              (unwind-protect (progn ,@body)
                (eng:teardown-realm ,realm))))))))
+
+(defun %start-delayed-fetch-server (global loop)
+  (net:tcp-listen
+   loop "127.0.0.1" 0
+   :on-connection
+   (lambda (connection)
+     (let ((responded nil))
+       (setf
+        (net:tcp-on-data connection)
+        (lambda (peer data)
+          (declare (ignore data))
+          (unless responded
+            (setf responded t)
+            (net:tcp-write
+             peer
+             (sb-ext:string-to-octets
+              (format nil
+                      "HTTP/1.1 200 OK~c~cContent-Length: 11~c~cConnection: close~c~c~c~chello "
+                      #\Return #\Newline #\Return #\Newline
+                      #\Return #\Newline #\Return #\Newline)
+              :external-format :latin-1))
+            (lp:set-timer
+             loop 75
+             (lambda ()
+               (eng:data-prop global "__tailSent" eng:+true+)
+               (net:tcp-write
+                peer
+                (sb-ext:string-to-octets "world" :external-format :latin-1))
+               (net:tcp-shutdown peer))))))))))
+
+(defmacro with-delayed-fetch-server ((g port) &body body)
+  "Run BODY with a raw HTTP server that sends headers + one body chunk immediately,
+then the final chunk after 75ms.  __tailSent exposes whether fetch waited for EOF."
+  (let ((realm (gensym)) (loop (gensym)) (listener (gensym)))
+    `(let ((,realm (eng:make-realm)))
+       (rt:install-runtime ,realm :argv '(:script "[test]" :rest nil) :cwd "/tmp")
+       (let ((eng:*realm* ,realm))
+         (let* ((,g (eng:realm-global ,realm))
+                (,loop (eng:current-loop))
+                (,listener (%start-delayed-fetch-server ,g ,loop))
+                (,port (net:listener-port ,listener)))
+           (eng:data-prop ,g "__tailSent" eng:+false+)
+           (unwind-protect (progn ,@body)
+             (net:listener-close ,listener)
+             (eng:teardown-realm ,realm)))))))
+
+(defun %start-timeout-matrix-server (loop accepted-count closed-count)
+  (net:tcp-listen
+   loop "127.0.0.1" 0
+   :on-connection
+   (lambda (connection)
+     (incf (car accepted-count))
+     (let ((handled nil))
+       (setf
+        (net:tcp-on-close connection)
+        (lambda (peer code)
+          (declare (ignore peer code))
+          (incf (car closed-count)))
+        (net:tcp-on-data connection)
+        (lambda (peer data)
+          (unless handled
+            (setf handled t)
+            (let ((request
+                    (sb-ext:octets-to-string data :external-format :latin-1)))
+              (cond
+                ((search "GET /partial " request)
+                 (net:tcp-write
+                  peer
+                  (sb-ext:string-to-octets
+                   (format nil
+                           "HTTP/1.1 200 OK~c~cTransfer-Encoding: chunked~c~cConnection: keep-alive~c~c~c~c5~c~chello~c~c"
+                           #\Return #\Newline #\Return #\Newline
+                           #\Return #\Newline #\Return #\Newline
+                           #\Return #\Newline #\Return #\Newline)
+                   :external-format :latin-1)))
+                ((search "GET /redirect-one " request)
+                 (lp:set-timer
+                  loop 70
+                  (lambda ()
+                    (net:tcp-write
+                     peer
+                     (sb-ext:string-to-octets
+                      (format nil
+                              "HTTP/1.1 302 Found~c~cLocation: /redirect-two~c~cContent-Length: 0~c~cConnection: close~c~c~c~c"
+                              #\Return #\Newline #\Return #\Newline
+                              #\Return #\Newline #\Return #\Newline
+                              #\Return #\Newline)
+                      :external-format :latin-1))
+                    (net:tcp-shutdown peer))))
+                ((search "GET /redirect-two " request)
+                 (lp:set-timer
+                  loop 70
+                  (lambda ()
+                    (net:tcp-write
+                     peer
+                     (sb-ext:string-to-octets
+                      (format nil
+                              "HTTP/1.1 200 OK~c~cContent-Length: 2~c~cConnection: close~c~c~c~cok"
+                              #\Return #\Newline #\Return #\Newline
+                              #\Return #\Newline #\Return #\Newline)
+                      :external-format :latin-1))
+                    (net:tcp-shutdown peer))))
+                ;; /stall intentionally accepts the request without replying.
+                (t nil))))))))))
+
+(defmacro with-timeout-matrix-server ((g port accepted-count closed-count) &body body)
+  (let ((realm (gensym)) (loop (gensym)) (listener (gensym)))
+    `(let ((,realm (eng:make-realm)))
+       (rt:install-runtime ,realm :argv '(:script "[test]" :rest nil) :cwd "/tmp")
+       (let ((eng:*realm* ,realm))
+         (let* ((,g (eng:realm-global ,realm))
+                (,loop (eng:current-loop))
+                (,accepted-count (list 0))
+                (,closed-count (list 0))
+                (,listener
+                  (%start-timeout-matrix-server
+                   ,loop ,accepted-count ,closed-count))
+                (,port (net:listener-port ,listener)))
+           (declare (ignorable ,g ,port ,accepted-count ,closed-count))
+           (eng:run-program (eng:parse-program +fetch-info-src+) ,realm)
+           (unwind-protect (progn ,@body)
+             (net:listener-close ,listener)
+             (eng:teardown-realm ,realm)))))))
+
+(defun %start-stale-pool-server (loop accepted-count)
+  "Serve a persistent response, then send FIN after the client can cache the socket."
+  (net:tcp-listen
+   loop "127.0.0.1" 0
+   :on-connection
+   (lambda (connection)
+     (incf (car accepted-count))
+     (let ((responded nil))
+       (setf
+        (net:tcp-on-data connection)
+        (lambda (peer data)
+          (declare (ignore data))
+          (unless responded
+            (setf responded t)
+            (net:tcp-write
+             peer
+             (sb-ext:string-to-octets
+              (format nil
+                      "HTTP/1.1 200 OK~c~cContent-Length: 2~c~cConnection: keep-alive~c~c~c~cok"
+                      #\Return #\Newline #\Return #\Newline
+                      #\Return #\Newline #\Return #\Newline)
+              :external-format :latin-1))
+            (lp:set-timer loop 5 (lambda () (net:tcp-shutdown peer))))))))))
+
+(defmacro with-stale-pool-server ((g port accepted-count) &body body)
+  (let ((realm (gensym)) (loop (gensym)) (listener (gensym)))
+    `(let ((,realm (eng:make-realm)))
+       (rt:install-runtime ,realm :argv '(:script "[test]" :rest nil) :cwd "/tmp")
+       (let ((eng:*realm* ,realm))
+         (let* ((,g (eng:realm-global ,realm))
+                (,loop (eng:current-loop))
+                (,accepted-count (list 0))
+                (,listener (%start-stale-pool-server ,loop ,accepted-count))
+                (,port (net:listener-port ,listener)))
+           (eng:run-program (eng:parse-program +fetch-info-src+) ,realm)
+           (unwind-protect (progn ,@body)
+             (net:listener-close ,listener)
+             (eng:teardown-realm ,realm)))))))
+
+(defun %append-upload-capture (capture octets)
+  (let* ((old (fill-pointer capture))
+         (new (+ old (length octets))))
+    (when (> new (array-total-size capture))
+      (adjust-array capture (max new (* 2 (array-total-size capture)))
+                    :fill-pointer old))
+    (setf (fill-pointer capture) new)
+    (replace capture octets :start1 old)))
+
+(defun %start-upload-capture-server (loop capture)
+  (let ((terminal
+          (sb-ext:string-to-octets
+           (format nil "0~c~c~c~c" #\Return #\Newline #\Return #\Newline)
+           :external-format :latin-1)))
+    (net:tcp-listen
+     loop "127.0.0.1" 0
+     :on-connection
+     (lambda (connection)
+       (let ((responded nil))
+         (setf
+          (net:tcp-on-data connection)
+          (lambda (peer data)
+            (%append-upload-capture capture data)
+            (when (and (not responded)
+                       (search terminal capture :end2 (fill-pointer capture)))
+              (setf responded t)
+              (net:tcp-write
+               peer
+               (sb-ext:string-to-octets
+                (format nil
+                        "HTTP/1.1 200 OK~c~cContent-Length: 2~c~cConnection: close~c~c~c~cok"
+                        #\Return #\Newline #\Return #\Newline
+                        #\Return #\Newline #\Return #\Newline)
+                :external-format :latin-1))
+              (net:tcp-shutdown peer)))))))))
+
+(defmacro with-upload-capture-server ((g port capture) &body body)
+  (let ((realm (gensym)) (loop (gensym)) (listener (gensym)))
+    `(let ((,realm (eng:make-realm)))
+       (rt:install-runtime ,realm :argv '(:script "[test]" :rest nil) :cwd "/tmp")
+       (let ((eng:*realm* ,realm))
+         (let* ((,g (eng:realm-global ,realm))
+                (,loop (eng:current-loop))
+                (,capture
+                  (make-array 1024 :element-type '(unsigned-byte 8)
+                                   :adjustable t :fill-pointer 0))
+                (,listener (%start-upload-capture-server ,loop ,capture))
+                (,port (net:listener-port ,listener)))
+           (unwind-protect (progn ,@body)
+             (net:listener-close ,listener)
+             (eng:teardown-realm ,realm)))))))
 
 (defun fetch-info (g realm port path &optional opts-src)
   "fetch http://127.0.0.1:PORT/PATH and return the settled info object (or throw kind)."
@@ -103,6 +333,81 @@ __fetchInfo; run BODY (which drives fetches via FETCH-INFO); tear the realm down
          realm :timeout-ms 8000)
       (values kind value))))
 
+(defun fetch-info-url (g realm url &optional opts-src)
+  (eng:run-callback-to-settlement
+   (lambda ()
+     (eng:js-call (eng:js-get g "__fetchInfo") eng:+undefined+
+                  (list url
+                        (if opts-src
+                            (jseval realm opts-src)
+                            eng:+undefined+))))
+   realm :timeout-ms 8000))
+
+(defun %start-http-proxy-fixture (loop captures)
+  (let ((head-end
+          (sb-ext:string-to-octets
+           (format nil "~c~c~c~c" #\Return #\Newline #\Return #\Newline)
+           :external-format :latin-1)))
+    (net:tcp-listen
+     loop "127.0.0.1" 0
+     :on-connection
+     (lambda (connection)
+       (let ((capture
+               (make-array 512 :element-type '(unsigned-byte 8)
+                               :adjustable t :fill-pointer 0))
+             (responded-p nil))
+         (setf
+          (net:tcp-on-data connection)
+          (lambda (peer data)
+            (%append-upload-capture capture data)
+            (when (and (not responded-p)
+                       (search head-end capture :end2 (fill-pointer capture)))
+              (setf responded-p t)
+              (let* ((wire
+                       (sb-ext:octets-to-string
+                        (subseq capture 0 (fill-pointer capture))
+                        :external-format :latin-1))
+                     (authorized-p
+                       (search
+                        "Proxy-Authorization: Basic c3F1aWRfdXNlcjpBU0QxMjNAMTIzYXNk"
+                        wire :test #'char-equal))
+                     (status (if authorized-p 200 407))
+                     (reason (if authorized-p "OK" "Proxy Authentication Required"))
+                     (body (if authorized-p "proxy-body" "auth-required")))
+                (push wire (car captures))
+                (net:tcp-write
+                 peer
+                 (sb-ext:string-to-octets
+                  (with-output-to-string (output)
+                    (format output "HTTP/1.1 ~d ~a~c~c" status reason
+                            #\Return #\Newline)
+                    (when (= status 407)
+                      (format output "Proxy-Authenticate: Basic realm=fixture~c~c"
+                              #\Return #\Newline))
+                    (format output "Content-Length: ~d~c~c" (length body)
+                            #\Return #\Newline)
+                    (format output "Connection: close~c~c~c~c~a"
+                            #\Return #\Newline #\Return #\Newline body))
+                  :external-format :latin-1))
+                (net:tcp-shutdown peer))))))))))
+
+(defmacro with-http-proxy-fixture ((g port captures) &body body)
+  (let ((realm (gensym)) (loop (gensym)) (listener (gensym)))
+    `(let ((,realm (eng:make-realm)))
+       (rt:install-runtime ,realm :argv '(:script "[test]" :rest nil) :cwd "/tmp")
+       (let ((eng:*realm* ,realm)
+             (rt::*fetch-environment-reader*
+               (lambda (name) (declare (ignore name)) nil)))
+         (let* ((,g (eng:realm-global ,realm))
+                (,loop (eng:current-loop))
+                (,captures (list nil))
+                (,listener (%start-http-proxy-fixture ,loop ,captures))
+                (,port (net:listener-port ,listener)))
+           (eng:run-program (eng:parse-program +fetch-info-src+) ,realm)
+           (unwind-protect (progn ,@body)
+             (net:listener-close ,listener)
+             (eng:teardown-realm ,realm)))))))
+
 (defun info-field (info key) (eng:js-get info key))
 (defun info-str (info key) (eng:to-string (eng:js-get info key)))
 (defun info-num (info key) (truncate (eng:js-get info key)))
@@ -114,6 +419,101 @@ __fetchInfo; run BODY (which drives fetches via FETCH-INFO); tear the realm down
       (is = 200 (info-num info "status"))
       (is eq eng:+true+ (info-field info "ok"))
       (is string= "plain text body" (info-str info "body")))))
+
+(define-test net/fetch-reuses-an-idle-origin-connection
+  (with-fetch-server (g port)
+    (let ((loop (eng:current-loop)))
+      (multiple-value-bind (kind info) (fetch-info g eng:*realm* port "/text")
+        (declare (ignore info))
+        (is eq :fulfilled kind))
+      (let ((first-idle
+              (net::%http-pool-idle-tcps loop "127.0.0.1" port)))
+        (is = 1 (length first-idle))
+        (multiple-value-bind (kind info) (fetch-info g eng:*realm* port "/json")
+          (is eq :fulfilled kind)
+          (is = 200 (info-num info "status")))
+        (let ((second-idle
+                (net::%http-pool-idle-tcps loop "127.0.0.1" port)))
+          (is = 1 (length second-idle))
+          (is eq (first first-idle) (first second-idle)))))))
+
+(define-test net/fetch-connection-close-is-never-pooled
+  (with-fetch-server (g port)
+    (multiple-value-bind (kind info)
+        (fetch-info g eng:*realm* port "/text"
+                    "{headers: {connection: 'close'}}")
+      (declare (ignore info))
+      (is eq :fulfilled kind))
+    (is = 0
+        (length (net::%http-pool-idle-tcps
+                 (eng:current-loop) "127.0.0.1" port)))))
+
+(define-test net/fetch-evicts-peer-closed-idle-connections
+  (with-stale-pool-server (g port accepted-count)
+    (multiple-value-bind (kind info) (fetch-info g eng:*realm* port "/first")
+      (is eq :fulfilled kind)
+      (is string= "ok" (info-str info "body")))
+    (let* ((loop (eng:current-loop))
+           (idle (net::%http-pool-idle-tcps loop "127.0.0.1" port))
+           (first-connection (first idle)))
+      (is = 1 (length idle))
+      (multiple-value-bind (kind value)
+          (eng:run-callback-to-settlement
+           (lambda ()
+             (jseval eng:*realm*
+                     "new Promise(resolve => setTimeout(resolve, 30))"))
+           eng:*realm* :timeout-ms 1000)
+        (declare (ignore value))
+        (is eq :fulfilled kind))
+      (is eq :closed (net:tcp-state first-connection))
+      (is = 0 (length (net::%http-pool-idle-tcps
+                       loop "127.0.0.1" port)))
+      (multiple-value-bind (kind info) (fetch-info g eng:*realm* port "/second")
+        (is eq :fulfilled kind)
+        (is string= "ok" (info-str info "body")))
+      (is = 2 (car accepted-count)))))
+
+(define-test net/fetch-pool-isolates-distinct-origins
+  (with-fetch-server (g first-port)
+    (let* ((loop (eng:current-loop))
+           (fetch-handler
+             (eng:make-native-function
+              "fetch" 1
+              (lambda (this args)
+                (declare (ignore this))
+                (%fetch-route g (eng:arg args 0)))))
+           (options (eng:new-object)))
+      (eng:data-prop options "port" 0d0)
+      (eng:data-prop options "hostname" "127.0.0.1")
+      (eng:data-prop options "fetch" fetch-handler)
+      (let* ((second-server (rt::%clun-serve g options))
+             (second-port (truncate (eng:js-get second-server "port"))))
+        (declare (ignore second-server))
+        (multiple-value-bind (kind info)
+            (fetch-info g eng:*realm* first-port "/first")
+          (declare (ignore info))
+          (is eq :fulfilled kind))
+        (multiple-value-bind (kind info)
+            (fetch-info g eng:*realm* second-port "/second")
+          (declare (ignore info))
+          (is eq :fulfilled kind))
+        (let* ((first-idle
+                 (net::%http-pool-idle-tcps
+                  loop "127.0.0.1" first-port))
+               (second-idle
+                 (net::%http-pool-idle-tcps
+                  loop "127.0.0.1" second-port))
+               (first-connection (first first-idle)))
+          (is = 1 (length first-idle))
+          (is = 1 (length second-idle))
+          (isnt eq first-connection (first second-idle))
+          (multiple-value-bind (kind info)
+              (fetch-info g eng:*realm* first-port "/again")
+            (declare (ignore info))
+            (is eq :fulfilled kind))
+          (is eq first-connection
+              (first (net::%http-pool-idle-tcps
+                      loop "127.0.0.1" first-port))))))))
 
 (define-test net/fetch-json
   (with-fetch-server (g port)
@@ -134,6 +534,72 @@ __fetchInfo; run BODY (which drives fetches via FETCH-INFO); tear the realm down
     (multiple-value-bind (kind info) (fetch-info g eng:*realm* port "/500")
       (is eq :fulfilled kind)
       (is = 500 (info-num info "status")))))
+
+(define-test net/fetch-http-proxy-absolute-form-auth-and-failure-response
+  ;; Frozen upstream contracts:
+  ;; oven-sh/bun@c1076ce95e test/js/bun/http/proxy.test.js.
+  (with-http-proxy-fixture (g proxy-port captures)
+    (multiple-value-bind (kind info)
+        (fetch-info-url
+         g eng:*realm* "http://origin.invalid:4321/resource?x=1"
+         (format nil
+                 "{proxy:'http://squid_user:ASD123%40123asd@127.0.0.1:~d'}"
+                 proxy-port))
+      (is eq :fulfilled kind)
+      (is = 200 (info-num info "status"))
+      (is string= "proxy-body" (info-str info "body")))
+    (let ((wire (first (car captures))))
+      (true (search "GET http://origin.invalid:4321/resource?x=1 HTTP/1.1" wire))
+      (true (search "Host: origin.invalid:4321" wire :test #'char-equal))
+      (true (search "Proxy-Connection:" wire :test #'char-equal))
+      (true
+       (search
+        "Proxy-Authorization: Basic c3F1aWRfdXNlcjpBU0QxMjNAMTIzYXNk"
+        wire :test #'char-equal)))
+    (multiple-value-bind (kind info)
+        (fetch-info-url
+         g eng:*realm* "http://origin.invalid:4321/private"
+         (format nil "{proxy:'127.0.0.1:~d'}" proxy-port))
+      (is eq :fulfilled kind)
+      (is = 407 (info-num info "status"))
+      (is string= "auth-required" (info-str info "body")))
+    ;; Proxy requests are intentionally not admitted to the direct-origin pool.
+    (is = 0
+        (length
+         (net::%http-pool-idle-tcps
+          (eng:current-loop) "127.0.0.1" proxy-port)))))
+
+(define-test net/fetch-proxy-parser-and-no-proxy-port-semantics
+  ;; Bun's pinned matrix requires percent-decoded Basic auth, tolerant empty
+  ;; entries, exact host:port matching, and host-only matching across all ports.
+  (let ((proxy (rt::%parse-fetch-proxy
+                "http://squid_user:ASD123%40123asd@localhost:8080")))
+    (is string= "localhost" (rt::fetch-proxy-host proxy))
+    (is = 8080 (rt::fetch-proxy-port proxy))
+    (is string= "Basic c3F1aWRfdXNlcjpBU0QxMjNAMTIzYXNk"
+        (rt::fetch-proxy-authorization proxy)))
+  (true (rt::%no-proxy-match-p "localhost" 3000
+                               "example.com, ,localhost:3000,"))
+  (false (rt::%no-proxy-match-p "localhost" 3000
+                                "localhost:3001"))
+  (true (rt::%no-proxy-match-p "localhost" 3000 "localhost"))
+  (true (rt::%no-proxy-match-p "api.example.com" 443 ".example.com"))
+  (false (rt::%no-proxy-match-p "notexample.com" 443 ".example.com"))
+  (true (rt::%no-proxy-match-p "anything.invalid" 80 "*"))
+  (is equal '(("X-Origin" . "kept"))
+      (rt::%fetch-remove-hop-headers
+       '(("Proxy-Authorization" . "Basic secret")
+         ("X-Origin" . "kept")
+         ("Proxy-Connection" . "keep-alive"))))
+  (dolist (scheme '("ftp" "socks4" "socks5" "socks5h" "ws"))
+    (fail (rt::%parse-fetch-proxy
+           (format nil "~a://127.0.0.1:1" scheme))
+          error))
+  (dolist (disabled '(nil "" "''" "\"\""))
+    (let ((rt::*fetch-environment-reader*
+            (lambda (name)
+              (and (string= name "http_proxy") disabled))))
+      (false (rt::%fetch-proxy-environment-value "http")))))
 
 (define-test net/fetch-redirect-chain
   (with-fetch-server (g port)
@@ -163,6 +629,348 @@ __fetchInfo; run BODY (which drives fetches via FETCH-INFO); tear the realm down
         (fetch-info g eng:*realm* port "/text" "{signal: AbortSignal.abort()}")
       (is eq :rejected kind)
       (is string= "AbortError" (eng:to-string (eng:js-get value "name"))))))
+
+(define-test net/fetch-abort-preserves-primitive-reason
+  (with-fetch-server (g port)
+    (multiple-value-bind (kind value)
+        (fetch-info g eng:*realm* port "/text"
+                    "{signal: AbortSignal.abort('custom-stop')}")
+      (is eq :rejected kind)
+      (is string= "custom-stop" (eng:to-string value)))))
+
+(define-test net/fetch-timeout-signal-before-headers-closes-transport
+  (with-timeout-matrix-server (g port accepted-count closed-count)
+    (multiple-value-bind (kind value)
+        (eng:run-callback-to-settlement
+         (lambda ()
+           (jseval
+            eng:*realm*
+            (format nil
+                    "(async () => {
+                       try {
+                         await fetch('http://127.0.0.1:~d/stall',
+                                     { signal: AbortSignal.timeout(20) });
+                         return { name: 'fulfilled' };
+                       } catch (error) {
+                         return { name: error.name };
+                       }
+                     })()"
+                    port)))
+         eng:*realm* :timeout-ms 2000)
+      (is eq :fulfilled kind)
+      (is string= "TimeoutError"
+          (eng:to-string (eng:js-get value "name"))))
+    ;; Let the server-side reactor observe the client FIN before inspecting it.
+    (eng:run-callback-to-settlement
+     (lambda () (jseval eng:*realm*
+                        "new Promise(resolve => setTimeout(resolve, 40))"))
+     eng:*realm* :timeout-ms 1000)
+    (is = 1 (car accepted-count))
+    (is = 1 (car closed-count))))
+
+(define-test net/fetch-timeout-signal-after-headers-errors-body
+  (with-delayed-fetch-server (g port)
+    (multiple-value-bind (kind value)
+        (eng:run-callback-to-settlement
+         (lambda ()
+           (jseval
+            eng:*realm*
+            (format nil
+                    "(async () => {
+                       const signal = AbortSignal.timeout(20);
+                       const response = await fetch(
+                         'http://127.0.0.1:~d/slow-body', { signal });
+                       try {
+                         await response.text();
+                         return { name: 'fulfilled' };
+                       } catch (error) {
+                         return { name: error.name };
+                       }
+                     })()"
+                    port)))
+         eng:*realm* :timeout-ms 2000)
+      (is eq :fulfilled kind)
+      (is string= "TimeoutError"
+          (eng:to-string (eng:js-get value "name"))))))
+
+(define-test net/fetch-operation-timeout-is-shared-across-redirects
+  (with-timeout-matrix-server (g port accepted-count closed-count)
+    (let ((rt::*fetch-operation-timeout-ms* 100)
+          (started (lp:now-ms)))
+      (multiple-value-bind (kind value)
+          (fetch-info g eng:*realm* port "/redirect-one")
+        (is eq :rejected kind)
+        (is string= "TypeError"
+            (eng:to-string (eng:js-get value "name")))
+        (true (search "timeout"
+                      (eng:to-string (eng:js-get value "message"))))
+        (true (< (- (lp:now-ms) started) 1000))))
+    (is = 2 (car accepted-count))))
+
+(define-test net/fetch-response-reader-cancel-closes-transport
+  (with-timeout-matrix-server (g port accepted-count closed-count)
+    (multiple-value-bind (kind value)
+        (eng:run-callback-to-settlement
+         (lambda ()
+           (jseval
+            eng:*realm*
+            (format nil
+                    "(async () => {
+                       const response = await fetch(
+                         'http://127.0.0.1:~d/partial');
+                       const reader = response.body.getReader();
+                       const first = await reader.read();
+                       await reader.cancel('done');
+                       return { bytes: first.value.length, done: first.done };
+                     })()"
+                    port)))
+         eng:*realm* :timeout-ms 2000)
+      (is eq :fulfilled kind)
+      (is = 5 (truncate (eng:js-get value "bytes")))
+      (is eq eng:+false+ (eng:js-get value "done")))
+    (eng:run-callback-to-settlement
+     (lambda () (jseval eng:*realm*
+                        "new Promise(resolve => setTimeout(resolve, 40))"))
+     eng:*realm* :timeout-ms 1000)
+    (is = 1 (car accepted-count))
+    (is = 1 (car closed-count))
+    (is = 0
+        (length (net::%http-pool-idle-tcps
+                 (eng:current-loop) "127.0.0.1" port)))))
+
+(define-test net/fetch-redirects-own-one-abort-listener
+  (with-fetch-server (g port)
+    (multiple-value-bind (kind value)
+        (eng:run-callback-to-settlement
+         (lambda ()
+           (eng:js-call
+            (eng:js-get g "__fetchSignalProbe") eng:+undefined+
+            (list (format nil "http://127.0.0.1:~d/redir2" port))))
+         eng:*realm* :timeout-ms 8000)
+      (is eq :fulfilled kind)
+      (true (search "\"hi\":\"there\""
+                    (eng:to-string (eng:js-get value "body"))))
+      (is = 1 (truncate (eng:js-get value "added")))
+      (is = 1 (truncate (eng:js-get value "removed")))
+      (is eq eng:+false+ (eng:js-get value "attached")))))
+
+(define-test net/fetch-response-body-streams-before-completion
+  (with-delayed-fetch-server (g port)
+    (multiple-value-bind (kind value)
+        (eng:run-callback-to-settlement
+         (lambda ()
+           (jseval
+            eng:*realm*
+            (format nil
+                    "(async () => {
+                       const response = await fetch('http://127.0.0.1:~d/stream');
+                       const tailAtResolve = globalThis.__tailSent;
+                       const usedBefore = response.bodyUsed;
+                       const reader = response.body.getReader();
+                       const first = await reader.read();
+                       const usedAfter = response.bodyUsed;
+                       const second = await reader.read();
+                       const end = await reader.read();
+                       const decoder = new TextDecoder();
+                       return { tailAtResolve, usedBefore, usedAfter,
+                                body: decoder.decode(first.value) + decoder.decode(second.value),
+                                done: end.done };
+                     })()"
+                    port)))
+         eng:*realm* :timeout-ms 4000)
+      (is eq :fulfilled kind)
+      (is eq eng:+false+ (eng:js-get value "tailAtResolve"))
+      (is eq eng:+false+ (eng:js-get value "usedBefore"))
+      (is eq eng:+true+ (eng:js-get value "usedAfter"))
+      (is string= "hello world" (eng:to-string (eng:js-get value "body")))
+      (is eq eng:+true+ (eng:js-get value "done")))))
+
+(define-test net/fetch-body-async-iteration-is-single-consumption
+  (with-delayed-fetch-server (g port)
+    (multiple-value-bind (kind value)
+        (eng:run-callback-to-settlement
+         (lambda ()
+           (jseval
+            eng:*realm*
+            (format nil
+                    "(async () => {
+                       const response = await fetch('http://127.0.0.1:~d/iterate');
+                       const decoder = new TextDecoder();
+                       let body = '';
+                       for await (const chunk of response.body) body += decoder.decode(chunk);
+                       let second = '';
+                       try { await response.text(); } catch (error) { second = error.name; }
+                       return { body, second, used: response.bodyUsed };
+                     })()"
+                    port)))
+         eng:*realm* :timeout-ms 4000)
+      (is eq :fulfilled kind)
+      (is string= "hello world" (eng:to-string (eng:js-get value "body")))
+      (is string= "TypeError" (eng:to-string (eng:js-get value "second")))
+      (is eq eng:+true+ (eng:js-get value "used")))))
+
+(define-test net/fetch-response-clone-tees-delayed-body
+  (with-delayed-fetch-server (g port)
+    (multiple-value-bind (kind value)
+        (eng:run-callback-to-settlement
+         (lambda ()
+           (jseval
+            eng:*realm*
+            (format nil
+                    "(async () => {
+                       const response = await fetch('http://127.0.0.1:~d/clone');
+                       const clone = response.clone();
+                       const tailAtClone = globalThis.__tailSent;
+                       const originalBody = await response.text();
+                       const clonedBody = await clone.text();
+                       let cloneAfterUse = '';
+                       try { response.clone(); } catch (error) { cloneAfterUse = error.name; }
+                       return { tailAtClone, originalBody, clonedBody, cloneAfterUse,
+                                originalUsed: response.bodyUsed, cloneUsed: clone.bodyUsed };
+                     })()"
+                    port)))
+         eng:*realm* :timeout-ms 4000)
+      (is eq :fulfilled kind)
+      (is eq eng:+false+ (eng:js-get value "tailAtClone"))
+      (is string= "hello world" (eng:to-string (eng:js-get value "originalBody")))
+      (is string= "hello world" (eng:to-string (eng:js-get value "clonedBody")))
+      (is string= "TypeError" (eng:to-string (eng:js-get value "cloneAfterUse")))
+      (is eq eng:+true+ (eng:js-get value "originalUsed"))
+      (is eq eng:+true+ (eng:js-get value "cloneUsed")))))
+
+(define-test net/response-clone-and-readable-stream-tee
+  (let ((realm (eng:make-realm)))
+    (rt:install-runtime realm :argv '(:script "[test]" :rest nil) :cwd "/tmp")
+    (unwind-protect
+         (let ((eng:*realm* realm))
+           (multiple-value-bind (kind value)
+               (eng:run-callback-to-settlement
+                (lambda ()
+                  (jseval
+                   realm
+                   "(async () => {
+                      const response = new Response('abc', {
+                        status: 201, statusText: 'Made', headers: { 'x-copy': 'original' }
+                      });
+                      const heldBody = response.body;
+                      const clone = response.clone();
+                      clone.headers.set('x-copy', 'clone');
+                      const original = await response.text();
+                      const copied = await clone.text();
+
+                      const teeResponse = new Response('xy');
+                      const source = teeResponse.body;
+                      const branches = source.tee();
+                      const left = branches[0].getReader();
+                      const right = branches[1].getReader();
+                      const leftChunk = await left.read();
+                      const rightChunk = await right.read();
+                      return {
+                        original, copied, status: clone.status,
+                        originalHeader: response.headers.get('x-copy'),
+                        cloneHeader: clone.headers.get('x-copy'),
+                        heldLocked: heldBody.locked, sourceLocked: source.locked,
+                        leftFirst: leftChunk.value[0], rightSecond: rightChunk.value[1]
+                      };
+                    })()"))
+                realm :timeout-ms 4000)
+             (is eq :fulfilled kind)
+             (is string= "abc" (eng:to-string (eng:js-get value "original")))
+             (is string= "abc" (eng:to-string (eng:js-get value "copied")))
+             (is = 201 (truncate (eng:js-get value "status")))
+             (is string= "original" (eng:to-string (eng:js-get value "originalHeader")))
+             (is string= "clone" (eng:to-string (eng:js-get value "cloneHeader")))
+             (is eq eng:+true+ (eng:js-get value "heldLocked"))
+             (is eq eng:+true+ (eng:js-get value "sourceLocked"))
+             (is = (char-code #\x) (truncate (eng:js-get value "leftFirst")))
+             (is = (char-code #\y) (truncate (eng:js-get value "rightSecond")))))
+      (eng:teardown-realm realm))))
+
+(define-test net/response-tee-shares-backpressure-and-cancellation
+  (let ((realm (eng:make-realm))
+        (pauses 0)
+        (resumes 0)
+        (cancels 0))
+    (rt:install-runtime realm :argv '(:script "[test]" :rest nil) :cwd "/tmp")
+    (unwind-protect
+         (let* ((eng:*realm* realm)
+                (source
+                  (rt::%new-body-stream
+                   :cancel (lambda () (incf cancels))
+                   :pause (lambda () (incf pauses))
+                   :resume (lambda () (incf resumes))))
+                (chunk
+                  (make-array 4 :element-type '(unsigned-byte 8)
+                              :initial-contents '(1 2 3 4))))
+           (multiple-value-bind (first second)
+               (rt::%body-stream-tee source :high-water 8 :low-water 3)
+             (rt::%body-stream-enqueue source chunk)
+             (rt::%body-stream-enqueue source chunk)
+             (is = 1 pauses)
+             (loop repeat 2 do (rt::%body-stream-queue-pop first))
+             (rt::%body-stream-maybe-resume first)
+             (is = 0 resumes)
+             (rt::%body-stream-cancel-now second eng:+undefined+)
+             (is = 1 resumes)
+             (is = 0 cancels)
+             (rt::%body-stream-cancel-now first eng:+undefined+)
+             (is = 1 cancels)))
+      (eng:teardown-realm realm))))
+
+(define-test net/fetch-abort-after-headers-errors-body-with-reason
+  (with-delayed-fetch-server (g port)
+    (multiple-value-bind (kind value)
+        (eng:run-callback-to-settlement
+         (lambda ()
+           (jseval
+            eng:*realm*
+            (format nil
+                    "(async () => {
+                       const controller = new AbortController();
+                       const response = await fetch('http://127.0.0.1:~d/abort',
+                                                    { signal: controller.signal });
+                       controller.abort('body-stop');
+                       try { await response.text(); return 'fulfilled'; }
+                       catch (error) { return error; }
+                     })()"
+                    port)))
+         eng:*realm* :timeout-ms 4000)
+      ;; fetch itself fulfilled at headers; only consuming its body rejects.
+      (is eq :fulfilled kind)
+      (is string= "body-stop" (eng:to-string value)))))
+
+(define-test net/response-body-stream-applies-high-low-water-backpressure
+  (let ((realm (eng:make-realm))
+        (pauses 0)
+        (resumes 0))
+    (rt:install-runtime realm :argv '(:script "[test]" :rest nil) :cwd "/tmp")
+    (unwind-protect
+         (let* ((eng:*realm* realm)
+                (stream
+                  (clun.runtime::%new-body-stream
+                   :pause (lambda () (incf pauses))
+                   :resume (lambda () (incf resumes))
+                   :high-water 8 :low-water 3))
+                (chunk
+                  (make-array 4 :element-type '(unsigned-byte 8)
+                              :initial-contents '(1 2 3 4))))
+           (clun.runtime::%body-stream-enqueue stream chunk)
+           (clun.runtime::%body-stream-enqueue stream chunk)
+           (is = 1 pauses)
+           (is = 8 (clun.runtime::js-body-stream-queued-bytes stream))
+           (let ((reader
+                   (eng:js-call (eng:js-get stream "getReader") stream '())))
+             (loop repeat 2 do
+               (multiple-value-bind (kind result)
+                   (eng:run-callback-to-settlement
+                    (lambda ()
+                      (eng:js-call (eng:js-get reader "read") reader '()))
+                    realm)
+                 (is eq :fulfilled kind)
+                 (is eq eng:+false+ (eng:js-get result "done"))))
+             (is = 1 resumes)
+             (is = 0 (clun.runtime::js-body-stream-queued-bytes stream))))
+      (eng:teardown-realm realm))))
 
 (define-test net/response-nonutf8-body-no-crash
   ;; [5] a Response over invalid UTF-8 decodes leniently (U+FFFD), never a raw Lisp
@@ -207,6 +1015,81 @@ __fetchInfo; run BODY (which drives fetches via FETCH-INFO); tear the realm down
         (fetch-info g eng:*realm* port "/text" "{method:'GET', body:'nope'}")
       (is eq :rejected kind)
       (is string= "TypeError" (eng:to-string (eng:js-get value "name"))))))
+
+(define-test net/fetch-streaming-request-body-is-chunked-and-bounded
+  (with-upload-capture-server (g port capture)
+    (let ((stream (rt::%new-body-stream)))
+      (eng:data-prop g "__uploadBody" stream)
+      (rt::%body-stream-enqueue
+       stream (make-array 3 :element-type '(unsigned-byte 8)
+                           :initial-contents '(97 98 99)))
+      (rt::%body-stream-enqueue
+       stream (make-array 2 :element-type '(unsigned-byte 8)
+                           :initial-contents '(100 101)))
+      (rt::%body-stream-close stream)
+      (multiple-value-bind (kind value)
+          (eng:run-callback-to-settlement
+           (lambda ()
+             (jseval
+              eng:*realm*
+              (format nil
+                      "(async () => {
+                         const response = await fetch('http://127.0.0.1:~d/upload', {
+                           method: 'POST', body: globalThis.__uploadBody, duplex: 'half'
+                         });
+                         return { body: await response.text(), locked: globalThis.__uploadBody.locked };
+                       })()"
+                      port)))
+           eng:*realm* :timeout-ms 4000)
+        (is eq :fulfilled kind)
+        (is string= "ok" (eng:to-string (eng:js-get value "body")))
+        (is eq eng:+false+ (eng:js-get value "locked"))
+        (let ((wire
+                (sb-ext:octets-to-string
+                 (subseq capture 0 (fill-pointer capture))
+                 :external-format :latin-1)))
+          (true (search "Transfer-Encoding: chunked" wire))
+          (false (search "Content-Length:" wire))
+          (true
+           (search
+            (format nil "3~c~cabc~c~c2~c~cde~c~c0~c~c~c~c"
+                    #\Return #\Newline #\Return #\Newline
+                    #\Return #\Newline #\Return #\Newline
+                    #\Return #\Newline #\Return #\Newline)
+            wire)))))))
+
+(define-test net/fetch-streaming-request-validates-duplex-and-framing
+  (with-fetch-server (g port)
+    (dolist (options
+             (list
+              "{ method: 'POST', body: new Response('x').body }"
+              "{ method: 'POST', body: new Response('x').body, duplex: 'full' }"
+              "{ method: 'POST', body: new Response('x').body, duplex: 'half', headers: { 'content-length': '1' } }"
+              "{ method: 'GET', body: new Response('x').body, duplex: 'half' }"))
+      (multiple-value-bind (kind value)
+          (fetch-info g eng:*realm* port "/text" options)
+        (is eq :rejected kind)
+        (is string= "TypeError"
+            (eng:to-string (eng:js-get value "name")))))))
+
+(define-test net/fetch-streaming-request-preserves-source-error
+  (with-upload-capture-server (g port capture)
+    (let ((stream (rt::%new-body-stream)))
+      (eng:data-prop g "__failedUpload" stream)
+      (rt::%body-stream-error stream "upload-broke")
+      (multiple-value-bind (kind value)
+          (eng:run-callback-to-settlement
+           (lambda ()
+             (jseval
+              eng:*realm*
+              (format nil
+                      "fetch('http://127.0.0.1:~d/upload', {
+                         method: 'POST', body: globalThis.__failedUpload, duplex: 'half'
+                       })"
+                      port)))
+           eng:*realm* :timeout-ms 4000)
+        (is eq :rejected kind)
+        (is string= "upload-broke" (eng:to-string value))))))
 
 (define-test net/fetch-connection-refused
   (with-fetch-server (g port)

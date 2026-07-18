@@ -70,5 +70,16 @@
   (true (search "export =" (or (strip-errs "export = foo;") "")))
   (true (search "decorators" (or (strip-errs "class C { @dec m() {} }") "")))
   (true (search "namespace" (or (strip-errs "namespace N { const x = 1; }") "")))
+  ;; bare value enum inside a namespace is runtime → error (not silent erase)
+  (true (search "namespace" (or (strip-errs "namespace N { enum E { A } }") "")))
   ;; a type-only namespace is erased, not an error
   (is equal "" (collapse-ws (strip "namespace T { export interface X { a: number; } }"))))
+
+(define-test ts/ambient-enum-strip
+  ;; declare enum / declare const enum are ambient and erase whole
+  ;; export declare keeps leading export like other export-declare forms today
+  (is equal "" (collapse-ws (strip "declare enum E { A, B }")))
+  (is equal "" (collapse-ws (strip "declare const enum Dir { Up, Down }")))
+  (is equal "export" (collapse-ws (strip "export declare enum E { A = 1, B }")))
+  ;; value enums still hard-error
+  (is equal "TypeScript enum is not supported in strip-only mode" (strip-errs "export enum E { A }")))

@@ -22,7 +22,7 @@
 <!-- clun-generated:release:begin -->
 <a href="https://github.com/theesfeld/clun/issues/108">
   <span>In development</span>
-  v0.1.0-dev.24 / Phase 47
+  v0.1.0-dev.28 / Phase 47
   <span aria-hidden="true">-&gt;</span>
 </a>
 <!-- clun-generated:release:end -->
@@ -56,7 +56,7 @@
             <img class="hero-mark" src="assets/clun.jpg" alt="Clun mascot wearing a Lisp helmet" width="250" height="250">
           </div>
 <!-- clun-generated:version:begin -->
-<p class="eyebrow"><span class="status-dot" aria-hidden="true"></span> v0.1.0-dev.24 release candidate / pre-alpha</p>
+<p class="eyebrow"><span class="status-dot" aria-hidden="true"></span> v0.1.0-dev.28 release candidate / pre-alpha</p>
 <!-- clun-generated:version:end -->
           <h1>Clun is JavaScript tooling,<br> rewritten in pure Common Lisp.</h1>
           <p class="hero-copy">
@@ -92,22 +92,22 @@
         <div class="shell status-shell">
           <dl class="hero-facts" tabindex="0" role="region" aria-label="Project facts">
             <div><dt>Implementation</dt><dd>Pure Common Lisp</dd></div>
-            <div><dt>Curated test262 pass list</dt><dd>25,793 pass</dd></div>
-            <div><dt>Phase 25b progress</dt><dd>91.58% current / 90% target met</dd></div>
+            <div><dt>Curated test262 pass list</dt><dd>25,944 pass</dd></div>
+            <div><dt>Phase 25b progress</dt><dd>92.12% current / 90% target met</dd></div>
             <div><dt>License</dt><dd>GPL-3.0-or-later</dd></div>
           </dl>
           <p class="hero-phase">
-            Full run: 40,654 total = 25,793 pass / 2,370 fail / 12,491 skip / 0 crash.
+            Full run: 40,654 total = 25,944 pass / 2,219 fail / 12,491 skip / 0 crash.
             Eligible: 28,163 / target: 25,347 pass / remaining lift: 0.
-            Pass-list gain: +742 from m5 / +3,150 from Phase 25b entry.
+            Pass-list gain: +893 from m5 / +3,301 from Phase 25b entry.
             Focused m6 slice: 509 total / 407 pass / 102 fail / 0 skip / 0 timeout / 0 crash.
             All 407 owned rows pass; controls: 7 m11 / 95 Phase 37; m6 residual: 0. Remaining ownership:
-            1,767 Phase-25b / 603 Phase-37 gaps. Incidental <code>Promise.prototype.finally</code> passes:
+            1,767 Phase-25b / 452 Phase-37 gaps. Incidental <code>Promise.prototype.finally</code> passes:
             <code>species-constructor.js</code>, <code>subclass-reject-count.js</code>, and
             <code>subclass-resolve-count.js</code>. Phase 32's supporting Proxy infrastructure adds 13
             newly frozen passes without claiming blanket Proxy compatibility. Phase 37 milestone 1 adds
             173 more frozen passes without claiming complete modern ECMAScript parity.
-            Ledger digest: <code>B74BA9D0C45F150C</code>.
+            Ledger digest: <code>8FCFC569AA653BF1</code>.
             Off/eager ledgers are byte-identical; eager compiled 1,030,545 forms / classified 56,018
             as ineligible / fell back 0 times / executed 0 interpreter fallbacks.
             Parse gate: 23,713 total / 17,699 pass / 976 fail / 5,038 skip / 0 crash; all 17,512
@@ -361,7 +361,7 @@ Linked phase labels are planned acceptance gates, not capabilities available tod
   <thead>
     <tr>
       <th scope="col">Capability</th>
-      <th scope="col" class="clun-col"><a href="https://github.com/theesfeld/clun">Clun</a><span>0.1.0-dev.24 candidate / pre-alpha</span></th>
+      <th scope="col" class="clun-col"><a href="https://github.com/theesfeld/clun">Clun</a><span>0.1.0-dev.28 candidate / pre-alpha</span></th>
       <th scope="col"><a href="https://bun.sh/">Bun</a><span>1.3.14 / toolkit</span></th>
       <th scope="col"><a href="https://nodejs.org/">Node.js</a><span>26.5.0 / current</span></th>
       <th scope="col"><a href="https://deno.com/">Deno</a><span>2.9.3 / runtime</span></th>
@@ -380,7 +380,7 @@ Linked phase labels are planned acceptance gates, not capabilities available tod
     </tr>
     <tr data-compat-feature="runtime.web-standard-apis">
       <th scope="row"><strong>Web Standard APIs</strong><span><code>fetch</code>, URL, events, headers, and related APIs</span></th>
-      <td class="clun-col"><b class="state partial">Partial</b> buffered fetch and a scoped Web API surface<a class="phase-link" data-roadmap-phase="38" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-38">Phase 38</a></td>
+      <td class="clun-col"><b class="state partial">Partial</b> streaming <code>fetch</code>, clone/tee, operation-wide timeouts, HTTP proxy and HTTPS CONNECT support, plain HTTP pooling, origin-keyed pure-tls HTTPS idle pooling, one-chunk Response/Request.body ReadableStream consumers, and a scoped Web API surface<a class="phase-link" data-roadmap-phase="38" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-38">Phase 38</a></td>
       <td><b class="state yes">Yes</b> broad WebCore-backed surface</td>
       <td><b class="state yes">Yes</b> broad standards surface</td>
       <td><b class="state yes">Yes</b> standards-first runtime surface</td>
@@ -441,7 +441,7 @@ Linked phase labels are planned acceptance gates, not capabilities available tod
     </tr>
     <tr data-compat-feature="server.websocket">
       <th scope="row"><strong>WebSocket server</strong><span>First-party server with connection handling and Pub/Sub</span></th>
-      <td class="clun-col"><b class="state no">No</b> no WebSocket implementation<a class="phase-link" data-roadmap-phase="51" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-51">Phase 51</a></td>
+      <td class="clun-col"><b class="state no">No</b> pure-CL path feasible; fail-closed stubs only (design docs/design/phase-51.md)<a class="phase-link" data-roadmap-phase="51" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-51">Phase 51</a></td>
       <td><b class="state yes">Yes</b> through <code>Bun.serve</code></td>
       <td><b class="state no">No</b> client API only</td>
       <td><b class="state partial">Partial</b> server API without built-in Pub/Sub</td>
@@ -483,7 +483,7 @@ Linked phase labels are planned acceptance gates, not capabilities available tod
     </tr>
     <tr data-compat-feature="security.encrypted-secrets">
       <th scope="row"><strong>Encrypted secrets storage</strong><span>Operating-system keychain integration</span></th>
-      <td class="clun-col"><b class="state no">No</b><a class="phase-link" data-roadmap-phase="58" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-58">Phase 58</a></td>
+      <td class="clun-col"><b class="state no">No</b> excluded by the purity contract<a class="phase-link" data-roadmap-phase="58" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-58">Phase 58</a></td>
       <td><b class="state yes">Yes</b> <code>Bun.secrets</code></td>
       <td><b class="state no">No</b></td>
       <td><b class="state no">No</b></td>
@@ -495,7 +495,7 @@ Linked phase labels are planned acceptance gates, not capabilities available tod
     </tr>
     <tr data-compat-feature="package-manager.npm">
       <th scope="row"><strong>npm package management</strong><span>Install, manage, and publish npm-compatible dependencies</span></th>
-      <td class="clun-col"><b class="state partial">Partial</b> fixture-tested; public npm is blocked by TLS interop<span class="phase-links" data-roadmap-phase="61"><span>Phases</span> <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-28">28</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-59">59</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-60">60</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-61">61</a></span></td>
+      <td class="clun-col"><b class="state partial">Partial</b> fixture-tested; a pinned public npm install smoke passes over verified TLS<span class="phase-links" data-roadmap-phase="61"><span>Phases</span> <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-28">28</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-59">59</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-60">60</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-61">61</a></span></td>
       <td><b class="state yes">Yes</b> <code>bun install</code></td>
       <td><b class="state separate">Separate</b> npm ships with Node.js installers</td>
       <td><b class="state partial">Partial</b> installs npm projects; publishing is JSR-oriented</td>
@@ -509,7 +509,7 @@ Linked phase labels are planned acceptance gates, not capabilities available tod
     </tr>
     <tr data-compat-feature="tooling.shell">
       <th scope="row"><strong>Cross-platform shell API</strong><span>Shell scripting from application code</span></th>
-      <td class="clun-col"><b class="state partial">Partial</b> <code>Clun.$</code>, <code>clun exec</code>, standalone <code>.bun.sh</code> files with positional parameters, dollar and backtick command substitution, merged stdout/stderr pipelines, grouped subshells and brace groups nested across <code>if</code> control flow, Blob/Response I/O, positive extended-glob conditions, compound-word field splitting, 100-level arrays, Unicode, tilde and continuation expansion, builtins, and 1,247/1,630 pinned shell sites<a class="phase-link" data-roadmap-phase="65" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-65">Phase 65</a></td>
+      <td class="clun-col"><b class="state partial">Partial</b> <code>Clun.$</code>, <code>clun exec</code>, standalone <code>.bun.sh</code> files with positional parameters, dollar and backtick command substitution, merged stdout/stderr pipelines, grouped subshells and brace groups nested across <code>if</code> control flow, Blob/Response I/O, positive extended-glob conditions, compound-word field splitting, 100-level arrays, Unicode, tilde and continuation expansion, builtins, and 1,251/1,630 pinned shell sites<a class="phase-link" data-roadmap-phase="65" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-65">Phase 65</a></td>
       <td><b class="state yes">Yes</b> <code>Bun.$</code></td>
       <td><b class="state no">No</b></td>
       <td><b class="state no">No</b> application API requires <code>dax</code></td>
@@ -681,7 +681,7 @@ Linked phase labels are planned acceptance gates, not capabilities available tod
 <!-- clun-generated:release-links:begin -->
 <div><h2>Project</h2><a href="https://github.com/theesfeld/clun">Source</a><a href="https://github.com/theesfeld/clun/blob/master/README.md">README</a><a href="https://github.com/theesfeld/clun/issues/108">Current status</a></div>
 <div><h2>Evidence</h2><a href="https://github.com/theesfeld/clun/blob/master/compat/README.md">Compatibility ledger</a><a href="https://github.com/theesfeld/clun/actions/workflows/compat.yml">Compatibility CI</a><a href="https://github.com/theesfeld/clun/blob/master/LICENSE">License</a></div>
-<div><h2>Install</h2><a href="install">Shell installer</a><a href="https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.18">v0.1.0-dev.18 release</a><a href="https://github.com/theesfeld/clun#building-from-source">Build from source</a></div>
+<div><h2>Install</h2><a href="install">Shell installer</a><a href="https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.21">v0.1.0-dev.21 release</a><a href="https://github.com/theesfeld/clun#building-from-source">Build from source</a></div>
 <!-- clun-generated:release-links:end -->
       </div>
       <div class="shell footer-bottom"><span>(c) 2026 TJ Theesfeld</span><span>clun.sh</span></div>

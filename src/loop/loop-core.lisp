@@ -51,6 +51,7 @@
   (lifecycle-lock (sb-thread:make-mutex :name "clun-loop-lifecycle"))
   (destruction-waitqueue (sb-thread:make-waitqueue :name "clun-loop-destruction"))
   (resources '())                       ; loop-resource tokens, newest first
+  (extensions (make-hash-table :test #'eq)) ; loop-owned subsystem state
   (posters 0 :type (unsigned-byte 64))   ; in-flight lock-free LOOP-POST producers
   (destroyer nil)                       ; thread performing synchronous teardown
   (destroying nil)
@@ -74,6 +75,17 @@
   (when (or (el-destroying loop) (el-destroyed loop))
     (error "cannot ~a on a destroyed event loop" operation))
   loop)
+
+(defun loop-extension (loop key)
+  "Return the loop-owned subsystem value stored under KEY, or NIL."
+  (with-loop-lifecycle-lock (loop)
+    (gethash key (el-extensions loop))))
+
+(defun (setf loop-extension) (value loop key)
+  "Store VALUE as subsystem state owned by LOOP."
+  (with-loop-lifecycle-lock (loop)
+    (%ensure-loop-open-locked loop "store loop extension state")
+    (setf (gethash key (el-extensions loop)) value)))
 
 (defun begin-loop-destruction (loop)
   "Atomically prevent new work/resource registration. Return true only to the

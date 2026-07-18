@@ -38,6 +38,9 @@ self-pipe makes real signal/worker latency ~immediate, not cap-bound (Appendix C
            ;; Closing the SBCL socket object cancels its finalizer. Dropping only the
            ;; handler could let that finalizer close an OS-recycled fd later.
            (close-loop-resources loop)
+           ;; Subsystem state may retain closed resource wrappers and callbacks. The
+           ;; resources themselves are synchronously closed above; now release roots.
+           (clrhash (el-extensions loop))
            ;; LOOP-POST is mutex-free because status hooks call it in interrupt
            ;; context. Wait for any producer that entered before DESTROYING was set.
            (loop while (plusp (el-posters loop)) do (sb-thread:thread-yield))
