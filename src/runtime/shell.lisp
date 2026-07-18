@@ -25,7 +25,7 @@
 (defstruct shell-if-form (branches '()) alternative)
 (defstruct shell-command
   (words '()) (assignments '()) (redirections '()) group brace-group if-form negated)
-(defstruct shell-pipeline (commands '()) (merge-stderr '()))
+(defstruct shell-pipeline (commands '()) (merge-stderr '()) (background nil))
 (defstruct shell-script (pipelines '()) (operators '()))
 (defstruct shell-result
   (stdout #() :type vector)
@@ -43,7 +43,10 @@
   (terminated nil) (positionals '())
   ;; Stderr produced while expanding command substitutions is attributed to the
   ;; surrounding command (Bun Expansion / shell-var-3).
-  (pending-stderr (make-array 0 :element-type '(unsigned-byte 8))))
+  (pending-stderr (make-array 0 :element-type '(unsigned-byte 8)))
+  ;; Background (&) jobs: finished SHELL-RESULT values or running process plists
+  ;; (:process :directory :stdout :stderr).
+  (background-jobs '()))
 (defstruct shell-job
   units state g result error (started nil))
 (defstruct (shell-condition-operand
@@ -442,7 +445,7 @@
 
 (defun %shell-command-start-after-token-p (token)
   (and (eq (shell-token-kind token) :operator)
-       (member (shell-token-value token) '(";" "&&" "||" "|" "|&" "(")
+       (member (shell-token-value token) '(";" "&&" "||" "&" "|" "|&" "(")
                :test #'string=)))
 
 (defun %shell-control-state-after-token (token control-depth at-command-start)
@@ -796,8 +799,9 @@
                   (zerop control-depth)
                   (eq (shell-token-kind token) :operator)
                   (string= (shell-token-value token) "&"))
-             ;; Match frozen Bun: background forms are recognized then rejected.
-             (%shell-syntax "Background commands \"&\" are not supported yet."))
+             ;; Background list terminator (bash / Bun application-shell parity).
+             (flush :background)
+             (setf at-command-start t))
             ((and (not in-condition)
                   (zerop depth)
                   (zerop brace-depth)
@@ -808,13 +812,25 @@
                           ((string= (shell-token-value token) "||") :or)
                           (t :sequence))))
             (t (push token current)))))
-      (unless (zerop depth) (%shell-syntax "unterminated subshell group"))
+      (when (plusp depth)
+        ;; Bun surfaces multiple unclosed-subshell diagnostics with a leading
+        ;; Unexpected EOF when several opens remain (engineering lex L751).
+        (if (> depth 1)
+            (%shell-syntax
+             (with-output-to-string (out)
+               (write-string "Unexpected EOF" out)
+               (dotimes (_ (1- depth))
+                 (write-char #\Newline out)
+                 (write-string "Unclosed subshell" out))))
+            (%shell-syntax "unterminated subshell group")))
       (unless (zerop brace-depth) (%shell-syntax "unterminated brace group"))
       (unless (zerop control-depth) (%shell-syntax "unterminated if"))
       (flush nil))
     ;; A trailing separator records one extra operator; it has no right-hand side.
+    ;; Trailing `&` is meaningful (marks the final AND-OR list background) and is kept.
     (when (>= (length operators) (length pipelines))
-      (setf operators (butlast operators)))
+      (unless (eq (first operators) :background)
+        (setf operators (butlast operators))))
     (make-shell-script :pipelines (nreverse pipelines)
                        :operators (nreverse operators))))
 
@@ -930,11 +946,16 @@
     (t value)))
 
 (defun %shell-glob-matches (value state)
+  "Return match list, or :eacces when a directory in the walk is unreadable."
   (handler-case
       (let* ((options (clun.glob:make-glob-scan-options
                        :cwd (shell-state-cwd state) :dot nil :only-files nil))
              (matches (clun.glob:scan-glob value options)))
         (and (plusp (length matches)) (coerce matches 'list)))
+    (clun.sys:fs-error (condition)
+      (if (string= (clun.sys:fs-error-code condition) "EACCES")
+          (values :eacces (clun.sys:fs-error-path condition))
+          nil))
     (error () nil)))
 
 (defun %shell-expand-glob (pattern fallback state &key (null-glob-ok nil))
@@ -942,14 +963,22 @@
 
 Matches replace the pattern. When there are no matches Bun keeps the literal
 pattern only in assignment position; elsewhere it fails with
-\"no matches found\". NULL-GLOB-OK selects the assignment policy.
+\"no matches found\". Unreadable directories report Permission denied (not
+nullglob). NULL-GLOB-OK selects the assignment policy.
 
 PATTERN may contain protected metacharacters for matching; FALLBACK is the
 user-visible spelling used in diagnostics."
-  (or (%shell-glob-matches pattern state)
-      (if null-glob-ok
-          (list fallback)
-          (%shell-syntax "no matches found: ~a" fallback))))
+  (multiple-value-bind (matches eacces-path)
+      (%shell-glob-matches pattern state)
+    (cond
+      ((eq matches :eacces)
+       ;; Assignment nullglob keeps the literal; command position reports EACCES.
+       (if null-glob-ok
+           (list fallback)
+           (%shell-syntax "Permission denied: ~a" (or eacces-path fallback))))
+      (matches matches)
+      (null-glob-ok (list fallback))
+      (t (%shell-syntax "no matches found: ~a" fallback)))))
 
 (defun %shell-expand-brace-pattern (pattern fallback)
   (let ((tokens (%shell-brace-tokenize pattern)))
@@ -1077,8 +1106,8 @@ pinned Bun assignment statement behavior used by lex/env_vars fixtures."
 
 (defparameter *shell-builtins*
   '("echo" "pwd" "cd" "true" "false" ":" "export" "unset" "shopt" "which" "exit"
-    "basename" "dirname" "seq" "cat" "mkdir" "touch" "rm" "mv" "ls" "cp" "yes"
-    "[["))
+    "wait" "basename" "dirname" "seq" "cat" "mkdir" "touch" "rm" "mv" "ls" "cp"
+    "yes" "[["))
 
 (defun %shell-relative-path (path state)
   (if (clun.sys:absolute-path-p path)
@@ -1961,28 +1990,35 @@ integer conversions are deliberately rejected because seq values are f32."
     (labels ((illegal (option)
                (return-from %shell-run-ls
                  (%shell-result-from-strings
-                  "" (format nil "ls: illegal option -- ~a~%" option) 1))))
+                  "" (format nil "ls: illegal option -- ~a~%" option) 1)))
+             (apply-option-word (argument)
+               (when (= (length argument) 1) (illegal "-"))
+               (loop for option across (subseq argument 1) do
+                 (unless (find option *shell-ls-recognized-options*)
+                   (illegal (string option)))
+                 (case option
+                   (#\a (setf show-all t))
+                   (#\A (setf show-almost-all t))
+                   (#\d (setf list-directories t))
+                   (#\l (setf long-listing t))
+                   (#\R (setf recursive t))
+                   (#\r (setf reverse-order t))))))
+      ;; Accept short-option clusters before or after path operands (Bun `ls foo -R`).
       (loop while args do
-        (let ((argument (first args)))
+        (let ((argument (pop args)))
           (cond
-            ((or (zerop (length argument))
-                 (not (char= (char argument 0) #\-)))
-             (setf paths args)
-             (return))
-            ((= (length argument) 1) (illegal "-"))
-            (t
-             (pop args)
-             (loop for option across (subseq argument 1) do
-               (unless (find option *shell-ls-recognized-options*)
-                 (illegal (string option)))
-               (case option
-                 (#\a (setf show-all t))
-                 (#\A (setf show-almost-all t))
-                 (#\d (setf list-directories t))
-                 (#\l (setf long-listing t))
-                 (#\R (setf recursive t))
-                 (#\r (setf reverse-order t))))))))
-      (unless paths (setf paths '(".")))
+            ((string= argument "--")
+             (setf paths (append paths args) args nil))
+            ((and (> (length argument) 1)
+                  (char= (char argument 0) #\-)
+                  (char= (char argument 1) #\-))
+             ;; Long options (including `--help`) stay illegal like frozen Bun.
+             (illegal "-"))
+            ((and (> (length argument) 1)
+                  (char= (char argument 0) #\-))
+             (apply-option-word argument))
+            (t (push argument paths)))))
+      (setf paths (or (nreverse paths) '(".")))
       (let ((stdout (make-string-output-stream))
             (stderr (make-string-output-stream))
             (exit-code 0)
@@ -3017,18 +3053,29 @@ integer conversions are deliberately rejected because seq values are f32."
               (destination (if (string= argument "-")
                                (or (shell-state-old-cwd state) (shell-state-cwd state))
                                (%shell-relative-path argument state))))
-         (if (ignore-errors (clun.sys:directory-p destination))
-             (let ((previous (shell-state-cwd state)))
-               (setf (shell-state-old-cwd state) previous
-                     (shell-state-cwd state) destination
-                     (shell-state-env state)
-                     (%shell-env-set (shell-state-env state) "OLDPWD" previous)
-                     (shell-state-env state)
-                     (%shell-env-set (shell-state-env state) "PWD" destination))
-               ;; Bun's `cd -` is silent (unlike bash); only update OLDPWD/PWD.
-               (values (%shell-result-from-strings "" "" 0) t))
-             (values (%shell-result-from-strings
-                      "" (format nil "clun: cd: ~a: No such directory~%" argument) 1) t))))
+         (cond
+           ;; Bun join buffer is 4096 bytes; longer paths become ENAMETOOLONG.
+           ((> (length destination) 4095)
+            (values (%shell-result-from-strings
+                     "" (format nil "cd: file name too long~%") 1)
+                    t))
+           ((ignore-errors (clun.sys:directory-p destination))
+            (let ((previous (shell-state-cwd state)))
+              (setf (shell-state-old-cwd state) previous
+                    (shell-state-cwd state) destination
+                    (shell-state-env state)
+                    (%shell-env-set (shell-state-env state) "OLDPWD" previous)
+                    (shell-state-env state)
+                    (%shell-env-set (shell-state-env state) "PWD" destination))
+              ;; Bun's `cd -` is silent (unlike bash); only update OLDPWD/PWD.
+              (values (%shell-result-from-strings "" "" 0) t)))
+           (t
+            (values (%shell-result-from-strings
+                     "" (format nil "clun: cd: ~a: No such directory~%" argument) 1)
+                    t)))))
+      ((string= name "wait")
+       (let ((bg (%shell-wait-background-jobs state)))
+         (values bg t)))
       ((or (string= name "true") (string= name ":"))
        (values (%shell-result-from-strings "" "" 0) t))
       ((string= name "false")
@@ -3681,7 +3728,7 @@ deadlock even when commands produce output larger than kernel pipe capacity."
 
 (defparameter *shell-no-stdin-builtins*
   '("echo" "pwd" "cd" "true" "false" ":" "export" "unset" "shopt" "which" "exit"
-    "basename" "dirname" "seq" "mkdir" "touch" "rm" "mv" "ls" "cp" "[["))
+    "wait" "basename" "dirname" "seq" "mkdir" "touch" "rm" "mv" "ls" "cp" "[["))
 
 (defun %shell-no-stdin-builtin-p (command)
   (let ((name (%shell-static-command-name command)))
@@ -3737,24 +3784,213 @@ deadlock even when commands produce output larger than kernel pipe capacity."
      (%shell-execute-concurrent-pipeline pipeline state g))
     (t (%shell-execute-sequential-pipeline pipeline state g))))
 
+(defun %shell-script-terms (script)
+  "Group pipelines into AND-OR lists terminated by :sequence or :background.
+Each term is (PIPELINES OPS BACKGROUND-P) where OPS are the :and/:or connectors
+inside the list. Trailing :background marks the whole preceding AND-OR list."
+  (let ((pipelines (shell-script-pipelines script))
+        (operators (shell-script-operators script))
+        (terms '())
+        (current-pipelines '())
+        (current-ops '()))
+    (labels ((flush-term (background)
+               (when current-pipelines
+                 (push (list (nreverse current-pipelines)
+                             (nreverse current-ops)
+                             background)
+                       terms)
+                 (setf current-pipelines '() current-ops '()))))
+      (loop for index from 0 below (length pipelines)
+            for pipeline = (nth index pipelines)
+            for operator = (nth index operators)
+            do (push pipeline current-pipelines)
+               (cond
+                 ((null operator)
+                  (flush-term nil))
+                 ((eq operator :background)
+                  (flush-term t))
+                 ((eq operator :sequence)
+                  (flush-term nil))
+                 (t
+                  (push operator current-ops))))
+      (flush-term nil)
+      (nreverse terms))))
+
+(defun %shell-execute-term-pipelines (pipelines ops state g pending-input)
+  "Execute one AND-OR list. Returns accumulated result and whether any stage ran."
+  (let ((stdout *shell-empty-octets*)
+        (stderr *shell-empty-octets*)
+        (previous (make-shell-result))
+        (ran nil)
+        (input pending-input))
+    (loop for pipeline in pipelines
+          for index from 0
+          for operator = (and (plusp index) (nth (1- index) ops))
+          do (when (or (zerop index)
+                       (and (eq operator :and)
+                            (zerop (shell-result-exit-code previous)))
+                       (and (eq operator :or)
+                            (not (zerop (shell-result-exit-code previous)))))
+               (setf ran t
+                     previous (%shell-execute-pipeline pipeline state g input)
+                     input *shell-empty-octets*
+                     stdout (%shell-concat-octets stdout
+                                                   (shell-result-stdout previous))
+                     stderr (%shell-concat-octets stderr
+                                                   (shell-result-stderr previous))
+                     (shell-state-last-exit-code state)
+                     (shell-result-exit-code previous))
+               (when (shell-state-terminated state)
+                 (return))))
+    (values (make-shell-result :stdout stdout :stderr stderr
+                               :exit-code (shell-result-exit-code previous))
+            ran)))
+
+(defun %shell-reap-background-job (job)
+  "Wait for one background job and return its SHELL-RESULT."
+  (cond
+    ((shell-result-p job) job)
+    ((and (consp job) (eq (first job) :process))
+     (let* ((process (getf job :process))
+            (directory (getf job :directory))
+            (stdout-path (getf job :stdout))
+            (stderr-path (getf job :stderr)))
+       (unwind-protect
+            (progn
+              (ignore-errors (sb-ext:process-wait process))
+              (let* ((status (sb-ext:process-status process))
+                     (code (or (sb-ext:process-exit-code process) 1)))
+                (make-shell-result
+                 :stdout (if (and stdout-path (clun.sys:path-exists-p stdout-path))
+                             (clun.sys:read-file-octets stdout-path)
+                             *shell-empty-octets*)
+                 :stderr (if (and stderr-path (clun.sys:path-exists-p stderr-path))
+                             (clun.sys:read-file-octets stderr-path)
+                             *shell-empty-octets*)
+                 :exit-code (if (eq status :signaled) (+ 128 code) code))))
+         (ignore-errors (sb-ext:process-close process))
+         (ignore-errors (clun.sys:remove-recursive directory)))))
+    (t (make-shell-result))))
+
+(defun %shell-wait-background-jobs (state)
+  "Reap every background job, clearing the shell-state list. Returns merged result."
+  (let ((jobs (nreverse (shell-state-background-jobs state)))
+        (stdout *shell-empty-octets*)
+        (stderr *shell-empty-octets*)
+        (code 0))
+    (setf (shell-state-background-jobs state) '())
+    (dolist (job jobs)
+      (let ((result (%shell-reap-background-job job)))
+        (setf stdout (%shell-concat-octets stdout (shell-result-stdout result))
+              stderr (%shell-concat-octets stderr (shell-result-stderr result))
+              code (shell-result-exit-code result))))
+    (make-shell-result :stdout stdout :stderr stderr :exit-code code)))
+
+(defun %shell-term-async-external-p (pipelines state g)
+  "True when the AND-OR list is a single external pipeline (safe to detach)."
+  (declare (ignore g))
+  (and (= (length pipelines) 1)
+       (let* ((pipeline (first pipelines))
+              (commands (shell-pipeline-commands pipeline)))
+         (and (= (length commands) 1)
+              (let ((command (first commands)))
+                (and (null (shell-command-group command))
+                     (null (shell-command-brace-group command))
+                     (null (shell-command-if-form command))
+                     (null (shell-command-redirections command))
+                     (let ((name (%shell-static-command-name command)))
+                       (and name
+                            (not (member name *shell-builtins*
+                                         :test #'string=))))))))))
+
+(defun %shell-start-background-term (pipelines ops state g)
+  "Start an AND-OR list in the background. Returns immediate status 0."
+  (cond
+    ((and (null ops) (%shell-term-async-external-p pipelines state g))
+     (let* ((command (first (shell-pipeline-commands (first pipelines))))
+            (directory (%shell-temp-directory))
+            (kept nil))
+       (handler-case
+           (multiple-value-bind (argv env)
+               (%shell-prepare-external command state g)
+             (let* ((program (and argv (%shell-which (first argv) env
+                                                     (shell-state-cwd state))))
+                    (stdout-path (clun.sys:path-join directory "stdout"))
+                    (stderr-path (clun.sys:path-join directory "stderr")))
+               (if (null program)
+                   (push (%shell-result-from-strings
+                          "" (format nil "clun: command not found: ~a~%"
+                                     (first argv))
+                          127)
+                         (shell-state-background-jobs state))
+                   (let ((process
+                          (sb-ext:run-program
+                           program (rest argv) :search nil :wait nil
+                           :input nil :output stdout-path :error stderr-path
+                           :if-output-exists :supersede
+                           :if-error-exists :supersede
+                           :directory (shell-state-cwd state)
+                           :environment (%shell-env-vector env))))
+                     (push (list :process process
+                                 :directory directory
+                                 :stdout stdout-path
+                                 :stderr stderr-path)
+                           (shell-state-background-jobs state))
+                     (setf kept t)))))
+         (error (condition)
+           (push (%shell-result-from-strings
+                  "" (format nil "clun: ~a~%" condition) 1)
+                 (shell-state-background-jobs state))))
+       (unless kept
+         (ignore-errors (clun.sys:remove-recursive directory)))
+       (make-shell-result :exit-code 0)))
+    (t
+     (multiple-value-bind (result ran)
+         (%shell-execute-term-pipelines pipelines ops state g
+                                        *shell-empty-octets*)
+       (declare (ignore ran))
+       (push result (shell-state-background-jobs state))
+       (make-shell-result :exit-code 0)))))
+
 (defun %shell-execute-script (script state g
                               &optional (initial-input *shell-empty-octets*))
   (let ((stdout *shell-empty-octets*) (stderr *shell-empty-octets*)
-        (previous (make-shell-result)) (index 0) (pending-input initial-input))
-    (dolist (pipeline (shell-script-pipelines script))
+        (previous (make-shell-result)) (pending-input initial-input)
+        (first-term t))
+    (dolist (term (%shell-script-terms script))
       (when (shell-state-terminated state) (return))
-      (let ((operator (and (plusp index)
-                           (nth (1- index) (shell-script-operators script)))))
-        (when (or (zerop index)
-                  (eq operator :sequence)
-                  (and (eq operator :and) (zerop (shell-result-exit-code previous)))
-                  (and (eq operator :or) (not (zerop (shell-result-exit-code previous)))))
-          (setf previous (%shell-execute-pipeline pipeline state g pending-input)
-                pending-input *shell-empty-octets*)
-          (setf stdout (%shell-concat-octets stdout (shell-result-stdout previous))
-                stderr (%shell-concat-octets stderr (shell-result-stderr previous))
-                (shell-state-last-exit-code state) (shell-result-exit-code previous))))
-      (incf index))
+      (destructuring-bind (pipelines ops background) term
+        (if background
+            (progn
+              (setf previous (%shell-start-background-term pipelines ops state g)
+                    pending-input *shell-empty-octets*
+                    (shell-state-last-exit-code state) 0)
+              (setf first-term nil))
+            (multiple-value-bind (result ran)
+                (%shell-execute-term-pipelines
+                 pipelines ops state g
+                 (if first-term pending-input *shell-empty-octets*))
+              (declare (ignore ran))
+              (setf previous result
+                    pending-input *shell-empty-octets*
+                    first-term nil
+                    stdout (%shell-concat-octets stdout
+                                                   (shell-result-stdout previous))
+                    stderr (%shell-concat-octets stderr
+                                                   (shell-result-stderr previous))
+                    (shell-state-last-exit-code state)
+                    (shell-result-exit-code previous))))))
+    ;; Command substitutions and top-level scripts wait for background work
+    ;; before closing, matching bash subshell lifetime.
+    (when (shell-state-background-jobs state)
+      (let ((bg (%shell-wait-background-jobs state)))
+        (setf stdout (%shell-concat-octets stdout (shell-result-stdout bg))
+              stderr (%shell-concat-octets stderr (shell-result-stderr bg))
+              previous (make-shell-result
+                        :stdout stdout :stderr stderr
+                        :exit-code (shell-result-exit-code previous))
+              (shell-state-last-exit-code state)
+              (shell-result-exit-code previous))))
     (make-shell-result :stdout stdout :stderr stderr
                        :exit-code (shell-result-exit-code previous))))
 
@@ -4010,6 +4246,11 @@ deadlock even when commands produce output larger than kernel pipe capacity."
       (lambda (this args)
         (let ((cwd (%shell-relative-path
                     (eng:to-string (eng:arg args 0)) state)))
+          (when (> (length cwd) 4095)
+            (let ((error-obj
+                    (%shell-js-error (shell-job-g job) "file name too long")))
+              (eng:js-set error-obj "code" "ENAMETOOLONG" nil)
+              (eng:throw-js-value error-obj)))
           (setf (shell-state-cwd state) cwd
                 (shell-state-env state)
                 (%shell-env-set (shell-state-env state) "PWD" cwd)))

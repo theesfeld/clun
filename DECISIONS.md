@@ -3280,3 +3280,10 @@ Fixtures under `tests/compat/tooling.shell/upstream-language.js` close 118
 additional shell-language inventory sites after #122/#123 (overall
 1,551/1,630 covered). SemVer impact is `minor`; source advances to
 `0.1.0-dev.31` / `v0.1.0-dev.31`. The row remains Partial.
+
+## 2026-07-18 — tooling.shell Partial→Yes (#120)
+
+- Zero pending pinned shell sites (1,598 covered / 32 upstream-inactive).
+- Pure-CL background `&` + `wait`, ENAMETOOLONG, multi-error lex, EACCES globs, ls flag order.
+- Four-target platforms.tsv `supported`; ledger `clun_state=Yes`.
+- Release train: `0.1.0-dev.33`.
