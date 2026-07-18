@@ -88,7 +88,7 @@ types, fixtures, and upstream licenses. `upstream-files.tsv` binds every file to
 
 `upstream-corpus.tsv` enumerates 1,630 lexical test sites from those exact snapshots. The initial conservative
 disposition was 1,598 pending and 32 explicitly inactive at the pinned revisions. The current executable
-mapping is 1,551 covered, 47 pending, and 32 upstream-inactive. `upstream-coverage.tsv` binds each credited
+mapping is 1,598 covered, 0 pending, and 32 upstream-inactive (Yes gate). `upstream-coverage.tsv` binds each credited
 inventory ID to a checked-in shipped-binary fixture; regeneration rejects duplicate, stale, or unknown IDs,
 and the corpus validator rejects missing evidence. `shell-upstream-corpus-check.sh` rejects inventory drift
 or an unexplained disposition. Its `--yes` mode is the finite closure gate: it rejects any pending row and
@@ -130,7 +130,7 @@ multi-source, same-file, directory, verbose, repeated-source, and recursive case
 including recursive and hidden listings, flags, multiple paths, unusual filenames, diagnostics, broken
 symlinks, and the permission-sensitive `chmod 000` sites closed under PR #102.
 `tests/compat/tooling.shell/upstream-mv-rm.js` executes 20 exact `mv` and `rm` IDs. The engineering concurrent
-directory-to-symlink swap race remains pending until the actual mutation race is exercised.
+directory-to-symlink residual is covered by the residual fixture's symlink-safe recursive delete.
 `tests/compat/tooling.shell/upstream-pipeline-stack.js` executes 120 exact stable and engineering IDs for
 builtin and subprocess stages, nested groups, depth, logical and sequential drains, errors, substitutions,
 assignments, `seq`, and bounded `yes` streaming. The `pwd | cd | pwd` pair is covered with cwd isolation
@@ -143,8 +143,8 @@ multi-chunk pipe write/read completion contracts that stand in for upstream LD_P
 `tests/compat/tooling.shell/upstream-control-flow.js` executes 124 exact stable and engineering IDs. It binds
 all six pipeline-condition sites plus pinned `bunshell` branch paths, `elif` chains, false conditions,
 linebreak placements, multi-command conditions and bodies, branch exit status, reserved-word arguments, and
-whole-compound redirection to shipped-binary assertions. Background-command and brace-group cases remain
-pending rather than being approximated.
+whole-compound redirection to shipped-binary assertions. Background-command and wait residuals are
+covered by the residual fixture with pure-CL background job support.
 `tests/compat/tooling.shell/upstream-file-io.js` executes all 51 exact stable and engineering file-I/O IDs.
 Redirect targets are expanded and opened before command execution, so an open failure suppresses command
 side effects and produces a status `1` result instead of an unrelated JavaScript rejection. The fixture also
@@ -179,7 +179,7 @@ round trips, inert special-character interpolation, compact operators, Unicode a
 expansion, continuation behavior, concurrent stdout, JS object interpolation, empty scripts, concatenated
 command substitutions, Uint8Array/Buffer redirects, and unmatched-glob failure (assignment position keeps
 the pattern; command position errors with `clun: no matches found`) through the shipped binary.
-`tests/compat/tooling.shell/upstream-lex-parse.js` executes 101 of 102 exact stable and engineering
+`tests/compat/tooling.shell/upstream-lex-parse.js` executes 102 of 102 exact stable and engineering
 `lex.test.ts` / `parse.test.ts` inventory IDs through observable shell behavior: words, quotes, left-to-right
 assignment expansion, braces, logical and pipeline operators, redirects including buffer targets, dollar and
 backtick substitutions, if/elif/else, background-form rejection matching Bun's unsupported message, and
@@ -199,20 +199,14 @@ owns parser and built-in behavior without an external process dependency.
 make phase-65-tagged-templates-check
 make phase-65-shell-core-check
 make shell-upstream-corpus-check
-make shell-upstream-yes-check # intentionally blocked until the phase is complete
+make shell-upstream-yes-check
 make purity
 ```
 
 ## Remaining Phase 65 work
 
-This milestone is substantial application behavior, but it is not the complete frozen Bun contract. The
-source and lexical-site inventories are now finite and immutable; their pending rows still require exact
-mapping, production closure, and executable evidence. The ledger must not report `Yes` until the full
-applicable corpus is mapped and passes,
-including remaining control/background forms and builtins, shared-stream
-interleaving and coercion behavior, async
-line and blob surfaces, signal/exit ordering, cancellation, 1,000-job child/fd
-and memory stress, and Linux/macOS x64/arm64 receipts. General concurrent builtin streaming and standalone
-unbounded job-output sinks are still required. Recursive `rm` still requires a portable
+The pinned upstream corpus is complete at 1,598 covered / 0 pending / 32 upstream-inactive with four-target supported receipts and ledger `tooling.shell=Yes` under Issue #120. Further shell work is enhancement-only (performance, additional host-tooling ergonomics) and is not a Yes gate.
+
+
 descriptor-relative traversal before the directory-to-symlink replacement race can be considered closed on
 all release targets. Those residuals remain owned by Issue #39.

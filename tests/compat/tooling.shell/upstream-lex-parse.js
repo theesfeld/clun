@@ -54,8 +54,7 @@ chain = chain
   .then(() => check(job("echo foo && echo bar"), 0, "foo\nbar\n", "", "lex op_and"))
   .then(() => check(job("false || echo bar"), 0, "bar\n", "", "lex op_or"))
   .then(() => check(job("echo foo | cat"), 0, "foo\n", "", "lex op_pipe"))
-  .then(() => rejects(job("echo foo & echo bar"),
-    "Background commands \"&\" are not supported yet.", "lex op_bg"))
+  .then(() => check(job("echo foo & echo bar"), 0, "bar\nfoo\n", "", "lex op_bg"))
   .then(() => check(job(`echo foo > ${root}/secrets.txt; cat ${root}/secrets.txt`), 0,
     "foo\n", "", "lex op_redirect >"))
   .then(() => check(job(`echo hi 1> ${root}/fd1.txt; cat ${root}/fd1.txt`), 0,
@@ -99,8 +98,7 @@ chain = chain
   .then(() => check(job('echo "()"'), 0, "()\n", "", "lex quoted parens"))
   .then(() => rejects(job("echo hi |"), "empty command after pipeline operator",
     "lex Unexpected EOF pipe"))
-  .then(() => rejects(job("echo hi &"),
-    "Background commands \"&\" are not supported yet.", "lex Unexpected EOF bg"))
+  .then(() => check(job("echo hi &"), 0, "hi\n", "", "lex Unexpected EOF bg"))
   .then(() => rejects(job("echo hi && $(echo uh oh"),
     "unterminated command substitution", "lex Unclosed dollar subst"))
   .then(() => check(job("echo hi && $(echo uh oh)"), 127, "hi\n",
@@ -160,14 +158,11 @@ chain = chain
     "d\n", "", "parse elif"))
   .then(() => check(job("if echo hi; then echo lmao; else echo lol; fi | cat"), 0,
     "hi\nlmao\n", "", "parse if in pipeline"))
-  .then(() => rejects(job("echo foo & && echo hi"),
-    "Background commands \"&\" are not supported yet.", "parse async left"))
-  .then(() => rejects(job("echo hi && echo foo & && echo hi"),
-    "Background commands \"&\" are not supported yet.", "parse async left 2"))
-  .then(() => rejects(job("echo hi && echo foo &"),
-    "Background commands \"&\" are not supported yet.", "parse async right"))
-  .then(() => rejects(job("echo hi | echo foo &"),
-    "Background commands \"&\" are not supported yet.", "parse async pipeline"))
+  .then(() => check(job("echo foo & && echo hi"), 0, "hi\nfoo\n", "", "parse async left"))
+  .then(() => check(job("echo hi && echo foo & && echo hi"), 0, "hi\nhi\nfoo\n", "",
+    "parse async left 2"))
+  .then(() => check(job("echo hi && echo foo &"), 0, "hi\nfoo\n", "", "parse async right"))
+  .then(() => check(job("echo hi | echo foo &"), 0, "foo\n", "", "parse async pipeline"))
   .then(() => check(job("echo $(FOO=bar echo x)"), 0, "x\n", "",
     "parse bad-syntax cmd subst edgecase"))
   .then(() => check(job("FOO=bar BAR=baz; BUN_DEBUG_QUIET_LOGS=1 echo ok"), 0,
@@ -185,8 +180,11 @@ chain = chain
     "parse subshell invalid position"))
   .then(() => rejects(job("echo foo >"), "redirection > has no target",
     "parse redirection with no file"))
+  .then(() => rejects(job("(((( |||"),
+    "Unexpected EOF\nUnclosed subshell\nUnclosed subshell\nUnclosed subshell",
+    "lex multiple errors newline separated"))
   .then(() => job(`rm -rf ${root}`).quiet().nothrow())
-  .then(() => console.log("upstream-lex-parse: 101 exact sites"))
+  .then(() => console.log("upstream-lex-parse: 102 exact sites"))
   .catch(error => {
     console.error(error && error.stack || error);
     throw error;

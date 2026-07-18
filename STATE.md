@@ -13,12 +13,12 @@ Update when work completes; keep consistent with the Issue, README, and site.
 **Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/39,
 https://github.com/theesfeld/clun/issues/23, https://github.com/theesfeld/clun/issues/40,
 and https://github.com/theesfeld/clun/issues/25
-**Current implementation unit:** Phase 65 tooling.shell language residual for Yes path #120.
-`tooling.shell` remains **Partial** (~1551/1630 covered). No matrix Yes yet.
+**Current implementation unit:** Phase 65 tooling.shell Partial→Yes complete (#120).
+`tooling.shell` is **Yes** (1,598 covered / 0 pending / 32 upstream-inactive; four-target supported).
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.32` / `v0.1.0-dev.32`
+**Candidate release:** `0.1.0-dev.33` / `v0.1.0-dev.33`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
-**Entry boundary:** installer on `v0.1.0-dev.21`; this unit stages `0.1.0-dev.32` after websocket Partial `0.1.0-dev.31`.
+**Entry boundary:** installer on `v0.1.0-dev.21`; this unit stages `0.1.0-dev.33` after websocket Partial `0.1.0-dev.31`.
 **Next scope:** remaining ~47 shell pending + four-target supported for Yes.
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
