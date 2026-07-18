@@ -530,6 +530,51 @@
              (false (search "x.]foo" output))))
       (ignore-errors (sys:remove-recursive directory)))))
 
+(define-test shell/unmatched-glob-fails-outside-assignment
+  "Command-position unmatched globs fail; assignment keeps the pattern."
+  (let* ((directory (clun.runtime::%shell-temp-directory))
+         (state (shell-test-state)))
+    (unwind-protect
+         (progn
+           (setf (clun.runtime::shell-state-cwd state) directory)
+           (let ((result (clun.runtime::%shell-execute-units
+                          (shell-test-units "ls *.sdfljsfsdf") state nil)))
+             (is = 1 (clun.runtime::shell-result-exit-code result))
+             (is equal (format nil "clun: no matches found: *.sdfljsfsdf~%")
+                 (eng:utf8->code-units
+                  (clun.runtime::shell-result-stderr result))))
+           (let ((result (clun.runtime::%shell-execute-units
+                          (shell-test-units "FOO=*.lolwut; echo $FOO") state nil)))
+             (is = 0 (clun.runtime::shell-result-exit-code result))
+             (is equal (format nil "*.lolwut~%")
+                 (eng:utf8->code-units
+                  (clun.runtime::shell-result-stdout result))))
+           (let ((result (clun.runtime::%shell-execute-units
+                          (shell-test-units "FOO=hi*; echo $FOO") state nil)))
+             (is = 0 (clun.runtime::shell-result-exit-code result))
+             (is equal (format nil "hi*~%")
+                 (eng:utf8->code-units
+                  (clun.runtime::shell-result-stdout result))))
+           (sys:write-file-octets
+            (sys:path-join directory "hihello")
+            (make-array 0 :element-type '(unsigned-byte 8)))
+           (sys:write-file-octets
+            (sys:path-join directory "hifriends")
+            (make-array 0 :element-type '(unsigned-byte 8)))
+           (let* ((result (clun.runtime::%shell-execute-units
+                           (shell-test-units "FOO=hi*; echo $FOO") state nil))
+                  (output (string-trim '(#\Newline)
+                                       (eng:utf8->code-units
+                                        (clun.runtime::shell-result-stdout result))))
+                  (words (sort (loop for start = 0 then (1+ pos)
+                                     for pos = (position #\Space output :start start)
+                                     collect (subseq output start (or pos (length output)))
+                                     while pos)
+                               #'string<)))
+             (is = 0 (clun.runtime::shell-result-exit-code result))
+             (is equal '("hifriends" "hihello") words)))
+      (ignore-errors (sys:remove-recursive directory)))))
+
 (define-test shell/redirection-open-errors-are-command-statuses
   (let* ((directory (clun.runtime::%shell-temp-directory))
          (state (shell-test-state)))

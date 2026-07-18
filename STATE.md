@@ -10,20 +10,18 @@ Update when work completes; keep consistent with the Issue, README, and site.
 ## Current phase: **47 - Node.js compatibility residual** (path.win32)
 
 **Canonical issue:** https://github.com/theesfeld/clun/issues/108
-**Next phase issue:** https://github.com/theesfeld/clun/issues/108
-**Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/2,
-https://github.com/theesfeld/clun/issues/11, and https://github.com/theesfeld/clun/issues/39
+**Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/32,
+https://github.com/theesfeld/clun/issues/11, https://github.com/theesfeld/clun/issues/2, and https://github.com/theesfeld/clun/issues/39
 **Current implementation unit:** pure-CL `node:path.win32` residual on PR #114 — sep/delimiter,
 basename/dirname/extname, isAbsolute, normalize, join, resolve, relative, parse, format,
 toNamespacedPath/`_makeLong`, cross-links. `runtime.node-compatibility` stays **Partial** (not Yes).
 **SemVer impact:** `minor`
 **Candidate release:** `0.1.0-dev.28` / `v0.1.0-dev.28`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
-**Entry boundary:** immutable `v0.1.0-dev.21` is tagged and published; installer defaults to that tag.
-Master tip is `0.1.0-dev.26` after secrets #106; concurrent #110 claims `0.1.0-dev.27`; this unit
-stages free `0.1.0-dev.28`. Phase 26 remains after Phase 82.
+**Entry boundary:** immutable `v0.1.0-dev.21` is tagged; installer defaults to that tag. Master tip is
+`0.1.0-dev.26` after shell #111; concurrent #110 claims `0.1.0-dev.27`; this unit stages free
+`0.1.0-dev.28`. Phase 26 remains after Phase 82.
 **Next scope:** keep node-compat Partial (no matrix Yes); land path.win32 residual with green CI.
-
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
 easiest to hardest among dependency-ready rows. Core engine/runtime/network/tooling changes are expected.
 Every conversion requires a legitimate canonical issue, accepted design, full declared behavior, executable
@@ -1967,4 +1965,5 @@ Legend: `[x]` done · `[ ]` todo · ⚡ fan-out-friendly · ◇ independent-earl
 ## Publication boundary
 
 - Published: `v0.1.0-dev.19` @ `1a523491` (#40); `v0.1.0-dev.21` @ `a8f45013` (#11).
-- Installer / ledger previous_version: `v0.1.0-dev.21` while source candidate is `0.1.0-dev.22`.
+- Installer / ledger previous_version: `v0.1.0-dev.21` while source candidate is `0.1.0-dev.26`.
+- Shell inventory PR #111: unpublished patch correction of `0.1.0-dev.26` (Partial; no tooling.shell Yes).

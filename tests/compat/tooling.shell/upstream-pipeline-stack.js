@@ -55,6 +55,14 @@ inspect(() => Clun.$`mkdir foo; mkdir foo/bar; cd foo | cd foo/bar | pwd`.cwd(ro
     assert(result.exitCode === 0, name + " exit code");
     assert(result.text().endsWith("/" + root + "\n"), name + " cwd");
   });
+// pwd | cd | pwd: first pwd writes into the pipe discarded by cd; only the last
+// pwd reaches pipeline stdout. cwd isolation still keeps the path under root
+// (Bun TestBuilder predicate for two lines does not call expect() on its boolean).
+inspect(() => Clun.$`pwd | cd / | pwd`.cwd(root), "pwd cd pwd isolation", (result, name) => {
+  assert(result.exitCode === 0, name + " exit code");
+  assert(result.text().endsWith("/" + root + "\n"), name + " cwd");
+  assert(stderr(result) === "", name + " stderr");
+});
 queue(() => Clun.$`echo hello | ${external} cat`, "hello\n", 0,
   "builtin external passthrough");
 queue(() => Clun.$`${external} printf hello | echo world`, "world\n", 0,
@@ -125,4 +133,4 @@ queue(() => Clun.$`yes | true`, "", 0, "yes true");
 queue(() => Clun.$`yes | false`, "", 1, "yes false");
 
 queue(() => Clun.$`rm -rf ${root}`, "", 0, "root cleanup");
-chain.then(() => console.log("upstream-pipeline-stack: 118 exact sites"));
+chain.then(() => console.log("upstream-pipeline-stack: 120 exact sites"));
