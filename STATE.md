@@ -15,7 +15,7 @@ OS-level crontab/launchd/schtasks fail-closed; REPL remains open.
 **SemVer impact:** `minor`
 **Candidate release:** `0.1.0-dev.34` / `v0.1.0-dev.34`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
-**Entry boundary:** installer on `v0.1.0-dev.21`; this unit stages free `0.1.0-dev.34` after shell Yes `0.1.0-dev.33`.
+**Entry boundary:** installer on `v0.1.0-dev.21`; this unit stages `0.1.0-dev.34`.
 **Next scope:** REPL, OS scheduler (purity path), four-target cron-scheduling compat gate.
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
