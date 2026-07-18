@@ -1,0 +1,1 @@
+var Direction;(function(Direction){Direction[Direction["Up"]=0]="Up";Direction[Direction["Down"]=1]="Down";Direction[Direction["Left"]=3]="Left";Direction[Direction["Right"]=4]="Right";})(Direction||(Direction={}));

@@ -1,7 +1,9 @@
-;;;; strip.lisp — the public entry: strip-types (source path) -> stripped source of
-;;;; identical length (type spans → whitespace, newlines kept). Installs the engine's
-;;;; *ts-strip-hook* at load time so the module loader / CJS require apply it to
-;;;; .ts/.mts/.cts. (Phase 09; M1 = identity + wiring; the scanner lands in ts-scan.)
+;;;; strip.lisp — the public entry: strip-types (source path) -> stripped/transformed
+;;;; JS source. Type erasures space-fill in place (line+column preserved). Value/
+;;;; const enum declarations are replaced with classic IIFE emit (may change length;
+;;;; newline count is preserved so later lines keep their numbers). Installs the
+;;;; engine's *ts-strip-hook* at load time so the module loader / CJS require apply
+;;;; it to .ts/.mts/.cts. (Phase 09 + issue #133 enum emit.)
 
 (in-package :clun.transpiler)
 
@@ -15,22 +17,37 @@
     (and dot (string= (subseq path dot) ".tsx"))))
 
 (defun strip-types (source path)
-  "Erase TypeScript type syntax from SOURCE (for a .ts/.mts/.cts PATH), returning a
-JS string of identical length (line + column preserved). Signals
-unsupported-ts-syntax on non-erasable constructs; the loader maps it to a JS error."
+  "Erase TypeScript type syntax from SOURCE (for a .ts/.mts/.cts PATH) and emit
+value/const enums as classic JS IIFEs. Pure type erasures preserve length; enum
+replacements may change length (newlines of each replaced span are preserved).
+Signals unsupported-ts-syntax on non-erasable constructs; the loader maps it to a
+JS error."
   (when (tsx-path-p path)
     (error 'unsupported-ts-syntax :message ".tsx is not supported" :path path))
-  (let ((erasures (scan-erasures source path)))
-    (render-erasures source erasures)))
+  (multiple-value-bind (erasures replacements) (scan-plan source path)
+    (render-plan source erasures replacements)))
 
 (defun render-erasures (src erasures)
   "Copy SRC; space-fill each (start . end) erase span EXCEPT line terminators (so
 line and column of every surviving token are byte-identical to the original)."
+  (render-plan src erasures nil))
+
+(defun render-plan (src erasures replacements)
+  "Apply ERASE spans (space-fill, keep line terminators; may overlap each other)
+then REPLACE spans (start end text). Replacements are applied right-to-left on
+original offsets so earlier indices stay valid. Pure erasures remain
+length-preserving; replacements may change length."
   (let ((out (copy-seq (coerce src 'simple-string))))
-    (dolist (span erasures out)
+    (dolist (span erasures)
       (loop for i from (car span) below (cdr span)
             unless (eng:line-terminator-p (char-code (char out i)))
-              do (setf (char out i) #\Space)))))
+              do (setf (char out i) #\Space)))
+    (dolist (r (sort (copy-list replacements) #'> :key #'first) out)
+      (destructuring-bind (start end text) r
+        (setf out (concatenate 'string
+                               (subseq out 0 start)
+                               text
+                               (subseq out end)))))))
 
 ;;; Install the hook so the engine loader strips TS before parse-program. Mapping
 ;;; the transpiler condition to a JS SyntaxError happens here (line:col carried).

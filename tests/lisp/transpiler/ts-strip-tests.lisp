@@ -63,14 +63,12 @@
     (is eql (position #\Newline src) (position #\Newline out))))
 
 (define-test ts/error-catalog
-  (is equal "TypeScript enum is not supported in strip-only mode" (strip-errs "enum E { A }"))
-  (is equal "TypeScript enum is not supported in strip-only mode" (strip-errs "const enum E { A }"))
   (true (search "parameter property" (or (strip-errs "class C { constructor(private x: number) {} }") "")))
   (true (search "import =" (or (strip-errs "import x = require(\"y\");") "")))
   (true (search "export =" (or (strip-errs "export = foo;") "")))
   (true (search "decorators" (or (strip-errs "class C { @dec m() {} }") "")))
   (true (search "namespace" (or (strip-errs "namespace N { const x = 1; }") "")))
-  ;; bare value enum inside a namespace is runtime → error (not silent erase)
+  ;; bare value enum inside a namespace is runtime → namespace error (not silent erase)
   (true (search "namespace" (or (strip-errs "namespace N { enum E { A } }") "")))
   ;; a type-only namespace is erased, not an error
   (is equal "" (collapse-ws (strip "namespace T { export interface X { a: number; } }"))))
@@ -80,6 +78,34 @@
   ;; export declare keeps leading export like other export-declare forms today
   (is equal "" (collapse-ws (strip "declare enum E { A, B }")))
   (is equal "" (collapse-ws (strip "declare const enum Dir { Up, Down }")))
-  (is equal "export" (collapse-ws (strip "export declare enum E { A = 1, B }")))
-  ;; value enums still hard-error
-  (is equal "TypeScript enum is not supported in strip-only mode" (strip-errs "export enum E { A }")))
+  (is equal "export" (collapse-ws (strip "export declare enum E { A = 1, B }"))))
+
+(define-test ts/value-enum-emit
+  ;; numeric auto-increment + reverse mapping (classic IIFE)
+  (let ((got (strip "enum Direction { Up, Down, Left = 3, Right }")))
+    (true (search "var Direction" got))
+    (true (search "Direction[Direction[\"Up\"]=0]=\"Up\"" got))
+    (true (search "Direction[Direction[\"Left\"]=3]=\"Left\"" got))
+    (true (search "Direction[Direction[\"Right\"]=4]=\"Right\"" got))
+    (true (search "(Direction||(Direction={}))" got)))
+  ;; string members — no reverse mapping
+  (let ((got (strip "enum Color { Red = \"red\", Green = \"green\" }")))
+    (true (search "Color[\"Red\"]=\"red\"" got))
+    (true (search "Color[\"Green\"]=\"green\"" got)))
+  ;; const enum emits a runtime object (Bun inlines pure static uses; Dir.X still works)
+  (let ((got (strip "const enum Dir { Up, Down = 2, Left }")))
+    (true (search "var Dir" got))
+    (true (search "Dir[Dir[\"Up\"]=0]=\"Up\"" got))
+    (true (search "Dir[Dir[\"Down\"]=2]=\"Down\"" got))
+    (true (search "Dir[Dir[\"Left\"]=3]=\"Left\"" got)))
+  ;; export enum keeps the export keyword and emits var
+  (let ((got (strip "export enum E { A = 1, B }")))
+    (true (search "export" got))
+    (true (search "var E" got))
+    (true (search "E[E[\"A\"]=1]=\"A\"" got))
+    (true (search "E[E[\"B\"]=2]=\"B\"" got)))
+  ;; previous-member reference folds
+  (let ((got (strip "enum E { A = 10, B = A, C = B + 1 }")))
+    (true (search "E[E[\"A\"]=10]=\"A\"" got))
+    (true (search "E[E[\"B\"]=10]=\"B\"" got))
+    (true (search "E[E[\"C\"]=11]=\"C\"" got))))

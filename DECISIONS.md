@@ -3287,3 +3287,21 @@ additional shell-language inventory sites after #122/#123 (overall
 - Pure-CL background `&` + `wait`, ENAMETOOLONG, multi-error lex, EACCES globs, ls flag order.
 - Four-target platforms.tsv `supported`; ledger `clun_state=Yes`.
 - Release train: `0.1.0-dev.33`.
+
+### 2026-07-18 — language.typescript: value/const enum emit (#133)
+
+Pure-CL enum emit for Bun-compatible runtime observables (not full Phase 39 Yes):
+
+- Value `enum` and `const enum` replace with classic tsc IIFE
+  (`var E;(function(E){…})(E||(E={}));`) — Clun-safe (no `||=` / arrow).
+- Numeric auto-increment, string members (no reverse map), previous-member
+  constant folding, `export enum` keeps `export`.
+- `const enum` emits a runtime object (Bun inlines pure-static uses; `Dir.X`
+  observables match either way).
+- Ambient `declare enum` / `declare const enum` remain erased (Partial #101).
+- Strip renderer gains length-changing replacements; newline count of each
+  enum span is preserved so later line numbers stay stable.
+
+Does **not** promote `language.typescript` to ledger Yes (namespaces /
+param-props / four-target suite still open). SemVer: `minor` when released
+with the Yes train.

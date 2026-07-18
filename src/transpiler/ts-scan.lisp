@@ -66,7 +66,7 @@ as the parser would. A stray `@` (decorator) becomes an unsupported-ts-syntax er
 
 ;;; --- walker -----------------------------------------------------------------
 
-(defstruct (walker (:conc-name w-)) toks (i 0) src path (erasures '()))
+(defstruct (walker (:conc-name w-)) toks (i 0) src path (erasures '()) (replacements '()))
 
 (defun w-cur (w) (tk (w-toks w) (w-i w)))
 (defun w-cty (w) (ttype (w-toks w) (w-i w)))
@@ -88,6 +88,21 @@ as the parser would. A stray `@` (decorator) becomes an unsupported-ts-syntax er
   (push (cons (eng:token-start (aref (w-toks w) idx))
               (eng:token-end (aref (w-toks w) idx)))
         (w-erasures w)))
+
+(defun w-replace-toks (w a b text)
+  "Replace the char span covering tokens [A, B) with TEXT (may change length)."
+  (when (> b a)
+    (push (list (eng:token-start (aref (w-toks w) a))
+                (eng:token-end (aref (w-toks w) (1- b)))
+                text)
+          (w-replacements w))))
+
+(defun w-src-slice (w a b)
+  "Source chars covering tokens [A, B)."
+  (when (> b a)
+    (subseq (w-src w)
+            (eng:token-start (aref (w-toks w) a))
+            (eng:token-end (aref (w-toks w) (1- b))))))
 
 (defun w-skip-type (w)
   "Erase a type starting at the current token; advance past it."
@@ -507,6 +522,239 @@ records the whole `declare …` erase span — no per-token erases here."
   (when (w-punct w "{") (w-skip-balanced-nostrip w))
   (when (w-punct w ";") (w-adv w)))
 
+;;; --- value / const enum emit (Bun-compatible classic IIFE) -------------------
+
+(defun js-escape-string (s)
+  "Emit S as a double-quoted JS string literal."
+  (with-output-to-string (o)
+    (write-char #\" o)
+    (loop for c across s do
+      (case c
+        (#\" (write-string "\\\"" o))
+        (#\\ (write-string "\\\\" o))
+        (#\Newline (write-string "\\n" o))
+        (#\Return (write-string "\\r" o))
+        (#\Tab (write-string "\\t" o))
+        (#\Backspace (write-string "\\b" o))
+        (#\Page (write-string "\\f" o))
+        (t (let ((code (char-code c)))
+             (if (or (< code 32) (= code #x2028) (= code #x2029))
+                 (format o "\\u~4,'0x" code)
+                 (write-char c o))))))
+    (write-char #\" o)))
+
+(defun js-num-lit (n)
+  "Format a finite number as a JS numeric literal (prefer integer spelling)."
+  (let* ((n (float n 1d0))
+         (r (fround n)))
+    (if (= n r)
+        (format nil "~D" (truncate r))
+        ;; Avoid CL exponent markers; trim a trailing decimal point.
+        (let ((s (string-trim '(#\Space) (format nil "~F" n))))
+          (if (and (find #\. s) (char= (char s (1- (length s))) #\.))
+              (subseq s 0 (1- (length s)))
+              s)))))
+
+(defun enum-match-newlines (text orig)
+  "Pad TEXT with trailing newlines so it has at least as many as ORIG (keeps later
+line numbers stable when the enum IIFE is compact)."
+  (let ((want (count #\Newline orig))
+        (have (count #\Newline text)))
+    (if (< have want)
+        (concatenate 'string text (make-string (- want have) :initial-element #\Newline))
+        text)))
+
+(defun enum-env-get (env name)
+  "Return (values kind value) for a previous member, or NIL."
+  (let ((cell (gethash name env)))
+    (when cell (values (car cell) (cdr cell)))))
+
+(defun enum-fold-primary (toks i end env)
+  "Fold a primary; return (values next kind value) or (values nil nil nil)."
+  (when (>= i end) (return-from enum-fold-primary (values nil nil nil)))
+  (let* ((tok (aref toks i)) (ty (eng:token-type tok)))
+    (cond
+      ((eq ty :num) (values (1+ i) :num (eng:token-value tok)))
+      ((eq ty :string) (values (1+ i) :str (eng:token-value tok)))
+      ((and (eq ty :name) (not (eng:token-escaped tok)))
+       (multiple-value-bind (k v) (enum-env-get env (eng:token-value tok))
+         (if k (values (1+ i) k v) (values nil nil nil))))
+      ((and (eq ty :punct) (string= (eng:token-value tok) "("))
+       (multiple-value-bind (j k v) (enum-fold-expr toks (1+ i) end env)
+         (when (and j (< j end) (tpunct= toks j ")"))
+           (values (1+ j) k v))))
+      (t (values nil nil nil)))))
+
+(defun enum-fold-unary (toks i end env)
+  (when (>= i end) (return-from enum-fold-unary (values nil nil nil)))
+  (let ((tok (aref toks i)))
+    (if (and (eq (eng:token-type tok) :punct)
+             (member (eng:token-value tok) '("+" "-") :test #'string=))
+        (multiple-value-bind (j k v) (enum-fold-unary toks (1+ i) end env)
+          (when (and j (eq k :num))
+            (values j :num (if (string= (eng:token-value tok) "-") (- v) v))))
+        (enum-fold-primary toks i end env))))
+
+(defun enum-fold-mul (toks i end env)
+  (multiple-value-bind (j k v) (enum-fold-unary toks i end env)
+    (unless j (return-from enum-fold-mul (values nil nil nil)))
+    (loop
+      (when (or (>= j end) (not (eq k :num))) (return (values j k v)))
+      (let ((op (and (eq (ttype toks j) :punct) (tval toks j))))
+        (unless (member op '("*" "/" "%") :test #'string=)
+          (return (values j k v)))
+        (multiple-value-bind (j2 k2 v2) (enum-fold-unary toks (1+ j) end env)
+          (unless (and j2 (eq k2 :num)) (return (values nil nil nil)))
+          (setf j j2
+                v (cond ((string= op "*") (* v v2))
+                        ((string= op "/") (if (zerop v2) (return (values nil nil nil)) (/ v v2)))
+                        (t (if (zerop v2) (return (values nil nil nil)) (mod v v2))))))))))
+
+(defun enum-fold-expr (toks i end env)
+  "Constant-fold a numeric/string enum initializer expression."
+  (multiple-value-bind (j k v) (enum-fold-mul toks i end env)
+    (unless j (return-from enum-fold-expr (values nil nil nil)))
+    (loop
+      (when (or (>= j end) (not (eq k :num))) (return (values j k v)))
+      (let ((op (and (eq (ttype toks j) :punct) (tval toks j))))
+        (unless (member op '("+" "-") :test #'string=)
+          (return (values j k v)))
+        (multiple-value-bind (j2 k2 v2) (enum-fold-mul toks (1+ j) end env)
+          (unless (and j2 (eq k2 :num)) (return (values nil nil nil)))
+          (setf j j2
+                v (if (string= op "+") (+ v v2) (- v v2))))))))
+
+(defun enum-rewrite-init (w from to env enum-name)
+  "Emit initializer source for a non-constant expression, rewriting bare previous
+member names to Enum.Member (Bun/tsc style)."
+  (let* ((toks (w-toks w)) (src (w-src w)))
+    (with-output-to-string (o)
+      (let ((pos (eng:token-start (aref toks from))))
+        (loop for i from from below to
+              for tok = (aref toks i)
+              for s = (eng:token-start tok)
+              for e = (eng:token-end tok)
+              do (when (< pos s) (write-string src o :start pos :end s))
+                 (if (and (eq (eng:token-type tok) :name)
+                          (not (eng:token-escaped tok))
+                          (gethash (eng:token-value tok) env)
+                          (or (= i from)
+                              (not (tpunct= toks (1- i) "."))))
+                     (format o "~a.~a" enum-name (eng:token-value tok))
+                     (write-string src o :start s :end e))
+                 (setf pos e))
+        (let ((end (eng:token-end (aref toks (1- to)))))
+          (when (< pos end) (write-string src o :start pos :end end)))))))
+
+(defun enum-resolve-init (w from to env enum-name)
+  "Return (values kind emit-text folded-value) for initializer tokens [FROM, TO).
+kind is :num, :str, :expr, or :undefined. folded-value is the CL number/string when
+known, else NIL."
+  (if (or (null from) (>= from to))
+      (values :undefined "undefined" nil)
+      (multiple-value-bind (j k v) (enum-fold-expr (w-toks w) from to env)
+        (if (and j (= j to) k)
+            (ecase k
+              (:num (values :num (js-num-lit v) v))
+              (:str (values :str (js-escape-string v) v)))
+            (values :expr (enum-rewrite-init w from to env enum-name) nil)))))
+
+(defun enum-emit-member-line (enum-name member-name kind emit)
+  "One assignment statement inside the enum IIFE."
+  (let ((key (js-escape-string member-name)))
+    (ecase kind
+      (:str (format nil "~a[~a]=~a;" enum-name key emit))
+      ((:num :expr :undefined)
+       (format nil "~a[~a[~a]=~a]=~a;" enum-name enum-name key emit key)))))
+
+(defun enum-emit-iife (enum-name lines)
+  "Classic tsc-shaped enum emit (Clun-safe: no ||= / arrow)."
+  (format nil "var ~a;(function(~a){~{~a~}})(~a||(~a={}));"
+          enum-name enum-name lines enum-name enum-name))
+
+(defun scan-enum-member-name (w)
+  "Parse a member name (Identifier | StringLiteral). Returns the name string or NIL."
+  (cond
+    ((and (eq (w-cty w) :name) (not (eng:token-escaped (w-cur w))))
+     (let ((n (w-cv w))) (w-adv w) n))
+    ((eq (w-cty w) :string)
+     (let ((n (eng:token-value (w-cur w)))) (w-adv w) n))
+    ((w-punct w "[")
+     (w-err w "TypeScript computed enum member names are not supported"))
+    (t nil)))
+
+(defun scan-enum-init-span (w)
+  "After optional `=`, return (values from to) token indices of the initializer,
+or (values nil nil) when absent. Advances past the expression."
+  (if (not (w-punct w "="))
+      (values nil nil)
+      (progn
+        (w-adv w)                              ; =
+        (let ((from (w-i w)) (depth 0))
+          (loop until (w-eof w)
+                do (cond
+                     ((and (zerop depth) (or (w-punct w ",") (w-punct w "}")))
+                      (return))
+                     ((or (w-punct w "(") (w-punct w "[") (w-punct w "{"))
+                      (incf depth) (w-adv w))
+                     ((or (w-punct w ")") (w-punct w "]") (w-punct w "}"))
+                      (when (plusp depth) (decf depth))
+                      (w-adv w))
+                     (t (w-adv w))))
+          (values from (w-i w))))))
+
+(defun scan-enum (w)
+  "Value `enum` / `const enum`: replace with classic IIFE emit matching Bun runtime
+observables (numeric auto-increment, string members, previous-member refs). Const
+enums emit a runtime object (Bun inlines pure static uses; both agree on Dir.X)."
+  (let ((start (w-i w)))
+    (when (and (leader= w "const") (tname= (w-toks w) (1+ (w-i w)) "enum"))
+      (w-adv w))                               ; const
+    (w-adv w)                                  ; enum
+    (unless (and (eq (w-cty w) :name) (not (eng:token-escaped (w-cur w))))
+      (w-err w "TypeScript enum requires a name"))
+    (let ((enum-name (w-cv w))
+          (env (make-hash-table :test #'equal))
+          (lines '())
+          (next 0d0)
+          (next-known t))
+      (w-adv w)                                ; name
+      (unless (w-punct w "{")
+        (w-err w "TypeScript enum requires a body"))
+      (w-adv w)                                ; {
+      (loop until (or (w-eof w) (w-punct w "}"))
+            do (cond
+                 ((w-punct w ",") (w-adv w))
+                 (t
+                  (let ((mname (scan-enum-member-name w)))
+                    (unless mname
+                      (w-err w "TypeScript enum member expected"))
+                    (multiple-value-bind (from to) (scan-enum-init-span w)
+                      (multiple-value-bind (kind emit folded)
+                          (if from
+                              (enum-resolve-init w from to env enum-name)
+                              (if next-known
+                                  (values :num (js-num-lit next) next)
+                                  (values :undefined "undefined" nil)))
+                        (setf (gethash mname env)
+                              (case kind
+                                (:num (cons :num folded))
+                                (:str (cons :str folded))
+                                (t (cons :expr nil))))
+                        (case kind
+                          (:num (setf next (1+ folded) next-known t))
+                          (t (setf next-known nil)))
+                        (push (enum-emit-member-line enum-name mname kind emit) lines)))
+                    (when (w-punct w ",") (w-adv w))))))
+      (unless (w-punct w "}")
+        (w-err w "TypeScript enum body not closed"))
+      (w-adv w)                                ; }
+      (when (w-punct w ";") (w-adv w))
+      (let* ((orig (or (w-src-slice w start (w-i w)) ""))
+             (js (enum-emit-iife enum-name (nreverse lines)))
+             (js (enum-match-newlines js orig)))
+        (w-replace-toks w start (w-i w) js)))))
+
 (defun scan-namespace-or-stmt (w &key ambient)
   "For the `declare` branch: nested namespace/module erases whole (ambient);
 ambient enum / const enum advances past the body for the outer erase; any other
@@ -671,11 +919,12 @@ depth 0 / EOF), without stripping."
     ((and (or (leader= w "namespace") (leader= w "module"))
           (member (ttype (w-toks w) (1+ (w-i w))) '(:name :string)))
      (scan-namespace w))
-    ;; Value `enum` / `const enum` need emit (Phase 39). Ambient forms under
-    ;; `declare` are handled by scan-namespace-or-stmt → scan-enum-ambient.
+    ;; Value `enum` / `const enum` → classic IIFE emit (Bun runtime observables).
+    ;; Ambient forms under `declare` are handled by scan-namespace-or-stmt →
+    ;; scan-enum-ambient (erase whole declare span).
     ((or (leader= w "enum")
          (and (leader= w "const") (tname= (w-toks w) (1+ (w-i w)) "enum")))
-     (w-err w "TypeScript enum is not supported in strip-only mode"))
+     (scan-enum w))
     ;; `abstract class …` — only before `class` (not `abstract` as a value binding)
     ((and (leader= w "abstract") (tname= (w-toks w) (1+ (w-i w)) "class"))
      (w-erase-1 w (w-i w)) (w-adv w) (scan-statement w))
@@ -705,8 +954,17 @@ depth 0 / EOF), without stripping."
              (scan-statement w)
              (when (= (w-i w) before) (w-adv w)))))  ; progress guard
 
-(defun scan-erasures (source path)
-  "Tokenize SOURCE and return the ordered list of (start . end) char spans to erase."
-  (let ((w (make-walker :toks (tokenize source path) :src source :path path)))
+(defun scan-plan (source path)
+  "Tokenize SOURCE; return (values erasures replacements).
+erasures = ordered list of (start . end) char spans to space-fill;
+replacements = ordered list of (start end text) enum emit rewrites."
+  (let ((w (make-walker :toks (tokenize source path) :src (coerce source 'simple-string)
+                        :path path)))
     (scan-program w)
-    (sort (w-erasures w) #'< :key #'car)))
+    (values (sort (w-erasures w) #'< :key #'car)
+            (sort (w-replacements w) #'< :key #'first))))
+
+(defun scan-erasures (source path)
+  "Tokenize SOURCE and return the ordered list of (start . end) char spans to erase.
+Legacy helper — ignores enum replacements (prefer scan-plan)."
+  (nth-value 0 (scan-plan source path)))

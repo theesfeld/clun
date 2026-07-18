@@ -21,10 +21,13 @@
                                   :defaults ts-path))
          (exp-js (merge-pathnames (make-pathname :type "js") exp-path))
          (src (slurp ts-path))
-         (want (slurp exp-js)))
+         (want (slurp exp-js))
+         ;; Pure type erasures preserve length. Enum IIFE emit may expand/shrink;
+         ;; only enforce same-length when the expected fixture is same-length.
+         (expect-same-length-p (= (length want) (length src))))
     (handler-case
         (let ((got (clun.transpiler:strip-types src (namestring ts-path))))
-          (cond ((/= (length got) (length src))
+          (cond ((and expect-same-length-p (/= (length got) (length src)))
                  (format t "  (FAIL) ~a — length ~a != source ~a~%" (rel ts-path) (length got) (length src)) nil)
                 ((not (string= got want))
                  (format t "  (FAIL) ~a~%    want ~s~%    got  ~s~%" (rel ts-path) want got) nil)
