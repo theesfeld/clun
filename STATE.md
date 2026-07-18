@@ -17,7 +17,7 @@ and https://github.com/theesfeld/clun/issues/129
 **SemVer impact:** `minor`
 **Candidate release:** `0.1.0-dev.37` / `v0.1.0-dev.37`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
-**Entry boundary:** installer on `v0.1.0-dev.21`; this unit stages `0.1.0-dev.37` after master tip `0.1.0-dev.36`.
+**Entry boundary:** installer on `v0.1.0-dev.21`; this unit stages `0.1.0-dev.37` after master tip `0.1.0-dev.37`.
 **Next scope:** remaining Partial→Yes fleet and Phase 49 residual inventory (HTTP/2 multi-listen breadth).
 
 ## Recent phase outcomes (most recent first)

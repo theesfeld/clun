@@ -290,3 +290,5 @@ Phase 74 archive/compression pure-CL APIs (#134) stages `0.1.0-dev.35` / `v0.1.0
 Phase 66 test-runner Partial→Yes (#127) stages `0.1.0-dev.36` / `v0.1.0-dev.36` after master archive Yes landed as `.35`. Multi-file `--parallel`, concurrent evidence, exotic snapshots, 52-root disposition, four-target supported, gap cleared.
 0.1.0-dev.37
 Phase 49 server.http Partial→Yes (#128) stages `0.1.0-dev.37`.
+
+Phase 49 server.http Partial→Yes (#128) stages `0.1.0-dev.37` / `v0.1.0-dev.37` with streaming bodies and four-target supported receipts.
