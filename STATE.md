@@ -7,9 +7,9 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **76 - Cron scheduling pure-CL**  (Issue #136)
+## Current phase: **76 - Cron, scheduling, and interactive REPL**  (unit #136)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/136
+**Canonical issue:** https://github.com/theesfeld/clun/issues/50
 **Parent phase issue:** https://github.com/theesfeld/clun/issues/50
 **Current implementation unit:** Pure-CL `Clun.cron` in-process scheduling + parse/next-occurrence.
 OS-level register/remove fail closed (purity). REPL remains open on parent #50.
