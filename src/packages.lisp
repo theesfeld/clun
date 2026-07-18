@@ -41,7 +41,8 @@
            #:fstat-file-p #:fstat-dir-p #:fstat-symlink-p
            #:open-regular-file-stream
            #:make-directory #:remove-directory #:remove-file #:rename-path #:make-symlink
-           #:read-symlink #:change-mode #:truncate-file #:make-temp-dir #:check-access
+           #:make-hard-link #:read-symlink #:change-mode #:change-owner #:truncate-file
+           #:set-times #:make-temp-dir #:check-access
            #:touch-file #:remove-recursive #:read-file-octets #:write-file-octets
            #:write-fd-octets #:copy-file* #:copy-file-stream))
 
