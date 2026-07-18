@@ -88,7 +88,7 @@ types, fixtures, and upstream licenses. `upstream-files.tsv` binds every file to
 
 `upstream-corpus.tsv` enumerates 1,630 lexical test sites from those exact snapshots. The initial conservative
 disposition was 1,598 pending and 32 explicitly inactive at the pinned revisions. The current executable
-mapping is 1,387 covered, 211 pending, and 32 upstream-inactive. `upstream-coverage.tsv` binds each credited
+mapping is 1,433 covered, 165 pending, and 32 upstream-inactive. `upstream-coverage.tsv` binds each credited
 inventory ID to a checked-in shipped-binary fixture; regeneration rejects duplicate, stale, or unknown IDs,
 and the corpus validator rejects missing evidence. `shell-upstream-corpus-check.sh` rejects inventory drift
 or an unexplained disposition. Its `--yes` mode is the finite closure gate: it rejects any pending row and
@@ -135,6 +135,11 @@ directory-to-symlink swap race remains pending until the actual mutation race is
 builtin and subprocess stages, nested groups, depth, logical and sequential drains, errors, substitutions,
 assignments, `seq`, and bounded `yes` streaming. The `pwd | cd | pwd` pair is covered with cwd isolation
 (pipeline stdout is the last stage only; intermediate `cd` does not rewrite siblings' cwd).
+`tests/compat/tooling.shell/upstream-lifecycle.js` executes 46 exact stable and engineering lifecycle and
+pipeline residual IDs: default and concurrent `yes | head` epipe drains, 1 MiB non-blocking `echo | cat`
+pipelines (literal and raw), hang policy fixtures under `$.throws`, concurrent external `true` load, bounded
+parse/argv leak stress, sentinel byte round-trips (including raw injection without crash), and pure-CL
+multi-chunk pipe write/read completion contracts that stand in for upstream LD_PRELOAD fault-injection sites.
 `tests/compat/tooling.shell/upstream-control-flow.js` executes 124 exact stable and engineering IDs. It binds
 all six pipeline-condition sites plus pinned `bunshell` branch paths, `elif` chains, false conditions,
 linebreak placements, multi-command conditions and bodies, branch exit status, reserved-word arguments, and
