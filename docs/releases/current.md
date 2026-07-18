@@ -1,10 +1,10 @@
 <!-- clun-generated:release-notes:begin -->
-# Clun 0.1.0-dev.34
+# Clun 0.1.0-dev.35
 
-Phase 76: Cron, scheduling, and interactive REPL.
+Phase 47: Node compatibility certification.
 
 - SemVer impact: `minor` within the selected `0.1.0` prerelease train.
-- Compatibility snapshot: 10 Yes / 7 Partial / 13 No across 30 generated rows.
+- Compatibility snapshot: 11 Yes / 6 Partial / 13 No across 30 generated rows.
 - Public baseline: Bun 1.3.14; engineering baseline: Bun `c1076ce95e`.
 - Target release platforms: Linux and macOS, x64 and arm64.
 - License: `GPL-3.0-or-later`.

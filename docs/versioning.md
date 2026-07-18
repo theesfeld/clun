@@ -64,6 +64,7 @@ resource does not exist with a 404 response:
 0.1.0-dev.32
 0.1.0-dev.33
 0.1.0-dev.34
+0.1.0-dev.35
 0.1.0-dev.30
 ```
 
@@ -283,3 +284,5 @@ the remaining closeout evidence.
 
 Phase 65 shell Partial→Yes (#120) stages `0.1.0-dev.33` / `v0.1.0-dev.33` with zero pending corpus sites and four-target supported receipts.
 Phase 76 cron scheduling (#50) stages free `0.1.0-dev.34` / `v0.1.0-dev.34`: pure-CL `Clun.cron` parse + in-process jobs (OS-level fail-closed); SemVer impact is `minor`.
+
+Phase 47 selected Node surface Partial→Yes (#132) stages `0.1.0-dev.35` / `v0.1.0-dev.35` with fourteen four-target module fixtures and ledger `clun_state=Yes` (selected surface, not full Node/V8 parity).

@@ -3298,3 +3298,10 @@ Ship pure-CL Bun-shaped cron under `Clun.cron`:
 
 Does not claim full Phase 76 Yes (REPL + OS + four-target compat open). SemVer `minor`
 at free slot `0.1.0-dev.34` / `v0.1.0-dev.34`.
+
+## 2026-07-18 — runtime.node-compatibility Partial→Yes (#132)
+
+- Frozen selected pure-CL Node surface is complete for ledger Yes: path (posix+win32), fs sync core/promises/callback subset including link/chown/utimes residual (#144), url parse/format/resolve/file helpers, buffer, events, assert, util, timers/timers.promises, querystring, os, and selected globals.
+- Evidence expanded to 14 shipped-binary fixtures across tests/js/node and tests/js/async; four-target platforms.tsv `supported`.
+- Honest Yes detail scopes the claim to the selected surface (not full Node.js or V8 parity). Broader modules remain later phase work.
+- Release train: `0.1.0-dev.35` (SemVer `minor`).

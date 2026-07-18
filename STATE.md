@@ -7,16 +7,19 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **76 - Cron, scheduling, and interactive REPL**  (Issue #50)
+## Current phase: **47 - Node compatibility certification**  (YES CONVERSION #132)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/50
-**Current implementation unit:** Phase 76 pure-CL `Clun.cron` parse + in-process jobs (Partial).
-OS-level crontab/launchd/schtasks fail-closed; REPL remains open.
+**Canonical issue:** https://github.com/theesfeld/clun/issues/132
+**Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/39,
+https://github.com/theesfeld/clun/issues/120, https://github.com/theesfeld/clun/issues/40,
+and https://github.com/theesfeld/clun/issues/25
+**Current implementation unit:** Phase 47 / selected Node surface Partial→Yes (#132).
+`runtime.node-compatibility` is **Yes** (frozen selected pure-CL modules + four-target supported evidence).
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.34` / `v0.1.0-dev.34`
+**Candidate release:** `0.1.0-dev.35` / `v0.1.0-dev.35`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
-**Entry boundary:** installer on `v0.1.0-dev.21`; this unit stages `0.1.0-dev.34`.
-**Next scope:** REPL, OS scheduler (purity path), four-target cron-scheduling compat gate.
+**Entry boundary:** installer on `v0.1.0-dev.21`; this unit stages `0.1.0-dev.35` after master `0.1.0-dev.34` (cron #146).
+**Next scope:** remaining ledger Partial→Yes conversions (web standards, TypeScript, test-runner, websocket, server.http).
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
 easiest to hardest among dependency-ready rows. Core engine/runtime/network/tooling changes are expected.
