@@ -1,5 +1,5 @@
 <!-- clun-generated:release-notes:begin -->
-# Clun 0.1.0-dev.68
+# Clun 0.1.0-dev.69
 
 Phase 82: Purity-compatible Bun-surface final audit and release.
 

@@ -111,8 +111,9 @@
       (ignore-errors (clun.sys:remove-recursive root)))))
 
 (defun %ws-install (dir &key filters)
-  "Hermetic monorepo install against the fixture registry. Returns (values result err)."
-  (let ((loop (lp:make-event-loop :workers 0)) (result nil) (err nil))
+  "Hermetic monorepo install against the fixture registry. Returns (values result err).
+   Uses a worker pool so HTTPS catalog fetches (left-pad) can complete on Darwin."
+  (let ((loop (lp:make-event-loop :workers 2)) (result nil) (err nil))
     (unwind-protect
          (multiple-value-bind (listener reg base) (start-fixture-registry loop)
            (declare (ignore reg))
@@ -123,7 +124,10 @@
                         :on-ok  (lambda (r) (setf result r) (lp:loop-stop loop))
                         :on-err (lambda (e) (setf err e) (lp:loop-stop loop)))
                     (error (e) (setf err e)))
-                  (unless (or result err) (lp:run-loop loop)))
+                  (unless (or result err) (lp:run-loop loop))
+                  ;; One cooperative tick so symlink finalization is visible to path-exists.
+                  (when (and result (not err))
+                    (lp:drain-microtasks loop)))
              (net:listener-close listener)))
       (lp:destroy-event-loop loop))
     (values result err)))

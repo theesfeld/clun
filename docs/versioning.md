@@ -344,4 +344,4 @@ Phase 69–70 tooling.formatter-linter FULL PORT (#190 / canonical #43) stages f
 
 Phase 48 runtime.native-addons FULL PORT (#178 / canonical #22) stages free `0.1.0-dev.66` / `v0.1.0-dev.66` after fmt-lint Yes `0.1.0-dev.65`; SemVer impact is `minor`.
 
-Release ship #216 stages free `0.1.0-dev.68` / `v0.1.0-dev.68` with built-in `--update`/`check-update` (GitHub Releases assets + SHA-256); SemVer impact is `minor`.
+Release ship #216 stages free `0.1.0-dev.69` / `v0.1.0-dev.69` with built-in `--update`/`check-update` (GitHub Releases assets + SHA-256); SemVer impact is `minor`.

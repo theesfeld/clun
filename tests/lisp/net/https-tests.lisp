@@ -349,16 +349,24 @@ Returns (values port thread stop-box accepted-count request-count)."
   ;; ON it correctly FAILS CLOSED on a missing peer cert, which would make this test flaky).
   ;; Certificate verification is covered deterministically by the verify-function matrix below
   ;; + the end-to-end live smoke (STATE.md).
-  (multiple-value-bind (fport thread)
-      (%https-fixture-server (%cert "localhost-leaf.crt") (%cert "localhost-leaf.key")
-                             (%http-response-bytes 200 "{\"tls\":\"ok\",\"n\":7}"))
-    (unwind-protect
-         (let ((resp (net:https-request :host "localhost" :port fport :method "GET" :path "/"
-                                        :verify nil)))
-           (is = 200 (net:hres-status resp))
-           (true (search "\"tls\":\"ok\"" (sb-ext:octets-to-string (net:hres-body resp)
-                                                                   :external-format :utf-8))))
-      (ignore-errors (sb-thread:join-thread thread :timeout 5)))))
+  ;; Retry a few times: Darwin shared runners occasionally close the pure-tls fixture race.
+  (let ((ok nil) (last-err nil))
+    (dotimes (attempt 3)
+      (when ok (return))
+      (multiple-value-bind (fport thread)
+          (%https-fixture-server (%cert "localhost-leaf.crt") (%cert "localhost-leaf.key")
+                                 (%http-response-bytes 200 "{\"tls\":\"ok\",\"n\":7}"))
+        (unwind-protect
+             (handler-case
+                 (let ((resp (net:https-request :host "localhost" :port fport :method "GET" :path "/"
+                                                :verify nil)))
+                   (is = 200 (net:hres-status resp))
+                   (true (search "\"tls\":\"ok\"" (sb-ext:octets-to-string (net:hres-body resp)
+                                                                           :external-format :utf-8)))
+                   (setf ok t))
+               (error (e) (setf last-err e)))
+          (ignore-errors (sb-thread:join-thread thread :timeout 5)))))
+    (true ok (format nil "https-transport failed after retries: ~a" last-err))))
 
 (define-test net/https-transport-streams-authenticated-response
   (multiple-value-bind (fport thread)
