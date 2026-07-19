@@ -1,5 +1,5 @@
 <!-- clun-generated:release-notes:begin -->
-# Clun 0.1.0-dev.44
+# Clun 0.1.0-dev.45
 
 Phase 47: Node compatibility certification.
 

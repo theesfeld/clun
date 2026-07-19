@@ -13,8 +13,8 @@ Update when work completes; keep consistent with the Issue, README, and site.
 **Current implementation unit:** runtime.node-compatibility Partial→Yes (#132).
 Selected pure-CL Node surface is **Yes** (path/fs/url/buffer/events/assert/util/timers/querystring/os + process/crypto helpers; four-target supported). Not full Node/V8 parity.
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.44` / `v0.1.0-dev.44`
-**Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
-**Entry boundary:** installer on `v0.1.0-dev.21`; free slot after master HTTP Yes `0.1.0-dev.43`.
+**Candidate release:** `0.1.0-dev.45` / `v0.1.0-dev.45`
+**Published release:** `0.1.0-dev.45` / `v0.1.0-dev.45`
+**Entry boundary:** installer on `v0.1.0-dev.45`; free slot after master HTTP Yes `0.1.0-dev.45`.
 **Next scope:** remaining Yes conversions on Partial rows.
 

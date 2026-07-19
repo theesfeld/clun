@@ -309,3 +309,4 @@ Phase 39 language.typescript Partial→Yes (#133) stages `0.1.0-dev.40` / `v0.1.
 Phase 49 server.http Partial→Yes (#128) stages `0.1.0-dev.41` / `v0.1.0-dev.41`.
 Phase 49 server.http Partial→Yes (#128) stages free `0.1.0-dev.43` / `v0.1.0-dev.43` with streaming HTTP/1.1 four-target receipts; SemVer impact is `minor`.
 Phase 47 runtime.node-compatibility Partial→Yes (#132) stages free `0.1.0-dev.44` / `v0.1.0-dev.44` with four-target selected Node surface receipts; SemVer impact is `minor`.
+Phase 47 runtime.node-compatibility selected-surface Yes (#132) stages free `0.1.0-dev.45` / `v0.1.0-dev.45`; SemVer impact is `minor`.
