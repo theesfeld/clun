@@ -19,6 +19,7 @@
                   ~8@Tclun install            install package.json deps into node_modules~%~
                   ~8@Tclun add <pkg>          add a dependency (-d dev, -E exact) + install~%~
                   ~8@Tclun remove <pkg>       remove a dependency + reinstall~%~
+                  ~8@Tclun build <entry…>     production bundle (Clun.build / Bun.build)~%~
                   ~8@Tclun run [--filter <p>] <script>  run package.json scripts (filtered monorepo)~%~
                   ~%~
                   Flags: --cwd <dir>   set the working directory~%~
@@ -401,6 +402,117 @@ waves with `--parallel`, sequential with `--sequential`; exceeds Bun with `--con
     (rt:run-exit-handlers code)
     code))
 
+;;; --- build (tooling.bundler #180) -------------------------------------------
+
+(defun run-build-command (r)
+  "Handle `clun build [entry…]` with Bun-compatible flags."
+  (let ((cwd (resolve-cwd r))
+        (entries '())
+        (outdir nil) (outfile nil) (format "esm") (target "browser")
+        (minify nil) (splitting nil) (sourcemap nil) (metafile nil)
+        (external '()) (define '()) (banner nil) (footer nil)
+        (packages nil) (public-path nil))
+    (loop with rest = (remove nil (cons (cli:cli-get r :file) (cli:cli-get r :args)))
+          while rest
+          for tok = (pop rest) do
+            (cond
+              ((or (string= tok "--outdir") (string= tok "-d"))
+               (if (and rest (not (%flag-p (car rest))))
+                   (setf outdir (pop rest))
+                   (progn (format *error-output* "clun build: ~a needs a value~%" tok)
+                          (return-from run-build-command 2))))
+              ((or (string= tok "--outfile") (string= tok "-o"))
+               (if (and rest (not (%flag-p (car rest))))
+                   (setf outfile (pop rest))
+                   (progn (format *error-output* "clun build: ~a needs a value~%" tok)
+                          (return-from run-build-command 2))))
+              ((string= tok "--format")
+               (if (and rest (not (%flag-p (car rest))))
+                   (setf format (pop rest))
+                   (progn (format *error-output* "clun build: --format needs a value~%")
+                          (return-from run-build-command 2))))
+              ((string= tok "--target")
+               (if (and rest (not (%flag-p (car rest))))
+                   (setf target (pop rest))
+                   (progn (format *error-output* "clun build: --target needs a value~%")
+                          (return-from run-build-command 2))))
+              ((string= tok "--minify") (setf minify t))
+              ((string= tok "--splitting") (setf splitting t))
+              ((string= tok "--sourcemap")
+               (setf sourcemap (if (and rest (not (%flag-p (car rest))))
+                                   (pop rest)
+                                   "inline")))
+              ((string= tok "--metafile") (setf metafile t))
+              ((string= tok "--external")
+               (if (and rest (not (%flag-p (car rest))))
+                   (push (pop rest) external)
+                   (progn (format *error-output* "clun build: --external needs a value~%")
+                          (return-from run-build-command 2))))
+              ((string= tok "--define")
+               (if (and rest (not (%flag-p (car rest))))
+                   (let* ((pair (pop rest))
+                          (eqpos (position #\= pair)))
+                     (if eqpos
+                         (push (cons (subseq pair 0 eqpos) (subseq pair (1+ eqpos))) define)
+                         (push (cons pair "true") define)))
+                   (progn (format *error-output* "clun build: --define needs a value~%")
+                          (return-from run-build-command 2))))
+              ((string= tok "--banner")
+               (when (and rest (not (%flag-p (car rest)))) (setf banner (pop rest))))
+              ((string= tok "--footer")
+               (when (and rest (not (%flag-p (car rest)))) (setf footer (pop rest))))
+              ((string= tok "--packages")
+               (when (and rest (not (%flag-p (car rest)))) (setf packages (pop rest))))
+              ((string= tok "--public-path")
+               (when (and rest (not (%flag-p (car rest)))) (setf public-path (pop rest))))
+              ((%flag-p tok)
+               (format *error-output* "clun build: unknown flag ~a~%" tok)
+               (return-from run-build-command 2))
+              (t (push tok entries))))
+    (setf entries (nreverse entries) external (nreverse external) define (nreverse define))
+    (when (null entries)
+      (format *error-output* "clun build: no entrypoints~%")
+      (return-from run-build-command 2))
+    (unless (or outdir outfile)
+      (setf outdir (sys:path-join cwd "dist")))
+    (handler-case
+        (let* ((plist (list :entrypoints entries
+                            :outdir outdir
+                            :outfile outfile
+                            :root cwd
+                            :format format
+                            :target target
+                            :minify minify
+                            :splitting splitting
+                            :sourcemap sourcemap
+                            :metafile metafile
+                            :external external
+                            :define define
+                            :banner banner
+                            :footer footer
+                            :packages packages
+                            :public-path public-path
+                            :throw t))
+               (result (clun.bundler:build plist)))
+          (if (clun.bundler:br-success result)
+              (progn
+                (dolist (out (clun.bundler:br-outputs result))
+                  (when (clun.bundler:ba-path out)
+                    (format t "~a  ~a bytes~%"
+                            (clun.bundler:ba-path out)
+                            (length (clun.bundler:ba-text out)))))
+                0)
+              (progn
+                (dolist (log (clun.bundler:br-logs result))
+                  (format *error-output* "clun build: ~a~%" (getf log :message)))
+                1)))
+      (clun.bundler:build-error (e)
+        (format *error-output* "clun build: ~a~%" (clun.bundler:build-error-message e))
+        1)
+      (error (e)
+        (format *error-output* "clun build: ~a~%" e)
+        1))))
+
 ;;; --- dispatch ---------------------------------------------------------------
 
 (defun dispatch (argv)
@@ -419,6 +531,7 @@ waves with `--parallel`, sequential with `--sequential`; exceeds Bun with `--con
               (cond
                 ((equal sub "test") (run-test r))
                 ((member sub '("install" "add" "remove") :test #'equal) (run-install-command r))
+                ((equal sub "build") (run-build-command r))
                 ((equal sub "exec") (run-exec r))
                 ((equal sub "run") (run-script r))
                 (t (run-file r (cli:cli-get r :file)))))))))
