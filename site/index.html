@@ -20,9 +20,9 @@
 
     <div class="announcement">
 <!-- clun-generated:release:begin -->
-<a href="https://github.com/theesfeld/clun/issues/177">
+<a href="https://github.com/theesfeld/clun/issues/186">
   <span>In development</span>
-  v0.1.0-dev.46 / Phase 82
+  v0.1.0-dev.47 / Phase 40
   <span aria-hidden="true">-&gt;</span>
 </a>
 <!-- clun-generated:release:end -->
@@ -56,7 +56,7 @@
             <img class="hero-mark" src="assets/clun.jpg" alt="Clun mascot wearing a Lisp helmet" width="250" height="250">
           </div>
 <!-- clun-generated:version:begin -->
-<p class="eyebrow"><span class="status-dot" aria-hidden="true"></span> v0.1.0-dev.46 release candidate / pre-alpha</p>
+<p class="eyebrow"><span class="status-dot" aria-hidden="true"></span> v0.1.0-dev.47 release candidate / pre-alpha</p>
 <!-- clun-generated:version:end -->
           <h1>Clun is JavaScript tooling,<br> rewritten in pure Common Lisp.</h1>
           <p class="hero-copy">
@@ -118,7 +118,7 @@
             CI, Documentation, all four native archives and checksums, the exact-candidate Pages deployment,
             and the hosted installer are verified. Phase 25b and its handoff are closed.
 <!-- clun-generated:phase-status:begin -->
-Phase 82 is active: <a href="https://github.com/theesfeld/clun/issues/177">Purity-compatible Bun-surface final audit and release in issue #177</a>.
+Phase 40 is active: <a href="https://github.com/theesfeld/clun/issues/186">JSX and TSX in issue #186</a>.
 Phase 26 remains deferred until after Phase 82 and will be re-baselined for the system state at that time.
 <!-- clun-generated:phase-status:end -->
             The issue is the canonical live record; <a href="https://github.com/theesfeld/clun/blob/master/PLAN.md">PLAN</a>
@@ -242,7 +242,7 @@ Phase 26 remains deferred until after Phase 82 and will be re-baselined for the 
                 <li><code>Object.seal</code>, <code>Object.isSealed</code>, and legacy accessor hooks</li>
                 <li>ESM and CommonJS resolution</li>
                 <li>Timers, promises, files, fetch, and URL</li>
-                <li>No JSX, Proxy, Intl, or native addons</li>
+                <li>No Proxy, Intl, or native addons (JSX/TSX is built in)</li>
               </ul>
               <div class="tool-status"><span>Scope</span> ES2017-tier, partial</div>
             </article>
@@ -271,7 +271,7 @@ Phase 26 remains deferred until after Phase 82 and will be re-baselined for the 
                 <li>Bun-formatted snapshots, mocks, preloads, fake timers, and JUnit</li>
                 <li>Source-aligned JS/TS coverage with text, LCOV, filters, and thresholds</li>
               </ul>
-              <div class="tool-status warning"><span>Known gaps</span> Exotic snapshot edges, JSX coverage, watch, and concurrency</div>
+              <div class="tool-status warning"><span>Known gaps</span> Exotic snapshot edges, watch, and concurrency</div>
               <div class="tool-status"><span>Output</span> Deterministic by design</div>
             </article>
 
@@ -361,7 +361,7 @@ Linked phase labels are planned acceptance gates, not capabilities available tod
   <thead>
     <tr>
       <th scope="col">Capability</th>
-      <th scope="col" class="clun-col"><a href="https://github.com/theesfeld/clun">Clun</a><span>0.1.0-dev.46 candidate / pre-alpha</span></th>
+      <th scope="col" class="clun-col"><a href="https://github.com/theesfeld/clun">Clun</a><span>0.1.0-dev.47 candidate / pre-alpha</span></th>
       <th scope="col"><a href="https://bun.sh/">Bun</a><span>1.3.14 / toolkit</span></th>
       <th scope="col"><a href="https://nodejs.org/">Node.js</a><span>26.5.0 / current</span></th>
       <th scope="col"><a href="https://deno.com/">Deno</a><span>2.9.3 / runtime</span></th>
@@ -401,7 +401,7 @@ Linked phase labels are planned acceptance gates, not capabilities available tod
     </tr>
     <tr data-compat-feature="language.jsx">
       <th scope="row"><strong>JSX</strong><span>Execute JSX without external transformation</span></th>
-      <td class="clun-col"><b class="state no">No</b> not yet implemented (full-port target)<a class="phase-link" data-roadmap-phase="40" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-40">Phase 40</a></td>
+      <td class="clun-col"><b class="state yes">Yes</b> pure Common Lisp JSX and TSX parse, transform, and execute with classic React.createElement and automatic jsx/jsxs/Fragment runtimes, file pragmas, tsconfig/jsconfig compilerOptions, fragments, spreads, nested expressions, member tags, HTML entity decoding, and built-in offline helpers that run without a react package (exceeds Bun)<a class="phase-link" data-roadmap-phase="40" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-40">Phase 40</a></td>
       <td><b class="state yes">Yes</b> built in</td>
       <td><b class="state no">No</b> requires a transformer</td>
       <td><b class="state yes">Yes</b> built in</td>
@@ -679,7 +679,7 @@ Linked phase labels are planned acceptance gates, not capabilities available tod
           <p>Bun, rewritten in pure Common Lisp. Scoped, pre-alpha, and GPL-3.0-or-later.</p>
         </div>
 <!-- clun-generated:release-links:begin -->
-<div><h2>Project</h2><a href="https://github.com/theesfeld/clun">Source</a><a href="https://github.com/theesfeld/clun/blob/master/README.md">README</a><a href="https://github.com/theesfeld/clun/issues/177">Current status</a></div>
+<div><h2>Project</h2><a href="https://github.com/theesfeld/clun">Source</a><a href="https://github.com/theesfeld/clun/blob/master/README.md">README</a><a href="https://github.com/theesfeld/clun/issues/186">Current status</a></div>
 <div><h2>Evidence</h2><a href="https://github.com/theesfeld/clun/blob/master/compat/README.md">Compatibility ledger</a><a href="https://github.com/theesfeld/clun/actions/workflows/compat.yml">Compatibility CI</a><a href="https://github.com/theesfeld/clun/blob/master/LICENSE">License</a></div>
 <div><h2>Install</h2><a href="install">Shell installer</a><a href="https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.21">v0.1.0-dev.21 release</a><a href="https://github.com/theesfeld/clun#building-from-source">Build from source</a></div>
 <!-- clun-generated:release-links:end -->

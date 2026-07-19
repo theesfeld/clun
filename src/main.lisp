@@ -68,10 +68,6 @@
         (cli:load-dotenv (eng:js-get proc "env") cwd)))
     realm))
 
-(defun tsx-extension-p (path)
-  (let ((dot (position #\. path :from-end t)))
-    (and dot (string= (subseq path dot) ".tsx"))))
-
 (defun bun-shell-file-p (path)
   (let ((suffix ".bun.sh"))
     (and (>= (length path) (length suffix))
@@ -92,13 +88,11 @@
 
 (defun run-file (r file &key (rest (cli:cli-get r :args)))
   "Execute FILE (a path). Returns an exit code. REST is process.argv after the script (defaults to
-the CLI's trailing args). .ts/.mts/.cts are stripped by the loader's *ts-strip-hook*; .tsx is
-rejected."
+the CLI's trailing args). .ts/.mts/.cts are stripped by *ts-strip-hook*; .jsx/.tsx are lowered by
+*jsx-transform-hook* then (for .tsx) type-stripped."
   (cond
     ((null file)
      (format *error-output* "clun: no file to run~%") 2)
-    ((tsx-extension-p file)
-     (format *error-output* "clun: .tsx is not supported~%") 1)
     (t
      (let* ((cwd (resolve-cwd r))
             (abs (if (sys:absolute-path-p file) file (sys:path-join cwd file))))

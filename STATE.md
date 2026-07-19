@@ -7,15 +7,13 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **82 - FULL PORT zero No zero Yes-but exceed Bun**  (#177)
+## Current phase: **40 - JSX and TSX**  (language.jsx full port → Yes; unit #186)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/177
-**Current implementation unit:** Honesty scrub under FULL PORT: demote soft Yes (node, TypeScript) to Partial; rewrite purity-exclusion Nos to full-port targets; permanent AGENTS/DECISIONS law. **Qualified Yes is a No.**
+**Canonical issue:** https://github.com/theesfeld/clun/issues/186
+**Parent epic:** https://github.com/theesfeld/clun/issues/177
+**Current implementation unit:** language.jsx No→Yes (#186). Pure Common Lisp JSX/TSX parse, transform, and execute with classic and automatic runtimes, pragmas, tsconfig options, fragments, spreads, entity decoding, and offline helpers (exceeds Bun's react package requirement). Four-target **supported**.
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.46` / `v0.1.0-dev.46`
+**Candidate release:** `0.1.0-dev.47` / `v0.1.0-dev.47`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
-**Entry boundary:** installer on `v0.1.0-dev.21`; free slot after master tip `0.1.0-dev.45`.
-
-
-**Next scope:** remaining Partial rows if any.
-
+**Entry boundary:** installer on `v0.1.0-dev.21`; free slot after master honesty scrub `0.1.0-dev.46`.
+**Next scope:** remaining FULL PORT ledger Nos under #177.

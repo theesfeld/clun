@@ -15,14 +15,17 @@
     (and dot (string= (subseq path dot) ".tsx"))))
 
 (defun strip-types (source path)
-  "Transform TypeScript SOURCE (.ts/.mts/.cts) to executable JS:
+  "Transform TypeScript SOURCE (.ts/.mts/.cts, or post-JSX .tsx via spoofed .ts path)
+to executable JS:
   - erasable type syntax → length-preserving whitespace when no runtime rewrite;
   - enums, runtime namespaces, and constructor parameter properties → Bun/TS-shaped
-    emits (length may change; no full tsc typecheck, no sourcemaps yet).
-Signals unsupported-ts-syntax on remaining non-supported forms (decorators, .tsx,
-import/export =, angle casts)."
+    emits (length may change).
+Signals unsupported-ts-syntax on remaining non-supported forms (decorators,
+import/export =, angle casts). JSX/TSX is lowered by TRANSFORM-JSX before this runs."
   (when (tsx-path-p path)
-    (error 'unsupported-ts-syntax :message ".tsx is not supported" :path path))
+    (error 'unsupported-ts-syntax
+           :message ".tsx must be JSX-transformed before type strip"
+           :path path))
   (multiple-value-bind (erasures replacements) (scan-transforms source path)
     (render-plan source erasures replacements)))
 
@@ -31,11 +34,17 @@ import/export =, angle casts)."
 line and column of every surviving token are byte-identical to the original)."
   (render-plan src erasures nil))
 
-;;; Install the hook so the engine loader strips TS before parse-program. Mapping
-;;; the transpiler condition to a JS SyntaxError happens here (line:col carried).
+;;; Install hooks so the engine loader transforms JSX and strips TS before parse-program.
 (setf eng:*ts-strip-hook*
       (lambda (source path)
         (handler-case (strip-types source path)
+          (unsupported-ts-syntax (e)
+            (eng:throw-syntax-error
+             (format nil "~a (~a:~a)" (uts-message e) (uts-line e) (uts-col e)))))))
+
+(setf eng:*jsx-transform-hook*
+      (lambda (source path)
+        (handler-case (transform-jsx-file source path)
           (unsupported-ts-syntax (e)
             (eng:throw-syntax-error
              (format nil "~a (~a:~a)" (uts-message e) (uts-line e) (uts-col e)))))))
