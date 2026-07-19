@@ -7,11 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Clun is pre-1.0; minor versions may include breaking changes.
 
 The immutable tags `v0.1.0-dev.2`, `v0.1.0-dev.11`, `v0.1.0-dev.12`,
-`v0.1.0-dev.15`, `v0.1.0-dev.68`, and
-`v0.1.0-dev.69` did not produce GitHub Releases or assets and are not
+`v0.1.0-dev.15`, `v0.1.0-dev.68`, `v0.1.0-dev.69`, and
+`v0.1.0-dev.70` did not produce GitHub Releases or assets and are not
 installable release checkpoints.
 
 ## [Unreleased]
+
+## [0.2.0-dev.1] - 2026-07-19
+
+### Added
+
+- Add public Releases Atom-feed fallback for prerelease-only discovery when
+  the unauthenticated GitHub Releases API returns 403.
+- Add packaged full-bundle updater smoke coverage against real release archives.
+
+### Changed
+
+- Change the default installation destination to `~/.local/bin/clun`, with
+  complete versioned bundles stored below the XDG data root.
+- Bind no-argument installs to the ledger's verified boundary; explicit
+  `INSTALL_VERSION=latest` retains redirect-first dynamic discovery.
+- Select the highest suitable SemVer from fallback release listings rather
+  than trusting chronological response order.
+- Update an installation by staging and validating the complete release
+  bundle, then atomically switching the installer-managed stable launcher.
+- Record the distribution-contract break as `major` intent while publishing
+  it on the conventional pre-1.0 `0.2.0` minor core.
+
+### Fixed
+
+- Preserve Linux wrapper loaders and `libexec/clun` instead of replacing only
+  the running core image.
+- Resolve bare `argv[0]` only through `PATH`, preventing an updater from
+  overwriting an unrelated file in the current directory.
+- Preserve shell-profile symlinks whose canonical targets remain inside HOME;
+  externally managed targets are reported and left unchanged.
+- Retain the prior launcher and bundle on checksum, archive, version, layout,
+  executable, or post-activation validation failure.
+
+### Security
+
+- Fetch updater metadata and assets through direct pure-Common-Lisp HTTPS/TLS;
+  no updater path synthesizes or evaluates JavaScript.
+- Require the archive `VERSION` and staged executable version to match the
+  requested immutable tag exactly before activation.
 
 ## [0.1.0-dev.70] - 2026-07-19
 
@@ -191,7 +230,8 @@ installable release checkpoints.
 
 - Publish the initial Clun development release.
 
-[Unreleased]: https://github.com/theesfeld/clun/compare/v0.1.0-dev.70...HEAD
+[Unreleased]: https://github.com/theesfeld/clun/compare/v0.2.0-dev.1...HEAD
+[0.2.0-dev.1]: https://github.com/theesfeld/clun/compare/v0.1.0-dev.21...v0.2.0-dev.1
 [0.1.0-dev.70]: https://github.com/theesfeld/clun/compare/v0.1.0-dev.21...v0.1.0-dev.70
 [0.1.0-dev.21]: https://github.com/theesfeld/clun/compare/v0.1.0-dev.19...v0.1.0-dev.21
 [0.1.0-dev.19]: https://github.com/theesfeld/clun/compare/v0.1.0-dev.18...v0.1.0-dev.19

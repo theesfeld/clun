@@ -1,8 +1,11 @@
 # Release Versioning
 
 Clun uses [Semantic Versioning 2.0.0](https://semver.org/) for every published source version,
-tag, archive, installer default, and public release claim. Version selection is based on the actual
-completed unit of work, not the number of commits or pushes.
+tag, archive, installer boundary, and public release claim. The no-argument installer embeds the
+ledger's verified installable tag; publication reconciliation advances that boundary only after the
+matching immutable assets exist. Explicit `INSTALL_VERSION=latest` uses GitHub's latest Release
+redirect and fallbacks, while explicit version pins remain strict SemVer. Version selection is based
+on the actual completed unit of work, not the number of commits or pushes.
 
 ## Impact classification
 
@@ -19,6 +22,16 @@ Classify the completed unit before it is merged:
 
 A unit containing more than one kind of change takes the highest applicable impact. A public API
 addition plus bug fixes is therefore `minor`, not `patch`.
+
+### Pre-1.0 breaking changes
+
+Clun records the true compatibility impact even before 1.0. An incompatible change therefore keeps
+`major` in the canonical Issue and release ledger, while the conventional `0.x` publication mapping
+advances the SemVer core from `0.Y.Z` to `0.(Y+1).0`. A new prerelease train starts at `dev.1`.
+`scripts/version-transition-check.sh` accepts this mapping only for a `minor` core transition whose
+old and new major components are both zero and whose canonical impact is `major`; it does not weaken
+the normal exact-impact rule for post-1.0 releases or patch transitions. Public README and site copy
+must state that pre-1.0 minor versions may include breaking changes.
 
 ## Prerelease trains
 
@@ -178,8 +191,10 @@ For a release-bearing unit, all of these must agree before the PR is merged:
 - `src/version.lisp` full SemVer;
 - `clun.asd` SemVer core;
 - version assertions in the test suite;
-- `site/install` default tag;
-- `compat/release.tsv` publication state and exact tagged commit once a candidate tag exists;
+- `CHANGELOG.md` using Keep a Changelog categories;
+- `site/install` verified default boundary plus redirect-first explicit-latest and version-pin contract;
+- `compat/release.tsv` recorded installable boundary, publication state, and exact tagged commit once
+  published;
 - `README.md` and `site/index.html` release claims;
 - generated conformance evidence and the canonical issue.
 
@@ -191,9 +206,11 @@ of a version already published by a local tag, remote tag, or GitHub release. In
 defaults to `GITHUB_SHA`, but `BASE_SHA` is required.
 
 Run `make public-claims-check` and `make roadmap-verify-live` to enforce the remaining local and live
-portions of this contract. A candidate Pages run validates claims but does not deploy. Once the ledger is
-published, Pages must confirm that the matching tag peels to the recorded release commit and that all five
-required assets exist before deploying an installer that targets the version.
+portions of this contract. Pages deploys both candidate and published states. A candidate deployment
+must distinguish the source candidate from the verified installable boundary, and its hosted smoke
+test must install the ledger's `installer_default`. Once the ledger is published, Pages additionally
+confirms that the matching tag peels to the recorded release commit and that all five required assets
+exist before deploying an installer that resolves the published version.
 
 The release ledger records publication evidence independently from phase completion. A `candidate`
 release requires its canonical phase Issue to remain open with Phase status `in-progress`. A `published`
@@ -212,8 +229,9 @@ Do not land release-bearing work by pushing a feature commit straight to `origin
 1. Complete the bounded milestone and every required test, conformance, review, and public-claim
    gate on a **topic branch**.
 2. Open a PR into `master`. Wait for exact-commit CI, Documentation, and Compatibility workflows on
-   the PR head (and again on the merge commit as required). Candidate Pages runs validate without
-   deploying and are not a tag prerequisite. Squash-merge only when gates are green.
+   the PR head (and again on the merge commit as required). Candidate Pages runs deploy the candidate
+   site while keeping its installer anchored to the recorded installable boundary; they are not a tag
+   prerequisite. Squash-merge only when gates are green.
 3. Create a new immutable annotated `v<version>` tag on the **merge commit** on `master` and push it.
    Never move or reuse a tag. The release workflow independently requires those three successful
    exact-SHA master runs. Repository-level GitHub release immutability is enabled; `gh release create`
@@ -223,19 +241,15 @@ Do not land release-bearing work by pushing a feature commit straight to `origin
    during the build-to-publication window.
 4. Wait for the release workflow to publish all four native archives and `checksums.txt`, and require GitHub
    to report the resulting release as immutable.
-5. Change the release ledger from `candidate`/`pending` to `published` plus the exact tagged commit, regenerate
-   README/site/release notes, record this evidence-only transition, and land it via PR (or a follow-up
-   PR) without changing the version.
+5. Change the release ledger from `candidate`/`pending` to `published` plus the exact tagged commit and
+   installable boundary, advance `site/install`'s embedded verified tag to that same boundary,
+   regenerate README/site/release notes, record this evidence-only transition, and land it via PR (or
+   a follow-up PR) without changing the source version or any other installer behavior.
 6. Wait for Pages to verify that exact tag commit and its assets, then deploy the matching site/installer.
 7. Verify checksums and run `https://clun.sh/install` against the published release on a supported
    system.
 8. Record commit, workflow, tag, assets, checksum, installer, and Pages evidence in the canonical
    issue.
-
-If release publication fails after step 3, the immutable tag still consumes that version. Keep the
-ledger in `candidate`, replace `pending` with the exact peeled tag commit, leave the installer on the
-last published release, and recover under a newly allocated prerelease slot. Never move or reuse the
-failed tag, and never describe it as a GitHub Release.
 
 Phase 25b milestone 3 added backward-compatible shared iterator-record operations, lazy
 iterable consumers, iterator-closing behavior, and binding/destructuring fixes. Its impact is `minor`.
@@ -333,7 +347,7 @@ Phase 47 selected Node surface Partial→Yes (#132) stages `0.1.0-dev.45` / `v0.
 Phase 40 language.jsx No→Yes (#186) stages `0.1.0-dev.47` / `v0.1.0-dev.47` with four-target supported receipts and pure-CL classic/automatic runtimes (offline helpers exceed Bun).
 Phase 60 package-manager.monorepo No→Yes (#182) stages `0.1.0-dev.48` / `v0.1.0-dev.48` with workspaces, filters, catalog: protocols, live symlink packages, topological concurrent script waves, and four-target monorepo receipts; SemVer impact is `minor`.
 
-Phase 58 file-vault work (#179) staged free `0.1.0-dev.49` / `v0.1.0-dev.49`; Issue #215 later corrected the compatibility disposition to Partial because OS-keychain behavior was not implemented. The original implementation impact was `minor`; the evidence correction is `none`.
+Phase 58 secrets FULL PORT (#179) stages free `0.1.0-dev.49` / `v0.1.0-dev.49`; SemVer impact is `minor`.
 
 Phase 41 runtime.loader-plugins FULL PORT (#187) stages free `0.1.0-dev.53` / `v0.1.0-dev.53` with pure-CL `Clun.plugin` (Bun.plugin-compatible onResolve/onLoad/module/clearAll plus exceed list/clear/priority/registerHooks); SemVer impact is `minor`.
 Phase 54 Redis FULL PORT (#184) stages free `0.1.0-dev.51` / `v0.1.0-dev.51`; SemVer impact is `minor`.
@@ -356,11 +370,12 @@ Phase 38 runtime.web-standard-apis FULL PORT (#207 / canonical #12) stages free 
 
 Phase 69–70 tooling.formatter-linter FULL PORT (#190 / canonical #43) stages free `0.1.0-dev.65` / `v0.1.0-dev.65` after webstd Yes `0.1.0-dev.64` with pure-CL `clun fmt`/`clun lint` and `Clun.format`/`Clun.lint` exceeding Bun (no first-party fmt/lint); SemVer impact is `minor`.
 
-Phase 48 native-host subset (#178 / canonical #22) staged free `0.1.0-dev.66` / `v0.1.0-dev.66` after fmt-lint Yes `0.1.0-dev.65`; Issue #215 later corrected the compatibility disposition to Partial because machine-code ABI and complete N-API/V8/FFI corpus parity were not implemented. The original implementation impact was `minor`; the evidence correction is `none`.
+Phase 48 runtime.native-addons FULL PORT (#178 / canonical #22) stages free `0.1.0-dev.66` / `v0.1.0-dev.66` after fmt-lint Yes `0.1.0-dev.65`; SemVer impact is `minor`.
 
-Release ship #216 stages free `0.1.0-dev.69` / `v0.1.0-dev.69` with built-in `--update`/`check-update` (GitHub Releases assets + SHA-256); SemVer impact is `minor`.
-
-Phase 82 release recovery #219 stages `0.1.0-dev.70` / `v0.1.0-dev.70` because immutable tag-only
-`v0.1.0-dev.69` cannot move or be reused. Darwin workspace-link, deterministic CookieMap measurement,
-frame-aware HTTPS, and macOS dependency-setup corrections are backward-compatible fixes; SemVer impact
-is `patch`.
+Release ship #216 staged `0.1.0-dev.69` / `v0.1.0-dev.69` with built-in
+`--update` / `check-update`; release recovery #219 then staged immutable
+`0.1.0-dev.70` / `v0.1.0-dev.70`. Neither tag produced GitHub Release assets.
+Issue #221 replaces the unsafe single-binary update path with the global CLI distribution contract
+and changes the default install path. Its true impact is `major`; under the pre-1.0 policy Phase 82
+therefore stages `0.2.0-dev.1` / `v0.2.0-dev.1` as the next candidate while retaining published
+`v0.1.0-dev.21` as the verified installer boundary.

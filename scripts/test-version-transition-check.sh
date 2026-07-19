@@ -365,6 +365,15 @@ write_release_ledger() {
     >"$fixture_file"
 }
 
+write_fixture_installer() {
+  fixture_boundary=$1
+  fixture_installer_file=$2
+  # shellcheck disable=SC2016 # Fixture needs the literal installer expansion.
+  printf '%s\n' '#!/bin/sh' "verified_installer_tag=$fixture_boundary" \
+    'requested_version=${1:-${INSTALL_VERSION:-${CLUN_VERSION:-$verified_installer_tag}}}' \
+    "printf \"%s\\n\" \"\$requested_version\"" >"$fixture_installer_file"
+}
+
 run_publication_reconciliation_case() (
   fixture_name=$1
   mutation=$2
@@ -382,8 +391,7 @@ run_publication_reconciliation_case() (
   printf '%s\n' base >"$fixture/README.md"
   printf '%s\n' base >"$fixture/STATE.md"
   printf '%s\n' base >"$fixture/site/index.html"
-  printf '%s\n' '#!/bin/sh' "requested_version=\${CLUN_VERSION:-v1.3.0-dev.1}" \
-    "printf \"%s\\n\" \"\$requested_version\"" >"$fixture/site/install"
+  write_fixture_installer v1.3.0-dev.1 "$fixture/site/install"
   write_release_ledger "$fixture_version" v1.3.0-dev.1 candidate pending \
     "$fixture/compat/release.tsv"
   git -C "$fixture" add .
@@ -393,12 +401,12 @@ run_publication_reconciliation_case() (
   printf '%s\n' published >"$fixture/README.md"
   printf '%s\n' published >"$fixture/STATE.md"
   printf '%s\n' published >"$fixture/site/index.html"
-  printf '%s\n' '#!/bin/sh' "requested_version=\${CLUN_VERSION:-v1.3.0-dev.2}" \
-    "printf \"%s\\n\" \"\$requested_version\"" >"$fixture/site/install"
+  write_fixture_installer "v$fixture_version" "$fixture/site/install"
   release_commit=$fixture_base
   case $mutation in
     wrong-release-commit) release_commit=0000000000000000000000000000000000000000 ;;
     installer-content) printf '%s\n' '# unexpected mutation' >>"$fixture/site/install" ;;
+    installer-boundary) write_fixture_installer v1.3.0-dev.1 "$fixture/site/install" ;;
     runtime-content) printf '%s\n' changed >"$fixture/src/runtime.lisp" ;;
     correct|missing-tag|wrong-tag|remote-tag|remote-annotated-tag) ;;
     *) printf 'fixture %s: invalid publication mutation %s\n' \
@@ -444,6 +452,8 @@ run_case current-phase25b 0.0.1-dev 0.1.0-dev.1 src/runtime.lisp pass \
 run_case minor 1.2.3 1.3.0 src/version.lisp pass '(minor;' minor
 run_case patch 1.2.3 1.2.4 src/version.lisp pass '(patch;' patch
 run_case major 1.2.3 2.0.0 src/version.lisp pass '(major;' major
+run_case pre1-breaking-minor-core 0.1.0-dev.70 0.2.0-dev.1 src/version.lisp pass \
+  '(minor; major;' major
 run_case prerelease 1.3.0-dev.1 1.3.0-dev.2 src/runtime.lisp pass '(prerelease;' minor
 run_case stable-promotion 1.3.0-dev.2 1.3.0 src/version.lisp pass '(stable;' minor
 
@@ -494,6 +504,10 @@ run_case malformed-base 1.2.3-dev.01 1.2.4 src/version.lisp fail \
   'base version is not strict SemVer' patch
 run_case canonical-mismatch 1.2.3 1.3.0 src/version.lisp fail \
   'version transition is minor but fixture issue #91 records patch' patch
+run_case post1-minor-cannot-record-major 1.2.3 1.3.0 src/version.lisp fail \
+  'version transition is minor but fixture issue #91 records major' major
+run_case pre1-patch-cannot-record-major 0.1.0 0.1.1 src/version.lisp fail \
+  'version transition is patch but fixture issue #91 records major' major
 run_case canonical-none-prerelease 1.3.0-dev.1 1.3.0-dev.2 src/runtime.lisp fail \
   'records none for release-bearing prerelease unit' none
 
@@ -529,6 +543,8 @@ run_publication_reconciliation_case publication-wrong-release-commit wrong-relea
   'invalid publication reconciliation'
 run_publication_reconciliation_case publication-installer-mutation installer-content fail \
   'invalid publication reconciliation'
+run_publication_reconciliation_case publication-stale-installer-boundary installer-boundary fail \
+  'invalid publication reconciliation'
 run_publication_reconciliation_case publication-runtime-mutation runtime-content fail \
   'invalid publication reconciliation'
 run_publication_reconciliation_case publication-wrong-tag wrong-tag fail \
@@ -539,4 +555,4 @@ run_publication_reconciliation_case publication-remote-tag remote-tag pass \
   'publication reconciliation for v1.3.0-dev.2'
 run_publication_reconciliation_case publication-remote-annotated-tag remote-annotated-tag pass \
   'publication reconciliation for v1.3.0-dev.2'
-printf 'version-transition fixtures: 57 passed\n'
+printf 'version-transition fixtures: 61 passed\n'

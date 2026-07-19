@@ -56,12 +56,18 @@ asdf_version() {
   printf '%s\n' "$versions"
 }
 
-installer_version() {
+validate_installer_contract() {
+  installer_tag=$(awk -F '\t' 'NR == 2 { print $4 }' "$repo_root/compat/release.tsv")
+  [ -n "$installer_tag" ] || fail 'compat/release.tsv has no installer boundary'
+  [ "$(grep -Fxc "verified_installer_tag=$installer_tag" "$repo_root/site/install")" -eq 1 ] ||
+    fail 'site/install verified default must match compat/release.tsv'
   # shellcheck disable=SC2016 # Match the literal parameter-expansion syntax in the installer.
-  versions=$(sed -n 's/^requested_version=${CLUN_VERSION:-v\([^}]*\)}$/\1/p' "$repo_root/site/install")
-  [ "$(printf '%s\n' "$versions" | awk 'NF { n++ } END { print n + 0 }')" -eq 1 ] ||
-    fail 'site/install must contain exactly one default CLUN_VERSION'
-  printf '%s\n' "$versions"
+  default='requested_version=${1:-${INSTALL_VERSION:-${CLUN_VERSION:-$verified_installer_tag}}}'
+  [ "$(grep -Fxc "$default" "$repo_root/site/install")" -eq 1 ] ||
+    fail 'site/install must default to its verified boundary with version-pin overrides'
+  # shellcheck disable=SC2016 # Match the installer runtime's literal repo variable.
+  grep -Fq 'https://github.com/$repo/releases/latest' "$repo_root/site/install" ||
+    fail 'site/install must resolve the browser latest-release redirect first'
 }
 
 sha256_file() {
@@ -151,9 +157,9 @@ validate() {
   require_inputs
   version=$(source_version)
   asdf=$(asdf_version)
-  installer=$(installer_version)
+  validate_installer_contract
   awk -v FS="$TAB" -v source_version="$version" -v asdf_version="$asdf" \
-    -v installer_version="$installer" -f "$tool_root/scripts/compat-validate.awk" \
+    -f "$tool_root/scripts/compat-validate.awk" \
     "$repo_root/docs/roadmap.tsv" \
     "$repo_root/compat/baselines.tsv" \
     "$repo_root/compat/features.tsv" \

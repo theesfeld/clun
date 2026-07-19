@@ -40,7 +40,7 @@
                   ~8@T--backtrace       show the Lisp backtrace on an internal error~%~
                   ~8@T-v, --version     print the version~%~
                   ~8@T--revision        print the build revision~%~
-                  ~8@T--update          download latest GitHub Release and replace this binary~%~
+                  ~8@T--update          verify and activate the latest compatible Release bundle~%~
                   ~8@T--check-update    report whether a newer Release is available (no mutation)~%~
                   ~8@Tclun update / check-update  same as --update / --check-update~%~
                   ~8@T-h, --help        print this help~%"

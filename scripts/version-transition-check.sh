@@ -427,14 +427,17 @@ is_publication_reconciliation() {
     release_column=$((release_column + 1))
   done
 
-  base_default="requested_version=\${CLUN_VERSION:-$base_installer_tag}"
-  current_default="requested_version=\${CLUN_VERSION:-$release_tag}"
-  [ "$(grep -Fxc "$base_default" "$base_installer")" -eq 1 ] || return 1
-  [ "$(grep -Fxc "$current_default" "$current_installer")" -eq 1 ] || return 1
-  expected_installer=$scratch_dir/expected-install
-  awk -v before="$base_default" -v after="$current_default" \
-    '{ if ($0 == before) print after; else print }' "$base_installer" >"$expected_installer"
-  cmp -s "$expected_installer" "$current_installer" || return 1
+  [ "$(grep -Fxc "verified_installer_tag=$base_installer_tag" "$base_installer")" -eq 1 ] || return 1
+  [ "$(grep -Fxc "verified_installer_tag=$release_tag" "$current_installer")" -eq 1 ] || return 1
+  # shellcheck disable=SC2016 # Compare the installer's literal parameter expansion.
+  installer_default='requested_version=${1:-${INSTALL_VERSION:-${CLUN_VERSION:-$verified_installer_tag}}}'
+  [ "$(grep -Fxc "$installer_default" "$base_installer")" -eq 1 ] || return 1
+  [ "$(grep -Fxc "$installer_default" "$current_installer")" -eq 1 ] || return 1
+  sed 's/^verified_installer_tag=.*/verified_installer_tag=__VERIFIED_BOUNDARY__/' \
+    "$base_installer" >"$scratch_dir/base-install.normalized" || return 1
+  sed 's/^verified_installer_tag=.*/verified_installer_tag=__VERIFIED_BOUNDARY__/' \
+    "$current_installer" >"$scratch_dir/current-install.normalized" || return 1
+  cmp -s "$scratch_dir/base-install.normalized" "$scratch_dir/current-install.normalized" || return 1
 
   tag_commit=$(published_tag_commit "$release_tag") || return 1
   [ "$tag_commit" = "$canonical_base" ] || return 1
@@ -443,7 +446,6 @@ is_publication_reconciliation() {
 
 publication_reconciliation_requested() {
   grep -Fxq compat/release.tsv "$changed_files" || return 1
-  grep -Fxq site/install "$changed_files" || return 1
   requested_release=$scratch_dir/requested-release.tsv
   materialize_checked_path compat/release.tsv "$requested_release" || return 1
   [ "$(release_field "$requested_release" 2)" = "$current_version" ] || return 1
@@ -554,12 +556,6 @@ base_version=$(extract_version "$scratch_dir/base-version.lisp" \
 validate_semver "$base_version" "base version"
 
 if [ "$current_version" = "$base_version" ]; then
-  if [ "$release_bearing" = false ]; then
-    printf 'version-transition-check: version %s unchanged; no release-bearing paths changed\n' \
-      "$current_version"
-    exit 0
-  fi
-
   if is_publication_reconciliation; then
     printf 'version-transition-check: %s publication reconciliation for %s\n' \
       "$current_version" "$release_tag"
@@ -567,6 +563,11 @@ if [ "$current_version" = "$base_version" ]; then
   fi
   if publication_reconciliation_requested; then
     fail "invalid publication reconciliation for v$current_version"
+  fi
+  if [ "$release_bearing" = false ]; then
+    printf 'version-transition-check: version %s unchanged; no release-bearing paths changed\n' \
+      "$current_version"
+    exit 0
   fi
 
   transition='correction'
@@ -673,8 +674,17 @@ esac
 load_canonical_disposition
 case $transition in
   major|minor|patch)
-    [ "$canonical_impact" = "$transition" ] ||
+    if [ "$canonical_impact" = "$transition" ]; then
+      :
+    elif [ "$transition" = minor ] && [ "$base_major" = 0 ] &&
+      [ "$current_major" = 0 ] && [ "$canonical_impact" = major ]; then
+      # SemVer permits a pre-1.0 project to publish a breaking change on the
+      # next 0.y.0 core. Keep the Issue's true major intent while accepting
+      # that conventional 0.x publication mapping.
+      :
+    else
       fail "version transition is $transition but $canonical_ref records $canonical_impact"
+    fi
     ;;
   prerelease|stable)
     [ "$canonical_impact" != none ] ||

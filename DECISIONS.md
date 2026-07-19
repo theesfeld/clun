@@ -3461,3 +3461,38 @@ the missing capabilities remain full-port targets under #177. Issue #215 is docu
 evidence reconciliation with SemVer impact `none`.
 
 Refs: #215, #178, #179, #22, #32, #177
+
+## 2026-07-19 — global CLI distribution contract (#221)
+
+- Fresh installs target `~/.local/bin/clun`; `INSTALL_DIR` is the exact binary
+  directory and `INSTALL_VERSION` or a positional version pins a strict SemVer release.
+- Missing-PATH installs print a current-shell export and manage one marked Bash,
+  Zsh, or Fish rc block by default; `ADD_PATH=0/1` controls that behavior.
+- Installer and pure-CL updater resolve the browser-equivalent
+  `github.com/theesfeld/clun/releases/latest` redirect first. The Releases API
+  honors `GITHUB_TOKEN` / `GH_TOKEN`, and a public Releases Atom feed provides a
+  non-API fallback for prerelease-only discovery after API 403. Listing fallbacks
+  select the highest suitable SemVer rather than trusting response order.
+- Updates use direct pure-CL HTTPS/TLS, verify the published SHA-256 and exact
+  archive version, stage and validate the complete versioned bundle, then
+  atomically switch the installer-managed stable launcher. Any failure leaves the
+  prior launcher and bundle intact.
+- Existing `CLUN_INSTALL=~/.clun`, `CLUN_VERSION`, and `CLUN_NO_MODIFY_PATH`
+  callers remain compatible. The no-argument installer embeds the release ledger's
+  verified installable boundary; explicit `INSTALL_VERSION=latest` retains dynamic
+  redirect/API/Atom discovery. Publication reconciliation advances only that embedded
+  boundary after immutable assets exist, before Pages deploy and hosted smoke.
+- Candidate Pages runs now deploy the honest candidate site and smoke the ledger's
+  previously verified installer boundary. Published runs additionally wait for the
+  matching immutable assets before deployment. This supersedes the 2026-07-16
+  decision that candidate Pages only validate without deployment. Candidate ledger
+  rows always record `pending`; the exact tag commit is recorded with `published`.
+- Shell-profile edits resolve the complete parent/symlink chain and proceed only for
+  writable user-owned files canonically inside HOME. Externally managed targets are
+  reported and left unchanged.
+- The contract is breaking in intent (`semver:major`); under pre-1.0 policy it
+  starts the `0.2.0` minor core at `0.2.0-dev.1`. The immutable dev.69 and dev.70
+  tags produced no GitHub Release assets; published dev.21 remains the verified
+  installable boundary until the new candidate is released and checked.
+
+Refs: #221

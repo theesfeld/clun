@@ -1,9 +1,9 @@
 <!-- clun-generated:release-notes:begin -->
-# Clun 0.1.0-dev.70
+# Clun 0.2.0-dev.1
 
 Phase 82: Purity-compatible Bun-surface final audit and release.
 
-- SemVer impact: `patch` within the selected `0.1.0` prerelease train.
+- SemVer impact: `major` within the selected `0.2.0` prerelease train.
 - Compatibility snapshot: 28 Yes / 2 Partial / 0 No across 30 generated rows.
 - Public baseline: Bun 1.3.14; engineering baseline: Bun `c1076ce95e`.
 - Target release platforms: Linux and macOS, x64 and arm64.
@@ -13,7 +13,13 @@ The canonical evidence and current limitations are in `compat/`; `make compat-va
 <!-- clun-generated:release-notes:end -->
 ## Highlights
 
-- Issue #219 recovers the immutable tag-only dev.69 candidate on a new dev.70 slot.
-- Darwin workspace links now survive the `/tmp` to `/private/tmp` alias, blocking HTTPS completes on
-  valid framing without weakening truncation checks, and CookieMap timing remains strict but deterministic.
-- Darwin CI removes the runner image's untrusted `aws/tap` before Homebrew dependency resolution.
+- Issue #219 fixes Darwin workspace links across the `/tmp` to `/private/tmp` alias,
+  makes HTTPS completion frame-aware without weakening truncation checks, keeps
+  CookieMap resource evidence strict and deterministic, and removes the runner
+  image's unrelated untrusted `aws/tap` before Homebrew dependency resolution.
+- Issue #221 replaces unsafe single-binary updater activation with checksum-verified full-bundle
+  installation and an atomic stable-launcher switch.
+- The default install destination becomes `~/.local/bin`; the complete release bundle is retained
+  under the XDG data root, and any failed install or update preserves the prior launcher and bundle.
+- The change is breaking in intent; Clun records `major` while publishing it as the conventional
+  pre-1.0 minor-core candidate `0.2.0-dev.1`.

@@ -121,9 +121,14 @@
                   (when (> (+ (fill-pointer out) n) max-bytes)
                     (error 'compress-error
                            :message "decompression exceeded the size cap (zip bomb?)"))
-                  (let ((old (fill-pointer out)))
-                    (adjust-array out (max (array-total-size out) (+ old n))
-                                  :fill-pointer (+ old n))
+                  (let* ((old (fill-pointer out))
+                         (needed (+ old n))
+                         (capacity (array-total-size out)))
+                    (when (> needed capacity)
+                      (adjust-array out
+                                    (min max-bytes (max needed (* 2 capacity)))
+                                    :fill-pointer old))
+                    (setf (fill-pointer out) needed)
                     (replace out buf :start1 old :end2 n)))
           (coerce out '(simple-array (unsigned-byte 8) (*)))))
     (compress-error (c) (error c))

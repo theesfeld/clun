@@ -118,7 +118,21 @@ if [[ "$platform" == linux ]]; then
 #!/bin/sh
 set -eu
 
-source_path=$0
+invocation_path=$0
+case "$invocation_path" in
+  */*) ;;
+  *) invocation_path=$(command -v "$invocation_path") || {
+       printf 'clun: could not resolve launcher %s on PATH\n' "$0" >&2
+       exit 126
+     } ;;
+esac
+case "$invocation_path" in
+  /*) ;;
+  *) invocation_path=$(CDPATH= cd -- "$(dirname -- "$invocation_path")" && pwd -P)/$(basename -- "$invocation_path") ;;
+esac
+export CLUN_UPDATE_LAUNCHER=$invocation_path
+
+source_path=$invocation_path
 while [ -L "$source_path" ]; do
   source_dir=$(CDPATH= cd -- "$(dirname -- "$source_path")" && pwd)
   source_link=$(readlink "$source_path")

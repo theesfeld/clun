@@ -220,12 +220,31 @@ jobs:
           else
             (cd "$RUNNER_TEMP/dist" && shasum -a 256 clun-${{ matrix.target }}.tar.gz > checksums.txt)
           fi
+          HOME="$RUNNER_TEMP/installer-home" \
           CLUN_DOWNLOAD_BASE="file://$RUNNER_TEMP/dist" \
-          CLUN_INSTALL="$RUNNER_TEMP/installer-root" \
-          CLUN_NO_MODIFY_PATH=1 \
+          INSTALL_VERSION="${GITHUB_REF_NAME}" \
+          INSTALL_DIR="$RUNNER_TEMP/installer-bin" \
+          ADD_PATH=0 \
             sh site/install
-          test "$("$RUNNER_TEMP/installer-root/bin/clun" --version)" = \
+          test -L "$RUNNER_TEMP/installer-bin/clun"
+          PATH="$RUNNER_TEMP/installer-bin:$PATH"
+          export PATH
+          test "$(clun --version)" = \
             "clun ${GITHUB_REF_NAME#v}"
+          bundle="$RUNNER_TEMP/installer-home/.local/share/clun/releases/${GITHUB_REF_NAME#v}/${{ matrix.target }}"
+          test -f "$bundle/VERSION"
+          if test "$RUNNER_OS" = Linux; then
+            test -f "$bundle/lib/LOADER"
+            test -x "$bundle/libexec/clun"
+          fi
+
+      - name: Verify updater with the real packaged bundle
+        shell: bash
+        run: |
+          sh scripts/test-packaged-updater.sh \
+            "$RUNNER_TEMP/dist/clun-${{ matrix.target }}.tar.gz" \
+            "$GITHUB_REF_NAME" \
+            "${{ matrix.target }}"
 
       - uses: actions/upload-artifact@v7
         with:

@@ -41,12 +41,8 @@ jobs:
             < <(tail -n +2 compat/release.tsv)
           case "$state" in
             candidate)
-              if [[ "$commit" == pending ]]; then
-                echo "untagged candidate site validated without deployment"
-              else
-                [[ "$commit" =~ ^[0-9a-f]{40}$ ]]
-                echo "tagged candidate site validated without deployment"
-              fi
+              test "$commit" = pending
+              echo "candidate site will deploy without claiming unpublished release assets"
               ;;
             published)
               [[ "$commit" =~ ^[0-9a-f]{40}$ ]]
@@ -56,6 +52,7 @@ jobs:
               exit 1
               ;;
           esac
+          test "$(sed -n 's/^verified_installer_tag=//p' site/install)" = "$_installer"
           echo "state=$state" >> "$GITHUB_OUTPUT"
           echo "commit=$commit" >> "$GITHUB_OUTPUT"
       - name: Verify published claims and roadmap links
@@ -83,13 +80,49 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           ROADMAP_REPO: ${{ github.repository }}
         run: make roadmap-verify-live
-      - if: steps.release.outputs.state == 'published'
-        uses: actions/configure-pages@v6
-      - if: steps.release.outputs.state == 'published'
-        uses: actions/upload-pages-artifact@v5
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: site
       - name: Deploy to GitHub Pages
-        if: steps.release.outputs.state == 'published'
         id: deployment
         uses: actions/deploy-pages@v5
+      - name: Smoke test hosted installer and installed launcher
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_version=$(awk -F '\t' 'NR == 2 { print $2 }' compat/release.tsv)
+          installer_tag=$(awk -F '\t' 'NR == 2 { print $4 }' compat/release.tsv)
+          tag=$(awk -F '\t' 'NR == 2 { print $5 }' compat/release.tsv)
+          state=$(awk -F '\t' 'NR == 2 { print $6 }' compat/release.tsv)
+          version=${installer_tag#v}
+          test "$installer_tag" = "v$version"
+          if test "$state" = published; then
+            test "$tag" = "$installer_tag"
+            test "$source_version" = "$version"
+          else
+            test "$state" = candidate
+          fi
+
+          passed=0
+          for attempt in $(seq 1 10); do
+            installer="$RUNNER_TEMP/hosted-install-$attempt"
+            home="$RUNNER_TEMP/hosted-home-$attempt"
+            bin="$RUNNER_TEMP/hosted-bin-$attempt"
+            if curl --fail --location --silent --show-error --retry 3 \
+                --output "$installer" \
+                "https://clun.sh/install?sha=$GITHUB_SHA&attempt=$attempt" &&
+               grep -Fx "verified_installer_tag=$installer_tag" "$installer" >/dev/null &&
+               HOME="$home" INSTALL_DIR="$bin" ADD_PATH=0 \
+                 sh "$installer" &&
+               test -L "$bin/clun" &&
+               test "$(PATH="$bin:$PATH" clun --version)" = "clun $version" &&
+               test "$(sed -n '1p' "$home/.local/share/clun/releases/$version/linux-x64/VERSION")" = "$version" &&
+               test -f "$home/.local/share/clun/releases/$version/linux-x64/lib/LOADER" &&
+               test -x "$home/.local/share/clun/releases/$version/linux-x64/libexec/clun"; then
+              passed=1
+              break
+            fi
+            sleep 15
+          done
+          test "$passed" = 1
