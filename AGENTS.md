@@ -17,6 +17,21 @@ Ship path: user standard **§5.0** (Issue → branch `…/issue-N-…` → PR �
 
 ---
 
+## Permanent product law (NEVER FORGET — user 2026-07-19)
+
+**Epic:** [#177](https://github.com/theesfeld/clun/issues/177) FULL PORT.
+
+1. **Prime directive:** Exceed Bun. Exceed npm. Exceed every comparison cell. Pure Common Lisp.
+2. **There is no ledger `No` as a destination.** Every matrix row is a full-port target until **Yes**.
+3. **Purity = implementation language is Common Lisp** (no CFFI / native libs / shell-outs as product implementation shortcuts). Purity is **never** a license to skip features, fail closed forever, or mark a row `No`.
+4. **Qualified Yes is a No.** Soft ledger detail is forbidden:
+   - banned while `clun_state=Yes`: "selected surface", "not full", "out of scope", "not included in v0.1", "excluded by purity", "Yes but", "remain incomplete"
+   - if the port is incomplete, state is **Partial** (or **No** only while not started) — never a sugar-coated **Yes**
+5. Agents must re-read this section every session on this repo.
+
+
+---
+
 ## Keyword: `phase` / `phase NN`
 
 Convenience only — **not** a second constitution and **not** a separate prompt file.
@@ -49,9 +64,10 @@ maximum reasoning effort, and keep merge gates under primary-agent ownership.
 ## Implementation constraints
 
 - Pure Common Lisp only: no CFFI, native libraries, implementation JS/TS, or shell-outs as implementation shortcuts.
-- Match or exceed frozen Bun behavior where constitutionally compatible; do not weaken tests or invent parity exceptions.
-- Performance claims need reproducible same-host measurements. No unqualified “faster than Bun” claims.
+- **Exceed Bun** (and npm/Node/Deno matrix peers) for every shipped surface. Do not invent parity exceptions or purity exclusions.
+- Performance claims need reproducible same-host measurements; prefer measured exceedance, never silent under-delivery.
 - Record architectural decisions in `DECISIONS.md` and on the Issue.
+- Soft / qualified ledger **Yes** is forbidden — see Permanent product law above.
 
 ---
 

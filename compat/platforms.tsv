@@ -39,10 +39,10 @@ runtime.loader-plugins	darwin-arm64	unsupported	-	Capability is not implemented.
 runtime.loader-plugins	darwin-x64	unsupported	-	Capability is not implemented.
 runtime.loader-plugins	linux-arm64	unsupported	-	Capability is not implemented.
 runtime.loader-plugins	linux-x64	unsupported	-	Capability is not implemented.
-runtime.native-addons	darwin-arm64	unsupported	-	Capability is excluded by the current purity contract.
-runtime.native-addons	darwin-x64	unsupported	-	Capability is excluded by the current purity contract.
-runtime.native-addons	linux-arm64	unsupported	-	Capability is excluded by the current purity contract.
-runtime.native-addons	linux-x64	unsupported	-	Capability is excluded by the current purity contract.
+runtime.native-addons	darwin-arm64	unsupported	-	Not yet implemented — FULL PORT #178 pure-CL N-API/FFI surface.
+runtime.native-addons	darwin-x64	unsupported	-	Not yet implemented — FULL PORT #178 pure-CL N-API/FFI surface.
+runtime.native-addons	linux-arm64	unsupported	-	Not yet implemented — FULL PORT #178 pure-CL N-API/FFI surface.
+runtime.native-addons	linux-x64	unsupported	-	Not yet implemented — FULL PORT #178 pure-CL N-API/FFI surface.
 runtime.node-compatibility	darwin-arm64	supported	ev.runtime.node-compatibility.assertions.v1,ev.runtime.node-compatibility.bufedge.v1,ev.runtime.node-compatibility.buffer.v1,ev.runtime.node-compatibility.events.v1,ev.runtime.node-compatibility.fsedge.v1,ev.runtime.node-compatibility.fsops.v1,ev.runtime.node-compatibility.globals.v1,ev.runtime.node-compatibility.modules.v1,ev.runtime.node-compatibility.path-win32.v1,ev.runtime.node-compatibility.timers.v1,ev.runtime.node-compatibility.url.v1	The complete selected pure-CL Node surface executes through the shipped binary.
 runtime.node-compatibility	darwin-x64	supported	ev.runtime.node-compatibility.assertions.v1,ev.runtime.node-compatibility.bufedge.v1,ev.runtime.node-compatibility.buffer.v1,ev.runtime.node-compatibility.events.v1,ev.runtime.node-compatibility.fsedge.v1,ev.runtime.node-compatibility.fsops.v1,ev.runtime.node-compatibility.globals.v1,ev.runtime.node-compatibility.modules.v1,ev.runtime.node-compatibility.path-win32.v1,ev.runtime.node-compatibility.timers.v1,ev.runtime.node-compatibility.url.v1	The complete selected pure-CL Node surface executes through the shipped binary.
 runtime.node-compatibility	linux-arm64	supported	ev.runtime.node-compatibility.assertions.v1,ev.runtime.node-compatibility.bufedge.v1,ev.runtime.node-compatibility.buffer.v1,ev.runtime.node-compatibility.events.v1,ev.runtime.node-compatibility.fsedge.v1,ev.runtime.node-compatibility.fsops.v1,ev.runtime.node-compatibility.globals.v1,ev.runtime.node-compatibility.modules.v1,ev.runtime.node-compatibility.path-win32.v1,ev.runtime.node-compatibility.timers.v1,ev.runtime.node-compatibility.url.v1	The complete selected pure-CL Node surface executes through the shipped binary.
@@ -51,10 +51,10 @@ runtime.web-standard-apis	darwin-arm64	supported	ev.runtime.web-standard-apis.ba
 runtime.web-standard-apis	darwin-x64	supported	ev.runtime.web-standard-apis.basic.v1,ev.runtime.web-standard-apis.fetch-suite.v1,ev.runtime.web-standard-apis.proxy-suite.v1,ev.runtime.web-standard-apis.streams-stress.v1,ev.runtime.web-standard-apis.streams-suite.v1	The complete public Web Standard surface executes through the shipped binary.
 runtime.web-standard-apis	linux-arm64	supported	ev.runtime.web-standard-apis.basic.v1,ev.runtime.web-standard-apis.fetch-suite.v1,ev.runtime.web-standard-apis.proxy-suite.v1,ev.runtime.web-standard-apis.streams-stress.v1,ev.runtime.web-standard-apis.streams-suite.v1	The complete public Web Standard surface executes through the shipped binary.
 runtime.web-standard-apis	linux-x64	supported	ev.runtime.web-standard-apis.basic.v1,ev.runtime.web-standard-apis.fetch-suite.v1,ev.runtime.web-standard-apis.proxy-suite.v1,ev.runtime.web-standard-apis.streams-stress.v1,ev.runtime.web-standard-apis.streams-suite.v1	The complete public Web Standard surface executes through the shipped binary.
-security.encrypted-secrets	darwin-arm64	unsupported	-	OS keychain excluded by purity contract; Clun.secrets returns ERR_SECRETS_NOT_AVAILABLE.
-security.encrypted-secrets	darwin-x64	unsupported	-	OS keychain excluded by purity contract; Clun.secrets returns ERR_SECRETS_NOT_AVAILABLE.
-security.encrypted-secrets	linux-arm64	unsupported	-	OS keychain excluded by purity contract; Clun.secrets returns ERR_SECRETS_NOT_AVAILABLE.
-security.encrypted-secrets	linux-x64	unsupported	-	OS keychain excluded by purity contract; Clun.secrets returns ERR_SECRETS_NOT_AVAILABLE.
+security.encrypted-secrets	darwin-arm64	unsupported	-	Not yet implemented — FULL PORT #179 Clun.secrets exceeding Bun.secrets.
+security.encrypted-secrets	darwin-x64	unsupported	-	Not yet implemented — FULL PORT #179 Clun.secrets exceeding Bun.secrets.
+security.encrypted-secrets	linux-arm64	unsupported	-	Not yet implemented — FULL PORT #179 Clun.secrets exceeding Bun.secrets.
+security.encrypted-secrets	linux-x64	unsupported	-	Not yet implemented — FULL PORT #179 Clun.secrets exceeding Bun.secrets.
 security.password-hashing	darwin-arm64	supported	ev.security.password-hashing.public.v1	The complete public surface executes through the shipped binary.
 security.password-hashing	darwin-x64	supported	ev.security.password-hashing.public.v1	The complete public surface executes through the shipped binary.
 security.password-hashing	linux-arm64	supported	ev.security.password-hashing.public.v1	The complete public surface executes through the shipped binary.
