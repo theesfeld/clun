@@ -3417,6 +3417,13 @@ Implementation is pure CL in `src/engine/async/promise.lisp` via PerformPromiseA
 GetV-based thenable Invoke, and null-proto CreateKeyedPromiseCombinatorResultObject.
 Focused gate `make phase-37-m4-check` is 74/74. Stages `0.1.0-dev.63` (free after master tip TypeScript Yes `0.1.0-dev.59`; concurrent open trains claim `.58`/`.60`–`.62`; previous_version remains published `0.1.0-dev.21`). No matrix Yes; Phase 37 remains open with residual
 ownership 378.
+
+## 2026-07-19 — runtime.native-addons full port Yes (#178)
+
+Pure-CL N-API/FFI/native module host surface exceeding Bun. Soft-outs rejected.
+Candidate `0.1.0-dev.66` after master Phase 37 m4 `0.1.0-dev.63`. Parent #177; phase #22.
+Refs: #178, #22, #177
+
 Refs: #11
 
 ## 2026-07-19 — tooling.formatter-linter full port Yes (#190)
