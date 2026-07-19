@@ -3355,4 +3355,4 @@ Refs: #186, #177
 
 ## 2026-07-18 — package-manager.monorepo Yes (Issue #182)
 
-Pure-CL workspace discovery (globs + exclusions), `workspace:` live symlink linking, `catalog:`/`catalogs` version sharing, `--filter` name/path/negation for install and run, topological concurrent script waves with `--concurrency` (exceeds Bun). Ledger Yes with empty gap; four-target supported via `examples/e2e-monorepo.sh`. Slot `0.1.0-dev.46`.
+Pure-CL workspace discovery (globs + exclusions), `workspace:` live symlink linking, `catalog:`/`catalogs` version sharing, `--filter` name/path/negation for install and run, topological concurrent script waves with `--concurrency` (exceeds Bun). Ledger Yes with empty gap; four-target supported via `examples/e2e-monorepo.sh`. Slot `0.1.0-dev.48`.
