@@ -320,3 +320,5 @@ Phase 40 language.jsx No→Yes (#186) stages `0.1.0-dev.47` / `v0.1.0-dev.47` wi
 Phase 60 package-manager.monorepo No→Yes (#182) stages `0.1.0-dev.48` / `v0.1.0-dev.48` with workspaces, filters, catalog: protocols, live symlink packages, topological concurrent script waves, and four-target monorepo receipts; SemVer impact is `minor`.
 
 Phase 58 secrets FULL PORT (#179) stages free `0.1.0-dev.49` / `v0.1.0-dev.49`; SemVer impact is `minor`.
+
+Phase 41 runtime.loader-plugins FULL PORT (#187) stages free `0.1.0-dev.50` / `v0.1.0-dev.50` with pure-CL `Clun.plugin` (Bun.plugin-compatible onResolve/onLoad/module/clearAll plus exceed list/clear/priority/registerHooks); SemVer impact is `minor`.

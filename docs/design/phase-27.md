@@ -59,7 +59,7 @@ primary owner and integration owners are stored directly in `compat/features.tsv
 | 3 | `runtime.native-addons` | core | `No`: excluded by the current purity contract | 48 | none |
 | 4 | `language.typescript` | core | `Partial`: erasable syntax stripping only | 39 | none |
 | 5 | `language.jsx` | core | `No`: not included in the v0.1 scope | 40 | none |
-| 6 | `runtime.loader-plugins` | core | `No`: fixed loader surface | 41 | none |
+| 6 | `runtime.loader-plugins` | core | `Yes`: pure-CL Clun.plugin (Bun.plugin + exceed) | 41 | none |
 | 7 | `database.sql-drivers` | APIs | `No` | 55 | 56, 57 |
 | 8 | `cloud.s3` | APIs | `No` | 53 | none |
 | 9 | `database.redis` | APIs | `No` | 54 | none |

@@ -20,9 +20,9 @@
 
     <div class="announcement">
 <!-- clun-generated:release:begin -->
-<a href="https://github.com/theesfeld/clun/issues/179">
+<a href="https://github.com/theesfeld/clun/issues/187">
   <span>In development</span>
-  v0.1.0-dev.49 / Phase 58
+  v0.1.0-dev.50 / Phase 41
   <span aria-hidden="true">-&gt;</span>
 </a>
 <!-- clun-generated:release:end -->
@@ -56,7 +56,7 @@
             <img class="hero-mark" src="assets/clun.jpg" alt="Clun mascot wearing a Lisp helmet" width="250" height="250">
           </div>
 <!-- clun-generated:version:begin -->
-<p class="eyebrow"><span class="status-dot" aria-hidden="true"></span> v0.1.0-dev.49 release candidate / pre-alpha</p>
+<p class="eyebrow"><span class="status-dot" aria-hidden="true"></span> v0.1.0-dev.50 release candidate / pre-alpha</p>
 <!-- clun-generated:version:end -->
           <h1>Clun is JavaScript tooling,<br> rewritten in pure Common Lisp.</h1>
           <p class="hero-copy">
@@ -118,7 +118,7 @@
             CI, Documentation, all four native archives and checksums, the exact-candidate Pages deployment,
             and the hosted installer are verified. Phase 25b and its handoff are closed.
 <!-- clun-generated:phase-status:begin -->
-Phase 58 is active: <a href="https://github.com/theesfeld/clun/issues/179">Operating-system secrets constitutional checkpoint in issue #179</a>.
+Phase 41 is active: <a href="https://github.com/theesfeld/clun/issues/187">Runtime and build loader plugins in issue #187</a>.
 Phase 26 remains deferred until after Phase 82 and will be re-baselined for the system state at that time.
 <!-- clun-generated:phase-status:end -->
             The issue is the canonical live record; <a href="https://github.com/theesfeld/clun/blob/master/PLAN.md">PLAN</a>
@@ -361,7 +361,7 @@ Linked phase labels are planned acceptance gates, not capabilities available tod
   <thead>
     <tr>
       <th scope="col">Capability</th>
-      <th scope="col" class="clun-col"><a href="https://github.com/theesfeld/clun">Clun</a><span>0.1.0-dev.49 candidate / pre-alpha</span></th>
+      <th scope="col" class="clun-col"><a href="https://github.com/theesfeld/clun">Clun</a><span>0.1.0-dev.50 candidate / pre-alpha</span></th>
       <th scope="col"><a href="https://bun.sh/">Bun</a><span>1.3.14 / toolkit</span></th>
       <th scope="col"><a href="https://nodejs.org/">Node.js</a><span>26.5.0 / current</span></th>
       <th scope="col"><a href="https://deno.com/">Deno</a><span>2.9.3 / runtime</span></th>
@@ -408,7 +408,7 @@ Linked phase labels are planned acceptance gates, not capabilities available tod
     </tr>
     <tr data-compat-feature="runtime.loader-plugins">
       <th scope="row"><strong>Module loader plugins</strong><span>Custom import and require loaders</span></th>
-      <td class="clun-col"><b class="state no">No</b> not yet implemented (full-port target)<a class="phase-link" data-roadmap-phase="41" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-41">Phase 41</a></td>
+      <td class="clun-col"><b class="state yes">Yes</b> pure Common Lisp Bun.plugin-compatible Clun.plugin with ordered onResolve/onLoad/onStart/onEnd, namespaces, virtual builder.module, object/js/json/yaml/text/file loaders, clearAll plus exceed list/clear/priority/registerHooks and pure-CL register-cl-plugin (exceeds Bun.plugin and node:module hooks)<a class="phase-link" data-roadmap-phase="41" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-41">Phase 41</a></td>
       <td><b class="state yes">Yes</b> <code>Bun.plugin</code></td>
       <td><b class="state partial">Partial</b> server-side loader APIs</td>
       <td><b class="state yes">Yes</b> synchronous <code>node:module</code> hooks</td>
@@ -679,7 +679,7 @@ Linked phase labels are planned acceptance gates, not capabilities available tod
           <p>Bun, rewritten in pure Common Lisp. Scoped, pre-alpha, and GPL-3.0-or-later.</p>
         </div>
 <!-- clun-generated:release-links:begin -->
-<div><h2>Project</h2><a href="https://github.com/theesfeld/clun">Source</a><a href="https://github.com/theesfeld/clun/blob/master/README.md">README</a><a href="https://github.com/theesfeld/clun/issues/179">Current status</a></div>
+<div><h2>Project</h2><a href="https://github.com/theesfeld/clun">Source</a><a href="https://github.com/theesfeld/clun/blob/master/README.md">README</a><a href="https://github.com/theesfeld/clun/issues/187">Current status</a></div>
 <div><h2>Evidence</h2><a href="https://github.com/theesfeld/clun/blob/master/compat/README.md">Compatibility ledger</a><a href="https://github.com/theesfeld/clun/actions/workflows/compat.yml">Compatibility CI</a><a href="https://github.com/theesfeld/clun/blob/master/LICENSE">License</a></div>
 <div><h2>Install</h2><a href="install">Shell installer</a><a href="https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.21">v0.1.0-dev.21 release</a><a href="https://github.com/theesfeld/clun#building-from-source">Build from source</a></div>
 <!-- clun-generated:release-links:end -->

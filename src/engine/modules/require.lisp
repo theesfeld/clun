@@ -67,15 +67,15 @@ loader) — evaluation is driven by status, not mere existence."
         (cjs-require (to-string (arg args 0)) dir)))))
 
 (defun cjs-require (specifier referrer-dir)
-  "The CommonJS require(SPECIFIER) from REFERRER-DIR: node builtin, else resolve + dispatch."
-  (let ((mock (find-module-mock specifier referrer-dir '("node" "require"))))
-    (when mock (return-from cjs-require (mr-mock-exports mock))))
-  (let ((builtin (try-builtin-module specifier)))
-    (when builtin (return-from cjs-require (mr-cjs-exports builtin))))
-  (multiple-value-bind (path format) (resolve-specifier specifier referrer-dir '("node" "require"))
-    (ecase format
-      (:cjs (load-cjs-module path))
-      (:json (load-json-value path))
-      (:yaml (load-yaml-value path))
-      (:esm (throw-type-error
-             (format nil "require() of ES Module ~a not supported (use import)" path))))))
+  "The CommonJS require(SPECIFIER) from REFERRER-DIR: plugins, builtins, resolve + dispatch."
+  (let ((mr (resolve-load-dependency specifier referrer-dir '("node" "require"))))
+    (evaluate-module mr)
+    (cond
+      ((mr-mock-exports mr) (mr-mock-exports mr))
+      ((eq (mr-format mr) :esm)
+       (throw-type-error
+        (format nil "require() of ES Module ~a not supported (use import)"
+                (mr-resolved-path mr))))
+      ((eq (mr-format mr) :json) (mr-cjs-exports mr))
+      ((eq (mr-format mr) :yaml) (mr-cjs-exports mr))
+      (t (mr-cjs-exports mr)))))

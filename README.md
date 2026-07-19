@@ -9,8 +9,8 @@ targets are workload-specific and published;
 Clun does not claim blanket speed parity with Bun.
 
 <!-- clun-generated:release:begin -->
-> **Status: pre-alpha, under active construction.** [Phase 58](https://github.com/theesfeld/clun/issues/179) is in progress.
-> Its release-bearing target is `0.1.0-dev.49` / `v0.1.0-dev.49` (SemVer impact: `minor`).
+> **Status: pre-alpha, under active construction.** [Phase 41](https://github.com/theesfeld/clun/issues/187) is in progress.
+> Its release-bearing target is `0.1.0-dev.50` / `v0.1.0-dev.50` (SemVer impact: `minor`).
 > The verified release boundary is `v0.1.0-dev.21`, with four native archives, checksums, Pages,
 > and hosted-installer evidence.
 > Phase 26 remains deferred until after Phase 82 and will
@@ -20,8 +20,8 @@ Clun does not claim blanket speed parity with Bun.
 > the local resume checklist.
 <!-- clun-generated:release:end -->
 
-Source stages `package-manager.monorepo` No→Yes under Issue
-[#182](https://github.com/theesfeld/clun/issues/182) / Phase 60 as `0.1.0-dev.48`
+Source stages `runtime.loader-plugins` No→Yes under Issue
+[#187](https://github.com/theesfeld/clun/issues/187) / Phase 41 as `0.1.0-dev.50`
 (parent FULL PORT epic [#177](https://github.com/theesfeld/clun/issues/177)).
 Published [`v0.1.0-dev.21`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.21) remains the
 verified release boundary. The hosted installer correctly remains on published dev.21 until the
@@ -110,7 +110,7 @@ July 16, 2026. Engineering references are separately pinned to Bun commit `c1076
 | Native addons | No: not yet implemented (full-port target) | [Phase 48](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-48) |
 | TypeScript | Partial: erasable stripping + enums/namespaces/param-props; .tsx, decorators, full tsc-class typecheck not yet full-ported | [Phase 39](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-39) |
 | JSX | Yes: pure Common Lisp JSX and TSX parse, transform, and execute with classic React.createElement and automatic jsx/jsxs/Fragment runtimes, file pragmas, tsconfig/jsconfig compilerOptions, fragments, spreads, nested expressions, member tags, HTML entity decoding, and built-in offline helpers that run without a react package (exceeds Bun) | [Phase 40](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-40) |
-| Module loader plugins | No: not yet implemented (full-port target) | [Phase 41](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-41) |
+| Module loader plugins | Yes: pure Common Lisp Bun.plugin-compatible Clun.plugin with ordered onResolve/onLoad/onStart/onEnd, namespaces, virtual builder.module, object/js/json/yaml/text/file loaders, clearAll plus exceed list/clear/priority/registerHooks and pure-CL register-cl-plugin (exceeds Bun.plugin and node:module hooks) | [Phase 41](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-41) |
 | SQL database drivers | No: not yet implemented (full-port target) | Phases [55](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-55), [56](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-56), [57](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-57) |
 | S3 cloud storage | No: not yet implemented (full-port target) | [Phase 53](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-53) |
 | Redis client | No: not yet implemented (full-port target) | [Phase 54](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-54) |
@@ -164,10 +164,10 @@ workflows are read-only and fail closed if the canonical issues, README, or site
 
 <!-- clun-generated:release-summary:begin -->
 Release versions follow the actual SemVer impact recorded in the canonical issue, not the number of pushes.
-The current source is the `0.1.0-dev.49` release candidate; the immutable tag and assets are not published yet.
+The current source is the `0.1.0-dev.50` release candidate; the immutable tag and assets are not published yet.
 The last published prerelease remains [`v0.1.0-dev.21`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.21).
 [The versioning contract](docs/versioning.md) defines prerelease sequencing, synchronized surfaces, immutable tags, assets, and installer evidence.
-[Phase 58 issue #179](https://github.com/theesfeld/clun/issues/179) is the canonical live release record.
+[Phase 41 issue #187](https://github.com/theesfeld/clun/issues/187) is the canonical live release record.
 <!-- clun-generated:release-summary:end -->
 
 ## The purity contract
@@ -207,7 +207,7 @@ vendored under `vendor/` and located via `scripts/registry.lisp`.
 make build     # compile everything, save build/clun (save-lisp-and-die)
 make test      # run the CL suites and JS/TS fixture harnesses
 make purity    # fail on any CFFI/foreign-code token
-./build/clun --version   # => clun 0.1.0-dev.49
+./build/clun --version   # => clun 0.1.0-dev.50
 ```
 
 A fresh clone builds with `make build` alone: ASDF compiles the vendored closure and `src/` into

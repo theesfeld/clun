@@ -21,6 +21,7 @@
     (eng:nonconfigurable-data-prop clun "password" (make-clun-password g))
     (eng:nonconfigurable-data-prop clun "hash" (make-clun-hash))
     (install-clun-secrets clun g)
+    (install-clun-plugin clun g)        ; Clun.plugin / Bun.plugin (Issue #187)
     (install-clun-string-width clun)
     (install-clun-color clun)
     (install-clun-yaml clun)

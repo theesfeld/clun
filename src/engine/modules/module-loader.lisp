@@ -329,17 +329,199 @@ placeholder is evaluated lazily by its format-specific loader)."
     (compile-esm-module mr)
     (let ((dir (clun.sys:path-dirname path)))
       (dolist (spec (mr-requested mr))
-        (let ((mock (find-module-mock spec dir '("node" "import"))))
-          (if mock
-              (setf (gethash spec (mr-requested-map mr)) mock)
-              (let ((builtin (try-builtin-module spec)))
-                (if builtin
-                    (setf (gethash spec (mr-requested-map mr)) builtin)
-                    (multiple-value-bind (dep-path dep-format) (resolve-import spec dir)
-                      (setf (gethash spec (mr-requested-map mr))
-                            (load-any dep-path dep-format)))))))))
+        (setf (gethash spec (mr-requested-map mr))
+              (resolve-load-dependency spec dir '("node" "import")))))
     (setf (mr-status mr) :loaded)
     mr))
+
+;;; --- plugin graph integration (Issue #187) ----------------------------------
+
+(defun load-plugin-module (registry-key path namespace load-result &key (format-hint :esm))
+  "Materialize a plugin onLoad / virtual-module result into a module-record."
+  (or (realm-module *realm* registry-key)
+      (let* ((loader (plugin-loader-keyword
+                      (plugin-plist-get load-result :loader "js")))
+             (contents (plugin-plist-get load-result :contents))
+             (exports (plugin-plist-get load-result :exports))
+             (mr nil))
+        (ecase loader
+          (:object
+           (let ((exp (plugin-exports-object exports)))
+             (setf mr (make-module-record :resolved-path registry-key
+                                          :format :cjs
+                                          :status :evaluated
+                                          :cjs-exports exp))
+             (setf (realm-module *realm* registry-key) mr)
+             mr))
+          (:text
+           (let ((exp (plugin-apply-text-loader
+                       (or contents
+                           (when (and (string= (plugin-normalize-namespace namespace) "file")
+                                      (clun.sys:file-p path))
+                             (clun.sys:read-file-string path))))))
+             (setf mr (make-module-record :resolved-path registry-key
+                                          :format :cjs
+                                          :status :evaluated
+                                          :cjs-exports exp))
+             (setf (realm-module *realm* registry-key) mr)
+             mr))
+          (:json
+           (let* ((src (or (plugin-contents-string contents)
+                           (when (clun.sys:file-p path)
+                             (clun.sys:read-file-string path))))
+                  (value (json->js-value (clun.sys:parse-json src))))
+             (setf mr (make-module-record :resolved-path registry-key
+                                          :format :json
+                                          :status :evaluated
+                                          :cjs-exports value))
+             (setf (realm-module *realm* registry-key) mr)
+             mr))
+          (:yaml
+           (let* ((src (or (plugin-contents-string contents)
+                           (when (clun.sys:file-p path)
+                             (yaml-octets->source (clun.sys:read-file-octets path) path)))))
+             (multiple-value-bind (value named-p) (yaml-source->js src path)
+               (setf mr (make-module-record :resolved-path registry-key
+                                            :format :yaml
+                                            :status :evaluated
+                                            :cjs-exports value
+                                            :yaml-named-exports-p named-p))
+               (setf (realm-module *realm* registry-key) mr)
+               mr)))
+          (:file
+           (let ((exp (new-object)))
+             (data-prop exp "default" path)
+             (setf mr (make-module-record :resolved-path registry-key
+                                          :format :cjs
+                                          :status :evaluated
+                                          :cjs-exports exp))
+             (setf (realm-module *realm* registry-key) mr)
+             mr))
+          (:js
+           (let* ((resolve-dir (plugin-plist-get load-result :resolve-dir))
+                  (dir (cond
+                         ((and resolve-dir (stringp resolve-dir)) resolve-dir)
+                         ((and resolve-dir (js-string-p resolve-dir)) resolve-dir)
+                         ((and (string= (plugin-normalize-namespace namespace) "file")
+                               (clun.sys:absolute-path-p path))
+                          (clun.sys:path-dirname path))
+                         (t (clun.sys:pathname->native
+                             (handler-case (truename ".") (error () "."))))))
+                  (src (or (plugin-contents-string contents)
+                           (when (and (string= (plugin-normalize-namespace namespace) "file")
+                                      (clun.sys:file-p path))
+                             (read-source-for path)))))
+             (unless src
+               (throw-type-error
+                (format nil "plugin onLoad for '~a' returned no contents" path)))
+             (ecase format-hint
+               (:esm
+                (setf mr (make-module-record :resolved-path registry-key
+                                             :format :esm
+                                             :status :loading
+                                             :source src))
+                (setf (realm-module *realm* registry-key) mr
+                      (mr-ast mr) (parse-program src :source-type :module))
+                (compile-esm-module mr)
+                (dolist (spec (mr-requested mr))
+                  (setf (gethash spec (mr-requested-map mr))
+                        (resolve-load-dependency spec dir '("node" "import"))))
+                (setf (mr-status mr) :loaded)
+                mr)
+               (:cjs
+                (setf mr (make-module-record :resolved-path registry-key
+                                             :format :cjs
+                                             :status :unlinked
+                                             :source src))
+                (setf (realm-module *realm* registry-key) mr)
+                mr))))))))
+
+(defun load-resolved-module (path format conditions referrer-dir &key (plugin-namespace "file"))
+  "Load PATH that is already resolved. FORMAT may be NIL → re-detect via resolver."
+  (declare (ignore referrer-dir))
+  (let ((existing (realm-module *realm* path)))
+    (when existing (return-from load-resolved-module existing)))
+  (let* ((fmt (or format
+                  (handler-case
+                      (nth-value 1 (clun.resolver:resolve
+                                    (if (clun.sys:absolute-path-p path)
+                                        path
+                                        (concatenate 'string "./" path))
+                                    (clun.sys:path-dirname path)
+                                    :conditions conditions))
+                    (error ()
+                      (cond
+                        ((search ".mjs" path) :esm)
+                        ((search ".cjs" path) :cjs)
+                        ((search ".json" path) :json)
+                        ((or (search ".yaml" path) (search ".yml" path)) :yaml)
+                        (t :cjs))))))
+         (load-result (plugin-run-on-load path :namespace plugin-namespace
+                                          :loader (string-downcase (symbol-name fmt)))))
+    (if load-result
+        (load-plugin-module path path plugin-namespace load-result
+                            :format-hint (if (eq fmt :esm) :esm :cjs))
+        (load-any path fmt))))
+
+(defun resolve-load-dependency (specifier referrer-dir conditions)
+  "Resolve SPECIFIER with plugins, mocks, builtins, and Node resolution → module-record."
+  (let ((mock (find-module-mock specifier referrer-dir conditions)))
+    (when mock (return-from resolve-load-dependency mock)))
+  (let ((builtin (try-builtin-module specifier)))
+    (when builtin (return-from resolve-load-dependency builtin)))
+  (let ((hooked (node-hooks-resolve specifier referrer-dir)))
+    (when hooked
+      (return-from resolve-load-dependency
+        (load-resolved-module hooked nil conditions referrer-dir
+                              :plugin-namespace "file"))))
+  (let ((resolved (plugin-run-on-resolve
+                   specifier
+                   :namespace "file"
+                   :importer referrer-dir
+                   :kind (if (member "require" conditions :test #'string=)
+                             :require
+                             :import))))
+    (when resolved
+      (let* ((path (plugin-plist-get resolved :path specifier))
+             (ns (plugin-normalize-namespace
+                  (plugin-plist-get resolved :namespace "file")))
+             (pdata (plugin-plist-get resolved :plugin-data))
+             (virtual (plugin-plist-get resolved :virtual))
+             (key (plugin-registry-key ns path)))
+        (when (plugin-plist-get resolved :external)
+          (throw-type-error
+           (format nil "Cannot load external module '~a' at runtime" path)))
+        (let ((existing (realm-module *realm* key)))
+          (when existing (return-from resolve-load-dependency existing)))
+        (let ((load-result
+                (or (when virtual
+                      (let ((raw (plugin-call-sync virtual nil)))
+                        (or (plugin-result-plist raw)
+                            (list :exports (new-object) :loader "object"))))
+                    (plugin-run-on-load path :namespace ns :plugin-data pdata)
+                    (node-hooks-load path))))
+          (when load-result
+            (return-from resolve-load-dependency
+              (load-plugin-module
+               key path ns load-result
+               :format-hint (if (member "require" conditions :test #'string=)
+                                :cjs :esm))))
+          (when (string= ns "file")
+            (return-from resolve-load-dependency
+              (load-resolved-module path nil conditions referrer-dir
+                                    :plugin-namespace "file")))
+          (throw-type-error
+           (format nil "No onLoad plugin matched ~a:~a" ns path))))))
+  (multiple-value-bind (path format)
+      (resolve-specifier specifier referrer-dir conditions)
+    (let ((load-result (or (plugin-run-on-load path :namespace "file"
+                                               :loader (string-downcase (symbol-name format)))
+                           (node-hooks-load path))))
+      (if load-result
+          (load-plugin-module
+           path path "file" load-result
+           :format-hint (if (eq format :esm) :esm :cjs))
+          (load-any path format)))))
 
 ;;; --- evaluate (post-order) --------------------------------------------------
 
@@ -609,15 +791,8 @@ Used by run-source for `:source-type :module` and the CLI's -e/[eval] modules."
                  (mr-ast mr) (parse-program source :source-type :module))
            (compile-esm-module mr)
            (dolist (spec (mr-requested mr))
-             (let ((mock (find-module-mock spec dir '("node" "import"))))
-               (if mock
-                   (setf (gethash spec (mr-requested-map mr)) mock)
-                   (let ((builtin (try-builtin-module spec)))
-                     (if builtin
-                         (setf (gethash spec (mr-requested-map mr)) builtin)
-                         (multiple-value-bind (dp fmt) (resolve-import spec dir)
-                           (setf (gethash spec (mr-requested-map mr))
-                                 (load-any dp fmt))))))))
+             (setf (gethash spec (mr-requested-map mr))
+                   (resolve-load-dependency spec dir '("node" "import"))))
            (setf (mr-status mr) :loaded)
            (evaluate-module mr)
            (drive-jobs realm)

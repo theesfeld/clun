@@ -1,0 +1,7 @@
+api function function function function function
+list fixture-js,fixture-object,fixture-virtual
+loads 11 object-loader 22 virtual 33 js-contents
+clear-one gone blocked
+clear-all 0 blocked
+text hello-text
+setup-trace setup-object,chain-resolve,setup-virtual
