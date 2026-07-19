@@ -7,9 +7,9 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **69 - Frontend dev server**  (FULL PORT Yes #189)
+## Current phase: **68 - Frontend development server and HMR**  (FULL PORT Yes #189)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/189
+**Canonical issue:** https://github.com/theesfeld/clun/issues/42
 **Parent:** https://github.com/theesfeld/clun/issues/177
 **Current implementation unit:** tooling.frontend-dev-server full port Yes (#189) pure-CL HTML entry + HMR exceeding Bun.
 **SemVer impact:** `minor`
