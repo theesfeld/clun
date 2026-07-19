@@ -58,13 +58,15 @@ jobs:
             "repos/$GITHUB_REPOSITORY/releases/tags/$GITHUB_REF_NAME" \
             >"$release_json" 2>"$release_error"; then
             test "$(jq -r .tag_name "$release_json")" = "$GITHUB_REF_NAME"
-            if test "$(jq -r .draft "$release_json")" = true &&
-               test "$(jq -r '.immutable // false' "$release_json")" = false; then
-              echo "unpublished draft $GITHUB_REF_NAME will be replaced after successful builds"
-            else
-              echo "release $GITHUB_REF_NAME is already published; immutable releases cannot be reused" >&2
+            if test "$(jq -r .draft "$release_json")" = true; then
+              echo "unpublished draft $GITHUB_REF_NAME exists; deleting a GitHub Release requires human escalation" >&2
               exit 1
             fi
+            CLUN_RELEASE_REPO="$GITHUB_REPOSITORY" \
+            CLUN_RELEASE_EXPECTED_SHA="$tagged_commit" \
+            CLUN_RELEASE_WAIT_SECONDS=0 \
+              sh scripts/release-live-check.sh
+            echo "existing immutable release $GITHUB_REF_NAME verified; rerun remains read-only"
           elif ! grep -Eq 'HTTP[[:space:]]+404|\(HTTP 404\)' "$release_error"; then
             cat "$release_error" >&2
             echo "could not determine whether release $GITHUB_REF_NAME already exists" >&2
@@ -295,17 +297,33 @@ jobs:
             "repos/$GITHUB_REPOSITORY/releases/tags/$GITHUB_REF_NAME" \
             >"$release_json" 2>"$release_error"; then
             test "$(jq -r .tag_name "$release_json")" = "$GITHUB_REF_NAME"
-            if test "$(jq -r .draft "$release_json")" = true &&
-               test "$(jq -r '.immutable // false' "$release_json")" = false; then
-              # `gh release create` leaves a draft when an asset upload fails.
-              echo "deleting recoverable unpublished draft $GITHUB_REF_NAME"
-              gh release delete "$GITHUB_REF_NAME" \
-                --repo "$GITHUB_REPOSITORY" \
-                --yes
-            else
-              echo "release $GITHUB_REF_NAME is already published; refusing to edit or replace it" >&2
+            if test "$(jq -r .draft "$release_json")" = true; then
+              echo "unpublished draft $GITHUB_REF_NAME exists; deleting a GitHub Release requires human escalation" >&2
               exit 1
             fi
+            tagged_commit="$(git rev-list -n 1 "$GITHUB_REF_NAME")"
+            CLUN_RELEASE_REPO="$GITHUB_REPOSITORY" \
+            CLUN_RELEASE_EXPECTED_SHA="$tagged_commit" \
+            CLUN_RELEASE_WAIT_SECONDS=0 \
+              sh scripts/release-live-check.sh
+            existing_assets="$RUNNER_TEMP/existing-release-assets"
+            mkdir "$existing_assets"
+            gh release download "$GITHUB_REF_NAME" \
+              --repo "$GITHUB_REPOSITORY" \
+              --dir "$existing_assets"
+            test "$(find "$existing_assets" -maxdepth 1 -type f | wc -l)" -eq 5
+            for required_asset in \
+              checksums.txt \
+              clun-linux-x64.tar.gz \
+              clun-linux-arm64.tar.gz \
+              clun-darwin-x64.tar.gz \
+              clun-darwin-arm64.tar.gz; do
+              test -s "$existing_assets/$required_asset"
+            done
+            test "$(wc -l < "$existing_assets/checksums.txt")" -eq 4
+            (cd "$existing_assets" && sha256sum --check --strict checksums.txt)
+            echo "existing immutable release $GITHUB_REF_NAME and checksums verified; no mutation needed"
+            exit 0
           elif ! grep -Eq 'HTTP[[:space:]]+404|\(HTTP 404\)' "$release_error"; then
             cat "$release_error" >&2
             echo "could not determine whether release $GITHUB_REF_NAME already exists" >&2

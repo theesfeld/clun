@@ -446,6 +446,69 @@ run_publication_reconciliation_case() (
   check_result "$fixture_name" "$expected_status" "$expected_text" "$status" "$output"
 )
 
+run_tag_only_recovery_case() (
+  fixture_name=$1
+  mutation=$2
+  expected_status=$3
+  expected_text=$4
+  fixture=$scratch_dir/$fixture_name
+  fixture_version=1.3.0-dev.2
+
+  mkdir -p "$fixture/src" "$fixture/compat" "$fixture/site"
+  git -C "$fixture" init -q
+  git -C "$fixture" config user.name 'Clun fixture'
+  git -C "$fixture" config user.email 'fixture@clun.invalid'
+  write_version "$fixture_version" "$fixture/src/version.lisp"
+  printf '%s\n' base >"$fixture/src/runtime.lisp"
+  printf '%s\n' base >"$fixture/README.md"
+  printf '%s\n' base >"$fixture/STATE.md"
+  printf '%s\n' base >"$fixture/site/index.html"
+  write_fixture_installer v1.3.0-dev.1 "$fixture/site/install"
+  write_release_ledger "$fixture_version" v1.3.0-dev.1 candidate pending \
+    "$fixture/compat/release.tsv"
+  git -C "$fixture" add .
+  git -C "$fixture" commit -qm base
+  fixture_base=$(git -C "$fixture" rev-parse HEAD)
+
+  printf '%s\n' tag-only >"$fixture/README.md"
+  if [ "$mutation" != missing-state ]; then
+    printf '%s\n' tag-only >"$fixture/STATE.md"
+  fi
+  printf '%s\n' tag-only >"$fixture/site/index.html"
+  release_commit=$fixture_base
+  case $mutation in
+    wrong-release-commit) release_commit=0000000000000000000000000000000000000000 ;;
+    runtime-content) printf '%s\n' changed >"$fixture/src/runtime.lisp" ;;
+    installer-content) printf '%s\n' '# unexpected mutation' >>"$fixture/site/install" ;;
+    correct|missing-tag|lightweight-tag|wrong-tag|missing-state) ;;
+    *) printf 'fixture %s: invalid tag-only mutation %s\n' \
+      "$fixture_name" "$mutation" >&2; exit 1 ;;
+  esac
+  write_release_ledger "$fixture_version" v1.3.0-dev.1 candidate "$release_commit" \
+    "$fixture/compat/release.tsv"
+  git -C "$fixture" add .
+  git -C "$fixture" commit -qm tag-only
+  fixture_head=$(git -C "$fixture" rev-parse HEAD)
+  case $mutation in
+    missing-tag) ;;
+    lightweight-tag) git -C "$fixture" tag "v$fixture_version" "$fixture_base" ;;
+    wrong-tag) git -C "$fixture" tag -a -m fixture "v$fixture_version" "$fixture_head" ;;
+    *) git -C "$fixture" tag -a -m fixture "v$fixture_version" "$fixture_base" ;;
+  esac
+
+  fake_gh=$fixture/fake-gh
+  write_fake_gh "$fake_gh"
+  set +e
+  output=$(GH_TOKEN=fixture GITHUB_REPOSITORY=fixture/clun \
+    CLUN_VERSION_REPO_ROOT="$fixture" CLUN_GH_BIN="$fake_gh" \
+    FIXTURE_GH_MODE=absent \
+    BASE_SHA="$fixture_base" HEAD_SHA="$fixture_head" \
+    sh "$checker" 2>&1)
+  status=$?
+  set -e
+  check_result "$fixture_name" "$expected_status" "$expected_text" "$status" "$output"
+)
+
 printf 'version-transition fixtures:\n'
 run_case current-phase25b 0.0.1-dev 0.1.0-dev.1 src/runtime.lisp pass \
   '0.0.1-dev -> 0.1.0-dev.1 (minor;' minor
@@ -555,4 +618,20 @@ run_publication_reconciliation_case publication-remote-tag remote-tag pass \
   'publication reconciliation for v1.3.0-dev.2'
 run_publication_reconciliation_case publication-remote-annotated-tag remote-annotated-tag pass \
   'publication reconciliation for v1.3.0-dev.2'
-printf 'version-transition fixtures: 61 passed\n'
+run_tag_only_recovery_case tag-only-recovery correct pass \
+  'tag-only recovery for v1.3.0-dev.2'
+run_tag_only_recovery_case tag-only-missing-tag missing-tag fail \
+  'invalid tag-only recovery'
+run_tag_only_recovery_case tag-only-lightweight-tag lightweight-tag fail \
+  'invalid tag-only recovery'
+run_tag_only_recovery_case tag-only-wrong-tag wrong-tag fail \
+  'invalid tag-only recovery'
+run_tag_only_recovery_case tag-only-wrong-release-commit wrong-release-commit fail \
+  'invalid tag-only recovery'
+run_tag_only_recovery_case tag-only-runtime-mutation runtime-content fail \
+  'invalid tag-only recovery'
+run_tag_only_recovery_case tag-only-installer-mutation installer-content fail \
+  'invalid tag-only recovery'
+run_tag_only_recovery_case tag-only-missing-surface missing-state fail \
+  'invalid tag-only recovery'
+printf 'version-transition fixtures: 69 passed\n'

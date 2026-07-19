@@ -251,6 +251,15 @@ Do not land release-bearing work by pushing a feature commit straight to `origin
 8. Record commit, workflow, tag, assets, checksum, installer, and Pages evidence in the canonical
    issue.
 
+If publication fails after step 3, the immutable tag still consumes that version. Keep the ledger
+in `candidate`, replace `pending` with the exact peeled tag commit, retain the prior verified installer
+boundary, regenerate the truthful tag-only README/site, and land that evidence through an Issue/PR.
+Recovery uses a newly allocated prerelease slot; never move or reuse the failed tag. If an unpublished
+GitHub Release draft exists, automation must fail closed and request the required human escalation
+rather than deleting the Release automatically. Candidate Pages also verifies that the recorded tag
+still has no GitHub Release before deploying tag-only recovery claims; any published Release requires
+the normal publication-reconciliation path instead.
+
 Phase 25b milestone 3 added backward-compatible shared iterator-record operations, lazy
 iterable consumers, iterator-closing behavior, and binding/destructuring fixes. Its impact is `minor`.
 The original `v0.1.0-dev.2` tag failed its darwin-arm64 release gate before assets were published.

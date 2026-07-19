@@ -565,8 +565,10 @@ grep -F 'Tag only / no Release' "$case_root/site/index.html" >/dev/null 2>&1 ||
 grep -F 'but no GitHub Release or release assets were published.' \
   "$case_root/README.md" >/dev/null 2>&1 ||
   fail 'tagged candidate render did not distinguish the tag from a GitHub Release'
-grep -F 'github.com/theesfeld/clun/issues/215' "$case_root/site/index.html" >/dev/null 2>&1 ||
-  fail 'tagged candidate render lost the truth-audit link'
+grep -F "the canonical Phase $current_phase record" "$case_root/site/index.html" >/dev/null 2>&1 ||
+  fail 'tagged candidate render lost the active canonical recovery record'
+grep -F '>Canonical phase record</a>' "$case_root/site/index.html" >/dev/null 2>&1 ||
+  fail 'tagged candidate render lost the canonical evidence link'
 
 fresh_case malformed-candidate-commit
 mutate_release_commit "$case_root/compat/release.tsv" not-a-tagged-commit

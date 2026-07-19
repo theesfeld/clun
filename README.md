@@ -66,7 +66,7 @@ through the checksum-verifying installer; the new release then supports future `
 curl -fsSL https://clun.sh/install | CLUN_INSTALL="$HOME/.clun" CLUN_NO_MODIFY_PATH=1 sh
 ```
 
-While the hosted boundary remains `v0.1.0-dev.21`, that command only reinstalls dev.21 and does not
+While the hosted boundary remains `v0.1.0-dev.21`, that command only reinstalls `v0.1.0-dev.21` and does not
 add the updater.
 
 The release workflow exercises the modern installer on Ubuntu and macOS 15 runners for x64 and arm64.

@@ -271,7 +271,7 @@ END {
     } else if (tagged_candidate) {
       print "> The annotated tag `" release_tag "` points to candidate commit `" release_commit "`, but no GitHub Release or release assets were published."
       print "> The latest verified installable boundary remains `v" previous_version "`, with four native archives, checksums, Pages, and hosted-installer evidence."
-      print "> Audit/evidence records: [truth audit #215](https://github.com/theesfeld/clun/issues/215) and [issue reconciliation #220](https://github.com/theesfeld/clun/issues/220). Active release work: [dev.69 release record #216](https://github.com/theesfeld/clun/issues/216) and [release recovery #219](https://github.com/theesfeld/clun/issues/219)."
+      print "> Tag-only recovery remains tracked in [Phase " active_phase " issue #" active_issue "](https://github.com/theesfeld/clun/issues/" active_issue "); the failed tag is immutable and recovery must use a new prerelease slot."
     } else {
       print "> The verified release boundary is `v" previous_version "`, with four native archives, checksums, Pages,"
       print "> and hosted-installer evidence."
@@ -286,7 +286,7 @@ END {
       print "<a href=\"https://github.com/theesfeld/clun/releases/tag/" release_tag "\">"
       print "  <span>Available now</span>"
     } else if (release_commit != "pending") {
-      print "<a href=\"https://github.com/theesfeld/clun/issues/215\">"
+      print "<a href=\"https://github.com/theesfeld/clun/issues/" active_issue "\">"
       print "  <span>Tag only / no Release</span>"
     } else {
       print "<a href=\"https://github.com/theesfeld/clun/issues/" active_issue "\">"
@@ -303,7 +303,7 @@ END {
     else
       print "Phase " active_phase " is active: <a href=\"https://github.com/theesfeld/clun/issues/" active_issue "\">" html(roadmap_title[active_phase]) " in issue #" active_issue "</a>."
     if (publication_state == "candidate" && release_commit != "pending")
-      print "The annotated candidate tag exists, but its GitHub Release and assets do not. Audit/evidence records: <a href=\"https://github.com/theesfeld/clun/issues/215\">truth audit #215</a> and <a href=\"https://github.com/theesfeld/clun/issues/220\">issue reconciliation #220</a>. Active release work remains in <a href=\"https://github.com/theesfeld/clun/issues/216\">release record #216</a> and <a href=\"https://github.com/theesfeld/clun/issues/219\">recovery #219</a>."
+      print "The annotated candidate tag exists, but its GitHub Release and assets do not. Tag-only recovery remains in <a href=\"https://github.com/theesfeld/clun/issues/" active_issue "\">the canonical Phase " active_phase " record</a>; the failed tag is immutable and recovery must use a new prerelease slot."
     print "Phase 26 remains deferred until after Phase 82 and will be re-baselined for the system state at that time."
   } else if (format == "readme-release-summary") {
     print "Release versions follow the actual SemVer impact recorded in the canonical issue, not the number of pushes."
@@ -319,16 +319,10 @@ END {
     print "[The versioning contract](docs/versioning.md) defines prerelease sequencing, synchronized surfaces, immutable tags, assets, and installer evidence."
     print "[Phase " active_phase " issue #" active_issue "](https://github.com/theesfeld/clun/issues/" active_issue ") is the canonical live release record."
     if (publication_state == "candidate" && release_commit != "pending")
-      print "Audit/evidence records: [truth audit #215](https://github.com/theesfeld/clun/issues/215) and [issue reconciliation #220](https://github.com/theesfeld/clun/issues/220). Active release work remains tracked in [dev.69 release record #216](https://github.com/theesfeld/clun/issues/216) and [release recovery #219](https://github.com/theesfeld/clun/issues/219)."
+      print "Tag-only recovery remains tracked in [Phase " active_phase " issue #" active_issue "](https://github.com/theesfeld/clun/issues/" active_issue "); the failed tag is immutable and recovery must use a new prerelease slot."
   } else if (format == "site-release-links") {
-    if (publication_state == "candidate" && release_commit != "pending")
-      print "<div><h2>Project</h2><a href=\"https://github.com/theesfeld/clun\">Source</a><a href=\"https://github.com/theesfeld/clun/blob/master/README.md\">README</a><a href=\"https://github.com/theesfeld/clun/issues/215\">Truth audit record #215</a><a href=\"https://github.com/theesfeld/clun/issues/219\">Active release recovery #219</a></div>"
-    else
-      print "<div><h2>Project</h2><a href=\"https://github.com/theesfeld/clun\">Source</a><a href=\"https://github.com/theesfeld/clun/blob/master/README.md\">README</a><a href=\"https://github.com/theesfeld/clun/issues/" active_issue "\">" (publication_state == "published" ? "Release record" : "Current status") "</a></div>"
-    if (publication_state == "candidate" && release_commit != "pending")
-      print "<div><h2>Evidence</h2><a href=\"https://github.com/theesfeld/clun/blob/master/compat/README.md\">Compatibility ledger</a><a href=\"https://github.com/theesfeld/clun/actions/workflows/compat.yml\">Compatibility CI</a><a href=\"https://github.com/theesfeld/clun/issues/216\">Active dev.69 release #216</a><a href=\"https://github.com/theesfeld/clun/issues/220\">Issue evidence record #220</a><a href=\"https://github.com/theesfeld/clun/blob/master/LICENSE\">License</a></div>"
-    else
-      print "<div><h2>Evidence</h2><a href=\"https://github.com/theesfeld/clun/blob/master/compat/README.md\">Compatibility ledger</a><a href=\"https://github.com/theesfeld/clun/actions/workflows/compat.yml\">Compatibility CI</a><a href=\"https://github.com/theesfeld/clun/blob/master/LICENSE\">License</a></div>"
+    print "<div><h2>Project</h2><a href=\"https://github.com/theesfeld/clun\">Source</a><a href=\"https://github.com/theesfeld/clun/blob/master/README.md\">README</a><a href=\"https://github.com/theesfeld/clun/issues/" active_issue "\">" (publication_state == "published" ? "Release record" : "Current status") "</a></div>"
+    print "<div><h2>Evidence</h2><a href=\"https://github.com/theesfeld/clun/blob/master/compat/README.md\">Compatibility ledger</a><a href=\"https://github.com/theesfeld/clun/actions/workflows/compat.yml\">Compatibility CI</a><a href=\"https://github.com/theesfeld/clun/issues/" active_issue "\">Canonical phase record</a><a href=\"https://github.com/theesfeld/clun/blob/master/LICENSE\">License</a></div>"
     if (publication_state == "published")
       print "<div><h2>Install</h2><a href=\"install\">Shell installer</a><a href=\"https://github.com/theesfeld/clun/releases/tag/" release_tag "\">" release_tag " release</a><a href=\"https://github.com/theesfeld/clun#building-from-source\">Build from source</a></div>"
     else

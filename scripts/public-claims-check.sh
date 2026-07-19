@@ -73,9 +73,15 @@ fi
   fail "release ledger installer default $installer_tag disagrees with $release_state expectation $expected_installer_tag"
 case "$active_phase:$active_issue" in *[!0-9:]*|:*|*:|*::* ) fail 'release ledger has invalid phase or issue' ;; esac
 case "$semver_impact" in major|minor|patch|none) ;; *) fail 'release ledger has invalid SemVer impact' ;; esac
+candidate_tagged=0
 if [ "$release_state" = candidate ]; then
-  [ "$release_commit" = pending ] ||
-    fail 'candidate release ledger commit must be pending'
+  if [ "$release_commit" = pending ]; then
+    candidate_tagged=0
+  elif printf '%s\n' "$release_commit" | LC_ALL=C grep -Eq '^[0-9a-f]{40}$'; then
+    candidate_tagged=1
+  else
+    fail 'candidate release ledger commit must be pending or a full tagged commit SHA'
+  fi
 else
   printf '%s\n' "$release_commit" | LC_ALL=C grep -Eq '^[0-9a-f]{40}$' ||
     fail 'published release ledger commit must be a full commit SHA'
@@ -799,16 +805,34 @@ grep -Fq -- "$site_candidate_marker" site/index.html && site_candidate=1
 if [ "$release_state" = candidate ]; then
   [ "$readme_candidate" -eq 1 ] || fail "release ledger says candidate but generated documents do not"
   require_text README.md "The current source is the \`$version\` release candidate"
-  require_text README.md "immutable tag and assets are not published yet"
+  if [ "$candidate_tagged" -eq 1 ]; then
+    require_text README.md "Its annotated [\`v$version\`](https://github.com/theesfeld/clun/tree/v$version) points to commit \`$release_commit\`, but no GitHub Release or release assets were published."
+    reject_text README.md "immutable tag and assets are not published yet"
+  else
+    require_text README.md "immutable tag and assets are not published yet"
+  fi
   require_text README.md "The last published prerelease remains"
   require_text README.md "[Phase $active_phase]($active_issue_url) is in progress."
   require_text README.md "[\`v$previous_version\`]($previous_release_url)"
   reject_text README.md "$release_url"
 
-  require_text site/index.html "<a href=\"$active_issue_url\">"
-  require_text site/index.html "<span>In development</span>"
+  if [ "$candidate_tagged" -eq 1 ]; then
+    require_text site/index.html "<a href=\"$active_issue_url\">"
+    require_text site/index.html '<span>Tag only / no Release</span>'
+    require_text site/index.html 'The annotated candidate tag exists, but its GitHub Release and assets do not.'
+    require_text site/index.html 'Tag-only recovery remains in'
+    require_text site/index.html "the canonical Phase $active_phase record"
+  else
+    require_text site/index.html "<a href=\"$active_issue_url\">"
+    require_text site/index.html "<span>In development</span>"
+  fi
   require_text site/index.html "Phase $active_phase is active:"
-  require_text site/index.html ">Current status</a>"
+  if [ "$candidate_tagged" -eq 1 ]; then
+    require_text site/index.html '>Current status</a>'
+    require_text site/index.html '>Canonical phase record</a>'
+  else
+    require_text site/index.html ">Current status</a>"
+  fi
   require_text site/index.html "v$version / Phase $active_phase"
   require_text site/index.html "<a href=\"$previous_release_url\">v$previous_version release</a>"
   require_text site/index.html "v$version release candidate / pre-alpha</p>"
@@ -836,8 +860,15 @@ else
 fi
 require_text site/index.html 'clun --check-update'
 require_text site/index.html 'clun --update'
-require_text README.md 'While the hosted boundary remains `v0.1.0-dev.21`, that command only reinstalls dev.21 and does not'
-require_text site/index.html 'Until then, the command only reinstalls dev.21.'
+if [ "$release_state" = candidate ]; then
+  require_text README.md "While the hosted boundary remains \`v$previous_version\`, that command only reinstalls \`v$previous_version\` and does not"
+  require_text site/index.html "Until then, the command only reinstalls <code>v$previous_version</code>."
+else
+  require_text README.md "The published \`v$version\` boundary includes the built-in updater"
+  require_text site/index.html "The hosted command installs verified <code>v$version</code>"
+  reject_text README.md "While the hosted boundary remains \`v$previous_version\`"
+  reject_text site/index.html "Until then, the command only reinstalls <code>v$previous_version</code>."
+fi
 require_text site/index.html 'Proxy traps and invariants are implemented for the covered paths'
 require_text site/index.html 'Snapshot edge formats and cooperative/parallel concurrency are covered; test-watch reruns remain a known gap'
 require_text site/index.html 'Streaming request and response bodies; WebSocket + Pub/Sub; no HTTP/2 server'
