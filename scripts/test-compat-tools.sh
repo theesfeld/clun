@@ -717,7 +717,7 @@ fresh_case yes-without-executable
 promote_feature_to_yes "$case_root/compat/features.tsv" cloud.s3
 support_feature_on_all_targets "$case_root/compat/platforms.tsv" cloud.s3 -
 expect_failure_matching yes-without-executable "$case_root" validate \
-  'Yes feature cloud.s3 has no shipped-binary evidence'
+  'Yes feature cloud.s3 has no target-scoped shipped-binary evidence on darwin-arm64'
 
 fresh_case yes-without-four-target-evidence
 promote_feature_to_yes "$case_root/compat/features.tsv" runtime.web-standard-apis

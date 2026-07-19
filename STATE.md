@@ -7,14 +7,14 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **67 - Hot reload**  (FULL PORT Yes #188)
+## Current phase: **53 - S3 client**  (FULL PORT Yes #185)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/188
+**Canonical issue:** https://github.com/theesfeld/clun/issues/185
 **Parent:** https://github.com/theesfeld/clun/issues/177
-**Current implementation unit:** tooling.hot-reload full port Yes (#188) pure-CL --hot / --watch exceeding Bun.
+**Current implementation unit:** cloud.s3 full port Yes (#185) pure-CL SigV4 S3-compatible client exceeding Bun.s3.
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.52` / `v0.1.0-dev.52`
+**Candidate release:** `0.1.0-dev.53` / `v0.1.0-dev.53`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
-**Entry boundary:** installer on `v0.1.0-dev.21`; free slot after redis Yes `0.1.0-dev.51`.
+**Entry boundary:** installer on `v0.1.0-dev.21`; free slot after hot-reload Yes `0.1.0-dev.52`.
 
 **Next scope:** remaining FULL PORT ledger Nos under #177.
