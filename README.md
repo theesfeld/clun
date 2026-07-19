@@ -179,10 +179,10 @@ The last published prerelease remains [`v0.1.0-dev.21`](https://github.com/thees
 - **Forbidden:** CFFI or any foreign library; any JavaScript as part of the *implementation* (JS/TS
   appears only as test fixtures). No shelling out to system tools as an implementation crutch.
 - **Enforced:** `make purity` scans every source under `src/` and `vendor/` for foreign-code entry
-./build/clun --version   # => clun 0.1.0-dev.57
-./build/clun --version   # => clun 0.1.0-dev.55
-./build/clun --version   # => clun 0.1.0-dev.53
-./build/clun --version   # => clun 0.1.0-dev.54
+./build/clun --version   # => clun 0.1.0-dev.62
+./build/clun --version   # => clun 0.1.0-dev.62
+./build/clun --version   # => clun 0.1.0-dev.62
+./build/clun --version   # => clun 0.1.0-dev.62
   points and fails on any hit. It runs at every phase gate.
 
 ## TLS / HTTPS security posture
@@ -213,11 +213,11 @@ vendored under `vendor/` and located via `scripts/registry.lisp`.
 make build     # compile everything, save build/clun (save-lisp-and-die)
 make test      # run the CL suites and JS/TS fixture harnesses
 make purity    # fail on any CFFI/foreign-code token
-./build/clun --version   # => clun 0.1.0-dev.52
-./build/clun --version   # => clun 0.1.0-dev.51
-./build/clun --version   # => clun 0.1.0-dev.50
-./build/clun --version   # => clun 0.1.0-dev.53
-./build/clun --version   # => clun 0.1.0-dev.54
+./build/clun --version   # => clun 0.1.0-dev.62
+./build/clun --version   # => clun 0.1.0-dev.62
+./build/clun --version   # => clun 0.1.0-dev.62
+./build/clun --version   # => clun 0.1.0-dev.62
+./build/clun --version   # => clun 0.1.0-dev.62
 ```
 
 A fresh clone builds with `make build` alone: ASDF compiles the vendored closure and `src/` into
