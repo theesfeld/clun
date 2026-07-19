@@ -63,13 +63,13 @@
     (is eql (position #\Newline src) (position #\Newline out))))
 
 (define-test ts/error-catalog
-  ;; remaining non-transform residuals still hard-error
-  (true (search "import =" (or (strip-errs "import x = require(\"y\");") "")))
-  (true (search "export =" (or (strip-errs "export = foo;") "")))
-  (true (search "decorators" (or (strip-errs "class C { @dec m() {} }") "")))
-  (true (search "angle brackets" (or (strip-errs "const x = <T>y;") "")))
-  ;; a type-only namespace is erased, not an error
-  (is equal "" (collapse-ws (strip "namespace T { export interface X { a: number; } }"))))
+  ;; former hard-errors are now transforms; residual unsupported is empty set for
+  ;; the classic catalog — keep type-only namespace erase regression.
+  (is equal "" (collapse-ws (strip "namespace T { export interface X { a: number; } }")))
+  (true (search "const x=require" (collapse-ws (strip "import x = require(\"y\");"))))
+  (true (search "module.exports=" (collapse-ws (strip "export = foo;"))))
+  (true (search "__decorate" (strip "class C { @dec m() {} }")))
+  (true (strip~ "const x = y;" "const x = <T>y;")))
 
 (define-test ts/ambient-enum-strip
   ;; declare enum / declare const enum are ambient and erase whole
@@ -107,3 +107,27 @@
     (false (search "public" out))
     (false (search "private" out))
     (false (search "number" out))))
+
+(define-test ts/decorator-transform
+  (let ((out (strip (format nil "function dec(c){return c;}~%@dec~%class C { @dec m() { return 1; } }"))))
+    (true (search "__decorate" out))
+    (true (search "C=__decorate" out))
+    (true (search "\"m\"" out)))
+  (let ((out (strip "class C { constructor(@dec x: number) { this.x = x; } }")))
+    (true (search "__param" out))))
+
+(define-test ts/import-export-equals
+  (is equal "const x=require(\"y\");"
+      (collapse-ws (strip "import x = require(\"y\");")))
+  (is equal "module.exports=foo;"
+      (collapse-ws (strip "export = foo;"))))
+
+(define-test ts/angle-cast-erase
+  (true (strip~ "const x = y;" "const x = <string>y;")))
+
+(define-test ts/typecheck-literal-mismatch
+  (let ((diags (clun.transpiler:typecheck-source "const x: number = \"s\";" "t.ts")))
+    (true (plusp (length diags)))
+    (true (search "not assignable" (clun.transpiler:tsd-message (first diags)))))
+  (let ((diags (clun.transpiler:typecheck-source "const x: number = 1;" "t.ts")))
+    (is eql 0 (length diags))))
