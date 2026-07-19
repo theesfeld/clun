@@ -180,8 +180,10 @@ C, else resolve a fresh C-capability with it."
   (promise-resolve* (intrinsic :promise-constructor) value))
 
 (defun promise-then-generic (thenable on-fulfilled on-rejected)
-  "Call THENABLE.then(onFulfilled, onRejected) — subclass/thenable-aware."
-  (js-call (js-get thenable "then") thenable (list on-fulfilled on-rejected)))
+  "Invoke(THENABLE, \"then\", «onFulfilled, onRejected») — GetV + Call so primitives
+and non-thenables throw a catchable TypeError (IfAbruptRejectPromise) rather than
+crashing the host on jm-get."
+  (js-call (js-getv thenable "then") thenable (list on-fulfilled on-rejected)))
 
 ;;; --- statics: resolve/reject + combinators (all use `this` as constructor C) --
 ;;; After the capability is built, an abrupt completion during iteration/setup
@@ -307,6 +309,78 @@ C, else resolve a fresh C-capability with it."
                           +undefined+))))))
                 (incf i))))))))))
 
+;;; --- Promise.allKeyed / allSettledKeyed (TC39 await-dictionary / Phase 37 m4) ---
+
+(defun %create-keyed-promise-combinator-result (entries)
+  "CreateKeyedPromiseCombinatorResultObject: null-proto object with data properties
+in entry order (enumerable own key order of the input)."
+  (let ((obj (js-make-object +null+)))
+    (dolist (entry entries obj)
+      (create-data-property-or-throw obj (car entry) (cdr entry)))))
+
+(defun %promise-all-keyed (c promises settled-p)
+  "Promise.allKeyed (SETTLED-P nil) / allSettledKeyed (SETTLED-P t).
+C is the constructor receiver. PROMISES must be an object of enumerable own keys."
+  (multiple-value-bind (result resolve reject) (new-promise-capability c)
+   (%if-abrupt-reject (reject result)
+    (let ((resolve-method (js-get c "resolve")))
+      (unless (callable-p resolve-method)
+        (throw-type-error "Promise resolve is not callable"))
+      (unless (js-object-p promises)
+        (js-call reject +undefined+
+                 (list (%promise-type-error
+                        (if settled-p
+                            "Promise.allSettledKeyed requires an object"
+                            "Promise.allKeyed requires an object"))))
+        (return-from %promise-all-keyed result))
+      (let ((all-keys (jm-own-property-keys promises))
+            (entries (make-array 8 :adjustable t :fill-pointer 0))
+            (remaining 1)
+            (index 0))
+        (labels ((done ()
+                   (when (zerop (decf remaining))
+                     (js-call resolve +undefined+
+                              (list (%create-keyed-promise-combinator-result
+                                     (coerce entries 'list)))))))
+          (dolist (key all-keys)
+            (let ((desc (jm-get-own-property promises key)))
+              (when (and desc (eq (pd-enumerable desc) t))
+                (let* ((property-value (js-get promises key))
+                       (idx index)
+                       (called nil)
+                       (next-promise (js-call resolve-method c (list property-value))))
+                  (vector-push-extend (cons key +undefined+) entries)
+                  (incf remaining)
+                  (promise-then-generic
+                   next-promise
+                   (make-native-function "" 1
+                     (lambda (th a)
+                       (declare (ignore th))
+                       (unless called
+                         (setf called t
+                               (aref entries idx)
+                               (cons (car (aref entries idx))
+                                     (if settled-p
+                                         (%settled-record :fulfilled (arg a 0))
+                                         (arg a 0))))
+                         (done))
+                       +undefined+))
+                   (if settled-p
+                       (make-native-function "" 1
+                         (lambda (th a)
+                           (declare (ignore th))
+                           (unless called
+                             (setf called t
+                                   (aref entries idx)
+                                   (cons (car (aref entries idx))
+                                         (%settled-record :rejected (arg a 0))))
+                             (done))
+                           +undefined+))
+                       reject))
+                  (incf index)))))
+          (done)
+          result))))))
+
 (defun %aggregate-error (errors)
   "The rejection reason for Promise.any — an AggregateError instance."
   (let ((e (js-make-object (intrinsic :aggregate-error-prototype) :error)))
@@ -406,6 +480,10 @@ C, else resolve a fresh C-capability with it."
             (js-call reject +undefined+ (list (arg args 0))) p)))
       (install-method ctor "all" 1 (lambda (this args) (%promise-all this (arg args 0) nil)))
       (install-method ctor "allSettled" 1 (lambda (this args) (%promise-all this (arg args 0) t)))
+      (install-method ctor "allKeyed" 1
+        (lambda (this args) (%promise-all-keyed this (arg args 0) nil)))
+      (install-method ctor "allSettledKeyed" 1
+        (lambda (this args) (%promise-all-keyed this (arg args 0) t)))
       (install-method ctor "race" 1 (lambda (this args) (%promise-race this (arg args 0))))
       (install-method ctor "any" 1 (lambda (this args) (%promise-any this (arg args 0))))
       (install-method ctor "withResolvers" 0

@@ -228,6 +228,21 @@ object/array result reaches its prototype's toString only inside its realm)."
       (evj "var o=[]; Promise.allSettled([Promise.resolve(1),Promise.reject(2)]).then(a=>o.push(a.map(r=>r.status).join(','))); o"))
   (is string= "ok" (evj "var o=[]; Promise.any([Promise.reject(1),Promise.resolve('ok')]).then(v=>o.push(v)); o")))
 
+(define-test promise/keyed-combinators
+  ;; Phase 37 m4: Promise.allKeyed / allSettledKeyed (TC39 await-dictionary).
+  (is string= "allKeyed,1,allSettledKeyed,1"
+      (evj "var a=Promise.allKeyed,b=Promise.allSettledKeyed;[a.name,a.length,b.name,b.length].join(',')"))
+  (is string= "true,true"
+      (evj "var o=[];Promise.allKeyed({a:Promise.resolve(1),b:Promise.resolve(2)}).then(function(r){o.push([Object.getPrototypeOf(r)===null,r.a===1&&r.b===2].join(','))});o"))
+  (is string= "first,second,third"
+      (evj "var o=[];Promise.allKeyed({first:Promise.resolve(1),second:Promise.resolve(2),third:Promise.resolve(3)}).then(function(r){o.push(Object.keys(r).join(','))});o"))
+  (is string= "rejected,fulfilled"
+      (evj "var o=[];Promise.allSettledKeyed({x:Promise.reject(1),y:Promise.resolve(2)}).then(function(r){o.push([r.x.status,r.y.status].join(','))});o"))
+  (is string= "type"
+      (evj "var o=[];Promise.allKeyed(null).then(function(){o.push('ok')},function(e){o.push(e instanceof TypeError?'type':'other')});o"))
+  (is eq eng:+true+
+      (ev "(function(){try{Promise.allKeyed.call(eval)}catch(e){return e instanceof TypeError}})()")))
+
 (define-test promise/unhandled-rejection-is-fatal
   ;; an unhandled rejection surfaces as an uncaught error after the loop idles
   (true (ev-throws "Promise.reject('boom')"))

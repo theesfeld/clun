@@ -1,5 +1,5 @@
 <!-- clun-generated:release-notes:begin -->
-# Clun 0.1.0-dev.61
+# Clun 0.1.0-dev.66
 
 Phase 48: Native-addon constitutional checkpoint and conditional implementation.
 
@@ -13,5 +13,5 @@ The canonical evidence and current limitations are in `compat/`; `make compat-va
 <!-- clun-generated:release-notes:end -->
 ## Highlights
 
-- Issue #192 promotes `language.typescript` Partial→**Yes** (pure-CL transpile+decorators+tsx+structural typecheck exceeding Bun strip).
-- Slot: free `0.1.0-dev.59` after master SFE Yes `0.1.0-dev.57` (leave `0.1.0-dev.58` for webstd #210).
+- Issue #178 promotes `runtime.native-addons` No→**Yes** (pure-CL N-API/FFI host exceeding Bun).
+- Slot: free `0.1.0-dev.66` after master Phase 37 m4 `0.1.0-dev.63` (webstd `.64`, fmt-lint `.65`).
