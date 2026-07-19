@@ -89,7 +89,7 @@ chain = chain.then(() => exec("echo hi!")).then(result => {
   });
 }).then(result => {
   assert(result.exitCode === 0, "self executable status");
-  assert(result.text().startsWith("clun 0.1.0-dev."), "self executable stdout");
+  assert(result.text() === "clun " + Clun.version + "\n", "self executable stdout");
   assert(decode(result.stderr) === "", "self executable stderr");
   return Clun.$`echo -n text > ${latin1}/hi`.quiet();
 }).then(() => exec("ls", { cwd: latin1 })).then(result => {
