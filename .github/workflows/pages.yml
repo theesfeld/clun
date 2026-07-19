@@ -9,7 +9,12 @@ on:
       - "src/version.lisp"
       - "scripts/release-live-check.sh"
       - "scripts/test-release-live-check.sh"
+      - "scripts/test-release-workflow.sh"
+      - "scripts/release/verify-assets.sh"
+      - "scripts/release/verify-exact-sha-runs.sh"
+      - "scripts/release/verify-tagged-master.sh"
       - ".github/workflows/pages.yml"
+      - ".github/workflows/release.yml"
   workflow_dispatch:
 
 permissions:
@@ -89,7 +94,9 @@ jobs:
           ROADMAP_REPO: ${{ github.repository }}
         run: make roadmap-verify-live
       - name: Test release publication gate
-        run: make test-release-live-check
+        run: |
+          make test-release-live-check
+          make test-release-workflow
       - name: Wait for matching published release assets
         if: steps.release.outputs.state == 'published'
         timeout-minutes: 125

@@ -33,25 +33,14 @@ jobs:
           test "$(git cat-file -t "refs/tags/$GITHUB_REF_NAME")" = tag
           tagged_commit="$(git rev-list -n 1 "$GITHUB_REF_NAME")"
           git fetch --no-tags origin master
-          git merge-base --is-ancestor "$tagged_commit" origin/master
-          master_runs="$RUNNER_TEMP/exact-master-runs.json"
-          gh api \
+          master_commit="$(git rev-parse origin/master)"
+          sh scripts/release/verify-tagged-master.sh "$tagged_commit" "$master_commit"
+          master_runs="$RUNNER_TEMP/exact-master-runs.tsv"
+          gh api --paginate \
             "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$tagged_commit&event=push&per_page=100" \
+            --jq '.workflow_runs[] | [.id, .name, .path, .head_sha, .head_branch, .event, .status, .conclusion] | @tsv' \
             > "$master_runs"
-          for workflow in CI Documentation Compatibility; do
-            jq -e --arg workflow "$workflow" --arg sha "$tagged_commit" '
-              .workflow_runs | any(
-                .name == $workflow and
-                .head_sha == $sha and
-                .head_branch == "master" and
-                .status == "completed" and
-                .conclusion == "success"
-              )
-            ' "$master_runs" >/dev/null || {
-              echo "$workflow has no successful exact-SHA master run for $tagged_commit" >&2
-              exit 1
-            }
-          done
+          sh scripts/release/verify-exact-sha-runs.sh "$master_runs" "$tagged_commit"
           release_json="$RUNNER_TEMP/existing-release.json"
           release_error="$RUNNER_TEMP/existing-release.error"
           if gh api \
@@ -73,6 +62,7 @@ jobs:
             exit 1
           fi
       - run: sh scripts/public-claims-check.sh
+      - run: make test-release-workflow
       - name: Verify canonical live roadmap issues
         env:
           GH_TOKEN: ${{ github.token }}
@@ -286,6 +276,9 @@ jobs:
         working-directory: dist
         run: sha256sum clun-*.tar.gz > checksums.txt
 
+      - name: Verify staged release assets before publication
+        run: sh scripts/release/verify-assets.sh dist
+
       - name: Reverify canonical issues immediately before publishing
         env:
           GH_TOKEN: ${{ github.token }}
@@ -319,17 +312,7 @@ jobs:
             gh release download "$GITHUB_REF_NAME" \
               --repo "$GITHUB_REPOSITORY" \
               --dir "$existing_assets"
-            test "$(find "$existing_assets" -maxdepth 1 -type f | wc -l)" -eq 5
-            for required_asset in \
-              checksums.txt \
-              clun-linux-x64.tar.gz \
-              clun-linux-arm64.tar.gz \
-              clun-darwin-x64.tar.gz \
-              clun-darwin-arm64.tar.gz; do
-              test -s "$existing_assets/$required_asset"
-            done
-            test "$(wc -l < "$existing_assets/checksums.txt")" -eq 4
-            (cd "$existing_assets" && sha256sum --check --strict checksums.txt)
+            sh scripts/release/verify-assets.sh "$existing_assets"
             echo "existing immutable release $GITHUB_REF_NAME and checksums verified; no mutation needed"
             exit 0
           elif ! grep -Eq 'HTTP[[:space:]]+404|\(HTTP 404\)' "$release_error"; then
@@ -433,3 +416,16 @@ jobs:
             echo "published release $GITHUB_REF_NAME is not immutable" >&2
             exit 1
           }
+
+          tagged_commit="$(git rev-list -n 1 "$GITHUB_REF_NAME")"
+          CLUN_RELEASE_REPO="$GITHUB_REPOSITORY" \
+          CLUN_RELEASE_EXPECTED_SHA="$tagged_commit" \
+          CLUN_RELEASE_WAIT_SECONDS=0 \
+            sh scripts/release-live-check.sh
+          published_assets="$RUNNER_TEMP/published-release-assets"
+          mkdir "$published_assets"
+          gh release download "$GITHUB_REF_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --dir "$published_assets"
+          sh scripts/release/verify-assets.sh "$published_assets"
+          echo "fresh immutable release $GITHUB_REF_NAME and downloaded checksums verified"
