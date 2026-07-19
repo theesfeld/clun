@@ -94,10 +94,16 @@ gross underflow."
                ((member v *type-continuers* :test #'string=) (incf i) (setf expect t))
                ;; `import("...")` type
                ((and (string= v "import") (tpunct= toks (1+ i) "(")) (incf i) (setf expect nil))
+               ;; After a complete top-level type atom, a bare name starts a value
+               ;; expression (e.g. angle-cast `<T>expr` must not swallow `expr`).
+               ((and top (not expect)) (return i))
                (t (incf i) (setf expect nil)))))    ; a type-name atom
           ;; string/number/bigint literal types, and a template-literal type — but a
           ;; `:template` is a type ONLY at an atom position (expect); after a complete
           ;; type it is a tagged-template argument / the substitution tail → terminate.
-          ((:string :num :bigint) (incf i) (setf expect nil))
+          ((:string :num :bigint)
+           (if (and top (not expect))
+               (return i)
+               (progn (incf i) (setf expect nil))))
           (:template (if expect (progn (incf i) (setf expect nil)) (return i)))
           (t (incf i) (setf expect nil)))))))

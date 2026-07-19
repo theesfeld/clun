@@ -155,3 +155,40 @@ OUTER-ASSIGN when non-nil is the left-hand form for nested namespaces
   (with-output-to-string (o)
     (dolist (n names)
       (format o "this.~a=~a;" n n))))
+
+;;; --- experimental decorator helpers (tsc / Bun shape) -----------------------
+
+(defparameter *decorate-helper-js*
+  "var __decorate=this&&this.__decorate||function(decorators,target,key,desc){var c=arguments.length,r=c<3?target:desc===null?desc=Object.getOwnPropertyDescriptor(target,key):desc,d;if(typeof Reflect===\"object\"&&typeof Reflect.decorate===\"function\")r=Reflect.decorate(decorators,target,key,desc);else for(var i=decorators.length-1;i>=0;i--)if(d=decorators[i])r=(c<3?d(r):c>3?d(target,key,r):d(target,key))||r;return c>3&&r&&Object.defineProperty(target,key,r),r};var __param=this&&this.__param||function(paramIndex,decorator){return function(target,key){decorator(target,key,paramIndex);}};"
+  "Runtime helpers for experimental TypeScript decorators (Bun/tsc-compatible).")
+
+(defun emit-class-decorate (class-name decs)
+  "Class-level __decorate call. DECS is a list of decorator expression strings."
+  (when decs
+    (format nil "~a=__decorate([~{~a~^,~}],~a);"
+            class-name decs class-name)))
+
+(defun emit-member-decorate (class-name key decs &key static-p property-p)
+  "Method/property __decorate. PROPERTY-P uses void 0 descriptor (field)."
+  (when decs
+    (format nil "__decorate([~{~a~^,~}],~a,~s,~a);"
+            decs
+            (if static-p class-name (format nil "~a.prototype" class-name))
+            key
+            (if property-p "void 0" "null"))))
+
+(defun emit-param-decorate-entries (param-decs)
+  "PARAM-DECS is list of (index . decorator-expr). Returns list of __param(...) strings."
+  (mapcar (lambda (pd)
+            (format nil "__param(~a,~a)" (car pd) (cdr pd)))
+          (sort (copy-list param-decs) #'< :key #'car)))
+
+;;; --- import = / export = ----------------------------------------------------
+
+(defun emit-import-equals (name rhs)
+  "import Name = RHS → const Name = RHS;"
+  (format nil "const ~a=~a;" name rhs))
+
+(defun emit-export-equals (rhs)
+  "export = RHS → module.exports = RHS;"
+  (format nil "module.exports=~a;" rhs))

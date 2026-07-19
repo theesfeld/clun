@@ -467,6 +467,9 @@ token start; returns a :regexp token (value=pattern, raw=flags)."
         (#\| (cond ((eql c1 #\|) (emit 2 "||")) ((eql c1 #\=) (emit 2 "|=")) (t (emit 1 "|"))))
         (#\^ (if (eql c1 #\=) (emit 2 "^=") (emit 1 "^")))
         (#\/ (if (eql c1 #\=) (emit 2 "/=") (emit 1 "/")))
+        ;; TypeScript experimental / stage-3 decorators; also needed so the TS
+        ;; stripper can tokenize `@dec` without a lex-error detour.
+        (#\@ (emit 1 "@"))
         (t (lex-error lx "unexpected character ~:c" c))))))
 
 ;;; --- the main entry ---------------------------------------------------------
