@@ -138,8 +138,20 @@ symlinks are preserved; device nodes are skipped. Used for file: dependencies."
 (defun %relative-symlink-target (from-path to-path)
   "Compute a relative symlink path from FROM-PATH (the link location) to TO-PATH (the target dir)."
   (let* ((from-dir (sys:path-dirname from-path))
-         (from-parts (%split-path-parts (sys:normalize-path from-dir)))
-         (to-parts (%split-path-parts (sys:normalize-path to-path)))
+         ;; Resolve existing endpoints before comparing path components.  A
+         ;; lexical relative path is wrong when an ancestor is a symlink whose
+         ;; canonical target has a different depth -- notably Darwin's
+         ;; /tmp -> /private/tmp.  The link parent and workspace source both
+         ;; exist at materialisation time; retain lexical fallbacks for callers
+         ;; that use this helper independently.
+         (canonical-from
+           (or (ignore-errors (sys:realpath from-dir))
+               (sys:normalize-path from-dir)))
+         (canonical-to
+           (or (ignore-errors (sys:realpath to-path))
+               (sys:normalize-path to-path)))
+         (from-parts (%split-path-parts canonical-from))
+         (to-parts (%split-path-parts canonical-to))
          (i 0)
          (n (min (length from-parts) (length to-parts))))
     (loop while (and (< i n) (string= (nth i from-parts) (nth i to-parts))) do (incf i))

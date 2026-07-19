@@ -28,11 +28,16 @@
 
 (defun %https-fixture-server
     (cert-file key-file response-bytes
-     &key split-at tail-sent-box request-capture read-request-body-p)
+     &key split-at tail-sent-box request-capture read-request-body-p
+          omit-close-notify-p error-box)
   "Start a ONE-SHOT blocking pure-tls HTTPS server on 127.0.0.1:0 presenting CERT-FILE/KEY-FILE.
-Returns (values port thread): accepts one connection, handshakes, reads the request headers to
-CRLFCRLF (and optionally its terminal chunk), writes RESPONSE-BYTES, and closes with close_notify."
-  (let ((lsock (make-instance 'sb-bsd-sockets:inet-socket :type :stream :protocol :tcp)))
+Returns (values port thread error-box): accepts one connection, handshakes, reads the request
+headers to CRLFCRLF (and optionally its terminal chunk), writes RESPONSE-BYTES, and normally
+closes with close_notify. OMIT-CLOSE-NOTIFY-P closes the flushed TCP stream directly so tests
+can distinguish HTTP message framing from authenticated EOF. Server conditions are retained
+in ERROR-BOX instead of being silently discarded."
+  (let ((lsock (make-instance 'sb-bsd-sockets:inet-socket :type :stream :protocol :tcp))
+        (server-error (or error-box (list nil))))
     (setf (sb-bsd-sockets:sockopt-reuse-address lsock) t)
     (sb-bsd-sockets:socket-bind lsock (sb-bsd-sockets:make-inet-address "127.0.0.1") 0)
     (sb-bsd-sockets:socket-listen lsock 5)
@@ -78,17 +83,24 @@ CRLFCRLF (and optionally its terminal chunk), writes RESPONSE-BYTES, and closes 
                          (write-sequence response-bytes tls :start split-at))
                        (write-sequence response-bytes tls))
                    (force-output tls)
-                   (close tls))
-               (error () nil))
+                   (if omit-close-notify-p
+                       (close raw)
+                       (close tls)))
+               (error (condition)
+                 (setf (car server-error) condition)))
           (ignore-errors (sb-bsd-sockets:socket-close lsock))))
-      :name "https-fixture"))))
+      :name "https-fixture")
+     server-error)))
 
 (defun %http-response-bytes (status body &optional (content-type "application/json")
-                                         &key (connection "close"))
+                                         &key (connection "close")
+                                              (content-length (length body))
+                                              (include-content-length-p t))
   (let ((hdr (with-output-to-string (s)
                (format s "HTTP/1.1 ~d OK~c~c" status #\Return #\Newline)
                (format s "Content-Type: ~a~c~c" content-type #\Return #\Newline)
-               (format s "Content-Length: ~d~c~c" (length body) #\Return #\Newline)
+               (when include-content-length-p
+                 (format s "Content-Length: ~d~c~c" content-length #\Return #\Newline))
                (format s "Connection: ~a~c~c" connection #\Return #\Newline)
                (format s "~c~c" #\Return #\Newline))))
     (concatenate '(vector (unsigned-byte 8))
@@ -349,24 +361,100 @@ Returns (values port thread stop-box accepted-count request-count)."
   ;; ON it correctly FAILS CLOSED on a missing peer cert, which would make this test flaky).
   ;; Certificate verification is covered deterministically by the verify-function matrix below
   ;; + the end-to-end live smoke (STATE.md).
-  ;; Retry a few times: Darwin shared runners occasionally close the pure-tls fixture race.
-  (let ((ok nil) (last-err nil))
-    (dotimes (attempt 3)
-      (when ok (return))
-      (multiple-value-bind (fport thread)
-          (%https-fixture-server (%cert "localhost-leaf.crt") (%cert "localhost-leaf.key")
-                                 (%http-response-bytes 200 "{\"tls\":\"ok\",\"n\":7}"))
-        (unwind-protect
-             (handler-case
-                 (let ((resp (net:https-request :host "localhost" :port fport :method "GET" :path "/"
-                                                :verify nil)))
-                   (is = 200 (net:hres-status resp))
-                   (true (search "\"tls\":\"ok\"" (sb-ext:octets-to-string (net:hres-body resp)
-                                                                           :external-format :utf-8)))
-                   (setf ok t))
-               (error (e) (setf last-err e)))
-          (ignore-errors (sb-thread:join-thread thread :timeout 5)))))
-    (true ok (format nil "https-transport failed after retries: ~a" last-err))))
+  (let ((server-error (list nil))
+        (client-error nil)
+        (request-capture
+          (make-array 256 :element-type '(unsigned-byte 8)
+                          :adjustable t :fill-pointer 0))
+        (resp nil))
+    (multiple-value-bind (fport thread)
+        (%https-fixture-server (%cert "localhost-leaf.crt") (%cert "localhost-leaf.key")
+                               (%http-response-bytes 200 "{\"tls\":\"ok\",\"n\":7}")
+                               :error-box server-error
+                               :request-capture request-capture)
+      (unwind-protect
+           (handler-case
+               (setf resp
+                     (net:https-request :host "localhost" :port fport
+                                        :method "GET" :path "/" :verify nil))
+             (error (condition) (setf client-error condition)))
+        (ignore-errors (sb-thread:join-thread thread :timeout 5))))
+    (false (car server-error)
+           (format nil "HTTPS fixture server failed: ~a" (car server-error)))
+    (false client-error
+           (format nil "blocking HTTPS transport failed: ~a" client-error))
+    (when resp
+      (is = 200 (net:hres-status resp))
+      (true (search "\"tls\":\"ok\""
+                    (sb-ext:octets-to-string (net:hres-body resp)
+                                              :external-format :utf-8)))
+      (true (search "Accept-Encoding: gzip"
+                    (sb-ext:octets-to-string request-capture
+                                              :external-format :latin-1))
+            "blocking HTTPS preserves its gzip negotiation default"))))
+
+(define-test net/https-blocking-framed-response-does-not-require-close-notify
+  ;; Content-Length authenticates the application message boundary. A transport
+  ;; close after those bytes cannot truncate the response and must not make the
+  ;; blocking compatibility API wait for TLS EOF.
+  (let ((server-error (list nil)))
+    (multiple-value-bind (fport thread)
+        (%https-fixture-server
+         (%cert "localhost-leaf.crt") (%cert "localhost-leaf.key")
+         (%http-response-bytes 200 "framed" "text/plain")
+         :omit-close-notify-p t :error-box server-error)
+      (unwind-protect
+           (let ((resp (net:https-request :host "localhost" :port fport
+                                          :method "GET" :path "/framed"
+                                          :verify nil)))
+             (is = 200 (net:hres-status resp))
+             (is string= "framed"
+                 (sb-ext:octets-to-string (net:hres-body resp)
+                                           :external-format :utf-8)))
+        (ignore-errors (sb-thread:join-thread thread :timeout 5))))
+    (false (car server-error)
+           (format nil "HTTPS fixture server failed: ~a" (car server-error)))))
+
+(define-test net/https-blocking-truncated-framing-fails-closed
+  ;; The same abrupt transport close remains fatal when Content-Length has not
+  ;; been satisfied; authenticated partial bytes are never accepted as a body.
+  (let ((server-error (list nil))
+        (client-error nil))
+    (multiple-value-bind (fport thread)
+        (%https-fixture-server
+         (%cert "localhost-leaf.crt") (%cert "localhost-leaf.key")
+         (%http-response-bytes 200 "short" "text/plain" :content-length 9)
+         :omit-close-notify-p t :error-box server-error)
+      (unwind-protect
+           (handler-case
+               (net:https-request :host "localhost" :port fport
+                                  :method "GET" :path "/truncated" :verify nil)
+             (error (condition) (setf client-error condition)))
+        (ignore-errors (sb-thread:join-thread thread :timeout 5))))
+    (false (car server-error)
+           (format nil "HTTPS fixture server failed: ~a" (car server-error)))
+    (true client-error "truncated Content-Length response must fail closed")))
+
+(define-test net/https-blocking-until-close-requires-close-notify
+  ;; Without HTTP message framing, only authenticated TLS EOF proves the body
+  ;; complete. A bare TCP EOF remains a possible truncation and must be rejected.
+  (let ((server-error (list nil))
+        (client-error nil))
+    (multiple-value-bind (fport thread)
+        (%https-fixture-server
+         (%cert "localhost-leaf.crt") (%cert "localhost-leaf.key")
+         (%http-response-bytes 200 "until-close" "text/plain"
+                               :include-content-length-p nil)
+         :omit-close-notify-p t :error-box server-error)
+      (unwind-protect
+           (handler-case
+               (net:https-request :host "localhost" :port fport
+                                  :method "GET" :path "/until-close" :verify nil)
+             (error (condition) (setf client-error condition)))
+        (ignore-errors (sb-thread:join-thread thread :timeout 5))))
+    (false (car server-error)
+           (format nil "HTTPS fixture server failed: ~a" (car server-error)))
+    (true client-error "until-close response without close_notify must fail closed")))
 
 (define-test net/https-transport-streams-authenticated-response
   (multiple-value-bind (fport thread)

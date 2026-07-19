@@ -110,6 +110,32 @@
                  "pkg-b builds before pkg-a"))
       (ignore-errors (clun.sys:remove-recursive root)))))
 
+(define-test workspace/relative-link-through-symlinked-ancestor
+  "Workspace links remain live when the install root contains a symlinked path
+  component whose canonical target has a different depth (Darwin /tmp ->
+  /private/tmp is the production case)."
+  (let* ((container (clun.sys:make-temp-dir "/tmp/clun-ws-alias-"))
+         (physical-root (clun.sys:path-join container "physical" "root"))
+         (alias-root (clun.sys:path-join container "alias"))
+         (source (clun.sys:path-join physical-root "packages" "pkg-a"))
+         (link-parent (clun.sys:path-join alias-root "node_modules"))
+         (destination (clun.sys:path-join link-parent "pkg-a")))
+    (unwind-protect
+         (progn
+           (clun.sys:make-directory source :recursive t :mode #o755)
+           (clun.sys:make-symlink physical-root alias-root)
+           (clun.sys:make-directory link-parent :recursive t :mode #o755)
+           (let ((target (inst::%relative-symlink-target destination source)))
+             (false (clun.sys:absolute-path-p target)
+                    "workspace link stays relocatable")
+             (clun.sys:make-symlink target destination))
+           (true (clun.sys:path-exists-p destination)
+                 "relative workspace link follows through the canonical parent")
+           (true (clun.sys:directory-p destination))
+           (is string= (clun.sys:realpath source)
+               (clun.sys:realpath destination)))
+      (ignore-errors (clun.sys:remove-recursive container)))))
+
 (defun %ws-install (dir &key filters)
   "Hermetic monorepo install against the fixture registry. Returns (values result err).
    Uses a worker pool so HTTPS catalog fetches (left-pad) can complete on Darwin."

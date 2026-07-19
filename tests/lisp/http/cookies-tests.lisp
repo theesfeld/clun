@@ -51,14 +51,71 @@
           do (setf result (funcall thunk)))
     (values (floor (- (sys:bytes-consed) before) iterations) result)))
 
-(defun cookie-map-median-parse-nanoseconds (header &key (samples 7) (iterations 16))
-  (let ((measurements '()))
-    (loop repeat samples
-          do (let ((start (sys:monotonic-nanoseconds)))
-               (loop repeat iterations
-                     do (cookies:make-cookie-map-state-from-header header))
-               (push (- (sys:monotonic-nanoseconds) start) measurements)))
-    (nth (floor samples 2) (sort measurements #'<))))
+(defparameter +cookie-map-timing-orders+
+  #((0 1 2) (1 2 0) (2 0 1))
+  "Cyclic N/2N/4N orders. Across each three trials every size runs once in each position.")
+
+(defun cookie-map-median (values)
+  "Return the median of odd, non-empty VALUES without modifying the caller's list."
+  (unless (and values (oddp (length values)))
+    (error "CookieMap timing medians require an odd, non-empty sample"))
+  (let ((sorted (sort (copy-list values) #'<)))
+    (nth (floor (length sorted) 2) sorted)))
+
+(defun cookie-map-rotated-scale-order (trial)
+  "Return a fresh cyclic measurement order for zero-based TRIAL."
+  (copy-list
+   (aref +cookie-map-timing-orders+
+         (mod trial (length +cookie-map-timing-orders+)))))
+
+(defun cookie-map-growth-ratios (trials)
+  "Return median paired N->2N and 2N->4N ratios from (N 2N 4N) TRIALS."
+  (let ((n-to-2n '())
+        (twice-to-4n '()))
+    (dolist (trial trials)
+      (destructuring-bind (time-n time-2n time-4n) trial
+        (unless (every #'plusp trial)
+          (error "CookieMap timing trials must contain positive durations"))
+        (push (/ (float time-2n 1d0) time-n) n-to-2n)
+        (push (/ (float time-4n 1d0) time-2n) twice-to-4n)))
+    (values (cookie-map-median n-to-2n)
+            (cookie-map-median twice-to-4n))))
+
+(defun cookie-map-timing-linear-p (trials &key (bound 3.25d0))
+  "Whether the median paired growth ratios in TRIALS are both below BOUND."
+  (multiple-value-bind (n-to-2n twice-to-4n)
+      (cookie-map-growth-ratios trials)
+    (values (and (< n-to-2n bound) (< twice-to-4n bound))
+            n-to-2n twice-to-4n)))
+
+(defun cookie-map-parse-nanoseconds (header &key (iterations 16))
+  (let ((start (sys:monotonic-nanoseconds)))
+    (loop repeat iterations
+          do (cookies:make-cookie-map-state-from-header header))
+    (- (sys:monotonic-nanoseconds) start)))
+
+(defun cookie-map-paired-timing-trials
+    (headers &key (trials 9) (iterations 16))
+  "Measure HEADERS as paired N/2N/4N trials in rotating order.
+
+Each trial yields (N 2N 4N) regardless of measurement order. A full GC occurs
+between trials, outside the timed regions; rotating the order distributes any
+post-GC and within-trial drift equally across all three sizes."
+  (unless (= (length headers) 3)
+    (error "CookieMap timing requires exactly N, 2N, and 4N headers"))
+  (unless (and (plusp trials) (oddp trials) (zerop (mod trials 3)))
+    (error "CookieMap timing trials must be an odd positive multiple of three"))
+  (loop for trial below trials
+        for order = (cookie-map-rotated-scale-order trial)
+        collect
+        (progn
+          (sb-ext:gc :full t)
+          (let ((measurements (make-array 3 :initial-element 0)))
+            (dolist (index order)
+              (setf (aref measurements index)
+                    (cookie-map-parse-nanoseconds
+                     (nth index headers) :iterations iterations)))
+            (coerce measurements 'list)))))
 
 (define-test cookie-core)
 
@@ -705,16 +762,78 @@
                (cookies::cookie-map-state-originals four-times-state)))
           (true (< four-times-bytes (* 2.75d0 twice-bytes))
                 "2N to 4N direct allocation remains linear"))))
-    (cookies:make-cookie-map-state-from-header header-n)
-    (cookies:make-cookie-map-state-from-header header-2n)
-    (cookies:make-cookie-map-state-from-header header-4n)
-    (let ((time-n (cookie-map-median-parse-nanoseconds header-n))
-          (time-2n (cookie-map-median-parse-nanoseconds header-2n))
-          (time-4n (cookie-map-median-parse-nanoseconds header-4n)))
-      (format t "~&CookieMap median timing (ns): N=~d 2N=~d 4N=~d~%"
-              time-n time-2n time-4n)
-      (true (plusp time-n))
-      (true (< time-2n (* 3.25d0 time-n))
-            "N to 2N median warmed elapsed time remains linear")
-      (true (< time-4n (* 3.25d0 time-2n))
-            "2N to 4N median warmed elapsed time remains linear"))))
+    ;; CI/release shared runners explicitly exclude timing gates from `make
+    ;; test`; Compatibility runs this same resource test without the opt-out as
+    ;; a dedicated four-target job.  Keep functional and allocation bounds in
+    ;; both paths, and skip only scheduler-sensitive wall-clock ratios here.
+    (unless (string= (or (sys:getenv "CLUN_SKIP_PERFORMANCE_TESTS") "") "1")
+      (cookies:make-cookie-map-state-from-header header-n)
+      (cookies:make-cookie-map-state-from-header header-2n)
+      (cookies:make-cookie-map-state-from-header header-4n)
+      (let ((trials
+              (cookie-map-paired-timing-trials
+               (list header-n header-2n header-4n))))
+        (multiple-value-bind (linear-p n-to-2n twice-to-4n)
+            (cookie-map-timing-linear-p trials :bound 3.25d0)
+          (format t "~&CookieMap median paired timing ratios: N->2N=~,3f 2N->4N=~,3f (~d trials)~%"
+                  n-to-2n twice-to-4n (length trials))
+          (true (every (lambda (trial) (every #'plusp trial)) trials)
+                "all paired timing durations are positive")
+          (true (< n-to-2n 3.25d0)
+                "N to 2N median paired elapsed-time ratio remains linear")
+          (true (< twice-to-4n 3.25d0)
+                "2N to 4N median paired elapsed-time ratio remains linear")
+          (true linear-p "both paired elapsed-time ratios remain linear"))))))
+
+(define-test cookie-core-map-paired-timing-classification
+  :parent cookie-core
+  (let ((positions (make-array '(3 3) :initial-element 0)))
+    (dotimes (trial 9)
+      (loop for scale in (cookie-map-rotated-scale-order trial)
+            for position from 0
+            do (incf (aref positions scale position))))
+    (dotimes (scale 3)
+      (dotimes (position 3)
+        (is = 3 (aref positions scale position)))))
+  ;; A single scheduler interruption may poison one paired trial, but cannot
+  ;; move either median. This is the noise pattern seen on shared Darwin x64.
+  (let ((one-outlier
+          '((100 200 400)
+            (110 220 440)
+            (90 180 360)
+            (105 210 420)
+            (100 10000 20000)
+            (120 240 480)
+            (95 190 380)
+            (115 230 460)
+            (125 250 500))))
+    (multiple-value-bind (linear-p n-to-2n twice-to-4n)
+        (cookie-map-timing-linear-p one-outlier :bound 3.25d0)
+      (true linear-p "one isolated timing outlier is tolerated")
+      (is = 2d0 n-to-2n)
+      (is = 2d0 twice-to-4n)))
+  ;; The same median rejects a sustained regression: five of nine trials are
+  ;; independently superlinear, so neither pair can hide behind good runs.
+  (let ((majority-superlinear
+          '((100 400 1600)
+            (110 440 1760)
+            (90 360 1440)
+            (105 420 1680)
+            (95 380 1520)
+            (100 200 400)
+            (120 240 480)
+            (115 230 460)
+            (125 250 500))))
+    (multiple-value-bind (linear-p n-to-2n twice-to-4n)
+        (cookie-map-timing-linear-p majority-superlinear :bound 3.25d0)
+      (false linear-p "a majority of superlinear trials fails the gate")
+      (is = 4d0 n-to-2n)
+      (is = 4d0 twice-to-4n)))
+  (true (cookie-map-timing-linear-p
+         (make-list 9 :initial-element '(4000 12999 42233))
+         :bound 3.25d0)
+        "ratios just below 3.25 remain accepted")
+  (false (cookie-map-timing-linear-p
+          (make-list 9 :initial-element '(4 13 169/4))
+          :bound 3.25d0)
+         "the strict 3.25 boundary remains rejected"))
