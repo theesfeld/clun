@@ -26,6 +26,8 @@
           (cond
             ((member tok '("-v" "--version" "version") :test #'string=) (next) (setf action :version))
             ((string= tok "--revision") (next) (setf action :revision))
+            ((member tok '("--update") :test #'string=) (next) (setf action :update))
+            ((member tok '("--check-update") :test #'string=) (next) (setf action :check-update))
             ((member tok '("-h" "--help" "help") :test #'string=) (next) (setf action :help))
             ((member tok '("-e" "--eval") :test #'string=)
              (next) (setf action :eval code (need tok) args toks toks nil))
@@ -44,16 +46,22 @@
             ;; first positional stops flag parsing
             (t
              (next)
-             (if (member tok '("run" "test" "install" "add" "remove" "exec"
+             (cond
+               ((member tok '("update") :test #'string=)
+                (setf action :update))
+               ((member tok '("check-update") :test #'string=)
+                (setf action :check-update))
+               ((member tok '("run" "test" "install" "add" "remove" "exec"
                               "build" "compile" "fmt" "format" "lint" "x" "create" "init" "tsc" "typecheck")
-                         :test #'string=)
-                 (progn (setf subcommand tok action :run)
-                        ;; tsc/typecheck take zero or more path args (not a single file slot)
-                        (if (member tok '("tsc" "typecheck") :test #'string=)
-                            (progn (setf file nil args toks))
-                            (progn (setf file (next))
-                                   (setf args toks))))
-                 (progn (setf action :run file tok args toks)))
+                        :test #'string=)
+                (setf subcommand tok action :run)
+                ;; tsc/typecheck take zero or more path args (not a single file slot)
+                (if (member tok '("tsc" "typecheck") :test #'string=)
+                    (progn (setf file nil args toks))
+                    (progn (setf file (next))
+                           (setf args toks))))
+               (t
+                (setf action :run file tok args toks)))
              (setf toks nil))))))
     (cond
       (err (list :action :error :error-msg err))

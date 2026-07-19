@@ -347,7 +347,8 @@
                              (:module "cli"
                               :serial t
                               :components ((:file "dotenv")
-                                           (:file "args")))
+                                           (:file "args")
+                                           (:file "update")))
                              (:file "main")))))
 
 (defsystem "clun/tests"
