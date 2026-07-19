@@ -3393,3 +3393,15 @@ notice, reproducible build-id. Coexists with bundler `Clun.build` (#180): compil
 to SFE; default remains production bundle. Ledger Yes, gap `-`, four-target supported.
 Slot `0.1.0-dev.57` after master frontend-dev Yes `0.1.0-dev.56`.
 Refs: #181, #177
+
+## 2026-07-19 — language.typescript full port Yes (#192)
+
+Pure-CL TypeScript surface closes FULL PORT residual from honesty scrub: erasable
+strip plus enums, namespaces, parameter properties, experimental decorators
+(`__decorate`/`__param`), `import =` / `export =`, angle-bracket casts, `.tsx`
+(JSX lower then type strip), and structural typecheck via `clun tsc` (exceeds Bun,
+which has no typecheck). Soft Yes banned; gap empty. SemVer `0.1.0-dev.59` minor
+(slot after SFE `0.1.0-dev.57`; leave `0.1.0-dev.58` for webstd #210).
+Parent epic #177; supersedes soft-out Partial after #133 transforms.
+
+Refs: #192, #177, #133

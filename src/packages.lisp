@@ -540,10 +540,12 @@
 (defpackage :clun.transpiler
   (:use :cl)
   (:local-nicknames (:eng :clun.engine) (:sys :clun.sys))
-  (:documentation "TypeScript type-stripping and JSX/TSX transform (shares the engine lexer).")
+  (:documentation "TypeScript strip/transform, JSX/TSX, and structural typecheck.")
   (:export #:strip-types #:unsupported-ts-syntax #:uts-message #:uts-line #:uts-col
            #:uts-path #:ts-source-p #:tsx-path-p #:jsx-path-p
-           #:transform-jsx #:transform-jsx-file #:jsx-config #:make-jsx-config))
+           #:transform-jsx #:transform-jsx-file #:jsx-config #:make-jsx-config
+           #:typecheck-source #:typecheck-file #:typecheck-paths
+           #:ts-diag #:tsd-message #:tsd-line #:tsd-col #:tsd-path #:format-diag))
 
 (defpackage :clun.test-runner
   (:use :cl)

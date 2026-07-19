@@ -28,22 +28,13 @@
 
 (defun tokenize (source path)
   "Tokenize SOURCE into a vector, resolving regex-vs-divide and template `${}` exactly
-as the parser would. A stray `@` (decorator) becomes an unsupported-ts-syntax error."
+as the parser would. `@` is a punctuator (experimental decorators)."
+  (declare (ignore path))
   (let ((lx (eng:make-lexer source))
         (toks (make-array 128 :adjustable t :fill-pointer 0))
         (prev nil) (tmpl-stack '()))
     (loop
-      (let ((tok (handler-case (eng:next-token lx)
-                   ;; the lexer lex-errors on `@` (decorators) → the documented TS
-                   ;; error at that position. Catch ANY error (the lexer's error path
-                   ;; can surface as a raw Lisp error when *realm* is unbound).
-                   (error (e)
-                     (let ((pos (eng:lexer-pos lx)))
-                       (if (and (< pos (length source)) (char= (char source pos) #\@))
-                           (error 'unsupported-ts-syntax :path path
-                                  :message "TypeScript experimental decorators are not currently supported"
-                                  :line 1 :col (1+ pos))
-                           (error e)))))))
+      (let ((tok (eng:next-token lx)))
         (when (and (eq (eng:token-type tok) :punct)
                    (member (eng:token-value tok) '("/" "/=") :test #'string=)
                    (prev-allows-regex-p prev))
@@ -74,7 +65,16 @@ as the parser would. A stray `@` (decorator) becomes an unsupported-ts-syntax er
   ;; when non-nil, rewrite free identifiers that match these names to NS.name
   ;; inside a runtime namespace body emit pass.
   (ns-exports nil)
-  (ns-name nil))
+  (ns-name nil)
+  ;; experimental decorator rewrite state
+  (need-decorate-helper nil)
+  ;; pending class-level decorator expressions (strings), outer-first order
+  (class-decs nil)
+  ;; member decorate plans: list of (:method|:property name static-p decs param-decs)
+  (member-decs nil)
+  ;; param decorator pairs (index . expr) for the in-progress constructor/method
+  (param-decs nil)
+  (param-index 0))
 
 (defun w-cur (w) (tk (w-toks w) (w-i w)))
 (defun w-cty (w) (ttype (w-toks w) (w-i w)))
@@ -130,6 +130,7 @@ as the parser would. A stray `@` (decorator) becomes an unsupported-ts-syntax er
 (defun w-skip-balanced (w open close)
   "Advance from an OPEN punct (current) past its matching CLOSE, walking inner code
 with scan-token so inline type syntax inside is still stripped."
+  (declare (ignore open))
   (w-adv w)                                   ; consume OPEN
   (loop until (or (w-eof w) (w-punct w close))
         do (scan-token w))
@@ -256,9 +257,10 @@ as/satisfies, non-null !), recursing into brackets. Advances the cursor."
       ((and (eq ty :punct) (string= v "<") (w-type-args-p w))
        (let ((start (w-i w)) (end (skip-type (w-toks w) (w-i w))))
          (w-erase-toks w start end) (setf (w-i w) end)))
-      ;; angle-bracket cast `<T>expr` (only `as` is erasable — amaro parity → error)
+      ;; angle-bracket cast `<T>expr` — erasable (Bun/tsc emit drops the cast)
       ((and (eq ty :punct) (string= v "<") (prev-allows-regex-p prev) (w-angle-cast-p w))
-       (w-err w "TypeScript type assertion using angle brackets is not supported; use `as`"))
+       (let ((start (w-i w)) (end (skip-type (w-toks w) (w-i w))))
+         (w-erase-toks w start end) (setf (w-i w) end)))
       ;; `as` / `satisfies` <type>
       ((and (eq ty :name) (not (eng:token-escaped (w-cur w)))
             (member v '("as" "satisfies") :test #'string=)
@@ -299,12 +301,21 @@ ARROW-RETURN, the type is an arrow's return type (a top-level `=>` ends it)."
 (defun scan-params (w &optional in-constructor)
   "Walk a `( … )` parameter list starting at `(`: erase per-param `?`/`: Type`.
 Constructor parameter properties (accessibility/readonly) erase the modifiers and
-record binding names on W for constructor-body `this.x=x` injection."
-  (setf (w-param-props w) nil)
+record binding names on W for constructor-body `this.x=x` injection.
+Parameter decorators (`@dec`) are recorded for experimental decorator emit."
+  (setf (w-param-props w) nil
+        (w-param-decs w) nil
+        (w-param-index w) 0)
   (w-adv w)                                    ; consume (
-  (let ((props '()))
+  (let ((props '())
+        (pidx 0))
     (loop until (or (w-eof w) (w-punct w ")"))
           do (cond
+               ((w-punct w "@")
+                ;; one or more param decorators for the next binding
+                (loop while (w-punct w "@")
+                      do (let ((expr (consume-decorator-expr w)))
+                           (push (cons pidx expr) (w-param-decs w)))))
                ((param-prop-mod-p w)
                 (if in-constructor
                     ;; erase all leading modifiers; capture the binding name.
@@ -327,12 +338,71 @@ record binding names on W for constructor-body `this.x=x` injection."
                     (progn (w-erase-1 w (w-i w)) (w-adv w))))
                ((w-maybe-optional w))
                ((w-maybe-annotation w))
-               ((w-punct w ",") (w-adv w))
+               ((w-punct w ",") (w-adv w) (incf pidx))
                (t (scan-token w))))
     (unless (w-eof w) (w-adv w))               ; consume )
     (when in-constructor
       (setf (w-param-props w) (nreverse props)))
+    (setf (w-param-decs w) (nreverse (w-param-decs w)))
     (w-param-props w)))
+
+;;; --- experimental decorators ------------------------------------------------
+
+(defun consume-decorator-expr (w)
+  "At `@`: erase the decorator and return its expression source text.
+Forms: @Name, @Name.Path, @Name(...), @(expr)."
+  (let ((at-i (w-i w)))
+    (unless (w-punct w "@")
+      (w-err w "expected @ decorator"))
+    (w-adv w)                                  ; @
+    (let ((expr-start-i (w-i w)))
+      (cond
+        ((w-punct w "(")
+         (w-skip-balanced w "(" ")"))
+        ((eq (w-cty w) :name)
+         (w-adv w)
+         (loop while (and (w-punct w ".")
+                          (let ((nx (w-at w 1)))
+                            (and nx (eq (eng:token-type nx) :name))))
+               do (w-adv w) (w-adv w))
+         (when (w-punct w "(")
+           (w-skip-balanced w "(" ")")))
+        (t (w-err w "TypeScript decorator requires an expression")))
+      (let* ((a (w-char-start w expr-start-i))
+             (b (w-char-end w (1- (w-i w))))
+             (text (subseq (w-src w) a b)))
+        (w-erase-toks w at-i (w-i w))
+        text))))
+
+(defun consume-decorator-list (w)
+  "Consume zero or more leading `@dec` forms; return expressions outer-first."
+  (let ((decs '()))
+    (loop while (w-punct w "@")
+          do (push (consume-decorator-expr w) decs))
+    (nreverse decs)))
+
+(defun flush-decorate-emits (w class-name class-end-pos)
+  "After a class body ends at CLASS-END-POS, emit __decorate calls for pending
+class/member decorators. Injects the helper once per file when needed."
+  (let ((class-decs (w-class-decs w))
+        (members (nreverse (w-member-decs w)))
+        (parts '()))
+    (setf (w-class-decs w) nil
+          (w-member-decs w) nil)
+    (dolist (m members)
+      (destructuring-bind (kind name static-p decs param-decs) m
+        (let ((all (append (emit-param-decorate-entries param-decs) decs)))
+          (when all
+            (push (emit-member-decorate class-name name all
+                                        :static-p static-p
+                                        :property-p (eq kind :property))
+                  parts)))))
+    (when class-decs
+      (push (emit-class-decorate class-name class-decs) parts))
+    (when parts
+      (setf (w-need-decorate-helper w) t)
+      (w-replace-span w class-end-pos class-end-pos
+                      (format nil "~{~a~}" (nreverse parts))))))
 
 (defun scan-after-params-return (w &optional arrow-return)
   "After a `)` param list, erase a `: ReturnType` if present."
@@ -363,37 +433,51 @@ A bodyless declaration (overload signature) is erased whole."
 
 ;;; --- classes ----------------------------------------------------------------
 
-(defun scan-class (w)
-  "class [Name] [<T>] [extends X] [implements I, J] { members }."
+(defun scan-class (w &optional leading-decs)
+  "class [Name] [<T>] [extends X] [implements I, J] { members }.
+LEADING-DECS are class-level experimental decorator expressions already consumed."
   (w-adv w)                                    ; consume `class`
-  (when (eq (w-cty w) :name) (w-adv w))        ; name
-  (w-maybe-type-params w)
-  (when (w-name w "extends")
-    (w-adv w)
-    ;; the superclass is a value expression, possibly with `<T>` type args (which
-    ;; w-type-args-p won't catch since a `{`/`implements` follows, not `(`) → erase them.
-    (loop until (or (w-eof w) (w-name w "implements") (w-punct w "{"))
-          do (if (w-punct w "<") (w-maybe-type-params w) (scan-token w))))
-  (when (w-name w "implements")
-    (let ((start (w-i w)))
+  (let ((class-name nil))
+    (when (eq (w-cty w) :name)
+      (setf class-name (w-cv w))
+      (w-adv w))                               ; name
+    (unless class-name
+      (when leading-decs
+        (w-err w "TypeScript class decorators require a named class")))
+    (setf (w-class-decs w) leading-decs
+          (w-member-decs w) nil)
+    (w-maybe-type-params w)
+    (when (w-name w "extends")
       (w-adv w)
-      (loop until (or (w-eof w) (w-punct w "{"))
-            do (setf (w-i w) (skip-type (w-toks w) (w-i w)))
-               (when (w-punct w ",") (w-adv w)))
-      (w-erase-toks w start (w-i w))))
-  (when (w-punct w "{") (scan-class-body w)))
+      ;; the superclass is a value expression, possibly with `<T>` type args (which
+      ;; w-type-args-p won't catch since a `{`/`implements` follows, not `(`) → erase them.
+      (loop until (or (w-eof w) (w-name w "implements") (w-punct w "{"))
+            do (if (w-punct w "<") (w-maybe-type-params w) (scan-token w))))
+    (when (w-name w "implements")
+      (let ((start (w-i w)))
+        (w-adv w)
+        (loop until (or (w-eof w) (w-punct w "{"))
+              do (setf (w-i w) (skip-type (w-toks w) (w-i w)))
+                 (when (w-punct w ",") (w-adv w)))
+        (w-erase-toks w start (w-i w))))
+    (when (w-punct w "{") (scan-class-body w class-name))
+    (when (and class-name (or (w-class-decs w) (w-member-decs w)))
+      (let ((end-pos (w-char-end w (1- (w-i w)))))
+        (flush-decorate-emits w class-name end-pos)))))
 
-(defun scan-class-body (w)
+(defun scan-class-body (w &optional class-name)
+  (declare (ignore class-name))
   (w-adv w)                                    ; consume {
   (loop until (or (w-eof w) (w-punct w "}"))
         do (scan-class-member w))
   (unless (w-eof w) (w-adv w)))                ; consume }
 
 (defun scan-class-member (w)
-  (let ((member-start (w-i w)))
-    (scan-class-member-1 w member-start)))
+  (let ((member-start (w-i w))
+        (member-decs (consume-decorator-list w)))
+    (scan-class-member-1 w member-start member-decs)))
 
-(defun scan-class-member-1 (w member-start)
+(defun scan-class-member-1 (w member-start &optional member-decs)
   ;; leading member modifiers (erase); `abstract` field/method; `readonly`, access.
   (loop while (and (eq (w-cty w) :name) (not (eng:token-escaped (w-cur w)))
                    (member (w-cv w) '("public" "private" "protected" "readonly"
@@ -417,8 +501,13 @@ A bodyless declaration (overload signature) is erased whole."
                         (let ((nx (w-at w 1)))
                           (and nx (or (eq (eng:token-type nx) :name)
                                       (and (eq (eng:token-type nx) :punct)
-                                           (member (eng:token-value nx) '("[" "*") :test #'string=))))))))
+                                           (member (eng:token-value nx) '("[" "*") :test #'string=))
+                                      (and (eq (eng:token-type nx) :punct)
+                                           (string= (eng:token-value nx) "@"))))))))
        (when static (w-adv w))
+       ;; decorators may also appear after `static`
+       (when (w-punct w "@")
+         (setf member-decs (append member-decs (consume-decorator-list w))))
        (when (or (w-name w "get") (w-name w "set") (w-name w "async"))
          ;; could be accessor/async method modifier OR a field literally named so;
          ;; consume only if a member name / [ follows
@@ -429,37 +518,59 @@ A bodyless declaration (overload signature) is erased whole."
              (w-adv w))))
        (when (w-punct w "*") (w-adv w))
        ;; member key
-       (cond ((w-punct w "[") (w-skip-balanced w "[" "]"))
-             ((not (w-eof w)) (w-adv w)))
-       ;; constructor?
-       (let ((ctor (and (not static)
-                        (let ((k (aref (w-toks w) (max 0 (1- (w-i w))))))
-                          (and (eq (eng:token-type k) :name) (string= (eng:token-value k) "constructor"))))))
-         (w-maybe-type-params w)
-         (w-maybe-optional w)                  ; name?  (optional member)
-         (when (w-punct w "!") (w-erase-1 w (w-i w)) (w-adv w))  ; definite-assign field
-         (cond
-           ((w-punct w "<") (w-maybe-type-params w)
-            (when (w-punct w "(") (scan-params w ctor) (scan-after-params-return w)))
-           ((w-punct w "(") (scan-params w ctor) (scan-after-params-return w))
-           (t (w-maybe-annotation w)))         ; a field type annotation
-         ;; method body / field initializer / signature
-         (cond ((w-punct w "{")
-                ;; inject parameter-property assignments at the start of a constructor body
-                (when (and ctor (w-param-props w))
-                  (let* ((brace-end (1+ (w-char-start w (w-i w))))
-                         (insert (emit-param-prop-assigns (w-param-props w))))
-                    (w-replace-span w brace-end brace-end insert)
-                    (setf (w-param-props w) nil)))
-                (scan-block w))
-               ((w-punct w "=") (w-adv w)
-                (loop until (or (w-eof w) (w-punct w ";") (w-cur-nl-terminates w))
-                      do (scan-token w))
-                (when (w-punct w ";") (w-adv w)))
-               ;; bodyless member (abstract method / overload signature / bare field
-               ;; annotation) → erase the WHOLE member so the class still parses.
-               (t (when (w-punct w ";") (w-adv w))
-                  (w-erase-toks w member-start (w-i w)))))))))
+       (let ((member-name nil))
+         (cond ((w-punct w "[") (w-skip-balanced w "[" "]"))
+               ((not (w-eof w))
+                (setf member-name (if (eq (w-cty w) :string)
+                                      (eng:token-value (w-cur w))
+                                      (w-cv w)))
+                (w-adv w)))
+         ;; constructor?
+         (let ((ctor (and (not static)
+                          member-name
+                          (string= member-name "constructor"))))
+           (w-maybe-type-params w)
+           (w-maybe-optional w)                  ; name?  (optional member)
+           (when (w-punct w "!") (w-erase-1 w (w-i w)) (w-adv w))  ; definite-assign field
+           (setf (w-param-decs w) nil)
+           (cond
+             ((w-punct w "<") (w-maybe-type-params w)
+              (when (w-punct w "(") (scan-params w ctor) (scan-after-params-return w)))
+             ((w-punct w "(") (scan-params w ctor) (scan-after-params-return w))
+             (t (w-maybe-annotation w)))         ; a field type annotation
+           (let ((param-decs (w-param-decs w)))
+             (cond ((w-punct w "{")
+                    ;; inject parameter-property assignments at the start of a constructor body
+                    (when (and ctor (w-param-props w))
+                      (let* ((brace-end (1+ (w-char-start w (w-i w))))
+                             (insert (emit-param-prop-assigns (w-param-props w))))
+                        (w-replace-span w brace-end brace-end insert)
+                        (setf (w-param-props w) nil)))
+                    (scan-block w)
+                    (when (and member-name (or member-decs param-decs) (not ctor))
+                      (push (list :method member-name static member-decs param-decs)
+                            (w-member-decs w)))
+                    (when (and ctor (or member-decs param-decs))
+                      ;; constructor param/method decorators attach at class level
+                      (setf (w-class-decs w)
+                            (append (w-class-decs w)
+                                    (emit-param-decorate-entries param-decs)
+                                    member-decs))))
+                   ((w-punct w "=") (w-adv w)
+                    (loop until (or (w-eof w) (w-punct w ";") (w-cur-nl-terminates w))
+                          do (scan-token w))
+                    (when (w-punct w ";") (w-adv w))
+                    (when (and member-name member-decs)
+                      (push (list :property member-name static member-decs nil)
+                            (w-member-decs w))))
+                   ;; bodyless member (abstract method / overload signature / bare field
+                   ;; annotation) → erase the WHOLE member so the class still parses,
+                   ;; unless experimental field decorators require keeping the name.
+                   (t (when (w-punct w ";") (w-adv w))
+                      (if (and member-name member-decs)
+                          (push (list :property member-name static member-decs nil)
+                                (w-member-decs w))
+                          (w-erase-toks w member-start (w-i w))))))))))))
 
 (defun w-cur-nl-terminates (w)
   "True if the current token began on a new line (crude ASI for field initializers)."
@@ -947,10 +1058,28 @@ declaration recurses through scan-statement."
             (let ((n2 (w-at w 2)))
               (and n2 (not (tname= (w-toks w) (+ (w-i w) 2) "from")))))
        (scan-to-stmt-end w) (w-erase-toks w start (w-i w)))
-      ;; import x = require(...)  → error
+      ;; import x = require(...) / import x = NS.Y → const x = …
       ((and (eq (ttype (w-toks w) (1+ (w-i w))) :name)
             (tpunct= (w-toks w) (+ (w-i w) 2) "="))
-       (w-err w "TypeScript import = is not supported in strip-only mode"))
+       (let* ((span-start (w-char-start w start))
+              (name (tval (w-toks w) (1+ (w-i w)))))
+         (setf (w-i w) (+ (w-i w) 3))          ; past import Name =
+         (let ((rhs-start (w-i w)))
+           (loop until (or (w-eof w) (w-punct w ";") (w-cur-nl-terminates w))
+                 do (scan-token w))
+           (let* ((rhs-end (w-i w))
+                  (rhs (if (< rhs-start rhs-end)
+                           (subseq (w-src w)
+                                   (w-char-start w rhs-start)
+                                   (w-char-end w (1- rhs-end)))
+                           "void 0"))
+                  (span-end (if (w-punct w ";")
+                                (progn (w-adv w) (w-char-end w (1- (w-i w))))
+                                (if (> rhs-end rhs-start)
+                                    (w-char-end w (1- rhs-end))
+                                    (w-char-end w start)))))
+             (w-replace-span w span-start span-end
+                             (emit-import-equals name (string-trim '(#\Space #\Tab #\Newline) rhs)))))))
       (t
        ;; ordinary import — but strip inline `{ type X }` specifiers
        (w-adv w)                               ; import
@@ -998,9 +1127,26 @@ declaration recurses through scan-statement."
                          (eq (eng:token-type n2) :name)))
              (progn (scan-to-stmt-end w) (w-erase-toks w start (w-i w)))
              (progn (w-adv w) (scan-statement w)))))
-      ;; export = foo → error
+      ;; export = foo → module.exports = foo
       ((tpunct= (w-toks w) (1+ (w-i w)) "=")
-       (w-err w "TypeScript export = is not supported in strip-only mode"))
+       (let ((span-start (w-char-start w start)))
+         (setf (w-i w) (+ (w-i w) 2))          ; past export =
+         (let ((rhs-start (w-i w)))
+           (loop until (or (w-eof w) (w-punct w ";") (w-cur-nl-terminates w))
+                 do (scan-token w))
+           (let* ((rhs-end (w-i w))
+                  (rhs (if (< rhs-start rhs-end)
+                           (subseq (w-src w)
+                                   (w-char-start w rhs-start)
+                                   (w-char-end w (1- rhs-end)))
+                           "void 0"))
+                  (span-end (if (w-punct w ";")
+                                (progn (w-adv w) (w-char-end w (1- (w-i w))))
+                                (if (> rhs-end rhs-start)
+                                    (w-char-end w (1- rhs-end))
+                                    (w-char-end w start)))))
+             (w-replace-span w span-start span-end
+                             (emit-export-equals (string-trim '(#\Space #\Tab #\Newline) rhs)))))))
       ((tname= (w-toks w) (1+ (w-i w)) "default")
        (w-adv w) (w-adv w) (scan-statement w))
       ;; export { … } possibly with inline type specifiers
@@ -1031,6 +1177,25 @@ depth 0 / EOF), without stripping."
     ((w-eof w) nil)
     ((w-punct w ";") (w-adv w))
     ((w-punct w "{") (scan-block w))            ; statement block
+    ;; experimental decorators leading a declaration
+    ((w-punct w "@")
+     (let ((decs (consume-decorator-list w)))
+       (cond
+         ((and (leader= w "export")
+               (or (tname= (w-toks w) (1+ (w-i w)) "class")
+                   (and (tname= (w-toks w) (1+ (w-i w)) "default")
+                        (tname= (w-toks w) (+ (w-i w) 2) "class"))
+                   (and (tname= (w-toks w) (1+ (w-i w)) "abstract")
+                        (tname= (w-toks w) (+ (w-i w) 2) "class"))))
+          (w-adv w)                            ; export
+          (when (w-name w "default") (w-adv w))
+          (when (and (leader= w "abstract") (tname= (w-toks w) (1+ (w-i w)) "class"))
+            (w-erase-1 w (w-i w)) (w-adv w))
+          (scan-class w decs))
+         ((and (leader= w "abstract") (tname= (w-toks w) (1+ (w-i w)) "class"))
+          (w-erase-1 w (w-i w)) (w-adv w) (scan-class w decs))
+         ((leader= w "class") (scan-class w decs))
+         (t (w-err w "TypeScript decorators are only supported on classes and class members")))))
     ;; control flow: header (paren, inline types stripped) + recursive bodies
     ((or (leader= w "if") (leader= w "while") (leader= w "switch"))
      (w-adv w) (w-skip-paren-header w) (scan-statement w))
@@ -1094,8 +1259,8 @@ depth 0 / EOF), without stripping."
      (scan-enum w))
     ;; `abstract class …` — only before `class` (not `abstract` as a value binding)
     ((and (leader= w "abstract") (tname= (w-toks w) (1+ (w-i w)) "class"))
-     (w-erase-1 w (w-i w)) (w-adv w) (scan-statement w))
-    ((leader= w "class") (scan-class w))
+     (w-erase-1 w (w-i w)) (w-adv w) (scan-class w nil))
+    ((leader= w "class") (scan-class w nil))
     ((leader= w "function") (scan-function w))
     ((and (leader= w "async") (tname= (w-toks w) (1+ (w-i w)) "function"))
      (let ((start (w-i w))) (w-adv w) (scan-function w start)))
@@ -1131,5 +1296,8 @@ Compatibility wrapper — prefers SCAN-TRANSFORMS for full rewrite plans."
 ERASURES are (start . end) char spans; REPLACEMENTS are (start end text) lists."
   (let ((w (make-walker :toks (tokenize source path) :src source :path path)))
     (scan-program w)
+    (when (w-need-decorate-helper w)
+      ;; inject __decorate/__param once at file start
+      (w-replace-span w 0 0 *decorate-helper-js*))
     (values (sort (w-erasures w) #'< :key #'car)
             (sort (w-replacements w) #'< :key #'first))))
