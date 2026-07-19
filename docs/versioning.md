@@ -65,6 +65,11 @@ resource does not exist with a 404 response:
 0.1.0-dev.33
 0.1.0-dev.34
 0.1.0-dev.35
+0.1.0-dev.36
+0.1.0-dev.37
+0.1.0-dev.38
+0.1.0-dev.39
+0.1.0-dev.40
 0.1.0-dev.30
 ```
 
@@ -296,3 +301,6 @@ Phase 74 archive/compression pure-CL APIs (#134) stages `0.1.0-dev.35` / `v0.1.0
 Phase 38 runtime.web-standard-apis Partial→Yes (#130) stages `0.1.0-dev.38` / `v0.1.0-dev.38` with Writable/Transform/BYOB streams, proxy object options, hermetic stress, and four-target supported receipts; SemVer impact is `minor`.
 
 Phase 75 Markdown + HTMLRewriter pure-CL (#135) stages `0.1.0-dev.39` / `v0.1.0-dev.39` without expanding the frozen 30-row summary ledger. SemVer impact is `minor`.
+
+Phase 39 language.typescript Partial→Yes (#133) stages `0.1.0-dev.40` / `v0.1.0-dev.40` with enum, runtime namespace, and parameter-property transforms plus four-target supported receipts.
+

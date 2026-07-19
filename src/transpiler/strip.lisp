@@ -15,22 +15,21 @@
     (and dot (string= (subseq path dot) ".tsx"))))
 
 (defun strip-types (source path)
-  "Erase TypeScript type syntax from SOURCE (for a .ts/.mts/.cts PATH), returning a
-JS string of identical length (line + column preserved). Signals
-unsupported-ts-syntax on non-erasable constructs; the loader maps it to a JS error."
+  "Transform TypeScript SOURCE (.ts/.mts/.cts) to executable JS:
+  - erasable type syntax → length-preserving whitespace when no runtime rewrite;
+  - enums, runtime namespaces, and constructor parameter properties → Bun/TS-shaped
+    emits (length may change; no full tsc typecheck, no sourcemaps yet).
+Signals unsupported-ts-syntax on remaining non-supported forms (decorators, .tsx,
+import/export =, angle casts)."
   (when (tsx-path-p path)
     (error 'unsupported-ts-syntax :message ".tsx is not supported" :path path))
-  (let ((erasures (scan-erasures source path)))
-    (render-erasures source erasures)))
+  (multiple-value-bind (erasures replacements) (scan-transforms source path)
+    (render-plan source erasures replacements)))
 
 (defun render-erasures (src erasures)
   "Copy SRC; space-fill each (start . end) erase span EXCEPT line terminators (so
 line and column of every surviving token are byte-identical to the original)."
-  (let ((out (copy-seq (coerce src 'simple-string))))
-    (dolist (span erasures out)
-      (loop for i from (car span) below (cdr span)
-            unless (eng:line-terminator-p (char-code (char out i)))
-              do (setf (char out i) #\Space)))))
+  (render-plan src erasures nil))
 
 ;;; Install the hook so the engine loader strips TS before parse-program. Mapping
 ;;; the transpiler condition to a JS SyntaxError happens here (line:col carried).

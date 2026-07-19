@@ -3345,3 +3345,14 @@ supported platforms, and ledger Yes. Stages `0.1.0-dev.38`.
 
 **Decision:** Ship pure-CL `Clun.markdown` + global `HTMLRewriter` under #135 without expanding `features.tsv` past 30 rows.
 **Consequences:** SemVer `minor` on `0.1.0-dev.39`; no matrix Yes claim; parent #49 keeps TOML/JSON5/JSONL.
+
+### 2026-07-18 — language.typescript Partial→Yes (#133)
+
+Bun-compatible TypeScript execution Yes bar without full tsc typecheck:
+
+- Erasable type stripping remains length-preserving for annotations.
+- Value/`const` enums, runtime namespaces/`module`, and constructor parameter
+  properties emit pure-CL runtime transforms (Bun-shaped).
+- Decorators, `import =` / `export =`, angle-cast, and `.tsx` still hard-error.
+- Four-target platforms.tsv `supported`; ledger `clun_state=Yes`.
+- Release train: `0.1.0-dev.40`.

@@ -66,7 +66,15 @@ as the parser would. A stray `@` (decorator) becomes an unsupported-ts-syntax er
 
 ;;; --- walker -----------------------------------------------------------------
 
-(defstruct (walker (:conc-name w-)) toks (i 0) src path (erasures '()))
+(defstruct (walker (:conc-name w-))
+  toks (i 0) src path (erasures '()) (replacements '())
+  ;; when non-nil, parameter-property names collected by the latest constructor
+  ;; param list (consumed when the constructor body `{` is entered).
+  (param-props nil)
+  ;; when non-nil, rewrite free identifiers that match these names to NS.name
+  ;; inside a runtime namespace body emit pass.
+  (ns-exports nil)
+  (ns-name nil))
 
 (defun w-cur (w) (tk (w-toks w) (w-i w)))
 (defun w-cty (w) (ttype (w-toks w) (w-i w)))
@@ -88,6 +96,25 @@ as the parser would. A stray `@` (decorator) becomes an unsupported-ts-syntax er
   (push (cons (eng:token-start (aref (w-toks w) idx))
               (eng:token-end (aref (w-toks w) idx)))
         (w-erasures w)))
+
+(defun w-replace-span (w start end text)
+  "Replace SOURCE [START, END) with TEXT in the rewrite plan (may change length)."
+  (push (list start end text) (w-replacements w)))
+
+(defun w-char-start (w idx)
+  (eng:token-start (aref (w-toks w) idx)))
+
+(defun w-char-end (w idx)
+  "End offset of token IDX (exclusive char index)."
+  (eng:token-end (aref (w-toks w) idx)))
+
+(defun w-prev-export-p (w start-idx)
+  "True if token before START-IDX is bare `export` (for export enum/namespace)."
+  (and (plusp start-idx)
+       (let ((prev (aref (w-toks w) (1- start-idx))))
+         (and (eq (eng:token-type prev) :name)
+              (not (eng:token-escaped prev))
+              (string= (eng:token-value prev) "export")))))
 
 (defun w-skip-type (w)
   "Erase a type starting at the current token; advance past it."
@@ -262,29 +289,50 @@ ARROW-RETURN, the type is an arrow's return type (a top-level `=>` ends it)."
                     (member (eng:token-value nx) '(":" "," ")" "}" "=" ";") :test #'string=))))
     (w-erase-1 w (w-i w)) (w-adv w) t))
 
-;;; --- parameter lists (params may carry ?, : Type, and param-properties err) --
+;;; --- parameter lists (params may carry ?, : Type, and param-properties) -----
+
+(defun param-prop-mod-p (w)
+  (and (eq (w-cty w) :name) (not (eng:token-escaped (w-cur w)))
+       (member (w-cv w) '("public" "private" "protected" "readonly" "override")
+               :test #'string=)))
 
 (defun scan-params (w &optional in-constructor)
-  "Walk a `( … )` parameter list starting at `(`: erase per-param `?`/`: Type`;
-a parameter property (accessibility/readonly modifier) errors in a constructor."
+  "Walk a `( … )` parameter list starting at `(`: erase per-param `?`/`: Type`.
+Constructor parameter properties (accessibility/readonly) erase the modifiers and
+record binding names on W for constructor-body `this.x=x` injection."
+  (setf (w-param-props w) nil)
   (w-adv w)                                    ; consume (
-  (loop until (or (w-eof w) (w-punct w ")"))
-        do (cond
-             ;; parameter property → hard error (in a constructor); elsewhere just a
-             ;; modifier that TS disallows — treat as error too (only ctors allow them)
-             ((and (member (w-cv w) '("public" "private" "protected" "readonly" "override")
-                           :test #'string=)
-                   (eq (w-cty w) :name) (not (eng:token-escaped (w-cur w))))
-              (if in-constructor
-                  (w-err w "TypeScript parameter property is not supported in strip-only mode")
-                  ;; a modifier on a non-constructor param is invalid TS; erase it so we
-                  ;; never emit `m(public x)` as JS (lenient — documented).
-                  (progn (w-erase-1 w (w-i w)) (w-adv w))))
-             ((w-maybe-optional w))
-             ((w-maybe-annotation w))
-             ((w-punct w ",") (w-adv w))
-             (t (scan-token w))))
-  (unless (w-eof w) (w-adv w)))                ; consume )
+  (let ((props '()))
+    (loop until (or (w-eof w) (w-punct w ")"))
+          do (cond
+               ((param-prop-mod-p w)
+                (if in-constructor
+                    ;; erase all leading modifiers; capture the binding name.
+                    (progn
+                      (loop while (param-prop-mod-p w)
+                            do (w-erase-1 w (w-i w)) (w-adv w))
+                      (when (w-punct w "...")
+                        (w-err w "TypeScript parameter property cannot be a rest element"))
+                      (when (and (eq (w-cty w) :name) (not (eng:token-escaped (w-cur w))))
+                        (push (w-cv w) props)
+                        (w-adv w))
+                      (w-maybe-optional w)
+                      (w-maybe-annotation w)
+                      ;; default value
+                      (when (w-punct w "=")
+                        (w-adv w)
+                        (loop until (or (w-eof w) (w-punct w ",") (w-punct w ")"))
+                              do (scan-token w))))
+                    ;; invalid outside constructor — erase modifiers leniently
+                    (progn (w-erase-1 w (w-i w)) (w-adv w))))
+               ((w-maybe-optional w))
+               ((w-maybe-annotation w))
+               ((w-punct w ",") (w-adv w))
+               (t (scan-token w))))
+    (unless (w-eof w) (w-adv w))               ; consume )
+    (when in-constructor
+      (setf (w-param-props w) (nreverse props)))
+    (w-param-props w)))
 
 (defun scan-after-params-return (w &optional arrow-return)
   "After a `)` param list, erase a `: ReturnType` if present."
@@ -396,7 +444,14 @@ A bodyless declaration (overload signature) is erased whole."
            ((w-punct w "(") (scan-params w ctor) (scan-after-params-return w))
            (t (w-maybe-annotation w)))         ; a field type annotation
          ;; method body / field initializer / signature
-         (cond ((w-punct w "{") (scan-block w))
+         (cond ((w-punct w "{")
+                ;; inject parameter-property assignments at the start of a constructor body
+                (when (and ctor (w-param-props w))
+                  (let* ((brace-end (1+ (w-char-start w (w-i w))))
+                         (insert (emit-param-prop-assigns (w-param-props w))))
+                    (w-replace-span w brace-end brace-end insert)
+                    (setf (w-param-props w) nil)))
+                (scan-block w))
                ((w-punct w "=") (w-adv w)
                 (loop until (or (w-eof w) (w-punct w ";") (w-cur-nl-terminates w))
                       do (scan-token w))
@@ -486,16 +541,377 @@ Bare `enum` is runtime (value object); `const enum` is already caught via `const
     (setf (w-i w) save)
     result))
 
+(defun parse-enum-init-tokens (w)
+  "Parse an enum member initializer into a token list for constant folding, plus
+source text. Leaves the walker at the terminator (`,`/`}`)."
+  (let ((start-i (w-i w))
+        (depth 0)
+        (tokens '()))
+    (loop until (or (w-eof w)
+                    (and (zerop depth) (or (w-punct w ",") (w-punct w "}"))))
+          do (cond
+               ((or (w-punct w "(") (w-punct w "[") (w-punct w "{"))
+                (incf depth) (w-adv w))
+               ((or (w-punct w ")") (w-punct w "]") (w-punct w "}"))
+                (when (plusp depth) (decf depth))
+                (w-adv w))
+               (t
+                (let ((ty (w-cty w)) (v (w-cv w)))
+                  (cond ((eq ty :num)
+                         (push (list :num (eng:token-value (w-cur w))) tokens))
+                        ((eq ty :string)
+                         (push (list :str (eng:token-value (w-cur w))) tokens))
+                        ((and (eq ty :name) (not (eng:token-escaped (w-cur w))))
+                         (push (list :id v) tokens))
+                        ((and (eq ty :punct) (member v '("+" "-" "*" "/") :test #'string=))
+                         (push (list :op v) tokens))
+                        (t (push (list :raw v) tokens)))
+                  (w-adv w)))))
+    (let* ((end-i (w-i w))
+           (src-text (if (< start-i end-i)
+                         (subseq (w-src w)
+                                 (w-char-start w start-i)
+                                 (w-char-end w (1- end-i)))
+                         ""))
+           (toks (nreverse tokens)))
+      ;; Prefer numeric token from the actual number token if simple
+      (list :expr toks src-text))))
+
+(defun parse-enum-members (w)
+  "At `{` of an enum body: parse members, advance past closing `}`. Returns list of
+(name-string init) where init is nil | (:num n) | (:str s) | (:expr tokens src)."
+  (w-adv w)                                    ; {
+  (let ((members '()))
+    (loop until (or (w-eof w) (w-punct w "}"))
+          do (cond
+               ((w-punct w ",") (w-adv w))
+               ((or (eq (w-cty w) :name) (eq (w-cty w) :string))
+                (let ((mname (if (eq (w-cty w) :string)
+                                 (eng:token-value (w-cur w))
+                                 (w-cv w))))
+                  (w-adv w)
+                  (let ((init nil))
+                    (when (w-punct w "=")
+                      (w-adv w)
+                      (let ((parsed (parse-enum-init-tokens w)))
+                        ;; simplify single num/str
+                        (let ((toks (cadr parsed)) (src (caddr parsed)))
+                          (setf init
+                                (cond ((and (= (length toks) 1) (eq (caar toks) :num))
+                                       (car toks))
+                                      ((and (= (length toks) 1) (eq (caar toks) :str))
+                                       (car toks))
+                                      (t (list :expr toks src)))))))
+                    (push (list mname init) members))))
+               (t (w-adv w))))                 ; progress guard
+    (unless (w-eof w) (w-adv w))               ; }
+    (nreverse members)))
+
+(defun scan-enum (w)
+  "Value `enum` / `const enum` → Bun/TS-shaped IIFE emit (const enums are also
+emitted as runtime objects — inlining is optional optimization)."
+  (let* ((start (w-i w))
+         (export-p (w-prev-export-p w start))
+         (span-start (if export-p
+                         (w-char-start w (1- start))
+                         (w-char-start w start))))
+    (when (and (leader= w "const") (tname= (w-toks w) (1+ (w-i w)) "enum"))
+      (w-adv w))                               ; const
+    (w-adv w)                                  ; enum
+    (unless (eq (w-cty w) :name)
+      (w-err w "TypeScript enum requires a name"))
+    (let ((name (w-cv w)))
+      (w-adv w)
+      (unless (w-punct w "{")
+        (w-err w "TypeScript enum requires a body"))
+      (let ((members (parse-enum-members w)))
+        (when (w-punct w ";") (w-adv w))
+        (let* ((span-end (w-char-end w (1- (w-i w))))
+               (js (emit-enum-js name members :export-p export-p)))
+          (w-replace-span w span-start span-end js))))))
+
+(defun ns-collect-exports (toks body-start body-end)
+  "Scan namespace body tokens [BODY-START, BODY-END) for exported value bindings."
+  (let ((names '()) (i body-start) (depth 0))
+    (loop while (< i body-end)
+          do (let ((tok (tk toks i)))
+               (cond
+                 ((null tok) (return))
+                 ((and (eq (eng:token-type tok) :punct)
+                       (string= (eng:token-value tok) "{"))
+                  (incf depth) (incf i))
+                 ((and (eq (eng:token-type tok) :punct)
+                       (string= (eng:token-value tok) "}"))
+                  (decf depth) (incf i))
+                 ((and (zerop depth) (tname= toks i "export"))
+                  (incf i)
+                  (cond
+                    ((or (tname= toks i "type") (tname= toks i "interface")
+                         (tname= toks i "declare"))
+                     (incf i))
+                    ((or (tname= toks i "const") (tname= toks i "let") (tname= toks i "var"))
+                     (incf i)
+                     (when (eq (ttype toks i) :name)
+                       (push (tval toks i) names) (incf i)))
+                    ((or (tname= toks i "function") (tname= toks i "class")
+                         (tname= toks i "enum") (tname= toks i "namespace")
+                         (tname= toks i "module"))
+                     (incf i)
+                     (when (eq (ttype toks i) :name)
+                       (push (tval toks i) names) (incf i)))
+                    ((and (tname= toks i "async") (tname= toks (1+ i) "function"))
+                     (incf i) (incf i)
+                     (when (eq (ttype toks i) :name)
+                       (push (tval toks i) names) (incf i)))
+                    ((and (tname= toks i "const") (tname= toks (1+ i) "enum"))
+                     (incf i) (incf i)
+                     (when (eq (ttype toks i) :name)
+                       (push (tval toks i) names) (incf i)))
+                    (t nil)))
+                 (t (incf i)))))
+    (nreverse names)))
+
+(defun ns-skip-balanced (toks i end open close)
+  "From index I at OPEN, return index past matching CLOSE (before END)."
+  (let ((d 0))
+    (loop while (< i end)
+          do (cond ((tpunct= toks i open) (incf d) (incf i))
+                   ((tpunct= toks i close)
+                    (decf d) (incf i) (when (zerop d) (return-from ns-skip-balanced i)))
+                   (t (incf i))))
+    i))
+
+(defun ns-skip-statement (toks i end)
+  "Advance I past one top-level statement (rough; respects braces/parens)."
+  (loop while (< i end)
+        do (cond ((tpunct= toks i "{")
+                  (setf i (ns-skip-balanced toks i end "{" "}")))
+                 ((tpunct= toks i "(")
+                  (setf i (ns-skip-balanced toks i end "(" ")")))
+                 ((tpunct= toks i "[")
+                  (setf i (ns-skip-balanced toks i end "[" "]")))
+                 ((tpunct= toks i ";")
+                  (return-from ns-skip-statement (1+ i)))
+                 (t (incf i))))
+  i)
+
+(defun ns-slice (src toks a b)
+  "Source text covering tokens [A, B)."
+  (if (>= a b)
+      ""
+      (subseq src
+              (eng:token-start (aref toks a))
+              (if (< b (length toks))
+                  (eng:token-start (aref toks b))
+                  (eng:token-end (aref toks (1- (length toks))))))))
+
+(defun ns-decl-keyword-p (tok)
+  "True if TOK is a keyword that introduces a binding name (do not rewrite the name)."
+  (and tok (eq (eng:token-type tok) :name) (not (eng:token-escaped tok))
+       (member (eng:token-value tok)
+               '("function" "class" "enum" "const" "let" "var" "namespace" "module"
+                 "async" "get" "set" "interface" "type")
+               :test #'string=)))
+
+(defun ns-rewrite-idents (src toks start end ns-name exports)
+  "Copy tokens [START, END) rewriting free EXPORTS identifiers to NS-NAME.id.
+Skips property access after `.` and binding names after declaration keywords."
+  (if (or (null exports) (>= start end))
+      (ns-slice src toks start end)
+      (with-output-to-string (o)
+        (let ((pos (eng:token-start (aref toks start))))
+          (loop for i from start below end
+                for tok = (aref toks i)
+                for prev = (and (> i start) (aref toks (1- i)))
+                do (let ((ts (eng:token-start tok))
+                         (te (eng:token-end tok)))
+                     (when (< pos ts) (write-string (subseq src pos ts) o))
+                     (if (and (eq (eng:token-type tok) :name)
+                              (not (eng:token-escaped tok))
+                              (member (eng:token-value tok) exports :test #'string=)
+                              (not (and prev (eq (eng:token-type prev) :punct)
+                                        (string= (eng:token-value prev) ".")))
+                              (not (ns-decl-keyword-p prev)))
+                         (format o "~a.~a" ns-name (eng:token-value tok))
+                         (write-string (subseq src ts te) o))
+                     (setf pos te)))
+          (let ((end-pos (if (< end (length toks))
+                             (eng:token-start (aref toks end))
+                             (eng:token-end (aref toks (1- (length toks)))))))
+            (when (< pos end-pos) (write-string (subseq src pos end-pos) o)))))))
+
+(defun ns-strip-fragment (text path)
+  "Strip/transform a synthetic JS/TS fragment; fall back to TEXT on error."
+  (handler-case (strip-types text (or path "ns-frag.ts"))
+    (error () text)))
+
+(defun transform-namespace-body (w body-lo body-hi ns-name exports)
+  "Build JS for a runtime namespace body: export decls become assignments on NS-NAME;
+free refs to exported names rewrite to NS-NAME.name; remaining types are stripped."
+  (let* ((src (w-src w))
+         (toks (w-toks w))
+         (end body-hi)
+         (i body-lo)
+         (out (make-string-output-stream)))
+    (loop while (< i end)
+          do (cond
+               ((tname= toks i "export")
+                (let ((ex i))
+                  (incf i)
+                  (cond
+                    ((or (tname= toks i "type") (tname= toks i "interface")
+                         (tname= toks i "declare"))
+                     (setf i (ns-skip-statement toks ex end)))
+                    ((or (tname= toks i "const") (tname= toks i "let") (tname= toks i "var"))
+                     (incf i)
+                     (if (eq (ttype toks i) :name)
+                         (let ((bname (tval toks i)))
+                           (incf i)
+                           (when (tpunct= toks i ":")
+                             (setf i (skip-type toks (1+ i))))
+                           (if (tpunct= toks i "=")
+                               (progn
+                                 (incf i)
+                                 (let ((init-start i)
+                                       (j i))
+                                   (loop while (< j end)
+                                         do (cond ((tpunct= toks j "{")
+                                                   (setf j (ns-skip-balanced toks j end "{" "}")))
+                                                  ((tpunct= toks j "(")
+                                                   (setf j (ns-skip-balanced toks j end "(" ")")))
+                                                  ((tpunct= toks j "[")
+                                                   (setf j (ns-skip-balanced toks j end "[" "]")))
+                                                  ((or (tpunct= toks j ",")
+                                                       (tpunct= toks j ";"))
+                                                   (return))
+                                                  (t (incf j))))
+                                   (format out "~a.~a=~a;"
+                                           ns-name bname
+                                           (ns-rewrite-idents src toks init-start j
+                                                              ns-name exports))
+                                   (setf i j)
+                                   (when (or (tpunct= toks i ";") (tpunct= toks i ","))
+                                     (incf i))))
+                               (progn
+                                 (format out "~a.~a=void 0;" ns-name bname)
+                                 (when (tpunct= toks i ";") (incf i)))))
+                         (setf i (ns-skip-statement toks ex end))))
+                    ((or (tname= toks i "function")
+                         (and (tname= toks i "async") (tname= toks (1+ i) "function")))
+                     (let ((fn-start i) (async-p (tname= toks i "async")))
+                       (declare (ignore async-p))
+                       (when (tname= toks i "async") (incf i))
+                       (incf i)
+                       (when (tpunct= toks i "*") (incf i))
+                       (let ((fname (and (eq (ttype toks i) :name) (tval toks i))))
+                         (when fname (incf i))
+                         (when (tpunct= toks i "<")
+                           (setf i (skip-type toks i)))
+                         (when (tpunct= toks i "(")
+                           (setf i (ns-skip-balanced toks i end "(" ")")))
+                         (when (tpunct= toks i ":")
+                           (setf i (skip-type toks (1+ i))))
+                         (when (tpunct= toks i "{")
+                           (setf i (ns-skip-balanced toks i end "{" "}")))
+                         (let* ((raw (ns-rewrite-idents src toks fn-start i ns-name exports))
+                                (stripped (ns-strip-fragment raw (w-path w))))
+                           (write-string stripped out)
+                           (unless (and (plusp (length stripped))
+                                        (find (char stripped (1- (length stripped)))
+                                              '(#\; #\} #\Newline)))
+                             (write-char #\; out))
+                           (when fname
+                             (format out "~a.~a=~a;" ns-name fname fname))))))
+                    ((or (tname= toks i "class")
+                         (and (tname= toks i "abstract") (tname= toks (1+ i) "class")))
+                     (let ((c-start i))
+                       (when (tname= toks i "abstract") (incf i))
+                       (incf i)
+                       (let ((cname (and (eq (ttype toks i) :name) (tval toks i))))
+                         (when cname (incf i))
+                         (loop while (and (< i end) (not (tpunct= toks i "{")))
+                               do (incf i))
+                         (when (tpunct= toks i "{")
+                           (setf i (ns-skip-balanced toks i end "{" "}")))
+                         (let* ((raw (ns-rewrite-idents src toks c-start i ns-name exports))
+                                (stripped (ns-strip-fragment raw (w-path w))))
+                           (write-string stripped out)
+                           (write-char #\; out)
+                           (when cname
+                             (format out "~a.~a=~a;" ns-name cname cname))))))
+                    ((or (tname= toks i "enum")
+                         (and (tname= toks i "const") (tname= toks (1+ i) "enum")))
+                     (let ((e-start i))
+                       (when (tname= toks i "const") (incf i))
+                       (incf i)
+                       (let ((ename (and (eq (ttype toks i) :name) (tval toks i))))
+                         (when ename (incf i))
+                         (when (tpunct= toks i "{")
+                           (setf i (ns-skip-balanced toks i end "{" "}")))
+                         (when (tpunct= toks i ";") (incf i))
+                         (let* ((raw (ns-slice src toks e-start i))
+                                (stripped (ns-strip-fragment raw (w-path w))))
+                           (write-string stripped out)
+                           (when ename
+                             (format out "~a.~a=~a;" ns-name ename ename))))))
+                    ((or (tname= toks i "namespace") (tname= toks i "module"))
+                     (let ((n-start i))
+                       (incf i)
+                       (let ((nname (and (member (ttype toks i) '(:name :string))
+                                         (tval toks i))))
+                         (when nname (incf i))
+                         (when (tpunct= toks i "{")
+                           (setf i (ns-skip-balanced toks i end "{" "}")))
+                         (let* ((raw (ns-slice src toks n-start i))
+                                (stripped (ns-strip-fragment raw (w-path w))))
+                           (write-string stripped out)
+                           (when nname
+                             (format out "~a.~a=~a;" ns-name nname nname))))))
+                    (t
+                     (let ((rest (ns-skip-statement toks i end)))
+                       (write-string (ns-rewrite-idents src toks i rest ns-name exports) out)
+                       (setf i rest))))))
+               (t
+                (let ((stmt-start i))
+                  (setf i (ns-skip-statement toks i end))
+                  (when (= i stmt-start) (incf i))
+                  (let* ((raw (ns-rewrite-idents src toks stmt-start i ns-name exports))
+                         (stripped (ns-strip-fragment raw (w-path w))))
+                    (write-string stripped out))))))
+    (get-output-stream-string out)))
+
 (defun scan-namespace (w &optional ambient)
-  "namespace/module N { … }: erase if type-only (or AMBIENT, i.e. under `declare`,
-where the body never emits runtime code), else error at the keyword."
-  (let* ((start (w-i w)) (kw (aref (w-toks w) start)))
+  "namespace/module N { … }: erase if type-only (or AMBIENT); else emit runtime IIFE."
+  (let* ((start (w-i w))
+         (export-p (w-prev-export-p w start))
+         (span-start (if export-p
+                         (w-char-start w (1- start))
+                         (w-char-start w start))))
     (w-adv w)                                  ; namespace/module
-    (loop until (or (w-eof w) (w-punct w "{")) do (w-adv w))
-    (if (and (w-punct w "{") (or ambient (namespace-type-only-p w)))
-        (progn (w-skip-balanced-nostrip w) (w-erase-toks w start (w-i w)))
-        (ts-error kw "TypeScript namespace declaration is not supported in strip-only mode"
-                  (w-path w)))))
+    (unless (member (w-cty w) '(:name :string))
+      (w-err w "TypeScript namespace requires a name"))
+    (let ((name (if (eq (w-cty w) :string)
+                    ;; string module name — rare; use a safe binder
+                    (format nil "M_~a" (w-i w))
+                    (w-cv w))))
+      (w-adv w)
+      (loop until (or (w-eof w) (w-punct w "{")) do (w-adv w))
+      (cond
+        ((not (w-punct w "{"))
+         (w-err w "TypeScript namespace requires a body"))
+        ((or ambient (namespace-type-only-p w))
+         (w-skip-balanced-nostrip w)
+         (w-erase-toks w (if export-p (1- start) start) (w-i w)))
+        (t
+         (let* ((brace-i (w-i w))
+                (body-lo (1+ brace-i)))
+           (w-skip-balanced-nostrip w)         ; leaves i past `}`
+           (let* ((body-hi (1- (w-i w)))       ; index of `}`
+                  (span-end (w-char-end w (1- (w-i w))))
+                  (exports (ns-collect-exports (w-toks w) body-lo body-hi))
+                  (body-js (transform-namespace-body w body-lo body-hi name exports))
+                  (js (emit-namespace-js name body-js :export-p export-p)))
+             (w-replace-span w span-start span-end js))))))))
 
 (defun scan-enum-ambient (w)
   "Advance past an ambient `enum` / `const enum` body. Caller (declare branch)
@@ -671,11 +1087,11 @@ depth 0 / EOF), without stripping."
     ((and (or (leader= w "namespace") (leader= w "module"))
           (member (ttype (w-toks w) (1+ (w-i w))) '(:name :string)))
      (scan-namespace w))
-    ;; Value `enum` / `const enum` need emit (Phase 39). Ambient forms under
-    ;; `declare` are handled by scan-namespace-or-stmt → scan-enum-ambient.
+    ;; Value `enum` / `const enum` → runtime IIFE emit (Phase 39 / Yes strip).
+    ;; Ambient forms under `declare` use scan-namespace-or-stmt → scan-enum-ambient.
     ((or (leader= w "enum")
          (and (leader= w "const") (tname= (w-toks w) (1+ (w-i w)) "enum")))
-     (w-err w "TypeScript enum is not supported in strip-only mode"))
+     (scan-enum w))
     ;; `abstract class …` — only before `class` (not `abstract` as a value binding)
     ((and (leader= w "abstract") (tname= (w-toks w) (1+ (w-i w)) "class"))
      (w-erase-1 w (w-i w)) (w-adv w) (scan-statement w))
@@ -706,7 +1122,14 @@ depth 0 / EOF), without stripping."
              (when (= (w-i w) before) (w-adv w)))))  ; progress guard
 
 (defun scan-erasures (source path)
-  "Tokenize SOURCE and return the ordered list of (start . end) char spans to erase."
+  "Tokenize SOURCE and return the ordered list of (start . end) char spans to erase.
+Compatibility wrapper — prefers SCAN-TRANSFORMS for full rewrite plans."
+  (nth-value 0 (scan-transforms source path)))
+
+(defun scan-transforms (source path)
+  "Tokenize SOURCE; return (values erasures replacements).
+ERASURES are (start . end) char spans; REPLACEMENTS are (start end text) lists."
   (let ((w (make-walker :toks (tokenize source path) :src source :path path)))
     (scan-program w)
-    (sort (w-erasures w) #'< :key #'car)))
+    (values (sort (w-erasures w) #'< :key #'car)
+            (sort (w-replacements w) #'< :key #'first))))

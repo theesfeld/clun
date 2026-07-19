@@ -7,42 +7,22 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **75 - Data formats, Markdown, and HTMLRewriter**  (#135)
+## Current phase: **39 - Full TypeScript transforms**  (Yes conversion #133)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/135
-**Parent phase issue:** https://github.com/theesfeld/clun/issues/49
-**Current implementation unit:** Phase 75 Markdown + HTMLRewriter pure-CL APIs (#135).
-Ships `Clun.markdown` (`html`/`render`/`ansi`; `react` fail-closed) and global `HTMLRewriter`
-(`on`/`onDocument`/`transform`) in pure Common Lisp. **30-feature honesty:** `compat/features.tsv`
-still has exactly 30 rows — Markdown/HTMLRewriter have no matrix row, so this unit does **not**
-claim a ledger `Yes` and does **not** invent a 31st feature ID (same constraint as archives #134).
-TOML/JSON5/JSONL and full streaming HTMLRewriter corpora remain open under #49.
+**Canonical issue:** https://github.com/theesfeld/clun/issues/133
+**Related residual:** https://github.com/theesfeld/clun/issues/13
+**Current implementation unit:** language.typescript Partial→Yes (#133) — erasable strip plus
+Bun-compatible enum / runtime-namespace / parameter-property transforms; no tsc typecheck.
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.39` / `v0.1.0-dev.39`
+**Candidate release:** `0.1.0-dev.40` / `v0.1.0-dev.40`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
-**Entry boundary:** installer on `v0.1.0-dev.21`; free slot after master tip `0.1.0-dev.38`.
-**Next scope:** remaining Phase 75 formats + four-target receipts under #49; parallel Yes trains continue.
+**Entry boundary:** installer on `v0.1.0-dev.21`; this unit stages `0.1.0-dev.40`.
+**Next scope:** remaining Partial→Yes fleet; decorators/tsx remain deferred.
 
+**Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue.
 
-**Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue, selected from
-easiest to hardest among dependency-ready rows. Core engine/runtime/network/tooling changes are expected.
-Every conversion requires a legitimate canonical issue, accepted design, full declared behavior, executable
-four-target evidence, synchronized public surfaces, and the correct SemVer transition. The active parallel
-queue is YAML, transport streaming, shell, test-runner parity, and the dependency-enabling modern ECMAScript
-wave; exact canonical ledger IDs are frozen in `PLAN.md`.
-
-**Current checkpoint:** the integrated YAML parser reports **402 pass / 0 fail / 402 total** and **408
-assertions** in the exact pinned corpus. Exact master CI **29560539473**, Documentation **29560539481**,
-Pages validation **29560539500**, and four-target Compatibility plus receipt aggregation **29560539518**
-pass at `7c7377780413b98da1396f5d8e5d84611cf6cca3`; annotated tag `v0.1.0-dev.16` peels to that commit and
-release run **29561031150** published the immutable four-platform archives plus checksums. Issue #5 is
-closed complete with exact asset digests. Phase 37 milestone 1 adds `Object.hasOwn`, array copy-by-change methods, String
-well-formedness, `Error.isError`, and `Promise.withResolvers`, producing 173 measured execution-pass gains;
-its frozen inventory still has 603 residual failures after m2 and no full ledger row is claimed. Parallel durable
-checkpoints include transport request streaming plus origin-keyed HTTP pooling and shell parser/runtime,
-guarded filesystem builtins, bounded `yes`, and isolated pipeline state. This unit advances the matrix to
-**9 Yes / 8 Partial / 13 No** by promoting `server.websocket` No → Partial (handshake/framing/echo only;
-no Pub/Sub Yes).
+**Current checkpoint:** `language.typescript` is **Yes** with enum/namespace/param-prop emit.
+Matrix Yes count advances one row over master tip.
 
 **M5 entry boundary:** immutable dev.4 diagnostic set **56 total / 0 pass / 56 fail / 0 skip / 0 crash**:
 **43 m5-owned** (32 intrinsic/prototype, 7 parser, 4 raw delegation), **12 m11** direct-eval/`with`

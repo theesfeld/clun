@@ -192,6 +192,7 @@
                               :serial t
                               :components ((:file "conditions")
                                            (:file "ts-type")
+                                           (:file "ts-emit")
                                            (:file "ts-scan")
                                            (:file "strip")))
                              ;; runtime globals (Phase 08): console/process/Clun,
