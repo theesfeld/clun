@@ -1698,143 +1698,160 @@ SERVER / WEBSOCKET-CELL enable Phase 51 M1 upgrade when handlers are configured.
                    (if (eng:js-number-p p) (truncate (eng:to-number p)) 3000)))
            (host (let ((h (eng:js-get opts "hostname")))
                    (if (eng:js-string-p h) (eng:to-string h) "0.0.0.0")))
-           (idle-timeout-sec (%serve-idle-timeout-option opts))
-           (max-body (%serve-max-request-body-size-option opts))
-           (loop (eng:current-loop))
-           (conns (list 0))                  ; box: live connection count
-           (active (list '()))               ; box: live tcp connection list
-           (stopping (list nil)) (stop-resolve (list nil))
-           (fetch-cell (list fetch))
-           (err-handler-cell (list err-handler))
-           (routes-cell (list routes))
-           (websocket-cell (list websocket))
-           (hub-cell (list (%make-ws-topic-hub)))
-           (server (eng:new-object)))
-      (let ((listener
-              (net:tcp-listen loop host port :backlog 1024
-                :on-connection
-                (lambda (conn)
-                  (cond
-                    ((or (car stopping) (>= (car conns) *serve-max-connections*))
-                     (%write-simple conn 503 "Service Unavailable" nil)
-                     (net:tcp-shutdown conn))
-                    (t
-                     (incf (car conns))
-                     (push conn (car active))
-                     (setf (net:tcp-on-close conn)
-                           (lambda (c code) (declare (ignore c code))
-                             (setf (car active)
-                                   (delete conn (car active) :test #'eq))
-                             (decf (car conns))
-                             (when (and (car stopping) (zerop (car conns))
-                                        (car stop-resolve))
-                               (funcall (car stop-resolve)))))
-                     (setf (net:tcp-on-error conn)
-                           (lambda (c code) (declare (ignore c code)) nil))
-                     (%serve-connection
-                      conn fetch-cell err-handler-cell routes-cell
-                      server websocket-cell
-                      :max-body max-body
-                      :idle-timeout-sec idle-timeout-sec
-                      :event-loop loop)))))))
-        (eng:data-prop server "port"
-                       (coerce (net:listener-port listener) 'double-float))
-        (eng:data-prop server "hostname" host)
-        (eng:data-prop server "url"
-          (format nil "http://~a:~a/"
-                  (if (string= host "0.0.0.0") "localhost" host)
-                  (net:listener-port listener)))
-        (eng:data-prop server "idleTimeout"
-                       (coerce idle-timeout-sec 'double-float))
-        (eng:data-prop server "maxRequestBodySize"
-                       (coerce max-body 'double-float))
-        (eng:install-method server "fetch" 1
-          (lambda (this args)
-            (declare (ignore this))
-            (let ((handler (car fetch-cell)))
-              (if (null handler)
-                  (%rejected-promise
-                   g (eng:make-error-object
-                      :type-error-prototype "TypeError"
-                      "fetch() requires the server to have a fetch handler"))
-                  (handler-case
-                      (let* ((input (eng:arg args 0))
-                             (request
-                               (cond
-                                 ((js-request-p input) input)
-                                 ((eng:js-string-p input)
-                                  (let* ((value (eng:to-string input))
-                                         (base (eng:to-string
-                                                (eng:js-get server "url")))
-                                         (url
-                                           (cond
-                                             ((search "://" value) value)
-                                             ((and (plusp (length value))
-                                                   (char= (char value 0) #\/))
-                                              (concatenate
-                                               'string
-                                               (subseq base 0 (1- (length base)))
-                                               value))
-                                             (t (concatenate 'string base value)))))
-                                    (%make-client-request "GET" url '() #())))
-                                 (t
-                                  (eng:throw-type-error
-                                   "server.fetch expects a Request or string")))))
-                        (eng:js-call handler eng:+undefined+
-                                     (list request server)))
-                    (eng:js-condition (condition)
-                      (%rejected-promise
-                       g (eng:js-condition-value condition)))
-                    (condition (condition)
+           ;; --hot identity: re-evaluating Clun.serve({port}) reloads the live
+           ;; listener instead of EADDRINUSE, preserving TCP connections.
+           (existing (and (hot-mode-p) (hot-find-server host port))))
+      (when existing
+        (return-from %clun-serve (hot-server-reload existing opts)))
+      (let* ((idle-timeout-sec (%serve-idle-timeout-option opts))
+             (max-body (%serve-max-request-body-size-option opts))
+             (loop (eng:current-loop))
+             (conns (list 0))                  ; box: live connection count
+             (active (list '()))               ; box: live tcp connection list
+             (stopping (list nil)) (stop-resolve (list nil))
+             (fetch-cell (list fetch))
+             (err-handler-cell (list err-handler))
+             (routes-cell (list routes))
+             (websocket-cell (list websocket))
+             (hub-cell (list (%make-ws-topic-hub)))
+             (server (eng:new-object)))
+        (let ((listener
+                (net:tcp-listen loop host port :backlog 1024
+                  :on-connection
+                  (lambda (conn)
+                    ;; Opportunity poll for --hot/--watch while the listener is live.
+                    (when (hot-mode-p) (hot-poll-now))
+                    (cond
+                      ((or (car stopping) (>= (car conns) *serve-max-connections*))
+                       (%write-simple conn 503 "Service Unavailable" nil)
+                       (net:tcp-shutdown conn))
+                      (t
+                       (incf (car conns))
+                       (push conn (car active))
+                       (setf (net:tcp-on-close conn)
+                             (lambda (c code) (declare (ignore c code))
+                               (setf (car active)
+                                     (delete conn (car active) :test #'eq))
+                               (decf (car conns))
+                               (when (and (car stopping) (zerop (car conns))
+                                          (car stop-resolve))
+                                 (funcall (car stop-resolve)))))
+                       (setf (net:tcp-on-error conn)
+                             (lambda (c code) (declare (ignore c code)) nil))
+                       (%serve-connection
+                        conn fetch-cell err-handler-cell routes-cell
+                        server websocket-cell
+                        :max-body max-body
+                        :idle-timeout-sec idle-timeout-sec
+                        :event-loop loop)))))))
+          (let* ((bound-port (net:listener-port listener))
+                 (id-key (%serve-identity-key host bound-port)))
+            (eng:data-prop server "port" (coerce bound-port 'double-float))
+            (eng:data-prop server "hostname" host)
+            (eng:data-prop server "url"
+              (format nil "http://~a:~a/"
+                      (if (string= host "0.0.0.0") "localhost" host)
+                      bound-port))
+            (eng:data-prop server "idleTimeout"
+                           (coerce idle-timeout-sec 'double-float))
+            (eng:data-prop server "maxRequestBodySize"
+                           (coerce max-body 'double-float))
+            (eng:install-method server "fetch" 1
+              (lambda (this args)
+                (declare (ignore this))
+                (let ((handler (car fetch-cell)))
+                  (if (null handler)
                       (%rejected-promise
                        g (eng:make-error-object
-                          :error-prototype "Error"
-                          (princ-to-string condition)))))))))
-        (eng:install-method server "reload" 1
-          (lambda (this args)
-            (declare (ignore this))
-            (multiple-value-bind (new-fetch new-error new-routes new-ws)
-                (%compile-serve-dispatch-options (eng:arg args 0))
-              (setf (car fetch-cell) new-fetch
-                    (car err-handler-cell) new-error
-                    (car routes-cell) new-routes
-                    (car websocket-cell) new-ws))
-            server))
-        (eng:install-method server "stop" 1
-          (lambda (this args)
-            (declare (ignore this))
-            ;; Bun: stop(closeActiveConnections?: boolean) — truthy force closes
-            ;; in-flight sockets immediately; graceful waits for them to drain.
-            (let ((force (eng:js-truthy (eng:arg args 0))))
-              (setf (car stopping) t)
-              (net:listener-close listener)
-              (cond
-                ((zerop (car conns))
-                 (%resolved-promise g eng:+undefined+))
-                (t
-                 (eng:js-construct
-                  (eng:js-get g "Promise")
-                  (list (eng:make-native-function
-                         "" 2
-                         (lambda (th a)
-                           (declare (ignore th))
-                           (let ((res (eng:arg a 0))
-                                 (settled nil))
-                             (labels ((resolve ()
-                                        (unless settled
-                                          (setf settled t)
-                                          (eng:js-call res eng:+undefined+
-                                                       (list eng:+undefined+)))))
-                               (setf (car stop-resolve) #'resolve)
-                               (when force
-                                 (dolist (conn (copy-list (car active)))
-                                   (ignore-errors (net:tcp-close conn))))
-                               (when (zerop (car conns))
-                                 (resolve)))
-                             eng:+undefined+))))))))))
-        (eng:install-method server "ref" 0
-          (lambda (th a) (declare (ignore th a)) eng:+undefined+))
-        (eng:install-method server "unref" 0
-          (lambda (th a) (declare (ignore th a)) eng:+undefined+))
-        (%install-websocket-methods server websocket-cell hub-cell)
-        server))))
+                          :type-error-prototype "TypeError"
+                          "fetch() requires the server to have a fetch handler"))
+                      (handler-case
+                          (let* ((input (eng:arg args 0))
+                                 (request
+                                   (cond
+                                     ((js-request-p input) input)
+                                     ((eng:js-string-p input)
+                                      (let* ((value (eng:to-string input))
+                                             (base (eng:to-string
+                                                    (eng:js-get server "url")))
+                                             (url
+                                               (cond
+                                                 ((search "://" value) value)
+                                                 ((and (plusp (length value))
+                                                       (char= (char value 0) #\/))
+                                                  (concatenate
+                                                   'string
+                                                   (subseq base 0 (1- (length base)))
+                                                   value))
+                                                 (t (concatenate 'string base value)))))
+                                        (%make-client-request "GET" url '() #())))
+                                     (t
+                                      (eng:throw-type-error
+                                       "server.fetch expects a Request or string")))))
+                            (eng:js-call handler eng:+undefined+
+                                         (list request server)))
+                        (eng:js-condition (condition)
+                          (%rejected-promise
+                           g (eng:js-condition-value condition)))
+                        (condition (condition)
+                          (%rejected-promise
+                           g (eng:make-error-object
+                              :error-prototype "Error"
+                              (princ-to-string condition)))))))))
+            (eng:install-method server "reload" 1
+              (lambda (this args)
+                (declare (ignore this))
+                (multiple-value-bind (new-fetch new-error new-routes new-ws)
+                    (%compile-serve-dispatch-options (eng:arg args 0))
+                  (setf (car fetch-cell) new-fetch
+                        (car err-handler-cell) new-error
+                        (car routes-cell) new-routes
+                        (car websocket-cell) new-ws))
+                server))
+            (eng:install-method server "stop" 1
+              (lambda (this args)
+                (declare (ignore this))
+                ;; Bun: stop(closeActiveConnections?: boolean) — truthy force closes
+                ;; in-flight sockets immediately; graceful waits for them to drain.
+                (let ((force (eng:js-truthy (eng:arg args 0))))
+                  (setf (car stopping) t)
+                  (hot-unregister-server server)
+                  (net:listener-close listener)
+                  (cond
+                    ((zerop (car conns))
+                     (%resolved-promise g eng:+undefined+))
+                    (t
+                     (eng:js-construct
+                      (eng:js-get g "Promise")
+                      (list (eng:make-native-function
+                             "" 2
+                             (lambda (th a)
+                               (declare (ignore th))
+                               (let ((res (eng:arg a 0))
+                                     (settled nil))
+                                 (labels ((resolve ()
+                                            (unless settled
+                                              (setf settled t)
+                                              (eng:js-call res eng:+undefined+
+                                                           (list eng:+undefined+)))))
+                                   (setf (car stop-resolve) #'resolve)
+                                   (when force
+                                     (dolist (conn (copy-list (car active)))
+                                       (ignore-errors (net:tcp-close conn))))
+                                   (when (zerop (car conns))
+                                     (resolve)))
+                                 eng:+undefined+))))))))))
+            (eng:install-method server "ref" 0
+              (lambda (th a) (declare (ignore th a)) eng:+undefined+))
+            (eng:install-method server "unref" 0
+              (lambda (th a) (declare (ignore th a)) eng:+undefined+))
+            (%install-websocket-methods server websocket-cell hub-cell)
+            ;; Register under hot so the next soft-reload Clun.serve reuses us.
+            (when (hot-mode-p)
+              (hot-register-server
+               id-key server
+               (list :fetch-cell fetch-cell
+                     :err-handler-cell err-handler-cell
+                     :routes-cell routes-cell
+                     :websocket-cell websocket-cell)))
+            server))))))

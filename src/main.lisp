@@ -22,6 +22,9 @@
                   ~8@Tclun run [--filter <p>] <script>  run package.json scripts (filtered monorepo)~%~
                   ~%~
                   Flags: --cwd <dir>   set the working directory~%~
+                  ~8@T--hot            soft-reload modules; preserve server connections~%~
+                  ~8@T--watch          hard-restart on change (stops retained servers)~%~
+                  ~8@T--no-clear-screen  keep terminal output across watch reloads~%~
                   ~8@T--filter/-F <p>   monorepo package name or ./path filter (repeatable)~%~
                   ~8@T--workspaces     run a script across every workspace package~%~
                   ~8@T--parallel       concurrent filtered scripts (topo waves)~%~
@@ -95,13 +98,17 @@
 (defun run-file (r file &key (rest (cli:cli-get r :args)))
   "Execute FILE (a path). Returns an exit code. REST is process.argv after the script (defaults to
 the CLI's trailing args). .ts/.mts/.cts are stripped by *ts-strip-hook*; .jsx/.tsx are lowered by
-*jsx-transform-hook* then (for .tsx) type-stripped."
+*jsx-transform-hook* then (for .tsx) type-stripped.
+With --hot / --watch, state-preserving (or hard) reload is armed for the process lifetime."
   (cond
     ((null file)
      (format *error-output* "clun: no file to run~%") 2)
     (t
      (let* ((cwd (resolve-cwd r))
-            (abs (if (sys:absolute-path-p file) file (sys:path-join cwd file))))
+            (abs (if (sys:absolute-path-p file) file (sys:path-join cwd file)))
+            (hot (cli:cli-get r :hot))
+            (watch (cli:cli-get r :watch))
+            (no-clear (cli:cli-get r :no-clear-screen)))
        (if (not (sys:file-p abs))
            (progn (format *error-output* "clun: cannot find module '~a'~%" file) 1)
            (if (bun-shell-file-p abs)
@@ -109,8 +116,14 @@ the CLI's trailing args). .ts/.mts/.cts are stripped by *ts-strip-hook*; .jsx/.t
                (let ((realm (make-runtime-realm r cwd :script abs :rest rest)))
                  (let ((clun-g (eng:js-get (eng:realm-global realm) "Clun")))
                    (when (eng:js-object-p clun-g) (eng:data-prop clun-g "main" abs)))
-                 (eng:run-module-file abs :realm realm)
-                 (finish-exit realm))))))))
+                 (cond
+                   (hot
+                    (rt::run-file-with-hot realm abs :hot :no-clear no-clear))
+                   (watch
+                    (rt::run-file-with-hot realm abs :watch :no-clear no-clear))
+                   (t
+                    (eng:run-module-file abs :realm realm)
+                    (finish-exit realm))))))))))
 
 (defun run-test (r)
   "`clun test` — resolve cwd (honouring --cwd), then hand the test-subcommand argv

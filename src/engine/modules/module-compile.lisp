@@ -217,11 +217,19 @@ module scope is a function-like frame; imports are marked slots. Modules are str
 ;;; --- import.meta object -----------------------------------------------------
 
 (defun make-import-meta-object (mr)
-  "The per-module `import.meta`: url/filename/dirname/main (Bun-flavored)."
+  "The per-module `import.meta`: url/filename/dirname/main (Bun-flavored).
+When the CLI is running under --hot/--watch, attach import.meta.hot (exceeds Bun
+server --hot, which documents this API as planned)."
   (let ((o (new-object))
         (path (mr-resolved-path mr)))
     (data-prop o "url" (concatenate 'string "file://" path))
     (data-prop o "filename" path)
     (data-prop o "dirname" (clun.sys:path-dirname path))
     (data-prop o "main" (js-boolean (eq mr (realm-entry-module *realm*))))
+    (when (and (find-package :clun.runtime)
+               (boundp (find-symbol "*HOT-RELOAD-MODE*" :clun.runtime))
+               (symbol-value (find-symbol "*HOT-RELOAD-MODE*" :clun.runtime)))
+      (let ((make-hot (find-symbol "MAKE-IMPORT-META-HOT" :clun.runtime)))
+        (when (and make-hot (fboundp make-hot))
+          (data-prop o "hot" (funcall make-hot path)))))
     o))

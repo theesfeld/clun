@@ -235,6 +235,7 @@
                                            (:file "web-cookies") ; Clun.Cookie/CookieMap (Phase 32)
                                            (:file "clun-router") ; Clun.serve route table (Phase 50)
                                            (:file "clun-serve"); Clun.serve HTTP server (Phase 17)
+                                           (:file "hot-reload"); --hot/--watch state-preserving reload (#188)
                                            (:file "web-url")   ; URL/URLSearchParams (Phase 18)
                                            (:file "web-proxy") ; fetch proxy selection/auth/bypass (Phase 28)
                                            (:file "web-fetch") ; fetch (Phase 18)
@@ -356,7 +357,8 @@
                                                          (:file "spawn-tests")
                                                          (:file "shell-tests")
                                                          (:file "scripts-tests")
-                                                         (:file "cron-tests")))
+                                                         (:file "cron-tests")
+                                                         (:file "hot-reload-tests")))
                                            (:module "transpiler"
                                             :serial t
                                             :components ((:file "ts-strip-tests")
