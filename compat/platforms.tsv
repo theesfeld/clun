@@ -35,10 +35,10 @@ package-manager.npm	darwin-arm64	supported	ev.package-manager.npm.hermetic-insta
 package-manager.npm	darwin-x64	supported	ev.package-manager.npm.hermetic-install.v1	Hermetic install, offline reinstall, dep-spec breadth (file:/npm:/optional), and lock identity pass through the shipped binary.
 package-manager.npm	linux-arm64	supported	ev.package-manager.npm.hermetic-install.v1	Hermetic install, offline reinstall, dep-spec breadth (file:/npm:/optional), and lock identity pass through the shipped binary.
 package-manager.npm	linux-x64	supported	ev.package-manager.npm.hermetic-install.v1	Hermetic install, offline reinstall, dep-spec breadth (file:/npm:/optional), and lock identity pass through the shipped binary.
-runtime.loader-plugins	darwin-arm64	unsupported	-	Capability is not implemented.
-runtime.loader-plugins	darwin-x64	unsupported	-	Capability is not implemented.
-runtime.loader-plugins	linux-arm64	unsupported	-	Capability is not implemented.
-runtime.loader-plugins	linux-x64	unsupported	-	Capability is not implemented.
+runtime.loader-plugins	darwin-arm64	supported	ev.runtime.loader-plugins.core-suite.v1,ev.runtime.loader-plugins.public.v1	Pure-CL Bun.plugin host; Clun.plugin onResolve/onLoad/module/clearAll plus exceed hooks.
+runtime.loader-plugins	darwin-x64	supported	ev.runtime.loader-plugins.core-suite.v1,ev.runtime.loader-plugins.public.v1	Pure-CL Bun.plugin host; Clun.plugin onResolve/onLoad/module/clearAll plus exceed hooks.
+runtime.loader-plugins	linux-arm64	supported	ev.runtime.loader-plugins.core-suite.v1,ev.runtime.loader-plugins.public.v1	Pure-CL Bun.plugin host; Clun.plugin onResolve/onLoad/module/clearAll plus exceed hooks.
+runtime.loader-plugins	linux-x64	supported	ev.runtime.loader-plugins.core-suite.v1,ev.runtime.loader-plugins.public.v1	Pure-CL Bun.plugin host; Clun.plugin onResolve/onLoad/module/clearAll plus exceed hooks.
 runtime.native-addons	darwin-arm64	unsupported	-	Not yet implemented — FULL PORT #178 pure-CL N-API/FFI surface.
 runtime.native-addons	darwin-x64	unsupported	-	Not yet implemented — FULL PORT #178 pure-CL N-API/FFI surface.
 runtime.native-addons	linux-arm64	unsupported	-	Not yet implemented — FULL PORT #178 pure-CL N-API/FFI surface.

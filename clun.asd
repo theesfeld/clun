@@ -185,6 +185,7 @@
                                             :components ((:file "module-record")
                                                          (:file "yaml")
                                                          (:file "module-compile")
+                                                         (:file "plugin")
                                                          (:file "require")
                                                          (:file "module-loader")))))
                              ;; TypeScript type-stripping (Phase 09): shares the
@@ -210,6 +211,7 @@
                                            (:file "clun-csrf")  ; Clun.CSRF (Phase 35) — before clun-global
                                            (:file "clun-password-hash") ; Clun.password/hash (Phase 36)
                                            (:file "clun-secrets") ; Clun.secrets pure-CL vault (#179)
+                                           (:file "clun-plugin")  ; Clun.plugin / Bun.plugin (Issue #187)
                                            (:file "clun-string-width") ; Clun.stringWidth (Phase 33) — before clun-global
                                            (:file "clun-glob") ; Clun.Glob (Phase 30) — before clun-global
                                            (:file "clun-filesystem-router") ; Clun.FileSystemRouter (Phase 50)
@@ -332,6 +334,7 @@
                                                          (:file "async-generator-queue-tests")
                                                          (:file "async-iteration-tests")
                                                          (:file "modules-tests")
+                                                         (:file "plugin-tests")
                                                          (:file "inspect-tests")
                                                          (:file "regexp-tests")
                                                          (:file "binary-tests")))
