@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Clun is pre-1.0; minor versions may include breaking changes.
 
 The immutable tags `v0.1.0-dev.2`, `v0.1.0-dev.11`, `v0.1.0-dev.12`,
-`v0.1.0-dev.15`, `v0.1.0-dev.20`, `v0.1.0-dev.68`, and
+`v0.1.0-dev.15`, `v0.1.0-dev.68`, and
 `v0.1.0-dev.69` did not produce GitHub Releases or assets and are not
 installable release checkpoints.
 
