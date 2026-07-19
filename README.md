@@ -25,7 +25,7 @@ Source stages `runtime.loader-plugins` No→Yes under Issue
 Source stages `cloud.s3` No→Yes under Issue
 [#185](https://github.com/theesfeld/clun/issues/185) / Phase 53 as `0.1.0-dev.61`
 (parent FULL PORT epic [#177](https://github.com/theesfeld/clun/issues/177)).
-Published [`v0.1.0-dev.61`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.61) remains the
+Published [`v0.1.0-dev.21`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.21) remains the
 verified release boundary. The hosted installer correctly remains on published dev.21 until the
 candidate is merged, tagged, and released.
 
