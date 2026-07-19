@@ -9,9 +9,9 @@ targets are workload-specific and published;
 Clun does not claim blanket speed parity with Bun.
 
 <!-- clun-generated:release:begin -->
-> **Status: pre-alpha, under active construction.** [Phase 68](https://github.com/theesfeld/clun/issues/42) is in progress.
-> Its release-bearing target is `0.1.0-dev.56` / `v0.1.0-dev.56` (SemVer impact: `minor`).
-> The verified release boundary is `v0.1.0-dev.21`, with four native archives, checksums, Pages,
+> **Status: pre-alpha, under active construction.** [Phase 48](https://github.com/theesfeld/clun/issues/178) is in progress.
+> Its release-bearing target is `0.1.0-dev.57` / `v0.1.0-dev.57` (SemVer impact: `minor`).
+> The verified release boundary is `v0.1.0-dev.56`, with four native archives, checksums, Pages,
 > and hosted-installer evidence.
 > Phase 26 remains deferred until after Phase 82 and will
 > be rewritten for the repository state that exists then.
@@ -109,7 +109,7 @@ July 16, 2026. Engineering references are separately pinned to Bun commit `c1076
 |---|---|---|
 | Node.js compatibility | Partial: selected pure-CL modules (path/fs/url/buffer/events/assert/util/timers/querystring/os/process/crypto helpers) | Phases [42](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-42), [43](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-43), [44](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-44), [45](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-45), [46](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-46), [47](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-47) |
 | Web Standard APIs | Partial: streaming fetch, clone/tee, timeouts, HTTP/HTTPS proxy and pooling, ReadableStream/WritableStream/TransformStream, Response/Request.body streams; remaining Web surface (full Streams edge cases, broader standards globals, residual network stress) full-port in progress | [Phase 38](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-38) |
-| Native addons | No: not yet implemented (full-port target) | [Phase 48](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-48) |
+| Native addons | Yes: pure Common Lisp bun:ffi host with Clun.ffi/Clun.native/Clun.napi: typed symbol libraries, bounds-checked linear memory, CString/JSCallback/linkSymbols/cc pure-CL DSL, N-API-style defineAddon and process.dlopen for pure-CL addons, .claddon JSON packs (exceeds Bun.ffi crash-prone raw pointers and requires no machine-code objects) | [Phase 48](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-48) |
 | TypeScript | Partial: erasable stripping + enums/namespaces/param-props; .tsx, decorators, full tsc-class typecheck not yet full-ported | [Phase 39](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-39) |
 | JSX | Yes: pure Common Lisp JSX and TSX parse, transform, and execute with classic React.createElement and automatic jsx/jsxs/Fragment runtimes, file pragmas, tsconfig/jsconfig compilerOptions, fragments, spreads, nested expressions, member tags, HTML entity decoding, and built-in offline helpers that run without a react package (exceeds Bun) | [Phase 40](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-40) |
 | Module loader plugins | Yes: pure Common Lisp Bun.plugin-compatible Clun.plugin with ordered onResolve/onLoad/onStart/onEnd, namespaces, virtual builder.module, object/js/json/yaml/text/file loaders, clearAll plus exceed list/clear/priority/registerHooks and pure-CL register-cl-plugin (exceeds Bun.plugin and node:module hooks) | [Phase 41](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-41) |
@@ -166,10 +166,10 @@ workflows are read-only and fail closed if the canonical issues, README, or site
 
 <!-- clun-generated:release-summary:begin -->
 Release versions follow the actual SemVer impact recorded in the canonical issue, not the number of pushes.
-The current source is the `0.1.0-dev.56` release candidate; the immutable tag and assets are not published yet.
-The last published prerelease remains [`v0.1.0-dev.21`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.21).
+The current source is the `0.1.0-dev.57` release candidate; the immutable tag and assets are not published yet.
+The last published prerelease remains [`v0.1.0-dev.56`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.56).
 [The versioning contract](docs/versioning.md) defines prerelease sequencing, synchronized surfaces, immutable tags, assets, and installer evidence.
-[Phase 68 issue #42](https://github.com/theesfeld/clun/issues/42) is the canonical live release record.
+[Phase 48 issue #178](https://github.com/theesfeld/clun/issues/178) is the canonical live release record.
 <!-- clun-generated:release-summary:end -->
 
 ## The purity contract
