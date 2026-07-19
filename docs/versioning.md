@@ -313,3 +313,4 @@ Phase 66 test-runner Partial→Yes (#127) stages `0.1.0-dev.36` / `v0.1.0-dev.36
 Phase 59 package-manager.npm Partial→Yes (#131) stages `0.1.0-dev.41` / `v0.1.0-dev.41` with dependency-spec breadth (registry, npm: aliases, file:/link:, optional soft-fail), hermetic four-target install receipts, and platforms supported.
 
 Phase 59 package-manager.npm Partial→Yes (#131) stages `0.1.0-dev.44` / `v0.1.0-dev.44` with dependency-spec breadth and four-target install receipts.
+Phase 47 runtime.node-compatibility Partial→Yes (#132) stages free `0.1.0-dev.45` / `v0.1.0-dev.45` with four-target selected Node surface receipts; SemVer impact is `minor`.

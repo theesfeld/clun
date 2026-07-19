@@ -3286,7 +3286,7 @@ additional shell-language inventory sites after #122/#123 (overall
 - Zero pending pinned shell sites (1,598 covered / 32 upstream-inactive).
 - Pure-CL background `&` + `wait`, ENAMETOOLONG, multi-error lex, EACCES globs, ls flag order.
 - Four-target platforms.tsv `supported`; ledger `clun_state=Yes`.
-- Release train: `0.1.0-dev.33`.
+- Release train: `0.1.0-dev.45`.
 
 ## 2026-07-18 — Phase 74 archive/compression pure-CL APIs (#134)
 
@@ -3300,7 +3300,7 @@ Ship Bun-shaped pure-CL compression and archive surface without a new ledger row
   writer + hardened extract reusing Phase-22 path checks; pure-CL ZIP (store+deflate).
 - **Evidence:** `tests/lisp/archive/*`, `tests/js/archive/basic.js`; claim lives under
   Phase 74 / issue #134, not a matrix Yes promotion.
-- SemVer minor → `0.1.0-dev.41` / `v0.1.0-dev.41`.
+- SemVer minor → `0.1.0-dev.34` / `v0.1.0-dev.34`.
 
 
 ## 2026-07-18 — Phase 74 archive/compression pure-CL APIs (#134)
@@ -3313,7 +3313,7 @@ Ship Bun-shaped pure-CL compression and archive surface without a new ledger row
   `zipSync`/`unzipSync`, `Archive` (tar + optional gzip), fail-closed `zstd*`.
 - **Codecs:** vendored **salza2** (compress) + existing **chipz** (decompress); ustar
   writer + hardened extract; pure-CL ZIP (store+deflate).
-- SemVer minor → `0.1.0-dev.35` (free slot after master cron `0.1.0-dev.41`).
+- SemVer minor → `0.1.0-dev.35` (free slot after master cron `0.1.0-dev.34`).
 
 
 ## 2026-07-18 — tooling.test-runner Partial→Yes (#127)
@@ -3324,7 +3324,7 @@ Ship Bun-shaped pure-CL compression and archive surface without a new ledger row
 - 52-root residual owners dispositioned (engine/runtime/upstream-meta dominate).
 - Watch integration deferred to Phase 67; JSX coverage mapping follows language JSX.
 - Four-target platforms.tsv `supported`; ledger `clun_state=Yes`.
-- Release train: `0.1.0-dev.41` (reslot after archive Yes landed as `.35`).
+- Release train: `0.1.0-dev.45` (reslot after archive Yes landed as `.35`).
 
 ## 2026-07-18 — runtime.web-standard-apis Partial→Yes (#130)
 
@@ -3332,7 +3332,7 @@ Ship Bun-shaped pure-CL compression and archive surface without a new ledger row
 - Fetch proxy object form `{url, headers}` on absolute-form HTTP and HTTPS CONNECT.
 - Hermetic 8 MiB Transform+BYOB stress fixture.
 - Four-target platforms.tsv `supported`; ledger `clun_state=Yes`.
-- Release train: free `0.1.0-dev.38` after websocket Yes `0.1.0-dev.41` and test-runner `0.1.0-dev.36`.
+- Release train: free `0.1.0-dev.38` after websocket Yes `0.1.0-dev.37` and test-runner `0.1.0-dev.36`.
 
 ### 2026-07-18 - runtime.web-standard-apis Partial→Yes (#130)
 
@@ -3355,14 +3355,13 @@ Bun-compatible TypeScript execution Yes bar without full tsc typecheck:
   properties emit pure-CL runtime transforms (Bun-shaped).
 - Decorators, `import =` / `export =`, angle-cast, and `.tsx` still hard-error.
 - Four-target platforms.tsv `supported`; ledger `clun_state=Yes`.
-- Release train: `0.1.0-dev.40`.
+- Release train: `0.1.0-dev.45`.
 
 ## 2026-07-19 — server.http Partial→Yes (#128)
 
 - Streaming response bodies pure-CL (chunked); request.body ReadableStream.
 - Ledger Yes + four-target supported. Train: `0.1.0-dev.41`.
-- Release train: `0.1.0-dev.41`.
-- Release train: `0.1.0-dev.36` (reslot after archive Yes landed as `.35`).
-### 2026-07-18 - package-manager.npm Partial→Yes (#131)
 
-`package-manager.npm` promotes to **Yes** at candidate `0.1.0-dev.44` (reslotted after master advanced through cron/archive/test-runner Yes units). Dependency-spec residual closes for the install surface: registry ranges/dist-tags, `npm:` aliases, `file:`/`link:` local packages, and `optionalDependencies` soft-fail with os/cpu filtering. Four-target hermetic install evidence (`examples/e2e-install.sh`) is registered and platforms are **supported**. Publishing remains an honest residual outside this Yes claim (Bun matrix Yes is `bun install`; workspaces stay `package-manager.monorepo`; pure-CL git/SSH remains later Phase 59/61 work). SemVer impact is **minor**.
+## 2026-07-18 — runtime.node-compatibility Partial→Yes (#132)
+- 14 four-target fixtures; platforms supported; selected surface Yes.
+- Release train: `0.1.0-dev.45` (SemVer minor).
