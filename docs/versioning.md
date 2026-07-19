@@ -201,6 +201,8 @@ release permits that same open/`in-progress` state while the phase's remaining a
 gates are still active, and also permits closed/`complete` once those gates are satisfied. Other
 publication/Issue/Phase-status combinations fail live verification; the existing Issue contract still
 requires the GitHub state, Phase status, global Status, and labels to agree.
+Generated README and site copy likewise describe the published prerelease without inferring that the
+larger phase is complete; only the live Issue's independently verified state may establish completion.
 
 ## Publication order
 
