@@ -3362,3 +3362,8 @@ Pure-CL workspace discovery (globs + exclusions), `workspace:` live symlink link
 Pure-CL state-preserving `--hot` with server identity registry (connection retention),
 stat-poll watcher, `import.meta.hot`, `Clun.hot`, and `--watch` hard restart.
 Purity = implementation language; full port under epic #177. Soft-outs rejected.
+## 2026-07-19 — database.sql-drivers Full Port Yes (#183)
+
+- Pure-CL `Clun.SQL`: PostgreSQL protocol v3, MySQL client protocol, embedded SQLite engine (no CFFI).
+- Exceeds Bun.SQL: inspect, stats, export, queryLog, SQL.adapters.
+- SemVer: `0.1.0-dev.50` minor. Parent #177.
