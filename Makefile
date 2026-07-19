@@ -14,7 +14,7 @@ PHASE_25B_M6_MANIFEST      ?= tests/conformance/phase-25b-m6.tsv
 FEATURE                    ?= all
 
 .PHONY: all build test test-lisp test-net test-cookie-resources test-glob test-router test-js test-tls test-tls12 test-tls-alerts test-proxy test-dns test-crypto registry-fixture smoke-npm purity bench \
-		bench-check compile-tier-ceiling test-installer test-release-live-check \
+		bench-check compile-tier-ceiling test-installer test-release-live-check test-release-workflow \
 		public-claims-check version-transition-check test-version-transition-check \
 		compat compat-validate docs-generate docs-check test-compat-tools \
 		test-test-runner-manifest \
@@ -304,6 +304,10 @@ test-installer:
 ## test-release-live-check -- exercise the fail-closed Pages release-assets gate.
 test-release-live-check:
 	sh scripts/test-release-live-check.sh
+
+## test-release-workflow -- exercise exact-ship-SHA and downloaded-asset publication gates.
+test-release-workflow:
+	sh scripts/test-release-workflow.sh
 
 ## roadmap-check/sync -- validate the post-v0.1 ledger or reconcile its GitHub issues.
 roadmap-check:

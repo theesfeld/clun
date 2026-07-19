@@ -22,9 +22,14 @@ on:
       - "scripts/test-compat-tools.sh"
       - "scripts/roadmap.sh"
       - "scripts/test-installer.sh"
+      - "scripts/test-release-workflow.sh"
+      - "scripts/release/verify-assets.sh"
+      - "scripts/release/verify-exact-sha-runs.sh"
+      - "scripts/release/verify-tagged-master.sh"
       - "site/**"
       - ".github/workflows/docs.yml"
       - ".github/workflows/compat.yml"
+      - ".github/workflows/release.yml"
   pull_request:
     paths:
       - "AGENTS.md"
@@ -44,9 +49,14 @@ on:
       - "scripts/test-compat-tools.sh"
       - "scripts/roadmap.sh"
       - "scripts/test-installer.sh"
+      - "scripts/test-release-workflow.sh"
+      - "scripts/release/verify-assets.sh"
+      - "scripts/release/verify-exact-sha-runs.sh"
+      - "scripts/release/verify-tagged-master.sh"
       - "site/**"
       - ".github/workflows/docs.yml"
       - ".github/workflows/compat.yml"
+      - ".github/workflows/release.yml"
 
 permissions:
   contents: read
@@ -58,6 +68,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - run: sh scripts/public-claims-check.sh
+      - run: make test-release-workflow
       - run: make test-compat-tools
       - run: sh scripts/roadmap.sh test-issue-contract
       - name: Verify canonical live roadmap issues

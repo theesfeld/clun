@@ -48,6 +48,9 @@ jobs:
       - name: Verify published claims and installer
         run: sh scripts/public-claims-check.sh
 
+      - name: Test exact-SHA release and downloaded-asset gates
+        run: make test-release-workflow
+
       - name: Test compatibility ledger tooling
         run: make test-compat-tools
 

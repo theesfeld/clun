@@ -97,8 +97,9 @@ Clun's experimental bounded pure-CL TLS profile. The still-published
 path from [Issue #233](https://github.com/theesfeld/clun/issues/233), completed bounded WebPKI
 hardening from [Issue #234](https://github.com/theesfeld/clun/issues/234), and the one-shot TLS
 alert/close lifecycle from [Issue #235](https://github.com/theesfeld/clun/issues/235). It remains a
-source candidate until the exact `master` candidate passes CI, Compatibility, Documentation,
-immutable release-asset, Pages, and hosted-installer gates.
+source candidate until the newest exact-SHA `master` push runs for CI, Documentation, Compatibility,
+and Pages succeed and the staged and freshly downloaded four archives plus `checksums.txt` pass the
+strict release-asset gates.
 
 ## What works
 
