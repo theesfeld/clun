@@ -61,7 +61,7 @@ primary owner and integration owners are stored directly in `compat/features.tsv
 | 5 | `language.jsx` | core | `No`: not included in the v0.1 scope | 40 | none |
 | 6 | `runtime.loader-plugins` | core | `Yes`: pure-CL Clun.plugin (Bun.plugin + exceed) | 41 | none |
 | 7 | `database.sql-drivers` | APIs | `No` | 55 | 56, 57 |
-| 8 | `cloud.s3` | APIs | `No` | 53 | none |
+| 8 | `cloud.s3` | APIs | `Yes` | 53 | #185 |
 | 9 | `database.redis` | APIs | `No` | 54 | none |
 | 10 | `server.websocket` | APIs | `No`: no WebSocket implementation | 51 | none |
 | 11 | `server.http` | APIs | `Partial`: HTTP/1.1 with buffered bodies | 49 | none |

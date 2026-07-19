@@ -106,6 +106,10 @@
                                            (:file "tls12-client")
                                            (:file "tls-client")
                                            (:file "websocket"))) ; Phase 51
+                             ;; cloud (Phase 53 / #185): pure-CL S3-compatible client.
+                             (:module "cloud"
+                              :serial t
+                              :components ((:file "s3")))
                              ;; install (Phase 21): pure-CL package-manager substrate.
                              ;; It has no engine dependency, so the public runtime can
                              ;; reuse the one SemVer implementation without a late bind.
@@ -219,6 +223,7 @@
                                            (:file "clun-secrets") ; Clun.secrets pure-CL vault (#179)
                                            (:file "clun-plugin")  ; Clun.plugin / Bun.plugin (Issue #187)
                                            (:file "clun-redis") ; Clun.redis pure-CL (#184)
+                                           (:file "clun-s3") ; Clun.s3 pure-CL (#185)
                                            (:file "clun-string-width") ; Clun.stringWidth (Phase 33) — before clun-global
                                            (:file "clun-glob") ; Clun.Glob (Phase 30) — before clun-global
                                            (:file "clun-filesystem-router") ; Clun.FileSystemRouter (Phase 50)
@@ -301,6 +306,9 @@
                                            (:module "redis"
                                             :serial t
                                             :components ((:file "redis-tests")))
+                                           (:module "cloud"
+                                            :serial t
+                                            :components ((:file "s3-tests")))
                                            (:module "http"
                                             :serial t
                                             :components ((:file "cookies-tests")))

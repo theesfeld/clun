@@ -23,6 +23,7 @@
     (install-clun-secrets clun g)
     (install-clun-plugin clun g)        ; Clun.plugin / Bun.plugin (Issue #187)
     (install-clun-redis clun g)         ; Clun.redis pure-CL (#184)
+    (install-clun-s3 clun g)            ; Clun.s3 pure-CL (#185)
     (install-clun-string-width clun)
     (install-clun-color clun)
     (install-clun-yaml clun)

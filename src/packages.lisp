@@ -78,6 +78,37 @@
    #:vault-path #:default-vault-path
    #:*vault-path-override* #:*master-key-override*))
 
+(defpackage :clun.s3
+  (:use :cl)
+  (:local-nicknames (:crypto :ironclad))
+  (:documentation
+   "Pure-CL S3-compatible client (Bun.s3 / S3Client surface + exceed: copy, batch-delete, multipart).")
+  (:export
+   #:s3-error #:s3-error-kind #:s3-error-status #:s3-error-code
+   #:s3-error-message #:s3-error-key #:s3-error-bucket #:s3-error-detail
+   #:s3-options #:s3-options-p #:make-s3-options #:merge-options
+   #:s3o-access-key-id #:s3o-secret-access-key #:s3o-session-token
+   #:s3o-bucket #:s3o-region #:s3o-endpoint #:s3o-virtual-hosted-style
+   #:s3o-path-style #:s3o-part-size #:s3o-retry #:s3o-content-type
+   #:resolve-credentials #:require-credentials
+   #:s3-client #:s3-client-p #:make-s3-client #:client-options #:default-client
+   #:s3-file #:s3-file-p #:s3f-key #:s3f-client #:s3f-start #:s3f-end
+   #:s3-file-slice #:s3-file-get #:s3-file-text #:s3-file-write
+   #:s3-file-delete #:s3-file-exists #:s3-file-stat #:s3-file-presign
+   #:s3-put #:s3-get #:s3-get-text #:s3-delete #:s3-head
+   #:s3-exists #:s3-size #:s3-stat #:s3-stat-p #:s3s-size #:s3s-etag
+   #:s3s-last-modified #:s3s-content-type
+   #:s3-list #:s3-copy #:s3-delete-objects #:s3-write
+   #:s3-create-multipart #:s3-upload-part #:s3-complete-multipart
+   #:s3-abort-multipart
+   #:presign #:sign-request #:signing-key #:create-canonical-request
+   #:create-string-to-sign #:amz-date #:amz-datestamp
+   #:*s3-clock* #:*s3-http-fn*
+   #:s3-http-response #:s3hr-status #:s3hr-headers #:s3hr-body
+   #:make-s3-mock #:s3-mock-handler #:with-s3-mock
+   #:resolve-endpoint #:object-canonical-uri #:%uri-encode #:%sha256-hex
+   #:%empty-payload-hash #:%hex #:%hmac-sha256))
+
 (defpackage :clun.hash
   (:use :cl)
   (:documentation "Pure Common Lisp implementations of Clun.hash algorithms.")

@@ -321,7 +321,9 @@ Phase 60 package-manager.monorepo No→Yes (#182) stages `0.1.0-dev.48` / `v0.1.
 
 Phase 58 secrets FULL PORT (#179) stages free `0.1.0-dev.49` / `v0.1.0-dev.49`; SemVer impact is `minor`.
 
-Phase 41 runtime.loader-plugins FULL PORT (#187) stages free `0.1.0-dev.50` / `v0.1.0-dev.50` with pure-CL `Clun.plugin` (Bun.plugin-compatible onResolve/onLoad/module/clearAll plus exceed list/clear/priority/registerHooks); SemVer impact is `minor`.
+Phase 41 runtime.loader-plugins FULL PORT (#187) stages free `0.1.0-dev.53` / `v0.1.0-dev.53` with pure-CL `Clun.plugin` (Bun.plugin-compatible onResolve/onLoad/module/clearAll plus exceed list/clear/priority/registerHooks); SemVer impact is `minor`.
 Phase 54 Redis FULL PORT (#184) stages free `0.1.0-dev.51` / `v0.1.0-dev.51`; SemVer impact is `minor`.
 Phase 67 hot-reload FULL PORT (#188) stages free `0.1.0-dev.52` / `v0.1.0-dev.52`; SemVer impact is `minor`.
 Phase 67 hot-reload FULL PORT (#188) stages free `0.1.0-dev.52` / `v0.1.0-dev.52`; SemVer impact is `minor`.
+Phase 53 cloud.s3 FULL PORT (#185) stages free `0.1.0-dev.53` / `v0.1.0-dev.53` with pure-CL AWS SigV4 S3 client (list/get/put/delete/presign/multipart, path-style); SemVer impact is `minor`.
+Phase 53 S3 FULL PORT (#185) stages free `0.1.0-dev.53` / `v0.1.0-dev.53`; SemVer impact is `minor`.
