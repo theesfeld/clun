@@ -138,23 +138,36 @@
 (defmethod destructure-signature ((kind (eql :rsa)) signature)
   (list :s (octets-to-integer signature) :n-bits (* 8 (length signature))))
 
-(defmethod sign-message ((key rsa-private-key) msg &key (start 0) end pss &allow-other-keys)
-  (let ((nbits (integer-length (rsa-key-modulus key)))
-        (m (subseq msg start end)))
+(defmethod sign-message ((key rsa-private-key) msg
+                         &key (start 0) end pss salt-length &allow-other-keys)
+  (let* ((nbits (integer-length (rsa-key-modulus key)))
+         (em-bits (1- nbits))
+         (em-length (ceiling em-bits 8))
+         (m (subseq msg start end)))
     (when pss
-      (setf m (pss-encode pss m (/ nbits 8))))
+      (setf m (pss-encode pss m em-length salt-length em-bits)))
     (setf m (octets-to-integer m))
     (make-signature :rsa
                     :s (rsa-core m (rsa-key-exponent key) (rsa-key-modulus key))
                     :n-bits nbits)))
 
-(defmethod verify-signature ((key rsa-public-key) msg signature &key (start 0) end pss &allow-other-keys)
-  (let ((nbits (integer-length (rsa-key-modulus key))))
-    (unless (= (* 8 (length signature)) nbits)
+(defmethod verify-signature ((key rsa-public-key) msg signature
+                             &key (start 0) end pss salt-length &allow-other-keys)
+  (let* ((modulus (rsa-key-modulus key))
+         (nbits (integer-length modulus)))
+    (unless (= (length signature) (ceiling nbits 8))
       (error 'invalid-signature-length :kind 'rsa))
     (let* ((signature-elements (destructure-signature :rsa signature))
-           (s (getf signature-elements :s))
-           (m (rsa-core s (rsa-key-exponent key) (rsa-key-modulus key))))
-      (if pss
-          (pss-verify pss (subseq msg start end) (integer-to-octets m :n-bits nbits))
-          (= (octets-to-integer msg :start start :end end) m)))))
+           (s (getf signature-elements :s)))
+      (and (< s modulus)
+           (let ((m (rsa-core s (rsa-key-exponent key) modulus)))
+             (if pss
+                 (let* ((em-bits (1- nbits))
+                        (em-length (ceiling em-bits 8))
+                        (em-width (* 8 em-length)))
+                   (and (< m (ash 1 em-width))
+                        (pss-verify
+                         pss (subseq msg start end)
+                         (integer-to-octets m :n-bits em-width)
+                         salt-length em-bits)))
+                 (= (octets-to-integer msg :start start :end end) m)))))))

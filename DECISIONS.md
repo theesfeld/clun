@@ -3517,12 +3517,47 @@ Refs: #221
   Master Secret.
 - The package-manager ledger row is Partial despite working public add/install:
   Clun does not yet implement npm publishing or the full registry-auth and
-  publishing corpus. The working public flow uses an experimental bounded TLS
-  profile; Issue #234 WebPKI hardening blocks release and no browser-grade or
-  generally fail-closed WebPKI claim is made here.
+  publishing corpus. At this checkpoint the working public flow used an
+  experimental bounded TLS profile and Issue #234 WebPKI hardening was the next
+  release blocker; no browser-grade WebPKI claim was made.
 - SRI detects corruption or tampering relative to integrity already authenticated
   and recorded in the lockfile. On fresh resolution, registry metadata supplies
   both integrity and tarball URL, so SRI does not independently defeat a transport
   compromise capable of replacing both.
 
 Refs: #233, #234
+
+## 2026-07-19 — bounded authenticated pure-CL WebPKI profile (#234)
+
+Clun HTTPS deliberately composes a narrower, fail-closed identity and certificate-path policy than
+pure-tls's general-purpose defaults. Both TLS 1.3 and the TLS 1.2 ECDHE fallback use one context
+policy:
+
+- DNS references require a matching dNSName SAN and IP references require the exact iPAddress SAN;
+  Common Name fallback is disabled.
+- RSA server-auth keys require 2048 through 8192 bits, and peer-supplied paths are limited to eight
+  leaf-first entries.
+- The supplied order is authoritative and must terminate at an explicit trust anchor, either by DER,
+  the same CA subject/public key (the RFC trust-anchor identity used for cross-signed roots), or a
+  terminal signature by that anchor. AIA fetching and alternate-path construction are not implemented.
+- Leaf and non-anchor CA EKU constraints are cumulative for the requested purpose; malformed/empty
+  KU and EKU encodings reject instead of becoming indistinguishable from absent extensions.
+- Critical-extension acceptance is centralized around semantics actually enforced, not symbolic OID
+  recognition. Every path containing nameConstraints rejects until permitted/excluded subtree
+  processing exists.
+- DER, Certificate/TBSCertificate, Name/RDN, Extension, validity, AlgorithmIdentifier, SPKI, RSA,
+  and ECDSA structures are fully consumed and schema-checked. Issuer/anchor names and SPKIs retain
+  their lossless DER identity; RDN SET OF order and canonical EC named-curve coordinates are exact;
+  unsupported SAN GeneralName forms fail closed; RSA representatives, modulus bounds, and declared
+  RSA-PSS salt/key restrictions are exact. Certificate PSS signatures verify the declared salt length,
+  while TLS CertificateVerify fixes salt length to the selected hash output length per RFC 8446.
+- Resource limits apply before materialization: one MiB DER/certificate-list input, 32 nesting
+  levels, 4,096 nodes, eight peer certificates, and 16 extensions per TLS 1.3 CertificateEntry.
+
+Validity, SAN identity, BasicConstraints, pathLen, KeyUsage, signatures, and cryptographic anchoring
+remain mandatory. Revocation, Certificate Transparency, and RFC 5280 policy-tree processing are not
+implemented, so this is explicitly not a browser-grade or complete RFC 5280 claim.
+Issue #235 remains the separate release blocker for TLS alert/close compliance; #234 does not claim
+that record-layer lifecycle work is complete.
+
+Refs: #234, #233, #2

@@ -48,7 +48,8 @@
 
 (defstruct x509-name
   "X.509 Distinguished Name."
-  (rdns nil :type list))  ; List of (oid . value) pairs
+  (rdns nil :type list)  ; Flattened compatibility view of (oid . value) pairs.
+  (raw-der nil :type (or null octet-vector)))
 
 (defstruct x509-extension
   "X.509 Extension."
@@ -58,27 +59,85 @@
 
 ;;;; Certificate Parsing
 
-(defun known-certificate-extension-p (oid)
-  "Check if a certificate extension OID is known (has a symbolic name).
-Per RFC 5280 s4.2, unknown critical extensions must cause rejection.
-Note: distinct from KNOWN-EXTENSION-P in handshake/extensions.lisp, which
-checks TLS extension type codes."
-  (symbolp oid))
+(defparameter +enforced-critical-certificate-extensions+
+  '(:basic-constraints :key-usage :subject-alt-name :extended-key-usage)
+  "Critical X.509 extensions whose DER and authentication semantics are
+actually enforced by the bounded pure-Lisp verifier.  Merely mapping an OID to
+a keyword does not make its critical semantics understood.  In particular,
+name/policy constraints and revocation-distribution extensions stay out of this
+set until their path-processing rules are implemented.")
+
+(defconstant +maximum-rsa-modulus-bits+ 8192
+  "Maximum RSA modulus size accepted by the bounded WebPKI profile.")
+
+(defconstant +maximum-rsa-pss-salt-length+ 1024
+  "Absolute syntactic bound for peer-controlled RSASSA-PSS saltLength values.")
+
+(defconstant +secp256r1-field-prime+
+  #xFFFFFFFF00000001000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFF)
+
+(defconstant +secp384r1-field-prime+
+  #xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFFFF0000000000000000FFFFFFFF)
+
+(defconstant +secp521r1-field-prime+
+  #x1FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF)
+
+(defun enforced-critical-certificate-extension-p (oid)
+  "Return true only when OID names a critical extension this verifier enforces."
+  (not (null (member oid +enforced-critical-certificate-extensions+
+                     :test #'equal))))
 
 (defun validate-implicit-bit-string (raw-bytes)
   "Validate BIT STRING encoding for IMPLICIT BIT STRING fields.
 Per DER (X.690): unused bits count must be 0-7 and padding bits must be zero."
-  (when (and raw-bytes (> (length raw-bytes) 0))
-    (let ((unused-bits (aref raw-bytes 0)))
-      (when (> unused-bits 7)
+  (unless (and (typep raw-bytes 'octet-vector) (>= (length raw-bytes) 2))
+    (error 'tls-decode-error :message "UniqueIdentifier BIT STRING must not be empty"))
+  (let ((unused-bits (aref raw-bytes 0)))
+    (when (> unused-bits 7)
+      (error 'tls-decode-error
+             :message "BIT STRING unused bits count must be 0-7"))
+    (when (> unused-bits 0)
+      (let* ((last-byte (aref raw-bytes (1- (length raw-bytes))))
+             (mask (1- (ash 1 unused-bits))))
+        (unless (zerop (logand last-byte mask))
+          (error 'tls-decode-error
+                 :message "BIT STRING has non-zero padding bits (invalid DER)"))))))
+
+(defun asn1-universal-primitive-p (node tag)
+  (and (asn1-node-p node)
+       (= (asn1-node-class node) +asn1-class-universal+)
+       (= (asn1-node-tag node) tag)
+       (not (asn1-node-constructed node))))
+
+(defun asn1-null-p (node)
+  (and (asn1-universal-primitive-p node +asn1-null+)
+       (zerop (asn1-node-content-length node))))
+
+(defun require-asn1-sequence (node description)
+  (unless (asn1-sequence-p node)
+    (error 'tls-decode-error
+           :message (format nil "~A must be a DER SEQUENCE" description)))
+  (asn1-children node))
+
+(defun parse-validity (node)
+  "Parse the exact RFC 5280 Validity shape and reject inverted windows."
+  (let ((children (require-asn1-sequence node "Validity")))
+    (unless (= (length children) 2)
+      (error 'tls-decode-error
+             :message "Validity must contain exactly notBefore and notAfter"))
+    (dolist (time children)
+      (unless (and (= (asn1-node-class time) +asn1-class-universal+)
+                   (not (asn1-node-constructed time))
+                   (member (asn1-node-tag time)
+                           (list +asn1-utc-time+ +asn1-generalized-time+)))
         (error 'tls-decode-error
-               :message "BIT STRING unused bits count must be 0-7"))
-      (when (and (> unused-bits 0) (> (length raw-bytes) 1))
-        (let* ((last-byte (aref raw-bytes (1- (length raw-bytes))))
-               (mask (1- (ash 1 unused-bits))))
-          (unless (zerop (logand last-byte mask))
-            (error 'tls-decode-error
-                   :message "BIT STRING has non-zero padding bits (invalid DER)")))))))
+               :message "Validity fields must be primitive UTCTime or GeneralizedTime")))
+    (let ((not-before (asn1-node-value (first children)))
+          (not-after (asn1-node-value (second children))))
+      (when (> not-before not-after)
+        (error 'tls-decode-error
+               :message "Certificate validity notBefore is after notAfter"))
+      (values not-before not-after))))
 
 (defun parse-certificate (der-bytes)
   "Parse a DER-encoded X.509 certificate."
@@ -87,132 +146,274 @@ Per DER (X.690): unused bits count must be 0-7 and padding bits must be zero."
     (unless (asn1-sequence-p root)
       (error 'tls-decode-error :message "Certificate must be a SEQUENCE"))
     (let ((children (asn1-children root)))
-      (unless (>= (length children) 3)
-        (error 'tls-decode-error :message "Certificate missing required fields"))
-      ;; TBSCertificate - returns inner signature algorithm
-      (let* ((tbs (first children))
-             (inner-sig-algorithm (progn
-                                    (setf (x509-certificate-tbs-raw cert)
-                                          (asn1-node-raw-bytes tbs))
-                                    (parse-tbs-certificate cert tbs))))
-        ;; SignatureAlgorithm (with params for RSA-PSS)
-        (multiple-value-bind (algorithm params)
-            (parse-algorithm-identifier-with-params (second children))
-          (setf (x509-certificate-signature-algorithm cert) algorithm)
-          (setf (x509-certificate-signature-algorithm-params cert) params)
-          ;; Per RFC 5280 s4.1.1.2: inner and outer signature algorithms must match
-          (unless (equal inner-sig-algorithm algorithm)
+      (unless (= (length children) 3)
+        (error 'tls-decode-error
+               :message "Certificate must contain exactly three fields"))
+      (let ((tbs (first children))
+            (outer-algorithm-node (second children))
+            (signature-node (third children)))
+        (unless (asn1-sequence-p tbs)
+          (error 'tls-decode-error :message "TBSCertificate must be a SEQUENCE"))
+        (setf (x509-certificate-tbs-raw cert) (asn1-node-raw-bytes tbs))
+        (multiple-value-bind (inner-algorithm-node inner-algorithm inner-params)
+            (parse-tbs-certificate cert tbs)
+          (multiple-value-bind (outer-algorithm outer-params)
+              (parse-algorithm-identifier-with-params outer-algorithm-node)
+            ;; RFC 5280 4.1.1.2 requires the complete AlgorithmIdentifier,
+            ;; including RSA-PSS parameters, to match the inner identifier.
+            (unless (equalp (asn1-node-raw-bytes inner-algorithm-node)
+                            (asn1-node-raw-bytes outer-algorithm-node))
+              (error 'tls-decode-error
+                     :message "Inner and outer signature AlgorithmIdentifiers differ"))
+            (unless (and (equal inner-algorithm outer-algorithm)
+                         (equal inner-params outer-params))
+              (error 'tls-decode-error
+                     :message "Signature AlgorithmIdentifier parameters differ"))
+            (setf (x509-certificate-signature-algorithm cert) outer-algorithm
+                  (x509-certificate-signature-algorithm-params cert) outer-params)))
+        (unless (asn1-universal-primitive-p signature-node +asn1-bit-string+)
+          (error 'tls-decode-error :message "Certificate signatureValue must be a BIT STRING"))
+        (let ((signature-value (asn1-node-value signature-node)))
+          (unless (and (zerop (getf signature-value :unused-bits))
+                       (plusp (length (getf signature-value :data))))
             (error 'tls-decode-error
-                   :message (format nil "Signature algorithm mismatch: inner=~A outer=~A"
-                                    inner-sig-algorithm algorithm)))))
-      ;; SignatureValue (BIT STRING)
-      (let ((sig-value (asn1-node-value (third children))))
-        (setf (x509-certificate-signature cert)
-              (getf sig-value :data))))
+                   :message "Certificate signatureValue must be a non-empty octet-aligned BIT STRING"))
+          (setf (x509-certificate-signature cert)
+                (getf signature-value :data)))))
     cert))
 
 (defun parse-tbs-certificate (cert tbs)
-  "Parse the TBSCertificate portion. Returns the inner signature algorithm."
-  (let ((children (asn1-children tbs))
+  "Parse the exact TBSCertificate schema and return its signature identifier."
+  (let ((children (require-asn1-sequence tbs "TBSCertificate"))
         (idx 0)
-        (inner-sig-algorithm nil))
+        (inner-algorithm-node nil)
+        (inner-algorithm nil)
+        (inner-params nil))
     ;; Version [0] EXPLICIT (optional, default v1)
     (when (and children (asn1-context-p (nth idx children) 0))
-      (let ((version-node (first (asn1-children (nth idx children)))))
+      (let* ((wrapper (nth idx children))
+             (wrapped (and (asn1-node-constructed wrapper)
+                           (asn1-children wrapper))))
+        (unless (and (= (length wrapped) 1)
+                     (asn1-universal-primitive-p (first wrapped) +asn1-integer+)
+                     (<= 0 (asn1-node-value (first wrapped)) 2))
+          (error 'tls-decode-error
+                 :message "Version [0] must explicitly wrap one INTEGER in the range 0..2"))
+        ;; Version v1 is DEFAULT and therefore must be omitted in DER.
+        (when (zerop (asn1-node-value (first wrapped)))
+          (error 'tls-decode-error :message "The default v1 Version must be omitted"))
         (setf (x509-certificate-version cert)
-              (1+ (asn1-node-value version-node))))
+              (1+ (asn1-node-value (first wrapped)))))
       (incf idx))
+    (when (< (- (length children) idx) 6)
+      (error 'tls-decode-error :message "TBSCertificate is missing required fields"))
     ;; SerialNumber - RFC 5280 s4.1.2.2: must be positive
-    (let ((serial (asn1-node-value (nth idx children))))
-      (when (< serial 0)
-        (error 'tls-decode-error
-               :message "Certificate serial number must be positive (RFC 5280 s4.1.2.2)"))
-      (setf (x509-certificate-serial-number cert) serial))
+    (let ((serial-node (nth idx children)))
+      (unless (asn1-universal-primitive-p serial-node +asn1-integer+)
+        (error 'tls-decode-error :message "Certificate serialNumber must be an INTEGER"))
+      (let ((serial (asn1-node-value serial-node)))
+        (when (or (<= serial 0) (> (asn1-node-content-length serial-node) 20))
+          (error 'tls-decode-error
+                 :message "Certificate serial number must be positive and at most 20 octets"))
+        (setf (x509-certificate-serial-number cert) serial)))
     (incf idx)
-    ;; Signature (AlgorithmIdentifier) - capture for validation
-    (setf inner-sig-algorithm (parse-algorithm-identifier (nth idx children)))
+    ;; Signature (AlgorithmIdentifier) - capture the complete identifier.
+    (setf inner-algorithm-node (nth idx children))
+    (multiple-value-setq (inner-algorithm inner-params)
+      (parse-algorithm-identifier-with-params inner-algorithm-node))
     (incf idx)
-    ;; Issuer
+    ;; Issuer must be a non-empty Name.
     (setf (x509-certificate-issuer cert)
           (parse-name (nth idx children)))
     (incf idx)
-    ;; Validity
-    (let ((validity (asn1-children (nth idx children))))
-      (setf (x509-certificate-validity-not-before cert)
-            (asn1-node-value (first validity)))
-      (setf (x509-certificate-validity-not-after cert)
-            (asn1-node-value (second validity))))
+    ;; Validity must contain exactly two correctly tagged canonical times.
+    (multiple-value-bind (not-before not-after)
+        (parse-validity (nth idx children))
+      (setf (x509-certificate-validity-not-before cert) not-before
+            (x509-certificate-validity-not-after cert) not-after))
     (incf idx)
-    ;; Subject
+    ;; Subject may be empty only when a critical non-empty SAN follows.
     (setf (x509-certificate-subject cert)
-          (parse-name (nth idx children)))
+          (parse-name (nth idx children) :allow-empty t))
     (incf idx)
-    ;; SubjectPublicKeyInfo
+    ;; SubjectPublicKeyInfo exact schema and key validation.
     (setf (x509-certificate-subject-public-key-info cert)
           (parse-subject-public-key-info (nth idx children)))
     (incf idx)
-    ;; Validate and skip optional issuerUniqueID [1] and subjectUniqueID [2]
-    ;; These are IMPLICIT BIT STRING, so we need to validate the BIT STRING encoding
-    (loop while (and (< idx (length children))
-                     (or (asn1-context-p (nth idx children) 1)
-                         (asn1-context-p (nth idx children) 2)))
-          do (let ((unique-id-node (nth idx children)))
-               ;; Validate BIT STRING encoding for IMPLICIT BIT STRING
-               (validate-implicit-bit-string (asn1-node-value unique-id-node)))
-             (incf idx))
+    ;; Optional fields are unique and ordered by their schema positions.
+    (when (and (< idx (length children)) (asn1-context-p (nth idx children) 1))
+      (unless (>= (x509-certificate-version cert) 2)
+        (error 'tls-decode-error
+               :message "issuerUniqueID is not permitted in a v1 certificate"))
+      (let ((node (nth idx children)))
+        (when (asn1-node-constructed node)
+          (error 'tls-decode-error :message "issuerUniqueID must be primitive"))
+        (validate-implicit-bit-string (asn1-node-value node)))
+      (incf idx))
+    (when (and (< idx (length children)) (asn1-context-p (nth idx children) 2))
+      (unless (>= (x509-certificate-version cert) 2)
+        (error 'tls-decode-error
+               :message "subjectUniqueID is not permitted in a v1 certificate"))
+      (let ((node (nth idx children)))
+        (when (asn1-node-constructed node)
+          (error 'tls-decode-error :message "subjectUniqueID must be primitive"))
+        (validate-implicit-bit-string (asn1-node-value node)))
+      (incf idx))
     ;; Extensions [3] EXPLICIT
     (when (and (< idx (length children))
                (asn1-context-p (nth idx children) 3))
+      (unless (= (x509-certificate-version cert) 3)
+        (error 'tls-decode-error :message "Extensions are permitted only in v3 certificates"))
+      (let ((wrapper (nth idx children)))
+        (unless (and (asn1-node-constructed wrapper)
+                     (= (length (asn1-children wrapper)) 1)
+                     (asn1-sequence-p (first (asn1-children wrapper))))
+          (error 'tls-decode-error
+                 :message "Extensions [3] must explicitly wrap one SEQUENCE")))
       (setf (x509-certificate-extensions cert)
             (parse-extensions-seq (first (asn1-children (nth idx children)))))
-      ;; Per RFC 5280 s4.2: reject certificates with unknown critical extensions
+      (incf idx)
+      ;; RFC 5280 s4.2: reject critical extensions whose semantics are not
+      ;; enforced.  Recognizing an OID name is not sufficient.
       (dolist (ext (x509-certificate-extensions cert))
         (when (and (x509-extension-critical ext)
-                   (not (known-certificate-extension-p (x509-extension-oid ext))))
+                   (not (enforced-critical-certificate-extension-p
+                         (x509-extension-oid ext))))
           (error 'tls-decode-error
-                 :message (format nil "Unknown critical extension: ~A"
+                 :message (format nil "Unsupported critical extension: ~A"
                                   (x509-extension-oid ext))))))
-    ;; Return inner signature algorithm for validation
-    inner-sig-algorithm))
+    (unless (= idx (length children))
+      (error 'tls-decode-error
+             :message "TBSCertificate contains duplicate, out-of-order, or trailing fields"))
+    (when (null (x509-name-rdns (x509-certificate-subject cert)))
+      (let ((san (find :subject-alt-name (x509-certificate-extensions cert)
+                       :key #'x509-extension-oid)))
+        (unless (and san (x509-extension-critical san)
+                     (x509-extension-value san))
+          (error 'tls-decode-error
+                 :message "An empty subject requires a critical non-empty subjectAltName"))))
+    (values inner-algorithm-node inner-algorithm inner-params)))
 
-(defun parse-name (node)
+(defun octets-lexicographically-less-p (left right)
+  "Return true when LEFT precedes RIGHT in DER octet-string ordering."
+  (loop for index below (min (length left) (length right))
+        for left-octet = (aref left index)
+        for right-octet = (aref right index)
+        when (/= left-octet right-octet)
+          do (return (< left-octet right-octet))
+        finally (return (< (length left) (length right)))))
+
+(defun parse-name (node &key allow-empty)
   "Parse an X.509 Name (sequence of RDNs)."
-  (let ((rdns nil))
-    (dolist (rdn-set (asn1-children node))
+  (let ((name-children (require-asn1-sequence node "Name"))
+        (rdns nil))
+    (unless (or allow-empty name-children)
+      (error 'tls-decode-error :message "Issuer Name must not be empty"))
+    (dolist (rdn-set name-children)
+      (unless (and (asn1-set-p rdn-set) (asn1-children rdn-set))
+        (error 'tls-decode-error
+               :message "Each RelativeDistinguishedName must be a non-empty SET"))
+      ;; RelativeDistinguishedName is SET OF AttributeTypeAndValue, so DER
+      ;; requires its complete child encodings in ascending lexicographic
+      ;; order (X.690 11.6).  This rule belongs here rather than on generic
+      ;; SET values, whose component ordering is governed by their schema.
+      (loop for previous = nil then current
+            for attr in (asn1-children rdn-set)
+            for current = (asn1-node-raw-bytes attr)
+            when (and previous
+                      (octets-lexicographically-less-p current previous))
+              do (error 'tls-decode-error
+                        :message "RelativeDistinguishedName SET OF is not in DER order"))
       (dolist (attr (asn1-children rdn-set))
-        (let* ((children (asn1-children attr))
-               (oid (asn1-node-value (first children)))
-               (value (asn1-node-value (second children))))
-          (push (cons (oid-name oid) value) rdns))))
-    (make-x509-name :rdns (nreverse rdns))))
+        (let ((children (require-asn1-sequence attr "AttributeTypeAndValue")))
+          (unless (and (= (length children) 2)
+                       (asn1-universal-primitive-p
+                        (first children) +asn1-object-identifier+)
+                       (= (asn1-node-class (second children)) +asn1-class-universal+)
+                       (not (asn1-node-constructed (second children))))
+            (error 'tls-decode-error
+                   :message "AttributeTypeAndValue must contain exactly an OID and primitive value"))
+          (let ((oid (asn1-node-value (first children)))
+                (value (asn1-node-value (second children))))
+            (push (cons (oid-name oid) value) rdns)))))
+    (make-x509-name :rdns (nreverse rdns)
+                    :raw-der (asn1-node-raw-bytes node))))
 
 (defun parse-algorithm-identifier (node)
   "Parse an AlgorithmIdentifier.
    Returns the algorithm OID name, or for EC algorithms, the curve OID."
-  (let ((children (asn1-children node)))
-    (let ((algorithm (oid-name (asn1-node-value (first children)))))
-      ;; For EC public keys, the second parameter is the curve OID
-      (if (and (member algorithm '(:ec-public-key :ecdsa))
-               (second children))
-          (oid-name (asn1-node-value (second children)))
-          algorithm))))
+  (multiple-value-bind (algorithm parameter)
+      (parse-algorithm-identifier-components node)
+    (if (eql algorithm :ec-public-key)
+        (progn
+          (unless (and parameter
+                       (asn1-universal-primitive-p parameter
+                                                   +asn1-object-identifier+))
+            (error 'tls-decode-error
+                   :message "EC AlgorithmIdentifier requires a named-curve OID"))
+          (oid-name (asn1-node-value parameter)))
+        algorithm)))
+
+(defun parse-algorithm-identifier-components (node)
+  "Validate the common AlgorithmIdentifier shape and return algorithm/parameter."
+  (let ((children (require-asn1-sequence node "AlgorithmIdentifier")))
+    (unless (and (<= 1 (length children) 2)
+                 (asn1-universal-primitive-p
+                  (first children) +asn1-object-identifier+))
+      (error 'tls-decode-error
+             :message "AlgorithmIdentifier must contain an OID and at most one parameter"))
+    (values (oid-name (asn1-node-value (first children)))
+            (second children))))
+
+(defun rsa-pkcs1-signature-algorithm-p (algorithm)
+  (member algorithm '(:sha1-with-rsa-encryption
+                      :sha256-with-rsa-encryption
+                      :sha384-with-rsa-encryption
+                      :sha512-with-rsa-encryption)))
+
+(defun no-parameter-signature-algorithm-p (algorithm)
+  (member algorithm '(:ecdsa-with-sha256 :ecdsa-with-sha384
+                      :ecdsa-with-sha512 :ed25519 :ed448
+                      :mldsa44 :mldsa65 :mldsa87)))
 
 (defun parse-algorithm-identifier-with-params (node)
   "Parse an AlgorithmIdentifier, returning (algorithm . params).
    For RSA-PSS, params is a plist with :hash and :salt-length.
    For other algorithms, params is NIL."
-  (let* ((children (asn1-children node))
-         (algorithm (oid-name (asn1-node-value (first children))))
-         (params nil))
-    ;; For EC public keys, the second parameter is the curve OID
-    (when (and (member algorithm '(:ec-public-key :ecdsa))
-               (second children))
-      (setf algorithm (oid-name (asn1-node-value (second children)))))
-    ;; For RSA-PSS, parse the parameters
-    (when (and (member algorithm '(:rsa-pss :rsassa-pss))
-               (second children))
-      (setf params (parse-rsa-pss-params (second children))))
-    (values algorithm params)))
+  (multiple-value-bind (algorithm parameter)
+      (parse-algorithm-identifier-components node)
+    (cond
+      ((rsa-pkcs1-signature-algorithm-p algorithm)
+       (unless (asn1-null-p parameter)
+         (error 'tls-decode-error
+                :message "RSA PKCS#1 certificate signature parameters must be NULL"))
+       (values algorithm nil))
+      ((no-parameter-signature-algorithm-p algorithm)
+       (when parameter
+         (error 'tls-decode-error
+                :message "Certificate signature algorithm parameters must be absent"))
+       (values algorithm nil))
+      ((member algorithm '(:rsa-pss :rsassa-pss))
+       (unless parameter
+         (error 'tls-decode-error
+                :message "RSASSA-PSS certificate signature parameters must be present"))
+       (values algorithm (parse-rsa-pss-params parameter)))
+      (t
+       (error 'tls-decode-error
+              :message (format nil "Unsupported certificate signature algorithm: ~A"
+                               algorithm))))))
+
+(defun parse-hash-algorithm-identifier (node)
+  "Parse a hash AlgorithmIdentifier used inside RSASSA-PSS parameters."
+  (multiple-value-bind (algorithm parameter)
+      (parse-algorithm-identifier-components node)
+    (unless (member algorithm '(:sha1 :sha256 :sha384 :sha512))
+      (error 'tls-decode-error
+             :message "RSASSA-PSS uses an unsupported hash algorithm"))
+    (when (and parameter (not (asn1-null-p parameter)))
+      (error 'tls-decode-error
+             :message "Hash AlgorithmIdentifier parameters must be absent or NULL"))
+    algorithm))
 
 (defun parse-rsa-pss-params (node)
   "Parse RSA-PSS AlgorithmIdentifier parameters.
@@ -222,78 +423,235 @@ Per DER (X.690): unused bits count must be 0-7 and padding bits must be zero."
      saltLength         [2] INTEGER DEFAULT 20,
      trailerField       [3] TrailerField DEFAULT trailerFieldBC }
    Returns a plist with :hash and :salt-length."
-  (let ((hash :sha1)        ; Default per RFC 4055
-        (salt-length 20))   ; Default per RFC 4055
-    (when (and node (asn1-sequence-p node))
-      (dolist (child (asn1-children node))
-        (when (asn1-node-p child)
-          (let ((tag (asn1-node-tag child)))
-            (cond
-              ;; [0] hashAlgorithm
-              ((and (asn1-context-p child 0)
-                    (asn1-children child))
-               (let* ((hash-seq (first (asn1-children child)))
-                      (hash-children (when (asn1-sequence-p hash-seq)
-                                      (asn1-children hash-seq))))
-                 (when hash-children
-                   (let ((hash-oid (oid-name (asn1-node-value (first hash-children)))))
-                     (setf hash (case hash-oid
-                                  (:sha256 :sha256)
-                                  (:sha384 :sha384)
-                                  (:sha512 :sha512)
-                                  (:sha1 :sha1)
-                                  (otherwise hash-oid)))))))
-              ;; [2] saltLength
-              ((asn1-context-p child 2)
-               (let ((salt-node (first (asn1-children child))))
-                 (when (and salt-node (integerp (asn1-node-value salt-node)))
-                   (setf salt-length (asn1-node-value salt-node))))))))))
+  (let ((children (require-asn1-sequence node "RSASSA-PSS parameters"))
+        (hash :sha1)
+        (mgf-hash :sha1)
+        (salt-length 20)
+        (last-tag -1))
+    (dolist (field children)
+      (unless (and (= (asn1-node-class field) +asn1-class-context-specific+)
+                   (asn1-node-constructed field)
+                   (= (length (asn1-children field)) 1)
+                   (<= 0 (asn1-node-tag field) 3)
+                   (> (asn1-node-tag field) last-tag))
+        (error 'tls-decode-error
+               :message "RSASSA-PSS parameter fields must be unique and ordered"))
+      (setf last-tag (asn1-node-tag field))
+      (let ((value (first (asn1-children field))))
+        (case (asn1-node-tag field)
+          (0
+           (setf hash (parse-hash-algorithm-identifier value))
+           (when (eql hash :sha1)
+             (error 'tls-decode-error
+                    :message "Default RSASSA-PSS hashAlgorithm must be omitted")))
+          (1
+           (multiple-value-bind (mgf parameter)
+               (parse-algorithm-identifier-components value)
+             (unless (and (eql mgf :mgf1) parameter)
+               (error 'tls-decode-error
+                      :message "RSASSA-PSS maskGenAlgorithm must be MGF1"))
+             (setf mgf-hash (parse-hash-algorithm-identifier parameter))
+             (when (eql mgf-hash :sha1)
+               (error 'tls-decode-error
+                      :message "Default RSASSA-PSS maskGenAlgorithm must be omitted"))))
+          (2
+           (unless (and (asn1-universal-primitive-p value +asn1-integer+)
+                        (not (minusp (asn1-node-value value)))
+                        (<= (asn1-node-value value)
+                            +maximum-rsa-pss-salt-length+))
+             (error 'tls-decode-error
+                    :message "RSASSA-PSS saltLength is negative or exceeds the bounded profile"))
+           (setf salt-length (asn1-node-value value))
+           (when (= salt-length 20)
+             (error 'tls-decode-error
+                    :message "Default RSASSA-PSS saltLength must be omitted")))
+          (3
+           ;; trailerField has the sole supported/default value 1, which DER
+           ;; requires omitted.  No other trailer field is supported.
+           (error 'tls-decode-error
+                  :message "RSASSA-PSS trailerField must be the omitted default")))))
+    (unless (eql hash mgf-hash)
+      (error 'tls-decode-error
+             :message "RSASSA-PSS MGF1 hash must match the message hash"))
     (list :hash hash :salt-length salt-length)))
 
+(defun parse-rsa-public-key-components
+    (public-key-der &key (minimum-bits 2048)
+                           (maximum-bits +maximum-rsa-modulus-bits+))
+  "Parse and validate an RFC 8017 RSAPublicKey, returning modulus/exponent."
+  (let* ((node (parse-der public-key-der))
+         (children (require-asn1-sequence node "RSAPublicKey")))
+    (unless (and (= (length children) 2)
+                 (every (lambda (child)
+                          (asn1-universal-primitive-p child +asn1-integer+))
+                        children))
+      (error 'tls-decode-error
+             :message "RSAPublicKey must contain exactly two INTEGERs"))
+    (let ((modulus (asn1-node-value (first children)))
+          (exponent (asn1-node-value (second children))))
+      (unless (and (plusp modulus) (oddp modulus)
+                   (>= (integer-length modulus) minimum-bits)
+                   (<= (integer-length modulus) maximum-bits)
+                   (>= exponent 3) (oddp exponent) (< exponent modulus))
+        (error 'tls-decode-error
+               :message "RSA key exceeds bounds or has an invalid modulus/exponent"))
+      (values modulus exponent))))
+
+(defun validate-ec-public-point (curve bytes)
+  (multiple-value-bind (coordinate-length field-prime ironclad-curve)
+      (ecase curve
+        (:prime256v1
+         (values 32 +secp256r1-field-prime+ :secp256r1))
+        (:secp384r1
+         (values 48 +secp384r1-field-prime+ :secp384r1))
+        (:secp521r1
+         (values 66 +secp521r1-field-prime+ :secp521r1)))
+    (unless (and (= (length bytes) (1+ (* 2 coordinate-length)))
+                 (= (aref bytes 0) #x04))
+      (error 'tls-decode-error
+             :message "EC SubjectPublicKey must be a supported uncompressed point"))
+    ;; SEC 1 encodes canonical field elements, not arbitrary integers modulo p.
+    ;; Ironclad checks the curve equation modulo p, so reject x/y >= p first;
+    ;; this also rejects nonzero unused high bits in P-521 coordinates.
+    (let ((x (ironclad:octets-to-integer
+              bytes :start 1 :end (1+ coordinate-length) :big-endian t))
+          (y (ironclad:octets-to-integer
+              bytes :start (1+ coordinate-length) :big-endian t)))
+      (unless (and (< x field-prime) (< y field-prime))
+        (error 'tls-decode-error
+               :message "EC SubjectPublicKey coordinates are not canonical field elements")))
+    ;; Length, encoding form, and field range are not enough: reject points
+    ;; that do not satisfy the selected named curve equation.
+    (handler-case
+        (ironclad:ec-decode-point ironclad-curve bytes)
+      (error ()
+        (error 'tls-decode-error
+               :message "EC SubjectPublicKey point is not on the selected curve")))))
+
 (defun parse-subject-public-key-info (node)
-  "Parse SubjectPublicKeyInfo."
-  (let* ((children (asn1-children node))
-         (algorithm (parse-algorithm-identifier (first children)))
-         (public-key-bits (asn1-node-value (second children))))
-    (list :algorithm algorithm
-          :public-key (getf public-key-bits :data))))
+  "Parse and losslessly validate SubjectPublicKeyInfo."
+  (let ((children (require-asn1-sequence node "SubjectPublicKeyInfo")))
+    (unless (= (length children) 2)
+      (error 'tls-decode-error
+             :message "SubjectPublicKeyInfo must contain exactly two fields"))
+    (let ((algorithm-node (first children))
+          (key-node (second children)))
+      (unless (asn1-universal-primitive-p key-node +asn1-bit-string+)
+        (error 'tls-decode-error
+               :message "SubjectPublicKeyInfo key must be a primitive BIT STRING"))
+      (let* ((bits (asn1-node-value key-node))
+             (key (getf bits :data))
+             (algorithm nil)
+             (algorithm-params nil))
+        (unless (and (zerop (getf bits :unused-bits)) key (plusp (length key)))
+          (error 'tls-decode-error
+                 :message "SubjectPublicKeyInfo key must be non-empty and octet-aligned"))
+        (multiple-value-bind (base-algorithm parameter)
+            (parse-algorithm-identifier-components algorithm-node)
+          (case base-algorithm
+            (:rsa-encryption
+             (unless (asn1-null-p parameter)
+               (error 'tls-decode-error
+                      :message "rsaEncryption parameters must be NULL"))
+             (parse-rsa-public-key-components key)
+             (setf algorithm :rsa-encryption))
+            (:rsassa-pss
+             (when parameter
+               (setf algorithm-params (parse-rsa-pss-params parameter)))
+             (parse-rsa-public-key-components key)
+             (setf algorithm :rsassa-pss))
+            (:ec-public-key
+             (unless (and parameter
+                          (asn1-universal-primitive-p
+                           parameter +asn1-object-identifier+))
+               (error 'tls-decode-error
+                      :message "EC public keys require an explicit named curve"))
+             (setf algorithm (oid-name (asn1-node-value parameter)))
+             (unless (member algorithm '(:prime256v1 :secp384r1 :secp521r1))
+               (error 'tls-decode-error
+                      :message "EC public key uses an unsupported named curve"))
+             (validate-ec-public-point algorithm key))
+            (:ed25519
+             (when parameter
+               (error 'tls-decode-error :message "Ed25519 parameters must be absent"))
+             (unless (= (length key) 32)
+               (error 'tls-decode-error :message "Ed25519 public key must be 32 octets"))
+             (setf algorithm :ed25519))
+            (:ed448
+             (when parameter
+               (error 'tls-decode-error :message "Ed448 parameters must be absent"))
+             (unless (= (length key) 57)
+               (error 'tls-decode-error :message "Ed448 public key must be 57 octets"))
+             (setf algorithm :ed448))
+            ((:mldsa44 :mldsa65 :mldsa87)
+             (when parameter
+               (error 'tls-decode-error :message "ML-DSA parameters must be absent"))
+             (let ((expected (ecase base-algorithm
+                               (:mldsa44 1312)
+                               (:mldsa65 1952)
+                               (:mldsa87 2592))))
+               (unless (= (length key) expected)
+                 (error 'tls-decode-error :message "ML-DSA public key has the wrong size")))
+             (setf algorithm base-algorithm))
+            (otherwise
+             (error 'tls-decode-error
+                    :message (format nil "Unsupported SubjectPublicKeyInfo algorithm: ~A"
+                                     base-algorithm))))
+          (list :algorithm algorithm
+                :algorithm-params algorithm-params
+                :algorithm-identifier-der (asn1-node-raw-bytes algorithm-node)
+                :spki-der (asn1-node-raw-bytes node)
+                :public-key key))))))
 
 (defun parse-extensions-seq (node)
   "Parse a SEQUENCE of Extensions.
 Per RFC 5280 Section 4.2: A certificate MUST NOT include more than one
 instance of a particular extension."
-  (let ((extensions nil)
+  (let ((children (require-asn1-sequence node "Extensions"))
+        (extensions nil)
         (seen-oids (make-hash-table :test 'equal)))
-    (dolist (child (asn1-children node))
-      (let* ((ext-children (asn1-children child))
-             (oid (asn1-node-value (first ext-children))))
+    (unless children
+      (error 'tls-decode-error :message "Extensions SEQUENCE must not be empty"))
+    (dolist (child children)
+      (let* ((ext-children (require-asn1-sequence child "Extension"))
+             (oid-node (first ext-children)))
+        (unless (and (<= 2 (length ext-children) 3)
+                     (asn1-universal-primitive-p
+                      oid-node +asn1-object-identifier+))
+          (error 'tls-decode-error
+                 :message "Extension has an invalid field shape"))
+        (let ((oid (asn1-node-value oid-node)))
         ;; Check for duplicate extensions
         (when (gethash oid seen-oids)
           (error 'tls-decode-error
                  :message (format nil "Duplicate extension: ~A" (oid-name oid))))
         (setf (gethash oid seen-oids) t)
-        (push (parse-x509-extension child) extensions)))
+        (push (parse-x509-extension child) extensions))))
     (nreverse extensions)))
 
 (defun parse-x509-extension (node)
   "Parse a single Extension."
-  (let* ((children (asn1-children node))
-         (oid (asn1-node-value (first children)))
-         (idx 1)
-         (critical nil)
-         (value nil))
-    ;; Check for critical flag
-    (when (and (< idx (length children))
-               (= (asn1-node-tag (nth idx children)) +asn1-boolean+))
-      (setf critical (asn1-node-value (nth idx children)))
-      (incf idx))
-    ;; Value is an OCTET STRING containing DER
-    (when (< idx (length children))
-      (let ((value-bytes (asn1-node-value (nth idx children))))
-        (setf value (parse-extension-value oid value-bytes))))
-    (make-x509-extension :oid (oid-name oid)
-                         :critical critical
-                         :value value)))
+  (let ((children (require-asn1-sequence node "Extension")))
+    (unless (and (<= 2 (length children) 3)
+                 (asn1-universal-primitive-p
+                  (first children) +asn1-object-identifier+))
+      (error 'tls-decode-error
+             :message "Extension must contain OID, optional critical TRUE, and OCTET STRING"))
+    (let* ((oid (asn1-node-value (first children)))
+           (critical-node (and (= (length children) 3) (second children)))
+           (value-node (if critical-node (third children) (second children))))
+      (when critical-node
+        (unless (and (asn1-universal-primitive-p critical-node +asn1-boolean+)
+                     (asn1-node-value critical-node))
+          (error 'tls-decode-error
+                 :message "Extension critical must be canonical TRUE; DEFAULT FALSE is omitted")))
+      (unless (asn1-universal-primitive-p value-node +asn1-octet-string+)
+        (error 'tls-decode-error
+               :message "Extension extnValue must be a primitive OCTET STRING"))
+      (make-x509-extension
+       :oid (oid-name oid)
+       :critical (not (null critical-node))
+       :value (parse-extension-value oid (asn1-node-value value-node))))))
 
 (defun parse-extension-value (oid value-bytes)
   "Parse extension value based on OID."
@@ -314,56 +672,147 @@ instance of a particular extension."
        value-bytes))))
 
 (defun parse-subject-alt-name (bytes)
-  "Parse SubjectAltName extension value."
+  "Parse a DER SubjectAltName without accepting malformed GeneralNames."
   (let* ((node (parse-der bytes))
+         (children (and node (asn1-sequence-p node) (asn1-children node)))
          (names nil))
-    (dolist (child (asn1-children node))
+    (unless (and children
+                 (= (length (asn1-node-raw-bytes node)) (length bytes)))
+      (error 'tls-decode-error
+             :message "SubjectAltName must be a non-empty DER SEQUENCE"))
+    (dolist (child children)
       (let ((tag (asn1-node-tag child))
             (value (asn1-node-value child)))
+        (unless (and (= (asn1-node-class child) +asn1-class-context-specific+)
+                     (<= 0 tag 8))
+          (error 'tls-decode-error
+                 :message "SubjectAltName contains an invalid GeneralName"))
         (case tag
           (2 ; dNSName
+           (unless (and (not (asn1-node-constructed child))
+                        (plusp (length value))
+                        (every (lambda (octet) (< octet 128)) value))
+             (error 'tls-decode-error :message "Malformed dNSName SAN"))
            (push (list :dns (octets-to-string value)) names))
           (7 ; iPAddress
+           (unless (and (not (asn1-node-constructed child))
+                        (member (length value) '(4 16)))
+             (error 'tls-decode-error :message "Malformed iPAddress SAN"))
            (push (list :ip value) names))
           (1 ; rfc822Name
+           (unless (and (not (asn1-node-constructed child))
+                        (plusp (length value))
+                        (every (lambda (octet) (< octet 128)) value))
+             (error 'tls-decode-error :message "Malformed rfc822Name SAN"))
            (push (list :email (octets-to-string value)) names))
           (6 ; uniformResourceIdentifier
-           (push (list :uri (octets-to-string value)) names)))))
+           (unless (and (not (asn1-node-constructed child))
+                        (plusp (length value))
+                        (every (lambda (octet) (< octet 128)) value))
+             (error 'tls-decode-error
+                    :message "Malformed uniformResourceIdentifier SAN"))
+           (push (list :uri (octets-to-string value)) names))
+          ;; The bounded profile understands and enforces only DNS, IP, email,
+          ;; and URI GeneralNames.  Reject every unsupported choice instead of
+          ;; silently treating a critical SAN as if its semantics were known.
+          ((0 3 4 5 8)
+           (error 'tls-decode-error
+                  :message "SubjectAltName uses an unsupported GeneralName form")))))
     (nreverse names)))
 
 (defun parse-basic-constraints (bytes)
-  "Parse BasicConstraints extension value."
+  "Parse BasicConstraints and reject non-DER or invalid field combinations."
   (let* ((node (parse-der bytes))
-         (children (asn1-children node))
+         (children (and node (asn1-sequence-p node) (asn1-children node)))
          (ca nil)
          (path-len nil))
+    (unless (and node
+                 (asn1-sequence-p node)
+                 (= (length (asn1-node-raw-bytes node)) (length bytes))
+                 (<= (length children) 2))
+      (error 'tls-decode-error
+             :message "BasicConstraints must be a DER SEQUENCE of at most two fields"))
     (when children
-      (when (= (asn1-node-tag (first children)) +asn1-boolean+)
+      (when (and (= (asn1-node-class (first children)) +asn1-class-universal+)
+                 (= (asn1-node-tag (first children)) +asn1-boolean+)
+                 (not (asn1-node-constructed (first children))))
+        ;; cA has DEFAULT FALSE, so DER requires the false value to be omitted.
+        (unless (asn1-node-value (first children))
+          (error 'tls-decode-error
+                 :message "BasicConstraints must omit the default cA=FALSE value"))
         (setf ca (asn1-node-value (first children)))
         (setf children (rest children)))
-      (when (and children (= (asn1-node-tag (first children)) +asn1-integer+))
+      (when children
+        (unless (and (= (length children) 1)
+                     (= (asn1-node-class (first children)) +asn1-class-universal+)
+                     (= (asn1-node-tag (first children)) +asn1-integer+)
+                     (not (asn1-node-constructed (first children))))
+          (error 'tls-decode-error :message "Malformed BasicConstraints fields"))
         (setf path-len (asn1-node-value (first children)))))
+    (when (and path-len (or (not ca) (minusp path-len)))
+      (error 'tls-decode-error
+             :message "BasicConstraints pathLenConstraint requires cA=TRUE and a nonnegative value"))
     (list :ca ca :path-length-constraint path-len)))
 
 (defun parse-key-usage (bytes)
-  "Parse KeyUsage extension value."
+  "Parse a DER KeyUsage BIT STRING and reject empty/malformed encodings."
   (let* ((node (parse-der bytes))
-         (bits (asn1-node-value node))
-         (unused (getf bits :unused-bits))
-         (data (getf bits :data))
+         (bits (and node (asn1-node-value node)))
+         (unused (and (listp bits) (getf bits :unused-bits)))
+         (data (and (listp bits) (getf bits :data)))
          (usages nil))
-    (when data
-      (let ((byte0 (if (plusp (length data)) (aref data 0) 0))
-            (byte1 (if (> (length data) 1) (aref data 1) 0)))
-        (when (logbitp 7 byte0) (push :digital-signature usages))
-        (when (logbitp 6 byte0) (push :non-repudiation usages))
-        (when (logbitp 5 byte0) (push :key-encipherment usages))
-        (when (logbitp 4 byte0) (push :data-encipherment usages))
-        (when (logbitp 3 byte0) (push :key-agreement usages))
-        (when (logbitp 2 byte0) (push :key-cert-sign usages))
-        (when (logbitp 1 byte0) (push :crl-sign usages))
-        (when (logbitp 0 byte0) (push :encipher-only usages))
-        (when (logbitp 7 byte1) (push :decipher-only usages))))
+    ;; KeyUsage ::= BIT STRING { nine named bits }.  A present extension must
+    ;; contain at least one asserted bit (RFC 5280 4.2.1.3).  Requiring the
+    ;; exact universal primitive type and complete DER consumption prevents a
+    ;; malformed extension from becoming NIL, which callers otherwise mistake
+    ;; for an absent/unrestricted KeyUsage.
+    (unless (and node
+                 (= (asn1-node-class node) +asn1-class-universal+)
+                 (= (asn1-node-tag node) +asn1-bit-string+)
+                 (not (asn1-node-constructed node))
+                 (= (length (asn1-node-raw-bytes node)) (length bytes))
+                 (integerp unused)
+                 data
+                 (<= 1 (length data) 2))
+      (error 'tls-decode-error
+             :message "KeyUsage must be a non-empty DER BIT STRING of at most nine bits"))
+    ;; Named-bit-list DER omits trailing zero bits.  A one-octet encoding's
+    ;; unused-bit count must therefore equal the number of low zero bits; a
+    ;; second octet is present only when decipherOnly itself is asserted.
+    (if (= (length data) 1)
+        (let* ((byte (aref data 0))
+               (expected-unused
+                 (loop for bit from 0 below 8
+                       when (logbitp bit byte) return bit
+                       finally (return 8))))
+          (unless (= unused expected-unused)
+            (error 'tls-decode-error
+                   :message "KeyUsage BIT STRING is not minimally encoded")))
+        (unless (and (= unused 7) (= (aref data 1) #x80))
+          (error 'tls-decode-error
+                 :message "KeyUsage contains bits outside the nine defined usages")))
+    (let ((byte0 (aref data 0))
+          (byte1 (if (> (length data) 1) (aref data 1) 0)))
+      (when (logbitp 7 byte0) (push :digital-signature usages))
+      (when (logbitp 6 byte0) (push :non-repudiation usages))
+      (when (logbitp 5 byte0) (push :key-encipherment usages))
+      (when (logbitp 4 byte0) (push :data-encipherment usages))
+      (when (logbitp 3 byte0) (push :key-agreement usages))
+      (when (logbitp 2 byte0) (push :key-cert-sign usages))
+      (when (logbitp 1 byte0) (push :crl-sign usages))
+      (when (logbitp 0 byte0) (push :encipher-only usages))
+      (when (logbitp 7 byte1) (push :decipher-only usages)))
+    (unless usages
+      (error 'tls-decode-error
+             :message "KeyUsage extension has no asserted usage bits"))
+    ;; RFC 5280 4.2.1.3 defines encipherOnly and decipherOnly only when
+    ;; keyAgreement is also asserted.  Treat either orphaned bit as malformed
+    ;; rather than carrying an ambiguous permission into path validation.
+    (when (and (or (member :encipher-only usages)
+                   (member :decipher-only usages))
+               (not (member :key-agreement usages)))
+      (error 'tls-decode-error
+             :message "KeyUsage encipherOnly/decipherOnly requires keyAgreement"))
     (nreverse usages)))
 
 (defun parse-extended-key-usage (bytes)
@@ -372,11 +821,24 @@ instance of a particular extension."
    KeyPurposeId ::= OBJECT IDENTIFIER
    Returns a list of purpose keywords (e.g. :server-auth, :client-auth,
    :any-extended-key-usage) or raw OID lists for unrecognized purposes."
-  (let ((node (parse-der bytes)))
-    (when (asn1-sequence-p node)
-      (loop for child in (asn1-children node)
-            when (= (asn1-node-tag child) +asn1-object-identifier+)
-              collect (oid-name (asn1-node-value child))))))
+  (let* ((node (parse-der bytes))
+         (children (and node (asn1-sequence-p node) (asn1-children node))))
+    ;; ExtKeyUsageSyntax is SEQUENCE SIZE (1..MAX) OF OBJECT IDENTIFIER.  Do
+    ;; not collapse an empty/wrongly-typed/trailing-garbage encoding into NIL:
+    ;; NIL is reserved for the genuinely absent and therefore unrestricted
+    ;; extension.
+    (unless (and children
+                 (= (length (asn1-node-raw-bytes node)) (length bytes))
+                 (every (lambda (child)
+                          (and (= (asn1-node-class child) +asn1-class-universal+)
+                               (= (asn1-node-tag child) +asn1-object-identifier+)
+                               (not (asn1-node-constructed child))
+                               (asn1-node-value child)))
+                        children))
+      (error 'tls-decode-error
+             :message "ExtendedKeyUsage must contain at least one object identifier"))
+    (loop for child in children
+          collect (oid-name (asn1-node-value child)))))
 
 (defun parse-crl-distribution-points (bytes)
   "Parse CRLDistributionPoints extension value (RFC 5280 s4.2.1.13).
@@ -502,10 +964,28 @@ instance of a particular extension."
    valid for any purpose (RFC 5280 s4.2.1.12).  When EKU is present, the
    certificate is valid for PURPOSE only if PURPOSE or anyExtendedKeyUsage is
    listed."
-  (let ((ekus (certificate-extended-key-usages cert)))
-    (or (null ekus)
+  (let* ((extension (find :extended-key-usage
+                          (x509-certificate-extensions cert)
+                          :key #'x509-extension-oid))
+         (ekus (and extension (x509-extension-value extension))))
+    (or (null extension)
         (member :any-extended-key-usage ekus)
         (member purpose ekus))))
+
+(defun certificate-key-usage-valid-for-purpose-p (cert purpose)
+  "Return true when CERT's KeyUsage permits PURPOSE in the supported TLS profile.
+TLS 1.3 and Clun's TLS 1.2 ECDHE suites authenticate peers with signatures, so
+a present server/client-auth KeyUsage must assert digitalSignature.  An absent
+extension remains unrestricted."
+  (let ((usages (certificate-key-usage cert)))
+    (or (not (certificate-has-extension-p cert :key-usage))
+        (not (member purpose '(:server-auth :client-auth)))
+        (member :digital-signature usages))))
+
+(defun certificate-has-extension-p (cert oid)
+  "Return true when CERT contains extension OID, regardless of criticality."
+  (not (null (find oid (x509-certificate-extensions cert)
+                   :key #'x509-extension-oid :test #'equal))))
 
 (defun certificate-has-key-usage-p (cert usage)
   "Check if certificate has a specific key usage bit set.
@@ -519,7 +999,7 @@ instance of a particular extension."
        ;; If KeyUsage extension is present, keyCertSign must be set
        ;; If KeyUsage is absent, we allow signing (per RFC 5280 - absence means all usages)
        (let ((key-usage (certificate-key-usage cert)))
-         (or (null key-usage)
+         (or (not (certificate-has-extension-p cert :key-usage))
              (member :key-cert-sign key-usage)))))
 
 (defun certificate-critical-extensions (cert)
@@ -529,22 +1009,12 @@ instance of a particular extension."
           collect (x509-extension-oid ext)))
 
 (defun certificate-has-unknown-critical-extensions-p (cert)
-  "Check if certificate has any critical extensions we don't understand.
-   Returns a list of unknown critical extension OIDs, or NIL if all are known."
-  (let ((known-critical-extensions '(:basic-constraints
-                                     :key-usage
-                                     :subject-alt-name
-                                     :name-constraints
-                                     :certificate-policies
-                                     :policy-mappings
-                                     :policy-constraints
-                                     :inhibit-any-policy
-                                     :extended-key-usage
-                                     :crl-distribution-points)))
-    (loop for ext in (x509-certificate-extensions cert)
-          when (and (x509-extension-critical ext)
-                    (not (member (x509-extension-oid ext) known-critical-extensions)))
-            collect (x509-extension-oid ext))))
+  "Return critical extension OIDs whose semantics this verifier does not enforce."
+  (loop for ext in (x509-certificate-extensions cert)
+        when (and (x509-extension-critical ext)
+                  (not (enforced-critical-certificate-extension-p
+                        (x509-extension-oid ext))))
+          collect (x509-extension-oid ext)))
 
 ;;;; Certificate Loading
 

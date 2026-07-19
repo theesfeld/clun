@@ -728,9 +728,7 @@ API preserves its gzip default."
                (if (not tunnel-ready-p)
                    (deliver-proxy-response proxy-head)
                    (let ((fallback-p nil)
-                         (context (if ca-file
-                                      (pure-tls:make-tls-context :ca-file ca-file)
-                                      (pure-tls:make-tls-context))))
+                         (context (%make-https-tls-context ca-file)))
                      (handler-case
                          (setf tls (handshake-tls13 context)
                                pooled-p nil)

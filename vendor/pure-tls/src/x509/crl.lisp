@@ -200,7 +200,7 @@
                   (public-key (parse-rsa-public-key public-key-bytes)))
              (when public-key
                (ironclad:verify-signature public-key
-                                          (ironclad:digest-sequence hash-algo tbs)
+                                          tbs
                                           signature
                                           :pss hash-algo
                                           :salt-length salt-length))))
