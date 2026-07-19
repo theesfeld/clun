@@ -642,6 +642,33 @@ verify_global_issue_contract() {
     fail "Phase $phase issue #$issue_number SemVer impact $body_impact disagrees with label $semver_label"
 }
 
+verify_active_release_phase_lifecycle() (
+  publication_state=$1
+  issue_state=$2
+  phase_status=$3
+  phase=$4
+  issue_number=$5
+
+  # The caller has already verified that the GitHub state, Phase status,
+  # global Status, and labels agree. This check adds only the release-ledger
+  # lifecycle constraint: publication is evidence, not phase completion.
+  case "$publication_state:$issue_state:$phase_status" in
+    candidate:open:in-progress|\
+    published:open:in-progress|\
+    published:closed:complete)
+      ;;
+    candidate:*)
+      fail "candidate Phase $phase issue #$issue_number must be open/in-progress"
+      ;;
+    published:*)
+      fail "published Phase $phase issue #$issue_number must be open/in-progress or closed/complete"
+      ;;
+    *)
+      fail "Phase $phase issue #$issue_number has invalid release publication state: $publication_state"
+      ;;
+  esac
+)
+
 verify_phase_issue_labels() (
   issue_cache=$1
   issue_number=$2
@@ -1233,22 +1260,9 @@ verify_live_roadmap() {
       [ "$issue_number" = "$active_issue" ] ||
         fail "active release points to issue #$active_issue, but Phase $phase canonical issue is #$issue_number"
       verify_assigned_release_disposition "$body" "$phase" "$issue_number" 0
-      case "$publication_state:$issue_state" in
-        candidate:open)
-          grep -F -x '**Phase status:** `in-progress`' "$body" >/dev/null 2>&1 ||
-            fail "candidate Phase $phase issue #$issue_number must record Phase status in-progress"
-          ;;
-        published:closed)
-          grep -F -x '**Phase status:** `complete`' "$body" >/dev/null 2>&1 ||
-            fail "published Phase $phase issue #$issue_number must record Phase status complete"
-          ;;
-        candidate:*)
-          fail "candidate Phase $phase issue #$issue_number must remain open"
-          ;;
-        published:*)
-          fail "published Phase $phase issue #$issue_number must be closed"
-          ;;
-      esac
+      phase_status=$(sed -n 's/^\*\*Phase status:\*\* `\([^`]*\)`$/\1/p' "$body")
+      verify_active_release_phase_lifecycle \
+        "$publication_state" "$issue_state" "$phase_status" "$phase" "$issue_number"
       active_seen=$((active_seen + 1))
     fi
     verified=$((verified + 1))
@@ -1462,7 +1476,42 @@ test_issue_contract() {
   grep -F -x '**SemVer impact:** `minor`  ' "$generated_header" >/dev/null 2>&1 ||
     fail "new Issue header does not default SemVer impact to minor"
 
-  printf 'roadmap issue-contract fixtures: 9 passed\n'
+  lifecycle_cases=0
+  while read -r fixture_publication fixture_issue_state fixture_phase_status fixture_expected; do
+    [ -n "$fixture_publication" ] || continue
+    lifecycle_cases=$((lifecycle_cases + 1))
+    if verify_active_release_phase_lifecycle \
+      "$fixture_publication" "$fixture_issue_state" "$fixture_phase_status" 91 91 \
+      >/dev/null 2>&1; then
+      fixture_actual=pass
+    else
+      fixture_actual=fail
+    fi
+    [ "$fixture_actual" = "$fixture_expected" ] ||
+      fail "release-phase lifecycle fixture expected $fixture_expected for $fixture_publication/$fixture_issue_state/$fixture_phase_status, got $fixture_actual"
+  done <<'EOF'
+candidate open not-started fail
+candidate open in-progress pass
+candidate open blocked fail
+candidate open complete fail
+candidate closed not-started fail
+candidate closed in-progress fail
+candidate closed blocked fail
+candidate closed complete fail
+published open not-started fail
+published open in-progress pass
+published open blocked fail
+published open complete fail
+published closed not-started fail
+published closed in-progress fail
+published closed blocked fail
+published closed complete pass
+EOF
+  [ "$lifecycle_cases" -eq 16 ] ||
+    fail "expected 16 release-phase lifecycle fixtures, ran $lifecycle_cases"
+
+  printf 'roadmap issue-contract fixtures: 9 passed; release-phase lifecycle fixtures: %s passed\n' \
+    "$lifecycle_cases"
   rm -rf "$fixture_dir"
   trap - 0 HUP INT TERM
 }
