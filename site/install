@@ -3,9 +3,39 @@
 set -eu
 
 repo=${CLUN_GITHUB_REPO:-theesfeld/clun}
-requested_version=${CLUN_VERSION:-v0.1.0-dev.21}
-install_root=${CLUN_INSTALL:-"$HOME/.clun"}
-no_modify_path=${CLUN_NO_MODIFY_PATH:-0}
+verified_installer_tag=v0.1.0-dev.21
+[ "$#" -le 1 ] || {
+  printf 'clun: error: usage: install [VERSION]\n' >&2
+  exit 1
+}
+requested_version=${1:-${INSTALL_VERSION:-${CLUN_VERSION:-$verified_installer_tag}}}
+
+legacy_layout=0
+if [ -n "${INSTALL_DIR:-}" ]; then
+  bin_dir=$INSTALL_DIR
+  [ "$bin_dir" = / ] || bin_dir=${bin_dir%/}
+elif [ -n "${CLUN_INSTALL:-}" ]; then
+  legacy_layout=1
+  install_root=$CLUN_INSTALL
+  [ "$install_root" = / ] || install_root=${install_root%/}
+  bin_dir="$install_root/bin"
+else
+  bin_dir="$HOME/.local/bin"
+fi
+
+if [ "$legacy_layout" = 0 ]; then
+  data_home=${XDG_DATA_HOME:-$HOME/.local/share}
+  [ "$data_home" = / ] || data_home=${data_home%/}
+  install_root="$data_home/clun"
+fi
+
+if [ -n "${ADD_PATH+x}" ]; then
+  add_path=$ADD_PATH
+elif [ "${CLUN_NO_MODIFY_PATH:-0}" = 1 ]; then
+  add_path=0
+else
+  add_path=auto
+fi
 
 say() {
   printf '%s\n' "$*"
@@ -38,6 +68,78 @@ is_release_tag() {
   esac
 }
 
+version_compare() {
+  left=${1#v}
+  right=${2#v}
+  awk -v left="$left" -v right="$right" '
+    function number_compare(a, b, clean_a, clean_b) {
+      clean_a = a
+      clean_b = b
+      sub(/^0+/, "", clean_a)
+      sub(/^0+/, "", clean_b)
+      if (clean_a == "") clean_a = "0"
+      if (clean_b == "") clean_b = "0"
+      if (length(clean_a) != length(clean_b))
+        return length(clean_a) < length(clean_b) ? -1 : 1
+      if (clean_a == clean_b) return 0
+      return ("x" clean_a) < ("x" clean_b) ? -1 : 1
+    }
+    function identifier_compare(a, b, a_numeric, b_numeric) {
+      a_numeric = a ~ /^[0-9]+$/
+      b_numeric = b ~ /^[0-9]+$/
+      if (a_numeric && b_numeric) return number_compare(a, b)
+      if (a_numeric != b_numeric) return a_numeric ? -1 : 1
+      if (a == b) return 0
+      return ("x" a) < ("x" b) ? -1 : 1
+    }
+    BEGIN {
+      sub(/\+.*/, "", left)
+      sub(/\+.*/, "", right)
+
+      left_dash = index(left, "-")
+      right_dash = index(right, "-")
+      left_core = left_dash ? substr(left, 1, left_dash - 1) : left
+      right_core = right_dash ? substr(right, 1, right_dash - 1) : right
+      left_pre = left_dash ? substr(left, left_dash + 1) : ""
+      right_pre = right_dash ? substr(right, right_dash + 1) : ""
+
+      split(left_core, left_parts, ".")
+      split(right_core, right_parts, ".")
+      for (i = 1; i <= 3; i++) {
+        result = number_compare(left_parts[i], right_parts[i])
+        if (result != 0) { print result; exit }
+      }
+
+      if (left_pre == "" && right_pre == "") { print 0; exit }
+      if (left_pre == "") { print 1; exit }
+      if (right_pre == "") { print -1; exit }
+
+      left_count = split(left_pre, left_ids, ".")
+      right_count = split(right_pre, right_ids, ".")
+      count = left_count > right_count ? left_count : right_count
+      for (i = 1; i <= count; i++) {
+        if (i > left_count) { print -1; exit }
+        if (i > right_count) { print 1; exit }
+        result = identifier_compare(left_ids[i], right_ids[i])
+        if (result != 0) { print result; exit }
+      }
+      print 0
+    }
+  '
+}
+
+select_highest_tag() {
+  best=
+  while IFS= read -r candidate; do
+    is_release_tag "$candidate" || continue
+    if [ -z "$best" ] || [ "$(version_compare "$candidate" "$best")" -gt 0 ]; then
+      best=$candidate
+    fi
+  done
+  [ -n "$best" ] || return 1
+  printf '%s\n' "$best"
+}
+
 download() {
   download_url=$1
   download_output=$2
@@ -63,6 +165,124 @@ sha256_file() {
   else
     fail "sha256sum, shasum, or openssl is required to verify Clun"
   fi
+}
+
+github_token() {
+  printf '%s' "${GITHUB_TOKEN:-${GH_TOKEN:-}}"
+}
+
+download_text() {
+  text_url=$1
+  token=${2:-}
+  if command_exists curl; then
+    if [ -n "$token" ]; then
+      curl --fail --location --silent --show-error --retry 3 \
+        --header 'Accept: application/vnd.github+json' \
+        --header "Authorization: Bearer $token" \
+        --header 'User-Agent: clun-installer/0.1' \
+        "$text_url"
+    else
+      curl --fail --location --silent --show-error --retry 3 \
+        --header 'Accept: application/vnd.github+json' \
+        --header 'User-Agent: clun-installer/0.1' \
+        "$text_url"
+    fi
+  elif command_exists wget; then
+    if [ -n "$token" ]; then
+      wget --quiet --tries=3 --output-document=- \
+        --header='Accept: application/vnd.github+json' \
+        --header="Authorization: Bearer $token" \
+        --header='User-Agent: clun-installer/0.1' \
+        "$text_url"
+    else
+      wget --quiet --tries=3 --output-document=- \
+        --header='Accept: application/vnd.github+json' \
+        --header='User-Agent: clun-installer/0.1' \
+        "$text_url"
+    fi
+  else
+    fail "curl or wget is required to resolve the latest Clun release"
+  fi
+}
+
+download_public_feed() {
+  feed_url=$1
+  if command_exists curl; then
+    curl --fail --location --silent --show-error --retry 3 \
+      --header 'Accept: application/atom+xml' \
+      --header 'User-Agent: clun-installer/0.1' \
+      "$feed_url"
+  elif command_exists wget; then
+    wget --quiet --tries=3 --output-document=- \
+      --header='Accept: application/atom+xml' \
+      --header='User-Agent: clun-installer/0.1' \
+      "$feed_url"
+  else
+    fail "curl or wget is required to resolve the latest Clun release"
+  fi
+}
+
+resolve_latest_redirect() {
+  latest_url="https://github.com/$repo/releases/latest"
+  final_url=
+  if command_exists curl; then
+    final_url=$(curl --fail --location --silent --show-error --retry 3 \
+      --output /dev/null --write-out '%{url_effective}' "$latest_url") || return 1
+  elif command_exists wget; then
+    final_url=$(wget --spider --server-response --max-redirect=10 "$latest_url" 2>&1 | \
+      awk 'tolower($1) == "location:" { url=$2 } END { sub(/\r$/, "", url); print url }') || return 1
+  else
+    return 1
+  fi
+  case "$final_url" in
+    "https://github.com/$repo/releases/tag/"*)
+      redirect_tag=${final_url#"https://github.com/$repo/releases/tag/"}
+      redirect_tag=${redirect_tag%%[?#]*}
+      is_release_tag "$redirect_tag" || return 1
+      printf '%s\n' "$redirect_tag"
+      ;;
+    *) return 1 ;;
+  esac
+}
+
+resolve_latest_api() {
+  api_url="https://api.github.com/repos/$repo/releases?per_page=10"
+  api_text=$(download_text "$api_url" "$(github_token)") || return 1
+  api_tag=$(printf '%s\n' "$api_text" | awk '
+    BEGIN { RS = "{" }
+    /"draft"[[:space:]]*:[[:space:]]*false/ &&
+    /"tag_name"[[:space:]]*:[[:space:]]*"/ {
+      record = $0
+      sub(/.*"tag_name"[[:space:]]*:[[:space:]]*"/, "", record)
+      sub(/".*$/, "", record)
+      print record
+    }
+  ' | select_highest_tag) || return 1
+  printf '%s\n' "$api_tag"
+}
+
+resolve_latest_atom() {
+  atom_url="https://github.com/$repo/releases.atom"
+  atom_text=$(download_public_feed "$atom_url") || return 1
+  prefix="https://github.com/$repo/releases/tag/"
+  atom_tag=$(printf '%s\n' "$atom_text" | awk -v prefix="$prefix" '
+    {
+      rest = $0
+      while ((start = index(rest, "href=\"")) > 0) {
+        rest = substr(rest, start + 6)
+        stop = index(rest, "\"")
+        if (stop == 0) break
+        url = substr(rest, 1, stop - 1)
+        if (index(url, prefix) == 1) {
+          tag = substr(url, length(prefix) + 1)
+          sub(/[?#\/].*$/, "", tag)
+          print tag
+        }
+        rest = substr(rest, stop + 1)
+      }
+    }
+  ' | select_highest_tag) || return 1
+  printf '%s\n' "$atom_tag"
 }
 
 shell_quote() {
@@ -92,7 +312,34 @@ esac
 target="$os-$arch"
 asset="clun-$target.tar.gz"
 
-is_release_tag "$requested_version" || fail "CLUN_VERSION must be v-prefixed strict SemVer"
+case "$bin_dir" in
+  ''|/|*:*|*'
+'*) fail "INSTALL_DIR must name a non-root directory without ':' or newlines" ;;
+esac
+case "$install_root" in
+  ''|/|*'
+'*) fail "the Clun release root must be a non-root directory without newlines" ;;
+esac
+case "$add_path" in
+  auto|0|1) ;;
+  *) fail "ADD_PATH must be 0 or 1 when set" ;;
+esac
+
+if [ "$requested_version" = latest ]; then
+  if requested_version=$(resolve_latest_redirect); then
+    say "Resolved latest Clun release via github.com redirect: $requested_version"
+  elif requested_version=$(resolve_latest_api); then
+    say "Resolved latest Clun release via GitHub API fallback: $requested_version"
+  elif requested_version=$(resolve_latest_atom); then
+    say "Resolved latest Clun release via GitHub Releases feed fallback: $requested_version"
+  else
+    fail "could not resolve the latest GitHub Release via redirect, API, or Releases feed fallback"
+  fi
+else
+  requested_version="v${requested_version#v}"
+fi
+is_release_tag "$requested_version" ||
+  fail "INSTALL_VERSION/CLUN_VERSION must be strict SemVer with an optional v prefix"
 
 if [ -n "${CLUN_DOWNLOAD_BASE:-}" ]; then
   download_base=${CLUN_DOWNLOAD_BASE%/}
@@ -106,6 +353,18 @@ cleanup() {
   rm -rf "$tmp_dir"
   if [ -n "${stage_dir:-}" ] && [ -d "$stage_dir" ]; then
     rm -rf "$stage_dir"
+  fi
+  if [ -n "${link_tmp:-}" ] && { [ -e "$link_tmp" ] || [ -L "$link_tmp" ]; }; then
+    rm -f "$link_tmp"
+  fi
+  if [ -n "${rollback_tmp:-}" ] && { [ -e "$rollback_tmp" ] || [ -L "$rollback_tmp" ]; }; then
+    rm -f "$rollback_tmp"
+  fi
+  if [ -n "${launcher_backup:-}" ] && [ -f "$launcher_backup" ]; then
+    rm -f "$launcher_backup"
+  fi
+  if [ -n "${profile_tmp:-}" ] && [ -f "$profile_tmp" ]; then
+    rm -f "$profile_tmp"
   fi
 }
 trap cleanup 0
@@ -154,11 +413,9 @@ version_line_count=$(awk 'END { print NR + 0 }' "$package_dir/VERSION")
 [ "$version_line_count" -eq 1 ] || fail "release archive contains an invalid VERSION file"
 release_version=$(sed -n '1{s/\r$//;p;}' "$package_dir/VERSION")
 is_semver "$release_version" || fail "release archive version is not strict SemVer"
-if [ -z "${CLUN_DOWNLOAD_BASE:-}" ]; then
-  expected_release_version=${requested_version#v}
-  [ "$release_version" = "$expected_release_version" ] ||
-    fail "release archive version $release_version does not match requested tag $requested_version"
-fi
+expected_release_version=${requested_version#v}
+[ "$release_version" = "$expected_release_version" ] ||
+  fail "release archive version $release_version does not match requested tag $requested_version"
 
 validate_release() {
   candidate_dir=$1
@@ -168,84 +425,304 @@ validate_release() {
   candidate_version=$(sed -n '1{s/\r$//;p;}' "$candidate_dir/VERSION")
   is_semver "$candidate_version" || return 1
   [ "$candidate_version" = "$release_version" ] || return 1
+  if [ "$os" = linux ]; then
+    [ -f "$candidate_dir/lib/LOADER" ] || return 1
+    [ "$(awk 'END { print NR + 0 }' "$candidate_dir/lib/LOADER")" -eq 1 ] || return 1
+    candidate_loader=$(sed -n '1{s/\r$//;p;}' "$candidate_dir/lib/LOADER")
+    case "$candidate_loader" in
+      ''|.|..|*/*|*'
+'*) return 1 ;;
+    esac
+    [ -x "$candidate_dir/lib/$candidate_loader" ] || return 1
+    [ -x "$candidate_dir/libexec/clun" ] || return 1
+  fi
   candidate_reported=$("$candidate_dir/bin/clun" --version 2>/dev/null) || return 1
   [ "$candidate_reported" = "clun $release_version" ]
 }
 
 validate_release "$package_dir" || fail "the $target release could not run on this system"
 
+installed_binary="$bin_dir/clun"
 release_parent="$install_root/releases/$release_version"
 release_dir="$release_parent/$target"
-bin_dir="$install_root/bin"
 mkdir -p "$release_parent" "$bin_dir"
 
-if [ -d "$release_dir" ] && ! validate_release "$release_dir"; then
-  rm -rf "$release_dir"
-fi
-
-if [ ! -d "$release_dir" ]; then
-  stage_dir=$(mktemp -d "$release_parent/.clun-stage.XXXXXX") || fail "could not stage the release"
+if [ -e "$release_dir" ] || [ -L "$release_dir" ]; then
+  if [ ! -d "$release_dir" ] || ! validate_release "$release_dir"; then
+    fail "existing release bundle $release_dir is invalid; left it unchanged"
+  fi
+else
+  stage_dir=$(mktemp -d "$release_parent/.clun-stage.XXXXXX") ||
+    fail "could not stage the release"
   cp -R "$package_dir/." "$stage_dir/"
   validate_release "$stage_dir" || fail "the staged release failed validation"
-  mv "$stage_dir" "$release_dir" || fail "could not activate the release"
+  mv "$stage_dir" "$release_dir" || fail "could not activate the release bundle"
   stage_dir=
 fi
 
-validate_release "$release_dir" || fail "the installed release failed validation"
+validate_release "$release_dir" || fail "the installed release bundle failed validation"
+release_dir_abs=$(CDPATH='' cd -- "$release_dir" && pwd -P) ||
+  fail "could not resolve the installed release bundle"
 
-link_tmp="$bin_dir/.clun-link.$$"
+old_launcher_kind=none
+old_launcher_target=
+launcher_backup=
+if [ -L "$installed_binary" ]; then
+  old_launcher_kind=symlink
+  old_launcher_target=$(readlink "$installed_binary") ||
+    fail "could not inspect the existing Clun launcher"
+elif [ -e "$installed_binary" ]; then
+  [ -f "$installed_binary" ] || fail "refusing to replace non-file launcher $installed_binary"
+  old_launcher_kind='file'
+  launcher_backup=$(mktemp "$bin_dir/.clun-backup.XXXXXX") ||
+    fail "could not preserve the existing Clun launcher"
+  cp -p "$installed_binary" "$launcher_backup" ||
+    fail "could not preserve the existing Clun launcher"
+fi
+
+link_tmp=$(mktemp "$bin_dir/.clun-link.XXXXXX") || fail "could not stage the Clun launcher"
 rm -f "$link_tmp"
-ln -s "../releases/$release_version/$target/bin/clun" "$link_tmp"
-mv -f "$link_tmp" "$bin_dir/clun"
+ln -s "$release_dir_abs/bin/clun" "$link_tmp" || fail "could not stage the Clun launcher"
+mv -f "$link_tmp" "$installed_binary" || fail "could not activate the Clun launcher"
+link_tmp=
+
+installed_reported=$("$installed_binary" --version 2>/dev/null || :)
+if [ "$installed_reported" != "clun $release_version" ]; then
+  case "$old_launcher_kind" in
+    symlink)
+      rollback_tmp=$(mktemp "$bin_dir/.clun-rollback.XXXXXX") ||
+        fail "the new launcher failed and rollback could not be staged"
+      rm -f "$rollback_tmp"
+      ln -s "$old_launcher_target" "$rollback_tmp" ||
+        fail "the new launcher failed and rollback could not be staged"
+      mv -f "$rollback_tmp" "$installed_binary" ||
+        fail "the new launcher failed and rollback could not be activated"
+      rollback_tmp=
+      ;;
+    file)
+      mv -f "$launcher_backup" "$installed_binary" ||
+        fail "the new launcher failed and rollback could not be activated"
+      launcher_backup=
+      ;;
+    none) rm -f "$installed_binary" ;;
+  esac
+  fail "the activated Clun launcher failed validation; restored the prior launcher"
+fi
+[ -z "${launcher_backup:-}" ] || rm -f "$launcher_backup"
+launcher_backup=
+installed_location=$release_dir_abs
 
 profile_changed=0
 profile_path=
-if [ "$no_modify_path" != 1 ]; then
-  shell_name=$(basename "${SHELL:-sh}")
-  case "$shell_name" in
-    zsh) profile_path="$HOME/.zshrc" ;;
-    bash)
-      if [ "$os" = darwin ]; then
-        profile_path="$HOME/.bash_profile"
-      else
-        profile_path="$HOME/.bashrc"
-      fi
-      ;;
-    fish) profile_path="$HOME/.config/fish/config.fish" ;;
-    *) profile_path="$HOME/.profile" ;;
-  esac
+shell_name=$(basename "${SHELL:-sh}")
+case "$shell_name" in
+  zsh) profile_path="$HOME/.zshrc" ;;
+  bash)
+    if [ "$os" = darwin ]; then
+      profile_path="$HOME/.bash_profile"
+    else
+      profile_path="$HOME/.bashrc"
+    fi
+    ;;
+  fish) profile_path="$HOME/.config/fish/config.fish" ;;
+  *) profile_path="$HOME/.profile" ;;
+esac
 
-  if ! printf '%s' ":${PATH:-}:" | grep -F ":$bin_dir:" >/dev/null 2>&1; then
-    mkdir -p "$(dirname "$profile_path")"
-    touch "$profile_path"
-    if ! grep -F '# clun' "$profile_path" >/dev/null 2>&1; then
-      quoted_root=$(shell_quote "$install_root")
-      if [ "$shell_name" = fish ]; then
-        {
-          printf '\n# clun\n'
-          printf 'set -gx CLUN_INSTALL %s\n' "$quoted_root"
-          # Keep these variables literal for the user's future fish sessions.
-          # shellcheck disable=SC2016
-          printf 'set -gx PATH "$CLUN_INSTALL/bin" $PATH\n'
-        } >>"$profile_path"
-      else
-        {
-          printf '\n# clun\n'
-          printf 'export CLUN_INSTALL=%s\n' "$quoted_root"
-          # Keep these variables literal for the user's future POSIX shell sessions.
-          # shellcheck disable=SC2016
-          printf 'export PATH="$CLUN_INSTALL/bin:$PATH"\n'
-        } >>"$profile_path"
-      fi
-      profile_changed=1
+resolve_profile_target() {
+  resolved_profile=$1
+  resolved_links=0
+  while [ -L "$resolved_profile" ]; do
+    resolved_links=$((resolved_links + 1))
+    [ "$resolved_links" -le 40 ] || return 1
+    resolved_link=$(readlink "$resolved_profile") || return 1
+    case "$resolved_link" in
+      /*) resolved_candidate=$resolved_link ;;
+      *) resolved_candidate=$(dirname "$resolved_profile")/$resolved_link ;;
+    esac
+    resolved_parent=$(CDPATH='' cd -P -- "$(dirname "$resolved_candidate")" 2>/dev/null && pwd) ||
+      return 1
+    resolved_profile="$resolved_parent/$(basename "$resolved_candidate")"
+  done
+  printf '%s\n' "$resolved_profile"
+}
+
+file_owner_uid() {
+  stat -c '%u' "$1" 2>/dev/null || stat -f '%u' "$1" 2>/dev/null
+}
+
+path_missing=0
+if ! printf '%s' ":${PATH:-}:" | grep -F ":$bin_dir:" >/dev/null 2>&1; then
+  path_missing=1
+fi
+
+modify_profile=0
+case "$add_path" in
+  1) modify_profile=1 ;;
+  auto) [ "$path_missing" = 0 ] || modify_profile=1 ;;
+esac
+
+if [ "$modify_profile" = 1 ]; then
+  profile_edit_path=$profile_path
+  if [ -L "$profile_path" ]; then
+    if ! profile_edit_path=$(resolve_profile_target "$profile_path"); then
+      say "Profile $profile_path is an unsafe or unresolved symlink; left it unchanged."
+      modify_profile=0
     fi
   fi
 fi
 
-say "Installed Clun $release_version to $release_dir"
+if [ "$modify_profile" = 1 ]; then
+  # Resolve the whole parent chain before creating or editing anything. This
+  # catches paths such as ~/.config -> /nix/store/... even when config.fish is
+  # not itself a symlink, and prevents mkdir/touch from mutating outside HOME.
+  canonicalize_profile_path() {
+    canonical_input=$1
+    canonical_name=$(basename "$canonical_input")
+    canonical_probe=$(dirname "$canonical_input")
+    canonical_suffix=
+    while [ ! -d "$canonical_probe" ]; do
+      if [ -e "$canonical_probe" ] || [ -L "$canonical_probe" ]; then
+        return 1
+      fi
+      canonical_leaf=$(basename "$canonical_probe")
+      canonical_suffix="/$canonical_leaf$canonical_suffix"
+      canonical_parent=$(dirname "$canonical_probe")
+      [ "$canonical_parent" != "$canonical_probe" ] || return 1
+      canonical_probe=$canonical_parent
+    done
+    canonical_parent=$(CDPATH='' cd -P -- "$canonical_probe" 2>/dev/null && pwd) || return 1
+    printf '%s%s/%s\n' "$canonical_parent" "$canonical_suffix" "$canonical_name"
+  }
+
+  home_real=$(CDPATH='' cd -P -- "$HOME" 2>/dev/null && pwd) || {
+    say "HOME could not be resolved safely; left $profile_path unchanged."
+    modify_profile=0
+  }
+fi
+
+if [ "$modify_profile" = 1 ]; then
+  if ! profile_edit_path=$(canonicalize_profile_path "$profile_edit_path"); then
+    say "Profile $profile_path has an unsafe or unresolved parent; left it unchanged."
+    modify_profile=0
+  else
+    case "$profile_edit_path" in
+      "$home_real"/*) ;;
+      *)
+        say "Profile $profile_path resolves outside HOME; left it unchanged."
+        modify_profile=0
+        ;;
+    esac
+  fi
+fi
+
+if [ "$modify_profile" = 1 ]; then
+  mkdir -p "$(dirname "$profile_edit_path")"
+  if [ -e "$profile_edit_path" ]; then
+    profile_owner=$(file_owner_uid "$profile_edit_path" || :)
+    current_uid=$(id -u)
+    if [ ! -f "$profile_edit_path" ] || [ ! -w "$profile_edit_path" ] ||
+       [ "$profile_owner" != "$current_uid" ]; then
+      say "Profile $profile_path does not resolve to a writable user-owned file; left it unchanged."
+      modify_profile=0
+    fi
+  fi
+fi
+
+if [ "$modify_profile" = 1 ]; then
+  touch "$profile_edit_path"
+  marker_begin='# >>> clun installer >>>'
+  marker_end='# <<< clun installer <<<'
+  quoted_bin=$(shell_quote "$bin_dir")
+  path_block="$tmp_dir/path.block"
+  {
+    printf '%s\n' "$marker_begin"
+    if [ "$legacy_layout" = 1 ]; then
+      quoted_root=$(shell_quote "$install_root")
+      if [ "$shell_name" = fish ]; then
+        printf 'set -gx CLUN_INSTALL %s\n' "$quoted_root"
+        # shellcheck disable=SC2016
+        printf 'set -gx PATH "$CLUN_INSTALL/bin" $PATH\n'
+      else
+        printf 'export CLUN_INSTALL=%s\n' "$quoted_root"
+        # shellcheck disable=SC2016
+        printf 'export PATH="$CLUN_INSTALL/bin:$PATH"\n'
+      fi
+    elif [ "$shell_name" = fish ]; then
+      # Keep PATH literal for the user's future fish sessions.
+      # shellcheck disable=SC2016
+      printf 'set -gx PATH %s $PATH\n' "$quoted_bin"
+    else
+      # Keep PATH literal for the user's future POSIX shell sessions.
+      # shellcheck disable=SC2016
+      printf 'export PATH=%s:"$PATH"\n' "$quoted_bin"
+    fi
+    printf '%s\n' "$marker_end"
+  } >"$path_block"
+
+  marker_begin_count=$(grep -Fxc "$marker_begin" "$profile_edit_path" || :)
+  marker_end_count=$(grep -Fxc "$marker_end" "$profile_edit_path" || :)
+  if [ "$marker_begin_count" -gt 0 ] || [ "$marker_end_count" -gt 0 ]; then
+    if [ "$marker_begin_count" -gt 0 ] && [ "$marker_end_count" -gt 0 ]; then
+      existing_block="$tmp_dir/path.existing"
+      awk -v begin="$marker_begin" -v end="$marker_end" '
+        $0 == begin { inside = 1 }
+        inside { print }
+        inside && $0 == end { exit }
+      ' "$profile_edit_path" >"$existing_block"
+      if [ "$marker_begin_count" -eq 1 ] && [ "$marker_end_count" -eq 1 ] &&
+         cmp -s "$path_block" "$existing_block"; then
+        : # The complete managed block already has the requested contract.
+      else
+        rendered_profile="$tmp_dir/profile.rendered"
+        if awk -v begin="$marker_begin" -v end="$marker_end" -v block="$path_block" '
+          $0 == begin {
+            if (!emitted) {
+              while ((getline line < block) > 0) print line
+              close(block)
+              emitted = 1
+            }
+            inside = 1
+            next
+          }
+          inside && $0 == end { inside = 0; next }
+          !inside { print }
+          END { if (inside) exit 2 }
+        ' "$profile_edit_path" >"$rendered_profile"; then
+          profile_tmp=$(mktemp "$profile_edit_path.clun.XXXXXX") ||
+            fail "could not stage the shell profile update"
+          cp -p "$profile_edit_path" "$profile_tmp" || fail "could not preserve the shell profile"
+          cat "$rendered_profile" >"$profile_tmp" || fail "could not write the shell profile update"
+          mv -f "$profile_tmp" "$profile_edit_path" || fail "could not activate the shell profile update"
+          profile_tmp=
+          profile_changed=1
+        else
+          say "Profile $profile_path contains an incomplete Clun PATH block; left it unchanged."
+        fi
+      fi
+    else
+      say "Profile $profile_path contains an incomplete Clun PATH block; left it unchanged."
+    fi
+  elif [ "$legacy_layout" = 1 ] && grep -F '# clun' "$profile_edit_path" >/dev/null 2>&1; then
+    : # Preserve the original legacy installer block without duplicating it.
+  else
+    {
+      printf '\n'
+      cat "$path_block"
+    } >>"$profile_edit_path"
+    profile_changed=1
+  fi
+fi
+
+say "Installed Clun $release_version to $installed_location"
 if [ "$profile_changed" = 1 ]; then
   say "Updated $profile_path; restart your shell or load that file to use clun."
-elif ! printf '%s' ":${PATH:-}:" | grep -F ":$bin_dir:" >/dev/null 2>&1; then
-  say "Add $bin_dir to PATH to use clun."
 fi
-say "Run: clun --version"
+if [ "$path_missing" = 1 ]; then
+  quoted_bin=$(shell_quote "$bin_dir")
+  if [ "$shell_name" = fish ]; then
+    say "Add to this shell: set -gx PATH $quoted_bin \$PATH"
+  else
+    say "Add to this shell: export PATH=$quoted_bin:\"\$PATH\""
+  fi
+fi
+say "Run: $installed_binary --version"

@@ -157,4 +157,43 @@ fi
   exit 1
 }
 
+pages_workflow=$repo_root/.github/workflows/pages.yml
+[ -f "$pages_workflow" ] || {
+  printf 'release-live-check test: Pages workflow is missing\n' >&2
+  exit 1
+}
+if ! awk '
+  function verify_step() {
+    if (step ~ /(actions\/configure-pages|actions\/upload-pages-artifact|actions\/deploy-pages|Smoke test hosted installer and installed launcher)/) {
+      deploy_steps++
+      if (step ~ /if: steps\.release\.outputs\.state == .published./)
+        conditional_deploy_steps++
+    }
+  }
+  /^      - / {
+    verify_step()
+    step = ""
+  }
+  { step = step $0 "\n" }
+  END {
+    verify_step()
+    exit !(deploy_steps == 4 && conditional_deploy_steps == 0)
+  }
+' "$pages_workflow"; then
+  printf '%s\n' \
+    'release-live-check test: candidate Pages must configure, upload, deploy, and run its hosted smoke' >&2
+  exit 1
+fi
+# shellcheck disable=SC2016 # Match literal workflow variables, not this fixture process.
+for hosted_update_check in \
+  'clun --check-update' \
+  'clun --update' \
+  'test "$install_after" = "$install_before"'; do
+  grep -Fq "$hosted_update_check" "$pages_workflow" || {
+    printf 'release-live-check test: Pages is missing hosted proof: %s\n' \
+      "$hosted_update_check" >&2
+    exit 1
+  }
+done
+
 printf 'release live-check fixtures passed\n'

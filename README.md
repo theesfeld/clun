@@ -2,7 +2,7 @@
 
 **Bun, rewritten in pure Common Lisp.** Clun is a JavaScript/TypeScript runtime and toolkit —
 including a from-scratch ECMAScript engine — implemented in **pure Common Lisp** with zero CFFI
-and zero foreign libraries. v0.1 prioritizes correctness and purity while the full-port program targets complete capability over
+and zero foreign libraries. The pre-1.0 series prioritizes correctness and purity while the full-port program targets complete capability over
 breadth. The active prerelease roadmap targets evidence-backed parity with Bun's purity-compatible
 surface, one gated capability at a time, before a final re-baselined hardening phase. Performance
 targets are workload-specific and published;
@@ -10,7 +10,7 @@ Clun does not claim blanket speed parity with Bun.
 
 <!-- clun-generated:release:begin -->
 > **Status: pre-alpha, under active construction.** [Phase 82](https://github.com/theesfeld/clun/issues/56) is in progress.
-> Its release-bearing target is `0.1.0-dev.70` / `v0.1.0-dev.70` (SemVer impact: `patch`).
+> Its release-bearing target is `0.2.0-dev.1` / `v0.2.0-dev.1` (SemVer impact: `major`).
 > The verified release boundary is `v0.1.0-dev.21`, with four native archives, checksums, Pages,
 > and hosted-installer evidence.
 > Phase 26 remains deferred until after Phase 82 and will
@@ -20,39 +20,71 @@ Clun does not claim blanket speed parity with Bun.
 > the local resume checklist.
 <!-- clun-generated:release:end -->
 
-The exact current source is the `0.1.0-dev.70` recovery candidate. The immutable annotated
-`v0.1.0-dev.69` tag points to its source commit, but its GitHub Release and assets were not published;
-[`v0.1.0-dev.21`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.21)
-therefore remains the verified installable boundary. The generated ledger is the current evidence
-snapshot. [Truth audit #215](https://github.com/theesfeld/clun/issues/215) records the qualified-claim
-review, and [issue reconciliation #220](https://github.com/theesfeld/clun/issues/220) records the
-canonical issue alignment. Active release work remains in the
-[dev.70 release record #216](https://github.com/theesfeld/clun/issues/216) and
-[release recovery #219](https://github.com/theesfeld/clun/issues/219).
+The exact current source is the `0.2.0-dev.1` candidate. Immutable tags `v0.1.0-dev.69` and
+`v0.1.0-dev.70` produced no GitHub Release assets and are not installable checkpoints, so published
+[`v0.1.0-dev.21`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.21) remains the verified
+boundary. [Issue #221](https://github.com/theesfeld/clun/issues/221) owns the distribution-contract
+implementation; [Phase 82 issue #56](https://github.com/theesfeld/clun/issues/56) remains the
+canonical release record.
 
 ## Install
-
-### Update
-
-After install, update to the latest published GitHub Release:
-
-```sh
-clun --check-update   # non-mutating; exit 1 if behind
-clun --update         # download, SHA-256 verify, replace this binary
-# or: clun check-update / clun update
-```
-
-
 Tagged releases are installed by the same POSIX shell command on Linux and macOS:
 
 ```sh
 curl -fsSL https://clun.sh/install | sh
 ```
 
-The installer detects x86-64 or arm64, verifies the release SHA-256 checksum, and installs under
-`~/.clun`. The release workflow builds and tests native archives on Ubuntu and macOS 15 runners for
-both architectures. macOS archives target macOS 13.0 or newer, but are runtime-tested on macOS 15.
-Windows is not supported.
+The no-argument installer defaults to the release ledger's verified installable boundary, so a newly
+published GitHub Release cannot outrun its claims and hosted smoke test. Explicit
+`INSTALL_VERSION=latest` resolves `github.com/theesfeld/clun/releases/latest` first, then falls back
+to the Releases API and the public Releases Atom feed. The API honors `GITHUB_TOKEN` or `GH_TOKEN`;
+the feed keeps prerelease-only resolution working after an unauthenticated API 403. Fallback
+candidates are compared as SemVer rather than accepted in chronological response order. The installer
+detects x86-64 or arm64, verifies the published SHA-256 checksum, stages the complete versioned bundle under
+`${XDG_DATA_HOME:-$HOME/.local/share}/clun/releases`, and installs `clun` into `~/.local/bin` as an
+atomically switched stable launcher.
+If that directory is missing from `PATH`, the installer prints the current-shell export and adds one
+idempotent marked block to `.bashrc`, `.zshrc`, or Fish's `config.fish`. Validation failure leaves the
+prior launcher and bundle intact.
+
+```sh
+# Exact destination, pinned release, or PATH-control overrides
+curl -fsSL https://clun.sh/install | INSTALL_DIR="$HOME/bin" sh
+curl -fsSL https://clun.sh/install | INSTALL_VERSION=latest sh
+curl -fsSL https://clun.sh/install | INSTALL_VERSION=0.1.0-dev.21 sh
+curl -fsSL https://clun.sh/install | ADD_PATH=0 sh   # print export; do not edit an rc file
+curl -fsSL https://clun.sh/install | ADD_PATH=1 sh   # ensure the managed rc block exists
+```
+
+Existing `~/.clun` installations remain supported: `CLUN_INSTALL="$HOME/.clun"` retains the legacy
+release-root layout, while `CLUN_VERSION` and `CLUN_NO_MODIFY_PATH=1` remain compatibility aliases.
+The verified `v0.1.0-dev.21` boundary predates the built-in updater. After `v0.2.0-dev.1` is
+published and shown here as the installable boundary, existing users can upgrade that layout once
+through the checksum-verifying installer; the new release then supports future `clun --update` runs:
+
+```sh
+curl -fsSL https://clun.sh/install | CLUN_INSTALL="$HOME/.clun" CLUN_NO_MODIFY_PATH=1 sh
+```
+
+While the hosted boundary remains `v0.1.0-dev.21`, that command only reinstalls `v0.1.0-dev.21` and does not
+add the updater.
+
+The release workflow exercises the modern installer on Ubuntu and macOS 15 runners for x64 and arm64.
+macOS archives target macOS 13.0 or newer, but are runtime-tested on macOS 15. Windows is not supported.
+
+### Update
+
+The built-in updater uses direct pure-Common-Lisp HTTPS/TLS and the same redirect, authenticated API,
+and public Atom-feed resolution. It selects the highest suitable SemVer while keeping stable installs
+off prereleases, verifies `checksums.txt` and the package's exact `VERSION`, stages the complete
+versioned bundle, and atomically switches the installer-managed stable launcher only after the new
+bundle runs successfully. Any failure retains the prior bundle and launcher:
+
+```sh
+clun --check-update   # non-mutating; exit 1 if behind
+clun --update         # verify and activate the complete release bundle
+# or: clun check-update / clun update
+```
 
 Clun is still pre-alpha; pre-1.0 minor versions may include breaking changes. In particular,
 `clun install` is verified against the hermetic registry
@@ -181,7 +213,7 @@ workflows are read-only and fail closed if the canonical issues, README, or site
 
 <!-- clun-generated:release-summary:begin -->
 Release versions follow the actual SemVer impact recorded in the canonical issue, not the number of pushes.
-The current source is the `0.1.0-dev.70` release candidate; the immutable tag and assets are not published yet.
+The current source is the `0.2.0-dev.1` release candidate; the immutable tag and assets are not published yet.
 The last published prerelease remains [`v0.1.0-dev.21`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.21).
 [The versioning contract](docs/versioning.md) defines prerelease sequencing, synchronized surfaces, immutable tags, assets, and installer evidence.
 [Phase 82 issue #56](https://github.com/theesfeld/clun/issues/56) is the canonical live release record.
@@ -224,7 +256,7 @@ vendored under `vendor/` and located via `scripts/registry.lisp`.
 make build     # compile everything, save build/clun (save-lisp-and-die)
 make test      # run the CL suites and JS/TS fixture harnesses
 make purity    # fail on any CFFI/foreign-code token
-./build/clun --version   # => clun 0.1.0-dev.70
+./build/clun --version   # => clun 0.2.0-dev.1
 ```
 
 A fresh clone builds with `make build` alone: ASDF compiles the vendored closure and `src/` into

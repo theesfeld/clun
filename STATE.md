@@ -11,10 +11,12 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 **Canonical issue:** https://github.com/theesfeld/clun/issues/56
 **Parent:** https://github.com/theesfeld/clun/issues/177
-**Current implementation unit:** Darwin and four-platform release recovery #219; truth audit #215 and issue reconciliation #220 are complete.
-**SemVer impact:** `patch`
-**Candidate release:** `0.1.0-dev.70` / `v0.1.0-dev.70`
+**Current implementation unit:** Issue #221 global CLI distribution contract and safe full-bundle updater activation.
+**SemVer impact:** `major` intent, published as the pre-1.0 minor-core transition to `0.2.0`.
+**Candidate release:** `0.2.0-dev.1` / `v0.2.0-dev.1`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
-**Tagged without a GitHub Release:** `0.1.0-dev.69` / `v0.1.0-dev.69` at `7895ac1263e7b61e57eb310a3546cc083f02034d`
+**Tagged without a GitHub Release:** `v0.1.0-dev.68`, `v0.1.0-dev.69`, and
+`v0.1.0-dev.70`; dev.70 is immutable at `0f01413c2922121de142ba732866580e9e070a79`.
 
-**Next scope:** merge the green recovery under #219, tag the exact green master commit as dev.70, publish and verify four archives plus checksums, then reconcile the installer/public boundary under #216. The dev.69 tag must not move or be reused.
+**Next scope:** merge Issue #221 only after current-master gates pass, then tag and publish only from
+the exact green merge commit.

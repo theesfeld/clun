@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2016 # Contract anchors intentionally match literal shell/Markdown text.
 
 set -eu
 
@@ -816,18 +817,19 @@ if [ "$release_state" = candidate ]; then
   reject_text README.md "$release_url"
 
   if [ "$candidate_tagged" -eq 1 ]; then
-    require_text site/index.html '<a href="https://github.com/theesfeld/clun/issues/215">'
+    require_text site/index.html "<a href=\"$active_issue_url\">"
     require_text site/index.html '<span>Tag only / no Release</span>'
     require_text site/index.html 'The annotated candidate tag exists, but its GitHub Release and assets do not.'
-    require_text site/index.html 'Audit/evidence records:'
-    require_text site/index.html 'Active release work remains in'
+    require_text site/index.html 'Tag-only recovery remains in'
+    require_text site/index.html "the canonical Phase $active_phase record"
   else
     require_text site/index.html "<a href=\"$active_issue_url\">"
     require_text site/index.html "<span>In development</span>"
   fi
   require_text site/index.html "Phase $active_phase is active:"
   if [ "$candidate_tagged" -eq 1 ]; then
-    require_text site/index.html '>Truth audit record #215</a>'
+    require_text site/index.html '>Current status</a>'
+    require_text site/index.html '>Canonical phase record</a>'
   else
     require_text site/index.html ">Current status</a>"
   fi
@@ -856,22 +858,17 @@ else
   require_text site/index.html "<span>$version / pre-alpha</span>"
   reject_text site/index.html "release candidate"
 fi
-
-if [ "$candidate_tagged" -eq 1 ]; then
-  for issue in 215 216 219 220; do
-    require_text README.md "https://github.com/theesfeld/clun/issues/$issue"
-    require_text site/index.html "https://github.com/theesfeld/clun/issues/$issue"
-  done
-  require_text README.md 'Audit/evidence records:'
-  require_text README.md 'Active release work remains tracked in'
-  require_text site/index.html '>Active release recovery #219</a>'
-  require_text site/index.html '>Active dev.69 release #216</a>'
-  require_text site/index.html '>Issue evidence record #220</a>'
-  reject_text README.md 'Active follow-up:'
-  reject_text README.md 'Current follow-up is tracked in'
-fi
 require_text site/index.html 'clun --check-update'
 require_text site/index.html 'clun --update'
+if [ "$release_state" = candidate ]; then
+  require_text README.md "While the hosted boundary remains \`v$previous_version\`, that command only reinstalls \`v$previous_version\` and does not"
+  require_text site/index.html "Until then, the command only reinstalls <code>v$previous_version</code>."
+else
+  require_text README.md "The published \`v$version\` boundary includes the built-in updater"
+  require_text site/index.html "The hosted command installs verified <code>v$version</code>"
+  reject_text README.md "While the hosted boundary remains \`v$previous_version\`"
+  reject_text site/index.html "Until then, the command only reinstalls <code>v$previous_version</code>."
+fi
 require_text site/index.html 'Proxy traps and invariants are implemented for the covered paths'
 require_text site/index.html 'Snapshot edge formats and cooperative/parallel concurrency are covered; test-watch reruns remain a known gap'
 require_text site/index.html 'Streaming request and response bodies; WebSocket + Pub/Sub; no HTTP/2 server'
@@ -940,9 +937,27 @@ require_text site/index.html "$deno_source"
 require_text site/index.html "Snapshot checked $baseline_date"
 require_text site/index.html "$bun_source"
 require_text site/index.html "$bun_engineering_source"
-installer_default="requested_version=\${CLUN_VERSION:-$installer_tag}"
+installer_boundary="verified_installer_tag=$installer_tag"
+[ "$(grep -Fxc "$installer_boundary" site/install)" -eq 1 ] ||
+  fail 'site/install verified default disagrees with the release ledger installer boundary'
+# shellcheck disable=SC2016 # Compare the installer's literal parameter expansion.
+installer_default='requested_version=${1:-${INSTALL_VERSION:-${CLUN_VERSION:-$verified_installer_tag}}}'
 [ "$(grep -Fxc "$installer_default" site/install)" -eq 1 ] ||
-  fail "site/install default CLUN_VERSION is not $installer_tag"
+  fail 'site/install does not default to its verified boundary with version-pin overrides'
+require_text site/install 'bin_dir="$HOME/.local/bin"'
+require_text site/install 'https://github.com/$repo/releases/latest'
+require_text site/install 'https://api.github.com/repos/$repo/releases?per_page=10'
+require_text site/install 'https://github.com/$repo/releases.atom'
+require_text site/install "Authorization: Bearer \$token"
+require_text site/install 'release_parent="$install_root/releases/$release_version"'
+require_text site/install 'release_dir="$release_parent/$target"'
+require_text site/install "marker_begin='# >>> clun installer >>>'"
+require_text README.md 'installs `clun` into `~/.local/bin`'
+require_text README.md 'INSTALL_VERSION='
+require_text README.md 'GITHUB_TOKEN` or `GH_TOKEN`'
+require_text site/index.html '<code>~/.local/bin/clun</code>'
+require_text site/index.html '<code>INSTALL_VERSION</code>'
+require_text site/index.html '<code>ADD_PATH=1</code>'
 
 if [ "${GITHUB_REF_TYPE:-}" = tag ]; then
   [ "${GITHUB_REF_NAME:-}" = "v$version" ] ||

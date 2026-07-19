@@ -8,7 +8,7 @@
   :license "GPL-3.0-or-later"
   ;; ASDF wants dotted integers; the user-facing prerelease is defined in
   ;; src/version.lisp and may advance independently within this core.
-  :version "0.1.0"
+  :version "0.2.0"
   ;; SBCL contribs for the event loop (Phase 05); cl-ppcre is the RegExp backend
   ;; (Phase 10, vendored + pure). sb-thread is built in (feature :sb-thread).
   :depends-on ((:require "sb-posix") (:require "sb-concurrency") (:require "sb-bsd-sockets")
@@ -481,6 +481,9 @@
                                                          (:file "install-tests")
                                                          (:file "cli-tests")
                                                          (:file "workspace-tests")))
+                                           (:module "cli"
+                                            :serial t
+                                            :components ((:file "update-tests")))
                                            (:module "archive"
                                             :serial t
                                             :components ((:file "compress-tests")

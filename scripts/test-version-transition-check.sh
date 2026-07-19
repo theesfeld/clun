@@ -365,6 +365,15 @@ write_release_ledger() {
     >"$fixture_file"
 }
 
+write_fixture_installer() {
+  fixture_boundary=$1
+  fixture_installer_file=$2
+  # shellcheck disable=SC2016 # Fixture needs the literal installer expansion.
+  printf '%s\n' '#!/bin/sh' "verified_installer_tag=$fixture_boundary" \
+    'requested_version=${1:-${INSTALL_VERSION:-${CLUN_VERSION:-$verified_installer_tag}}}' \
+    "printf \"%s\\n\" \"\$requested_version\"" >"$fixture_installer_file"
+}
+
 run_publication_reconciliation_case() (
   fixture_name=$1
   mutation=$2
@@ -382,8 +391,7 @@ run_publication_reconciliation_case() (
   printf '%s\n' base >"$fixture/README.md"
   printf '%s\n' base >"$fixture/STATE.md"
   printf '%s\n' base >"$fixture/site/index.html"
-  printf '%s\n' '#!/bin/sh' "requested_version=\${CLUN_VERSION:-v1.3.0-dev.1}" \
-    "printf \"%s\\n\" \"\$requested_version\"" >"$fixture/site/install"
+  write_fixture_installer v1.3.0-dev.1 "$fixture/site/install"
   write_release_ledger "$fixture_version" v1.3.0-dev.1 candidate pending \
     "$fixture/compat/release.tsv"
   git -C "$fixture" add .
@@ -393,12 +401,12 @@ run_publication_reconciliation_case() (
   printf '%s\n' published >"$fixture/README.md"
   printf '%s\n' published >"$fixture/STATE.md"
   printf '%s\n' published >"$fixture/site/index.html"
-  printf '%s\n' '#!/bin/sh' "requested_version=\${CLUN_VERSION:-v1.3.0-dev.2}" \
-    "printf \"%s\\n\" \"\$requested_version\"" >"$fixture/site/install"
+  write_fixture_installer "v$fixture_version" "$fixture/site/install"
   release_commit=$fixture_base
   case $mutation in
     wrong-release-commit) release_commit=0000000000000000000000000000000000000000 ;;
     installer-content) printf '%s\n' '# unexpected mutation' >>"$fixture/site/install" ;;
+    installer-boundary) write_fixture_installer v1.3.0-dev.1 "$fixture/site/install" ;;
     runtime-content) printf '%s\n' changed >"$fixture/src/runtime.lisp" ;;
     correct|missing-tag|wrong-tag|remote-tag|remote-annotated-tag) ;;
     *) printf 'fixture %s: invalid publication mutation %s\n' \
@@ -438,12 +446,77 @@ run_publication_reconciliation_case() (
   check_result "$fixture_name" "$expected_status" "$expected_text" "$status" "$output"
 )
 
+run_tag_only_recovery_case() (
+  fixture_name=$1
+  mutation=$2
+  expected_status=$3
+  expected_text=$4
+  fixture=$scratch_dir/$fixture_name
+  fixture_version=1.3.0-dev.2
+
+  mkdir -p "$fixture/src" "$fixture/compat" "$fixture/site"
+  git -C "$fixture" init -q
+  git -C "$fixture" config user.name 'Clun fixture'
+  git -C "$fixture" config user.email 'fixture@clun.invalid'
+  write_version "$fixture_version" "$fixture/src/version.lisp"
+  printf '%s\n' base >"$fixture/src/runtime.lisp"
+  printf '%s\n' base >"$fixture/README.md"
+  printf '%s\n' base >"$fixture/STATE.md"
+  printf '%s\n' base >"$fixture/site/index.html"
+  write_fixture_installer v1.3.0-dev.1 "$fixture/site/install"
+  write_release_ledger "$fixture_version" v1.3.0-dev.1 candidate pending \
+    "$fixture/compat/release.tsv"
+  git -C "$fixture" add .
+  git -C "$fixture" commit -qm base
+  fixture_base=$(git -C "$fixture" rev-parse HEAD)
+
+  printf '%s\n' tag-only >"$fixture/README.md"
+  if [ "$mutation" != missing-state ]; then
+    printf '%s\n' tag-only >"$fixture/STATE.md"
+  fi
+  printf '%s\n' tag-only >"$fixture/site/index.html"
+  release_commit=$fixture_base
+  case $mutation in
+    wrong-release-commit) release_commit=0000000000000000000000000000000000000000 ;;
+    runtime-content) printf '%s\n' changed >"$fixture/src/runtime.lisp" ;;
+    installer-content) printf '%s\n' '# unexpected mutation' >>"$fixture/site/install" ;;
+    correct|missing-tag|lightweight-tag|wrong-tag|missing-state) ;;
+    *) printf 'fixture %s: invalid tag-only mutation %s\n' \
+      "$fixture_name" "$mutation" >&2; exit 1 ;;
+  esac
+  write_release_ledger "$fixture_version" v1.3.0-dev.1 candidate "$release_commit" \
+    "$fixture/compat/release.tsv"
+  git -C "$fixture" add .
+  git -C "$fixture" commit -qm tag-only
+  fixture_head=$(git -C "$fixture" rev-parse HEAD)
+  case $mutation in
+    missing-tag) ;;
+    lightweight-tag) git -C "$fixture" tag "v$fixture_version" "$fixture_base" ;;
+    wrong-tag) git -C "$fixture" tag -a -m fixture "v$fixture_version" "$fixture_head" ;;
+    *) git -C "$fixture" tag -a -m fixture "v$fixture_version" "$fixture_base" ;;
+  esac
+
+  fake_gh=$fixture/fake-gh
+  write_fake_gh "$fake_gh"
+  set +e
+  output=$(GH_TOKEN=fixture GITHUB_REPOSITORY=fixture/clun \
+    CLUN_VERSION_REPO_ROOT="$fixture" CLUN_GH_BIN="$fake_gh" \
+    FIXTURE_GH_MODE=absent \
+    BASE_SHA="$fixture_base" HEAD_SHA="$fixture_head" \
+    sh "$checker" 2>&1)
+  status=$?
+  set -e
+  check_result "$fixture_name" "$expected_status" "$expected_text" "$status" "$output"
+)
+
 printf 'version-transition fixtures:\n'
 run_case current-phase25b 0.0.1-dev 0.1.0-dev.1 src/runtime.lisp pass \
   '0.0.1-dev -> 0.1.0-dev.1 (minor;' minor
 run_case minor 1.2.3 1.3.0 src/version.lisp pass '(minor;' minor
 run_case patch 1.2.3 1.2.4 src/version.lisp pass '(patch;' patch
 run_case major 1.2.3 2.0.0 src/version.lisp pass '(major;' major
+run_case pre1-breaking-minor-core 0.1.0-dev.70 0.2.0-dev.1 src/version.lisp pass \
+  '(minor; major;' major
 run_case prerelease 1.3.0-dev.1 1.3.0-dev.2 src/runtime.lisp pass '(prerelease;' minor
 run_case stable-promotion 1.3.0-dev.2 1.3.0 src/version.lisp pass '(stable;' minor
 
@@ -494,6 +567,10 @@ run_case malformed-base 1.2.3-dev.01 1.2.4 src/version.lisp fail \
   'base version is not strict SemVer' patch
 run_case canonical-mismatch 1.2.3 1.3.0 src/version.lisp fail \
   'version transition is minor but fixture issue #91 records patch' patch
+run_case post1-minor-cannot-record-major 1.2.3 1.3.0 src/version.lisp fail \
+  'version transition is minor but fixture issue #91 records major' major
+run_case pre1-patch-cannot-record-major 0.1.0 0.1.1 src/version.lisp fail \
+  'version transition is patch but fixture issue #91 records major' major
 run_case canonical-none-prerelease 1.3.0-dev.1 1.3.0-dev.2 src/runtime.lisp fail \
   'records none for release-bearing prerelease unit' none
 
@@ -529,6 +606,8 @@ run_publication_reconciliation_case publication-wrong-release-commit wrong-relea
   'invalid publication reconciliation'
 run_publication_reconciliation_case publication-installer-mutation installer-content fail \
   'invalid publication reconciliation'
+run_publication_reconciliation_case publication-stale-installer-boundary installer-boundary fail \
+  'invalid publication reconciliation'
 run_publication_reconciliation_case publication-runtime-mutation runtime-content fail \
   'invalid publication reconciliation'
 run_publication_reconciliation_case publication-wrong-tag wrong-tag fail \
@@ -539,4 +618,20 @@ run_publication_reconciliation_case publication-remote-tag remote-tag pass \
   'publication reconciliation for v1.3.0-dev.2'
 run_publication_reconciliation_case publication-remote-annotated-tag remote-annotated-tag pass \
   'publication reconciliation for v1.3.0-dev.2'
-printf 'version-transition fixtures: 57 passed\n'
+run_tag_only_recovery_case tag-only-recovery correct pass \
+  'tag-only recovery for v1.3.0-dev.2'
+run_tag_only_recovery_case tag-only-missing-tag missing-tag fail \
+  'invalid tag-only recovery'
+run_tag_only_recovery_case tag-only-lightweight-tag lightweight-tag fail \
+  'invalid tag-only recovery'
+run_tag_only_recovery_case tag-only-wrong-tag wrong-tag fail \
+  'invalid tag-only recovery'
+run_tag_only_recovery_case tag-only-wrong-release-commit wrong-release-commit fail \
+  'invalid tag-only recovery'
+run_tag_only_recovery_case tag-only-runtime-mutation runtime-content fail \
+  'invalid tag-only recovery'
+run_tag_only_recovery_case tag-only-installer-mutation installer-content fail \
+  'invalid tag-only recovery'
+run_tag_only_recovery_case tag-only-missing-surface missing-state fail \
+  'invalid tag-only recovery'
+printf 'version-transition fixtures: 69 passed\n'
