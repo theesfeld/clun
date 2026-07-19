@@ -85,9 +85,9 @@ jobs:
           CLUN_SKIP_PERFORMANCE_TESTS: "1"
         run: make test
 
-      - name: make test-tls12 (security policy and OpenSSL interop)
+      - name: make test-tls (WebPKI, TLS policy, and OpenSSL interop)
         if: steps.scope.outputs.runtime == 'true'
-        run: make test-tls12
+        run: make test-tls
 
       - name: Verify live test262 inventory matches published claims
         if: steps.scope.outputs.runtime == 'true'

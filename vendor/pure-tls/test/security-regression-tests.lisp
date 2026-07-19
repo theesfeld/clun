@@ -513,15 +513,17 @@
   (let ((pure-tls:*use-windows-certificate-store* nil)
         (pure-tls:*use-macos-keychain* nil)
         (now (get-universal-time)))
-    (destructuring-bind (leaf inter)
-        (%pem-chain (test-cert-path "openssl/goodcn2-chain.pem"))
-      (let ((root (pure-tls:parse-certificate-from-file
-                   (test-cert-path "openssl/root-cert.pem"))))
+    (let ((leaf (pure-tls:parse-certificate-from-file
+                 (test-cert-path "webpki-eku-server-leaf.pem")))
+          (inter (pure-tls:parse-certificate-from-file
+                  (test-cert-path "webpki-eku-server.pem")))
+          (root (pure-tls:parse-certificate-from-file
+                 (test-cert-path "webpki-root.pem"))))
         ;; Baseline: the untampered chain verifies, so the rejection below is
         ;; attributable solely to the path-length constraint.
         (is (pure-tls::verify-certificate-chain (list leaf inter root) (list root)
                                                 now nil :trust-anchor-mode :replace)
-            "Untampered goodcn2 chain should verify")
+            "Untampered signed WebPKI fixture chain should verify")
         ;; Assert pathLenConstraint=0 on the trusted root: it may issue end
         ;; entities but no intermediate CA -- and the chain has exactly one.
         (let ((bc (find :basic-constraints
@@ -531,7 +533,7 @@
                 (list :ca t :path-length-constraint 0)))
         (signals pure-tls:tls-certificate-error
           (pure-tls::verify-certificate-chain (list leaf inter root) (list root)
-                                              now nil :trust-anchor-mode :replace))))))
+                                              now nil :trust-anchor-mode :replace)))))
 
 (test chain-rejects-tampered-signature
   "A chain that passes name / CA / pathLen / date checks but whose leaf
@@ -539,14 +541,16 @@
   (let ((pure-tls:*use-windows-certificate-store* nil)
         (pure-tls:*use-macos-keychain* nil)
         (now (get-universal-time)))
-    (destructuring-bind (leaf inter)
-        (%pem-chain (test-cert-path "openssl/goodcn2-chain.pem"))
-      (let ((root (pure-tls:parse-certificate-from-file
-                   (test-cert-path "openssl/root-cert.pem"))))
+    (let ((leaf (pure-tls:parse-certificate-from-file
+                 (test-cert-path "webpki-eku-server-leaf.pem")))
+          (inter (pure-tls:parse-certificate-from-file
+                  (test-cert-path "webpki-eku-server.pem")))
+          (root (pure-tls:parse-certificate-from-file
+                 (test-cert-path "webpki-root.pem"))))
         ;; Baseline: the untampered chain verifies.
         (is (pure-tls::verify-certificate-chain (list leaf inter root) (list root)
                                                 now nil :trust-anchor-mode :replace)
-            "Untampered goodcn2 chain should verify")
+            "Untampered signed WebPKI fixture chain should verify")
         ;; Flip one byte of the leaf signature.  Every earlier check still
         ;; passes, so a rejection can only come from signature verification.
         (let ((sig (copy-seq (pure-tls::x509-certificate-signature leaf))))
@@ -554,7 +558,7 @@
           (setf (pure-tls::x509-certificate-signature leaf) sig))
         (signals pure-tls:tls-certificate-error
           (pure-tls::verify-certificate-chain (list leaf inter root) (list root)
-                                              now nil :trust-anchor-mode :replace))))))
+                                              now nil :trust-anchor-mode :replace)))))
 
 (test chain-rejects-expired-leaf
   "A leaf whose notAfter is in the past must be rejected."
@@ -708,6 +712,717 @@
   (is (pure-tls::hostname-matches-p "*.example.com" "foo.example.com"))
   (is (not (pure-tls::hostname-matches-p "*.com" "foo.com")))
   (is (not (pure-tls::hostname-matches-p "*.co.uk" "foo.co.uk"))))
+
+;;;; ---------------------------------------------------------------------------
+;;;; Bounded WebPKI profile used by Clun HTTPS (#234).
+;;;;
+;;;; The webpki-*.pem fixtures are real DER certificates in PEM armor, signed
+;;;; with OpenSSL 3.  The test root signs five distinct CA intermediates:
+;;;; critical/noncritical nameConstraints and clientAuth/serverAuth/anyEKU.
+;;;; Each intermediate signs its matching serverAuth leaf.  A separate 1024-bit
+;;;; RSA leaf is signed directly by the root.  Private keys are intentionally
+;;;; not retained in the repository.
+;;;; ---------------------------------------------------------------------------
+
+(defun %webpki-cert (name)
+  (pure-tls:parse-certificate-from-file
+   (test-cert-path (format nil "webpki-~a.pem" name))))
+
+(defun %verify-webpki-intermediate (kind &key (maximum-chain-depth 3))
+  (let* ((root (%webpki-cert "root"))
+         (intermediate (%webpki-cert kind))
+         (leaf (%webpki-cert (format nil "~a-leaf" kind))))
+    (pure-tls::verify-certificate-chain
+     (list leaf intermediate root) (list root) (get-universal-time) nil
+     :purpose :server-auth :trust-anchor-mode :replace
+     :maximum-chain-depth maximum-chain-depth)))
+
+(test webpki-critical-name-constraints-real-der-rejected
+  "A real signed CA with critical nameConstraints is rejected while parsing;
+mapping the OID for diagnostics must never mark its semantics as enforced."
+  (signals pure-tls:tls-decode-error
+    (%webpki-cert "nc-critical")))
+
+(test webpki-noncritical-name-constraints-real-der-rejected
+  "Unsupported nameConstraints affect path processing even when noncritical,
+so the real signed leaf/intermediate/root path must fail closed."
+  (signals pure-tls:tls-certificate-error
+    (%verify-webpki-intermediate "nc-noncritical")))
+
+(test webpki-intermediate-eku-constrains-server-auth
+  "A non-anchor CA restricted to clientAuth cannot issue a serverAuth path;
+serverAuth and anyExtendedKeyUsage CA constraints remain acceptable."
+  (signals pure-tls:tls-certificate-error
+    (%verify-webpki-intermediate "eku-client"))
+  (is-true (%verify-webpki-intermediate "eku-server"))
+  (is-true (%verify-webpki-intermediate "eku-any")))
+
+(test webpki-empty-and-malformed-ku-eku-rejected
+  "Present-but-empty or wrongly typed KU/EKU encodings never become the NIL
+value reserved for an absent, unrestricted extension."
+  ;; KeyUsage BIT STRING with no content octet / no asserted bits / wrong tag.
+  (signals pure-tls:tls-decode-error
+    (pure-tls::parse-key-usage (hex-to-bytes "03 01 00")))
+  (signals pure-tls:tls-decode-error
+    (pure-tls::parse-key-usage (hex-to-bytes "03 02 00 00")))
+  (signals pure-tls:tls-decode-error
+    (pure-tls::parse-key-usage (hex-to-bytes "04 01 00")))
+  (signals pure-tls:tls-decode-error
+    (pure-tls::parse-key-usage (hex-to-bytes "03 02 00 80")))
+  ;; encipherOnly and decipherOnly are undefined without keyAgreement.
+  (signals pure-tls:tls-decode-error
+    (pure-tls::parse-key-usage (hex-to-bytes "03 02 00 01")))
+  (signals pure-tls:tls-decode-error
+    (pure-tls::parse-key-usage (hex-to-bytes "03 03 07 00 80")))
+  (is (equal '(:key-agreement :encipher-only)
+             (pure-tls::parse-key-usage (hex-to-bytes "03 02 00 09"))))
+  (is (equal '(:key-agreement :decipher-only)
+             (pure-tls::parse-key-usage (hex-to-bytes "03 03 07 08 80"))))
+  ;; ExtendedKeyUsage empty sequence / non-OID member / wrong top-level tag.
+  (signals pure-tls:tls-decode-error
+    (pure-tls::parse-extended-key-usage (hex-to-bytes "30 00")))
+  (signals pure-tls:tls-decode-error
+    (pure-tls::parse-extended-key-usage (hex-to-bytes "30 03 02 01 01")))
+  (signals pure-tls:tls-decode-error
+    (pure-tls::parse-extended-key-usage (hex-to-bytes "31 00")))
+  (signals pure-tls:tls-decode-error
+    (pure-tls::parse-extended-key-usage (hex-to-bytes "30 02 06 00")))
+  (signals pure-tls:tls-decode-error
+    (pure-tls::parse-extended-key-usage (hex-to-bytes "30 03 06 01 80")))
+  ;; The combined first two OID arcs are themselves base-128 encoded.  Keep a
+  ;; valid multi-octet first subidentifier working while malformed forms reject.
+  (is (equal '((2 999 3))
+             (pure-tls::parse-extended-key-usage
+              (hex-to-bytes "30 05 06 03 88 37 03")))))
+
+(test webpki-basic-constraints-boolean-is-canonical-der
+  "BasicConstraints accepts canonical cA=TRUE but rejects malformed BOOLEANs
+and the explicitly encoded DEFAULT FALSE value that DER requires omitted."
+  (is (equal '(:ca t :path-length-constraint nil)
+             (pure-tls::parse-basic-constraints
+              (hex-to-bytes "30 03 01 01 ff"))))
+  ;; BOOLEAN content must be exactly one octet and TRUE must be FF in DER.
+  (signals pure-tls:tls-decode-error
+    (pure-tls::parse-basic-constraints
+     (hex-to-bytes "30 04 01 02 ff 00")))
+  (signals pure-tls:tls-decode-error
+    (pure-tls::parse-basic-constraints
+     (hex-to-bytes "30 03 01 01 01")))
+  ;; Even a canonical FALSE is the schema default and therefore must be absent.
+  (signals pure-tls:tls-decode-error
+    (pure-tls::parse-basic-constraints
+     (hex-to-bytes "30 03 01 01 00")))
+  ;; Long-form length for a one-octet BOOLEAN is not canonical DER.
+  (signals pure-tls:tls-decode-error
+    (pure-tls::parse-basic-constraints
+     (hex-to-bytes "30 04 01 81 01 ff"))))
+
+(test webpki-critical-extension-policy-is-centralized
+  "OID recognition and critical-semantics enforcement are separate decisions."
+  (is-true (pure-tls::enforced-critical-certificate-extension-p
+            :basic-constraints))
+  (is (not (pure-tls::enforced-critical-certificate-extension-p
+            :name-constraints)))
+  (is (not (pure-tls::enforced-critical-certificate-extension-p
+            :certificate-policies)))
+  (is (not (pure-tls::enforced-critical-certificate-extension-p
+            :policy-constraints))))
+
+(test webpki-rsa-server-key-must-be-at-least-2048-bits
+  "A correctly signed 1024-bit RSA leaf is still too weak for TLS server auth."
+  ;; Reject while parsing SubjectPublicKeyInfo, before the weak key can enter a
+  ;; path object or reach any signature verifier.
+  (signals pure-tls:tls-decode-error
+    (%webpki-cert "weak-rsa-leaf")))
+
+(test webpki-certificate-path-depth-is-bounded
+  "The exact same valid ordered path rejects above the configured entry bound."
+  (signals pure-tls:tls-certificate-error
+    (%verify-webpki-intermediate "eku-server" :maximum-chain-depth 2))
+  (is-true
+   (%verify-webpki-intermediate "eku-server" :maximum-chain-depth 3)))
+
+(test webpki-tls13-certificate-list-enforces-context-bound
+  "TLS 1.3 rejects an oversized Certificate list before DER/path processing."
+  (let* ((entries (loop repeat 3
+                        collect (pure-tls::make-certificate-entry)))
+         (message
+          (pure-tls::make-handshake-message
+            :type pure-tls::+handshake-certificate+
+            :body (pure-tls::make-certificate-message
+                   :certificate-list entries)))
+         (handshake (pure-tls::make-client-handshake :verify-depth 2)))
+    (signals pure-tls:tls-certificate-error
+      (pure-tls::process-certificate handshake message))))
+
+(test webpki-ordered-path-cannot-ignore-trailing-certificates
+  "A path that reaches a configured anchor and then continues is not accepted
+by scanning for a convenient earlier anchor."
+  (let ((root (%webpki-cert "root"))
+        (intermediate (%webpki-cert "eku-server"))
+        (leaf (%webpki-cert "eku-server-leaf")))
+    (signals pure-tls:tls-certificate-error
+      (pure-tls::verify-certificate-chain
+       (list leaf intermediate root) (list intermediate)
+       (get-universal-time) nil :purpose :server-auth
+       :trust-anchor-mode :replace :maximum-chain-depth 3))))
+
+(test webpki-terminal-cross-sign-representation-matches-trust-anchor-key
+  "A terminal certificate may represent a local trust anchor by the same CA
+name and public key even when its DER differs, as with a cross-signed root."
+  (let* ((root (%webpki-cert "root"))
+         (terminal (pure-tls::copy-x509-certificate root))
+         (different-der (copy-seq (pure-tls::x509-certificate-raw-der root))))
+    (setf (aref different-der (1- (length different-der)))
+          (logxor #xff (aref different-der (1- (length different-der)))))
+    (setf (pure-tls::x509-certificate-raw-der terminal) different-der)
+    (is (not (pure-tls::certificate-equal-p terminal root)))
+    (is-true (pure-tls::certificate-matches-trust-anchor-p terminal root))
+    ;; Matching only one half of the trust-anchor identity is never enough.
+    (let* ((different-key (pure-tls::copy-x509-certificate root))
+           (spki (copy-list
+                  (pure-tls::x509-certificate-subject-public-key-info root)))
+           (key (copy-seq (getf spki :public-key)))
+           (spki-der (copy-seq (getf spki :spki-der))))
+      (setf (aref key (1- (length key)))
+            (logxor #x01 (aref key (1- (length key))))
+            (aref spki-der (1- (length spki-der)))
+            (logxor #x01 (aref spki-der (1- (length spki-der))))
+            (getf spki :public-key) key
+            (getf spki :spki-der) spki-der
+            (pure-tls::x509-certificate-subject-public-key-info different-key)
+            spki
+            ;; The copy is a deliberately synthetic negative object; avoid
+            ;; its original DER identity short-circuiting the field mismatch.
+            (pure-tls::x509-certificate-raw-der different-key) nil)
+      (is (not (pure-tls::certificate-matches-trust-anchor-p
+                different-key root))))
+    (let ((different-subject (pure-tls::copy-x509-certificate root)))
+      (setf (pure-tls::x509-certificate-subject different-subject)
+            (pure-tls::make-x509-name
+             :rdns '((:common-name . "Different Root")))
+            (pure-tls::x509-certificate-raw-der different-subject) nil)
+      (is (not (pure-tls::certificate-matches-trust-anchor-p
+                different-subject root))))))
+
+;;;; The helpers below rebuild hostile DER from the raw fields of the real
+;;;; fixtures.  That keeps every negative focused on one malformed boundary;
+;;;; no private key or synthetic unsigned certificate is needed.
+
+(defun %webpki-der-wrap (tag contents)
+  (pure-tls::concat-octet-vectors
+   (pure-tls::octet-vector tag)
+   (pure-tls::encode-der-length (length contents))
+   contents))
+
+(defun %webpki-der-sequence (elements)
+  (pure-tls::encode-der-sequence elements))
+
+(defun %webpki-node-raw-children (node)
+  (mapcar #'pure-tls::asn1-node-raw-bytes
+          (pure-tls::asn1-children node)))
+
+(defun %webpki-concat (vectors)
+  (reduce #'pure-tls::concat-octet-vectors vectors
+          :initial-value (pure-tls::make-octet-vector 0)))
+
+(defun %webpki-rewrap-certificate (certificate &key tbs-raw outer-algorithm-raw
+                                                   signature-raw extra-outer)
+  (let* ((root (pure-tls::parse-der
+                (pure-tls::x509-certificate-raw-der certificate)))
+         (children (pure-tls::asn1-children root)))
+    (%webpki-der-sequence
+     (append (list (or tbs-raw
+                       (pure-tls::asn1-node-raw-bytes (first children)))
+                   (or outer-algorithm-raw
+                       (pure-tls::asn1-node-raw-bytes (second children)))
+                   (or signature-raw
+                       (pure-tls::asn1-node-raw-bytes (third children))))
+             extra-outer))))
+
+(defun %webpki-mutated-tbs (certificate index replacement &key append insert-before-last)
+  (let* ((root (pure-tls::parse-der
+                (pure-tls::x509-certificate-raw-der certificate)))
+         (tbs (first (pure-tls::asn1-children root)))
+         (fields (%webpki-node-raw-children tbs)))
+    (when replacement
+      (setf (nth index fields) replacement))
+    (when insert-before-last
+      (setf fields
+            (append (butlast fields) insert-before-last (last fields))))
+    (%webpki-rewrap-certificate
+     certificate :tbs-raw (%webpki-der-sequence (append fields append)))))
+
+(defun %webpki-der-time (tag value)
+  (%webpki-der-wrap tag (pure-tls::string-to-octets value)))
+
+(defun %webpki-pss-algorithm-identifier (salt-length)
+  (let* ((sha256-oid
+           (hex-to-bytes "06 09 60 86 48 01 65 03 04 02 01"))
+         (pss-oid
+           (hex-to-bytes "06 09 2a 86 48 86 f7 0d 01 01 0a"))
+         (mgf1-oid
+           (hex-to-bytes "06 09 2a 86 48 86 f7 0d 01 01 08"))
+         (hash-ai
+           (%webpki-der-sequence (list sha256-oid (hex-to-bytes "05 00"))))
+         (mgf-ai
+           (%webpki-der-sequence (list mgf1-oid hash-ai)))
+         (params
+           (%webpki-der-sequence
+            (list (%webpki-der-wrap #xa0 hash-ai)
+                  (%webpki-der-wrap #xa1 mgf-ai)
+                  (%webpki-der-wrap
+                   #xa2 (pure-tls::encode-der-integer salt-length))))))
+    (%webpki-der-sequence (list pss-oid params))))
+
+(defun %webpki-certificate-entry-bytes (cert-data extensions-data)
+  (pure-tls::concat-octet-vectors
+   (pure-tls::encode-uint24 (length cert-data)) cert-data
+   (pure-tls::encode-uint16 (length extensions-data)) extensions-data))
+
+(defun %webpki-certificate-message-bytes (entries)
+  (let ((list-bytes (%webpki-concat entries)))
+    (pure-tls::concat-octet-vectors
+     (pure-tls::octet-vector 0)
+     (pure-tls::encode-uint24 (length list-bytes))
+     list-bytes)))
+
+(test webpki-der-parser-is-bounded-and-fully-consuming
+  "DER rejects trailing bytes, parent overruns, excessive depth/nodes/size,
+and hostile high-tag-number encodings before certificate materialization."
+  (dolist (bytes (list (hex-to-bytes "02 01 01 00")
+                       (hex-to-bytes "30 02 02 01 01")
+                       (hex-to-bytes "1f 81")
+                       (hex-to-bytes "1f 80 1f 00")
+                       (hex-to-bytes "1f 1e 00")
+                       (hex-to-bytes "1f 81 81 81 81 01 00")))
+    (signals pure-tls:tls-error (pure-tls::parse-der bytes)))
+  (let ((nested (hex-to-bytes "05 00")))
+    (dotimes (i 34)
+      (declare (ignore i))
+      (setf nested (%webpki-der-sequence (list nested))))
+    (signals pure-tls:tls-decode-error (pure-tls::parse-der nested)))
+  (let ((nodes (pure-tls::make-octet-vector (* 2 4097))))
+    (dotimes (i 4097)
+      (setf (aref nodes (* 2 i)) #x05
+            (aref nodes (1+ (* 2 i))) 0))
+    (signals pure-tls:tls-decode-error
+      (pure-tls::parse-der (%webpki-der-wrap #x30 nodes))))
+  (signals pure-tls:tls-decode-error
+    (pure-tls::parse-der
+     (pure-tls::make-octet-vector
+      (1+ pure-tls::+maximum-der-input-size+)))))
+
+(test webpki-der-universal-forms-are-canonical
+  "Universal containers/scalars, NULL, and empty BIT STRING forms are exact."
+  (dolist (bytes (list (hex-to-bytes "10 00") ; primitive SEQUENCE
+                       (hex-to-bytes "22 00") ; constructed INTEGER
+                       (hex-to-bytes "05 01 00")
+                       (hex-to-bytes "03 01 01")))
+    (signals pure-tls:tls-decode-error (pure-tls::parse-der bytes))))
+
+(test webpki-extension-schema-is-exact
+  "Extension permits only OID, optional canonical TRUE, and OCTET STRING."
+  (is (pure-tls::x509-extension-p
+       (pure-tls::parse-x509-extension
+        (pure-tls::parse-der
+         (hex-to-bytes "30 0b 06 03 55 1d 0f 04 04 03 02 07 80")))))
+  (dolist (bytes
+           (list (hex-to-bytes
+                  "30 0e 06 03 55 1d 0f 01 01 00 04 04 03 02 07 80")
+                 (hex-to-bytes
+                  "30 0d 06 03 55 1d 0f 04 04 03 02 07 80 05 00")
+                 (hex-to-bytes "30 05 06 03 55 1d 0f")
+                 (hex-to-bytes "30 06 02 01 0f 04 01 00")
+                 (hex-to-bytes "30 08 06 03 55 1d 0f 02 01 00")))
+    (signals pure-tls:tls-decode-error
+      (pure-tls::parse-x509-extension (pure-tls::parse-der bytes)))))
+
+(test webpki-certificate-and-tbs-shapes-are-exact
+  "Certificate/TBSCertificate reject extra, duplicate, malformed version and
+out-of-range serial fields rather than ignoring them."
+  (let ((root (%webpki-cert "root")))
+    (signals pure-tls:tls-decode-error
+      (pure-tls:parse-certificate
+       (%webpki-rewrap-certificate root :extra-outer
+                                   (list (hex-to-bytes "05 00")))))
+    (dolist (version (list (hex-to-bytes "a0 03 02 01 00")
+                           (hex-to-bytes "a0 03 02 01 03")
+                           (hex-to-bytes "80 01 02")
+                           (hex-to-bytes "a0 06 02 01 02 02 01 02")))
+      (signals pure-tls:tls-decode-error
+        (pure-tls:parse-certificate (%webpki-mutated-tbs root 0 version))))
+    (dolist (serial (list (hex-to-bytes "02 01 00")
+                          (%webpki-der-wrap
+                           #x02
+                           (pure-tls::make-octet-vector 21 :initial-element 1))))
+      (signals pure-tls:tls-decode-error
+        (pure-tls:parse-certificate (%webpki-mutated-tbs root 1 serial))))
+    (signals pure-tls:tls-decode-error
+      (pure-tls:parse-certificate
+       (%webpki-mutated-tbs root 0 nil :append (list (hex-to-bytes "05 00")))))
+    (let* ((root-node (pure-tls::parse-der
+                       (pure-tls::x509-certificate-raw-der root)))
+           (tbs (first (pure-tls::asn1-children root-node)))
+           (extensions (car (last (%webpki-node-raw-children tbs)))))
+      (signals pure-tls:tls-decode-error
+        (pure-tls:parse-certificate
+         (%webpki-mutated-tbs root 0 nil :append (list extensions)))))))
+
+(test webpki-validity-time-profile-is-exact
+  "RFC 5280 UTC forms, calendar values, tag selection, and ordering are strict."
+  (is (integerp (pure-tls::decode-utc-time "491231235959Z")))
+  (is (integerp (pure-tls::decode-generalized-time "20500101000000Z")))
+  (dolist (value '("2401010000Z" "240101000000+0000"
+                   "240101000000Zjunk" "230229000000Z"))
+    (signals pure-tls:tls-decode-error (pure-tls::decode-utc-time value)))
+  (signals pure-tls:tls-decode-error
+    (pure-tls::decode-generalized-time "20491231235959Z"))
+  (let* ((root (%webpki-cert "root"))
+         (inverted
+           (%webpki-der-sequence
+            (list (%webpki-der-time #x17 "300101000000Z")
+                  (%webpki-der-time #x17 "290101000000Z"))))
+         (wrong-tag
+           (%webpki-der-sequence
+            (list (%webpki-der-time #x16 "240101000000Z")
+                  (%webpki-der-time #x17 "490101000000Z")))))
+    (signals pure-tls:tls-decode-error
+      (pure-tls:parse-certificate (%webpki-mutated-tbs root 4 inverted)))
+    (signals pure-tls:tls-decode-error
+      (pure-tls:parse-certificate (%webpki-mutated-tbs root 4 wrong-tag)))))
+
+(test webpki-name-and-empty-subject-rules-are-exact
+  "Issuer/RDN/ATV shapes and SET OF order are exact; empty subject needs critical SAN."
+  (signals pure-tls:tls-decode-error
+    (pure-tls::parse-name (pure-tls::parse-der (hex-to-bytes "30 00"))))
+  (signals pure-tls:tls-decode-error
+    (pure-tls::parse-name
+     (pure-tls::parse-der (hex-to-bytes "30 02 31 00"))))
+  (signals pure-tls:tls-decode-error
+    (pure-tls::parse-name
+     (pure-tls::parse-der
+      (hex-to-bytes "30 10 31 0e 30 0c 06 03 55 04 03 0c 01 61 05 00"))))
+  (let* ((common-name-oid (hex-to-bytes "06 03 55 04 03"))
+         (attr-a (%webpki-der-sequence
+                  (list common-name-oid (hex-to-bytes "0c 01 61"))))
+         (attr-b (%webpki-der-sequence
+                  (list common-name-oid (hex-to-bytes "0c 01 62"))))
+         (ordered-rdn (%webpki-der-wrap
+                       #x31 (%webpki-concat (list attr-a attr-b))))
+         (reversed-rdn (%webpki-der-wrap
+                        #x31 (%webpki-concat (list attr-b attr-a)))))
+    (is (pure-tls::x509-name-p
+         (pure-tls::parse-name
+          (pure-tls::parse-der (%webpki-der-sequence (list ordered-rdn))))))
+    (signals pure-tls:tls-decode-error
+      (pure-tls::parse-name
+       (pure-tls::parse-der (%webpki-der-sequence (list reversed-rdn))))))
+  (let ((root (%webpki-cert "root"))
+        (leaf (%webpki-cert "eku-server-leaf")))
+    (signals pure-tls:tls-decode-error
+      (pure-tls:parse-certificate
+       (%webpki-mutated-tbs root 3 (hex-to-bytes "30 00"))))
+    ;; The fixture SAN is deliberately noncritical, so emptying Subject must
+    ;; fail even though a DNS SAN is present and non-empty.
+    (signals pure-tls:tls-decode-error
+      (pure-tls:parse-certificate
+       (%webpki-mutated-tbs leaf 5 (hex-to-bytes "30 00"))))))
+
+(test webpki-spki-and-rsa-key-shapes-are-exact
+  "SPKI validates algorithm parameters, named curve/point, and exact RSA key."
+  (let* ((root (%webpki-cert "root"))
+         (rsa-der (getf (pure-tls::x509-certificate-subject-public-key-info root)
+                        :public-key))
+         (rsa-node (pure-tls::parse-der rsa-der))
+         (rsa-fields (%webpki-node-raw-children rsa-node)))
+    (signals pure-tls:tls-decode-error
+      (pure-tls::parse-rsa-public-key-components
+       (%webpki-der-sequence (append rsa-fields (list (hex-to-bytes "02 01 03"))))))
+    (signals pure-tls:tls-decode-error
+      (pure-tls::parse-rsa-public-key-components
+       (%webpki-der-sequence
+        (list (first rsa-fields) (hex-to-bytes "02 01 04"))))))
+  (signals pure-tls:tls-decode-error
+    (pure-tls::parse-rsa-public-key-components
+     (%webpki-der-sequence
+      (list (pure-tls::encode-der-integer
+             (1+ (ash 1 pure-tls::+maximum-rsa-modulus-bits+)))
+            (pure-tls::encode-der-integer 3)))))
+  (let* ((ec-oid (hex-to-bytes "06 07 2a 86 48 ce 3d 02 01"))
+         (p256-oid (hex-to-bytes "06 08 2a 86 48 ce 3d 03 01 07"))
+         (unknown-oid (hex-to-bytes "06 03 2a 03 04"))
+         (point (pure-tls::make-octet-vector 65 :initial-element 0)))
+    (setf (aref point 0) #x04)
+    (flet ((spki (curve point-bytes)
+             (%webpki-der-sequence
+              (list (%webpki-der-sequence (list ec-oid curve))
+                    (%webpki-der-wrap
+                     #x03 (pure-tls::concat-octet-vectors
+                           (pure-tls::octet-vector 0) point-bytes))))))
+      (signals pure-tls:tls-decode-error
+        (pure-tls::parse-subject-public-key-info
+         (pure-tls::parse-der (spki unknown-oid point))))
+      (signals pure-tls:tls-decode-error
+        (pure-tls::parse-subject-public-key-info
+         (pure-tls::parse-der (spki p256-oid point))))
+      (signals pure-tls:tls-decode-error
+        (pure-tls::parse-subject-public-key-info
+         (pure-tls::parse-der (spki p256-oid (subseq point 0 64))))))))
+
+(test webpki-ec-public-point-coordinates-are-canonical-field-elements
+  "A modulo-equivalent x=p encoding is rejected even when the curve equation holds."
+  (let* ((prime pure-tls::+secp256r1-field-prime+)
+         (curve-b
+           #x5AC635D8AA3A93E7B3EBBD55769886BC651D06B0CC53B0F63BCE3C3E27D2604B)
+         ;; P-256 has p = 3 (mod 4), so this is a square root of b and
+         ;; (x=0,y) is a valid point. Ironclad also accepts x=p because its
+         ;; equation check reduces coordinates modulo p; SEC 1 does not.
+         (y (ironclad:expt-mod curve-b (/ (1+ prime) 4) prime))
+         (canonical
+           (pure-tls::concat-octet-vectors
+            (pure-tls::octet-vector #x04)
+            (ironclad:integer-to-octets 0 :n-bits 256)
+            (ironclad:integer-to-octets y :n-bits 256)))
+         (noncanonical
+           (pure-tls::concat-octet-vectors
+            (pure-tls::octet-vector #x04)
+            (ironclad:integer-to-octets prime :n-bits 256)
+            (ironclad:integer-to-octets y :n-bits 256))))
+    (is (pure-tls::validate-ec-public-point :prime256v1 canonical))
+    (is (ironclad:ec-decode-point :secp256r1 noncanonical))
+    (signals pure-tls:tls-decode-error
+      (pure-tls::validate-ec-public-point :prime256v1 noncanonical))))
+
+(test webpki-algorithm-identifiers-and-pss-restrictions-are-exact
+  "Inner/outer AlgorithmIdentifier bytes and issuer PSS key policy must match."
+  (signals pure-tls:tls-decode-error
+    (pure-tls::parse-algorithm-identifier-with-params
+     (pure-tls::parse-der
+      (%webpki-pss-algorithm-identifier
+       (1+ pure-tls::+maximum-rsa-pss-salt-length+)))))
+  (let* ((root (%webpki-cert "root"))
+         (node (pure-tls::parse-der
+                (pure-tls::x509-certificate-raw-der root)))
+         (outer (second (pure-tls::asn1-children node)))
+         (oid-only (%webpki-der-sequence
+                    (list (pure-tls::asn1-node-raw-bytes
+                           (first (pure-tls::asn1-children outer)))))))
+    (signals pure-tls:tls-decode-error
+      (pure-tls:parse-certificate
+       (%webpki-rewrap-certificate root :outer-algorithm-raw oid-only)))
+    ;; Matching OID but different RSA-PSS parameter DER is still a mismatch.
+    (let* ((tbs (first (pure-tls::asn1-children node)))
+           (fields (%webpki-node-raw-children tbs))
+           (inner-pss (%webpki-pss-algorithm-identifier 32))
+           (outer-pss (%webpki-pss-algorithm-identifier 48)))
+      (setf (nth 2 fields) inner-pss)
+      (signals pure-tls:tls-decode-error
+        (pure-tls:parse-certificate
+         (%webpki-rewrap-certificate
+          root :tbs-raw (%webpki-der-sequence fields)
+               :outer-algorithm-raw outer-pss)))))
+  (signals pure-tls:tls-certificate-error
+    (pure-tls::enforce-rsassa-pss-key-restrictions
+     '(:algorithm :rsassa-pss) :sha256-with-rsa-encryption nil))
+  (signals pure-tls:tls-certificate-error
+    (pure-tls::enforce-rsassa-pss-key-restrictions
+     '(:algorithm :rsassa-pss
+       :algorithm-params (:hash :sha384 :salt-length 48))
+     :rsassa-pss '(:hash :sha256 :salt-length 32)))
+  (signals pure-tls:tls-certificate-error
+    (pure-tls::enforce-rsassa-pss-key-restrictions
+     '(:algorithm :rsassa-pss
+       :algorithm-params (:hash :sha256 :salt-length 48))
+     :rsassa-pss '(:hash :sha256 :salt-length 32)))
+  (let* ((issuer (%webpki-cert "root"))
+         (issuer-info
+           (pure-tls::x509-certificate-subject-public-key-info issuer))
+         (public-key
+           (pure-tls::parse-rsa-public-key (getf issuer-info :public-key))))
+    (is-true
+     (pure-tls::validate-rsa-pss-salt-length-for-key public-key :sha256 32))
+    (signals pure-tls:tls-certificate-error
+      (pure-tls::validate-rsa-pss-salt-length-for-key
+       public-key :sha512 pure-tls::+maximum-rsa-pss-salt-length+))))
+
+(test webpki-subject-alt-name-profile-rejects-unsupported-forms
+  "Unsupported GeneralName choices fail closed instead of bypassing critical SAN."
+  (dolist (bytes (list (hex-to-bytes "30 02 a0 00")
+                       (hex-to-bytes "30 03 88 01 2a")))
+    (signals pure-tls:tls-decode-error
+      (pure-tls::parse-subject-alt-name bytes))))
+
+(test webpki-rsa-pss-declared-salt-length-is-enforced
+  "PSS accepts a valid non-digest-length salt only when the caller declares it."
+  (multiple-value-bind (private-key public-key)
+      (ironclad:generate-key-pair :rsa :num-bits 2048)
+    (let* ((message (pure-tls::string-to-octets
+                     "bounded WebPKI PSS salt-length regression"))
+           (public-key-der
+             (%webpki-der-sequence
+              (list (pure-tls::encode-der-integer
+                     (ironclad:rsa-key-modulus public-key))
+                    (pure-tls::encode-der-integer
+                     (ironclad:rsa-key-exponent public-key)))))
+           (short-salt-signature
+             (ironclad:sign-message private-key message
+                                    :pss :sha256 :salt-length 20))
+           (tls-salt-signature
+             (ironclad:sign-message private-key message
+                                    :pss :sha256 :salt-length 32)))
+      (is-true
+       (ironclad:verify-signature public-key message short-salt-signature
+                                  :pss :sha256 :salt-length 20))
+      (is (not (ironclad:verify-signature
+                public-key message short-salt-signature
+                :pss :sha256 :salt-length 32)))
+      ;; Omitting salt-length preserves Ironclad's historical digest-length
+      ;; default, so it must also reject the 20-byte-salt vector.
+      (is (not (ironclad:verify-signature
+                public-key message short-salt-signature :pss :sha256)))
+      (is-true
+       (ironclad:verify-signature public-key message tls-salt-signature
+                                  :pss :sha256 :salt-length 32))
+      (is-true
+       (ironclad:verify-signature public-key message tls-salt-signature
+                                  :pss :sha256))
+      ;; TLS CertificateVerify fixes sLen=hLen and therefore rejects the
+      ;; otherwise valid 20-byte-salt signature for SHA-256.
+      (finishes
+        (pure-tls::verify-rsa-pss-signature
+         public-key-der message tls-salt-signature :sha256))
+      (signals pure-tls:tls-handshake-error
+        (pure-tls::verify-rsa-pss-signature
+         public-key-der message short-salt-signature :sha256))
+      ;; Certificate signatures instead enforce the saltLength carried by the
+      ;; certificate AlgorithmIdentifier, and hash the original TBS bytes once.
+      (let* ((issuer
+               (pure-tls::make-x509-certificate
+                :subject-public-key-info
+                (list :algorithm :rsa-encryption :public-key public-key-der)))
+             (certificate
+               (pure-tls::make-x509-certificate
+                :tbs-raw message
+                :signature-algorithm :rsassa-pss
+                :signature-algorithm-params '(:hash :sha256 :salt-length 20)
+                :signature short-salt-signature)))
+        (is-true (pure-tls::verify-certificate-signature certificate issuer))
+        (setf (pure-tls::x509-certificate-signature-algorithm-params certificate)
+              '(:hash :sha256 :salt-length 32))
+        (is (not (pure-tls::verify-certificate-signature certificate issuer)))))))
+
+(test webpki-rsa-signature-representative-is-canonical
+  "A real valid RSA certificate signature has one exact-width representative;
+the mathematically equivalent s+n encoding and short encodings are rejected."
+  (let* ((issuer (%webpki-cert "eku-server"))
+         (leaf (%webpki-cert "eku-server-leaf"))
+         (issuer-info
+           (pure-tls::x509-certificate-subject-public-key-info issuer))
+         (key (pure-tls::parse-rsa-public-key (getf issuer-info :public-key)))
+         (n (ironclad:rsa-key-modulus key))
+         (signature (pure-tls::x509-certificate-signature leaf))
+         (width (length signature))
+         (s-plus-n (+ (ironclad:octets-to-integer signature) n))
+         (noncanonical
+           (ironclad:integer-to-octets s-plus-n :n-bits (* 8 width)))
+         (mutated (pure-tls::copy-x509-certificate leaf)))
+    (is-true (pure-tls::verify-certificate-signature leaf issuer))
+    (is (= width (length noncanonical)))
+    (setf (pure-tls::x509-certificate-signature mutated) noncanonical)
+    (is (not (pure-tls::verify-certificate-signature mutated issuer)))
+    (is (not (pure-tls::rsa-signature-representative-valid-p
+              key (subseq signature 1))))))
+
+(test webpki-ecdsa-signature-shape-and-range-are-exact
+  "Both TLS and certificate ECDSA paths require exactly two in-range positives."
+  (let ((extra (hex-to-bytes
+                "30 09 02 01 01 02 01 01 02 01 01"))
+        (zero (hex-to-bytes "30 06 02 01 00 02 01 01"))
+        (order
+          #xFFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551))
+    (dolist (signature (list extra zero
+                             (%webpki-der-sequence
+                              (list (pure-tls::encode-der-integer order)
+                                    (pure-tls::encode-der-integer 1)))))
+      (signals pure-tls:tls-error
+        (pure-tls::parse-ecdsa-signature signature :secp256r1))
+      (signals pure-tls:tls-error
+        (pure-tls::parse-ecdsa-cert-signature signature :secp256r1)))))
+
+(test webpki-tls13-certificate-wire-bounds-precede-materialization
+  "TLS 1.3 bounds list bytes, entries, empty cert_data, and per-entry extension
+count while preserving a valid entry with an empty extension block."
+  (let* ((empty (pure-tls::make-octet-vector 0))
+         (one (pure-tls::octet-vector 1))
+         (entry (%webpki-certificate-entry-bytes one empty)))
+    (is (= 1 (length
+              (pure-tls::certificate-message-certificate-list
+               (pure-tls::parse-certificate-message
+                (%webpki-certificate-message-bytes (list entry)))))))
+    (signals pure-tls:tls-handshake-error
+      (pure-tls::parse-certificate-message
+       (%webpki-certificate-message-bytes (list entry entry entry))
+       :maximum-certificate-entries 2))
+    (signals pure-tls:tls-handshake-error
+      (pure-tls::parse-certificate-message
+       (%webpki-certificate-message-bytes
+        (list (%webpki-certificate-entry-bytes empty empty)))))
+    (let ((pure-tls::*max-certificate-list-size* 5))
+      (signals pure-tls:tls-handshake-error
+        (pure-tls::parse-certificate-message
+         (%webpki-certificate-message-bytes (list entry)))))
+    (let ((extension-bytes
+            (%webpki-concat
+             (loop for type from 100
+                   repeat (1+ pure-tls::+default-maximum-certificate-entry-extensions+)
+                   collect (pure-tls::concat-octet-vectors
+                            (pure-tls::encode-uint16 type)
+                            (pure-tls::encode-uint16 0))))))
+      (signals pure-tls:tls-handshake-error
+        (pure-tls::parse-certificate-message
+         (%webpki-certificate-message-bytes
+          (list (%webpki-certificate-entry-bytes one extension-bytes))))))))
+
+(test webpki-trust-anchor-identity-is-lossless
+  "Flattened names/keys do not substitute for exact Name and SPKI DER identity."
+  (let* ((root (%webpki-cert "root"))
+         (different-name (pure-tls::copy-x509-certificate root))
+         (name (pure-tls::x509-certificate-subject root))
+         (raw-name (copy-seq (pure-tls::x509-name-raw-der name))))
+    (setf (aref raw-name (1- (length raw-name)))
+          (logxor 1 (aref raw-name (1- (length raw-name))))
+          (pure-tls::x509-certificate-subject different-name)
+          (pure-tls::make-x509-name :rdns (copy-tree (pure-tls::x509-name-rdns name))
+                                    :raw-der raw-name)
+          (pure-tls::x509-certificate-raw-der different-name) nil)
+    (is (not (pure-tls::certificate-matches-trust-anchor-p different-name root)))
+    (let* ((different-spki (pure-tls::copy-x509-certificate root))
+           (spki (copy-list
+                  (pure-tls::x509-certificate-subject-public-key-info root)))
+           (raw-spki (copy-seq (getf spki :spki-der))))
+      (setf (aref raw-spki (1- (length raw-spki)))
+            (logxor 1 (aref raw-spki (1- (length raw-spki))))
+            (getf spki :spki-der) raw-spki
+            (pure-tls::x509-certificate-subject-public-key-info different-spki) spki
+            (pure-tls::x509-certificate-raw-der different-spki) nil)
+      (is (not (pure-tls::certificate-matches-trust-anchor-p
+                different-spki root))))))
+
+(test webpki-ordered-issuer-name-is-lossless
+  "RDN grouping/encoding cannot be erased when linking an ordered path."
+  (let* ((leaf (%webpki-cert "eku-server-leaf"))
+         (issuer (%webpki-cert "eku-server"))
+         (different (pure-tls::copy-x509-certificate issuer))
+         (subject (pure-tls::x509-certificate-subject issuer))
+         (raw (copy-seq (pure-tls::x509-name-raw-der subject))))
+    (is-true (pure-tls::certificate-issued-by-p leaf issuer))
+    (setf (aref raw (1- (length raw)))
+          (logxor 1 (aref raw (1- (length raw))))
+          (pure-tls::x509-certificate-subject different)
+          (pure-tls::make-x509-name
+           :rdns (copy-tree (pure-tls::x509-name-rdns subject)) :raw-der raw))
+    (is (not (pure-tls::certificate-issued-by-p leaf different)))))
 
 (defun run-security-regression-tests ()
   "Run the security regression suite.  Returns T if all tests pass."

@@ -440,7 +440,8 @@
 (defun rsa-pss-signature-test (name n e d input salt signature)
   ;; Redefine pss-encode to use a defined salt for the test instead of a random one
   (setf (symbol-function 'ironclad::pss-encode)
-        (lambda (digest-name message num-bytes)
+        (lambda (digest-name message num-bytes &optional salt-length em-bits)
+          (declare (ignore salt-length em-bits))
           (let* ((digest-name (if (eq digest-name t) :sha1 digest-name))
                  (digest-len (ironclad:digest-length digest-name)))
             (assert (>= num-bytes (+ (* 2 digest-len) 2)))

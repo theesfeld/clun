@@ -14,7 +14,7 @@
   "TLS configuration context (similar to SSL_CTX)."
   ;; Verification settings
   (verify-mode +verify-required+ :type fixnum)
-  (verify-depth 100 :type fixnum)
+  (verify-depth +default-maximum-certificate-chain-depth+ :type fixnum)
   ;; Certificate chain for server mode
   (certificate-chain nil :type list)
   ;; Private key for server mode
@@ -62,7 +62,7 @@
 
 (defun make-tls-context (&key
                            (verify-mode +verify-required+)
-                           (verify-depth 100)
+                           (verify-depth +default-maximum-certificate-chain-depth+)
                            certificate-chain-file
                            private-key-file
                            ca-file
@@ -99,6 +99,9 @@
    HOSTNAME-POLICY - HOSTNAME-POLICY value governing the RFC 6125 identity
      decision for connections made with this context; defaults to
      *GENERAL-HOSTNAME-POLICY* (the general profile)."
+  (unless (and (integerp verify-depth) (plusp verify-depth))
+    (error 'tls-certificate-error
+           :message "VERIFY-DEPTH must be a positive integer"))
   (let ((ctx (make-tls-context-struct
               :verify-mode verify-mode
               :verify-depth verify-depth

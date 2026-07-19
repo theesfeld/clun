@@ -280,3 +280,78 @@
            (response (make-array 8 :element-type '(unsigned-byte 8)
                                    :initial-element #xff)))
           clun.net:http-content-decoding-error)))
+
+(defun %https-identity-cert (common-name san-values)
+  "Build a minimal certificate object for Clun HTTPS identity-policy tests."
+  (pure-tls::make-x509-certificate
+   :subject (pure-tls::make-x509-name
+             :rdns (list (cons :common-name common-name)))
+   :extensions (when san-values
+                 (list (pure-tls::make-x509-extension
+                        :oid :subject-alt-name :value san-values)))))
+
+(define-test net/https-identity-is-san-only-and-chain-is-bounded
+  "Both HTTPS transports share an eight-entry, SAN-only identity policy."
+  (let* ((context (clun.net::%make-https-tls-context nil))
+         (policy (pure-tls::tls-context-hostname-policy context)))
+    (is = clun.net::+https-maximum-certificate-chain-depth+
+        (pure-tls::tls-context-verify-depth context))
+    ;; No SAN: matching Common Name is deliberately not an identity.
+    (fail (pure-tls:verify-hostname
+           (%https-identity-cert "www.example.test" nil)
+           "www.example.test" :policy policy)
+          pure-tls:tls-verification-error)
+    ;; Email-only SAN: SAN is present, but carries no DNS/IP identity.
+    (fail (pure-tls:verify-hostname
+           (%https-identity-cert
+            "www.example.test" '((:email "ops@example.test")))
+           "www.example.test" :policy policy)
+          pure-tls:tls-verification-error)
+    ;; An explicitly empty SAN also cannot unlock Common Name fallback.
+    (let ((empty-san
+            (pure-tls::make-x509-certificate
+             :subject (pure-tls::make-x509-name
+                       :rdns '((:common-name . "www.example.test")))
+             :extensions (list (pure-tls::make-x509-extension
+                                :oid :subject-alt-name :value nil)))))
+      (fail (pure-tls:verify-hostname empty-san "www.example.test"
+                                      :policy policy)
+            pure-tls:tls-verification-error))
+    (true (pure-tls:verify-hostname
+           (%https-identity-cert
+            "ignored.example.test" '((:dns "www.example.test")))
+           "www.example.test" :policy policy))
+    ;; IP references match only the exact iPAddress SAN octets.
+    (let ((ip-cert (%https-identity-cert
+                    "127.0.0.2"
+                    (list (list :ip #(127 0 0 1))))))
+      (true (pure-tls:verify-hostname ip-cert "127.0.0.1" :policy policy))
+      (fail (pure-tls:verify-hostname ip-cert "127.0.0.2" :policy policy)
+            pure-tls:tls-verification-error))))
+
+(define-test net/tls12-certificate-list-enforces-context-bound
+  "TLS 1.2 refuses oversized peer certificate counts and bytes before validation."
+  (let* ((pem (pure-tls::read-file-bytes
+               (asdf:system-relative-pathname
+                :pure-tls "test/certs/webpki-root.pem")))
+         (der (pure-tls::pem-decode pem "CERTIFICATE"))
+         (entry (clun.net::%tls12-cat
+                 (clun.net::%tls12-u24 (length der)) der))
+         (entries (apply #'clun.net::%tls12-cat
+                         (loop repeat (1+ clun.net::+https-maximum-certificate-chain-depth+)
+                               collect entry)))
+         (message (clun.net::%tls12-handshake-message
+                   11 (clun.net::%tls12-cat
+                       (clun.net::%tls12-u24 (length entries)) entries))))
+    (fail (clun.net::%tls12-parse-certificates message)
+          clun.net::tls12-error)
+    (let* ((oversized
+             (make-array
+              (1+ clun.net::+https-maximum-certificate-list-bytes+)
+              :element-type '(unsigned-byte 8) :initial-element 0))
+           (oversized-message
+             (clun.net::%tls12-handshake-message
+              11 (clun.net::%tls12-cat
+                  (clun.net::%tls12-u24 (length oversized)) oversized))))
+      (fail (clun.net::%tls12-parse-certificates oversized-message)
+            clun.net::tls12-error))))

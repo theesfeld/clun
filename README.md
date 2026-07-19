@@ -93,9 +93,12 @@ tarballs, installed-package execution, and byte-identical frozen cache-only rein
 registry metadata and public HTTPS tarball fallback are denied. This live, non-hermetic gate uses
 Clun's experimental bounded pure-CL TLS profile. The still-published
 `v0.1.0-dev.21` binary predates the pure-CL TLS 1.2 fallback and returns a fatal
-`protocol_version` alert against the public registry; [Issue #233](https://github.com/theesfeld/clun/issues/233)
-and [Issue #234](https://github.com/theesfeld/clun/issues/234) block the candidate release until the
-working path and bounded WebPKI hardening are published and verified.
+`protocol_version` alert against the public registry. The current source contains the working package
+path from [Issue #233](https://github.com/theesfeld/clun/issues/233) and bounded WebPKI hardening from
+[Issue #234](https://github.com/theesfeld/clun/issues/234). It remains a source candidate while
+[Issue #235](https://github.com/theesfeld/clun/issues/235) closes the remaining TLS alert/close
+compliance findings, and until the exact `master` candidate passes CI, Compatibility, Documentation,
+immutable release-asset, Pages, and hosted-installer gates.
 
 ## What works
 
@@ -240,21 +243,38 @@ The last published prerelease remains [`v0.1.0-dev.21`](https://github.com/thees
 **ironclad** libraries, both pure Common Lisp — is **unaudited**, young, and not hardened against
 side-channel adversaries. Do not rely on it where a compromise would be serious.
 
-The experimental profile checks certificate presence, validity, hostname, signatures, basic chain
-constraints, and an explicit system trust anchor; there is no public "ignore certificate errors"
-switch. These checks are not yet a browser-grade or generally fail-closed WebPKI implementation.
-[Issue #234](https://github.com/theesfeld/clun/issues/234) tracks required name-constraint,
-intermediate-EKU, strict SAN, key-encoding/strength, and chain-depth hardening plus explicit
-revocation, CT, AIA, and alternate-path limitations, and blocks the candidate release.
+Clun HTTPS uses an authenticated, deliberately bounded pure-Common-Lisp WebPKI profile in both TLS
+1.3 and TLS 1.2: DNS identities must appear as `dNSName` SANs (Common Name fallback is disabled), IP
+literals must exactly match an `iPAddress` SAN, RSA server keys must be 2048–8192 bits, and a peer may
+supply at most eight leaf-first certificates. The verifier authenticates that ordered path to one
+configured trust anchor (including an exact subject/public-key match for a cross-signed root); it does
+not fetch AIA issuers or search alternate paths. Non-anchor issuing-CA EKU,
+BasicConstraints, path length, KeyUsage, signatures, validity, hostname/IP identity, and
+critical-extension handling are enforced. Unsupported path semantics fail closed: until cumulative
+permitted/excluded subtree processing exists, **every** path containing `nameConstraints` is rejected,
+whether the extension is critical or not.
 
-Known limitations (see `STATE.md`): the pure-CL TLS implementation has a narrower interoperability
-record than mature native stacks; DNS resolution is blocking; each in-flight HTTPS request uses one
-worker thread. Public npm metadata and tarball downloads are live-smoked through the experimental
-bounded TLS 1.3-to-1.2 profile. Package tarballs are additionally protected by SRI SHA-512 verification before
-extraction. For frozen reinstalls, the lockfile's already-recorded integrity detects cache corruption
-or tampering. During fresh resolution, however, integrity and tarball URLs both come from registry
-metadata authenticated by TLS; SRI alone does not protect against a transport compromise that can
-replace both the metadata and tarball.
+Certificate parsing is bounded before trust decisions: each DER object/certificate list is limited to
+one MiB, DER nesting to 32 levels and 4,096 nodes, TLS 1.3 CertificateEntry extensions to 16, and peer
+paths to eight certificates. Certificate, TBSCertificate, Name/RDN, Extension, validity-time,
+AlgorithmIdentifier, SubjectPublicKeyInfo, RSA, and ECDSA shapes are consumed exactly; trailing,
+ambiguous, out-of-range, or mismatched encodings fail closed. RDN `SET OF` values require canonical
+DER order, EC coordinates must be canonical field elements on their named curve, and unsupported SAN
+GeneralName choices reject. RSA-PSS salt lengths are bounded globally and by the actual issuer
+key/hash capacity, certificate-declared lengths are enforced exactly, and TLS CertificateVerify uses
+the protocol-required salt length equal to the selected hash output length.
+
+This is not browser-grade or complete RFC 5280 validation: Clun does not implement policy-tree
+processing, AIA/alternate-path building, Certificate Transparency, or online revocation checking in
+its HTTPS clients. DNS resolution is blocking and each in-flight HTTPS request uses one worker thread.
+Public npm metadata and tarball downloads are live-smoked through the bounded TLS 1.3-to-1.2 profile:
+both `clun install <package>` and `clun add <package>` install and execute a pinned package with a
+transitive dependency, then reproduce byte-identical frozen installs with registry transport denied.
+Package tarballs are additionally checked against SRI SHA-512 before extraction. For frozen
+reinstalls, the lockfile's already-recorded integrity detects cache corruption or tampering. During
+fresh resolution, however, integrity and tarball URLs both come from registry metadata authenticated
+by TLS; SRI alone does not protect against a transport compromise that can replace both metadata and
+tarball.
 
 ## Building from source
 

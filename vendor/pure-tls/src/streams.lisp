@@ -585,6 +585,7 @@
                                       (tls-context-alpn-protocols context))
                   :verify-mode verify
                   :trust-store trust-store
+                  :verify-depth (tls-context-verify-depth context)
                   :skip-hostname-verify (and sni-hostname (null hostname))
                   :client-certificate client-cert
                   :client-private-key private-key
@@ -620,7 +621,9 @@
                                      (trust-store-certificates trust-store))))
                 (verify-certificate-chain chain trusted-roots
                                           (get-universal-time) hostname
-                                          :purpose :server-auth)))
+                                          :purpose :server-auth
+                                          :maximum-chain-depth
+                                          (tls-context-verify-depth context))))
             ;; Record the verified identity when this full handshake proved it
             ;; under +verify-required+ (hostname supplied, hostname + chain
             ;; verified without error above).  A NewSessionTicket read later on

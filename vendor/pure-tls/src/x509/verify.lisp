@@ -310,10 +310,50 @@ a full list lives at https://publicsuffix.org/.")
 ;;; 4. Checking key usage
 ;;; 5. Checking against trusted roots
 ;;;
-;;; For now, we provide basic building blocks.
+;;; This is deliberately a bounded, ordered-path profile.  It validates the
+;;; server-supplied leaf-first path as given and terminates it at one explicit
+;;; trust anchor.  It does not fetch AIA issuers or construct alternate paths.
+
+(defconstant +minimum-rsa-server-auth-bits+ 2048
+  "Minimum RSA modulus size accepted for TLS server authentication.")
+
+(defun reject-unsupported-certificate-path-semantics (cert)
+  "Reject path semantics this bounded verifier cannot safely process."
+  ;; Until cumulative permitted/excluded subtree processing exists, accepting
+  ;; even a noncritical nameConstraints extension would silently bypass a CA's
+  ;; intended namespace restriction.  Fail closed for every path position.
+  (when (certificate-has-extension-p cert :name-constraints)
+    (error 'tls-certificate-error
+           :message "Certificate path contains unsupported nameConstraints"))
+  (let ((unsupported-critical
+          (certificate-has-unknown-critical-extensions-p cert)))
+    (when unsupported-critical
+      (error 'tls-certificate-error
+             :message (format nil
+                              "Certificate has unsupported critical extension(s): ~A"
+                              unsupported-critical)))))
+
+(defun verify-server-auth-public-key-strength (cert)
+  "Enforce the RSA key floor for the supported TLS server-auth profiles."
+  (let* ((info (x509-certificate-subject-public-key-info cert))
+         (algorithm (getf info :algorithm)))
+    (when (member algorithm '(:rsa-encryption :rsa-pss :rsassa-pss :rsa))
+      (let* ((key (parse-rsa-public-key (getf info :public-key)))
+             (modulus (and key (ironclad:rsa-key-modulus key)))
+             (bits (and modulus (integer-length modulus))))
+        (unless (and bits (>= bits +minimum-rsa-server-auth-bits+))
+          (error 'tls-certificate-error
+                 :message (if bits
+                              (format nil
+                                      "RSA server-auth key is only ~D bits; minimum is ~D"
+                                      bits +minimum-rsa-server-auth-bits+)
+                              "RSA server-auth public key is malformed"))))))
+  t)
 
 (defun verify-certificate-chain (chain trusted-roots &optional (now (get-universal-time)) hostname
-                                 &key check-revocation (trust-anchor-mode :replace) purpose)
+                                 &key check-revocation (trust-anchor-mode :replace) purpose
+                                      (maximum-chain-depth
+                                        +default-maximum-certificate-chain-depth+))
   "Verify a certificate chain against trusted roots.
    CHAIN is a list of certificates, leaf first.
    TRUSTED-ROOTS is a list of trusted CA certificates. When NIL on Windows/macOS,
@@ -328,10 +368,27 @@ a full list lives at https://publicsuffix.org/.")
    leaf certificate's ExtendedKeyUsage: a leaf whose EKU extension is present
    but lists neither PURPOSE nor anyExtendedKeyUsage is rejected.  A leaf with
    no EKU extension is treated as unrestricted (RFC 5280 s4.2.1.12).
+   MAXIMUM-CHAIN-DEPTH bounds the number of leaf-first certificate entries.
+   The supplied order is authoritative: AIA fetching and alternate-path
+   construction are intentionally not implemented.
    CRL fetch timeout is computed from cl-cancel:*current-cancel-context* if set."
   (declare (ignorable hostname check-revocation trust-anchor-mode))  ; Only used conditionally
   (when (null chain)
     (error 'tls-certificate-error :message "Empty certificate chain"))
+  (unless (and (integerp maximum-chain-depth) (plusp maximum-chain-depth))
+    (error 'tls-certificate-error
+           :message "Maximum certificate chain depth must be a positive integer"))
+  (when (> (length chain) maximum-chain-depth)
+    (error 'tls-certificate-error
+           :message (format nil "Certificate chain has ~D entries; maximum is ~D"
+                            (length chain) maximum-chain-depth)))
+
+  ;; Reject unsupported path semantics and invalid validity windows before
+  ;; platform dispatch.  Clun ships the pure verifier, but this keeps the
+  ;; bounded contract consistent for every context.
+  (dolist (cert chain)
+    (verify-certificate-dates cert now)
+    (reject-unsupported-certificate-path-semantics cert))
 
   ;; RFC 5280 s4.2.1.12: enforce ExtendedKeyUsage on the leaf when a purpose
   ;; is requested.  This prevents a certificate constrained away from the
@@ -342,7 +399,13 @@ a full list lives at https://publicsuffix.org/.")
       (error 'tls-certificate-error
              :message (format nil "Leaf certificate not valid for ~A (ExtendedKeyUsage: ~A)"
                               purpose
-                              (certificate-extended-key-usages (first chain))))))
+                              (certificate-extended-key-usages (first chain)))))
+    (unless (certificate-key-usage-valid-for-purpose-p (first chain) purpose)
+      (error 'tls-certificate-error
+             :message (format nil "Leaf certificate KeyUsage does not permit ~A"
+                              purpose)))
+    (when (eql purpose :server-auth)
+      (verify-server-auth-public-key-strength (first chain))))
 
   ;; On Windows with CryptoAPI enabled, use Windows verification
   #+windows
@@ -385,16 +448,6 @@ a full list lives at https://publicsuffix.org/.")
              :reason :unknown-ca))
     (setf trusted-roots effective-roots))
 
-  ;; Verify each certificate's dates and check for unknown critical extensions
-  (dolist (cert chain)
-    (verify-certificate-dates cert now)
-    ;; RFC 5280: MUST reject certificates with unrecognized critical extensions
-    (let ((unknown-critical (certificate-has-unknown-critical-extensions-p cert)))
-      (when unknown-critical
-        (error 'tls-certificate-error
-               :message (format nil "Certificate has unknown critical extension(s): ~A"
-                               unknown-critical)))))
-
   ;; Verify the chain links (name matching, CA constraints, key usage, signatures)
   (loop for i from 0 below (1- (length chain))
         for cert = (nth i chain)
@@ -411,9 +464,23 @@ a full list lives at https://publicsuffix.org/.")
              (error 'tls-certificate-error
                     :message "Issuing certificate is not a CA (BasicConstraints cA=false or missing)"))
 
+           ;; RFC 5280 4.2.1.12: an EKU on any non-anchor issuing CA narrows
+           ;; the purposes of every certificate below it.  The explicit trust
+           ;; anchor is policy input and is therefore exempt here.
+           (when (and purpose
+                      (not (find-if (lambda (trusted)
+                                      (certificate-matches-trust-anchor-p
+                                       issuer trusted))
+                                    trusted-roots))
+                      (not (certificate-valid-for-purpose-p issuer purpose)))
+             (error 'tls-certificate-error
+                    :message (format nil
+                                     "Issuing certificate ExtendedKeyUsage does not permit ~A"
+                                     purpose)))
+
            ;; RFC 5280 4.2.1.3: If KeyUsage present, issuer MUST have keyCertSign
            (let ((issuer-key-usage (certificate-key-usage issuer)))
-             (when (and issuer-key-usage
+             (when (and (certificate-has-extension-p issuer :key-usage)
                         (not (member :key-cert-sign issuer-key-usage)))
                (error 'tls-certificate-error
                       :message "Issuing certificate lacks keyCertSign key usage")))
@@ -438,22 +505,17 @@ a full list lives at https://publicsuffix.org/.")
                  (error 'tls-certificate-error
                         :message (format nil "Certificate has been revoked (serial: ~X)"
                                         (x509-certificate-serial-number cert)))))))
-  ;; Check if chain is anchored in trusted roots.
-  ;; Walk the chain looking for a certificate that is either byte-identical to
-  ;; a trusted root or whose signature can be verified against a trusted root.
-  ;; A name/issuer match alone is NOT sufficient — we must verify the
-  ;; cryptographic signature to prove the chain actually reaches the trust
-  ;; anchor.  Servers may send extra certificates beyond the anchor (e.g.
-  ;; cross-signed roots), so we check every chain member, not just the last.
-  (let* ((root (first (last chain)))
-         (anchored (loop for cert in chain
-                         thereis (find-if
-                                  (lambda (trusted)
-                                    (or (certificate-equal-p cert trusted)
-                                        (and (certificate-issued-by-p cert trusted)
-                                             (verify-certificate-signature cert trusted))))
-                                  trusted-roots))))
-    (unless anchored
+  ;; Terminate the ordered server-supplied path at exactly one trust anchor.
+  ;; The terminal entry may be the anchor itself or may be signed by it.  We do
+  ;; not scan earlier entries for a convenient anchor and ignore trailing data.
+  (let* ((terminal (first (last chain)))
+         (anchor (find-if
+                  (lambda (trusted)
+                    (or (certificate-matches-trust-anchor-p terminal trusted)
+                        (and (certificate-issued-by-p terminal trusted)
+                             (verify-certificate-signature terminal trusted))))
+                  trusted-roots)))
+    (unless anchor
       (let ((debug (get-environment-variable "OCICL_TLS_DEBUG")))
         (when (and debug (string/= debug ""))
           (format *error-output* "; pure-tls: chain length=~D trusted-roots=~D~%"
@@ -467,18 +529,46 @@ a full list lives at https://publicsuffix.org/.")
                            (certificate-issuer-common-names cert)))))
       (error 'tls-verification-error
              :message "Certificate chain not anchored in trusted root"
-             :reason :unknown-ca)))
+             :reason :unknown-ca))
+    ;; A name-constrained trust anchor is outside the currently implemented
+    ;; profile as well; accepting it would discard its namespace policy.
+    (reject-unsupported-certificate-path-semantics anchor))
   t)
 
 (defun certificate-issued-by-p (cert issuer-cert)
-  "Check if CERT was issued by ISSUER-CERT (by comparing names)."
-  (equal (x509-name-rdns (x509-certificate-issuer cert))
-         (x509-name-rdns (x509-certificate-subject issuer-cert))))
+  "Check the ordered path link using the lossless DER issuer/subject Names."
+  (let ((issuer-name (x509-name-raw-der (x509-certificate-issuer cert)))
+        (subject-name (x509-name-raw-der
+                       (x509-certificate-subject issuer-cert))))
+    (and issuer-name subject-name (equalp issuer-name subject-name))))
 
 (defun certificate-equal-p (cert1 cert2)
   "Check if two certificates are the same (by comparing DER)."
-  (equalp (x509-certificate-raw-der cert1)
-          (x509-certificate-raw-der cert2)))
+  (or (eq cert1 cert2)
+      (let ((der1 (x509-certificate-raw-der cert1))
+            (der2 (x509-certificate-raw-der cert2)))
+        (and der1 der2 (equalp der1 der2)))))
+
+(defun certificate-matches-trust-anchor-p (cert anchor)
+  "Return true when CERT represents the explicitly configured ANCHOR.
+
+RFC 5280 models a trust anchor as a trusted CA name and public key, not as a
+requirement that the path's terminal certificate be byte-identical to a local
+self-signed certificate.  Cross-signed roots therefore terminate the ordered
+path at a local anchor when subject and SubjectPublicKeyInfo match exactly.
+This does not fetch an issuer or search an alternate path."
+  (or (certificate-equal-p cert anchor)
+      (let* ((cert-info (x509-certificate-subject-public-key-info cert))
+             (anchor-info (x509-certificate-subject-public-key-info anchor))
+             (cert-subject (x509-name-raw-der
+                            (x509-certificate-subject cert)))
+             (anchor-subject (x509-name-raw-der
+                              (x509-certificate-subject anchor)))
+             (cert-spki (getf cert-info :spki-der))
+             (anchor-spki (getf anchor-info :spki-der)))
+        (and cert-subject anchor-subject cert-spki anchor-spki
+             (equalp cert-subject anchor-subject)
+             (equalp cert-spki anchor-spki)))))
 
 ;;;; Signature Verification
 
@@ -512,11 +602,16 @@ a full list lives at https://publicsuffix.org/.")
   (let* ((n (ironclad:rsa-key-modulus public-key))
          (e (ironclad:rsa-key-exponent public-key))
          (k (ceiling (integer-length n) 8))  ; Key length in bytes
-         (s (ironclad:octets-to-integer signature))
-         ;; RSA public operation: m = s^e mod n
-         (m (ironclad:expt-mod s e n))
-         (em (ironclad:integer-to-octets m :n-bits (* 8 k))))
-    ;; Check PKCS#1 v1.5 padding: 0x00 0x01 [0xFF padding] 0x00 [DigestInfo]
+         (s (ironclad:octets-to-integer signature)))
+    ;; RFC 8017 RSAVP1 accepts only an exact-width signature representative in
+    ;; [0,n).  Reducing s+n modulo n would otherwise accept a noncanonical
+    ;; second encoding of the same signature.
+    (unless (and (= (length signature) k) (< s n))
+      (return-from verify-rsa-pkcs1v15-signature nil))
+    (let* (;; RSA public operation: m = s^e mod n
+           (m (ironclad:expt-mod s e n))
+           (em (ironclad:integer-to-octets m :n-bits (* 8 k))))
+      ;; Check PKCS#1 v1.5 padding: 0x00 0x01 [0xFF padding] 0x00 [DigestInfo]
     ;; Minimum size: 2 (header) + 8 (min padding) + 1 (separator) + DigestInfo
     (when (< (length em) 11)
       (return-from verify-rsa-pkcs1v15-signature nil))
@@ -556,7 +651,43 @@ a full list lives at https://publicsuffix.org/.")
                                      :element-type '(unsigned-byte 8))))
           (replace expected prefix)
           (replace expected computed-hash :start1 (length prefix))
-          (ironclad:constant-time-equal digest-info expected))))))
+          (ironclad:constant-time-equal digest-info expected)))))))
+
+(defun rsa-signature-representative-valid-p (public-key signature)
+  "Return true only for an exact-width RFC 8017 signature representative."
+  (let* ((modulus (ironclad:rsa-key-modulus public-key))
+         (width (ceiling (integer-length modulus) 8)))
+    (and (= (length signature) width)
+         (< (ironclad:octets-to-integer signature) modulus))))
+
+(defun enforce-rsassa-pss-key-restrictions (issuer-info signature-algorithm
+                                            signature-params)
+  "Enforce RFC 4055 restrictions carried by an issuer's PSS SubjectPublicKeyInfo."
+  (when (eql (getf issuer-info :algorithm) :rsassa-pss)
+    (unless (member signature-algorithm '(:rsa-pss :rsassa-pss))
+      (error 'tls-certificate-error
+             :message "An RSASSA-PSS key may verify only RSASSA-PSS signatures"))
+    (let ((key-params (getf issuer-info :algorithm-params)))
+      (when key-params
+        (unless (and (eql (getf key-params :hash)
+                          (getf signature-params :hash))
+                     (>= (getf signature-params :salt-length)
+                         (getf key-params :salt-length)))
+          (error 'tls-certificate-error
+                 :message "Certificate signature violates issuer RSASSA-PSS key restrictions"))))))
+
+(defun validate-rsa-pss-salt-length-for-key (public-key hash-algorithm salt-length)
+  "Reject a PSS salt that cannot fit the encoded message for PUBLIC-KEY/HASH."
+  (let* ((modulus (ironclad:rsa-key-modulus public-key))
+         (em-bits (1- (integer-length modulus)))
+         (em-length (ceiling em-bits 8))
+         (hash-length (ironclad:digest-length hash-algorithm))
+         (maximum-salt-length (- em-length hash-length 2)))
+    (when (or (minusp maximum-salt-length)
+              (> salt-length maximum-salt-length))
+      (error 'tls-certificate-error
+             :message "RSA-PSS saltLength is infeasible for the issuer key and hash")))
+  t)
 
 (defun verify-certificate-signature (cert issuer-cert)
   "Verify that CERT's signature was made by ISSUER-CERT's key.
@@ -567,6 +698,8 @@ a full list lives at https://publicsuffix.org/.")
          (public-key-info (x509-certificate-subject-public-key-info issuer-cert))
          (key-algorithm (getf public-key-info :algorithm))
          (public-key-bytes (getf public-key-info :public-key)))
+    (enforce-rsassa-pss-key-restrictions
+     public-key-info algorithm (x509-certificate-signature-algorithm-params cert))
     (handler-case
         (cond
           ;; Reject SHA-1 signatures - cryptographically broken
@@ -597,9 +730,14 @@ a full list lives at https://publicsuffix.org/.")
                (error 'tls-certificate-error
                       :message "SHA-1 is not supported for RSA-PSS signatures (cryptographically broken)"))
              (let ((public-key (parse-rsa-public-key public-key-bytes)))
+               (validate-rsa-pss-salt-length-for-key
+                public-key hash-algo salt-length)
+               (unless (rsa-signature-representative-valid-p public-key signature)
+                 (error 'tls-certificate-error
+                        :message "RSA-PSS signature representative is out of range"))
                ;; Ironclad's PSS verification uses hash algorithm and salt length
                (ironclad:verify-signature public-key
-                                          (ironclad:digest-sequence hash-algo tbs)
+                                          tbs
                                           signature
                                           :pss hash-algo
                                           :salt-length salt-length))))
@@ -612,15 +750,16 @@ a full list lives at https://publicsuffix.org/.")
                                :ecdsa-with-SHA512))
            (let* ((hash-algo (cert-sig-algorithm-to-hash algorithm))
                   (hash (ironclad:digest-sequence hash-algo tbs))
-                  (parsed-sig (parse-ecdsa-cert-signature signature))
-                  (r (getf parsed-sig :r))
-                  (s (getf parsed-sig :s))
                   (curve (cond
-                           ((member key-algorithm '(:ecdsa-p256 :secp256r1 :prime256v1
-                                                    :ec-public-key)) :secp256r1)
+                           ((member key-algorithm '(:ecdsa-p256 :secp256r1 :prime256v1))
+                            :secp256r1)
                            ((member key-algorithm '(:ecdsa-p384 :secp384r1)) :secp384r1)
                            ((member key-algorithm '(:ecdsa-p521 :secp521r1)) :secp521r1)
-                           (t :secp256r1)))
+                           (t (error 'tls-certificate-error
+                                     :message "Unsupported ECDSA public-key curve"))))
+                  (parsed-sig (parse-ecdsa-cert-signature signature curve))
+                  (r (getf parsed-sig :r))
+                  (s (getf parsed-sig :s))
                   (coord-size (ecase curve
                                 (:secp256r1 32)
                                 (:secp384r1 48)
@@ -685,36 +824,51 @@ a full list lives at https://publicsuffix.org/.")
 
 (defun parse-rsa-public-key (public-key-der)
   "Parse an RSA public key from DER-encoded bytes."
-  (let ((parsed (parse-der public-key-der)))
-    (when (asn1-sequence-p parsed)
-      (let ((children (asn1-children parsed)))
-        (when (>= (length children) 2)
-          (ironclad:make-public-key :rsa
-                                    :n (asn1-node-value (first children))
-                                    :e (asn1-node-value (second children))))))))
+  (multiple-value-bind (modulus exponent)
+      (parse-rsa-public-key-components public-key-der)
+    (ironclad:make-public-key :rsa :n modulus :e exponent)))
 
-(defun parse-ecdsa-cert-signature (signature)
+(defun ec-curve-order (curve)
+  (ecase curve
+    (:secp256r1
+     #xFFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551)
+    (:secp384r1
+     #xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFC7634D81F4372DDF581A0DB248B0A77AECEC196ACCC52973)
+    (:secp521r1
+     #x1FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFA51868783BF2F966B7FCC0148F709A5D03BB5C9B8899C47AEBB6FB71E91386409)))
+
+(defun parse-ecdsa-cert-signature (signature curve)
   "Parse a DER-encoded ECDSA signature into r and s values."
-  (let ((parsed (parse-der signature)))
-    (when (asn1-sequence-p parsed)
-      (let ((children (asn1-children parsed)))
-        (when (>= (length children) 2)
-          (list :r (asn1-node-value (first children))
-                :s (asn1-node-value (second children))))))))
+  (let* ((parsed (parse-der signature))
+         (children (require-asn1-sequence parsed "ECDSA-Sig-Value")))
+    (unless (and (= (length children) 2)
+                 (every (lambda (child)
+                          (asn1-universal-primitive-p child +asn1-integer+))
+                        children))
+      (error 'tls-certificate-error
+             :message "ECDSA signature must contain exactly two INTEGERs"))
+    (let ((r (asn1-node-value (first children)))
+          (s (asn1-node-value (second children)))
+          (order (ec-curve-order curve)))
+      (unless (and (<= 1 r) (< r order) (<= 1 s) (< s order))
+        (error 'tls-certificate-error
+               :message "ECDSA signature values are outside the curve order"))
+      (list :r r :s s))))
 
 (defun make-ecdsa-public-key-from-der (key-algorithm public-key-bytes)
   "Create an ECDSA public key from DER-encoded bytes.
    PUBLIC-KEY-BYTES should be the full encoded point (04 || X || Y)."
   ;; Determine curve from algorithm
   (let ((curve (cond
-                 ((member key-algorithm '(:ecdsa-p256 :secp256r1 :prime256v1
-                                          :ec-public-key)) :secp256r1)
+                 ((member key-algorithm '(:ecdsa-p256 :secp256r1 :prime256v1))
+                  :secp256r1)
                  ((member key-algorithm '(:ecdsa-p384 :secp384r1)) :secp384r1)
                  ((member key-algorithm '(:ecdsa-p521 :secp521r1)) :secp521r1)
-                 (t :secp256r1))))
+                 (t nil))))
     ;; Ironclad's secp256r1/secp384r1/secp521r1 make-public-key expects :y to be
     ;; the full encoded public key bytes (04 || X || Y), not separate coordinates.
-    (when (and (plusp (length public-key-bytes))
+    (when (and curve
+               (plusp (length public-key-bytes))
                (= (aref public-key-bytes 0) 4))  ; Uncompressed point format
       (ironclad:make-public-key curve :y public-key-bytes))))
 

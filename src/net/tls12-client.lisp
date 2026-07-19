@@ -31,6 +31,29 @@
 ALPN, and EMS were offered explicitly; renegotiation_info is also permitted
 because TLS_EMPTY_RENEGOTIATION_INFO_SCSV offers it implicitly.")
 
+(defconstant +https-maximum-certificate-chain-depth+ 8
+  "Maximum number of leaf-first certificate entries accepted from an HTTPS peer.")
+
+(defconstant +https-maximum-certificate-list-bytes+ (* 1024 1024)
+  "Maximum encoded TLS Certificate list accepted from an HTTPS peer.")
+
+(defparameter *https-hostname-policy*
+  (pure-tls:make-hostname-policy :allow-cn-fallback nil)
+  "Clun HTTPS identity policy.  DNS references require dNSName SAN entries;
+IP references require exact iPAddress SAN entries.  A legacy Common Name is
+never an authenticated identity.")
+
+(defun %make-https-tls-context (ca-file)
+  "Create the bounded verified context shared by TLS 1.3 and TLS 1.2 HTTPS."
+  (if ca-file
+      (pure-tls:make-tls-context
+       :ca-file ca-file
+       :verify-depth +https-maximum-certificate-chain-depth+
+       :hostname-policy *https-hostname-policy*)
+      (pure-tls:make-tls-context
+       :verify-depth +https-maximum-certificate-chain-depth+
+       :hostname-policy *https-hostname-policy*)))
+
 (defstruct (tls12-state (:conc-name tls12-))
   stream
   client-random server-random
@@ -246,8 +269,12 @@ span records or share a record. When ALLOW-CCS is true, return (:ccs, payload)."
   (loop
     (let ((buffer (tls12-handshake-buffer state)))
       (when (>= (length buffer) 4)
-        (let ((length (%tls12-read-u24 buffer 1)))
-          (when (> length +tls12-max-handshake-message+)
+        (let* ((type (aref buffer 0))
+               (length (%tls12-read-u24 buffer 1))
+               (maximum (if (= type 11)
+                            (+ 3 +https-maximum-certificate-list-bytes+)
+                            +tls12-max-handshake-message+)))
+          (when (> length maximum)
             (%tls12-fail "TLS handshake message exceeds bound"))
           (when (>= (length buffer) (+ 4 length))
             (let* ((message-end (+ 4 length))
@@ -407,13 +434,21 @@ span records or share a record. When ALLOW-CCS is true, return (:ccs, payload)."
             (%tls12-fail "server did not negotiate extended_master_secret"))
           (values server-random suite t))))))
 
-(defun %tls12-parse-certificates (message)
+(defun %tls12-parse-certificates
+    (message &optional (maximum-chain-depth +https-maximum-certificate-chain-depth+))
+  (when (> (length message) (+ 7 +https-maximum-certificate-list-bytes+))
+    (%tls12-fail "TLS 1.2 Certificate list exceeds the HTTPS byte limit"))
   (let* ((body (subseq message 4))
          (total (and (>= (length body) 3) (%tls12-read-u24 body 0))))
     (unless (and total (= total (- (length body) 3)))
       (%tls12-fail "invalid TLS 1.2 Certificate list length"))
+    (when (> total +https-maximum-certificate-list-bytes+)
+      (%tls12-fail "TLS 1.2 Certificate list exceeds the HTTPS byte limit"))
     (let ((offset 3) (certificates '()))
       (loop while (< offset (length body)) do
+        (when (>= (length certificates) maximum-chain-depth)
+          (%tls12-fail "certificate chain exceeds the ~d-entry HTTPS limit"
+                       maximum-chain-depth))
         (let* ((length (%tls12-read-u24 body offset))
                (start (+ offset 3))
                (end (+ start length)))
@@ -434,7 +469,9 @@ span records or share a record. When ALLOW-CCS is true, return (:ccs, payload)."
      leaf hostname :policy (pure-tls::tls-context-hostname-policy context))
     (pure-tls::verify-certificate-chain certificates roots
                                         (get-universal-time) hostname
-                                        :purpose :server-auth)
+                                        :purpose :server-auth
+                                        :maximum-chain-depth
+                                        (pure-tls::tls-context-verify-depth context))
     t))
 
 (defun %tls12-parse-server-key-exchange (message certificates suite client-random server-random)
@@ -511,9 +548,7 @@ span records or share a record. When ALLOW-CCS is true, return (:ccs, payload)."
   (let* ((random (sys:os-random-bytes 32))
          (state (make-tls12-state :stream stream :client-random random))
          (hello (%tls12-client-hello hostname random))
-         (context (if ca-file
-                      (pure-tls:make-tls-context :ca-file ca-file)
-                      (pure-tls:make-tls-context)))
+         (context (%make-https-tls-context ca-file))
          (certificates nil)
          (suite nil)
          (extended-master-secret-p nil)
@@ -533,7 +568,9 @@ span records or share a record. When ALLOW-CCS is true, return (:ccs, payload)."
         (case type
           (11
            (when certificates (%tls12-fail "duplicate Certificate message"))
-           (setf certificates (%tls12-parse-certificates message)))
+           (setf certificates
+                 (%tls12-parse-certificates
+                  message (pure-tls::tls-context-verify-depth context))))
           (12
            (unless certificates (%tls12-fail "ServerKeyExchange preceded Certificate"))
            (setf server-key

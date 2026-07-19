@@ -1209,10 +1209,12 @@ The /pss/ key parameter is provided to pad (or unpad) the message
 during signature (or verification) with the PSS scheme of PKCS-1.
 The value of the /pss/ key parameter can be either a digest name
 or ~t~ (which will use the sha1 digest).
+For RSA-PSS, /salt-length/ selects the exact salt length to encode or
+verify. It defaults to the selected digest's output length for compatibility.
 
 #+BEGIN_EXAMPLE
-(sign-message rsa-private-key message :pss t) => signature
-(verify-signature rsa-public-key message signature :pss t) => boolean
+(sign-message rsa-private-key message :pss t :salt-length 20) => signature
+(verify-signature rsa-public-key message signature :pss t :salt-length 20) => boolean
 #+END_EXAMPLE
 
 The functions /pss-encode/ and /pss-decode/ can also be used by hand if

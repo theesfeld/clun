@@ -234,32 +234,56 @@
   (cert-data nil :type (or null octet-vector))
   (extensions nil :type list))
 
-(defun parse-certificate-message (data)
+(defun parse-certificate-message
+    (data &key
+            (maximum-certificate-entries
+              +default-maximum-certificate-chain-depth+))
   "Parse a Certificate message from bytes."
+  (unless (and (integerp maximum-certificate-entries)
+               (plusp maximum-certificate-entries))
+    (error 'tls-handshake-error
+           :message ":DECODE_ERROR: Invalid certificate entry bound"))
   (let ((buf (make-tls-buffer data)))
-    (let ((context (buffer-read-vector8 buf))
-          (certs-data (buffer-read-vector24 buf)))
+    (let* ((context (buffer-read-vector8 buf))
+           ;; Read and validate the certificate_list length before allocating
+           ;; its backing vector.  The 24-bit wire maximum is far too large for
+           ;; this bounded verifier profile.
+           (certs-length (buffer-read-uint24 buf)))
+      (when (and (plusp *max-certificate-list-size*)
+                 (> certs-length *max-certificate-list-size*))
+        (error 'tls-handshake-error
+               :message ":EXCESSIVE_MESSAGE_SIZE: Certificate list too large"))
+      (let ((certs-data (buffer-read-octets buf certs-length)))
       ;; Check for trailing data
       (when (plusp (buffer-remaining buf))
         (error 'tls-handshake-error
                :message ":DECODE_ERROR: Trailing data in Certificate"))
-      ;; Check certificate list size limit
-      (when (and (plusp *max-certificate-list-size*)
-                 (> (length certs-data) *max-certificate-list-size*))
-        (error 'tls-handshake-error
-               :message ":EXCESSIVE_MESSAGE_SIZE: Certificate list too large"))
       (let ((certs nil))
         (let ((cert-buf (make-tls-buffer certs-data)))
           (loop while (plusp (buffer-remaining cert-buf))
-                do (let ((cert-data (buffer-read-vector24 cert-buf))
-                         (extensions (parse-extensions (buffer-read-vector16 cert-buf))))
-                     (push (make-certificate-entry
-                            :cert-data cert-data
-                            :extensions extensions)
-                           certs))))
+                do (when (>= (length certs) maximum-certificate-entries)
+                     (error 'tls-handshake-error
+                            :message ":EXCESSIVE_MESSAGE_SIZE: Too many certificate entries"))
+                   (let ((cert-length (buffer-read-uint24 cert-buf)))
+                     (when (zerop cert-length)
+                       (error 'tls-handshake-error
+                              :message ":DECODE_ERROR: Empty cert_data in CertificateEntry"))
+                     (let* ((cert-data (buffer-read-octets cert-buf cert-length))
+                            (extensions-length (buffer-read-uint16 cert-buf))
+                            (extensions-data
+                              (buffer-read-octets cert-buf extensions-length))
+                            (extensions
+                              (parse-extensions
+                               extensions-data
+                               :maximum-extensions
+                               +default-maximum-certificate-entry-extensions+)))
+                       (push (make-certificate-entry
+                              :cert-data cert-data
+                              :extensions extensions)
+                             certs)))))
         (make-certificate-message
          :certificate-request-context context
-         :certificate-list (nreverse certs))))))
+         :certificate-list (nreverse certs)))))))
 
 (defun serialize-certificate-message (cert-msg)
   "Serialize a Certificate message to bytes."
@@ -404,18 +428,28 @@
           (decode-uint24 data 1)
           4))
 
-(defun parse-handshake-message (data &key hash-length)
+(defun parse-handshake-message
+    (data &key hash-length
+               (maximum-certificate-entries
+                 +default-maximum-certificate-chain-depth+))
   "Parse a handshake message from bytes.
    HASH-LENGTH is needed for Finished message parsing."
   (multiple-value-bind (msg-type length body-start)
       (parse-handshake-header data)
     (let ((expected-end (+ body-start length)))
-      ;; Check for trailing data after the message
-      (when (> (length data) expected-end)
+      ;; Require exact framing before SUBSEQ so truncated hostile messages
+      ;; become catchable TLS errors rather than raw bounds conditions.
+      (when (/= (length data) expected-end)
         (error 'tls-handshake-error
-               :message (format nil ":EXCESS_HANDSHAKE_DATA: ~D extra bytes after ~A message"
-                               (- (length data) expected-end)
-                               (handshake-message-name msg-type))))
+               :message (format nil ":DECODE_ERROR: Handshake length mismatch for ~A"
+                                (handshake-message-name msg-type))))
+      ;; Certificate's body adds at most a one-byte context length, 255 context
+      ;; octets, and the three-byte certificate_list length to the bounded list.
+      (when (and (= msg-type +handshake-certificate+)
+                 (plusp *max-certificate-list-size*)
+                 (> length (+ *max-certificate-list-size* 259)))
+        (error 'tls-handshake-error
+               :message ":EXCESSIVE_MESSAGE_SIZE: Certificate message too large"))
       (let ((body (subseq data body-start expected-end)))
         (make-handshake-message
          :type msg-type
@@ -429,7 +463,8 @@
                (#.+handshake-certificate-request+
                 (parse-certificate-request body))
                (#.+handshake-certificate+
-                (parse-certificate-message body))
+                (parse-certificate-message
+                 body :maximum-certificate-entries maximum-certificate-entries))
                (#.+handshake-certificate-verify+
                 (parse-certificate-verify body))
                (#.+handshake-finished+

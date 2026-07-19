@@ -52,8 +52,8 @@ installable release checkpoints.
   <pkg>`, SRI, package execution, and byte-identical frozen offline reinstalls
   in the live, non-hermetic smoke required by Compatibility and Release. The
   frozen proof makes the registry unreachable and supplies an explicit empty TLS
-  trust source so public tarballs cannot be downloaded as a fallback; Issue #234
-  WebPKI hardening remains a release blocker.
+  trust source so public tarballs cannot be downloaded as a fallback; the
+  bounded WebPKI hardening recorded below now protects the authenticated path.
 - Make `clun install <pkg…>` a Bun-compatible alias for adding the named
   dependencies and installing them; retain no-argument `clun install` for the
   existing manifest.
@@ -64,6 +64,20 @@ installable release checkpoints.
   no updater path synthesizes or evaluates JavaScript.
 - Require the archive `VERSION` and staged executable version to match the
   requested immutable tag exactly before activation.
+- Harden HTTPS identity and path validation with SAN-only DNS/IP matching,
+  2048–8192-bit RSA server keys, and an eight-certificate ordered-path bound.
+- Enforce non-anchor CA EKU constraints and reject malformed/empty KU/EKU,
+  unsupported critical policy semantics, and every path containing
+  `nameConstraints` until cumulative subtree processing is implemented.
+- Consume DER, Certificate/TBSCertificate, Name, Extension, validity,
+  AlgorithmIdentifier, SPKI, RSA, and ECDSA structures exactly; reject
+  noncanonical RDN ordering and EC field coordinates, off-curve EC public keys,
+  unsupported SAN GeneralName choices, noncanonical signature representatives,
+  oversized/infeasible or declaration-mismatched RSA-PSS salts, and mismatched
+  RSA-PSS key restrictions. TLS CertificateVerify fixes PSS salt length to the
+  selected hash output length as required by the protocol.
+- Bound DER and TLS certificate materialization by bytes, nesting, node count,
+  chain entries, and per-CertificateEntry extension count before allocation.
 
 ## [0.1.0-dev.70] - 2026-07-19
 

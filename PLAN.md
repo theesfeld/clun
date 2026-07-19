@@ -91,9 +91,9 @@ relevant when Phase 26 is designed from the then-current system:
    `clun run build` (a script invoking a `.bin` tool) → `clun test` — all green, hermetic.
 4. `Clun.serve` example survives 1k sequential + 500 concurrent requests, RSS plateaus.
 5. Phase 28 records a live, non-hermetic Compatibility/Release smoke that installs pinned packages
-   from public npm over the experimental bounded pure-CL HTTPS profile, executes them, and proves a
-   frozen cache-only reinstall while public registry metadata and tarball transport are unavailable.
-   Issue #234 owns the WebPKI hardening required before release.
+   with a transitive dependency from public npm over the bounded, authenticated pure-CL HTTPS
+   profile, exercises both public package-add spellings, executes the installed packages, and proves
+   a frozen cache-only reinstall while public registry metadata and tarball transport are unavailable.
 6. README with install, quickstart, architecture, honest compat matrix (Appendix A), and the
    TLS security-posture statement (§3.4).
 7. Phase 26 selects the final version and immutable tag from the completed work and then-current
@@ -249,9 +249,23 @@ including tarball paths). So TLS is on the v0.1 critical path for live installs;
 tests exercise the real HTTPS client path in-process against a test CA.
 
 **Security posture (verbatim in README and `clun install` docs):** Clun's TLS stack (pure-tls +
-ironclad) is unaudited and not hardened against side-channel adversaries; package integrity is
-independently enforced by SRI sha512 verification of every tarball. Treat HTTPS as experimental.
-Certificate errors always fail closed.
+ironclad) is unaudited and not hardened against side-channel adversaries. Every tarball is checked
+against the SRI sha512 digest from authenticated metadata or the lockfile, but that digest is not an
+independent trust source for a first resolution. Treat HTTPS as experimental. Certificate and
+unsupported-path-semantics errors fail closed within the bounded profile below.
+
+The shipped authenticated pure-CL HTTPS identity/path profile is narrower than a browser: SAN-only
+DNS/IP identity (no CN fallback), RSA server keys from 2048 through 8192 bits, at most eight ordered
+peer certificates, and no AIA or alternate-path construction. Intermediate
+EKU/KU/BasicConstraints/pathLen/signatures are enforced. DER and certificate messages are bounded by
+bytes, nesting, node count, path entries, and per-entry extension count, and all certificate/name/time/
+algorithm/key/signature schemas are consumed exactly. RDN SET OF order, canonical named-curve field
+coordinates, supported SAN GeneralName choices, and exact declared RSA-PSS salt lengths are checked
+explicitly; TLS CertificateVerify uses salt length equal to hash output length. Unsupported path
+semantics fail closed;
+`nameConstraints` paths reject until cumulative subtree processing exists. Policy trees, Certificate
+Transparency, and online revocation are not implemented. Do not claim full RFC 5280 or browser-grade
+WebPKI parity.
 
 From-scratch TLS fallback (only if vendoring fails): x25519 + ChaCha20-Poly1305 + minimal X.509 —
 ~6–9k LOC, high risk. The plan bets on vendoring precisely to avoid this.
@@ -1544,7 +1558,7 @@ version and immutable tag follow `docs/versioning.md` and the actual completed S
 |---|---|---|
 | Raw perf: closure-compiled CL starts far behind a JIT on hot loops | Certain | Phase 25 improves the foundation; Phases 71–72 add same-host comparative labs and measured tiering; Phase 81 rechecks the frozen full surface. Only workload-specific claims may follow their hard gates |
 | Async lowering correctness (try/finally × yield × return) | Med | Copy regenerator's scheme exactly; dense 262 coverage; thread-per-generator fallback is semantically safe |
-| pure-tls is young, single-maintainer, unaudited | High | Vendor + pin; keep its suites in our CI; SRI sha512 independent integrity; posture labeling; fail-closed certs; MIT permits maintaining the fork |
+| pure-tls is young, single-maintainer, unaudited | High | Vendor + pin; keep its suites in CI; authenticate with the bounded fail-closed profile; verify tarballs against metadata/lockfile SRI; keep limitations visible; MIT permits maintaining the fork |
 | Purity leaks via transitive deps (one already found & patched) | Med | `make purity` in every gate; audit every `.asd` at vendor time |
 | RegExp silent gaps bite real packages (unparticipated backrefs) | Med | Loud SyntaxError for the loud gaps; promote own-VM work if corpus scanning shows silent-gap frequency |
 | test262 curation churn / gate gaming | Med | Pass-list only grows; reviewer checks skip-tag diffs every engine phase |

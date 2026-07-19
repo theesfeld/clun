@@ -144,8 +144,8 @@ jobs:
       - name: Build Clun
         run: make build
 
-      - name: Verify TLS 1.2 security policy and OpenSSL interop
-        run: make test-tls12
+      - name: Verify WebPKI, TLS security policy, and OpenSSL interop
+        run: make test-tls
 
       - name: Verify live public npm add/install and offline reinstall
         run: sh scripts/smoke-npm.sh

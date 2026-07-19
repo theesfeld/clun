@@ -21,6 +21,8 @@
                clun-test::net/https-transport-streams-request-body
                clun-test::net/https-async-stream-bridge-pulls-request-body
                clun-test::net/http-content-decoding-is-bounded-and-fail-closed
+               clun-test::net/https-identity-is-san-only-and-chain-is-bounded
+               clun-test::net/tls12-certificate-list-enforces-context-bound
                clun-test::net/https-reuses-an-idle-origin-connection
                clun-test::net/https-connection-close-is-never-pooled
                clun-test::net/https-pool-isolates-distinct-origins

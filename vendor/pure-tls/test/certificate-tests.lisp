@@ -240,26 +240,16 @@
           "Self-signed cert should pass if explicitly trusted"))))
 
 (test parse-superfish-ca
-  "Test parsing the Superfish malware CA certificate"
-  (let* ((cert-path (test-cert-path "ca-superfish.crt"))
-         (cert (pure-tls:parse-certificate-from-file cert-path)))
-    (is (not (null cert))
-        "Should successfully parse Superfish CA")
-    ;; Verify it's the known bad CA by checking subject CN
-    (let ((cns (pure-tls:certificate-subject-common-names cert)))
-      (is (member "Superfish, Inc." cns :test #'string=)
-          "Should identify Superfish CA by CN"))))
+  "The historical Superfish CA's 1024-bit RSA key is outside this profile."
+  (signals pure-tls:tls-decode-error
+    (pure-tls:parse-certificate-from-file
+     (test-cert-path "ca-superfish.crt"))))
 
 (test parse-edellroot-ca
-  "Test parsing the eDellRoot malware CA certificate"
-  (let* ((cert-path (test-cert-path "ca-edellroot.crt"))
-         (cert (pure-tls:parse-certificate-from-file cert-path)))
-    (is (not (null cert))
-        "Should successfully parse eDellRoot CA")
-    ;; Verify it's the known bad CA
-    (let ((cns (pure-tls:certificate-subject-common-names cert)))
-      (is (member "eDellRoot" cns :test #'string=)
-          "Should identify eDellRoot CA by CN"))))
+  "The historical eDellRoot CA's unsupported SHA-1/RSA OID fails closed."
+  (signals pure-tls:tls-decode-error
+    (pure-tls:parse-certificate-from-file
+     (test-cert-path "ca-edellroot.crt"))))
 
 (test expired-certificate-detected
   "Test that expired certificates are properly detected"

@@ -6,6 +6,10 @@
 
 (in-package #:pure-tls)
 
+(defconstant +default-maximum-certificate-chain-depth+ 100
+  "Library-wide upper bound for a supplied certificate path. Applications
+should select a tighter context bound; Clun HTTPS uses eight entries.")
+
 ;;;; TLS Version Constants
 
 (defconstant +tls-1.3+ #x0304
@@ -246,9 +250,15 @@
 (defparameter *default-verify-mode* +verify-required+
   "Default certificate verification mode")
 
-(defparameter *max-certificate-list-size* 0
+(defconstant +default-maximum-certificate-list-bytes+ (* 1024 1024)
+  "Default one-mebibyte bound for a peer Certificate certificate_list.")
+
+(defconstant +default-maximum-certificate-entry-extensions+ 16
+  "Maximum extensions accepted in one TLS 1.3 CertificateEntry.")
+
+(defparameter *max-certificate-list-size* +default-maximum-certificate-list-bytes+
   "Maximum size in bytes for certificate list in Certificate message.
-   0 means no limit. Set to a positive value to enforce a limit.
+   The secure default is one MiB.  A test harness may bind 0 to disable it.
    Used to prevent DoS via excessively large certificate chains.")
 
 ;;;; HPKE Constants (RFC 9180)

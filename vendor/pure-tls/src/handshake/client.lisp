@@ -18,6 +18,8 @@
   (verify-mode +verify-required+ :type fixnum)
   ;; Trust store for certificate verification
   (trust-store nil)
+  ;; Maximum number of entries in the peer's leaf-first certificate path.
+  (verify-depth +default-maximum-certificate-chain-depth+ :type fixnum)
   ;; Skip hostname verification (for SNI-only hostname)
   (skip-hostname-verify nil :type boolean)
   ;; RFC 6125 hostname-verification policy threaded into VERIFY-HOSTNAME
@@ -1012,6 +1014,11 @@
       (when (= (client-handshake-verify-mode hs) +verify-required+)
         (error 'tls-certificate-error
                :message "Server did not provide a certificate")))
+    (when (> (length cert-list) (client-handshake-verify-depth hs))
+      (error 'tls-certificate-error
+             :message (format nil "Server certificate chain has ~D entries; maximum is ~D"
+                              (length cert-list)
+                              (client-handshake-verify-depth hs))))
     ;; Validate per-certificate extensions
     ;; RFC 8446 Section 4.4.2: Only status_request and signed_certificate_timestamp
     ;; are valid, and only if the client requested them in ClientHello
@@ -1258,6 +1265,24 @@
                      (eql required-key-type key-type))
           (error 'tls-handshake-error
                  :message ":WRONG_SIGNATURE_TYPE: signature type mismatch")))
+      ;; RFC 8446 distinguishes RSAE and RSASSA-PSS SubjectPublicKeyInfo keys.
+      ;; Do not let the shared :RSA key family erase that algorithm boundary.
+      (cond
+        ((eql key-algorithm :rsassa-pss)
+         (unless (eql sig-type :rsa-pss-pss)
+           (error 'tls-handshake-error
+                  :message ":WRONG_SIGNATURE_TYPE: RSASSA-PSS key requires rsa_pss_pss"))
+         (let ((key-params (getf public-key-info :algorithm-params)))
+           (when key-params
+             (unless (and (eql (getf key-params :hash) hash-algo)
+                          (>= (ironclad:digest-length hash-algo)
+                              (getf key-params :salt-length)))
+               (error 'tls-handshake-error
+                      :message ":WRONG_SIGNATURE_TYPE: signature violates PSS key restrictions")))))
+        ((and (eql key-algorithm :rsa-encryption)
+              (eql sig-type :rsa-pss-pss))
+         (error 'tls-handshake-error
+                :message ":WRONG_SIGNATURE_TYPE: RSAE key requires rsa_pss_rsae")))
       ;; For ECDSA, verify that certificate curve matches signature algorithm curve
       (when (eql sig-type :ecdsa)
         (let ((expected-curve (signature-algorithm-expected-curve algorithm))
@@ -1317,13 +1342,22 @@
 (defun verify-rsa-pss-signature (public-key-der content signature hash-algo)
   "Verify an RSA-PSS signature."
   (handler-case
-      (let ((public-key (ironclad:make-public-key :rsa
-                          :n (parse-rsa-public-key-n public-key-der)
-                          :e (parse-rsa-public-key-e public-key-der))))
-        (unless (ironclad:verify-signature public-key content signature
-                                           :pss hash-algo)
+      (multiple-value-bind (modulus exponent)
+          (parse-rsa-public-key-components public-key-der)
+        (let ((public-key (ironclad:make-public-key :rsa
+                                                    :n modulus :e exponent)))
+          (unless (and (= (length signature)
+                          (ceiling (integer-length modulus) 8))
+                       (< (ironclad:octets-to-integer signature) modulus))
+            (error 'tls-handshake-error :message ":BAD_SIGNATURE:"))
+        (unless (ironclad:verify-signature
+                 public-key content signature
+                 :pss hash-algo
+                 ;; RFC 8446 section 4.2.3: RSA-PSS signature schemes use a
+                 ;; salt whose length is exactly the hash output length.
+                 :salt-length (ironclad:digest-length hash-algo))
           (error 'tls-handshake-error
-                 :message ":BAD_SIGNATURE:")))
+                 :message ":BAD_SIGNATURE:"))))
     (error (e)
       (declare (ignore e))
       (error 'tls-handshake-error
@@ -1349,7 +1383,7 @@
   (handler-case
       (let* ((curve (ecdsa-curve-from-algorithm key-algorithm))
              ;; Parse the ECDSA signature (DER encoded r and s)
-             (parsed-sig (parse-ecdsa-signature signature))
+             (parsed-sig (parse-ecdsa-signature signature curve))
              (r (getf parsed-sig :r))
              (s (getf parsed-sig :s))
              ;; Get coordinate size for the curve
@@ -1415,7 +1449,8 @@
     ((member key-algorithm '(:ecdsa-p256 :secp256r1 :prime256v1)) :secp256r1)
     ((member key-algorithm '(:ecdsa-p384 :secp384r1)) :secp384r1)
     ((member key-algorithm '(:ecdsa-p521 :secp521r1)) :secp521r1)
-    (t :secp256r1)))  ; Default to P-256
+    (t (error 'tls-handshake-error
+              :message ":WRONG_SIGNATURE_TYPE: unsupported ECDSA curve"))))
 
 ;;;; Signature Generation (for server CertificateVerify and client auth)
 
@@ -1466,7 +1501,9 @@
       (cond
         ;; RSA-PSS signatures
         ((member sig-type '(:rsa-pss-rsae :rsa-pss-pss))
-         (ironclad:sign-message private-key content :pss hash-algo))
+         (ironclad:sign-message
+          private-key content :pss hash-algo
+          :salt-length (ironclad:digest-length hash-algo)))
         ;; RSA PKCS#1 v1.5 signatures
         ((eql sig-type :rsa-pkcs1)
          (ironclad:sign-message private-key content hash-algo))
@@ -1496,7 +1533,7 @@
     (cond
       ;; RSA keys - use RSA-PSS with SHA-256
       ((subtypep key-type 'ironclad::rsa-private-key)
-       (ironclad:sign-message private-key content :pss :sha256))
+       (ironclad:sign-message private-key content :pss :sha256 :salt-length 32))
       ;; ECDSA keys
       ((or (subtypep key-type 'ironclad::secp256r1-private-key)
            (subtypep key-type 'ironclad::secp384r1-private-key)
@@ -1581,26 +1618,37 @@
              (= (aref public-key-bytes 0) 4))  ; Uncompressed point format
     (ironclad:make-public-key curve :y public-key-bytes)))
 
-(defun parse-ecdsa-signature (signature)
+(defun parse-ecdsa-signature (signature curve)
   "Parse a DER-encoded ECDSA signature into r and s values."
-  (let ((parsed (parse-der signature)))
-    (when (asn1-sequence-p parsed)
-      (let ((children (asn1-children parsed)))
-        (when (>= (length children) 2)
-          (list :r (asn1-node-value (first children))
-                :s (asn1-node-value (second children))))))))
+  (let* ((parsed (parse-der signature))
+         (children (require-asn1-sequence parsed "ECDSA-Sig-Value"))
+         (order (ecase curve
+                  (:secp256r1
+                   #xFFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551)
+                  (:secp384r1
+                   #xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFC7634D81F4372DDF581A0DB248B0A77AECEC196ACCC52973)
+                  (:secp521r1
+                   #x1FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFA51868783BF2F966B7FCC0148F709A5D03BB5C9B8899C47AEBB6FB71E91386409))))
+    (unless (and (= (length children) 2)
+                 (every (lambda (child)
+                          (asn1-universal-primitive-p child 2))
+                        children))
+      (error 'tls-handshake-error
+             :message ":BAD_SIGNATURE: malformed ECDSA signature"))
+    (let ((r (asn1-node-value (first children)))
+          (s (asn1-node-value (second children))))
+      (unless (and (<= 1 r) (< r order) (<= 1 s) (< s order))
+        (error 'tls-handshake-error
+               :message ":BAD_SIGNATURE: ECDSA value outside curve order"))
+      (list :r r :s s))))
 
 (defun parse-rsa-public-key-n (public-key-der)
   "Extract the modulus N from an RSA public key."
-  (let ((parsed (parse-der public-key-der)))
-    (when (asn1-sequence-p parsed)
-      (asn1-node-value (first (asn1-children parsed))))))
+  (nth-value 0 (parse-rsa-public-key-components public-key-der)))
 
 (defun parse-rsa-public-key-e (public-key-der)
   "Extract the exponent E from an RSA public key."
-  (let ((parsed (parse-der public-key-der)))
-    (when (asn1-sequence-p parsed)
-      (asn1-node-value (second (asn1-children parsed))))))
+  (nth-value 1 (parse-rsa-public-key-components public-key-der)))
 
 (defun process-certificate-verify (hs message raw-bytes)
   "Process CertificateVerify message.
@@ -1646,7 +1694,9 @@
                                    hostname)))
           (verify-certificate-chain chain trusted-roots
                                     (get-universal-time) verify-hostname
-                                    :purpose :server-auth))))
+                                    :purpose :server-auth
+                                    :maximum-chain-depth
+                                    (client-handshake-verify-depth hs)))))
     (setf (client-handshake-state hs) :wait-finished)))
 
 ;;;; Finished Processing
@@ -1893,12 +1943,16 @@
       (values (parse-handshake-message message-bytes
                                        :hash-length (when (client-handshake-selected-cipher-suite hs)
                                                       (cipher-suite-hash-length
-                                                       (client-handshake-selected-cipher-suite hs))))
+                                                       (client-handshake-selected-cipher-suite hs)))
+                                       :maximum-certificate-entries
+                                       (client-handshake-verify-depth hs))
               message-bytes))))
 
 (defun perform-client-handshake (record-layer &key hostname alpn-protocols
                                                    (verify-mode +verify-required+)
                                                    trust-store
+                                                   (verify-depth
+                                                     +default-maximum-certificate-chain-depth+)
                                                    skip-hostname-verify
                                                    client-certificate
                                                    client-private-key
@@ -1919,6 +1973,7 @@
              :alpn-protocols alpn-protocols
              :verify-mode verify-mode
              :trust-store trust-store
+             :verify-depth verify-depth
              :skip-hostname-verify skip-hostname-verify
              :hostname-policy hostname-policy
              :client-certificate client-certificate
@@ -1960,7 +2015,9 @@
                                               +alert-level-fatal+
                                               +alert-illegal-parameter+)))))
            (let* ((raw-message (read-raw-handshake-message hs))
-                  (message (parse-handshake-message raw-message)))
+                  (message (parse-handshake-message
+                            raw-message :maximum-certificate-entries
+                            (client-handshake-verify-depth hs))))
              (unless (= (handshake-message-type message) +handshake-server-hello+)
                (record-layer-write-alert (client-handshake-record-layer hs)
                                          +alert-level-fatal+ +alert-unexpected-message+)

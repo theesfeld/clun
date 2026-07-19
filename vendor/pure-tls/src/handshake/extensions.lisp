@@ -60,15 +60,27 @@
                          +extension-renegotiation-info+        ; 65281
                          +extension-next-protocol-negotiation+)))
 
-(defun parse-extensions (data &key validate-tls13 (context :client-hello))
+(defun parse-extensions (data &key validate-tls13 (context :client-hello)
+                                   maximum-extensions)
   "Parse a list of extensions from bytes.
    If VALIDATE-TLS13 is true, reject TLS 1.2-only extensions with an error.
    CONTEXT is :client-hello (default) or :encrypted-extensions."
+  (when (and maximum-extensions
+             (not (and (integerp maximum-extensions)
+                       (not (minusp maximum-extensions)))))
+    (error 'tls-handshake-error
+           :message ":DECODE_ERROR: Invalid extension-count bound"))
   (let ((buf (make-tls-buffer data))
         (extensions nil)
-        (seen-types nil))
+        (seen-types nil)
+        (extension-count 0))
     (loop while (plusp (buffer-remaining buf))
-          do (let* ((ext-type (buffer-read-uint16 buf))
+          do (when (and maximum-extensions
+                        (>= extension-count maximum-extensions))
+               (error 'tls-handshake-error
+                      :message ":EXCESSIVE_MESSAGE_SIZE: Too many extensions"))
+             (incf extension-count)
+             (let* ((ext-type (buffer-read-uint16 buf))
                     (ext-data (buffer-read-vector16 buf)))
                ;; RFC 8446 Section 4.2: There MUST NOT be more than one extension
                ;; of the same type in a given extension block

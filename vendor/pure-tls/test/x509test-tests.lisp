@@ -37,19 +37,20 @@
     (is (not (null cert))
         "Should successfully parse certificate with Basic Constraints")))
 
-(test x509test-ok-v1
-  "Test valid X.509 version 1 certificate"
-  (let* ((cert-path (x509test-cert-path "ok-v1.pem"))
-         (cert (pure-tls:parse-certificate-from-file cert-path)))
-    (is (not (null cert))
-        "Should successfully parse X.509 v1 certificate")))
+(test x509test-reject-explicit-default-v1
+  "DER requires the default v1 Version field to be omitted, not encoded as 0."
+  (signals pure-tls:tls-decode-error
+    (pure-tls:parse-certificate-from-file
+     (x509test-cert-path "ok-v1.pem"))))
 
-(test x509test-ok-v3
-  "Test valid X.509 version 3 certificate"
-  (let* ((cert-path (x509test-cert-path "ok-v3.pem"))
-         (cert (pure-tls:parse-certificate-from-file cert-path)))
-    (is (not (null cert))
-        "Should successfully parse X.509 v3 certificate")))
+(test x509test-reject-v3-undefined-key-usage
+  "Reject the historical fixture whose decipherOnly bit lacks keyAgreement.
+The original x509test corpus classed it as syntactically valid, but RFC 5280
+4.2.1.3 says decipherOnly is undefined unless keyAgreement is also asserted."
+  (let ((cert-path (x509test-cert-path "ok-v3.pem")))
+    (signals pure-tls:tls-decode-error
+      (pure-tls:parse-certificate-from-file cert-path)
+      "Should reject decipherOnly without keyAgreement")))
 
 ;;;; Invalid Certificate Tests (should be rejected)
 
