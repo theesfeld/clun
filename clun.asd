@@ -67,6 +67,12 @@
                                            (:file "password")
                                            (:file "noncrypto-hash")
                                            (:file "secrets")))
+                             ;; FULL PORT #184 pure-CL Redis RESP client + embedded peer.
+                             (:module "redis"
+                              :serial t
+                              :components ((:file "resp")
+                                           (:file "server")
+                                           (:file "client")))
                              ;; Cookie parsing/serialization is engine-free so HTTP
                              ;; transport and runtime bindings share one contract.
                              (:module "http"
@@ -212,6 +218,7 @@
                                            (:file "clun-password-hash") ; Clun.password/hash (Phase 36)
                                            (:file "clun-secrets") ; Clun.secrets pure-CL vault (#179)
                                            (:file "clun-plugin")  ; Clun.plugin / Bun.plugin (Issue #187)
+                                           (:file "clun-redis") ; Clun.redis pure-CL (#184)
                                            (:file "clun-string-width") ; Clun.stringWidth (Phase 33) — before clun-global
                                            (:file "clun-glob") ; Clun.Glob (Phase 30) — before clun-global
                                            (:file "clun-filesystem-router") ; Clun.FileSystemRouter (Phase 50)
@@ -290,6 +297,9 @@
                                             :components ((:file "csrf-tests")
                                                          (:file "password-hash-tests")
                                                          (:file "secrets-tests")))
+                                           (:module "redis"
+                                            :serial t
+                                            :components ((:file "redis-tests")))
                                            (:module "http"
                                             :serial t
                                             :components ((:file "cookies-tests")))

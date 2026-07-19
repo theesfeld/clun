@@ -270,7 +270,7 @@ END {
     }
     print "> Phase 26 remains deferred until after Phase 82 and will"
     print "> be rewritten for the repository state that exists then."
-    print "> Clun executes its scoped JS/TS surface, but it is not a drop-in Node.js or Bun replacement."
+    print "> Clun is a pure Common Lisp full-port runtime: every ledger row is a Yes target that must meet or exceed Bun/npm/Node/Deno. Partial is temporary honesty, never a destination."
     print "> The canonical issue is the live source of truth; `PLAN.md` is the technical contract and `STATE.md` is"
     print "> the local resume checklist."
   } else if (format == "site-release") {

@@ -7,10 +7,10 @@ data.yaml	darwin-arm64	supported	ev.data.yaml.api-differential.v1,ev.data.yaml.b
 data.yaml	darwin-x64	supported	ev.data.yaml.api-differential.v1,ev.data.yaml.bun-402.v1,ev.data.yaml.module-loading.v1	The complete public surface executes through the shipped binary.
 data.yaml	linux-arm64	supported	ev.data.yaml.api-differential.v1,ev.data.yaml.bun-402.v1,ev.data.yaml.module-loading.v1	The complete public surface executes through the shipped binary.
 data.yaml	linux-x64	supported	ev.data.yaml.api-differential.v1,ev.data.yaml.bun-402.v1,ev.data.yaml.module-loading.v1	The complete public surface executes through the shipped binary.
-database.redis	darwin-arm64	unsupported	-	Capability is not implemented.
-database.redis	darwin-x64	unsupported	-	Capability is not implemented.
-database.redis	linux-arm64	unsupported	-	Capability is not implemented.
-database.redis	linux-x64	unsupported	-	Capability is not implemented.
+database.redis	darwin-arm64	supported	ev.database.redis.basic.v1	Clun.redis pure-CL embedded store exercises on shipped binary
+database.redis	darwin-x64	supported	ev.database.redis.basic.v1	Clun.redis pure-CL embedded store exercises on shipped binary
+database.redis	linux-arm64	supported	ev.database.redis.basic.v1	Clun.redis pure-CL embedded store exercises on shipped binary
+database.redis	linux-x64	supported	ev.database.redis.basic.v1	Clun.redis pure-CL embedded store exercises on shipped binary
 database.sql-drivers	darwin-arm64	unsupported	-	Capability is not implemented.
 database.sql-drivers	darwin-x64	unsupported	-	Capability is not implemented.
 database.sql-drivers	linux-arm64	unsupported	-	Capability is not implemented.

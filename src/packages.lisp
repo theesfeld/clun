@@ -364,6 +364,40 @@
    #:https-request #:https-request-stream #:tls-error-message))
 
 ;; Phase 51 — WebSocket protocol (RFC 6455 + Pub/Sub substrate + deflate).
+
+(defpackage :clun.redis
+  (:use :cl)
+  (:local-nicknames (:sys :clun.sys))
+  (:documentation
+   "Pure-CL Redis/Valkey RESP client + embedded store (FULL PORT #184 / epic #177).
+    Exceeds Bun.redis: offline hermetic store needs no external Redis process.
+    Full command surface is available via REDIS-CALL / STORE-EXECUTE (string
+    commands). Named helpers cover the Bun.redis core client path.")
+  (:export
+   ;; Errors
+   #:redis-error #:redis-error-message #:redis-error-code
+   #:redis-reply-error #:redis-reply-error-message
+   ;; RESP
+   #:resp-encode #:resp-encode-value #:resp-encode-error
+   #:resp-decode-from-stream #:resp-decode-buffer
+   ;; URL / options
+   #:default-redis-url #:*default-redis-url*
+   ;; Client lifecycle
+   #:redis-client #:redis-client-p #:make-redis-client
+   #:redis-connect #:redis-close #:redis-client-connected-p
+   #:redis-duplicate #:default-redis #:*redis*
+   ;; Core dispatch (full Redis command surface via string commands)
+   #:redis-call #:redis-send
+   ;; Bun-shaped named helpers
+   #:redis-get #:redis-set #:redis-del #:redis-exists
+   #:redis-incr #:redis-publish #:redis-subscribe
+   ;; Embedded peer (exceed Bun — hermetic pure-CL Redis)
+   #:make-redis-store #:redis-store-p
+   #:store-execute
+   #:start-embedded-redis #:stop-embedded-redis
+   #:embedded-redis-port #:embedded-redis-host
+   #:with-embedded-redis))
+
 (defpackage :clun.websocket
   (:use :cl)
   (:local-nicknames (:crypto :ironclad))
