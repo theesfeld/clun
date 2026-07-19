@@ -10,9 +10,11 @@
 (defun parse-cli-args (argv)
   "Parse ARGV (executable name already dropped) into a plist:
   :action  — :run :eval :print :version :revision :help :error
-  :file :code :subcommand :args :cwd :silent :backtrace :error-msg"
+  :file :code :subcommand :args :cwd :silent :backtrace :error-msg
+  :hot :watch :no-clear-screen"
   (let ((action nil) (code nil) (file nil) (subcommand nil)
         (args '()) (cwd nil) (silent nil) (backtrace nil) (err nil)
+        (hot nil) (watch nil) (no-clear-screen nil)
         (toks argv))
     (labels ((next () (pop toks))
              (need (flag) (or (next) (progn (setf err (format nil "flag ~a needs a value" flag)) nil))))
@@ -32,6 +34,10 @@
             ((string= tok "--cwd") (next) (setf cwd (need tok)))
             ((string= tok "--silent") (next) (setf silent t))
             ((string= tok "--backtrace") (next) (setf backtrace t))
+            ;; Phase 67 / #188 — state-preserving hot reload + hard watch restart.
+            ((string= tok "--hot") (next) (setf hot t))
+            ((string= tok "--watch") (next) (setf watch t))
+            ((string= tok "--no-clear-screen") (next) (setf no-clear-screen t))
             ;; unknown flag → usage error
             ((and (> (length tok) 0) (char= (char tok 0) #\-))
              (setf err (format nil "unknown flag ~a" tok)))
@@ -50,6 +56,9 @@
       (err (list :action :error :error-msg err))
       ((and (member action '(:eval :print)) (null code) (null err))
        (list :action :error :error-msg "missing code for -e/-p"))
+      ((and hot watch)
+       (list :action :error :error-msg "use either --hot or --watch, not both"))
       (t (list :action (or action :help)
                :code code :file file :subcommand subcommand
-               :args args :cwd cwd :silent silent :backtrace backtrace)))))
+               :args args :cwd cwd :silent silent :backtrace backtrace
+               :hot hot :watch watch :no-clear-screen no-clear-screen)))))
