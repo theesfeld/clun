@@ -3418,6 +3418,13 @@ GetV-based thenable Invoke, and null-proto CreateKeyedPromiseCombinatorResultObj
 Focused gate `make phase-37-m4-check` is 74/74. Stages `0.1.0-dev.63` (free after master tip TypeScript Yes `0.1.0-dev.59`; concurrent open trains claim `.58`/`.60`–`.62`; previous_version remains published `0.1.0-dev.21`). No matrix Yes; Phase 37 remains open with residual
 ownership 378.
 
+## 2026-07-19 — runtime.node-compatibility full port Yes (#191)
+
+Pure-CL Bun-comparable node: module matrix exceeding Bun (sqlite, module.register, repl).
+Soft-outs rejected. Candidate `0.1.0-dev.67` after master Phase 37 m4 `0.1.0-dev.63`.
+Parent #177; phase #21.
+Refs: #191, #21, #177
+
 ## 2026-07-19 — runtime.native-addons full port Yes (#178)
 
 Pure-CL N-API/FFI/native module host surface exceeding Bun. Soft-outs rejected.

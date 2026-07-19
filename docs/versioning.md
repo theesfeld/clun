@@ -343,3 +343,5 @@ Phase 38 runtime.web-standard-apis FULL PORT (#207 / canonical #12) stages free 
 Phase 69–70 tooling.formatter-linter FULL PORT (#190 / canonical #43) stages free `0.1.0-dev.65` / `v0.1.0-dev.65` after webstd Yes `0.1.0-dev.64` with pure-CL `clun fmt`/`clun lint` and `Clun.format`/`Clun.lint` exceeding Bun (no first-party fmt/lint); SemVer impact is `minor`.
 
 Phase 48 runtime.native-addons FULL PORT (#178 / canonical #22) stages free `0.1.0-dev.66` / `v0.1.0-dev.66` after fmt-lint Yes `0.1.0-dev.65`; SemVer impact is `minor`.
+Phase 47 runtime.node-compatibility FULL PORT (#191 / canonical #21) stages free `0.1.0-dev.67` / `v0.1.0-dev.67`; SemVer impact is `minor`.
+
