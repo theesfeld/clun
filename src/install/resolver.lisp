@@ -1,9 +1,9 @@
-;;;; resolver.lisp — dependency resolution + hoisted-layout placement (PLAN.md Phase 23/59, §3.5).
+;;;; resolver.lisp — dependency resolution + hoisted-layout placement (PLAN.md Phase 23/59/60, §3.5).
 ;;;; Breadth-first, highest-satisfying, cycle-safe resolution over the Phase-21 async registry
 ;;;; client; then a placement pass that hoists the first-seen version of each name to the root
 ;;;; node_modules and nests genuine version conflicts. Dependency-spec breadth covers registry
-;;;; ranges/dist-tags, npm: aliases, file:/link: local packages, and optionalDependencies with
-;;;; soft-fail. Pure CL, no engine.
+;;;; ranges/dist-tags, npm: aliases, file:/link: local packages, workspace: and catalog: monorepo
+;;;; protocols, and optionalDependencies with soft-fail. Pure CL, no engine.
 
 (in-package :clun.installer)
 
@@ -19,7 +19,7 @@
   name version
   (deps '())                            ; alist (dep-name . range)
   tarball integrity bin
-  (kind :registry)                      ; :registry | :file | :url
+  (kind :registry)                      ; :registry | :file | :url | :workspace
   (local-path nil)
   (optional nil)
   (real-name nil))                      ; registry name for npm: aliases
@@ -41,6 +41,8 @@ directly (e.g. \"latest\"), else the HIGHEST semver version satisfying RANGE. NI
   "Classify a package.json dependency value. Returns one of:
   (:range STRING)          — ordinary semver range or dist-tag
   (:file PATH)             — file: or link: local path
+  (:workspace PATH)        — workspace:/abs/path (post-expansion monorepo link)
+  (:catalog NAME BODY)     — catalog: or catalog:NAME (resolved via workspace graph)
   (:npm-alias NAME RANGE)  — npm:NAME@RANGE alias (NAME may be scoped)
   (:url URL)               — direct http(s) tarball URL"
   (cond
@@ -49,6 +51,10 @@ directly (e.g. \"latest\"), else the HIGHEST semver version satisfying RANGE. NI
     ((or (and (>= (length spec) 5) (string= "file:" spec :end2 5))
          (and (>= (length spec) 5) (string= "link:" spec :end2 5)))
      (list :file (subseq spec 5)))
+    ((and (>= (length spec) 10) (string= "workspace:" spec :end2 10))
+     (list :workspace (subseq spec 10)))
+    ((and (>= (length spec) 8) (string= "catalog:" spec :end2 8))
+     (list :catalog (subseq spec 8)))
     ((and (>= (length spec) 4) (string= "npm:" spec :end2 4))
      (let ((body (subseq spec 4)))
        (multiple-value-bind (name range) (%parse-name-spec body)
@@ -126,10 +132,11 @@ directly (e.g. \"latest\"), else the HIGHEST semver version satisfying RANGE. NI
   (concatenate 'string parent-key "|" dep-name))
 
 (defun resolve-install (loop root-deps &key registry (retries 1) (project-root ".")
-                                      on-ok on-err)
+                                      workspace-graph on-ok on-err)
   "Resolve ROOT-DEPS transitively. ROOT-DEPS entries are either classic alists (name . range)
 or lists (name range &optional :optional). Supports registry ranges/dist-tags, npm: aliases,
-file:/link: local packages, and direct http(s) tarball URLs. Optional edges soft-fail."
+file:/link: local packages, workspace: monorepo packages, catalog: ranges (via WORKSPACE-GRAPH),
+and direct http(s) tarball URLs. Optional edges soft-fail."
   (let ((meta (make-hash-table :test 'equal))
         (nodes (make-hash-table :test 'equal))
         (edge-version (make-hash-table :test 'equal))
@@ -208,7 +215,7 @@ file:/link: local packages, and direct http(s) tarball URLs. Optional edges soft
                                     :optional optional))
                              (resolve-children key vm))))))))))
              :optional optional))
-         (resolve-file (parent-key name rel &key optional)
+         (resolve-file (parent-key name rel &key optional (kind :file))
            (handler-case
                (let* ((abs (%resolve-local-path project-root rel)))
                  (multiple-value-bind (ver deps bin) (%read-local-package abs)
@@ -219,14 +226,21 @@ file:/link: local packages, and direct http(s) tarball URLs. Optional edges soft
                              (make-inst-node :name name :version ver
                                              :real-name name
                                              :deps deps
-                                             :tarball (concatenate 'string "file:" abs)
+                                             :tarball (concatenate 'string
+                                                                   (if (eq kind :workspace)
+                                                                       "workspace:"
+                                                                       "file:")
+                                                                   abs)
                                              :integrity ""
                                              :bin bin
-                                             :kind :file
+                                             :kind kind
                                              :local-path abs
                                              :optional optional))
                        (dolist (d deps)
-                         (resolve-edge key (car d) (cdr d)))))))
+                         (let ((dr (if workspace-graph
+                                       (expand-dep-spec (car d) (cdr d) workspace-graph)
+                                       (cdr d))))
+                           (resolve-edge key (car d) dr)))))))
              (error (e) (fail e :optional optional))))
          (resolve-url (parent-key name url &key optional)
            (let* ((ver "0.0.0")
@@ -248,10 +262,29 @@ file:/link: local packages, and direct http(s) tarball URLs. Optional edges soft
                  (let ((class (classify-dep-spec range)))
                    (ecase (first class)
                      (:range
-                      (resolve-registry parent-key name name (second class)
-                                        :optional optional))
+                      ;; Prefer a same-name workspace package over the registry when present.
+                      (let ((ws (and workspace-graph
+                                     (gethash name (wg-by-name workspace-graph)))))
+                        (if ws
+                            (resolve-file parent-key name (ws-path ws)
+                                          :optional optional :kind :workspace)
+                            (resolve-registry parent-key name name (second class)
+                                              :optional optional))))
                      (:file
                       (resolve-file parent-key name (second class) :optional optional))
+                     (:workspace
+                      (resolve-file parent-key name (second class)
+                                    :optional optional :kind :workspace))
+                     (:catalog
+                      (unless workspace-graph
+                        (error 'install-error
+                               :message (format nil "catalog: requires a workspace root: ~a@~a"
+                                                name range)))
+                      (let ((resolved (resolve-catalog-range
+                                       name range
+                                       (wg-catalogs workspace-graph)
+                                       (wg-catalog workspace-graph))))
+                        (resolve-edge parent-key name resolved :optional optional)))
                      (:npm-alias
                       (resolve-registry parent-key name (second class) (third class)
                                         :optional optional))

@@ -27,10 +27,10 @@ language.typescript	darwin-arm64	supported	ev.language.typescript.annotations.v1
 language.typescript	darwin-x64	supported	ev.language.typescript.annotations.v1,ev.language.typescript.enum-basic.v1,ev.language.typescript.namespace-runtime.v1,ev.language.typescript.param-prop.v1	Bun-compatible TypeScript execution: erasable strip plus enum, namespace, and parameter-property transforms via the shipped binary.
 language.typescript	linux-arm64	supported	ev.language.typescript.annotations.v1,ev.language.typescript.enum-basic.v1,ev.language.typescript.namespace-runtime.v1,ev.language.typescript.param-prop.v1	Bun-compatible TypeScript execution: erasable strip plus enum, namespace, and parameter-property transforms via the shipped binary.
 language.typescript	linux-x64	supported	ev.language.typescript.annotations.v1,ev.language.typescript.enum-basic.v1,ev.language.typescript.namespace-runtime.v1,ev.language.typescript.param-prop.v1	Bun-compatible TypeScript execution: erasable strip plus enum, namespace, and parameter-property transforms via the shipped binary.
-package-manager.monorepo	darwin-arm64	unsupported	-	Capability is not implemented.
-package-manager.monorepo	darwin-x64	unsupported	-	Capability is not implemented.
-package-manager.monorepo	linux-arm64	unsupported	-	Capability is not implemented.
-package-manager.monorepo	linux-x64	unsupported	-	Capability is not implemented.
+package-manager.monorepo	darwin-arm64	supported	ev.package-manager.monorepo.e2e.v1	Workspace discovery, workspace:/catalog: install, live symlinks, filtered concurrent scripts pass through the shipped binary.
+package-manager.monorepo	darwin-x64	supported	ev.package-manager.monorepo.e2e.v1	Workspace discovery, workspace:/catalog: install, live symlinks, filtered concurrent scripts pass through the shipped binary.
+package-manager.monorepo	linux-arm64	supported	ev.package-manager.monorepo.e2e.v1	Workspace discovery, workspace:/catalog: install, live symlinks, filtered concurrent scripts pass through the shipped binary.
+package-manager.monorepo	linux-x64	supported	ev.package-manager.monorepo.e2e.v1	Workspace discovery, workspace:/catalog: install, live symlinks, filtered concurrent scripts pass through the shipped binary.
 package-manager.npm	darwin-arm64	supported	ev.package-manager.npm.hermetic-install.v1	Hermetic install, offline reinstall, dep-spec breadth (file:/npm:/optional), and lock identity pass through the shipped binary.
 package-manager.npm	darwin-x64	supported	ev.package-manager.npm.hermetic-install.v1	Hermetic install, offline reinstall, dep-spec breadth (file:/npm:/optional), and lock identity pass through the shipped binary.
 package-manager.npm	linux-arm64	supported	ev.package-manager.npm.hermetic-install.v1	Hermetic install, offline reinstall, dep-spec breadth (file:/npm:/optional), and lock identity pass through the shipped binary.

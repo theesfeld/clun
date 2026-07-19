@@ -7,13 +7,16 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **40 - JSX and TSX**  (language.jsx full port → Yes; unit #186)
+## Current phase: **60 - Workspaces and monorepos**  (Yes conversion #182)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/186
+**Canonical issue:** https://github.com/theesfeld/clun/issues/182
 **Parent epic:** https://github.com/theesfeld/clun/issues/177
-**Current implementation unit:** language.jsx No→Yes (#186). Pure Common Lisp JSX/TSX parse, transform, and execute with classic and automatic runtimes, pragmas, tsconfig options, fragments, spreads, entity decoding, and offline helpers (exceeds Bun's react package requirement). Four-target **supported**.
+**Current implementation unit:** package-manager.monorepo No→Yes (#182).
+Workspaces are **Yes**: globs/exclusions, `workspace:` live symlink linking, `catalog:`/`catalogs`,
+`--filter` name/path/negation for install and run, topological concurrent script waves with
+`--concurrency`, four-target supported via `examples/e2e-monorepo.sh`. Gap column empty (`-`).
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.47` / `v0.1.0-dev.47`
+**Candidate release:** `0.1.0-dev.48` / `v0.1.0-dev.48`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
-**Entry boundary:** installer on `v0.1.0-dev.21`; free slot after master honesty scrub `0.1.0-dev.46`.
+**Entry boundary:** installer on `v0.1.0-dev.21`; free slot after master language.jsx Yes `0.1.0-dev.47`.
 **Next scope:** remaining FULL PORT ledger Nos under #177.

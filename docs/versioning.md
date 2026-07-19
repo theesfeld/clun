@@ -317,3 +317,4 @@ Phase 59 package-manager.npm Partial→Yes (#131) stages `0.1.0-dev.44` / `v0.1.
 Phase 47 selected Node surface Partial→Yes (#132) stages `0.1.0-dev.45` / `v0.1.0-dev.45` with four-target supported receipts (not full Node/V8 parity).
 
 Phase 40 language.jsx No→Yes (#186) stages `0.1.0-dev.47` / `v0.1.0-dev.47` with four-target supported receipts and pure-CL classic/automatic runtimes (offline helpers exceed Bun).
+Phase 60 package-manager.monorepo No→Yes (#182) stages `0.1.0-dev.48` / `v0.1.0-dev.48` with workspaces, filters, catalog: protocols, live symlink packages, topological concurrent script waves, and four-target monorepo receipts; SemVer impact is `minor`.
