@@ -90,8 +90,10 @@ relevant when Phase 26 is designed from the then-current system:
 3. End-to-end demo (`examples/e2e.sh`): `clun install` against the local registry fixture →
    `clun run build` (a script invoking a `.bin` tool) → `clun test` — all green, hermetic.
 4. `Clun.serve` example survives 1k sequential + 500 concurrent requests, RSS plateaus.
-5. Phase 28 records a live smoke that installs a pinned package from public npm over verified pure-CL
-   HTTPS and executes it.
+5. Phase 28 records a live, non-hermetic Compatibility/Release smoke that installs pinned packages
+   from public npm over the experimental bounded pure-CL HTTPS profile, executes them, and proves a
+   frozen cache-only reinstall while public registry metadata and tarball transport are unavailable.
+   Issue #234 owns the WebPKI hardening required before release.
 6. README with install, quickstart, architecture, honest compat matrix (Appendix A), and the
    TLS security-posture statement (§3.4).
 7. Phase 26 selects the final version and immutable tag from the completed work and then-current
@@ -713,12 +715,16 @@ Tasks: design from Bun `src/http/`, `src/runtime/webcore/`, `src/install/`, `tes
 `test/cli/install/`; close TLS 1.2/1.3 and certificate/ALPN interoperability gaps without weakening
 verification; add pure-CL A/AAAA resolution, Happy Eyeballs, pooling, streaming request/response bodies,
 backpressure, cancellation, proxy/timeout semantics, decompression limits, and registry.npmjs.org
-metadata+tarball support; retain hermetic TLS/DNS/registry peers and one explicitly logged live smoke.
+metadata+tarball support; retain hermetic TLS/DNS/registry peers and a live, non-hermetic public-npm
+smoke required by the Compatibility and Release workflows.
 **Gate:** `make test-tls`; `make test-proxy`; `make test-dns`;
 `make compat FEATURE=runtime.web-standard-apis`; `make compat FEATURE=package-manager.npm`;
-`make build`; `make test`; `make purity`; `make docs-check`; opt-in `make smoke-npm` installs and
-executes a pinned package with SRI verified; transport gates pass on all four supported targets with
-zero fd/thread leaks and bounded-memory streaming of a 1 GiB synthetic body.
+`make build`; `make test`; `make purity`; `make docs-check`; live, non-hermetic `make smoke-npm`
+is required by Compatibility and Release and exercises both public package-add spellings, a
+transitive graph, SRI verification, package execution, and frozen cache-only reinstalls while the
+registry is unreachable and an explicit empty TLS trust source prevents public tarball fallback;
+transport gates pass on all four supported targets with zero fd/thread leaks and bounded-memory
+streaming of a 1 GiB synthetic body.
 
 ### Phase 29 — Public semver API  *(deps: 21, 27)* ~1k LOC
 Objective: expose a Bun-compatible public semver API over the proven installer implementation.

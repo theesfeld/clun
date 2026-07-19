@@ -269,16 +269,17 @@ Phase 26 remains deferred until after Phase 82 and will be re-baselined for the 
             </article>
 
             <article class="tool-card tool-install">
-              <div class="tool-topline"><span>02</span><code>$ clun install</code></div>
+              <div class="tool-topline"><span>02</span><code>$ clun install [pkg…]</code></div>
               <h3>Package manager</h3>
               <p>Resolve semver graphs into a deterministic hoisted tree with a content cache and lockfile.</p>
               <ul>
-                <li>SRI SHA-512 verification before extraction</li>
+                <li>SRI SHA-512 verifies tarballs against resolved or locked integrity; fresh resolution still depends on TLS-authenticated metadata</li>
                 <li>Offline reinstall from <code>clun.lock</code></li>
                 <li>Hardened tarball extraction</li>
                 <li>Lifecycle scripts are never executed</li>
               </ul>
-              <div class="tool-status warning"><span>Known gap</span> Public npm TLS interop</div>
+              <div class="tool-status warning"><span>Published dev.21</span> Public npm fails with fatal <code>protocol_version</code></div>
+              <div class="tool-status warning"><span>Source candidate</span> Public add/install works through experimental TLS; <a href="https://github.com/theesfeld/clun/issues/233">publication</a> and <a href="https://github.com/theesfeld/clun/issues/234">WebPKI hardening</a> remain blocked</div>
             </article>
 
             <article class="tool-card tool-test">
@@ -306,7 +307,7 @@ Phase 26 remains deferred until after Phase 82 and will be re-baselined for the 
                 <li>AbortController and timeout support</li>
                 <li>Streaming request and response bodies; WebSocket + Pub/Sub; no HTTP/2 server</li>
               </ul>
-              <div class="tool-status warning"><span>Security</span> TLS is unaudited</div>
+              <div class="tool-status warning"><span>Security</span> TLS is unaudited and <a href="https://github.com/theesfeld/clun/issues/234">WebPKI hardening</a> blocks release</div>
             </article>
           </div>
         </div>
@@ -516,7 +517,7 @@ Linked phase labels are planned acceptance gates, not capabilities available tod
     </tr>
     <tr data-compat-feature="package-manager.npm">
       <th scope="row"><strong>npm package management</strong><span>Install, manage, and publish npm-compatible dependencies</span></th>
-      <td class="clun-col"><b class="state yes">Yes</b> <code>clun install</code>/<code>add</code>/<code>remove</code> with registry packages (semver ranges, dist-tags), npm: aliases, file:/link: local packages, optionalDependencies soft-fail, hoisted node_modules, clun.lock offline reinstall, SRI-verified tarballs, and four-target hermetic install receipts<span class="phase-links" data-roadmap-phase="61"><span>Phases</span> <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-28">28</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-59">59</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-60">60</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-61">61</a></span></td>
+      <td class="clun-col"><b class="state partial">Partial</b> <code>clun add &lt;pkg&gt;</code> and Bun-compatible <code>clun install &lt;pkg&gt;</code> resolve public npm metadata and tarballs through an experimental bounded pure-CL TLS profile; no-argument install resolves the existing manifest; all paths enforce SRI, write <code>clun.lock</code>, materialize <code>node_modules</code>, and reinstall offline from cache; aliases, local packages, optional dependencies, hoisting, workspaces, and four-target hermetic receipts are covered<span class="phase-links" data-roadmap-phase="61"><span>Phases</span> <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-28">28</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-59">59</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-60">60</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-61">61</a></span></td>
       <td><b class="state yes">Yes</b> <code>bun install</code></td>
       <td><b class="state separate">Separate</b> npm ships with Node.js installers</td>
       <td><b class="state partial">Partial</b> installs npm projects; publishing is JSR-oriented</td>

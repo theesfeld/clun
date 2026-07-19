@@ -4,8 +4,12 @@
 ;;;; and resolves the registry base from a --registry override / a minimal .npmrc. Pure CL,
 ;;;; no engine dependency (the install substrate is §3.6 substrate). Transport is HTTP for the
 ;;;; local fixture (hermetic tests) and the real registry over the network; HTTPS reuses the
-;;;; Phase-20 blocking pure-tls client on a worker (the live npmjs path is gated on the pure-tls
-;;;; interop fix — STATE.md — so Phase 21 is exercised against the local fixture).
+;;;; blocking pure-CL TLS client on a worker. The client prefers TLS 1.3 and retries on a fresh
+;;;; connection with its experimental bounded TLS 1.2 profile only when the peer returns the exact
+;;;; fatal protocol_version alert. The live, non-hermetic `make smoke-npm` gate is required in
+;;;; Compatibility and Release and covers public npm metadata, tarballs, SRI, dependency-graph
+;;;; execution, and transport-denied cached reinstall through the shipped CLI. Issue #234 owns the
+;;;; WebPKI hardening required before release.
 
 (in-package :clun.registry)
 

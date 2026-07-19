@@ -16,8 +16,8 @@
                   ~8@Tclun -e '<code>'         evaluate code~%~
                   ~8@Tclun -p '<code>'         evaluate and print the (awaited) result~%~
                   ~8@Tclun exec '<script>'      execute a Clun shell script~%~
-                  ~8@Tclun install            install package.json deps into node_modules~%~
-                  ~8@Tclun add <pkg>          add a dependency (-d dev, -E exact) + install~%~
+                  ~8@Tclun install [pkg…]     install package.json deps, or add package(s) + install~%~
+                  ~8@Tclun add <pkg…>         add package(s) (-d dev, -E exact) + install~%~
                   ~8@Tclun remove <pkg>       remove a dependency + reinstall~%~
                   ~8@Tclun build <entry…>     production bundle (Clun.build / Bun.build)~%~
                   ~8@Tclun fmt [paths…]       format JS/TS/JSON/YAML/CSS (check/write/stdin)~%~
@@ -174,9 +174,11 @@ With --hot / --watch, state-preserving (or hard) reload is armed for the process
 (defun %flag-p (tok) (and (plusp (length tok)) (char= (char tok 0) #\-)))
 
 (defun run-install-command (r)
-  "Handle `clun install` / `add <pkg…>` / `remove <pkg…>`: edit package.json for add/remove, then
-install. Flags: -d/-D/--dev, -E/--exact, --frozen-lockfile, --production, --dry-run, --registry,
---filter/-F (monorepo package selection)."
+  "Handle `clun install [pkg…]` / `add <pkg…>` / `remove <pkg…>`.
+With package arguments, INSTALL is the Bun-compatible alias of ADD: edit
+package.json and then install. With no package arguments, INSTALL installs the
+existing manifest. Flags: -d/-D/--dev, -E/--exact, --frozen-lockfile,
+--production, --dry-run, --registry, --filter/-F (monorepo package selection)."
   (let ((sub (cli:cli-get r :subcommand))
         (cwd (resolve-cwd r))
         (names '()) (registry nil) (filters '())
@@ -210,10 +212,11 @@ install. Flags: -d/-D/--dev, -E/--exact, --frozen-lockfile, --production, --dry-
     (handler-case
         (progn
           (cond
-            ((string= sub "add")
+            ((or (string= sub "add")
+                 (and (string= sub "install") names))
              (when (null names) (error 'clun.installer:install-error :message "add: no packages given"))
              (if dry-run
-                 (format t "clun add (dry-run): ~{~a~^, ~}~%" names)
+                 (format t "clun ~a (dry-run): ~{~a~^, ~}~%" sub names)
                  (progn (clun.installer:add-dependencies cwd names :dev dev :exact exact :registry registry)
                         (clun.installer:install cwd :registry registry :production production
                                                 :filters filters)

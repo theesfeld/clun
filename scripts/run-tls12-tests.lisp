@@ -10,7 +10,9 @@
                clun-test::net/tls-fallback-alert-is-exact
                clun-test::net/tls13-abrupt-eof-is-not-clean-eof
                clun-test::net/tls12-server-hello-rejects-downgrade
+               clun-test::net/tls12-server-hello-extension-policy
                clun-test::net/tls12-rejects-oversized-authenticated-plaintext
+               clun-test::net/tls12-nonresuming-profile-rejects-session-ticket
                clun-test::net/tls12-eof-framing-requires-close-notify
                clun-test::net/https-connect-proxy-split-envelope-is-not-origin-response
                clun-test::net/https-connect-proxy-non-2xx-is-a-response
