@@ -210,7 +210,7 @@ vendored under `vendor/` and located via `scripts/registry.lisp`.
 make build     # compile everything, save build/clun (save-lisp-and-die)
 make test      # run the CL suites and JS/TS fixture harnesses
 make purity    # fail on any CFFI/foreign-code token
-./build/clun --version   # => clun 0.1.0-dev.58
+./build/clun --version   # => clun 0.1.0-dev.60
 ```
 
 A fresh clone builds with `make build` alone: ASDF compiles the vendored closure and `src/` into
