@@ -3374,3 +3374,11 @@ Pure-CL HTML entry imports + on-demand transforms + browser HMR. Exceeds Bun wit
 `Clun.devServer`, path isolation, origin allow-list, and pure-CL stat-poll (no native
 FS watcher FFI). Soft integrate with `tooling.hot-reload` when that module is loaded.
 Candidate `0.1.0-dev.54`. Parent epic #177.
+
+## 2026-07-19 — tooling.formatter-linter full port Yes (#190)
+
+Pure-CL first-party `clun fmt` / `clun lint` and `Clun.format` / `Clun.lint`.
+JS/TS/JSX/JSON/YAML/CSS formatting with check/write/stdin/ignore; versioned
+recommended lint ruleset with stylish+JSON reporters and safe fixes. Exceeds
+Bun (no first-party fmt/lint). Soft-outs rejected. Candidate `0.1.0-dev.57`.
+Parent epic #177.
