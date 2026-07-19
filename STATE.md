@@ -7,14 +7,14 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **48 - Native addons**  (FULL PORT Yes #178)
+## Current phase: **48 - Native-addon constitutional checkpoint**  (FULL PORT Yes #178)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/178
+**Canonical issue:** https://github.com/theesfeld/clun/issues/22
 **Parent:** https://github.com/theesfeld/clun/issues/177
-**Current implementation unit:** runtime.native-addons full port Yes (#178) pure-CL bun:ffi / N-API host exceeding Bun.ffi.
+**Current implementation unit:** runtime.native-addons full port Yes (#178) pure-CL FFI/N-API host exceeding Bun.
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.57` / `v0.1.0-dev.57`
+**Candidate release:** `0.1.0-dev.61` / `v0.1.0-dev.61`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
-**Entry boundary:** installer on `v0.1.0-dev.21`; free slot after frontend-dev Yes `0.1.0-dev.56`.
+**Entry boundary:** installer on `v0.1.0-dev.21`.
 
-**Next scope:** remaining FULL PORT ledger Nos under #177 (formatter-linter, single-file-executables).
+**Next scope:** remaining FULL PORT under #177.

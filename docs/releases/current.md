@@ -1,5 +1,5 @@
 <!-- clun-generated:release-notes:begin -->
-# Clun 0.1.0-dev.57
+# Clun 0.1.0-dev.61
 
 Phase 48: Native-addon constitutional checkpoint and conditional implementation.
 
