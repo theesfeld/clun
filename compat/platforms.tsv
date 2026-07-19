@@ -79,10 +79,10 @@ tooling.bundler	darwin-arm64	supported	ev.tooling.bundler.core-suite.v1,ev.tooli
 tooling.bundler	darwin-x64	supported	ev.tooling.bundler.core-suite.v1,ev.tooling.bundler.decision.v1,ev.tooling.bundler.public.v1	Pure-CL Clun.build production bundler with entry/split/minify/loaders/assets and four-target receipts.
 tooling.bundler	linux-arm64	supported	ev.tooling.bundler.core-suite.v1,ev.tooling.bundler.decision.v1,ev.tooling.bundler.public.v1	Pure-CL Clun.build production bundler with entry/split/minify/loaders/assets and four-target receipts.
 tooling.bundler	linux-x64	supported	ev.tooling.bundler.core-suite.v1,ev.tooling.bundler.decision.v1,ev.tooling.bundler.public.v1	Pure-CL Clun.build production bundler with entry/split/minify/loaders/assets and four-target receipts.
-tooling.formatter-linter	darwin-arm64	unsupported	-	Capability is not implemented.
-tooling.formatter-linter	darwin-x64	unsupported	-	Capability is not implemented.
-tooling.formatter-linter	linux-arm64	unsupported	-	Capability is not implemented.
-tooling.formatter-linter	linux-x64	unsupported	-	Capability is not implemented.
+tooling.formatter-linter	darwin-arm64	supported	ev.tooling.formatter-linter.core-suite.v1,ev.tooling.formatter-linter.decision.v1,ev.tooling.formatter-linter.public.v1	Pure-CL clun fmt + clun lint with recommended ruleset and four-target receipts.
+tooling.formatter-linter	darwin-x64	supported	ev.tooling.formatter-linter.core-suite.v1,ev.tooling.formatter-linter.decision.v1,ev.tooling.formatter-linter.public.v1	Pure-CL clun fmt + clun lint with recommended ruleset and four-target receipts.
+tooling.formatter-linter	linux-arm64	supported	ev.tooling.formatter-linter.core-suite.v1,ev.tooling.formatter-linter.decision.v1,ev.tooling.formatter-linter.public.v1	Pure-CL clun fmt + clun lint with recommended ruleset and four-target receipts.
+tooling.formatter-linter	linux-x64	supported	ev.tooling.formatter-linter.core-suite.v1,ev.tooling.formatter-linter.decision.v1,ev.tooling.formatter-linter.public.v1	Pure-CL clun fmt + clun lint with recommended ruleset and four-target receipts.
 tooling.frontend-dev-server	darwin-arm64	supported	ev.tooling.frontend-dev-server.core-suite.v1,ev.tooling.frontend-dev-server.e2e.v1	HTML entry routes, on-demand transforms, HMR client, development mode, and Clun.devServer pass through pure-CL implementation and shipped binary
 tooling.frontend-dev-server	darwin-x64	supported	ev.tooling.frontend-dev-server.core-suite.v1,ev.tooling.frontend-dev-server.e2e.v1	HTML entry routes, on-demand transforms, HMR client, development mode, and Clun.devServer pass through pure-CL implementation and shipped binary
 tooling.frontend-dev-server	linux-arm64	supported	ev.tooling.frontend-dev-server.core-suite.v1,ev.tooling.frontend-dev-server.e2e.v1	HTML entry routes, on-demand transforms, HMR client, development mode, and Clun.devServer pass through pure-CL implementation and shipped binary

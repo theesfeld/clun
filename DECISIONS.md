@@ -3425,3 +3425,12 @@ Candidate `0.1.0-dev.66` after master Phase 37 m4 `0.1.0-dev.63`. Parent #177; p
 Refs: #178, #22, #177
 
 Refs: #11
+
+## 2026-07-19 — tooling.formatter-linter full port Yes (#190)
+
+Pure-CL first-party `clun fmt` / `clun lint` and `Clun.format` / `Clun.lint`.
+JS/TS/JSX/JSON/YAML/CSS formatting with check/write/stdin/ignore; versioned
+recommended lint ruleset with stylish+JSON reporters and safe fixes. Exceeds
+Bun (no first-party fmt/lint). Soft-outs rejected. Candidate `0.1.0-dev.65`
+after master webstd Yes `0.1.0-dev.64`. Parent epic #177; phase #43.
+Refs: #190, #43, #177

@@ -20,6 +20,8 @@
                   ~8@Tclun add <pkg>          add a dependency (-d dev, -E exact) + install~%~
                   ~8@Tclun remove <pkg>       remove a dependency + reinstall~%~
                   ~8@Tclun build <entry…>     production bundle (Clun.build / Bun.build)~%~
+                  ~8@Tclun fmt [paths…]       format JS/TS/JSON/YAML/CSS (check/write/stdin)~%~
+                  ~8@Tclun lint [paths…]      lint JS/TS with recommended ruleset~%~
                   ~8@Tclun build --compile <entry> --outfile <bin>   single-file executable~%~
                   ~8@Tclun compile <entry> …  alias of build --compile~%~
                   ~8@Tclun tsc <file…>        structural TypeScript typecheck (exceeds Bun strip)~%~
@@ -405,6 +407,169 @@ waves with `--parallel`, sequential with `--sequential`; exceeds Bun with `--con
     (rt:run-exit-handlers code)
     code))
 
+;;; --- fmt (tooling.formatter-linter #190) ------------------------------------
+
+(defun run-fmt-command (r)
+  "Handle `clun fmt|format [paths…]` — first-party pure-CL formatter.
+Flags: --check (exit 1 if would change), --write (rewrite files), --stdin,
+--indent N, --print-width N, --no-semi, --single-quote."
+  (let ((cwd (resolve-cwd r))
+        (paths '())
+        (check nil) (write nil) (stdin nil)
+        (indent 2) (print-width 80) (semicolons t) (single-quote nil))
+    (loop with rest = (remove nil (cons (cli:cli-get r :file) (cli:cli-get r :args)))
+          while rest
+          for tok = (pop rest) do
+            (cond
+              ((string= tok "--check") (setf check t))
+              ((string= tok "--write") (setf write t))
+              ((member tok '("--stdin" "-") :test #'string=) (setf stdin t))
+              ((member tok '("--indent" "-i") :test #'string=)
+               (if (and rest (not (%flag-p (car rest))))
+                   (setf indent (max 0 (or (parse-integer (pop rest) :junk-allowed t) 2)))
+                   (progn (format *error-output* "clun fmt: --indent needs a value~%")
+                          (return-from run-fmt-command 2))))
+              ((string= tok "--print-width")
+               (if (and rest (not (%flag-p (car rest))))
+                   (setf print-width (max 1 (or (parse-integer (pop rest) :junk-allowed t) 80)))
+                   (progn (format *error-output* "clun fmt: --print-width needs a value~%")
+                          (return-from run-fmt-command 2))))
+              ((string= tok "--no-semi") (setf semicolons nil))
+              ((string= tok "--single-quote") (setf single-quote t))
+              ((member tok '("-h" "--help") :test #'string=)
+               (format t "Usage: clun fmt [paths…] [--check] [--write] [--stdin]~%")
+               (return-from run-fmt-command 0))
+              ((%flag-p tok)
+               (format *error-output* "clun fmt: unknown flag ~a~%" tok)
+               (return-from run-fmt-command 2))
+              (t (push tok paths))))
+    (setf paths (nreverse paths))
+    (let ((opts (clun.fmt:default-fmt-options
+                 :indent indent :print-width print-width
+                 :semicolons semicolons :single-quote single-quote)))
+      (handler-case
+          (cond
+            (stdin
+             (let* ((src (with-output-to-string (o)
+                           (loop for line = (read-line *standard-input* nil nil)
+                                 while line do (write-line line o))))
+                    (out (clun.fmt:format-source src :options opts)))
+               (if check
+                   (if (string= src out) 0
+                       (progn (format *error-output* "clun fmt: stdin would be reformatted~%") 1))
+                   (progn (write-string out) (finish-output) 0))))
+            ((null paths)
+             (format *error-output* "clun fmt: no paths (pass files/dirs or --stdin)~%")
+             2)
+            (t
+             (let* ((results (clun.fmt:format-paths paths :cwd cwd
+                                                    :write write :check check
+                                                    :options opts))
+                    (changed 0) (errors 0))
+               (dolist (r results)
+                 (cond
+                   ((clun.fmt:fr-error r)
+                    (incf errors)
+                    (format *error-output* "clun fmt: ~a: ~a~%"
+                            (clun.fmt:fr-path r) (clun.fmt:fr-error r)))
+                   ((clun.fmt:fr-changed r)
+                    (incf changed)
+                    (cond
+                      (write
+                       (format t "formatted ~a~%" (clun.fmt:fr-path r)))
+                      (check
+                       (format *error-output* "would reformat ~a~%" (clun.fmt:fr-path r)))
+                      (t
+                       ;; default: print formatted content for single file, else list
+                       (if (= (length results) 1)
+                           (progn (write-string (clun.fmt:fr-formatted r))
+                                  (finish-output))
+                           (format t "~a~%" (clun.fmt:fr-path r))))))))
+               (cond ((plusp errors) 1)
+                     ((and check (plusp changed)) 1)
+                     (t 0)))))
+        (clun.fmt:fmt-error (e)
+          (format *error-output* "clun fmt: ~a~%" (clun.fmt:fmt-error-message e))
+          1)
+        (error (e)
+          (format *error-output* "clun fmt: ~a~%" e)
+          1)))))
+
+;;; --- lint (tooling.formatter-linter #190) -----------------------------------
+
+(defun run-lint-command (r)
+  "Handle `clun lint [paths…]` — first-party pure-CL linter.
+Flags: --format stylish|json, --fix, --config PATH, --rule name=severity."
+  (let ((cwd (resolve-cwd r))
+        (paths '())
+        (fmt :stylish) (fix nil) (config-path nil)
+        (rule-overrides '()))
+    (loop with rest = (remove nil (cons (cli:cli-get r :file) (cli:cli-get r :args)))
+          while rest
+          for tok = (pop rest) do
+            (cond
+              ((string= tok "--fix") (setf fix t))
+              ((member tok '("--format" "-f") :test #'string=)
+               (if (and rest (not (%flag-p (car rest))))
+                   (let ((v (string-downcase (pop rest))))
+                     (setf fmt (cond ((string= v "json") :json)
+                                     ((string= v "stylish") :stylish)
+                                     (t :stylish))))
+                   (progn (format *error-output* "clun lint: --format needs a value~%")
+                          (return-from run-lint-command 2))))
+              ((string= tok "--config")
+               (if (and rest (not (%flag-p (car rest))))
+                   (setf config-path (pop rest))
+                   (progn (format *error-output* "clun lint: --config needs a value~%")
+                          (return-from run-lint-command 2))))
+              ((string= tok "--rule")
+               (if (and rest (not (%flag-p (car rest))))
+                   (let* ((spec (pop rest))
+                          (eqpos (position #\= spec)))
+                     (if eqpos
+                         (push (cons (subseq spec 0 eqpos)
+                                     (subseq spec (1+ eqpos)))
+                               rule-overrides)
+                         (progn (format *error-output* "clun lint: --rule needs name=severity~%")
+                                (return-from run-lint-command 2))))
+                   (progn (format *error-output* "clun lint: --rule needs a value~%")
+                          (return-from run-lint-command 2))))
+              ((member tok '("-h" "--help") :test #'string=)
+               (format t "Usage: clun lint [paths…] [--format stylish|json] [--fix] [--config f]~%")
+               (return-from run-lint-command 0))
+              ((%flag-p tok)
+               (format *error-output* "clun lint: unknown flag ~a~%" tok)
+               (return-from run-lint-command 2))
+              (t (push tok paths))))
+    (setf paths (nreverse paths) rule-overrides (nreverse rule-overrides))
+    (when (null paths)
+      (format *error-output* "clun lint: no paths~%")
+      (return-from run-lint-command 2))
+    (handler-case
+        (let ((config (if config-path
+                          (clun.lint:load-lint-config
+                           (if (sys:absolute-path-p config-path)
+                               config-path
+                               (sys:path-join cwd config-path)))
+                          (clun.lint:default-lint-config))))
+          (dolist (pair rule-overrides)
+            (clun.lint:set-rule config (car pair)
+                                (clun.lint::parse-severity (cdr pair))))
+          (multiple-value-bind (diags code)
+              (clun.lint:lint-paths paths :cwd cwd :config config :fix fix)
+            (ecase fmt
+              (:json (clun.lint:report-json diags *standard-output*))
+              (:stylish (when diags (clun.lint:report-stylish diags *error-output*))))
+            code))
+      (clun.lint:lint-error (e)
+        (format *error-output* "clun lint: ~a~%" (clun.lint:lint-error-message e))
+        1)
+      (error (e)
+        (format *error-output* "clun lint: ~a~%" e)
+        1))))
+
+;;; --- build (tooling.bundler #180) -------------------------------------------
+
 ;;; --- single-file executable compile (Issue #181) ---------------------------
 
 (defun run-sfe-compile-command (r)
@@ -633,6 +798,8 @@ remaining argv tokens; exit 1 when any diagnostic is reported."
                 ((equal sub "test") (run-test r))
                 ((member sub '("install" "add" "remove") :test #'equal) (run-install-command r))
                 ((member sub '("build" "compile") :test #'equal) (run-build-command r))
+                ((member sub '("fmt" "format") :test #'equal) (run-fmt-command r))
+                ((equal sub "lint") (run-lint-command r))
                 ((member sub '("tsc" "typecheck") :test #'equal) (run-tsc-command r))
                 ((equal sub "exec") (run-exec r))
                 ((equal sub "run") (run-script r))

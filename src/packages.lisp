@@ -743,3 +743,36 @@ and concurrent topological script runs.")
    #:ba-hash #:ba-entry-point-p #:ba-sourcemap
    #:build-error #:build-error-message #:build-error-path #:build-error-level))
 
+;; FULL PORT #190 — first-party formatter + linter (Phases 69–70).
+(defpackage :clun.fmt
+  (:use :cl)
+  (:local-nicknames (:eng :clun.engine) (:sys :clun.sys) (:glob :clun.glob))
+  (:documentation
+   "Pure-CL first-party source formatter (JS/TS/JSX/JSON/YAML/CSS). Exceeds Bun.")
+  (:export
+   #:fmt-error #:fmt-error-message #:fmt-error-path
+   #:fmt-options #:make-fmt-options #:default-fmt-options
+   #:fo-indent #:fo-print-width #:fo-semicolons #:fo-single-quote
+   #:fo-trailing-comma #:fo-line-ending #:fo-insert-final-newline #:fo-language
+   #:format-source #:format-file #:format-paths
+   #:fmt-result #:fr-path #:fr-changed #:fr-error #:fr-formatted
+   #:language-from-path #:language-from-source
+   #:read-ignore-patterns #:collect-format-files #:path-ignored-p))
+
+(defpackage :clun.lint
+  (:use :cl)
+  (:local-nicknames (:eng :clun.engine) (:sys :clun.sys) (:glob :clun.glob))
+  (:documentation
+   "Pure-CL first-party linter with recommended ruleset. Exceeds Bun.")
+  (:export
+   #:lint-error #:lint-error-message #:lint-error-path
+   #:diagnostic #:diag-rule #:diag-severity #:diag-message #:diag-path
+   #:diag-line #:diag-column #:diag-fix
+   #:lint-config #:default-lint-config #:load-lint-config #:set-rule
+   #:lc-rules #:lc-globals #:lc-env #:lc-fix
+   #:lint-source #:lint-file #:lint-paths
+   #:apply-safe-fixes
+   #:report-stylish #:report-json
+   #:diagnostics-error-count #:diagnostics-warn-count
+   #:*recommended-rules*))
+
