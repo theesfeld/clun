@@ -609,11 +609,18 @@ verify_phase_issue_labels() (
   [ "$type_label" = type:phase ] ||
     fail "Phase $phase issue #$issue_number must use type:phase, not $type_label"
 
-  priority_label=$(cached_issue_matching_label "$issue_cache" "$issue_number" '^P[0-3]$') ||
+  priority_label=$(cached_issue_matching_label "$issue_cache" "$issue_number" '^P[0-9]+$') ||
     fail "Phase $phase issue #$issue_number must have exactly one P0..P3 priority label"
-  semver_label=$(cached_issue_matching_label "$issue_cache" "$issue_number" \
-    '^semver:(major|minor|patch|none)$') ||
+  case "$priority_label" in
+    P0|P1|P2|P3) ;;
+    *) fail "Phase $phase issue #$issue_number has invalid priority label $priority_label" ;;
+  esac
+  semver_label=$(cached_issue_matching_label "$issue_cache" "$issue_number" '^semver:') ||
     fail "Phase $phase issue #$issue_number must have exactly one SemVer label"
+  case "$semver_label" in
+    semver:major|semver:minor|semver:patch|semver:none) ;;
+    *) fail "Phase $phase issue #$issue_number has invalid SemVer label $semver_label" ;;
+  esac
   status_label=$(cached_issue_matching_label "$issue_cache" "$issue_number" '^status:') ||
     fail "Phase $phase issue #$issue_number must have exactly one status label"
 
@@ -785,6 +792,7 @@ EOF
     open:in-progress|closed:complete) ;;
     *) fail "Phase 25b issue #$issue_number state $issue_state disagrees with Phase status $phase_status" ;;
   esac
+  verify_phase_issue_labels "$issue_cache" "$issue_number" 25b "$body"
   current_count=$(grep -E -x -c '## Current milestone: m[0-9]+' "$body" 2>/dev/null || :)
   [ "$current_count" -eq 1 ] ||
     fail "Phase 25b issue #$issue_number must contain exactly one current milestone heading"
