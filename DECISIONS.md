@@ -3324,40 +3324,13 @@ Ship Bun-shaped pure-CL compression and archive surface without a new ledger row
 - 52-root residual owners dispositioned (engine/runtime/upstream-meta dominate).
 - Watch integration deferred to Phase 67; JSX coverage mapping follows language JSX.
 - Four-target platforms.tsv `supported`; ledger `clun_state=Yes`.
-- Release train: `0.1.0-dev.37` (reslot after archive Yes landed as `.35`).
+- Release train: `0.1.0-dev.39` (reslot after archive Yes landed as `.35`).
 
-## 2026-07-18 — runtime.web-standard-apis Partial→Yes (#130)
+## 2026-07-18 — Phase 47 runtime.node-compatibility Partial→Yes (#132)
 
-- Pure-CL WritableStream / TransformStream / BYOB readers with pipeTo/pipeThrough.
-- Fetch proxy object form `{url, headers}` on absolute-form HTTP and HTTPS CONNECT.
-- Hermetic 8 MiB Transform+BYOB stress fixture.
-- Four-target platforms.tsv `supported`; ledger `clun_state=Yes`.
-- Release train: free `0.1.0-dev.38` after websocket Yes `0.1.0-dev.37` and test-runner `0.1.0-dev.36`.
-
-### 2026-07-18 - runtime.web-standard-apis Partial→Yes (#130)
-
-Builds on #156 WritableStream/TransformStream. Adds pure-CL BYOB
-`getReader({mode:'byob'})`, Bun proxy object `{url,headers}` on absolute-form
-HTTP and HTTPS CONNECT, hermetic 8 MiB Transform+BYOB stress evidence, four-target
-supported platforms, and ledger Yes. Stages `0.1.0-dev.38`.
-
-### 2026-07-18 — Phase 75 Markdown + HTMLRewriter pure-CL without ledger expansion (#135)
-
-**Decision:** Ship pure-CL `Clun.markdown` + global `HTMLRewriter` under #135 without expanding `features.tsv` past 30 rows.
-**Consequences:** SemVer `minor` on `0.1.0-dev.39`; no matrix Yes claim; parent #49 keeps TOML/JSON5/JSONL.
-
-### 2026-07-18 — language.typescript Partial→Yes (#133)
-
-Bun-compatible TypeScript execution Yes bar without full tsc typecheck:
-
-- Erasable type stripping remains length-preserving for annotations.
-- Value/`const` enums, runtime namespaces/`module`, and constructor parameter
-  properties emit pure-CL runtime transforms (Bun-shaped).
-- Decorators, `import =` / `export =`, angle-cast, and `.tsx` still hard-error.
-- Four-target platforms.tsv `supported`; ledger `clun_state=Yes`.
-- Release train: `0.1.0-dev.40`.
-
-## 2026-07-19 — server.http Partial→Yes (#128)
-
-- Streaming response bodies pure-CL (chunked); request.body ReadableStream.
-- Ledger Yes + four-target supported. Train: `0.1.0-dev.41`.
+- Selected pure-CL Node surface complete: path (posix+win32), fs, url, buffer, events,
+  assert, util, timers(/promises), querystring, os, process globals, crypto helpers.
+- Eleven shipped-binary evidence fixtures; four-target `supported`; ledger `Yes`.
+- Honest bounds: not full Node.js module/API/CLI or V8 parity.
+- Canonical release record remains Phase 47 issue #21 (roadmap-verify-live); unit #132.
+- SemVer minor → free `0.1.0-dev.41` / `v0.1.0-dev.41` after master websocket Yes `.37`.
