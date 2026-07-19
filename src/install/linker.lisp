@@ -127,6 +127,45 @@ symlinks are preserved; device nodes are skipped. Used for file: dependencies."
     (when (sys:path-exists-p dest) (sys:remove-recursive dest))
     (%copy-tree src dest)))
 
+(defun %split-path-parts (path)
+  "Split a normalized absolute/relative path into non-empty segments."
+  (loop for start = 0 then (1+ pos)
+        for pos = (position #\/ path :start start)
+        for part = (subseq path start (or pos (length path)))
+        unless (zerop (length part)) collect part
+        while pos))
+
+(defun %relative-symlink-target (from-path to-path)
+  "Compute a relative symlink path from FROM-PATH (the link location) to TO-PATH (the target dir)."
+  (let* ((from-dir (sys:path-dirname from-path))
+         (from-parts (%split-path-parts (sys:normalize-path from-dir)))
+         (to-parts (%split-path-parts (sys:normalize-path to-path)))
+         (i 0)
+         (n (min (length from-parts) (length to-parts))))
+    (loop while (and (< i n) (string= (nth i from-parts) (nth i to-parts))) do (incf i))
+    (let ((ups (make-list (- (length from-parts) i) :initial-element ".."))
+          (down (subseq to-parts i)))
+      (if (and (null ups) (null down))
+          "."
+          (format nil "~{~a~^/~}" (append ups down))))))
+
+(defun %materialise-workspace-node (node dest)
+  "Symlink a workspace package from NODE's local-path into DEST (live link, exceeds file: copy)."
+  (let ((src (or (in-local-path node)
+                 (let ((tb (in-tarball node)))
+                   (when (and (stringp tb) (>= (length tb) 10)
+                              (string= "workspace:" tb :end2 10))
+                     (subseq tb 10))))))
+    (unless (and src (sys:directory-p src))
+      (error 'install-error :message (format nil "workspace package missing at ~a" src)))
+    (let ((parent (sys:path-dirname dest)))
+      (unless (sys:path-exists-p parent)
+        (sys:make-directory parent :recursive t :mode #o755)))
+    (when (sys:path-exists-p dest) (sys:remove-recursive dest))
+    (let ((target (handler-case (%relative-symlink-target dest src)
+                    (error () src))))
+      (sys:make-symlink target dest))))
+
 ;;; --- link a whole plan ------------------------------------------------------
 
 (defun link-plan (loop root plan nodes &key on-ok on-err)
@@ -169,6 +208,9 @@ linked, ON-ERR (condition)."
                             :message (format nil "missing node for ~a" key))))
                    ((eq (in-kind node) :file)
                     (handler-case (%materialise-file-node node dest)
+                      (error (e) (fail e))))
+                   ((eq (in-kind node) :workspace)
+                    (handler-case (%materialise-workspace-node node dest)
                       (error (e) (fail e))))
                    (t
                     (let* ((integrity (in-integrity node))

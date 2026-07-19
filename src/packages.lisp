@@ -528,7 +528,8 @@ hardened verify-then-commit extractor + content-addressed cache.")
                     (:tb :clun.tarball) (:integ :clun.integrity) (:lp :clun.loop) (:net :clun.net))
   (:documentation "clun install: dependency resolution (breadth-first, highest-satisfying,
 cycle-safe) + hoisted-layout placement over the Phase-21 registry client, feeding the Phase-22
-extractor + cache and the clun.lock lockfile.")
+extractor + cache and the clun.lock lockfile. Phase 60 monorepo workspaces, catalogs, filters,
+and concurrent topological script runs.")
   (:export
    ;; conditions
    #:install-error #:install-error-message #:lock-drift-error
@@ -546,4 +547,11 @@ extractor + cache and the clun.lock lockfile.")
    #:read-package-json #:root-deps #:install #:install-async
    ;; package.json editing (add / remove) + latest resolution
    #:add-dependencies #:remove-dependencies #:resolve-latest #:resolve-latest-async
-   #:install-result #:install-result-p #:ir-source #:ir-plan #:ir-node-count #:ir-lifecycle-skipped))
+   #:install-result #:install-result-p #:ir-source #:ir-plan #:ir-node-count #:ir-lifecycle-skipped
+   ;; monorepo workspaces (Phase 60)
+   #:workspace #:workspace-p #:ws-name #:ws-version #:ws-path #:ws-relative #:ws-package #:ws-deps #:ws-scripts
+   #:workspace-graph #:workspace-graph-p #:wg-root #:wg-packages #:wg-by-name #:wg-catalog #:wg-catalogs
+   #:discover-workspaces #:workspace-packages #:filter-workspaces #:workspace-matches-filter-p
+   #:parse-workspaces-field #:expand-dep-spec #:resolve-catalog-range
+   #:collect-install-deps #:workspace-link-deps #:workspace-topo-waves
+   #:run-workspace-scripts #:workspace-spec-p #:catalog-spec-p))

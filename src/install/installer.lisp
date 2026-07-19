@@ -122,65 +122,81 @@ that were present."
     (%write-package-json-file root pkg)
     (nreverse removed)))
 
-(defun install-async (loop root &key registry frozen production on-ok on-err)
+(defun %monorepo-root-deps (root &key production filters)
+  "Build the unified install dep set for ROOT. When workspaces are present, union root + filtered
+workspace package deps, expand catalog:/workspace: protocols, and inject workspace link edges."
+  (let* ((graph (discover-workspaces root))
+         (has-ws (and (wg-patterns graph) (plusp (length (wg-patterns graph)))))
+         (selected (if has-ws
+                       (filter-workspaces graph filters :include-root t)
+                       (list (first (wg-packages graph)))))
+         (deps (if has-ws
+                   (append (collect-install-deps graph selected :production production)
+                           (workspace-link-deps selected))
+                   (root-deps (wg-root-package graph) :production production))))
+    (values deps graph has-ws selected)))
+
+(defun install-async (loop root &key registry frozen production filters on-ok on-err)
   "Async core of `install`, driving the CALLER's LOOP (so a hermetic test can share the fixture
 registry's loop — a second concurrent event loop is avoided). Reads ROOT/package.json + clun.lock
 synchronously (may signal for a missing package.json), then either reinstalls from a fresh lock / under
---frozen (offline-capable via the cache) or resolves fresh over REGISTRY and writes the lock. Calls
-ON-OK with an install-result, or ON-ERR with a condition. The synchronous prelude (reading + shape-
-checking package.json / clun.lock) is wrapped so a malformed input reaches ON-ERR as an install-error
-rather than a raw condition escaping onto the caller's loop (§6)."
+--frozen (offline-capable via the cache) or resolves fresh over REGISTRY and writes the lock.
+FILTERS is a list of --filter patterns selecting monorepo packages (NIL = all workspaces).
+Calls ON-OK with an install-result, or ON-ERR with a condition."
   (handler-case
-   (let* ((pkg (read-package-json root))
-          (deps (root-deps pkg :production production))
-          (lock (read-lock root)))
-    (labels ((from-lock ()
-               (multiple-value-bind (plan nodes) (lock->plan lock)
-                 (link-plan loop root plan nodes
-                   :on-ok (lambda () (when on-ok
-                                       (funcall on-ok (make-install-result :source :from-lock :plan plan
-                                                                           :node-count (hash-table-count nodes)))))
-                   :on-err (lambda (e) (when on-err (funcall on-err e))))))
-             (resolve-fresh ()
-               (resolve-install loop deps :registry registry :project-root root
-                 :on-ok (lambda (nodes ev)
-                          (handler-case
-                              (let ((plan (plan-layout nodes ev deps)))
-                                (link-plan loop root plan nodes
-                                  :on-ok (lambda ()
-                                           (write-lock root plan nodes)
-                                           (when on-ok
-                                             (funcall on-ok (make-install-result
-                                                             :source :resolved :plan plan
-                                                             :node-count (hash-table-count nodes)
-                                                             :lifecycle-skipped (%collect-lifecycle-scripts plan nodes)))))
-                                  :on-err (lambda (e) (when on-err (funcall on-err e)))))
-                            (error (e) (when on-err (funcall on-err e)))))
-                 :on-err (lambda (e) (when on-err (funcall on-err e))))))
-      (cond
-        (frozen
-         (cond ((null lock)
-                (when on-err (funcall on-err (make-condition 'lock-drift-error
-                              :message "no clun.lock; --frozen-lockfile requires an up-to-date lock"))))
-               ((not (lock-satisfies-p lock deps))
-                (when on-err (funcall on-err (make-condition 'lock-drift-error
-                              :message "clun.lock is out of date with package.json (--frozen-lockfile)"))))
-               (t (from-lock))))
-        ((and lock (lock-satisfies-p lock deps)) (from-lock))
-        (t (resolve-fresh)))))
+   (multiple-value-bind (deps graph has-ws selected)
+       (%monorepo-root-deps root :production production :filters filters)
+     (declare (ignore selected))
+     (let ((lock (read-lock root)))
+       (labels ((from-lock ()
+                  (multiple-value-bind (plan nodes) (lock->plan lock)
+                    (link-plan loop root plan nodes
+                      :on-ok (lambda () (when on-ok
+                                          (funcall on-ok (make-install-result :source :from-lock :plan plan
+                                                                              :node-count (hash-table-count nodes)))))
+                      :on-err (lambda (e) (when on-err (funcall on-err e))))))
+                (resolve-fresh ()
+                  (resolve-install loop deps :registry registry :project-root root
+                                   :workspace-graph (and has-ws graph)
+                    :on-ok (lambda (nodes ev)
+                             (handler-case
+                                 (let ((plan (plan-layout nodes ev deps)))
+                                   (link-plan loop root plan nodes
+                                     :on-ok (lambda ()
+                                              (write-lock root plan nodes)
+                                              (when on-ok
+                                                (funcall on-ok (make-install-result
+                                                                :source :resolved :plan plan
+                                                                :node-count (hash-table-count nodes)
+                                                                :lifecycle-skipped (%collect-lifecycle-scripts plan nodes)))))
+                                     :on-err (lambda (e) (when on-err (funcall on-err e)))))
+                               (error (e) (when on-err (funcall on-err e)))))
+                    :on-err (lambda (e) (when on-err (funcall on-err e))))))
+         (cond
+           (frozen
+            (cond ((null lock)
+                   (when on-err (funcall on-err (make-condition 'lock-drift-error
+                                 :message "no clun.lock; --frozen-lockfile requires an up-to-date lock"))))
+                  ((not (lock-satisfies-p lock deps))
+                   (when on-err (funcall on-err (make-condition 'lock-drift-error
+                                 :message "clun.lock is out of date with package.json (--frozen-lockfile)"))))
+                  (t (from-lock))))
+           ((and lock (lock-satisfies-p lock deps)) (from-lock))
+           (t (resolve-fresh))))))
    (install-error (e) (when on-err (funcall on-err e)))
    (error (e) (when on-err (funcall on-err (make-condition 'install-error
                             :message (format nil "install setup failed: ~a" e)))))))
 
-(defun install (root &key registry frozen production)
+(defun install (root &key registry frozen production filters)
   "Blocking install: create a private event loop, run install-async to settlement, and RETURN the
 install-result — or SIGNAL install-error / lock-drift-error / a transport error. Use install-async on
-a shared loop when the registry runs in-process (a hermetic test)."
+a shared loop when the registry runs in-process (a hermetic test). FILTERS selects monorepo packages."
   (let ((loop (lp:make-event-loop :workers 0)) (result nil) (err nil) (settled nil))
     (unwind-protect
          (progn
            (handler-case
                (install-async loop root :registry registry :frozen frozen :production production
+                              :filters filters
                  :on-ok (lambda (r) (setf result r settled t) (lp:loop-stop loop))
                  :on-err (lambda (e) (setf err e settled t) (lp:loop-stop loop)))
              (error (e) (setf err e settled t)))

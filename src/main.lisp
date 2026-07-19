@@ -19,8 +19,14 @@
                   ~8@Tclun install            install package.json deps into node_modules~%~
                   ~8@Tclun add <pkg>          add a dependency (-d dev, -E exact) + install~%~
                   ~8@Tclun remove <pkg>       remove a dependency + reinstall~%~
+                  ~8@Tclun run [--filter <p>] <script>  run package.json scripts (filtered monorepo)~%~
                   ~%~
                   Flags: --cwd <dir>   set the working directory~%~
+                  ~8@T--filter/-F <p>   monorepo package name or ./path filter (repeatable)~%~
+                  ~8@T--workspaces     run a script across every workspace package~%~
+                  ~8@T--parallel       concurrent filtered scripts (topo waves)~%~
+                  ~8@T--sequential     sequential filtered scripts~%~
+                  ~8@T--concurrency N  max concurrent workspace scripts (default 4)~%~
                   ~8@T--silent          suppress console.log/info/debug~%~
                   ~8@T--backtrace       show the Lisp backtrace on an internal error~%~
                   ~8@T-v, --version     print the version~%~
@@ -147,13 +153,14 @@ the CLI's trailing args). .ts/.mts/.cts are stripped by *ts-strip-hook*; .jsx/.t
 
 (defun run-install-command (r)
   "Handle `clun install` / `add <pkg…>` / `remove <pkg…>`: edit package.json for add/remove, then
-install. Flags: -d/-D/--dev, -E/--exact, --frozen-lockfile, --production, --dry-run, --registry."
+install. Flags: -d/-D/--dev, -E/--exact, --frozen-lockfile, --production, --dry-run, --registry,
+--filter/-F (monorepo package selection)."
   (let ((sub (cli:cli-get r :subcommand))
         (cwd (resolve-cwd r))
-        (names '()) (registry nil)
+        (names '()) (registry nil) (filters '())
         (dev nil) (exact nil) (frozen nil) (production nil) (dry-run nil))
-    ;; walk the tokens: --registry consumes its value (a bare URL is NOT a package name), other
-    ;; flags set booleans, everything else is a package name.
+    ;; walk the tokens: --registry/--filter consume values; other flags set booleans;
+    ;; everything else is a package name.
     (loop with rest = (remove nil (cons (cli:cli-get r :file) (cli:cli-get r :args)))
           while rest
           for tok = (pop rest) do
@@ -164,6 +171,12 @@ install. Flags: -d/-D/--dev, -E/--exact, --frozen-lockfile, --production, --dry-
               ((string= tok "--production") (setf production t))
               ((string= tok "--dry-run") (setf dry-run t))
               ((string= tok "--no-save") nil)                 ; accepted; no-op here
+              ((member tok '("--filter" "-F") :test #'string=)
+               (if (and rest (not (%flag-p (car rest))))
+                   (push (pop rest) filters)
+                   (error 'clun.installer:install-error :message "--filter requires a value")))
+              ((and (> (length tok) 9) (string= "--filter=" tok :end2 9))
+               (push (subseq tok 9) filters))
               ((string= tok "--registry")
                (if (and rest (not (%flag-p (car rest))))
                    (setf registry (pop rest))
@@ -171,7 +184,7 @@ install. Flags: -d/-D/--dev, -E/--exact, --frozen-lockfile, --production, --dry-
               ((and (> (length tok) 11) (string= "--registry=" tok :end2 11)) (setf registry (subseq tok 11)))
               ((%flag-p tok) nil)                             ; ignore any other flag
               (t (push tok names))))
-    (setf names (nreverse names))
+    (setf names (nreverse names) filters (nreverse filters))
     (handler-case
         (progn
           (cond
@@ -180,20 +193,22 @@ install. Flags: -d/-D/--dev, -E/--exact, --frozen-lockfile, --production, --dry-
              (if dry-run
                  (format t "clun add (dry-run): ~{~a~^, ~}~%" names)
                  (progn (clun.installer:add-dependencies cwd names :dev dev :exact exact :registry registry)
-                        (clun.installer:install cwd :registry registry :production production)
+                        (clun.installer:install cwd :registry registry :production production
+                                                :filters filters)
                         (format t "installed ~{~a~^, ~}~%" names))))
             ((string= sub "remove")
              (when (null names) (error 'clun.installer:install-error :message "remove: no packages given"))
              (if dry-run
                  (format t "clun remove (dry-run): ~{~a~^, ~}~%" names)
                  (progn (clun.installer:remove-dependencies cwd names)
-                        (clun.installer:install cwd :registry registry :production production)
+                        (clun.installer:install cwd :registry registry :production production
+                                                :filters filters)
                         (format t "removed ~{~a~^, ~}~%" names))))
             (t
              (if dry-run
                  (format t "clun install (dry-run)~%")
                  (let ((res (clun.installer:install cwd :registry registry :frozen frozen
-                                                        :production production)))
+                                                        :production production :filters filters)))
                    (format t "clun install: ~(~a~), ~d package~:p~%"
                            (clun.installer:ir-source res) (clun.installer:ir-node-count res))
                    (dolist (s (clun.installer:ir-lifecycle-skipped res))
@@ -279,17 +294,59 @@ propagates; the first nonzero stage's code is returned."
 (defun run-script (r)
   "`clun run <name> [args]`: run a package.json script (`/bin/sh -c`, ancestor .bin PATH, pre/post,
 npm_* env, arg passthrough); if <name> is not a script, fall through to running it as a FILE
-(script-first, file-fallback). `--if-present` on a missing script exits 0."
+(script-first, file-fallback). `--if-present` on a missing script exits 0.
+With `--filter` / `--workspaces`, run the script across monorepo packages (topological concurrent
+waves with `--parallel`, sequential with `--sequential`; exceeds Bun with `--concurrency`)."
   (let* ((cwd (resolve-cwd r))
          (toks (remove nil (cons (cli:cli-get r :file) (cli:cli-get r :args))))
-         (if-present nil) (name nil) (passthrough '()))
+         (if-present nil) (name nil) (passthrough '())
+         (filters '()) (workspaces nil) (parallel t) (concurrency 4)
+         (exit-on-error t))
     (loop with rest = toks while rest for tok = (pop rest) do
       (cond ((string= tok "--if-present") (setf if-present t))
+            ((string= tok "--workspaces") (setf workspaces t))
+            ((string= tok "--parallel") (setf parallel t))
+            ((string= tok "--sequential") (setf parallel nil))
+            ((string= tok "--no-exit-on-error") (setf exit-on-error nil))
+            ((member tok '("--filter" "-F") :test #'string=)
+             (if (and rest (not (%flag-p (car rest))))
+                 (push (pop rest) filters)
+                 (progn (format *error-output* "clun run: --filter requires a value~%")
+                        (return-from run-script 2))))
+            ((and (> (length tok) 9) (string= "--filter=" tok :end2 9))
+             (push (subseq tok 9) filters))
+            ((string= tok "--concurrency")
+             (if (and rest (not (%flag-p (car rest))))
+                 (setf concurrency (max 1 (or (parse-integer (pop rest) :junk-allowed t) 4)))
+                 (progn (format *error-output* "clun run: --concurrency requires a value~%")
+                        (return-from run-script 2))))
+            ((and (> (length tok) 14) (string= "--concurrency=" tok :end2 14))
+             (setf concurrency (max 1 (or (parse-integer (subseq tok 14) :junk-allowed t) 4))))
             ((%flag-p tok) nil)                    ; ignore other leading flags before the name
             (t (setf name tok passthrough rest) (return))))
+    (setf filters (nreverse filters))
     (when (null name)
       (format *error-output* "clun run: no script or file specified~%")
       (return-from run-script 2))
+    ;; Filtered / workspaces monorepo script execution.
+    (when (or filters workspaces)
+      (return-from run-script
+        (handler-case
+            (let* ((graph (clun.installer:discover-workspaces cwd))
+                   (pkgs (if workspaces
+                             (clun.installer:filter-workspaces graph filters :include-root t)
+                             (clun.installer:filter-workspaces graph filters :include-root t))))
+              (when (null pkgs)
+                (format *error-output* "clun run: no packages matched filters~%")
+                (return-from run-script 1))
+              (clun.installer:run-workspace-scripts
+               graph pkgs name
+               :parallel parallel :concurrency concurrency
+               :exit-on-error exit-on-error :if-present if-present
+               :passthrough passthrough))
+          (clun.installer:install-error (e)
+            (format *error-output* "clun: ~a~%" (clun.installer:install-error-message e))
+            1))))
     (multiple-value-bind (pkg pkg-dir pkg-json) (%nearest-package-json cwd)
       (declare (ignore pkg-dir))
       (let* ((scripts (and pkg (sys:jobject-p pkg) (sys:jget pkg "scripts")))

@@ -112,7 +112,8 @@
                                            (:file "resolver")
                                            (:file "linker")
                                            (:file "lockfile")
-                                           (:file "installer")))
+                                           (:file "installer")
+                                           (:file "workspaces")))
                              ;; Phase 74: pure-CL compress + ustar/zip (Clun.Archive / gzipSync).
                              (:module "archive"
                               :serial t
@@ -370,7 +371,8 @@
                                                          (:file "tarball-tests")
                                                          (:file "resolver-tests")
                                                          (:file "install-tests")
-                                                         (:file "cli-tests")))
+                                                         (:file "cli-tests")
+                                                         (:file "workspace-tests")))
                                            (:module "archive"
                                             :serial t
                                             :components ((:file "compress-tests")

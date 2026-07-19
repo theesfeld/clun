@@ -78,13 +78,18 @@ skips an entry whose value is not an object or whose version is not a string."
                        (resolved (sys:jget obj "resolved"))
                        (file-p (and (stringp resolved) (>= (length resolved) 5)
                                     (string= "file:" resolved :end2 5)))
-                       (local (when file-p (subseq resolved 5))))
+                       (ws-p (and (stringp resolved) (>= (length resolved) 10)
+                                  (string= "workspace:" resolved :end2 10)))
+                       (local (cond (file-p (subseq resolved 5))
+                                    (ws-p (subseq resolved 10))
+                                    (t nil))))
                   (setf (gethash (format nil "~a@~a" name version) nodes)
                         (make-inst-node :name name :version version :deps deps
                                         :tarball resolved
                                         :integrity (or (sys:jget obj "integrity") "")
                                         :bin bin
-                                        :kind (cond (file-p :file)
+                                        :kind (cond (ws-p :workspace)
+                                                    (file-p :file)
                                                     ((and (stringp resolved)
                                                           (or (and (>= (length resolved) 8)
                                                                    (string-equal "https://" resolved :end2 8))
