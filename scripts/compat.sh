@@ -318,7 +318,13 @@ run_fixture() {
   stdout="$work/$evidence_id.stdout"
   stderr="$work/$evidence_id.stderr"
   status=0
-  (cd "$fixture_dir" && env CI=0 "$repo_root/$executable" "$@") \
+  # Hermetic secrets vault for fixtures that exercise Clun.secrets (#179).
+  secrets_dir="$work/$evidence_id.secrets"
+  mkdir -p "$secrets_dir"
+  (cd "$fixture_dir" && env CI=0 \
+    CLUN_SECRETS_PATH="$secrets_dir/vault" \
+    CLUN_SECRETS_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef \
+    "$repo_root/$executable" "$@") \
     >"$stdout" 2>"$stderr" || status=$?
   if [ "$status" -ne "$expected_exit" ]; then
     {

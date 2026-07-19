@@ -7,16 +7,14 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **60 - Workspaces and monorepos**  (Yes conversion #182)
+## Current phase: **58 - Encrypted secrets storage**  (FULL PORT Yes #179)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/182
-**Parent epic:** https://github.com/theesfeld/clun/issues/177
-**Current implementation unit:** package-manager.monorepo No→Yes (#182).
-Workspaces are **Yes**: globs/exclusions, `workspace:` live symlink linking, `catalog:`/`catalogs`,
-`--filter` name/path/negation for install and run, topological concurrent script waves with
-`--concurrency`, four-target supported via `examples/e2e-monorepo.sh`. Gap column empty (`-`).
+**Canonical issue:** https://github.com/theesfeld/clun/issues/179
+**Parent:** https://github.com/theesfeld/clun/issues/177
+**Current implementation unit:** security.encrypted-secrets full port Yes (#179).
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.48` / `v0.1.0-dev.48`
+**Candidate release:** `0.1.0-dev.49` / `v0.1.0-dev.49`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
-**Entry boundary:** installer on `v0.1.0-dev.21`; free slot after master language.jsx Yes `0.1.0-dev.47`.
+**Entry boundary:** installer on `v0.1.0-dev.21`; free slot after monorepo Yes `0.1.0-dev.48`.
+
 **Next scope:** remaining FULL PORT ledger Nos under #177.

@@ -1,8 +1,16 @@
 # Phase 58 — Operating-system secrets constitutional checkpoint
 
-Status: accepted as **No — constitutional**. OS keychain parity is not delivered under the purity
-contract. `Clun.secrets` exists, validates Bun-shaped arguments, and fails closed with a tested
-clear error. This phase does **not** promote `security.encrypted-secrets` to `Yes` or `Partial`.
+> **Superseded for ledger disposition by Issue #179 / epic #177 (FULL PORT, 2026-07-18).**
+> Purity is implementation language (pure Common Lisp), not feature exclusion. `security.encrypted-secrets`
+> is **Yes**: `Clun.secrets` is backed by a pure-CL AES-256-GCM encrypted file vault that meets
+> Bun.secrets (`get`/`set`/`delete`, service/name, empty-value delete, `allowUnrestrictedAccess`) and
+> exceeds it (`has`/`list`/`clear`, `CLUN_SECRETS_KEY`/`CLUN_SECRETS_PATH`, `backend: "vault"`) on all
+> four targets without CFFI. Historical Phase 58 text below records the original constitutional
+> checkpoint and spike results; do not re-apply the fail-closed disposition.
+
+Status (historical Phase 58): accepted as **No — constitutional** under the then-active purity-as-exclusion
+reading. That disposition is **revoked** for the matrix row by #179. OS keychain foreign APIs remain
+unused; the Yes realization is the pure vault, not a fake OS keychain.
 
 ## Objective
 
