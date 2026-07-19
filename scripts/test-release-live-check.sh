@@ -186,6 +186,7 @@ if ! awk '
 fi
 # shellcheck disable=SC2016 # Match literal workflow variables, not this fixture process.
 for hosted_update_check in \
+  'GH_TOKEN: ${{ github.token }}' \
   'clun --check-update' \
   'clun --update' \
   'test "$install_after" = "$install_before"'; do
