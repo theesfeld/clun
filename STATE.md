@@ -11,12 +11,18 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 **Canonical issue:** https://github.com/theesfeld/clun/issues/56
 **Parent:** https://github.com/theesfeld/clun/issues/177
-**Current implementation unit:** Issue #221 global CLI distribution contract and safe full-bundle updater activation.
+**Current implementation unit:** Issue #231 exact-master Actions trigger recovery after the workflow-bearing #230 merge.
 **SemVer impact:** `major` intent, published as the pre-1.0 minor-core transition to `0.2.0`.
 **Candidate release:** `0.2.0-dev.1` / `v0.2.0-dev.1`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
 **Tagged without a GitHub Release:** `v0.1.0-dev.68`, `v0.1.0-dev.69`, and
 `v0.1.0-dev.70`; dev.70 is immutable at `0f01413c2922121de142ba732866580e9e070a79`.
 
-**Next scope:** merge Issue #221 only after current-master gates pass, then tag and publish only from
-the exact green merge commit.
+**Ship candidate master:** PR #230 merged at `795fad8acc3d61183c92dfa98db15b97144be38c`.
+Its OAuth-authenticated workflow-bearing squash merge emitted no push-event check suite; Issue #231
+records the non-workflow PR recovery while manually dispatched candidate Pages run 29698517283 deploys
+that exact commit.
+
+**Next scope:** land Issue #231 without changing product behavior, require exact push-event CI,
+Documentation, four-target Compatibility, and Pages on the resulting frozen master, then create the
+immutable release tag only from that exact green commit.
