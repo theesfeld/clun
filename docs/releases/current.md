@@ -1,5 +1,5 @@
 <!-- clun-generated:release-notes:begin -->
-# Clun 0.1.0-dev.62
+# Clun 0.1.0-dev.67
 
 Phase 47: Node compatibility certification.
 
@@ -13,8 +13,5 @@ The canonical evidence and current limitations are in `compat/`; `make compat-va
 <!-- clun-generated:release-notes:end -->
 ## Highlights
 
-- Issue #191 promotes `runtime.node-compatibility` Partial→**Yes** with pure-CL Bun-comparable `node:` matrix (54 builtins) exceeding Bun (sqlite, module.register, repl).
-- Issue #189 promotes `tooling.frontend-dev-server` No→**Yes** (pure-CL HTML entry + HMR).
-- Issue #180 promotes `tooling.bundler` No→**Yes** (`Clun.build` pure-CL).
-- Issue #187 promotes `runtime.loader-plugins` No→**Yes** (pure-CL `Clun.plugin` exceeding `Bun.plugin`).
-- Slot: free `0.1.0-dev.57` after master frontend-dev Yes `0.1.0-dev.56`.
+- Issue #191 promotes `runtime.node-compatibility` Partial→**Yes** (pure-CL Node surface exceeding Bun).
+- Slot: free `0.1.0-dev.67` after master Phase 37 m4 `0.1.0-dev.63` (webstd `.64`, fmt-lint `.65`, native-addons `.66`).

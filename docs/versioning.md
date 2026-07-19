@@ -336,8 +336,6 @@ Phase 62 bundler FULL PORT (#180) stages free `0.1.0-dev.55` / `v0.1.0-dev.55`; 
 Phase 68 frontend-dev-server FULL PORT (#189) stages free `0.1.0-dev.54` / `v0.1.0-dev.54`; SemVer impact is `minor`.
 Phase 69 frontend-dev FULL PORT (#189) stages free `0.1.0-dev.56` / `v0.1.0-dev.56`; SemVer impact is `minor`.
 
-Phase 52 single-file executables FULL PORT (#181) stages free `0.1.0-dev.57` / `v0.1.0-dev.57` with pure-CL compile/cross-compile/embed/sign exceeding Bun compile; SemVer impact is `minor`.
+Phase 37 milestone 4 (keyed Promise combinators, Issue #11) stages free `0.1.0-dev.63` / `v0.1.0-dev.63`: pure-CL `Promise.allKeyed` / `Promise.allSettledKeyed` converting 74 frozen Test262 failures. SemVer impact is `minor`. No matrix Yes; Phase 37 remains open.
 
-Phase 39 TypeScript FULL PORT (#192 / canonical #13) stages free `0.1.0-dev.59` / `v0.1.0-dev.59` (leave `0.1.0-dev.58` for webstd #210); SemVer impact is `minor`.
-Phase 47 runtime.node-compatibility FULL PORT (#191) stages free `0.1.0-dev.62` / `v0.1.0-dev.62` with pure-CL Bun-comparable node: module matrix exceeding Bun (sqlite, module.register, repl); SemVer impact is `minor`.
-
+Phase 47 runtime.node-compatibility FULL PORT (#191 / canonical #21) stages free `0.1.0-dev.67` / `v0.1.0-dev.67` after Phase 37 m4 `0.1.0-dev.63` with pure-CL Bun-comparable node: module matrix exceeding Bun (sqlite, module.register, repl); SemVer impact is `minor`.
