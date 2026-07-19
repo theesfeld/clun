@@ -3,7 +3,7 @@
 # dependency; the Clun client remains pure Common Lisp.
 set -eu
 
-repo_root=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
+repo_root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd)
 scratch=$(mktemp -d "${TMPDIR:-/tmp}/clun-tls12.XXXXXX")
 server_pid=
 upload_server_pid=

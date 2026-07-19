@@ -6,6 +6,33 @@
 
 (in-package :clun-test)
 
+(define-test cli/install-package-is-add-alias
+  "`clun install <pkg...>` must retain its package arguments and enter the same
+package-add path as `clun add <pkg...>`; a no-argument install remains the
+manifest install path. The dry-run surface makes this dispatch proof hermetic."
+  (flet ((dry-run (argv)
+           (let ((result (cli:parse-cli-args argv)))
+             (values
+              (with-output-to-string (out)
+                (let ((*standard-output* out))
+                  (is = 0 (clun::run-install-command result))))
+              result))))
+    (multiple-value-bind (output result)
+        (dry-run '("install" "left-pad@1.3.0" "is-number@7.0.0" "--dry-run"))
+      (is equal "install" (cli:cli-get result :subcommand))
+      (is equal "left-pad@1.3.0" (cli:cli-get result :file))
+      (is equal (format nil
+                        "clun install (dry-run): left-pad@1.3.0, is-number@7.0.0~%")
+          output))
+    (multiple-value-bind (output result)
+        (dry-run '("add" "left-pad@1.3.0" "--dry-run"))
+      (declare (ignore result))
+      (is equal (format nil "clun add (dry-run): left-pad@1.3.0~%") output))
+    (multiple-value-bind (output result)
+        (dry-run '("install" "--dry-run"))
+      (declare (ignore result))
+      (is equal (format nil "clun install (dry-run)~%") output))))
+
 (define-test cli/add-remove-edits-package-json
   ;; add (explicit ranges — no registry) merges into dependencies / devDependencies; remove prunes.
   (let ((proj (clun.sys:make-temp-dir "/tmp/clun-cli-")))

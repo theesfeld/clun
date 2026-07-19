@@ -99,7 +99,7 @@ test-proxy:
 test-dns:
 	$(SBCL) $(SBCL_FLAGS) --load scripts/run-dns-tests.lisp
 
-## smoke-npm — opt-in live public-registry install + SRI + execution smoke (Phase 28).
+## smoke-npm — live, non-hermetic public-registry package smoke (required in Compatibility/Release).
 smoke-npm: build
 	sh scripts/smoke-npm.sh
 

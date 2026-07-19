@@ -15,7 +15,7 @@ Clun does not claim blanket speed parity with Bun.
 > and hosted-installer evidence.
 > Phase 26 remains deferred until after Phase 82 and will
 > be rewritten for the repository state that exists then.
-> Clun's full-port target requires every ledger Yes to survive executable and public-claim audit. The current snapshot is 28 Yes / 2 Partial / 0 No; qualified evidence is not treated as complete.
+> Clun's full-port target requires every ledger Yes to survive executable and public-claim audit. The current snapshot is 27 Yes / 3 Partial / 0 No; qualified evidence is not treated as complete.
 > The canonical issue is the live source of truth; `PLAN.md` is the technical contract and `STATE.md` is
 > the local resume checklist.
 <!-- clun-generated:release:end -->
@@ -86,10 +86,16 @@ clun --update         # verify and activate the complete release bundle
 # or: clun check-update / clun update
 ```
 
-Clun is still pre-alpha; pre-1.0 minor versions may include breaking changes. In particular,
-`clun install` is verified against the hermetic registry
-fixture, but the default public npm registry currently hits a TLS `protocol_version`
-interoperability gap.
+Clun is still pre-alpha; pre-1.0 minor versions may include breaking changes. The current
+`0.2.0-dev.1` source candidate passes a live `registry.npmjs.org` smoke through both `clun add <pkg>`
+and Bun-compatible `clun install <pkg>`, including a transitive dependency graph, SRI-verified
+tarballs, installed-package execution, and byte-identical frozen cache-only reinstalls while both
+registry metadata and public HTTPS tarball fallback are denied. This live, non-hermetic gate uses
+Clun's experimental bounded pure-CL TLS profile. The still-published
+`v0.1.0-dev.21` binary predates the pure-CL TLS 1.2 fallback and returns a fatal
+`protocol_version` alert against the public registry; [Issue #233](https://github.com/theesfeld/clun/issues/233)
+and [Issue #234](https://github.com/theesfeld/clun/issues/234) block the candidate release until the
+working path and bounded WebPKI hardening are published and verified.
 
 ## What works
 
@@ -117,7 +123,7 @@ interoperability gap.
 - `clun test` with hooks, filters, async tests, timeouts, 62 core and extended matchers, function
   mocks/spies, expected-failure modifiers, snapshots, cooperative concurrency, parallel files,
   array-parameterized tests and suites, retries, and repeats.
-- `clun install`, `add`, `remove`, and package scripts with a deterministic lockfile and cache.
+- `clun install [pkg…]`, `add`, `remove`, and package scripts with a deterministic lockfile and cache.
 
 The checked-in curated test262 pass list contains 26,018 tests. The current
 40,654-row off-mode execution ledger measures 26,018 passes and 2,145 gaps across 28,163 eligible tests
@@ -170,7 +176,7 @@ July 16, 2026. Engineering references are separately pinned to Bun commit `c1076
 | YAML | Yes: `Clun.YAML` parser/stringifier and `.yaml`/`.yml` module loading | [Phase 31](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-31) |
 | Cookies API | Yes: `Clun.Cookie` and `Clun.CookieMap` with request/response integration | [Phase 32](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-32) |
 | Encrypted secrets storage | Partial: `Clun.secrets` Bun-shaped get/set/delete plus has/list/clear backed by a pure-CL AES-256-GCM file vault; no OS keychain, native ACL/prompt/locked-store behavior, or Keychain/libsecret interoperability | [Phase 58](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-58) |
-| npm package management | Yes: `clun install`/`add`/`remove` with registry packages (semver ranges, dist-tags), npm: aliases, file:/link: local packages, optionalDependencies soft-fail, hoisted node_modules, clun.lock offline reinstall, SRI-verified tarballs, and four-target hermetic install receipts | Phases [28](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-28), [59](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-59), [60](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-60), [61](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-61) |
+| npm package management | Partial: `clun add <pkg>` and Bun-compatible `clun install <pkg>` resolve public npm metadata and tarballs through an experimental bounded pure-CL TLS profile; no-argument install resolves the existing manifest; all paths enforce SRI, write `clun.lock`, materialize `node_modules`, and reinstall offline from cache; aliases, local packages, optional dependencies, hoisting, workspaces, and four-target hermetic receipts are covered | Phases [28](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-28), [59](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-59), [60](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-60), [61](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-61) |
 | Bundler | Yes: Clun.build and clun build pure-CL production bundler: entrypoints, dependency graph, ESM/CJS/IIFE formats, code splitting, minification, loaders (js/ts/tsx/jsx/json/text/file/dataurl/css/html), define, external, packages external or bundle, naming templates, banner/footer, metafile, sourcemaps, target, publicPath, env inlining, drop, features, virtual files, tree shaking, asset hashing, Clun.build.analyze and Clun.buildSync exceed surface, four-target receipts | Phases [62](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-62), [63](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-63), [64](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-64), [77](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-77) |
 | Cross-platform shell API | Yes: `Clun.$`, `clun exec`, standalone `.bun.sh` files with positional parameters, dollar and backtick command substitution, background jobs and wait, merged stdout/stderr pipelines, grouped subshells and brace groups nested across `if` control flow, Blob/Response I/O, positive extended-glob conditions, compound-word field splitting, 100-level arrays, Unicode, tilde and continuation expansion, builtins, and 1,598/1,630 pinned shell sites (32 upstream-inactive) | [Phase 65](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-65) |
 | Jest-compatible test runner | Yes: 62 core and extended matchers, snapshot lifecycles with stable property tokens and Bun-formatted core values including own-accessor Getter tokens and control-byte escapes, source-aligned ESM/CommonJS/TypeScript statement and function coverage with Bun-shaped text and LCOV reporters, filters, config, and thresholds, custom and Promise-settlement asymmetric matchers, per-realm ESM/CJS module mocks, CLI and bunfig setup preloads, realm-local Jest and vi fake timers with Date and performance clock control, seeded Bun-pinned randomization, deterministic file sharding, dots and JUnit reporters, function mocks/spies, callbacks, cleanup, parameterization, retries, repeats, cooperative test.concurrent / describe.concurrent / test.serial scheduling with --concurrent and --max-concurrency, pure-CL --parallel multi-file process pools with serial/parallel count agreement, expect.unreachable, and runtime expectTypeOf | [Phase 66](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-66) |
@@ -234,18 +240,21 @@ The last published prerelease remains [`v0.1.0-dev.21`](https://github.com/thees
 **ironclad** libraries, both pure Common Lisp — is **unaudited**, young, and not hardened against
 side-channel adversaries. Do not rely on it where a compromise would be serious.
 
-What Clun does guarantee: HTTPS **fails closed**. A connection is rejected with a distinct, catchable
-error whenever the server's certificate is expired, is for the wrong host, is self-signed, chains to
-an untrusted root, or is simply not presented — and there is no "ignore certificate errors" switch.
-Clun explicitly rejects a missing peer certificate when verification is required, closing the
-pure-tls verification gap recorded in `DECISIONS.md`. Trust anchors resolve from `$SSL_CERT_FILE` /
-`$SSL_CERT_DIR`, else the system CA bundle; if none is found, verification rejects rather than
-trusting nothing.
+The experimental profile checks certificate presence, validity, hostname, signatures, basic chain
+constraints, and an explicit system trust anchor; there is no public "ignore certificate errors"
+switch. These checks are not yet a browser-grade or generally fail-closed WebPKI implementation.
+[Issue #234](https://github.com/theesfeld/clun/issues/234) tracks required name-constraint,
+intermediate-EKU, strict SAN, key-encoding/strength, and chain-depth hardening plus explicit
+revocation, CT, AIA, and alternate-path limitations, and blocks the candidate release.
 
-Known limitations (see `STATE.md`): pure-tls does not yet interoperate with every server frontend
-(e.g. `registry.npmjs.org` currently returns a `protocol_version` alert); DNS resolution is blocking;
-each in-flight HTTPS request uses one worker thread. Package tarballs are additionally protected by
-SRI SHA-512 verification before extraction, so a TLS compromise cannot by itself corrupt an install.
+Known limitations (see `STATE.md`): the pure-CL TLS implementation has a narrower interoperability
+record than mature native stacks; DNS resolution is blocking; each in-flight HTTPS request uses one
+worker thread. Public npm metadata and tarball downloads are live-smoked through the experimental
+bounded TLS 1.3-to-1.2 profile. Package tarballs are additionally protected by SRI SHA-512 verification before
+extraction. For frozen reinstalls, the lockfile's already-recorded integrity detects cache corruption
+or tampering. During fresh resolution, however, integrity and tarball URLs both come from registry
+metadata authenticated by TLS; SRI alone does not protect against a transport compromise that can
+replace both the metadata and tarball.
 
 ## Building from source
 

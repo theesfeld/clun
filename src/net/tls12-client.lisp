@@ -26,6 +26,10 @@
 (defconstant +tls12-max-plaintext+ 16384)
 (defconstant +tls12-max-ciphertext+ (+ +tls12-max-plaintext+ 2048))
 (defconstant +tls12-max-handshake-message+ (* 16 1024 1024))
+(defparameter +tls12-server-hello-extension-types+ '(0 11 16 23 #xff01)
+  "Extensions this profile permits in ServerHello. SNI, EC point formats,
+ALPN, and EMS were offered explicitly; renegotiation_info is also permitted
+because TLS_EMPTY_RENEGOTIATION_INFO_SCSV offers it implicitly.")
 
 (defstruct (tls12-state (:conc-name tls12-))
   stream
@@ -339,8 +343,12 @@ span records or share a record. When ALLOW-CCS is true, return (:ccs, payload)."
            (suite-offset (+ 35 session-length)))
       (when (> session-length 32)
         (%tls12-fail "invalid ServerHello session id length"))
-      (when (equalp (subseq server-random 24)
-                    #(#x44 #x4f #x57 #x4e #x47 #x52 #x44 #x01))
+      ;; RFC 8446 section 4.1.3 defines both TLS 1.3 downgrade sentinels.
+      ;; Neither is legitimate in the TLS 1.2 ServerHello accepted here.
+      (when (member (subseq server-random 24)
+                    '(#(#x44 #x4f #x57 #x4e #x47 #x52 #x44 #x01)
+                      #(#x44 #x4f #x57 #x4e #x47 #x52 #x44 #x00))
+                    :test #'equalp)
         (%tls12-fail "TLS 1.3 downgrade sentinel received during TLS 1.2 fallback"))
       (when (> (+ suite-offset 3) (length body))
         (%tls12-fail "truncated ServerHello session"))
@@ -353,13 +361,38 @@ span records or share a record. When ALLOW-CCS is true, return (:ccs, payload)."
           (%tls12-fail "server selected unsupported TLS 1.2 suite 0x~4,'0x" suite))
         (unless (zerop compression)
           (%tls12-fail "server selected TLS compression"))
-        (let ((alpn (cdr (assoc 16 extensions))))
-          (when (and alpn
-                     (not (equalp alpn
-                                  (%tls12-vector16
-                                   (%tls12-cat (%tls12-u8 8)
-                                               (%tls12-ascii "http/1.1"))))))
-            (%tls12-fail "server selected an unsupported ALPN protocol")))
+        ;; RFC 5246 section 7.4.1.4: a server cannot send an extension the
+        ;; client did not request. The renegotiation_info exception is covered
+        ;; by the SCSV advertised in the ClientHello.
+        (dolist (extension extensions)
+          (unless (member (car extension) +tls12-server-hello-extension-types+)
+            (%tls12-fail "server sent unsolicited TLS 1.2 extension ~d"
+                         (car extension))))
+        (let ((server-name (assoc 0 extensions)))
+          (when (and server-name (plusp (length (cdr server-name))))
+            (%tls12-fail "server_name ServerHello extension is not empty")))
+        (let ((point-format-extension (assoc 11 extensions)))
+          ;; RFC 8422 sections 5.1.2 and 5.2 encode this acknowledgement as a
+          ;; one-byte-length vector. If it is omitted, uncompressed is implied;
+          ;; if present, the vector must be well formed and include format 0.
+          (when point-format-extension
+            (let ((point-formats (cdr point-format-extension)))
+              (unless (and (> (length point-formats) 1)
+                           (= (aref point-formats 0)
+                              (1- (length point-formats))))
+                (%tls12-fail "invalid ec_point_formats ServerHello extension"))
+              (unless (find 0 point-formats :start 1)
+                (%tls12-fail "server does not support uncompressed EC points")))))
+        (let ((alpn-extension (assoc 16 extensions)))
+          ;; RFC 7301 section 3.1 requires a ServerHello ALPN response to be a
+          ;; single, non-empty ProtocolName. This profile offered only
+          ;; http/1.1, so an acknowledgement must match its exact wire form.
+          (when alpn-extension
+            (unless (equalp (cdr alpn-extension)
+                            (%tls12-vector16
+                             (%tls12-cat (%tls12-u8 8)
+                                         (%tls12-ascii "http/1.1"))))
+              (%tls12-fail "server selected an unsupported ALPN protocol"))))
         (let ((ems (assoc 23 extensions))
               (renegotiation (assoc #xff01 extensions)))
           (when (and ems (plusp (length (cdr ems))))
@@ -367,7 +400,12 @@ span records or share a record. When ALLOW-CCS is true, return (:ccs, payload)."
           (when (and renegotiation
                      (not (equalp (cdr renegotiation) #(#x00))))
             (%tls12-fail "invalid renegotiation_info ServerHello extension"))
-          (values server-random suite (not (null ems))))))))
+          ;; This HTTPS profile always offers and requires RFC 7627 EMS. A
+          ;; legacy peer that declines it is not safe enough for registry or
+          ;; updater traffic and must fail closed.
+          (unless ems
+            (%tls12-fail "server did not negotiate extended_master_secret"))
+          (values server-random suite t))))))
 
 (defun %tls12-parse-certificates (message)
   (let* ((body (subseq message 4))
@@ -455,6 +493,20 @@ span records or share a record. When ALLOW-CCS is true, return (:ccs, payload)."
 (defun %tls12-finished (master label transcript)
   (%tls12-prf master label (%tls12-digest transcript) 12))
 
+(defun %tls12-handle-server-pre-finished-message (state type message)
+  "Validate the only message this non-resuming profile accepts before Finished."
+  (cond
+    ((eq type :ccs)
+     (unless (and (= (length message) 1) (= (aref message 0) 1))
+       (%tls12-fail "invalid server change_cipher_spec"))
+     (setf (tls12-server-encrypted-p state) t)
+     :ccs)
+    ((= type 4)
+     ;; RFC 5077 section 3.3 permits this only after SessionTicket was
+     ;; negotiated in ServerHello; this client never offers that extension.
+     (%tls12-fail "unsolicited TLS 1.2 NewSessionTicket message"))
+    (t (%tls12-fail "expected server change_cipher_spec, received ~a" type))))
+
 (defun %tls12-handshake (stream hostname ca-file verify)
   (let* ((random (sys:os-random-bytes 32))
          (state (make-tls12-state :stream stream :client-random random))
@@ -514,18 +566,14 @@ span records or share a record. When ALLOW-CCS is true, return (:ccs, payload)."
         (setf (tls12-client-encrypted-p state) t)
         (%tls12-write-record state +tls12-handshake+ client-finished)
         (%tls12-append-transcript state client-finished)
-        ;; A server may send NewSessionTicket before CCS. We decline resumption but
-        ;; retain the message in the Finished transcript as TLS 1.2 requires.
+        ;; This client neither offers SessionTicket nor resumes sessions. RFC
+        ;; 5077 section 3.3 therefore forbids NewSessionTicket in this flight.
         (loop
           (multiple-value-bind (type message) (%tls12-next-handshake state :allow-ccs t)
-            (cond
-              ((eq type :ccs)
-               (unless (and (= (length message) 1) (= (aref message 0) 1))
-                 (%tls12-fail "invalid server change_cipher_spec"))
-               (setf (tls12-server-encrypted-p state) t)
-               (return))
-              ((= type 4) (%tls12-append-transcript state message))
-              (t (%tls12-fail "expected server change_cipher_spec, received ~a" type)))))
+            (when (eq (%tls12-handle-server-pre-finished-message
+                       state type message)
+                      :ccs)
+              (return))))
         (multiple-value-bind (type server-finished) (%tls12-next-handshake state)
           (unless (and (= type 20) (= (length server-finished) 16))
             (%tls12-fail "invalid server Finished message"))

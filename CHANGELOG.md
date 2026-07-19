@@ -33,6 +33,9 @@ installable release checkpoints.
   bundle, then atomically switching the installer-managed stable launcher.
 - Record the distribution-contract break as `major` intent while publishing
   it on the conventional pre-1.0 `0.2.0` minor core.
+- Classify npm package management as Partial until a real publish command and
+  the remaining registry-auth/publishing corpus exist; do not conflate working
+  public add/install with the complete Bun package-manager surface.
 
 ### Fixed
 
@@ -44,6 +47,16 @@ installable release checkpoints.
   externally managed targets are reported and left unchanged.
 - Retain the prior launcher and bundle on checksum, archive, version, layout,
   executable, or post-activation validation failure.
+- Ship public npm metadata and tarball access through the experimental bounded pure-CL TLS
+  1.3-to-1.2 fallback, and exercise both `clun add <pkg>` and `clun install
+  <pkg>`, SRI, package execution, and byte-identical frozen offline reinstalls
+  in the live, non-hermetic smoke required by Compatibility and Release. The
+  frozen proof makes the registry unreachable and supplies an explicit empty TLS
+  trust source so public tarballs cannot be downloaded as a fallback; Issue #234
+  WebPKI hardening remains a release blocker.
+- Make `clun install <pkg…>` a Bun-compatible alias for adding the named
+  dependencies and installing them; retain no-argument `clun install` for the
+  existing manifest.
 
 ### Security
 

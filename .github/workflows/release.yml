@@ -111,7 +111,7 @@ jobs:
         shell: bash
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential bzip2 curl make sbcl zstd libzstd-dev
+          sudo apt-get install -y build-essential bzip2 curl make openssl sbcl zstd libzstd-dev
 
       - name: Install macOS build dependencies
         if: runner.os == 'macOS'
@@ -126,6 +126,8 @@ jobs:
           fi
           brew list sbcl >/dev/null 2>&1 || brew install sbcl
           brew list zstd >/dev/null 2>&1 || brew install zstd
+          brew list openssl@3 >/dev/null 2>&1 || brew install openssl@3
+          echo "$(brew --prefix openssl@3)/bin" >> "$GITHUB_PATH"
 
       - name: Install pinned SBCL 2.6.4 binary
         if: matrix.target == 'linux-x64'
@@ -186,6 +188,12 @@ jobs:
         env:
           CLUN_SKIP_PERFORMANCE_TESTS: "1"
         run: make test
+
+      - name: Verify TLS 1.2 security policy and OpenSSL interop
+        run: make test-tls12
+
+      - name: Verify live public npm add/install and offline reinstall
+        run: sh scripts/smoke-npm.sh
 
       - name: Verify live test262 inventory matches published claims
         if: matrix.target == 'linux-x64'

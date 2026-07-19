@@ -3496,3 +3496,33 @@ Refs: #215, #178, #179, #22, #32, #177
   installable boundary until the new candidate is released and checked.
 
 Refs: #221
+
+## 2026-07-19 — public npm commands and bounded TLS 1.2 fallback (#233)
+
+- `clun install <pkg…>` is the Bun-compatible package-add spelling and shares
+  the same manifest edit plus install path as `clun add <pkg…>`; no-argument
+  `clun install` continues to install the existing manifest.
+- Public npm release evidence must exercise both spellings from empty manifests,
+  include a transitive public dependency graph, assert manifest and lock entries,
+  execute both installed packages, verify registry SRI, and prove byte-identical
+  frozen offline reinstalls with the configured registry unreachable and an
+  explicit empty `SSL_CERT_FILE`, so neither public metadata nor HTTPS tarballs
+  can be fetched. Clun treats that named empty trust source as authoritative and
+  fails instead of falling back to system or custom public roots.
+- The TLS 1.2 fallback remains reachable only after an exact fatal
+  `protocol_version` alert on the preferred TLS 1.3 connection and always uses a
+  fresh connection. Its ServerHello parser rejects both RFC 8446 downgrade
+  sentinels, duplicate or unsolicited extensions, malformed ALPN/point-format
+  acknowledgements, unsolicited session tickets, and peers that omit Extended
+  Master Secret.
+- The package-manager ledger row is Partial despite working public add/install:
+  Clun does not yet implement npm publishing or the full registry-auth and
+  publishing corpus. The working public flow uses an experimental bounded TLS
+  profile; Issue #234 WebPKI hardening blocks release and no browser-grade or
+  generally fail-closed WebPKI claim is made here.
+- SRI detects corruption or tampering relative to integrity already authenticated
+  and recorded in the lockfile. On fresh resolution, registry metadata supplies
+  both integrity and tarball URL, so SRI does not independently defeat a transport
+  compromise capable of replacing both.
+
+Refs: #233, #234

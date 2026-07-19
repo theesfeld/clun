@@ -56,7 +56,7 @@ jobs:
         if: steps.scope.outputs.runtime == 'true'
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential zstd libzstd-dev curl bzip2
+          sudo apt-get install -y build-essential zstd libzstd-dev curl bzip2 openssl
           curl --fail --location --retry 3 \
             --output "$RUNNER_TEMP/sbcl-binary.tar.bz2" \
             https://downloads.sourceforge.net/project/sbcl/sbcl/2.6.4/sbcl-2.6.4-x86-64-linux-binary.tar.bz2
@@ -84,6 +84,10 @@ jobs:
         env:
           CLUN_SKIP_PERFORMANCE_TESTS: "1"
         run: make test
+
+      - name: make test-tls12 (security policy and OpenSSL interop)
+        if: steps.scope.outputs.runtime == 'true'
+        run: make test-tls12
 
       - name: Verify live test262 inventory matches published claims
         if: steps.scope.outputs.runtime == 'true'

@@ -110,13 +110,15 @@
     (fail (clun.net::%tls12-parse-server-hello
            (hello #x0303 clun.net::+tls12-suite-ecdhe-rsa-aes128-gcm-sha256+ 1))
           clun.net::tls12-error)
-    (let ((random (make-array 32 :element-type '(unsigned-byte 8)
-                                 :initial-element 0)))
-      (replace random #(#x44 #x4f #x57 #x4e #x47 #x52 #x44 #x01) :start1 24)
-      (fail (clun.net::%tls12-parse-server-hello
-             (hello #x0303 clun.net::+tls12-suite-ecdhe-rsa-aes128-gcm-sha256+
-                    0 :random random))
-            clun.net::tls12-error))
+    (dolist (sentinel '(#(#x44 #x4f #x57 #x4e #x47 #x52 #x44 #x01)
+                        #(#x44 #x4f #x57 #x4e #x47 #x52 #x44 #x00)))
+      (let ((random (make-array 32 :element-type '(unsigned-byte 8)
+                                   :initial-element 0)))
+        (replace random sentinel :start1 24)
+        (fail (clun.net::%tls12-parse-server-hello
+               (hello #x0303 clun.net::+tls12-suite-ecdhe-rsa-aes128-gcm-sha256+
+                      0 :random random))
+              clun.net::tls12-error)))
     (fail (clun.net::%tls12-parse-server-hello
            (hello #x0303 clun.net::+tls12-suite-ecdhe-rsa-aes128-gcm-sha256+ 0
                   :extensions
@@ -134,6 +136,79 @@
                                      :initial-element 0))))
           clun.net::tls12-error)))
 
+(define-test net/tls12-server-hello-extension-policy
+  (flet ((hello (&rest extensions)
+           (clun.net::%tls12-handshake-message
+            2 (clun.net::%tls12-cat
+               (clun.net::%tls12-u16 #x0303)
+               (make-array 32 :element-type '(unsigned-byte 8)
+                              :initial-element 0)
+               (clun.net::%tls12-u8 0)
+               (clun.net::%tls12-u16
+                clun.net::+tls12-suite-ecdhe-rsa-aes128-gcm-sha256+)
+               (clun.net::%tls12-u8 0)
+               (clun.net::%tls12-vector16
+                (apply #'clun.net::%tls12-cat extensions))))))
+    ;; The modern fallback profile requires EMS and accepts only extensions
+    ;; legitimately offered by its ClientHello (plus renegotiation_info via
+    ;; SCSV).
+    (multiple-value-bind (random suite ems)
+        (clun.net::%tls12-parse-server-hello
+         (hello
+          (clun.net::%tls12-extension
+           11 (make-array 2 :element-type '(unsigned-byte 8)
+                            :initial-contents '(1 0)))
+          (clun.net::%tls12-extension
+           16 (clun.net::%tls12-vector16
+               (clun.net::%tls12-cat
+                (clun.net::%tls12-u8 8)
+                (clun.net::%tls12-ascii "http/1.1"))))
+          (clun.net::%tls12-extension
+           23 (make-array 0 :element-type '(unsigned-byte 8)))
+          (clun.net::%tls12-extension
+           #xff01 (make-array 1 :element-type '(unsigned-byte 8)
+                                :initial-element 0))))
+      (is = 32 (length random))
+      (is = clun.net::+tls12-suite-ecdhe-rsa-aes128-gcm-sha256+ suite)
+      (true ems))
+    (fail
+     (clun.net::%tls12-parse-server-hello
+      (hello
+       (clun.net::%tls12-extension
+        23 (make-array 0 :element-type '(unsigned-byte 8)))
+       ;; session_ticket was not offered by this non-resuming client.
+       (clun.net::%tls12-extension
+        35 (make-array 0 :element-type '(unsigned-byte 8)))))
+     clun.net::tls12-error)
+    ;; RFC 8422 section 5.2 uses a uint8-length vector and requires the
+    ;; uncompressed point format (0) whenever the extension is present.
+    (dolist (point-formats '(#()
+                             #(0)
+                             #(2 0)
+                             #(1 1)))
+      (fail
+       (clun.net::%tls12-parse-server-hello
+        (hello
+         (clun.net::%tls12-extension 11 point-formats)
+         (clun.net::%tls12-extension
+          23 (make-array 0 :element-type '(unsigned-byte 8)))))
+       clun.net::tls12-error))
+    ;; RFC 7301 section 3.1 permits exactly one non-empty protocol in the
+    ;; ServerHello response. Empty, truncated, and unoffered h2 responses fail.
+    (dolist (alpn '(#()
+                    #(0 9 8 104 116 116 112)
+                    #(0 3 2 104 50)))
+      (fail
+       (clun.net::%tls12-parse-server-hello
+        (hello
+         (clun.net::%tls12-extension 16 alpn)
+         (clun.net::%tls12-extension
+          23 (make-array 0 :element-type '(unsigned-byte 8)))))
+       clun.net::tls12-error))
+    (fail
+     (clun.net::%tls12-parse-server-hello (hello))
+     clun.net::tls12-error)))
+
 (define-test net/tls12-rejects-oversized-authenticated-plaintext
   (let ((payload (make-array (+ 8 16 (1+ clun.net::+tls12-max-plaintext+))
                              :element-type '(unsigned-byte 8)
@@ -146,6 +221,19 @@
                                      :initial-element 0))
            23 payload)
           clun.net::tls12-error)))
+
+(define-test net/tls12-nonresuming-profile-rejects-session-ticket
+  (let ((state (clun.net::make-tls12-state)))
+    (fail
+     (clun.net::%tls12-handle-server-pre-finished-message
+      state 4 (clun.net::%tls12-handshake-message
+               4 (make-array 0 :element-type '(unsigned-byte 8))))
+     clun.net::tls12-error)
+    (is eq :ccs
+        (clun.net::%tls12-handle-server-pre-finished-message
+         state :ccs (make-array 1 :element-type '(unsigned-byte 8)
+                                  :initial-element 1)))
+    (true (clun.net::tls12-server-encrypted-p state))))
 
 (define-test net/tls12-eof-framing-requires-close-notify
   (flet ((wire (text)

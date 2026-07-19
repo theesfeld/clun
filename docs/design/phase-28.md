@@ -15,7 +15,8 @@ canonical Phase 28 GitHub issue remains open. In particular, this series does no
 claim the issue's complete proxy matrix, broader pool stress, incremental
 decompression, 1 GiB transfer, remaining HTTPS cancellation-race/leak stress, or
 four-target acceptance requirements. It does not promote a compatibility-ledger
-row to `Yes`.
+row to `Yes`. It also does not claim browser-grade or generally fail-closed
+WebPKI; Issue #234 owns the remaining certificate-profile hardening.
 
 ## 2. Architecture
 
@@ -72,14 +73,15 @@ supported TLS 1.2 profile is deliberately narrow:
 - RSA-PSS or RSA PKCS#1 v1.5 ServerKeyExchange signatures;
 - AES-128-GCM with SHA-256;
 - SNI and HTTP/1.1 ALPN;
-- extended master secret when negotiated;
+- required extended master secret;
 - system trust roots and hostname verification; and
 - verified client and server Finished messages.
 
-The ClientHello includes `TLS_FALLBACK_SCSV`. A TLS 1.3 downgrade sentinel in a
-TLS 1.2 ServerHello is fatal. Duplicate ServerHello extensions, non-empty EMS,
+The ClientHello includes `TLS_FALLBACK_SCSV`. Both RFC 8446 downgrade sentinels,
+`DOWNGRD\\x01` and `DOWNGRD\\x00`, are fatal in a TLS 1.2 ServerHello. Duplicate
+ServerHello extensions, non-empty EMS,
 invalid renegotiation information, compression, unsupported algorithms,
-unsolicited CertificateStatus, post-handshake messages, malformed alerts, record
+unsolicited CertificateStatus or NewSessionTicket, post-handshake messages, malformed alerts, record
 overflow, and authentication failures all fail closed.
 
 No FFI, external TLS process, or shell command participates in production
@@ -161,7 +163,9 @@ before releasing the loop-owned pool state.
 
 The trust bundle follows the established `SSL_CERT_FILE` override and system CA
 candidate search. Verification is required by default and checks both the chain
-and requested hostname.
+and requested hostname. This is an experimental bounded profile, not a browser-grade
+WebPKI claim: Issue #234 blocks release on name constraints, intermediate EKU,
+strict SAN, key encoding/strength, depth, and documented revocation/CT/path-building limits.
 
 TLS 1.3 retains its existing signature-algorithm allowlist. The shared
 CertificateVerify helper now accepts an explicit protocol policy. TLS 1.2 may
@@ -177,7 +181,8 @@ The focused deterministic Lisp suite covers:
 - AES-GCM record authentication and tamper rejection;
 - ClientHello SNI, ALPN, EMS, and fallback SCSV;
 - exact fallback-alert selection;
-- downgrade sentinels, duplicate extensions, and malformed EMS;
+- downgrade sentinels, duplicate/unsolicited extensions, malformed EMS, ALPN,
+  and EC point-format acknowledgements, and unsolicited session tickets;
 - plaintext record bounds;
 - authenticated EOF requirements; and
 - bounded, fail-closed content decoding.
@@ -224,10 +229,22 @@ trusted HTTP round trip, incremental response delivery, a streamed POST whose
 decrypted request has exact chunk framing, and a real wrong-host rejection. The
 upload oracle accepts the TLS 1.3 probe and the fresh TLS 1.2 fallback connection,
 which also proves that the non-replayable source is not consumed before fallback.
+The focused parser policy rejects both RFC 8446 downgrade sentinels, duplicate or
+unsolicited ServerHello extensions, malformed extension acknowledgements, and
+peers that do not negotiate Extended Master Secret.
 
-`make smoke-npm` is an opt-in live check. It installs exact public package
-`is-number@7.0.0`, verifies the registry SRI path used by the package manager,
-and executes the installed package with the shipped Clun binary.
+`make smoke-npm` is a live, non-hermetic check required in the Compatibility and
+Release workflows; local invocation remains optional. From empty manifests it exercises both
+`clun add is-odd@3.0.1` (including its transitive `is-number` dependency) and Bun-compatible
+`clun install left-pad@1.3.0`, verifies each registry SRI path, executes each
+installed package with the shipped Clun binary, then deletes `node_modules` and
+proves byte-identical frozen cache-only reinstalls while the configured registry
+is deliberately unreachable and `SSL_CERT_FILE` names an explicit empty trust
+source. The latter is authoritative and prevents fallback to system/custom roots,
+so a missing cache entry cannot be repaired by downloading its public HTTPS
+tarball. SRI authenticates cached bytes against the lockfile's recorded integrity;
+on fresh resolution that integrity is itself obtained from TLS-authenticated
+registry metadata rather than being an independent trust root.
 
 ## 6. Remaining Phase 28 work
 
