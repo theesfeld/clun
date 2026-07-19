@@ -3356,3 +3356,13 @@ Bun-compatible TypeScript execution Yes bar without full tsc typecheck:
 - Decorators, `import =` / `export =`, angle-cast, and `.tsx` still hard-error.
 - Four-target platforms.tsv `supported`; ledger `clun_state=Yes`.
 - Release train: `0.1.0-dev.40`.
+
+### 2026-07-19 - package-manager.npm Partial→Yes (#131)
+
+**Decision:** Promote `package-manager.npm` to ledger **Yes** with pure-CL optionalDependencies
+soft-fail, `file:` local packages, hermetic install e2e, depspec e2e, four-target supported
+platforms, and public npm smoke. Publishing is not required for Yes versus Bun `bun install`;
+workspaces remain `package-manager.monorepo` No.
+
+**Evidence:** `ev.package-manager.npm.hermetic-install.v1`, `ev.package-manager.npm.depspec.v1`.
+Stages `0.1.0-dev.41`.

@@ -2,6 +2,9 @@
 ;;;; Breadth-first, highest-satisfying, cycle-safe resolution over the Phase-21 async registry
 ;;;; client; then a placement pass that hoists the first-seen version of each name to the root
 ;;;; node_modules and nests genuine version conflicts. Pure CL, no engine.
+;;;;
+;;;; Dependency-spec residual (#131): registry semver/dist-tags/scoped names, optionalDependencies
+;;;; (soft-fail), and local `file:` directory packages. Git/workspace/catalog remain Phase 59–60.
 
 (in-package :clun.installer)
 
@@ -16,7 +19,7 @@
 (defstruct (inst-node (:conc-name in-))
   name version
   (deps '())                            ; alist (dep-name . range) from the version metadata
-  tarball integrity bin)                ; dist.tarball, dist.integrity, bin (a string or alist)
+  tarball integrity bin)                ; dist.tarball / file: path, dist.integrity, bin
 
 (defun pick-version (md range)
   "The version string of MD (a pkg-metadata) to install for RANGE: a matching dist-tag name resolves
@@ -29,22 +32,70 @@ directly (e.g. \"latest\"), else the HIGHEST semver version satisfying RANGE. NI
                        (or (null best) (plusp (sv:version-compare v best))))
               (setf best v)))))))
 
+;;; --- dependency-spec helpers ------------------------------------------------
+
+(defun file-spec-p (range)
+  "T iff RANGE is a local `file:` dependency specification."
+  (and (stringp range) (>= (length range) 5) (string= "file:" range :end2 5)))
+
+(defun file-spec-path (range)
+  "The path component of a `file:` RANGE (may be relative)."
+  (subseq range 5))
+
+(defun resolve-file-path (root range)
+  "Absolute path for a `file:` RANGE relative to project ROOT."
+  (let ((p (file-spec-path range)))
+    (if (sys:absolute-path-p p)
+        (sys:normalize-path p)
+        (sys:normalize-path (sys:path-join root p)))))
+
+(defun %read-local-package (abs-path)
+  "Read ABS-PATH/package.json → (values name version deps bin) or signal install-error."
+  (let ((pj (sys:path-join abs-path "package.json")))
+    (unless (sys:path-exists-p pj)
+      (error 'install-error :message (format nil "file: package missing package.json: ~a" abs-path)))
+    (unless (sys:directory-p abs-path)
+      (error 'install-error :message (format nil "file: target is not a directory: ~a" abs-path)))
+    (let* ((pkg (handler-case (sys:parse-json (sys:read-file-string pj))
+                  (sys:json-error (e)
+                    (error 'install-error
+                           :message (format nil "malformed package.json in ~a: ~a" abs-path e)))))
+           (name (and (sys:jobject-p pkg) (sys:jget pkg "name")))
+           (version (and (sys:jobject-p pkg) (sys:jget pkg "version")))
+           (deps (and (sys:jobject-p pkg)
+                      (let ((d (sys:jget pkg "dependencies")))
+                        (cond ((eq d :empty-object) '())
+                              ((and (consp d) (consp (car d)))
+                               (loop for (k . v) in d collect (cons k (if (stringp v) v ""))))
+                              (t '())))))
+           (bin (and (sys:jobject-p pkg) (sys:jget pkg "bin"))))
+      (unless (stringp name)
+        (error 'install-error :message (format nil "file: package.json missing name: ~a" abs-path)))
+      (values name
+              (if (stringp version) version "0.0.0")
+              (or deps '())
+              (cond ((stringp bin) bin)
+                    ((eq bin :empty-object) nil)
+                    ((and (consp bin) (consp (car bin))) bin)
+                    (t nil))))))
+
 ;;; --- resolution (async, breadth-first) --------------------------------------
 
 (defun %edge-key (parent-key dep-name)
   (concatenate 'string parent-key "|" dep-name))
 
-(defun resolve-install (loop root-deps &key registry (retries 1) on-ok on-err)
-  "Resolve ROOT-DEPS (an alist of (name . range)) transitively. Fetches each package's abbreviated
-metadata ONCE (cached per name) via the async registry client, picks the highest satisfying version
-per edge, and records the graph. Cycle-safe (an already-resolved name@version is reused). Calls ON-OK
-with (values NODES EDGE-VERSION) — NODES: hash \"name@version\" → inst-node; EDGE-VERSION: hash
-\"<parent-key>|<dep-name>\" → resolved-version, parent-key = \":root\" or a \"name@version\". Placement
-walks these deterministically (independent of fetch-completion order) — or ON-ERR with a condition."
+(defun resolve-install (loop root-deps &key registry root (retries 1) optional-names on-ok on-err)
+  "Resolve ROOT-DEPS (an alist of (name . range)) transitively. Supports registry ranges/dist-tags
+and local `file:` directory packages (ROOT required for relative file: paths). OPTIONAL-NAMES is a
+list of root dep names whose failure is soft (skipped). Fetches each package's abbreviated metadata
+ONCE (cached per name) via the async registry client, picks the highest satisfying version per edge,
+and records the graph. Cycle-safe. Calls ON-OK with (values NODES EDGE-VERSION) or ON-ERR."
   (let ((meta (make-hash-table :test 'equal))     ; name → pkg-metadata
         (nodes (make-hash-table :test 'equal))     ; "name@version" → inst-node
         (edge-version (make-hash-table :test 'equal))  ; "<parent>|<dep>" → version
+        (optional (make-hash-table :test 'equal))
         (pending 0) (err nil) (finished nil))
+    (dolist (n optional-names) (setf (gethash n optional) t))
     (labels
         ((finish ()
            (when (and (not finished) (zerop pending))
@@ -54,7 +105,9 @@ walks these deterministically (independent of fetch-completion order) — or ON-
                  (when on-ok (funcall on-ok nodes edge-version)))))
          (fail (e) (unless err (setf err (if (typep e 'condition) e
                                              (make-condition 'install-error :message (princ-to-string e))))))
-         (need-meta (name k)
+         (soft-or-fail (optional-p e)
+           (unless optional-p (fail e)))
+         (need-meta (name k &key optional-p)
            (unless err
              (let ((m (gethash name meta)))
                (if m
@@ -67,34 +120,74 @@ walks these deterministically (independent of fetch-completion order) — or ON-
                                 (decf pending)
                                 (unless err (funcall k md))
                                 (finish))
-                       :on-err (lambda (e) (decf pending) (fail e) (finish))))))))
-         (resolve-edge (parent-key name range)
-           (need-meta name
-             (lambda (md)
-               (let ((ver (pick-version md range)))
-                 (if (null ver)
-                     (fail (make-condition 'install-error
-                             :message (format nil "no version of ~a satisfies ~a" name range)))
-                     (let ((key (format nil "~a@~a" name ver)))
-                       (setf (gethash (%edge-key parent-key name) edge-version) ver)
-                       (unless (gethash key nodes)
-                         (let ((vm (reg:metadata-version md ver)))
-                           (if (null vm)
-                               (fail (make-condition 'install-error
-                                       :message (format nil "~a has no version ~a" name ver)))
-                               (progn
-                                 (setf (gethash key nodes)
-                                       (make-inst-node :name name :version ver
-                                                       :deps (reg:vm-dependencies vm)
-                                                       :tarball (reg:vm-dist-tarball vm)
-                                                       :integrity (reg:vm-dist-integrity vm)
-                                                       :bin (reg:vm-bin vm)))
-                                 (dolist (d (reg:vm-dependencies vm))
-                                   (resolve-edge key (car d) (cdr d))))))))))))))
+                       :on-err (lambda (e)
+                                 (decf pending)
+                                 (soft-or-fail optional-p e)
+                                 (finish))))))))
+         (record-node (parent-key name ver deps tarball integrity bin)
+           (let ((key (format nil "~a@~a" name ver)))
+             (setf (gethash (%edge-key parent-key name) edge-version) ver)
+             (unless (gethash key nodes)
+               (setf (gethash key nodes)
+                     (make-inst-node :name name :version ver :deps deps
+                                     :tarball tarball :integrity integrity :bin bin))
+               (dolist (d deps)
+                 (resolve-edge key (car d) (cdr d) :optional-p nil)))))
+         (resolve-file (parent-key name range &key optional-p)
+           (handler-case
+               (progn
+                 (unless root
+                   (error 'install-error :message "file: dependency requires project root"))
+                 (let ((abs (resolve-file-path root range)))
+                   (unless (sys:path-exists-p abs)
+                     (error 'install-error
+                            :message (format nil "file: path does not exist: ~a" abs)))
+                   (multiple-value-bind (pkg-name ver deps bin) (%read-local-package abs)
+                     (declare (ignore pkg-name))
+                     ;; Place under the dependency name (npm/Bun file: behaviour for named deps).
+                     (record-node parent-key name ver deps
+                                  (concatenate 'string "file:" abs) "" bin))))
+             (error (e) (soft-or-fail optional-p e))))
+         (resolve-edge (parent-key name range &key optional-p)
+           (cond
+             (err nil)
+             ((file-spec-p range)
+              (resolve-file parent-key name range :optional-p optional-p))
+             (t
+              (need-meta name
+                (lambda (md)
+                  (let ((ver (pick-version md range)))
+                    (if (null ver)
+                        (soft-or-fail optional-p
+                                      (make-condition 'install-error
+                                        :message (format nil "no version of ~a satisfies ~a" name range)))
+                        (let ((vm (reg:metadata-version md ver)))
+                          (if (null vm)
+                              (soft-or-fail optional-p
+                                            (make-condition 'install-error
+                                              :message (format nil "~a has no version ~a" name ver)))
+                              (let* ((key (format nil "~a@~a" name ver))
+                                     (hard-deps (reg:vm-dependencies vm))
+                                     (opt-deps (reg:vm-optional-dependencies vm)))
+                                (setf (gethash (%edge-key parent-key name) edge-version) ver)
+                                (unless (gethash key nodes)
+                                  (setf (gethash key nodes)
+                                        (make-inst-node :name name :version ver
+                                                        :deps hard-deps
+                                                        :tarball (reg:vm-dist-tarball vm)
+                                                        :integrity (reg:vm-dist-integrity vm)
+                                                        :bin (reg:vm-bin vm)))
+                                  (dolist (d hard-deps)
+                                    (resolve-edge key (car d) (cdr d) :optional-p nil))
+                                  (dolist (d opt-deps)
+                                    (resolve-edge key (car d) (cdr d) :optional-p t)))))))))
+                :optional-p optional-p)))))
       (if (null root-deps)
           (when on-ok (funcall on-ok nodes edge-version))
           (progn
-            (dolist (d root-deps) (resolve-edge ":root" (car d) (cdr d)))
+            (dolist (d root-deps)
+              (resolve-edge ":root" (car d) (cdr d)
+                            :optional-p (gethash (car d) optional)))
             (finish))))))
 
 ;;; --- placement / hoist ------------------------------------------------------

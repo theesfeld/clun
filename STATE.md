@@ -7,22 +7,23 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **39 - Full TypeScript transforms**  (Yes conversion #133)
+## Current phase: **59 - Package registry and dependency-spec breadth**  (Yes conversion #131)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/133
-**Related residual:** https://github.com/theesfeld/clun/issues/13
-**Current implementation unit:** language.typescript Partial→Yes (#133) — erasable strip plus
-Bun-compatible enum / runtime-namespace / parameter-property transforms; no tsc typecheck.
+**Canonical issue:** https://github.com/theesfeld/clun/issues/131
+**Related:** https://github.com/theesfeld/clun/issues/33 (phase 59), https://github.com/theesfeld/clun/issues/2
+**Current implementation unit:** package-manager.npm Partial→Yes (#131) — install/add/remove,
+optionalDependencies soft-fail, `file:` local packages, four-target hermetic+depspec receipts,
+public npm smoke; workspaces stay monorepo No; publish/git+ssh remain later.
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.40` / `v0.1.0-dev.40`
+**Candidate release:** `0.1.0-dev.41` / `v0.1.0-dev.41`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
-**Entry boundary:** installer on `v0.1.0-dev.21`; this unit stages `0.1.0-dev.40`.
-**Next scope:** remaining Partial→Yes fleet; decorators/tsx remain deferred.
+**Entry boundary:** installer on `v0.1.0-dev.21`; this unit stages `0.1.0-dev.41` after typescript Yes `.40`.
+**Next scope:** monorepo workspaces (#34), package tools/publish (#35).
 
 **Program direction:** compatibility-ledger `Yes` conversions are the current delivery queue.
 
-**Current checkpoint:** `language.typescript` is **Yes** with enum/namespace/param-prop emit.
-Matrix Yes count advances one row over master tip.
+**Current checkpoint:** `package-manager.npm` is **Yes** with depspec residual closed pure-CL and
+four-target supported receipts.
 
 **M5 entry boundary:** immutable dev.4 diagnostic set **56 total / 0 pass / 56 fail / 0 skip / 0 crash**:
 **43 m5-owned** (32 intrinsic/prototype, 7 parser, 4 raw delegation), **12 m11** direct-eval/`with`

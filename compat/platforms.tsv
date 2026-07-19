@@ -31,10 +31,10 @@ package-manager.monorepo	darwin-arm64	unsupported	-	Capability is not implemente
 package-manager.monorepo	darwin-x64	unsupported	-	Capability is not implemented.
 package-manager.monorepo	linux-arm64	unsupported	-	Capability is not implemented.
 package-manager.monorepo	linux-x64	unsupported	-	Capability is not implemented.
-package-manager.npm	darwin-arm64	unverified	ev.package-manager.npm.hermetic-install.v1	Registered evidence is target-scoped; the feature remains incomplete.
-package-manager.npm	darwin-x64	unverified	ev.package-manager.npm.hermetic-install.v1	Registered evidence is target-scoped; the feature remains incomplete.
-package-manager.npm	linux-arm64	unverified	ev.package-manager.npm.hermetic-install.v1	Registered evidence is target-scoped; the feature remains incomplete.
-package-manager.npm	linux-x64	unverified	ev.package-manager.npm.hermetic-install.v1	Registered evidence is target-scoped; the feature remains incomplete.
+package-manager.npm	darwin-arm64	supported	ev.package-manager.npm.depspec.v1,ev.package-manager.npm.hermetic-install.v1	Hermetic install, dependency-spec residual, and offline reinstall execute through the shipped binary.
+package-manager.npm	darwin-x64	supported	ev.package-manager.npm.depspec.v1,ev.package-manager.npm.hermetic-install.v1	Hermetic install, dependency-spec residual, and offline reinstall execute through the shipped binary.
+package-manager.npm	linux-arm64	supported	ev.package-manager.npm.depspec.v1,ev.package-manager.npm.hermetic-install.v1	Hermetic install, dependency-spec residual, and offline reinstall execute through the shipped binary.
+package-manager.npm	linux-x64	supported	ev.package-manager.npm.depspec.v1,ev.package-manager.npm.hermetic-install.v1	Hermetic install, dependency-spec residual, and offline reinstall execute through the shipped binary.
 runtime.loader-plugins	darwin-arm64	unsupported	-	Capability is not implemented.
 runtime.loader-plugins	darwin-x64	unsupported	-	Capability is not implemented.
 runtime.loader-plugins	linux-arm64	unsupported	-	Capability is not implemented.

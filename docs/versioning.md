@@ -70,6 +70,7 @@ resource does not exist with a 404 response:
 0.1.0-dev.38
 0.1.0-dev.39
 0.1.0-dev.40
+0.1.0-dev.41
 0.1.0-dev.30
 ```
 
@@ -303,4 +304,5 @@ Phase 38 runtime.web-standard-apis Partial→Yes (#130) stages `0.1.0-dev.38` / 
 Phase 75 Markdown + HTMLRewriter pure-CL (#135) stages `0.1.0-dev.39` / `v0.1.0-dev.39` without expanding the frozen 30-row summary ledger. SemVer impact is `minor`.
 
 Phase 39 language.typescript Partial→Yes (#133) stages `0.1.0-dev.40` / `v0.1.0-dev.40` with enum, runtime namespace, and parameter-property transforms plus four-target supported receipts.
+Phase 59 package-manager.npm Partial→Yes (#131) stages free `0.1.0-dev.41` / `v0.1.0-dev.41` with optionalDependencies soft-fail, `file:` local packages, hermetic+depspec four-target supported receipts; SemVer impact is `minor`.
 

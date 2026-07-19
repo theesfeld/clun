@@ -25,11 +25,23 @@
       v)))
 
 (defun root-deps (pkg &key production)
-  "The root dependency set: `dependencies` plus (unless PRODUCTION) `devDependencies`, as an alist of
-(name . range). A name in both prefers `dependencies`."
+  "The root dependency set: `dependencies` + `optionalDependencies` + (unless PRODUCTION)
+`devDependencies`, as an alist of (name . range). Precedence: dependencies > optional > dev.
+Returns (values deps optional-names) where optional-names is the list of names that came only
+from optionalDependencies (soft-fail on missing/unsatisfiable registry specs)."
   (let* ((deps (%obj->alist (sys:jget pkg "dependencies")))
-         (dev (unless production (%obj->alist (sys:jget pkg "devDependencies")))))
-    (append deps (remove-if (lambda (d) (assoc (car d) deps :test #'string=)) dev))))
+         (opt (%obj->alist (sys:jget pkg "optionalDependencies")))
+         (dev (unless production (%obj->alist (sys:jget pkg "devDependencies"))))
+         (merged deps)
+         (optional-names '()))
+    (dolist (d opt)
+      (unless (assoc (car d) merged :test #'string=)
+        (push (car d) optional-names)
+        (setf merged (append merged (list d)))))
+    (dolist (d (or dev '()))
+      (unless (assoc (car d) merged :test #'string=)
+        (setf merged (append merged (list d)))))
+    (values merged (nreverse optional-names))))
 
 (defstruct (install-result (:conc-name ir-))
   (source :resolved)                    ; :resolved (fresh) | :from-lock (reused)
@@ -121,43 +133,50 @@ ON-OK with an install-result, or ON-ERR with a condition. The synchronous prelud
 checking package.json / clun.lock) is wrapped so a malformed input reaches ON-ERR as an install-error
 rather than a raw condition escaping onto the caller's loop (§6)."
   (handler-case
-   (let* ((pkg (read-package-json root))
-          (deps (root-deps pkg :production production))
-          (lock (read-lock root)))
-    (labels ((from-lock ()
-               (multiple-value-bind (plan nodes) (lock->plan lock)
-                 (link-plan loop root plan nodes
-                   :on-ok (lambda () (when on-ok
-                                       (funcall on-ok (make-install-result :source :from-lock :plan plan
-                                                                           :node-count (hash-table-count nodes)))))
-                   :on-err (lambda (e) (when on-err (funcall on-err e))))))
-             (resolve-fresh ()
-               (resolve-install loop deps :registry registry
-                 :on-ok (lambda (nodes ev)
-                          (handler-case
-                              (let ((plan (plan-layout nodes ev deps)))
-                                (link-plan loop root plan nodes
-                                  :on-ok (lambda ()
-                                           (write-lock root plan nodes)
-                                           (when on-ok
-                                             (funcall on-ok (make-install-result
-                                                             :source :resolved :plan plan
-                                                             :node-count (hash-table-count nodes)
-                                                             :lifecycle-skipped (%collect-lifecycle-scripts plan nodes)))))
-                                  :on-err (lambda (e) (when on-err (funcall on-err e)))))
-                            (error (e) (when on-err (funcall on-err e)))))
-                 :on-err (lambda (e) (when on-err (funcall on-err e))))))
-      (cond
-        (frozen
-         (cond ((null lock)
-                (when on-err (funcall on-err (make-condition 'lock-drift-error
-                              :message "no clun.lock; --frozen-lockfile requires an up-to-date lock"))))
-               ((not (lock-satisfies-p lock deps))
-                (when on-err (funcall on-err (make-condition 'lock-drift-error
-                              :message "clun.lock is out of date with package.json (--frozen-lockfile)"))))
-               (t (from-lock))))
-        ((and lock (lock-satisfies-p lock deps)) (from-lock))
-        (t (resolve-fresh)))))
+   (multiple-value-bind (deps optional-names)
+       (root-deps (read-package-json root) :production production)
+     (let ((lock (read-lock root)))
+       (labels ((from-lock ()
+                  (multiple-value-bind (plan nodes) (lock->plan lock)
+                    (link-plan loop root plan nodes
+                      :on-ok (lambda () (when on-ok
+                                          (funcall on-ok (make-install-result :source :from-lock :plan plan
+                                                                              :node-count (hash-table-count nodes)))))
+                      :on-err (lambda (e) (when on-err (funcall on-err e))))))
+                (resolve-fresh ()
+                  (resolve-install loop deps :registry registry :root root
+                                            :optional-names optional-names
+                    :on-ok (lambda (nodes ev)
+                             (handler-case
+                                 ;; Drop soft-failed optional root deps that never resolved.
+                                 (let* ((effective
+                                          (remove-if-not
+                                           (lambda (d)
+                                             (gethash (%edge-key ":root" (car d)) ev))
+                                           deps))
+                                        (plan (plan-layout nodes ev effective)))
+                                   (link-plan loop root plan nodes
+                                     :on-ok (lambda ()
+                                              (write-lock root plan nodes)
+                                              (when on-ok
+                                                (funcall on-ok (make-install-result
+                                                                :source :resolved :plan plan
+                                                                :node-count (hash-table-count nodes)
+                                                                :lifecycle-skipped (%collect-lifecycle-scripts plan nodes)))))
+                                     :on-err (lambda (e) (when on-err (funcall on-err e)))))
+                               (error (e) (when on-err (funcall on-err e)))))
+                    :on-err (lambda (e) (when on-err (funcall on-err e))))))
+         (cond
+           (frozen
+            (cond ((null lock)
+                   (when on-err (funcall on-err (make-condition 'lock-drift-error
+                                 :message "no clun.lock; --frozen-lockfile requires an up-to-date lock"))))
+                  ((not (lock-satisfies-p lock deps :optional-names optional-names))
+                   (when on-err (funcall on-err (make-condition 'lock-drift-error
+                                 :message "clun.lock is out of date with package.json (--frozen-lockfile)"))))
+                  (t (from-lock))))
+           ((and lock (lock-satisfies-p lock deps :optional-names optional-names)) (from-lock))
+           (t (resolve-fresh))))))
    (install-error (e) (when on-err (funcall on-err e)))
    (error (e) (when on-err (funcall on-err (make-condition 'install-error
                             :message (format nil "install setup failed: ~a" e)))))))

@@ -190,3 +190,67 @@ return (values install-result error)."
            (false (clun.sys:path-exists-p (clun.sys:path-join root "node_modules/@scope/.bin/widget"))
                   "not under node_modules/@scope/.bin"))
       (ignore-errors (clun.sys:remove-recursive root)))))
+;;; --- dependency-spec residual (#131): optionalDependencies + file: ---------
+
+(define-test install/optional-dep-soft-fail
+  "A missing optionalDependency does not fail the install; required deps still land."
+  (with-temp-cache (cache)
+    (let ((proj (clun.sys:make-temp-dir "/tmp/clun-opt-")))
+      (unwind-protect
+           (progn
+             (clun.sys:write-file-octets
+              (clun.sys:path-join proj "package.json")
+              (sb-ext:string-to-octets
+               (format nil "{\"name\":\"app\",\"version\":\"1.0.0\",\"dependencies\":{\"left-pad\":\"^1.0.0\"},\"optionalDependencies\":{\"no-such-optional-pkg-zzzz\":\"^9.9.9\"}}~%")
+               :external-format :utf-8))
+             (multiple-value-bind (result err) (%fresh-install proj)
+               (false err "optional miss is soft")
+               (true (inst:install-result-p result))
+               (true (%has-pkg proj "left-pad") "required dep installed")
+               (false (%has-pkg proj "no-such-optional-pkg-zzzz") "optional miss skipped")))
+        (ignore-errors (clun.sys:remove-recursive proj))))))
+
+(define-test install/file-spec-local-package
+  "file: directory packages install by pure-CL recursive copy and reinstall offline."
+  (with-temp-cache (cache)
+    (let* ((base (clun.sys:make-temp-dir "/tmp/clun-file-"))
+           (local (clun.sys:path-join base "local-pkg"))
+           (proj (clun.sys:path-join base "app")))
+      (unwind-protect
+           (progn
+             (clun.sys:make-directory local :recursive t :mode #o755)
+             (clun.sys:make-directory proj :recursive t :mode #o755)
+             (clun.sys:write-file-octets
+              (clun.sys:path-join local "package.json")
+              (sb-ext:string-to-octets
+               (format nil "{\"name\":\"local-pkg\",\"version\":\"1.2.3\",\"main\":\"index.js\"}~%")
+               :external-format :utf-8))
+             (clun.sys:write-file-octets
+              (clun.sys:path-join local "index.js")
+              (sb-ext:string-to-octets "module.exports = 'from-file';
+" :external-format :utf-8))
+             (clun.sys:write-file-octets
+              (clun.sys:path-join proj "package.json")
+              (sb-ext:string-to-octets
+               (format nil "{\"name\":\"app\",\"version\":\"1.0.0\",\"dependencies\":{\"local-pkg\":\"file:../local-pkg\",\"left-pad\":\"1.3.0\"}}~%")
+               :external-format :utf-8))
+             (multiple-value-bind (result err) (%fresh-install proj)
+               (false err)
+               (true (inst:install-result-p result))
+               (true (%has-pkg proj "local-pkg") "file: package copied")
+               (true (%has-pkg proj "left-pad") "registry dep still works")
+               (is equal "1.2.3"
+                   (clun.sys:jget (clun.sys:parse-json
+                                   (clun.sys:read-file-string
+                                    (%nm proj "local-pkg" "package.json")))
+                                  "version"))
+               (true (search "from-file"
+                             (clun.sys:read-file-string (%nm proj "local-pkg" "index.js")))
+                     "file: package body copied")
+               ;; offline reinstall from lock
+               (let ((lock1 (clun.sys:read-file-string (clun.sys:path-join proj "clun.lock"))))
+                 (clun.sys:remove-recursive (clun.sys:path-join proj "node_modules"))
+                 (is eq :from-lock (inst:ir-source (inst:install proj)))
+                 (true (%has-pkg proj "local-pkg") "file: package restored offline")
+                 (is equal lock1 (clun.sys:read-file-string (clun.sys:path-join proj "clun.lock"))))))
+        (ignore-errors (clun.sys:remove-recursive base))))))
