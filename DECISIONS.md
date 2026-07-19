@@ -3374,3 +3374,13 @@ Pure-CL HTML entry imports + on-demand transforms + browser HMR. Exceeds Bun wit
 `Clun.devServer`, path isolation, origin allow-list, and pure-CL stat-poll (no native
 FS watcher FFI). Soft integrate with `tooling.hot-reload` when that module is loaded.
 Candidate `0.1.0-dev.54`. Parent epic #177.
+
+### 2026-07-19 — runtime.native-addons FULL PORT Yes (#178)
+
+**Decision:** Ledger row `runtime.native-addons` is **Yes**. Purity remains pure Common Lisp only
+(no CFFI / machine-code shared objects). The Yes realization is a pure-CL `bun:ffi` host with
+linear memory, typed symbol libraries, `Clun.ffi.registerLibrary`, N-API-style
+`Clun.napi.defineAddon` / `process.dlopen` for pure-CL addons, `.claddon` packs, and bounds-checked
+pointer I/O (exceeds Bun.ffi crash-prone raw pointers). Constitutional foreign-call amendment
+rejected. Evidence: `docs/design/phase-48.md`, `tests/lisp/ffi/ffi-tests.lisp`,
+`tests/compat/runtime.native-addons/`. Slot `0.1.0-dev.57`. Parent epic #177.
