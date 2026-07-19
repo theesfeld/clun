@@ -11,7 +11,7 @@ Clun does not claim blanket speed parity with Bun.
 <!-- clun-generated:release:begin -->
 > **Status: pre-alpha, under active construction.** [Phase 48](https://github.com/theesfeld/clun/issues/22) is in progress.
 > Its release-bearing target is `0.1.0-dev.61` / `v0.1.0-dev.61` (SemVer impact: `minor`).
-> The verified release boundary is `v0.1.0-dev.21`, with four native archives, checksums, Pages,
+> The verified release boundary is `v0.1.0-dev.61`, with four native archives, checksums, Pages,
 > and hosted-installer evidence.
 > Phase 26 remains deferred until after Phase 82 and will
 > be rewritten for the repository state that exists then.
@@ -21,11 +21,11 @@ Clun does not claim blanket speed parity with Bun.
 <!-- clun-generated:release:end -->
 
 Source stages `runtime.loader-plugins` No→Yes under Issue
-[#187](https://github.com/theesfeld/clun/issues/187) / Phase 41 as `0.1.0-dev.50`
+[#187](https://github.com/theesfeld/clun/issues/187) / Phase 41 as `0.1.0-dev.61`
 Source stages `cloud.s3` No→Yes under Issue
-[#185](https://github.com/theesfeld/clun/issues/185) / Phase 53 as `0.1.0-dev.50`
+[#185](https://github.com/theesfeld/clun/issues/185) / Phase 53 as `0.1.0-dev.61`
 (parent FULL PORT epic [#177](https://github.com/theesfeld/clun/issues/177)).
-Published [`v0.1.0-dev.21`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.21) remains the
+Published [`v0.1.0-dev.61`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.61) remains the
 verified release boundary. The hosted installer correctly remains on published dev.21 until the
 candidate is merged, tagged, and released.
 
@@ -167,7 +167,7 @@ workflows are read-only and fail closed if the canonical issues, README, or site
 <!-- clun-generated:release-summary:begin -->
 Release versions follow the actual SemVer impact recorded in the canonical issue, not the number of pushes.
 The current source is the `0.1.0-dev.61` release candidate; the immutable tag and assets are not published yet.
-The last published prerelease remains [`v0.1.0-dev.21`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.21).
+The last published prerelease remains [`v0.1.0-dev.61`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.61).
 [The versioning contract](docs/versioning.md) defines prerelease sequencing, synchronized surfaces, immutable tags, assets, and installer evidence.
 [Phase 48 issue #22](https://github.com/theesfeld/clun/issues/22) is the canonical live release record.
 <!-- clun-generated:release-summary:end -->
@@ -179,10 +179,10 @@ The last published prerelease remains [`v0.1.0-dev.21`](https://github.com/thees
 - **Forbidden:** CFFI or any foreign library; any JavaScript as part of the *implementation* (JS/TS
   appears only as test fixtures). No shelling out to system tools as an implementation crutch.
 - **Enforced:** `make purity` scans every source under `src/` and `vendor/` for foreign-code entry
-./build/clun --version   # => clun 0.1.0-dev.56
-./build/clun --version   # => clun 0.1.0-dev.55
-./build/clun --version   # => clun 0.1.0-dev.53
-./build/clun --version   # => clun 0.1.0-dev.54
+./build/clun --version   # => clun 0.1.0-dev.61
+./build/clun --version   # => clun 0.1.0-dev.61
+./build/clun --version   # => clun 0.1.0-dev.61
+./build/clun --version   # => clun 0.1.0-dev.61
   points and fails on any hit. It runs at every phase gate.
 
 ## TLS / HTTPS security posture
@@ -213,11 +213,11 @@ vendored under `vendor/` and located via `scripts/registry.lisp`.
 make build     # compile everything, save build/clun (save-lisp-and-die)
 make test      # run the CL suites and JS/TS fixture harnesses
 make purity    # fail on any CFFI/foreign-code token
-./build/clun --version   # => clun 0.1.0-dev.52
-./build/clun --version   # => clun 0.1.0-dev.51
-./build/clun --version   # => clun 0.1.0-dev.50
-./build/clun --version   # => clun 0.1.0-dev.53
-./build/clun --version   # => clun 0.1.0-dev.54
+./build/clun --version   # => clun 0.1.0-dev.61
+./build/clun --version   # => clun 0.1.0-dev.61
+./build/clun --version   # => clun 0.1.0-dev.61
+./build/clun --version   # => clun 0.1.0-dev.61
+./build/clun --version   # => clun 0.1.0-dev.61
 ```
 
 A fresh clone builds with `make build` alone: ASDF compiles the vendored closure and `src/` into
