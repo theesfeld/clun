@@ -82,6 +82,13 @@ jobs:
         if: runner.os == 'macOS'
         shell: bash
         run: |
+          # GitHub's macOS image can carry an unrelated, untrusted aws/tap.
+          # Remove it from this ephemeral runner instead of trusting third-party
+          # formulae or letting it destabilize otherwise unrelated brew calls.
+          taps="$(brew tap)"
+          if printf '%s\n' "$taps" | grep -Fxq 'aws/tap'; then
+            brew untap --force aws/tap
+          fi
           brew list sbcl >/dev/null 2>&1 || brew install sbcl
           brew list zstd >/dev/null 2>&1 || brew install zstd
 

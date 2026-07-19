@@ -296,62 +296,35 @@ created. The winning socket is restored to blocking mode for pure-tls."
                            (ca-file (%system-ca-file)) (verify t) socket-box
                            (connect-timeout-ms 30000) cancelled-p)
   "Issue one BLOCKING HTTPS request (run on a worker thread) and return the parsed + decoded
-http-response. Connects, does the pure-tls handshake + chain/hostname verification (unless
-VERIFY is NIL), sends the serialized request, reads the response to EOF, parses + gunzips it.
+http-response. It uses the same bounded, frame-aware transport as streaming Fetch: a response
+with complete Content-Length or chunked framing settles without waiting for connection EOF,
+while an until-close or truncated response still requires authenticated close_notify and fails
+closed on abrupt TCP EOF. Certificate, hostname, TLS 1.2 fallback, decompression, and response
+bounds therefore stay identical across the blocking and streaming entry points.
+
 Signals on connect / handshake / verification / parse failure — the caller maps the condition
-(see tls-error-message). If SOCKET-BOX (a cons) is supplied, its car is set to the socket so
-an abort can close it to unblock the blocking read."
-  (let ((addresses (resolve-hostname-all host :cancelled-p cancelled-p))
-        (sock nil) (raw nil) (tls nil)
-        (request (%serialize-request method path (or host-header host) headers body)))
-    (labels ((close-transport ()
-               (ignore-errors (when tls (close tls)))
-               (ignore-errors (when raw (close raw)))
-               (ignore-errors (when sock (sb-bsd-sockets:socket-close sock)))
-               (setf tls nil raw nil sock nil))
-             (connect-transport ()
-               (setf sock (%connect-happy-blocking addresses port socket-box
-                                                   connect-timeout-ms))
-               (setf raw (sb-bsd-sockets:socket-make-stream
-                          sock :input t :output t :element-type '(unsigned-byte 8)))))
-    (unwind-protect
-         (progn
-           (connect-transport)
-           (let ((fallback-p nil)
-                 (context (if ca-file
-                              (pure-tls:make-tls-context :ca-file ca-file)
-                              (pure-tls:make-tls-context))))
-             ;; make-tls-client-stream eagerly completes the handshake. Keep the
-             ;; downgrade handler around construction only, before request bytes
-             ;; can be sent; a later alert can therefore never replay a request.
-             (handler-case
-                 (setf tls (pure-tls:make-tls-client-stream
-                            raw :hostname host
-                                :verify (if verify
-                                            pure-tls:+verify-required+
-                                            pure-tls:+verify-none+)
-                                :alpn-protocols '("http/1.1")
-                                :context context))
-               (pure-tls:tls-alert-error (condition)
-                 (unless (%protocol-version-alert-p condition)
-                   (error condition))
-                 (setf fallback-p t)))
-             (if fallback-p
-                 (progn
-                   ;; A fresh connection is mandatory: the first peer consumed
-                   ;; the TLS 1.3 ClientHello and sent a fatal alert.
-                   (close-transport)
-                   (connect-transport)
-                   (multiple-value-bind (wire clean-eof-p)
-                       (https-request-tls12 raw host request
-                                            :ca-file ca-file :verify verify)
-                     (%parse-http-response-octets wire
-                                                  :clean-eof-p clean-eof-p)))
-                 (progn
-                   (write-sequence request tls)
-                   (force-output tls)
-                   (%parse-http-response-octets (%read-to-eof tls))))))
-      (close-transport)))))
+(see tls-error-message). If SOCKET-BOX (a cons) is supplied, its car is set to a close thunk so
+an abort can close the active socket and unblock the blocking read."
+  (let ((head nil)
+        (chunks '())
+        (complete-p nil))
+    ;; The blocking API is deliberately one-shot. Reusing the streaming transport
+    ;; here removes the older read-to-EOF path without introducing a hidden pool or
+    ;; changing the caller's connection ownership.
+    (https-request-stream
+     :host host :port port :method method :path path
+     :headers headers :body body :host-header host-header
+     :ca-file ca-file :verify verify :socket-box socket-box
+     :connect-timeout-ms connect-timeout-ms :cancelled-p cancelled-p
+     :pooling-p nil :default-accept-encoding "gzip"
+     :on-headers (lambda (response) (setf head response))
+     :on-data (lambda (chunk) (push chunk chunks))
+     :on-complete (lambda () (setf complete-p t)))
+    (unless (and head complete-p)
+      (error "HTTPS response transport completed without a full response"))
+    (setf (hres-body head)
+          (apply #'concatenate '(vector (unsigned-byte 8)) (nreverse chunks)))
+    head))
 
 ;;; --- per-loop HTTPS/TLS connection pool ------------------------------------
 ;;;
@@ -615,7 +588,7 @@ Returns true when the transport was accepted into the idle pool."
           proxy-host proxy-port proxy-authorization proxy-headers
           (ca-file (%system-ca-file)) (verify t) socket-box
           (connect-timeout-ms 30000) cancelled-p request-body-source
-          pool-loop (pooling-p t)
+          pool-loop (pooling-p t) (default-accept-encoding "identity")
           on-headers on-data on-complete)
   "Issue one blocking HTTPS request and deliver its response incrementally.
 
@@ -626,7 +599,10 @@ on that worker thread; an asynchronous caller is responsible for loop marshallin
 
 When POOL-LOOP is supplied and POOLING-P is true (and no proxy is used), a clean
 Content-Length/chunked/HEAD keep-alive response may return the pure-tls transport
-to LOOP's origin-keyed idle pool under the same fail-closed rules as plain HTTP."
+to LOOP's origin-keyed idle pool under the same fail-closed rules as plain HTTP.
+DEFAULT-ACCEPT-ENCODING is synthesized only when HEADERS does not already supply
+Accept-Encoding; streaming Fetch uses identity while the blocking compatibility
+API preserves its gzip default."
   (let* ((dial-host (or proxy-host host))
          (dial-port (or proxy-port port))
          (pool-eligible-p (and pooling-p pool-loop (null proxy-host)))
@@ -641,7 +617,7 @@ to LOOP's origin-keyed idle pool under the same fail-closed rules as plain HTTP.
          (poolable-p nil)
          (request
            (%serialize-request method path (or host-header host)
-                               headers body "identity"
+                               headers body default-accept-encoding
                                (not (null request-body-source))
                                request-keep-alive-p)))
     (labels ((close-transport ()

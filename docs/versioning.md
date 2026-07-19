@@ -350,3 +350,8 @@ Phase 69–70 tooling.formatter-linter FULL PORT (#190 / canonical #43) stages f
 Phase 48 native-host subset (#178 / canonical #22) staged free `0.1.0-dev.66` / `v0.1.0-dev.66` after fmt-lint Yes `0.1.0-dev.65`; Issue #215 later corrected the compatibility disposition to Partial because machine-code ABI and complete N-API/V8/FFI corpus parity were not implemented. The original implementation impact was `minor`; the evidence correction is `none`.
 
 Release ship #216 stages free `0.1.0-dev.69` / `v0.1.0-dev.69` with built-in `--update`/`check-update` (GitHub Releases assets + SHA-256); SemVer impact is `minor`.
+
+Phase 82 release recovery #219 stages `0.1.0-dev.70` / `v0.1.0-dev.70` because immutable tag-only
+`v0.1.0-dev.69` cannot move or be reused. Darwin workspace-link, deterministic CookieMap measurement,
+frame-aware HTTPS, and macOS dependency-setup corrections are backward-compatible fixes; SemVer impact
+is `patch`.
