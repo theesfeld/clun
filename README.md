@@ -20,8 +20,8 @@ Clun does not claim blanket speed parity with Bun.
 > the local resume checklist.
 <!-- clun-generated:release:end -->
 
-Source stages `language.jsx` No→Yes under Issue
-[#186](https://github.com/theesfeld/clun/issues/186) / Phase 40 as `0.1.0-dev.47`
+Source stages `package-manager.monorepo` No→Yes under Issue
+[#182](https://github.com/theesfeld/clun/issues/182) / Phase 60 as `0.1.0-dev.48`
 (parent FULL PORT epic [#177](https://github.com/theesfeld/clun/issues/177)).
 Published [`v0.1.0-dev.21`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.21) remains the
 verified release boundary. The hosted installer correctly remains on published dev.21 until the
@@ -207,7 +207,7 @@ vendored under `vendor/` and located via `scripts/registry.lisp`.
 make build     # compile everything, save build/clun (save-lisp-and-die)
 make test      # run the CL suites and JS/TS fixture harnesses
 make purity    # fail on any CFFI/foreign-code token
-./build/clun --version   # => clun 0.1.0-dev.47
+./build/clun --version   # => clun 0.1.0-dev.48
 ```
 
 A fresh clone builds with `make build` alone: ASDF compiles the vendored closure and `src/` into
