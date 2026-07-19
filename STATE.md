@@ -9,7 +9,7 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ## Current phase: **47 - Node compatibility certification**  (FULL PORT Yes #191)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/21
+**Canonical issue:** https://github.com/theesfeld/clun/issues/191
 **Parent:** https://github.com/theesfeld/clun/issues/177
 **Current implementation unit:** runtime.node-compatibility full port Yes (#191) pure-CL Node surface exceeding Bun.
 **SemVer impact:** `minor`
