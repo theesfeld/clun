@@ -9,8 +9,8 @@ targets are workload-specific and published;
 Clun does not claim blanket speed parity with Bun.
 
 <!-- clun-generated:release:begin -->
-> **Status: pre-alpha, under active construction.** [Phase 49](https://github.com/theesfeld/clun/issues/128) is in progress.
-> Its release-bearing target is `0.1.0-dev.43` / `v0.1.0-dev.43` (SemVer impact: `minor`).
+> **Status: pre-alpha, under active construction.** [Phase 47](https://github.com/theesfeld/clun/issues/132) is in progress.
+> Its release-bearing target is `0.1.0-dev.44` / `v0.1.0-dev.44` (SemVer impact: `minor`).
 > The verified release boundary is `v0.1.0-dev.21`, with four native archives, checksums, Pages,
 > and hosted-installer evidence.
 > Phase 26 remains deferred until after Phase 82 and will
@@ -100,7 +100,7 @@ July 16, 2026. Engineering references are separately pinned to Bun commit `c1076
 
 | Capability | Current pre-alpha state | Evidence-backed target |
 |---|---|---|
-| Node.js compatibility | Partial: selected globals and module subsets; pure-CL path.win32 (#108) | Phases [42](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-42), [43](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-43), [44](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-44), [45](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-45), [46](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-46), [47](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-47) |
+| Node.js compatibility | Yes: selected pure-CL Node surface complete: path (posix+win32), fs, url, buffer, events, assert, util, timers(/promises), querystring, os, process globals, and crypto helpers — not full Node.js module/API/CLI or V8 parity | Phases [42](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-42), [43](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-43), [44](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-44), [45](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-45), [46](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-46), [47](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-47) |
 | Web Standard APIs | Yes: streaming `fetch`, clone/tee, operation-wide timeouts, HTTP proxy and HTTPS CONNECT, proxy object `{url,headers}`, plain HTTP and origin-keyed pure-tls HTTPS idle pooling, ReadableStream default and BYOB readers, WritableStream, TransformStream with pipeThrough/pipeTo, Response/Request.body streams, and a scoped Web API surface | [Phase 38](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-38) |
 | Native addons | No: excluded by the current purity contract | [Phase 48](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-48) |
 | TypeScript | Yes: erasable type stripping plus Bun-compatible runtime transforms for enums, runtime namespaces, and constructor parameter properties (no full tsc typecheck; .tsx and decorators remain out of scope) | [Phase 39](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-39) |
@@ -159,10 +159,10 @@ workflows are read-only and fail closed if the canonical issues, README, or site
 
 <!-- clun-generated:release-summary:begin -->
 Release versions follow the actual SemVer impact recorded in the canonical issue, not the number of pushes.
-The current source is the `0.1.0-dev.43` release candidate; the immutable tag and assets are not published yet.
+The current source is the `0.1.0-dev.44` release candidate; the immutable tag and assets are not published yet.
 The last published prerelease remains [`v0.1.0-dev.21`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.21).
 [The versioning contract](docs/versioning.md) defines prerelease sequencing, synchronized surfaces, immutable tags, assets, and installer evidence.
-[Phase 49 issue #128](https://github.com/theesfeld/clun/issues/128) is the canonical live release record.
+[Phase 47 issue #132](https://github.com/theesfeld/clun/issues/132) is the canonical live release record.
 <!-- clun-generated:release-summary:end -->
 
 ## The purity contract
