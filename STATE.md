@@ -13,8 +13,8 @@ Update when work completes; keep consistent with the Issue, README, and site.
 **Parent:** https://github.com/theesfeld/clun/issues/177
 **Current implementation unit:** runtime.web-standard-apis full port Yes (#207) pure-CL Web Standard surface exceeding Bun.
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.60` / `v0.1.0-dev.60`
+**Candidate release:** `0.1.0-dev.64` / `v0.1.0-dev.64`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
-**Entry boundary:** installer on `v0.1.0-dev.21`; free slot after TypeScript Yes `0.1.0-dev.59`.
+**Entry boundary:** installer on `v0.1.0-dev.21`; free slot after master Phase 37 m4 Yes `0.1.0-dev.63`.
 
 **Next scope:** remaining FULL PORT ledger Nos/Partials under #177.

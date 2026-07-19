@@ -1,5 +1,5 @@
 <!-- clun-generated:release-notes:begin -->
-# Clun 0.1.0-dev.60
+# Clun 0.1.0-dev.64
 
 Phase 38: Web platform foundations.
 
@@ -15,4 +15,4 @@ The canonical evidence and current limitations are in `compat/`; `make compat-va
 
 - Issue #207 promotes `runtime.web-standard-apis` Partial→**Yes** (pure-CL full Web Standard surface exceeding Bun).
 - Residual streams edge cases, EventTarget/FormData/File, CompressionStream, crypto.subtle.digest, atob/btoa, performance, MessageChannel, queuing strategies, and hermetic large-transfer/network stress evidence.
-- Slot: free `0.1.0-dev.60` after master TypeScript Yes `0.1.0-dev.59`.
+- Slot: free `0.1.0-dev.64` after master Phase 37 m4 `0.1.0-dev.63`.

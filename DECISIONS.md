@@ -3375,7 +3375,7 @@ Pure-CL HTML entry imports + on-demand transforms + browser HMR. Exceeds Bun wit
 FS watcher FFI). Soft integrate with `tooling.hot-reload` when that module is loaded.
 Candidate `0.1.0-dev.54`. Parent epic #177.
 
-## 2026-07-19 — tooling.single-file-executables Yes (Issue #181)
+### 2026-07-19 - Phase 37 m4 implements keyed Promise combinators
 
 Pure-CL single-file executables: `clun build --compile` / `Clun.build({compile})` with
 module graph, embedded assets, Ed25519/HMAC sign+verify, cross-target offline portable
@@ -3405,5 +3405,16 @@ Promote `runtime.web-standard-apis` Partial→Yes under parent #177. Soft/scoped
 standards globals (EventTarget/FormData/File/atob/performance/MessageChannel/
 CompressionStream/crypto.subtle.digest/queuing strategies), and hermetic
 large-transfer/network stress evidence. Pure Common Lisp only. Stages
-`0.1.0-dev.60` after master TypeScript Yes `0.1.0-dev.59`.
+`0.1.0-dev.64` after master Phase 37 m4 `0.1.0-dev.63`.
 Refs: #207, #12, #177
+
+### 2026-07-19 - Phase 37 m4 implements keyed Promise combinators
+
+Phase 37 residual burn after m3 Set methods selects the largest remaining pure-CL
+feature cluster: TC39 await-dictionary `Promise.allKeyed` / `Promise.allSettledKeyed`
+(74 frozen Test262 rows after excluding one propertyHelper-destructive fixture).
+Implementation is pure CL in `src/engine/async/promise.lisp` via PerformPromiseAllKeyed,
+GetV-based thenable Invoke, and null-proto CreateKeyedPromiseCombinatorResultObject.
+Focused gate `make phase-37-m4-check` is 74/74. Stages `0.1.0-dev.63` (free after master tip TypeScript Yes `0.1.0-dev.59`; concurrent open trains claim `.58`/`.60`–`.62`; previous_version remains published `0.1.0-dev.21`). No matrix Yes; Phase 37 remains open with residual
+ownership 378.
+Refs: #11

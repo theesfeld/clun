@@ -11,7 +11,7 @@ This is a deterministic analysis of the authoritative execution classification l
 | source-revision | `756bcdf5d7e372c3afd6bcfd2c31ce00719f36b0` |
 | classification-ledger | `tmp-test/test262-exec-classifications.tsv` |
 | frozen-passlist | `tests/conformance/exec-passlist.txt` |
-| classification-ledger-fnv-1a-64 | `8FCFC569AA653BF1` |
+| classification-ledger-fnv-1a-64 | `ECC1719FA1FA8A61` |
 
 The digest is FNV-1a-64 over the ledger's exact input bytes; it is not SHA.
 
@@ -20,13 +20,13 @@ The digest is FNV-1a-64 over the ledger's exact input bytes; it is not SHA.
 | Measure | Exact value |
 |---|---:|
 | Total | 40654 |
-| Pass | 25944 |
-| Fail | 2219 |
+| Pass | 26018 |
+| Fail | 2145 |
 | Skip | 12491 |
 | Crash | 0 |
 | Eligible (`pass + fail`) | 28163 |
-| Pass rate | 25944 / 28163 = 92.120868% |
-| Frozen baseline pass count | 25944 |
+| Pass rate | 26018 / 28163 = 92.383624% |
+| Frozen baseline pass count | 26018 |
 | Current-pass delta from frozen baseline | +0 |
 | `ceil(90% * eligible)` | 25347 |
 | Required pass lift | 0 |
@@ -36,7 +36,7 @@ The digest is FNV-1a-64 over the ledger's exact input bytes; it is not SHA.
 | Phase owner | Fail rows |
 |---|---:|
 | `phase-25b` | 1767 |
-| `phase-37` | 452 |
+| `phase-37` | 378 |
 
 Phase ownership is orthogonal to the implementation work buckets below.
 
@@ -50,10 +50,10 @@ Phase ownership is orthogonal to the implementation work buckets below.
 | 4 | `async-generators` | 0 |
 | 5 | `generators` | 10 |
 | 6 | `classes` | 11 |
-| 7 | `binary-data` | 642 |
+| 7 | `binary-data` | 640 |
 | 8 | `regexp` | 224 |
 | 9 | `iterator-protocol` | 10 |
-| 10 | `promises` | 93 |
+| 10 | `promises` | 21 |
 | 11 | `collections` | 87 |
 | 12 | `arrays` | 249 |
 | 13 | `objects` | 30 |
@@ -62,7 +62,7 @@ Phase ownership is orthogonal to the implementation work buckets below.
 | 16 | `primitive-builtins` | 193 |
 | 17 | `other-runtime` | 148 |
 
-The work buckets are mutually exclusive, first-match wins, and their counts sum to 2219.
+The work buckets are mutually exclusive, first-match wins, and their counts sum to 2145.
 
 ## Top 25 owner counts
 
@@ -75,7 +75,6 @@ The work buckets are mutually exclusive, first-match wins, and their counts sum 
 | 189 | `language:expressions` |
 | 183 | `language:eval-code` |
 | 129 | `builtin:DataView` |
-| 95 | `builtin:Promise` |
 | 65 | `builtin:TypedArrayConstructors` |
 | 63 | `builtin:Date` |
 | 48 | `builtin:ArrayBuffer` |
@@ -85,6 +84,7 @@ The work buckets are mutually exclusive, first-match wins, and their counts sum 
 | 30 | `builtin:Error` |
 | 30 | `builtin:String` |
 | 25 | `builtin:JSON` |
+| 21 | `builtin:Promise` |
 | 19 | `builtin:Math` |
 | 19 | `builtin:Number` |
 | 18 | `language:global-code` |
@@ -106,8 +106,6 @@ Counts are sorted by count descending, then raw value ascending. Showing 25 of 3
 | 47 | `built-ins/TypedArrayConstructors/internals` |
 | 44 | `built-ins/TypedArray/prototype/slice` |
 | 39 | `built-ins/Array/prototype/concat` |
-| 38 | `built-ins/Promise/allKeyed` |
-| 37 | `built-ins/Promise/allSettledKeyed` |
 | 37 | `built-ins/RegExp/prototype/Symbol.replace` |
 | 35 | `built-ins/Array/prototype/lastIndexOf` |
 | 35 | `built-ins/TypedArray/prototype/filter` |
@@ -125,18 +123,19 @@ Counts are sorted by count descending, then raw value ascending. Showing 25 of 3
 | 21 | `language/statements/switch` |
 | 20 | `language/statements/for-in` |
 | 20 | `language/statements/function` |
+| 19 | `built-ins/DataView/prototype/setFloat16` |
+| 19 | `built-ins/RegExp/escape` |
 
-Counts are sorted by count descending, then raw value ascending. Showing 25 of 291 distinct values.
+Counts are sorted by count descending, then raw value ascending. Showing 25 of 290 distinct values.
 
 ## Top 25 raw feature counts
 
 | Count | Value |
 |---:|---|
 | 449 | `TypedArray` |
-| 201 | `BigInt` |
+| 199 | `BigInt` |
 | 188 | `Symbol.species` |
-| 88 | `Symbol` |
-| 75 | `await-dictionary` |
+| 84 | `Symbol` |
 | 72 | `globalThis` |
 | 63 | `align-detached-buffer-semantics-with-web-reality` |
 | 59 | `array-find-from-last` |
@@ -146,17 +145,18 @@ Counts are sorted by count descending, then raw value ascending. Showing 25 of 2
 | 40 | `Float16Array` |
 | 38 | `Symbol.replace` |
 | 37 | `change-array-by-copy` |
-| 33 | `Reflect.construct` |
 | 31 | `Symbol.match` |
 | 31 | `WeakMap` |
 | 30 | `ArrayBuffer` |
 | 30 | `DataView` |
+| 29 | `Reflect.construct` |
 | 28 | `Symbol.isConcatSpreadable` |
 | 28 | `Symbol.split` |
 | 28 | `error-stack-accessor` |
-| 25 | `arrow-function` |
 | 24 | `array-grouping` |
 | 24 | `symbols-as-weakmap-keys` |
+| 23 | `arrow-function` |
+| 21 | `json-parse-with-source` |
 
 Counts are sorted by count descending, then raw value ascending. Showing 25 of 70 distinct values.
 
@@ -166,12 +166,12 @@ Counts are sorted by count descending, then raw value ascending. Showing 25 of 7
 |---:|---|
 | 441 | `testTypedArray.js` |
 | 258 | `detachArrayBuffer.js` |
-| 169 | `propertyHelper.js` |
-| 157 | `compareArray.js` |
-| 51 | `asyncHelpers.js` |
-| 31 | `isConstructor.js` |
+| 160 | `propertyHelper.js` |
+| 144 | `compareArray.js` |
+| 27 | `isConstructor.js` |
 | 19 | `nativeErrors.js` |
 | 15 | `regExpUtils.js` |
+| 6 | `asyncHelpers.js` |
 | 3 | `compareIterator.js` |
 | 2 | `byteConversionValues.js` |
 | 2 | `decimalToHexString.js` |
