@@ -83,10 +83,10 @@ tooling.formatter-linter	darwin-arm64	unsupported	-	Capability is not implemente
 tooling.formatter-linter	darwin-x64	unsupported	-	Capability is not implemented.
 tooling.formatter-linter	linux-arm64	unsupported	-	Capability is not implemented.
 tooling.formatter-linter	linux-x64	unsupported	-	Capability is not implemented.
-tooling.frontend-dev-server	darwin-arm64	unsupported	-	Capability is not implemented.
-tooling.frontend-dev-server	darwin-x64	unsupported	-	Capability is not implemented.
-tooling.frontend-dev-server	linux-arm64	unsupported	-	Capability is not implemented.
-tooling.frontend-dev-server	linux-x64	unsupported	-	Capability is not implemented.
+tooling.frontend-dev-server	darwin-arm64	supported	ev.tooling.frontend-dev-server.core-suite.v1,ev.tooling.frontend-dev-server.e2e.v1	HTML entry routes, on-demand transforms, HMR client, development mode, and Clun.devServer pass through pure-CL implementation and shipped binary
+tooling.frontend-dev-server	darwin-x64	supported	ev.tooling.frontend-dev-server.core-suite.v1,ev.tooling.frontend-dev-server.e2e.v1	HTML entry routes, on-demand transforms, HMR client, development mode, and Clun.devServer pass through pure-CL implementation and shipped binary
+tooling.frontend-dev-server	linux-arm64	supported	ev.tooling.frontend-dev-server.core-suite.v1,ev.tooling.frontend-dev-server.e2e.v1	HTML entry routes, on-demand transforms, HMR client, development mode, and Clun.devServer pass through pure-CL implementation and shipped binary
+tooling.frontend-dev-server	linux-x64	supported	ev.tooling.frontend-dev-server.core-suite.v1,ev.tooling.frontend-dev-server.e2e.v1	HTML entry routes, on-demand transforms, HMR client, development mode, and Clun.devServer pass through pure-CL implementation and shipped binary
 tooling.hot-reload	darwin-arm64	supported	ev.tooling.hot-reload.core-suite.v1,ev.tooling.hot-reload.e2e.v1	State-preserving --hot soft reload, connection retention, import.meta.hot, and --watch hard restart pass through pure-CL implementation and shipped binary.
 tooling.hot-reload	darwin-x64	supported	ev.tooling.hot-reload.core-suite.v1,ev.tooling.hot-reload.e2e.v1	State-preserving --hot soft reload, connection retention, import.meta.hot, and --watch hard restart pass through pure-CL implementation and shipped binary.
 tooling.hot-reload	linux-arm64	supported	ev.tooling.hot-reload.core-suite.v1,ev.tooling.hot-reload.e2e.v1	State-preserving --hot soft reload, connection retention, import.meta.hot, and --watch hard restart pass through pure-CL implementation and shipped binary.

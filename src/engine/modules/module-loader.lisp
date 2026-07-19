@@ -20,6 +20,10 @@
 (defvar *jsx-transform-hook* nil
   "A function (source path) -> transformed-source, applied to .jsx/.tsx before parse.")
 
+(defvar *html-entry-loader* nil
+  "A function (path) -> module-record for HTML entry modules (frontend-dev-server).
+Installed by clun.runtime; when NIL, .html imports fail closed.")
+
 (defun ts-source-extension-p (path)
   (let ((dot (position #\. path :from-end t)))
     (and dot (member (subseq path dot) '(".ts" ".mts" ".cts") :test #'string=))))
@@ -283,6 +287,23 @@ by round-tripping through JSON.parse semantics — but here we build directly)."
        (dolist (kv v o) (data-prop o (car kv) (json->js-value (cdr kv))))))
     (t +undefined+)))
 
+;;; --- HTML entry modules (frontend-dev-server / Phase 68) --------------------
+
+(defun load-html-value (path)
+  "Load PATH as an HTML entry module via *html-entry-loader* (runtime installs).
+The default export is a brand object usable as a Clun.serve route value."
+  (let ((existing (realm-module *realm* path)))
+    (if (and existing (eq (mr-status existing) :evaluated))
+        (mr-cjs-exports existing)
+        (cond
+          (*html-entry-loader*
+           (let ((mr (funcall *html-entry-loader* path)))
+             (or (mr-cjs-exports mr) mr)))
+          (t
+           (throw-type-error
+            (format nil "HTML entry modules require the frontend dev server runtime (~a)"
+                    path)))))))
+
 ;;; --- YAML modules -----------------------------------------------------------
 
 (defun load-yaml-value (path)
@@ -316,6 +337,13 @@ placeholder is evaluated lazily by its format-specific loader)."
   (or (realm-module *realm* path)
       (ecase format
         (:esm (esm-load path))
+        (:html
+         (if *html-entry-loader*
+             (funcall *html-entry-loader* path)
+             (progn
+               (setf (realm-module *realm* path)
+                     (make-module-record :resolved-path path :format :html
+                                         :status :unlinked)))))
         ((:cjs :json :yaml)
          (setf (realm-module *realm* path)
                (make-module-record :resolved-path path :format format :status :unlinked))))))
@@ -455,6 +483,7 @@ placeholder is evaluated lazily by its format-specific loader)."
                         ((search ".cjs" path) :cjs)
                         ((search ".json" path) :json)
                         ((or (search ".yaml" path) (search ".yml" path)) :yaml)
+                        ((or (search ".html" path) (search ".htm" path)) :html)
                         (t :cjs))))))
          (load-result (plugin-run-on-load path :namespace plugin-namespace
                                           :loader (string-downcase (symbol-name fmt)))))
@@ -535,6 +564,7 @@ ESM uses the guard below."
     (:cjs  (load-cjs-module (mr-resolved-path mr)))
     (:json (load-json-value (mr-resolved-path mr)))
     (:yaml (load-yaml-value (mr-resolved-path mr)))
+    (:html (load-html-value (mr-resolved-path mr)))
     (:esm  (evaluate-esm-guarded mr)))
   mr)
 
@@ -596,7 +626,8 @@ JSON/YAML value)."
                        (lambda () +undefined+)))
             (:cjs  (lambda () (mr-cjs-exports dep))) ; interop default = module.exports
             (:json (lambda () (mr-cjs-exports dep)))
-            (:yaml (lambda () (mr-cjs-exports dep))))))
+            (:yaml (lambda () (mr-cjs-exports dep)))
+            (:html (lambda () (mr-cjs-exports dep))))))
     (lambda ()
       (if (mr-mock-exports dep)
           (js-get (mr-mock-exports dep) "default")
@@ -618,6 +649,12 @@ has only a default export; YAML mappings also expose their own top-level keys."
                        (lambda () (mr-cjs-exports dep))
                        (lambda () (js-get (mr-cjs-exports dep) name))))
             (:json (if (string= name "default")
+                       (lambda () (mr-cjs-exports dep))
+                       (throw-syntax-error
+                        (format nil
+                                "The requested module '~a' does not provide an export named '~a'"
+                                (mr-resolved-path dep) name))))
+            (:html (if (string= name "default")
                        (lambda () (mr-cjs-exports dep))
                        (throw-syntax-error
                         (format nil
@@ -694,6 +731,9 @@ splices the source's names."
             (:json (if (string= name "default")
                        (lambda () (mr-cjs-exports mr))
                        (lambda () (js-get (json-as-object (mr-cjs-exports mr)) name))))
+            (:html (if (string= name "default")
+                       (lambda () (mr-cjs-exports mr))
+                       (lambda () +undefined+)))
             (:yaml (if (string= name "default")
                        (lambda () (mr-cjs-exports mr))
                        (lambda () (js-get (json-as-object (mr-cjs-exports mr)) name)))))))
@@ -711,6 +751,7 @@ splices the source's names."
     (:esm  (loop for k being the hash-keys of (mr-exports mr) collect k))
     (:cjs  (cons "default" (own-enumerable-string-keys (mr-cjs-exports mr))))
     (:json '("default"))
+    (:html '("default"))
     (:yaml (if (mr-yaml-named-exports-p mr)
                (cons "default"
                      (remove "default"
@@ -736,6 +777,7 @@ values (🟡: not a live exotic object) plus, for CJS, a `default`."
                       (dolist (k (own-enumerable-string-keys (mr-cjs-exports mr)))
                         (data-prop ns k (js-get (mr-cjs-exports mr) k))))
                 (:json (data-prop ns "default" (mr-cjs-exports mr)))
+                (:html (data-prop ns "default" (mr-cjs-exports mr)))
                 (:yaml
                  (data-prop ns "default" (mr-cjs-exports mr))
                  (when (mr-yaml-named-exports-p mr)

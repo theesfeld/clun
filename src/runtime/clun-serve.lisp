@@ -8,6 +8,10 @@
 
 (in-package :clun.runtime)
 
+;;; Forward declaration: bound by frontend-dev-server.lisp (loaded after this file).
+(defvar *fds-active* nil
+  "Active frontend-dev-server session, or NIL.")
+
 (defparameter *serve-max-connections* 10000
   "Above this many concurrent connections, new ones get a 503 + close (shedding).")
 
@@ -638,6 +642,10 @@ When CONTEXT is upgraded to WebSocket, COMMIT is not invoked with HTTP payload."
              ((%response-like-p action) (commit-response action static-p))
              ((js-clun-file-p action)
               (commit-response (%new-response action eng:+undefined+) static-p))
+             ((html-entry-p action)
+              (commit-response
+               (%serve-html-entry action *fds-active* request)
+               static-p))
              ((eng:callable-p action)
               (let ((result
                       (eng:js-call action eng:+undefined+
@@ -1692,43 +1700,49 @@ SERVER / WEBSOCKET-CELL enable Phase 51 M1 upgrade when handlers are configured.
        "Clun.serve requires a fetch function or at least one active route"))
     (values fetch err-handler routes websocket)))
 (defun %clun-serve (g opts)
-  (multiple-value-bind (fetch err-handler routes websocket)
-      (%compile-serve-dispatch-options opts)
-    (let* ((port (let ((p (eng:js-get opts "port")))
-                   (if (eng:js-number-p p) (truncate (eng:to-number p)) 3000)))
-           (host (let ((h (eng:js-get opts "hostname")))
-                   (if (eng:js-string-p h) (eng:to-string h) "0.0.0.0")))
-           ;; --hot identity: re-evaluating Clun.serve({port}) reloads the live
-           ;; listener instead of EADDRINUSE, preserving TCP connections.
-           (existing (and (hot-mode-p) (hot-find-server host port))))
-      (when existing
-        (return-from %clun-serve (hot-server-reload existing opts)))
-      (let* ((idle-timeout-sec (%serve-idle-timeout-option opts))
-             (max-body (%serve-max-request-body-size-option opts))
-             (loop (eng:current-loop))
-             (conns (list 0))                  ; box: live connection count
-             (active (list '()))               ; box: live tcp connection list
-             (stopping (list nil)) (stop-resolve (list nil))
-             (fetch-cell (list fetch))
-             (err-handler-cell (list err-handler))
-             (routes-cell (list routes))
-             (websocket-cell (list websocket))
-             (hub-cell (list (%make-ws-topic-hub)))
-             (server (eng:new-object)))
-        (let ((listener
-                (net:tcp-listen loop host port :backlog 1024
-                  :on-connection
-                  (lambda (conn)
-                    ;; Opportunity poll for --hot/--watch while the listener is live.
-                    (when (hot-mode-p) (hot-poll-now))
-                    (cond
-                      ((or (car stopping) (>= (car conns) *serve-max-connections*))
-                       (%write-simple conn 503 "Service Unavailable" nil)
-                       (net:tcp-shutdown conn))
-                      (t
-                       (incf (car conns))
-                       (push conn (car active))
-                       (setf (net:tcp-on-close conn)
+  ;; Frontend-dev-server (#189): rewrite HTML entries + development/HMR first.
+  (multiple-value-bind (opts fds-session)
+      (%prepare-serve-opts-for-fds opts)
+    (multiple-value-bind (fetch err-handler routes websocket)
+        (%compile-serve-dispatch-options opts)
+      (let* ((port (let ((p (eng:js-get opts "port")))
+                     (if (eng:js-number-p p) (truncate (eng:to-number p)) 3000)))
+             (host (let ((h (eng:js-get opts "hostname")))
+                     (if (eng:js-string-p h) (eng:to-string h) "0.0.0.0")))
+             ;; --hot identity: re-evaluating Clun.serve({port}) reloads the live
+             ;; listener instead of EADDRINUSE, preserving TCP connections.
+             (existing (and (hot-mode-p) (hot-find-server host port))))
+        (when existing
+          (return-from %clun-serve (hot-server-reload existing opts)))
+        (let* ((idle-timeout-sec (%serve-idle-timeout-option opts))
+               (max-body (%serve-max-request-body-size-option opts))
+               (loop (eng:current-loop))
+               (conns (list 0))                  ; box: live connection count
+               (active (list '()))               ; box: live tcp connection list
+               (stopping (list nil)) (stop-resolve (list nil))
+               (fetch-cell (list fetch))
+               (err-handler-cell (list err-handler))
+               (routes-cell (list routes))
+               (websocket-cell (list websocket))
+               (hub-cell (list (%make-ws-topic-hub)))
+               (server (eng:new-object)))
+          (let ((listener
+                  (net:tcp-listen loop host port :backlog 1024
+                    :on-connection
+                    (lambda (conn)
+                      ;; Opportunity poll for frontend HMR + --hot/--watch.
+                      (when fds-session
+                        (handler-case (%fds-poll-tick fds-session)
+                          (error () nil)))
+                      (when (hot-mode-p) (hot-poll-now))
+                      (cond
+                        ((or (car stopping) (>= (car conns) *serve-max-connections*))
+                         (%write-simple conn 503 "Service Unavailable" nil)
+                         (net:tcp-shutdown conn))
+                        (t
+                         (incf (car conns))
+                         (push conn (car active))
+                         (setf (net:tcp-on-close conn)
                              (lambda (c code) (declare (ignore c code))
                                (setf (car active)
                                      (delete conn (car active) :test #'eq))
@@ -1756,6 +1770,10 @@ SERVER / WEBSOCKET-CELL enable Phase 51 M1 upgrade when handlers are configured.
                            (coerce idle-timeout-sec 'double-float))
             (eng:data-prop server "maxRequestBodySize"
                            (coerce max-body 'double-float))
+            (eng:data-prop server "development"
+                           (eng:js-boolean
+                            (and fds-session (fds-dev fds-session)
+                                 (fds-dev-enabled (fds-dev fds-session)))))
             (eng:install-method server "fetch" 1
               (lambda (this args)
                 (declare (ignore this))
@@ -1801,12 +1819,16 @@ SERVER / WEBSOCKET-CELL enable Phase 51 M1 upgrade when handlers are configured.
             (eng:install-method server "reload" 1
               (lambda (this args)
                 (declare (ignore this))
-                (multiple-value-bind (new-fetch new-error new-routes new-ws)
-                    (%compile-serve-dispatch-options (eng:arg args 0))
-                  (setf (car fetch-cell) new-fetch
-                        (car err-handler-cell) new-error
-                        (car routes-cell) new-routes
-                        (car websocket-cell) new-ws))
+                (multiple-value-bind (new-opts new-session)
+                    (%prepare-serve-opts-for-fds (eng:arg args 0))
+                  (multiple-value-bind (new-fetch new-error new-routes new-ws)
+                      (%compile-serve-dispatch-options new-opts)
+                    (setf (car fetch-cell) new-fetch
+                          (car err-handler-cell) new-error
+                          (car routes-cell) new-routes
+                          (car websocket-cell) new-ws))
+                  (when new-session
+                    (%fds-bind-server new-session server)))
                 server))
             (eng:install-method server "stop" 1
               (lambda (this args)
@@ -1815,6 +1837,7 @@ SERVER / WEBSOCKET-CELL enable Phase 51 M1 upgrade when handlers are configured.
                 ;; in-flight sockets immediately; graceful waits for them to drain.
                 (let ((force (eng:js-truthy (eng:arg args 0))))
                   (setf (car stopping) t)
+                  (%fds-unbind-server server)
                   (hot-unregister-server server)
                   (net:listener-close listener)
                   (cond
@@ -1846,6 +1869,8 @@ SERVER / WEBSOCKET-CELL enable Phase 51 M1 upgrade when handlers are configured.
             (eng:install-method server "unref" 0
               (lambda (th a) (declare (ignore th a)) eng:+undefined+))
             (%install-websocket-methods server websocket-cell hub-cell)
+            (when fds-session
+              (%fds-bind-server fds-session server))
             ;; Register under hot so the next soft-reload Clun.serve reuses us.
             (when (hot-mode-p)
               (hot-register-server
@@ -1854,4 +1879,4 @@ SERVER / WEBSOCKET-CELL enable Phase 51 M1 upgrade when handlers are configured.
                      :err-handler-cell err-handler-cell
                      :routes-cell routes-cell
                      :websocket-cell websocket-cell)))
-            server))))))
+            server)))))))

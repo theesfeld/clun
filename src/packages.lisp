@@ -343,7 +343,7 @@
    #:code-units->utf8 #:utf8->code-units #:ta-subview
    ;; TS strip hook (Phase 09): the loader applies this to .ts/.mts/.cts source
    ;; before parse-program; the transpiler installs it (engine stays dep-free).
-   #:*ts-strip-hook* #:*jsx-transform-hook*
+   #:*ts-strip-hook* #:*jsx-transform-hook* #:*html-entry-loader*
    #:make-lexer #:next-token #:reread-regexp #:reread-template
    #:lexer-pos #:lexer-src #:token-type #:token-value #:token-start #:token-end
    #:token-line #:token-col #:token-nl-before #:token-tmpl-part #:token-escaped
