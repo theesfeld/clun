@@ -195,6 +195,15 @@ portions of this contract. A candidate Pages run validates claims but does not d
 published, Pages must confirm that the matching tag peels to the recorded release commit and that all five
 required assets exist before deploying an installer that targets the version.
 
+The release ledger records publication evidence independently from phase completion. A `candidate`
+release requires its canonical phase Issue to remain open with Phase status `in-progress`. A `published`
+release permits that same open/`in-progress` state while the phase's remaining acceptance or closeout
+gates are still active, and also permits closed/`complete` once those gates are satisfied. Other
+publication/Issue/Phase-status combinations fail live verification; the existing Issue contract still
+requires the GitHub state, Phase status, global Status, and labels to agree.
+Generated README and site copy likewise describe the published prerelease without inferring that the
+larger phase is complete; only the live Issue's independently verified state may establish completion.
+
 ## Publication order
 
 Process constitution: `~/.config/agents/AGENTS.md` (branch → PR → squash-merge into `master`).

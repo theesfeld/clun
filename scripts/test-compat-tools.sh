@@ -652,20 +652,21 @@ grep -F 'Available now' "$case_root/site/index.html" >/dev/null 2>&1 ||
   fail 'published render did not expose the published release'
 grep -F 'latest published prerelease' "$case_root/README.md" >/dev/null 2>&1 ||
   fail 'published render did not expose the published release summary'
-grep -F "Phase $current_phase is complete:" "$case_root/site/index.html" >/dev/null 2>&1 ||
-  fail 'published render did not mark the landing-page phase complete'
+grep -F "Phase $current_phase has a published prerelease:" "$case_root/site/index.html" >/dev/null 2>&1 ||
+  fail 'published render did not separate publication from landing-page phase completion'
 grep -F "[Phase $current_phase]" "$case_root/README.md" >/dev/null 2>&1 ||
   fail 'published render lost the README phase link'
-grep -F 'is complete' "$case_root/README.md" >/dev/null 2>&1 ||
-  fail 'published render did not mark the README phase complete'
+grep -F 'tracks the published prerelease and remaining phase work' "$case_root/README.md" >/dev/null 2>&1 ||
+  fail 'published render did not separate publication from README phase completion'
 grep -F '>Release record</a>' "$case_root/site/index.html" >/dev/null 2>&1 ||
   fail 'published render did not label the canonical issue as the release record'
 grep -F 'Release-gated Pages and hosted-installer results are recorded in the canonical issue.' \
   "$case_root/README.md" >/dev/null 2>&1 ||
   fail 'published render did not describe the completed deployment record'
-if grep -Fq "Phase $current_phase is active:" "$case_root/site/index.html" ||
-   grep -Fq "Phase $current_phase] is in progress" "$case_root/README.md"; then
-  fail 'published render retained candidate-phase language'
+if grep -Fq "Phase $current_phase is complete:" "$case_root/site/index.html" ||
+   grep -Fq "](https://github.com/theesfeld/clun/issues/$current_issue) is complete." \
+     "$case_root/README.md"; then
+  fail 'published render inferred phase completion from release publication'
 fi
 
 fresh_case refreshed-baselines

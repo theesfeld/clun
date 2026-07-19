@@ -259,8 +259,8 @@ END {
   } else if (format == "readme-release") {
     tagged_candidate = publication_state == "candidate" && release_commit != "pending"
     if (publication_state == "published") {
-      print "> **Status: pre-alpha, under active construction.** [Phase " active_phase "](https://github.com/theesfeld/clun/issues/" active_issue ") is complete."
-      print "> It shipped as `" release_version "` / `" release_tag "` (SemVer impact: `" semver_impact "`)."
+      print "> **Status: pre-alpha, under active construction.** [Phase " active_phase "](https://github.com/theesfeld/clun/issues/" active_issue ") tracks the published prerelease and remaining phase work."
+      print "> Published release: `" release_version "` / `" release_tag "` (SemVer impact: `" semver_impact "`)."
     } else {
       print "> **Status: pre-alpha, under active construction.** [Phase " active_phase "](https://github.com/theesfeld/clun/issues/" active_issue ") is in progress."
       print "> Its release-bearing target is `" release_version "` / `" release_tag "` (SemVer impact: `" semver_impact "`)."
@@ -299,7 +299,7 @@ END {
     print "<p class=\"eyebrow\"><span class=\"status-dot\" aria-hidden=\"true\"></span> v" release_version (publication_state == "published" ? " / pre-alpha" : " release candidate / pre-alpha") "</p>"
   } else if (format == "site-phase-status") {
     if (publication_state == "published")
-      print "Phase " active_phase " is complete: <a href=\"https://github.com/theesfeld/clun/issues/" active_issue "\">" html(roadmap_title[active_phase]) " release record in issue #" active_issue "</a>."
+      print "Phase " active_phase " has a published prerelease: <a href=\"https://github.com/theesfeld/clun/issues/" active_issue "\">" html(roadmap_title[active_phase]) " in issue #" active_issue "</a>. Consult the live Issue for remaining work and completion status."
     else
       print "Phase " active_phase " is active: <a href=\"https://github.com/theesfeld/clun/issues/" active_issue "\">" html(roadmap_title[active_phase]) " in issue #" active_issue "</a>."
     if (publication_state == "candidate" && release_commit != "pending")
