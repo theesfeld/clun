@@ -303,7 +303,8 @@
    #:code-units->utf8 #:utf8->code-units #:ta-subview
    ;; TS strip hook (Phase 09): the loader applies this to .ts/.mts/.cts source
    ;; before parse-program; the transpiler installs it (engine stays dep-free).
-   #:*ts-strip-hook* #:make-lexer #:next-token #:reread-regexp #:reread-template
+   #:*ts-strip-hook* #:*jsx-transform-hook*
+   #:make-lexer #:next-token #:reread-regexp #:reread-template
    #:lexer-pos #:lexer-src #:token-type #:token-value #:token-start #:token-end
    #:token-line #:token-col #:token-nl-before #:token-tmpl-part #:token-escaped
    #:line-terminator-p))
@@ -438,9 +439,10 @@
 (defpackage :clun.transpiler
   (:use :cl)
   (:local-nicknames (:eng :clun.engine) (:sys :clun.sys))
-  (:documentation "TypeScript type-stripping (shares the engine lexer).")
+  (:documentation "TypeScript type-stripping and JSX/TSX transform (shares the engine lexer).")
   (:export #:strip-types #:unsupported-ts-syntax #:uts-message #:uts-line #:uts-col
-           #:uts-path #:ts-source-p #:tsx-path-p))
+           #:uts-path #:ts-source-p #:tsx-path-p #:jsx-path-p
+           #:transform-jsx #:transform-jsx-file #:jsx-config #:make-jsx-config))
 
 (defpackage :clun.test-runner
   (:use :cl)

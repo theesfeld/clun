@@ -3342,13 +3342,13 @@ buffer, events, assert, util, timers/promises, querystring, os, process globals,
 helpers). Eleven shipped-binary fixtures; four-target supported. Not full Node/V8 parity.
 SemVer: `0.1.0-dev.45` minor.
 
+## 2026-07-18 — language.jsx full port (Issue #186)
 
-## 2026-07-19 — FULL PORT / exceed Bun (Issue #177)
+Pure Common Lisp JSX/TSX parse and transform before `parse-program`. Defaults to
+automatic runtime with injected offline helpers (exceeds Bun: no `react` package
+required). Classic `React.createElement` via pragma/`jsx: "react"`, with offline
+React shim when no React binding exists. Supports fragments, spreads, nested
+expressions, member tags, file pragmas, nearest tsconfig/jsconfig `compilerOptions`,
+HTML entity decoding in JSX text, and `.tsx` (JSX lower then type strip).
 
-**Decision:** Clun’s product law is full port of every compatibility-ledger row in pure Common Lisp, exceeding Bun (and npm / peer matrix cells) where compared.
-
-**Purity redefined:** Implementation language is Common Lisp only. Purity does **not** exclude features (native-addons, secrets, bundler, etc.). Those rows are full-port Yes targets.
-
-**Ledger honesty:** A qualified Yes (“selected surface”, “not full”, “out of scope”, “excluded by purity”) is treated as **Partial/incomplete** until a full port lands. Soft Yes is forbidden. **Qualified Yes is a No.**
-
-**Refs:** #177 and child Full port Issues #178–#192.
+Refs: #186, #177

@@ -11,7 +11,7 @@
 (load (merge-pathnames "registry.lisp" *load-truename*))
 
 (defparameter *clun-bin* (namestring (merge-pathnames "build/clun" *clun-root*)))
-(defparameter *source-exts* '("js" "mjs" "cjs" "ts" "mts" "cts" "json"))
+(defparameter *source-exts* '("js" "mjs" "cjs" "ts" "mts" "cts" "tsx" "jsx" "json"))
 
 (defun slurp (path) (with-open-file (in path :external-format :utf-8)
                       (let ((s (make-string (file-length in))))

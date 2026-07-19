@@ -17,16 +17,34 @@
 (defvar *ts-strip-hook* nil
   "A function (source path) -> stripped-source, applied to TS files before parse.")
 
+(defvar *jsx-transform-hook* nil
+  "A function (source path) -> transformed-source, applied to .jsx/.tsx before parse.")
+
 (defun ts-source-extension-p (path)
   (let ((dot (position #\. path :from-end t)))
     (and dot (member (subseq path dot) '(".ts" ".mts" ".cts") :test #'string=))))
 
+(defun tsx-source-extension-p (path)
+  (let ((dot (position #\. path :from-end t)))
+    (and dot (string= (subseq path dot) ".tsx"))))
+
+(defun jsx-source-extension-p (path)
+  (let ((dot (position #\. path :from-end t)))
+    (and dot (member (subseq path dot) '(".jsx" ".tsx") :test #'string=))))
+
 (defun read-source-for (path)
-  "Read PATH's text; strip types first when it is a TS source and a hook is installed."
+  "Read PATH's text; transform JSX then strip TS types when hooks apply."
   (let ((src (clun.sys:read-file-string path)))
-    (if (and *ts-strip-hook* (ts-source-extension-p path))
-        (funcall *ts-strip-hook* src path)
-        src)))
+    (when (and *jsx-transform-hook* (jsx-source-extension-p path))
+      (setf src (funcall *jsx-transform-hook* src path)))
+    (when (and *ts-strip-hook*
+               (or (ts-source-extension-p path) (tsx-source-extension-p path)))
+      ;; After JSX lower, .tsx is type-strip shaped like .ts (path spoof for strip).
+      (let ((strip-path (if (tsx-source-extension-p path)
+                            (concatenate 'string (subseq path 0 (- (length path) 1)) "s")
+                            path)))
+        (setf src (funcall *ts-strip-hook* src strip-path))))
+    src))
 
 ;;; --- node builtin modules (Phase 12) ----------------------------------------
 ;;; The runtime layer registers builders (name -> exports-object thunk) and installs

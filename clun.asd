@@ -194,6 +194,7 @@
                                            (:file "ts-type")
                                            (:file "ts-emit")
                                            (:file "ts-scan")
+                                           (:file "jsx")
                                            (:file "strip")))
                              ;; runtime globals (Phase 08): console/process/Clun,
                              ;; installed onto a realm by the CLI (not by make-realm).
@@ -344,7 +345,8 @@
                                                          (:file "cron-tests")))
                                            (:module "transpiler"
                                             :serial t
-                                            :components ((:file "ts-strip-tests")))
+                                            :components ((:file "ts-strip-tests")
+                                                         (:file "jsx-tests")))
                                            (:module "loop"
                                             :serial t
                                             :components ((:file "loop-tests")))
