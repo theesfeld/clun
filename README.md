@@ -9,8 +9,8 @@ targets are workload-specific and published;
 Clun does not claim blanket speed parity with Bun.
 
 <!-- clun-generated:release:begin -->
-> **Status: pre-alpha, under active construction.** [Phase 68](https://github.com/theesfeld/clun/issues/42) is in progress.
-> Its release-bearing target is `0.1.0-dev.56` / `v0.1.0-dev.56` (SemVer impact: `minor`).
+> **Status: pre-alpha, under active construction.** [Phase 52](https://github.com/theesfeld/clun/issues/181) is in progress.
+> Its release-bearing target is `0.1.0-dev.57` / `v0.1.0-dev.57` (SemVer impact: `minor`).
 > The verified release boundary is `v0.1.0-dev.21`, with four native archives, checksums, Pages,
 > and hosted-installer evidence.
 > Phase 26 remains deferred until after Phase 82 and will
@@ -119,7 +119,7 @@ July 16, 2026. Engineering references are separately pinned to Bun commit `c1076
 | WebSocket server | Yes: `Clun.serve` WebSocket upgrade, RFC 6455 framing, fragmentation reassembly, Pub/Sub (`publish`/`subscriberCount`/`subscribe`), permessage-deflate (chipz inflate + stored compress), and browser-shaped `WebSocket` client (`ws:`) | [Phase 51](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-51) |
 | HTTP server | Yes: HTTP/1.1 Clun.serve with streaming request/response bodies (chunked Transfer-Encoding), keep-alive, idleTimeout, maxRequestBodySize, stop(force) | [Phase 49](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-49) |
 | HTTP router | Yes: `Clun.serve({ routes })` and `Clun.FileSystemRouter` | [Phase 50](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-50) |
-| Single-file executables | No: runtime executable only so far (full-port target) | Phases [52](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-52), [77](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-77) |
+| Single-file executables | Yes: `clun build --compile` / `Clun.build({compile})` pure-CL single-file executables with cross-target offline templates, embedded assets, Ed25519/HMAC sign+verify on every platform, GPL source notice, reproducible build-id, and CLUN_BE_CLUN CLI mode (exceeds Bun compile) | Phases [52](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-52), [77](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-77) |
 | YAML | Yes: `Clun.YAML` parser/stringifier and `.yaml`/`.yml` module loading | [Phase 31](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-31) |
 | Cookies API | Yes: `Clun.Cookie` and `Clun.CookieMap` with request/response integration | [Phase 32](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-32) |
 | Encrypted secrets storage | Yes: `Clun.secrets` pure-CL AES-256-GCM encrypted vault (get/set/delete by service+name); Bun.secrets-compatible surface | [Phase 58](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-58) |
@@ -166,10 +166,10 @@ workflows are read-only and fail closed if the canonical issues, README, or site
 
 <!-- clun-generated:release-summary:begin -->
 Release versions follow the actual SemVer impact recorded in the canonical issue, not the number of pushes.
-The current source is the `0.1.0-dev.56` release candidate; the immutable tag and assets are not published yet.
+The current source is the `0.1.0-dev.57` release candidate; the immutable tag and assets are not published yet.
 The last published prerelease remains [`v0.1.0-dev.21`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.21).
 [The versioning contract](docs/versioning.md) defines prerelease sequencing, synchronized surfaces, immutable tags, assets, and installer evidence.
-[Phase 68 issue #42](https://github.com/theesfeld/clun/issues/42) is the canonical live release record.
+[Phase 52 issue #181](https://github.com/theesfeld/clun/issues/181) is the canonical live release record.
 <!-- clun-generated:release-summary:end -->
 
 ## The purity contract
@@ -179,7 +179,8 @@ The last published prerelease remains [`v0.1.0-dev.21`](https://github.com/thees
 - **Forbidden:** CFFI or any foreign library; any JavaScript as part of the *implementation* (JS/TS
   appears only as test fixtures). No shelling out to system tools as an implementation crutch.
 - **Enforced:** `make purity` scans every source under `src/` and `vendor/` for foreign-code entry
-./build/clun --version   # => clun 0.1.0-dev.56
+./build/clun --version   # => clun 0.1.0-dev.57
+./build/clun --version   # => clun 0.1.0-dev.57
 ./build/clun --version   # => clun 0.1.0-dev.55
 ./build/clun --version   # => clun 0.1.0-dev.53
 ./build/clun --version   # => clun 0.1.0-dev.54
