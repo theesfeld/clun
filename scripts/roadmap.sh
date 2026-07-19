@@ -34,6 +34,7 @@ SEMVER_PATTERN="^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(-${SEMVER_I
 usage() {
   printf 'usage: %s check\n' "$0" >&2
   printf '       %s verify-live\n' "$0" >&2
+  printf '       %s test-issue-contract\n' "$0" >&2
   printf '       %s sync [--dry-run]\n' "$0" >&2
   exit 2
 }
@@ -51,6 +52,7 @@ verify_assigned_release_disposition() {
   body=$1
   phase=$2
   issue_number=$3
+  allow_unassigned=${4:-0}
   impact=$(sed -n 's/^\*\*SemVer impact:\*\*[[:space:]]*`\([^`]*\)`[[:space:]]*$/\1/p' "$body")
   rationale=$(sed -n 's/^\*\*SemVer rationale:\*\*[[:space:]]*`\([^`]*\)`[[:space:]]*$/\1/p' "$body")
   release_version=$(sed -n 's/^\*\*Release version:\*\*[[:space:]]*`\([^`]*\)`[[:space:]]*$/\1/p' "$body")
@@ -62,6 +64,10 @@ verify_assigned_release_disposition() {
   case "$rationale" in
     ''|unassigned) fail "active Phase $phase issue #$issue_number has no SemVer rationale" ;;
   esac
+  if [ "$allow_unassigned" -eq 1 ] &&
+     [ "$release_version" = unassigned ] && [ "$release_tag" = unassigned ]; then
+    return
+  fi
   is_semver "$release_version" ||
     fail "active Phase $phase issue #$issue_number has invalid release SemVer: $release_version"
   if [ "$impact" = none ]; then
@@ -406,9 +412,10 @@ write_live_header() (
     printf '\n## Current status\n\n'
     printf '%s\n\n' '**Phase status:** `not-started`'
     printf 'Not started.\n\n'
+    printf '## Status\n\nbacklog\n\n'
     printf '## Release disposition\n\n'
-    printf '%s\n' "**SemVer impact:** \`unassigned\`  "
-    printf '%s\n' "**SemVer rationale:** \`unassigned\`  "
+    printf '%s\n' "**SemVer impact:** \`minor\`  "
+    printf '%s\n' "**SemVer rationale:** \`Backward-compatible phase capability; concrete release version and tag remain unassigned until scheduled.\`  "
     printf '%s\n' "**Release version:** \`unassigned\`  "
     printf '%s\n\n' "**Release tag:** \`unassigned\`"
   } > "$output"
@@ -598,6 +605,43 @@ cached_issue_matching_label() (
   ' "$issue_cache"
 )
 
+verify_global_issue_contract() {
+  issue_cache=$1
+  issue_number=$2
+  phase=$3
+  body=$4
+
+  status_label=$(cached_issue_matching_label "$issue_cache" "$issue_number" '^status:') ||
+    fail "Phase $phase issue #$issue_number must have exactly one status label"
+  semver_label=$(cached_issue_matching_label "$issue_cache" "$issue_number" '^semver:') ||
+    fail "Phase $phase issue #$issue_number must have exactly one SemVer label"
+
+  status_heading_count=$(grep -F -x -c '## Status' "$body" 2>/dev/null || :)
+  [ "$status_heading_count" -eq 1 ] ||
+    fail "Phase $phase issue #$issue_number must contain exactly one ## Status heading"
+  body_status=$(awk '
+    $0 == "## Status" {
+      while ((getline line) > 0) {
+        if (line != "") { print line; exit }
+      }
+    }
+  ' "$body")
+  case "$body_status" in
+    backlog|ready|in-progress|blocked|review|done) ;;
+    *) fail "Phase $phase issue #$issue_number has invalid global Status: $body_status" ;;
+  esac
+  [ "$status_label" = "status:$body_status" ] ||
+    fail "Phase $phase issue #$issue_number global Status $body_status disagrees with label $status_label"
+
+  body_impact=$(sed -n 's/^\*\*SemVer impact:\*\*[[:space:]]*`\([^`]*\)`[[:space:]]*$/\1/p' "$body")
+  case "$body_impact" in
+    major|minor|patch|none) ;;
+    *) fail "Phase $phase issue #$issue_number has invalid SemVer impact: $body_impact" ;;
+  esac
+  [ "$semver_label" = "semver:$body_impact" ] ||
+    fail "Phase $phase issue #$issue_number SemVer impact $body_impact disagrees with label $semver_label"
+}
+
 verify_phase_issue_labels() (
   issue_cache=$1
   issue_number=$2
@@ -624,6 +668,8 @@ verify_phase_issue_labels() (
   status_label=$(cached_issue_matching_label "$issue_cache" "$issue_number" '^status:') ||
     fail "Phase $phase issue #$issue_number must have exactly one status label"
 
+  verify_global_issue_contract "$issue_cache" "$issue_number" "$phase" "$body"
+
   phase_status=$(sed -n 's/^\*\*Phase status:\*\* `\([^`]*\)`$/\1/p' "$body")
   case "$phase_status:$status_label" in
     not-started:status:backlog|not-started:status:ready|not-started:status:review|\
@@ -635,6 +681,67 @@ verify_phase_issue_labels() (
   esac
 
   : "$priority_label" "$semver_label"
+)
+
+verify_additional_phase_issue_contract() (
+  issue_cache=$1
+  issue_number=$2
+  issue_state=$3
+  body=$4
+
+  verify_phase_issue_labels "$issue_cache" "$issue_number" "epic-$issue_number" "$body"
+  phase_status=$(sed -n 's/^\*\*Phase status:\*\* `\([^`]*\)`$/\1/p' "$body")
+  case "$issue_state:$phase_status" in
+    open:not-started|open:in-progress|open:blocked|closed:complete) ;;
+    *)
+      fail "additional phase issue #$issue_number state $issue_state disagrees with Phase status $phase_status"
+      ;;
+  esac
+)
+
+verify_additional_phase_issues() (
+  repo=$1
+  issue_cache=$2
+  scratch=$3
+  total=0
+  additional=0
+  phase_issues="$scratch/type-phase-issues.tsv"
+  awk -F "$TAB" '
+    {
+      count = split($3, labels, ",")
+      for (i = 1; i <= count; i++) {
+        if (labels[i] == "type:phase") {
+          print
+          break
+        }
+      }
+    }
+  ' "$issue_cache" > "$phase_issues"
+
+  while IFS="$TAB" read -r issue_number issue_title issue_labels issue_state issue_milestone extra; do
+    [ -n "$issue_number" ] || continue
+    [ -z "$extra" ] || fail "could not parse cached GitHub issue #$issue_number"
+    total=$((total + 1))
+    phase_labels=$(printf '%s\n' "$issue_labels" | awk -F ',' '
+      {
+        for (i = 1; i <= NF; i++) if ($i ~ /^phase-/) count++
+      }
+      END { print count + 0 }
+    ')
+    [ "$phase_labels" -eq 0 ] || continue
+
+    body="$scratch/additional-phase-$issue_number.md"
+    fetch_issue_body "$repo" "$issue_number" "$body"
+    verify_additional_phase_issue_contract \
+      "$issue_cache" "$issue_number" "$issue_state" "$body"
+    additional=$((additional + 1))
+  done < "$phase_issues"
+
+  canonical=$((PHASE_COUNT + 2))
+  [ "$total" -eq $((canonical + additional)) ] ||
+    fail "not every type:phase issue is covered by a canonical or additional phase contract"
+  printf 'roadmap: verified %s additional type:phase issue contract(s); %s total\n' \
+    "$additional" "$total"
 )
 
 cached_issue_state() (
@@ -661,7 +768,7 @@ verify_generated_live_sections() (
   issue_number=$3
   issue_state=$4
   for heading in '# Canonical live phase record' '## Current status' \
-                 '## Release disposition' '## Execution checklist' \
+                 '## Status' '## Release disposition' '## Execution checklist' \
                  '## Decisions and evidence'; do
     count=$(grep -F -x -c "$heading" "$body" 2>/dev/null || :)
     [ "$count" -eq 1 ] ||
@@ -682,8 +789,13 @@ verify_generated_live_sections() (
     *) fail "Phase $phase issue #$issue_number state $issue_state disagrees with Phase status $phase_status" ;;
   esac
   case "$phase_status" in
-    in-progress|complete)
-      verify_assigned_release_disposition "$body" "$phase" "$issue_number"
+    in-progress)
+      # A phase can remain in evidence review without inventing a release slot.
+      # The canonical active release phase is checked strictly in verify-live.
+      verify_assigned_release_disposition "$body" "$phase" "$issue_number" 1
+      ;;
+    complete)
+      verify_assigned_release_disposition "$body" "$phase" "$issue_number" 0
       ;;
   esac
   if [ "$phase_status" = complete ]; then
@@ -1120,6 +1232,7 @@ verify_live_roadmap() {
     if [ "$phase" = "$active_phase" ]; then
       [ "$issue_number" = "$active_issue" ] ||
         fail "active release points to issue #$active_issue, but Phase $phase canonical issue is #$issue_number"
+      verify_assigned_release_disposition "$body" "$phase" "$issue_number" 0
       case "$publication_state:$issue_state" in
         candidate:open)
           grep -F -x '**Phase status:** `in-progress`' "$body" >/dev/null 2>&1 ||
@@ -1146,6 +1259,7 @@ verify_live_roadmap() {
   [ "$active_seen" -eq 1 ] ||
     fail "active release phase $active_phase is not represented exactly once in the live roadmap"
   verify_phase26_issue "$repo" "$issue_cache" "$verify_dir"
+  verify_additional_phase_issues "$repo" "$issue_cache" "$verify_dir"
   printf 'roadmap: verified %s generated phase issues, Phase 26, and exact live contracts in %s\n' \
     "$verified" "$repo"
 
@@ -1179,6 +1293,7 @@ sync_roadmap() {
       printf 'roadmap: would create milestone: %s\n' "$MILESTONE"
     fi
     printf 'roadmap: would ensure label: roadmap\n'
+    printf 'roadmap: would ensure default labels: type:phase,status:backlog,P2,semver:minor\n'
     while IFS="$TAB" read -r phase slug title track extra; do
       [ "$phase" = phase ] && continue
       phase_label="phase-$phase"
@@ -1206,7 +1321,7 @@ sync_roadmap() {
         printf 'roadmap: would %s and reconcile #%s "%s" with labels roadmap,%s\n' \
           "$action" "$issue_number" "$issue_title" "$phase_label"
       else
-        printf 'roadmap: would create "%s" with labels roadmap,%s\n' \
+        printf 'roadmap: would create "%s" with labels roadmap,%s,type:phase,status:backlog,P2,semver:minor\n' \
           "$issue_title" "$phase_label"
       fi
     done < "$ROADMAP"
@@ -1234,6 +1349,10 @@ sync_roadmap() {
 
   ensure_milestone "$repo" "$milestone_number"
   ensure_label "$repo" roadmap 0052CC 'Canonical Clun roadmap phase issue.'
+  ensure_label "$repo" type:phase 5319E7 'Program phase / epic'
+  ensure_label "$repo" status:backlog EDEDED 'Backlog'
+  ensure_label "$repo" P2 FBCA04 'Priority 2 — normal'
+  ensure_label "$repo" semver:minor 1D76DB 'MINOR release impact'
 
   while IFS="$TAB" read -r phase slug title track extra; do
     [ "$phase" = phase ] && continue
@@ -1254,12 +1373,97 @@ sync_roadmap() {
     else
       issue_url=$(gh issue create --repo "$repo" --title "$issue_title" \
         --body-file "$body_file" --label roadmap --label "$phase_label" \
+        --label type:phase --label status:backlog --label P2 --label semver:minor \
         --milestone "$MILESTONE")
       printf 'roadmap: created %s (%s)\n' "$issue_title" "$issue_url"
     fi
   done < "$ROADMAP"
 
   rm -rf "$sync_dir"
+  trap - 0 HUP INT TERM
+}
+
+test_issue_contract() {
+  fixture_dir=$(mktemp -d "${TMPDIR:-/tmp}/clun-roadmap-contract.XXXXXX") ||
+    fail "could not create issue-contract fixture directory"
+  trap 'rm -rf "$fixture_dir"' 0
+  trap 'exit 129' HUP
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
+
+  fixture_cache="$fixture_dir/issues.tsv"
+  printf '91\tFixture phase\ttype:phase,status:review,P1,semver:minor\topen\tPurity-compatible Bun parity\n' \
+    > "$fixture_cache"
+
+  write_contract_fixture() {
+    fixture_output=$1
+    fixture_status=$2
+    fixture_impact=$3
+    fixture_version=$4
+    fixture_tag=$5
+    {
+      printf '# Canonical live phase record\n\n'
+      printf '## Current status\n\n**Phase status:** `in-progress`\n\n'
+      printf '## Status\n\n%s\n\n' "$fixture_status"
+      printf '## Release disposition\n\n'
+      printf '**SemVer impact:** `%s`  \n' "$fixture_impact"
+      printf '**SemVer rationale:** `Fixture rationale.`  \n'
+      printf '**Release version:** `%s`  \n' "$fixture_version"
+      printf '**Release tag:** `%s`\n\n' "$fixture_tag"
+      printf '## Execution checklist\n\n- [ ] Fixture remains open.\n\n'
+      printf '## Decisions and evidence\n\nFixture evidence.\n'
+    } > "$fixture_output"
+  }
+
+  valid_body="$fixture_dir/valid.md"
+  write_contract_fixture "$valid_body" review minor unassigned unassigned
+  verify_generated_live_sections "$valid_body" 91 91 open
+  verify_phase_issue_labels "$fixture_cache" 91 91 "$valid_body"
+  verify_additional_phase_issue_contract "$fixture_cache" 91 open "$valid_body"
+
+  wrong_status="$fixture_dir/wrong-status.md"
+  write_contract_fixture "$wrong_status" backlog minor unassigned unassigned
+  if (verify_phase_issue_labels "$fixture_cache" 91 91 "$wrong_status") >/dev/null 2>&1; then
+    fail "issue-contract fixture accepted a Status/label mismatch"
+  fi
+
+  wrong_impact="$fixture_dir/wrong-impact.md"
+  write_contract_fixture "$wrong_impact" review patch unassigned unassigned
+  if (verify_phase_issue_labels "$fixture_cache" 91 91 "$wrong_impact") >/dev/null 2>&1; then
+    fail "issue-contract fixture accepted a SemVer impact/label mismatch"
+  fi
+
+  missing_status="$fixture_dir/missing-status.md"
+  awk '
+    $0 == "## Status" { skip = 1; next }
+    skip && $0 == "## Release disposition" { skip = 0 }
+    !skip { print }
+  ' "$valid_body" > "$missing_status"
+  if (verify_phase_issue_labels "$fixture_cache" 91 91 "$missing_status") >/dev/null 2>&1; then
+    fail "issue-contract fixture accepted a missing global Status"
+  fi
+
+  if (verify_assigned_release_disposition "$valid_body" 91 91 0) >/dev/null 2>&1; then
+    fail "issue-contract fixture accepted an unassigned active release slot"
+  fi
+  if (verify_additional_phase_issue_contract "$fixture_cache" 91 closed "$valid_body") >/dev/null 2>&1; then
+    fail "issue-contract fixture accepted a closed in-progress phase epic"
+  fi
+  assigned_body="$fixture_dir/assigned.md"
+  write_contract_fixture "$assigned_body" review minor 0.2.0-dev.1 v0.2.0-dev.1
+  verify_assigned_release_disposition "$assigned_body" 91 91 0
+
+  generated_header="$fixture_dir/generated-header.md"
+  write_live_header "$generated_header"
+  grep -F -x '## Status' "$generated_header" >/dev/null 2>&1 ||
+    fail "new Issue header is missing the global Status heading"
+  grep -F -x 'backlog' "$generated_header" >/dev/null 2>&1 ||
+    fail "new Issue header does not default global Status to backlog"
+  grep -F -x '**SemVer impact:** `minor`  ' "$generated_header" >/dev/null 2>&1 ||
+    fail "new Issue header does not default SemVer impact to minor"
+
+  printf 'roadmap issue-contract fixtures: 9 passed\n'
+  rm -rf "$fixture_dir"
   trap - 0 HUP INT TERM
 }
 
@@ -1273,6 +1477,10 @@ case "$command" in
   verify-live)
     [ "$#" -eq 1 ] || usage
     verify_live_roadmap
+    ;;
+  test-issue-contract)
+    [ "$#" -eq 1 ] || usage
+    test_issue_contract
     ;;
   sync)
     shift
