@@ -1,7 +1,7 @@
 <!-- clun-generated:release-notes:begin -->
 # Clun 0.1.0-dev.56
 
-Phase 69: Formatter.
+Phase 68: Frontend development server and HMR.
 
 - SemVer impact: `minor` within the selected `0.1.0` prerelease train.
 - Compatibility snapshot: 24 Yes / 3 Partial / 3 No across 30 generated rows.
