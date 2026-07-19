@@ -334,3 +334,6 @@ Phase 62 tooling.bundler FULL PORT (#180) stages free `0.1.0-dev.53` / `v0.1.0-d
 Phase 62 bundler FULL PORT (#180) stages free `0.1.0-dev.55` / `v0.1.0-dev.55`; SemVer impact is `minor`.
 
 Phase 68 frontend-dev-server FULL PORT (#189 / canonical #42) stages free `0.1.0-dev.56` / `v0.1.0-dev.56`; SemVer impact is `minor`.
+
+Phase 48 native-addons FULL PORT (#178) stages free `0.1.0-dev.57` / `v0.1.0-dev.57`; SemVer impact is `minor`.
+
