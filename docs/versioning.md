@@ -333,5 +333,4 @@ Phase 55-57 SQL FULL PORT (#183) stages free `0.1.0-dev.54` / `v0.1.0-dev.54`; S
 Phase 62 tooling.bundler FULL PORT (#180) stages free `0.1.0-dev.53` / `v0.1.0-dev.53` with pure-CL Clun.build (entry/split/minify/loaders/assets) exceeding Bun.build; SemVer impact is `minor`.
 Phase 62 bundler FULL PORT (#180) stages free `0.1.0-dev.55` / `v0.1.0-dev.55`; SemVer impact is `minor`.
 
-Phase 68 frontend-dev-server FULL PORT (#189) stages free `0.1.0-dev.54` / `v0.1.0-dev.54`; SemVer impact is `minor`.
-Phase 69 frontend-dev FULL PORT (#189) stages free `0.1.0-dev.56` / `v0.1.0-dev.56`; SemVer impact is `minor`.
+Phase 68 frontend-dev-server FULL PORT (#189 / canonical #42) stages free `0.1.0-dev.56` / `v0.1.0-dev.56`; SemVer impact is `minor`.
