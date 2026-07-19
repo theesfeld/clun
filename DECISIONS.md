@@ -3383,4 +3383,15 @@ linear memory, typed symbol libraries, `Clun.ffi.registerLibrary`, N-API-style
 `Clun.napi.defineAddon` / `process.dlopen` for pure-CL addons, `.claddon` packs, and bounds-checked
 pointer I/O (exceeds Bun.ffi crash-prone raw pointers). Constitutional foreign-call amendment
 rejected. Evidence: `docs/design/phase-48.md`, `tests/lisp/ffi/ffi-tests.lisp`,
-`tests/compat/runtime.native-addons/`. Slot `0.1.0-dev.57`. Parent epic #177.
+`tests/compat/runtime.native-addons/`. Slot `0.1.0-dev.61`. Parent epic #177.
+
+## 2026-07-19 — tooling.single-file-executables Yes (Issue #181)
+
+Pure-CL single-file executables: `clun build --compile` / `Clun.build({compile})` with
+module graph, embedded assets, Ed25519/HMAC sign+verify, cross-target offline portable
+CLUNSEA packages, and native SBCL image-dump packaging (append trailers break SBCL core-at-EOF).
+Exceeds Bun: all-platform signatures, `Clun.compile.registerTemplate`, `CLUN_BE_CLUN`, GPL source
+notice, reproducible build-id. Coexists with bundler `Clun.build` (#180): compile option routes
+to SFE; default remains production bundle. Ledger Yes, gap `-`, four-target supported.
+Slot `0.1.0-dev.57` after master frontend-dev Yes `0.1.0-dev.56`.
+Refs: #181, #177

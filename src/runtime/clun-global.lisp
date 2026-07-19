@@ -26,7 +26,7 @@
     (install-clun-redis clun g)         ; Clun.redis pure-CL (#184)
     (install-clun-s3 clun g)            ; Clun.s3 pure-CL (#185)
     (install-clun-sql clun g)           ; Clun.SQL pure-CL (#183)
-    (install-clun-build clun g)         ; Clun.build pure-CL bundler (#180)
+    (install-clun-build clun g)         ; Clun.build bundler + compile SFE (#180/#181)
     (install-clun-string-width clun)
     (install-clun-color clun)
     (install-clun-yaml clun)
