@@ -20,7 +20,7 @@
 
     <div class="announcement">
 <!-- clun-generated:release:begin -->
-<a href="https://github.com/theesfeld/clun/issues/22">
+<a href="https://github.com/theesfeld/clun/issues/178">
   <span>In development</span>
   v0.1.0-dev.66 / Phase 48
   <span aria-hidden="true">-&gt;</span>
@@ -118,7 +118,7 @@
             CI, Documentation, all four native archives and checksums, the exact-candidate Pages deployment,
             and the hosted installer are verified. Phase 25b and its handoff are closed.
 <!-- clun-generated:phase-status:begin -->
-Phase 48 is active: <a href="https://github.com/theesfeld/clun/issues/22">Native-addon constitutional checkpoint and conditional implementation in issue #22</a>.
+Phase 48 is active: <a href="https://github.com/theesfeld/clun/issues/178">Native-addon constitutional checkpoint and conditional implementation in issue #178</a>.
 Phase 26 remains deferred until after Phase 82 and will be re-baselined for the system state at that time.
 <!-- clun-generated:phase-status:end -->
             The issue is the canonical live record; <a href="https://github.com/theesfeld/clun/blob/master/PLAN.md">PLAN</a>
@@ -380,7 +380,7 @@ Linked phase labels are planned acceptance gates, not capabilities available tod
     </tr>
     <tr data-compat-feature="runtime.web-standard-apis">
       <th scope="row"><strong>Web Standard APIs</strong><span><code>fetch</code>, URL, events, headers, and related APIs</span></th>
-      <td class="clun-col"><b class="state partial">Partial</b> streaming fetch, clone/tee, timeouts, HTTP/HTTPS proxy and pooling, ReadableStream/WritableStream/TransformStream, Response/Request.body streams; remaining Web surface (full Streams edge cases, broader standards globals, residual network stress) full-port in progress<a class="phase-link" data-roadmap-phase="38" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-38">Phase 38</a></td>
+      <td class="clun-col"><b class="state yes">Yes</b> <code>fetch</code> with streaming clone/tee, operation-wide timeouts, HTTP proxy and HTTPS CONNECT including proxy object <code>{url,headers}</code>, plain HTTP and origin-keyed pure-tls HTTPS idle pooling; URL/URLSearchParams; Headers/Request/Response/Blob/File/FormData; AbortController/AbortSignal; Event/EventTarget/CustomEvent/DOMException; TextEncoder/TextDecoder; atob/btoa; performance.now; MessageChannel/MessagePort; crypto.randomUUID/getRandomValues and crypto.subtle.digest; ReadableStream default and BYOB readers, WritableStream, TransformStream with pipeTo/pipeThrough, CountQueuingStrategy/ByteLengthQueuingStrategy; CompressionStream/DecompressionStream (gzip/deflate/deflate-raw); structuredClone; WebSocket client; hermetic large-transfer and network-stress receipts (exceeds Bun pure-CL surface)<a class="phase-link" data-roadmap-phase="38" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-38">Phase 38</a></td>
       <td><b class="state yes">Yes</b> broad WebCore-backed surface</td>
       <td><b class="state yes">Yes</b> broad standards surface</td>
       <td><b class="state yes">Yes</b> standards-first runtime surface</td>
@@ -679,7 +679,7 @@ Linked phase labels are planned acceptance gates, not capabilities available tod
           <p>Bun, rewritten in pure Common Lisp. Pre-alpha FULL PORT: exceed Bun/npm. GPL-3.0-or-later.</p>
         </div>
 <!-- clun-generated:release-links:begin -->
-<div><h2>Project</h2><a href="https://github.com/theesfeld/clun">Source</a><a href="https://github.com/theesfeld/clun/blob/master/README.md">README</a><a href="https://github.com/theesfeld/clun/issues/22">Current status</a></div>
+<div><h2>Project</h2><a href="https://github.com/theesfeld/clun">Source</a><a href="https://github.com/theesfeld/clun/blob/master/README.md">README</a><a href="https://github.com/theesfeld/clun/issues/178">Current status</a></div>
 <div><h2>Evidence</h2><a href="https://github.com/theesfeld/clun/blob/master/compat/README.md">Compatibility ledger</a><a href="https://github.com/theesfeld/clun/actions/workflows/compat.yml">Compatibility CI</a><a href="https://github.com/theesfeld/clun/blob/master/LICENSE">License</a></div>
 <div><h2>Install</h2><a href="install">Shell installer</a><a href="https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.21">v0.1.0-dev.21 release</a><a href="https://github.com/theesfeld/clun#building-from-source">Build from source</a></div>
 <!-- clun-generated:release-links:end -->

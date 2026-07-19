@@ -94,9 +94,10 @@
   (bytes (make-array 0 :element-type '(unsigned-byte 8)) :type vector)
   (type "" :type string))
 
-;;; Bounded Web Streams: Response/Request.body ReadableStream consumers,
-;;; constructible ReadableStream, WritableStream, and TransformStream.
-;;; Not full BYOB / advanced queuing strategies — pure-CL core surface.
+;;; Web Streams: Response/Request.body ReadableStream consumers, constructible
+;;; ReadableStream (default + BYOB), WritableStream, TransformStream with
+;;; pipeTo/pipeThrough. Queuing strategies and CompressionStream live in
+;;; web-platform.lisp (FULL PORT #207).
 
 (defstruct (js-readable-stream
             (:include eng:js-object (class :readable-stream))

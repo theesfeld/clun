@@ -3377,6 +3377,39 @@ Candidate `0.1.0-dev.54`. Parent epic #177.
 
 ### 2026-07-19 - Phase 37 m4 implements keyed Promise combinators
 
+Pure-CL single-file executables: `clun build --compile` / `Clun.build({compile})` with
+module graph, embedded assets, Ed25519/HMAC sign+verify, cross-target offline portable
+CLUNSEA packages, and native SBCL image-dump packaging (append trailers break SBCL core-at-EOF).
+Exceeds Bun: all-platform signatures, `Clun.compile.registerTemplate`, `CLUN_BE_CLUN`, GPL source
+notice, reproducible build-id. Coexists with bundler `Clun.build` (#180): compile option routes
+to SFE; default remains production bundle. Ledger Yes, gap `-`, four-target supported.
+Slot `0.1.0-dev.57` after master frontend-dev Yes `0.1.0-dev.56`.
+Refs: #181, #177
+
+## 2026-07-19 — language.typescript full port Yes (#192)
+
+Pure-CL TypeScript surface closes FULL PORT residual from honesty scrub: erasable
+strip plus enums, namespaces, parameter properties, experimental decorators
+(`__decorate`/`__param`), `import =` / `export =`, angle-bracket casts, `.tsx`
+(JSX lower then type strip), and structural typecheck via `clun tsc` (exceeds Bun,
+which has no typecheck). Soft Yes banned; gap empty. SemVer `0.1.0-dev.59` minor
+after SFE `0.1.0-dev.57`.
+Parent epic #177; supersedes soft-out Partial after #133 transforms.
+
+Refs: #192, #177, #133
+
+## 2026-07-19 — runtime.web-standard-apis FULL PORT Yes (#207)
+
+Promote `runtime.web-standard-apis` Partial→Yes under parent #177. Soft/scoped Yes
+(#159) was honesty-demoted; this unit closes residual streams edge cases, broader
+standards globals (EventTarget/FormData/File/atob/performance/MessageChannel/
+CompressionStream/crypto.subtle.digest/queuing strategies), and hermetic
+large-transfer/network stress evidence. Pure Common Lisp only. Stages
+`0.1.0-dev.64` after master Phase 37 m4 `0.1.0-dev.63`.
+Refs: #207, #12, #177
+
+### 2026-07-19 - Phase 37 m4 implements keyed Promise combinators
+
 Phase 37 residual burn after m3 Set methods selects the largest remaining pure-CL
 feature cluster: TC39 await-dictionary `Promise.allKeyed` / `Promise.allSettledKeyed`
 (74 frozen Test262 rows after excluding one propertyHelper-destructive fixture).
@@ -3390,3 +3423,5 @@ ownership 378.
 Pure-CL N-API/FFI/native module host surface exceeding Bun. Soft-outs rejected.
 Candidate `0.1.0-dev.66` after master Phase 37 m4 `0.1.0-dev.63`. Parent #177; phase #22.
 Refs: #178, #22, #177
+
+Refs: #11

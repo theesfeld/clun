@@ -268,7 +268,8 @@
                                            (:file "clun-archive") ; gzip/deflate/zip + Archive (Phase 74); needs %async
                                            (:file "abort")     ; AbortController/AbortSignal (Phase 14)
                                            (:file "globals")   ; structuredClone, crypto (Phase 12)
-                                           (:file "web-http")  ; Headers/Request/Response (Phase 17)
+                                           (:file "web-http")  ; Headers/Request/Response/Streams (Phase 17/38)
+                                           (:file "web-platform") ; residual Web Standard globals (#207)
                                            (:file "html-rewriter") ; HTMLRewriter global (Phase 75)
                                            (:file "web-cookies") ; Clun.Cookie/CookieMap (Phase 32)
                                            (:file "clun-router") ; Clun.serve route table (Phase 50)
@@ -432,6 +433,7 @@
                                                          (:file "tls12-tests")
                                                          (:file "websocket-tests")
                                                          (:file "web-streams-tests")
+                                                         (:file "web-platform-tests")
                                                          (:file "https-tests")))
                                            (:module "install"
                                             :serial t
