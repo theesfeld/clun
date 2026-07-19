@@ -16,6 +16,6 @@ Update when work completes; keep consistent with the Issue, README, and site.
 **SemVer impact:** `minor`
 **Candidate release:** `0.1.0-dev.65` / `v0.1.0-dev.65`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
-**Entry boundary:** installer on `v0.1.0-dev.21`; free slot after master Phase 37 m4 `0.1.0-dev.63` (webstd claims `.64`).
+**Entry boundary:** installer on `v0.1.0-dev.21`; free slot after master webstd Yes `0.1.0-dev.64`.
 
 **Next scope:** remaining FULL PORT ledger Nos/Partials under #177.
