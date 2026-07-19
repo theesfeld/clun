@@ -315,3 +315,5 @@ Phase 59 package-manager.npm Partial→Yes (#131) stages `0.1.0-dev.41` / `v0.1.
 Phase 59 package-manager.npm Partial→Yes (#131) stages `0.1.0-dev.44` / `v0.1.0-dev.44` with dependency-spec breadth and four-target install receipts.
 
 Phase 47 selected Node surface Partial→Yes (#132) stages `0.1.0-dev.45` / `v0.1.0-dev.45` with four-target supported receipts (not full Node/V8 parity).
+
+FULL PORT phase (#177) stages free `0.1.0-dev.46` / `v0.1.0-dev.46`: honesty scrub (qualified Yes is No; purity is CL language not exclusion); SemVer impact is `minor`.

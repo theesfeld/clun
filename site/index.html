@@ -20,9 +20,9 @@
 
     <div class="announcement">
 <!-- clun-generated:release:begin -->
-<a href="https://github.com/theesfeld/clun/issues/132">
+<a href="https://github.com/theesfeld/clun/issues/177">
   <span>In development</span>
-  v0.1.0-dev.45 / Phase 47
+  v0.1.0-dev.46 / Phase 82
   <span aria-hidden="true">-&gt;</span>
 </a>
 <!-- clun-generated:release:end -->
@@ -56,7 +56,7 @@
             <img class="hero-mark" src="assets/clun.jpg" alt="Clun mascot wearing a Lisp helmet" width="250" height="250">
           </div>
 <!-- clun-generated:version:begin -->
-<p class="eyebrow"><span class="status-dot" aria-hidden="true"></span> v0.1.0-dev.45 release candidate / pre-alpha</p>
+<p class="eyebrow"><span class="status-dot" aria-hidden="true"></span> v0.1.0-dev.46 release candidate / pre-alpha</p>
 <!-- clun-generated:version:end -->
           <h1>Clun is JavaScript tooling,<br> rewritten in pure Common Lisp.</h1>
           <p class="hero-copy">
@@ -118,7 +118,7 @@
             CI, Documentation, all four native archives and checksums, the exact-candidate Pages deployment,
             and the hosted installer are verified. Phase 25b and its handoff are closed.
 <!-- clun-generated:phase-status:begin -->
-Phase 47 is active: <a href="https://github.com/theesfeld/clun/issues/132">Node compatibility certification in issue #132</a>.
+Phase 82 is active: <a href="https://github.com/theesfeld/clun/issues/177">Purity-compatible Bun-surface final audit and release in issue #177</a>.
 Phase 26 remains deferred until after Phase 82 and will be re-baselined for the system state at that time.
 <!-- clun-generated:phase-status:end -->
             The issue is the canonical live record; <a href="https://github.com/theesfeld/clun/blob/master/PLAN.md">PLAN</a>
@@ -361,7 +361,7 @@ Linked phase labels are planned acceptance gates, not capabilities available tod
   <thead>
     <tr>
       <th scope="col">Capability</th>
-      <th scope="col" class="clun-col"><a href="https://github.com/theesfeld/clun">Clun</a><span>0.1.0-dev.45 candidate / pre-alpha</span></th>
+      <th scope="col" class="clun-col"><a href="https://github.com/theesfeld/clun">Clun</a><span>0.1.0-dev.46 candidate / pre-alpha</span></th>
       <th scope="col"><a href="https://bun.sh/">Bun</a><span>1.3.14 / toolkit</span></th>
       <th scope="col"><a href="https://nodejs.org/">Node.js</a><span>26.5.0 / current</span></th>
       <th scope="col"><a href="https://deno.com/">Deno</a><span>2.9.3 / runtime</span></th>
@@ -373,7 +373,7 @@ Linked phase labels are planned acceptance gates, not capabilities available tod
     </tr>
     <tr data-compat-feature="runtime.node-compatibility">
       <th scope="row"><strong>Node.js compatibility</strong><span>Run code written for Node.js</span></th>
-      <td class="clun-col"><b class="state yes">Yes</b> selected pure-CL Node surface complete: path (posix+win32), fs, url, buffer, events, assert, util, timers(/promises), querystring, os, process globals, and crypto helpers — not full Node.js module/API/CLI or V8 parity<span class="phase-links" data-roadmap-phase="47"><span>Phases</span> <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-42">42</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-43">43</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-44">44</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-45">45</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-46">46</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-47">47</a></span></td>
+      <td class="clun-col"><b class="state partial">Partial</b> selected pure-CL modules (path/fs/url/buffer/events/assert/util/timers/querystring/os/process/crypto helpers)<span class="phase-links" data-roadmap-phase="47"><span>Phases</span> <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-42">42</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-43">43</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-44">44</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-45">45</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-46">46</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-47">47</a></span></td>
       <td><b class="state partial">Partial</b> broad compatibility; still an active goal</td>
       <td><b class="state yes">Yes</b> reference runtime</td>
       <td><b class="state partial">Partial</b> targets Node.js 26 compatibility</td>
@@ -387,28 +387,28 @@ Linked phase labels are planned acceptance gates, not capabilities available tod
     </tr>
     <tr data-compat-feature="runtime.native-addons">
       <th scope="row"><strong>Native addons</strong><span>N-API, FFI, or native C/C++ modules</span></th>
-      <td class="clun-col"><b class="state no">No</b> excluded by the current purity contract<a class="phase-link" data-roadmap-phase="48" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-48">Phase 48</a></td>
+      <td class="clun-col"><b class="state no">No</b> not yet implemented (full-port target)<a class="phase-link" data-roadmap-phase="48" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-48">Phase 48</a></td>
       <td><b class="state yes">Yes</b> FFI, N-API, and partial V8 C++ API</td>
       <td><b class="state yes">Yes</b> stable Node-API</td>
       <td><b class="state yes">Yes</b> Node-API and FFI</td>
     </tr>
     <tr data-compat-feature="language.typescript">
       <th scope="row"><strong>TypeScript</strong><span>Execute TypeScript without a separate build</span></th>
-      <td class="clun-col"><b class="state yes">Yes</b> erasable type stripping plus Bun-compatible runtime transforms for enums, runtime namespaces, and constructor parameter properties (no full tsc typecheck; .tsx and decorators remain out of scope)<a class="phase-link" data-roadmap-phase="39" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-39">Phase 39</a></td>
+      <td class="clun-col"><b class="state partial">Partial</b> erasable stripping + enums/namespaces/param-props; .tsx, decorators, full tsc-class typecheck not yet full-ported<a class="phase-link" data-roadmap-phase="39" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-39">Phase 39</a></td>
       <td><b class="state yes">Yes</b> first-class transpilation</td>
       <td><b class="state partial">Partial</b> erasable syntax stripping</td>
       <td><b class="state yes">Yes</b> execution and type checking</td>
     </tr>
     <tr data-compat-feature="language.jsx">
       <th scope="row"><strong>JSX</strong><span>Execute JSX without external transformation</span></th>
-      <td class="clun-col"><b class="state no">No</b> not included in the v0.1 scope<a class="phase-link" data-roadmap-phase="40" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-40">Phase 40</a></td>
+      <td class="clun-col"><b class="state no">No</b> not yet implemented (full-port target)<a class="phase-link" data-roadmap-phase="40" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-40">Phase 40</a></td>
       <td><b class="state yes">Yes</b> built in</td>
       <td><b class="state no">No</b> requires a transformer</td>
       <td><b class="state yes">Yes</b> built in</td>
     </tr>
     <tr data-compat-feature="runtime.loader-plugins">
       <th scope="row"><strong>Module loader plugins</strong><span>Custom import and require loaders</span></th>
-      <td class="clun-col"><b class="state no">No</b> fixed loader surface<a class="phase-link" data-roadmap-phase="41" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-41">Phase 41</a></td>
+      <td class="clun-col"><b class="state no">No</b> not yet implemented (full-port target)<a class="phase-link" data-roadmap-phase="41" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-41">Phase 41</a></td>
       <td><b class="state yes">Yes</b> <code>Bun.plugin</code></td>
       <td><b class="state partial">Partial</b> server-side loader APIs</td>
       <td><b class="state yes">Yes</b> synchronous <code>node:module</code> hooks</td>
@@ -420,21 +420,21 @@ Linked phase labels are planned acceptance gates, not capabilities available tod
     </tr>
     <tr data-compat-feature="database.sql-drivers">
       <th scope="row"><strong>SQL database drivers</strong><span>PostgreSQL, MySQL, and SQLite</span></th>
-      <td class="clun-col"><b class="state no">No</b><span class="phase-links" data-roadmap-phase="57"><span>Phases</span> <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-55">55</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-56">56</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-57">57</a></span></td>
+      <td class="clun-col"><b class="state no">No</b> not yet implemented (full-port target)<span class="phase-links" data-roadmap-phase="57"><span>Phases</span> <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-55">55</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-56">56</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-57">57</a></span></td>
       <td><b class="state yes">Yes</b> unified built-in API</td>
       <td><b class="state partial">Partial</b> built-in SQLite through <code>node:sqlite</code></td>
       <td><b class="state partial">Partial</b> SQLite through <code>node:sqlite</code></td>
     </tr>
     <tr data-compat-feature="cloud.s3">
       <th scope="row"><strong>S3 cloud storage</strong><span>First-party S3-compatible client</span></th>
-      <td class="clun-col"><b class="state no">No</b><a class="phase-link" data-roadmap-phase="53" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-53">Phase 53</a></td>
+      <td class="clun-col"><b class="state no">No</b> not yet implemented (full-port target)<a class="phase-link" data-roadmap-phase="53" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-53">Phase 53</a></td>
       <td><b class="state yes">Yes</b> <code>Bun.s3</code></td>
       <td><b class="state no">No</b> use ecosystem packages</td>
       <td><b class="state no">No</b> use ecosystem packages</td>
     </tr>
     <tr data-compat-feature="database.redis">
       <th scope="row"><strong>Redis client</strong><span>First-party Redis API</span></th>
-      <td class="clun-col"><b class="state no">No</b><a class="phase-link" data-roadmap-phase="54" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-54">Phase 54</a></td>
+      <td class="clun-col"><b class="state no">No</b> not yet implemented (full-port target)<a class="phase-link" data-roadmap-phase="54" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-54">Phase 54</a></td>
       <td><b class="state yes">Yes</b> built in with Pub/Sub</td>
       <td><b class="state no">No</b> use ecosystem packages</td>
       <td><b class="state no">No</b> use ecosystem packages</td>
@@ -462,7 +462,7 @@ Linked phase labels are planned acceptance gates, not capabilities available tod
     </tr>
     <tr data-compat-feature="tooling.single-file-executables">
       <th scope="row"><strong>Single-file executables</strong><span>Compile an application into a distributable executable</span></th>
-      <td class="clun-col"><b class="state no">No</b> Clun ships a runtime executable only<span class="phase-links" data-roadmap-phase="77"><span>Phases</span> <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-52">52</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-77">77</a></span></td>
+      <td class="clun-col"><b class="state no">No</b> runtime executable only so far (full-port target)<span class="phase-links" data-roadmap-phase="77"><span>Phases</span> <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-52">52</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-77">77</a></span></td>
       <td><b class="state yes">Yes</b> cross-compilation and code signing</td>
       <td><b class="state partial">Partial</b> multi-step SEA workflow</td>
       <td><b class="state yes">Yes</b> <code>deno compile</code> with assets and cross-compilation</td>
@@ -483,7 +483,7 @@ Linked phase labels are planned acceptance gates, not capabilities available tod
     </tr>
     <tr data-compat-feature="security.encrypted-secrets">
       <th scope="row"><strong>Encrypted secrets storage</strong><span>Operating-system keychain integration</span></th>
-      <td class="clun-col"><b class="state no">No</b> excluded by the purity contract<a class="phase-link" data-roadmap-phase="58" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-58">Phase 58</a></td>
+      <td class="clun-col"><b class="state no">No</b> not yet implemented (full-port target)<a class="phase-link" data-roadmap-phase="58" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-58">Phase 58</a></td>
       <td><b class="state yes">Yes</b> <code>Bun.secrets</code></td>
       <td><b class="state no">No</b></td>
       <td><b class="state no">No</b></td>
@@ -502,7 +502,7 @@ Linked phase labels are planned acceptance gates, not capabilities available tod
     </tr>
     <tr data-compat-feature="tooling.bundler">
       <th scope="row"><strong>Bundler</strong><span>Production frontend and server bundles</span></th>
-      <td class="clun-col"><b class="state no">No</b> not included in the v0.1 scope<span class="phase-links" data-roadmap-phase="77"><span>Phases</span> <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-62">62</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-63">63</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-64">64</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-77">77</a></span></td>
+      <td class="clun-col"><b class="state no">No</b> not yet implemented (full-port target)<span class="phase-links" data-roadmap-phase="77"><span>Phases</span> <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-62">62</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-63">63</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-64">64</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-77">77</a></span></td>
       <td><b class="state yes">Yes</b> <code>Bun.build</code></td>
       <td><b class="state no">No</b> use ecosystem tooling</td>
       <td><b class="state partial">Partial</b> <code>deno bundle</code> is experimental</td>
@@ -523,28 +523,28 @@ Linked phase labels are planned acceptance gates, not capabilities available tod
     </tr>
     <tr data-compat-feature="tooling.hot-reload">
       <th scope="row"><strong>Hot reloading</strong><span>Reload a server while preserving connections</span></th>
-      <td class="clun-col"><b class="state no">No</b><a class="phase-link" data-roadmap-phase="67" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-67">Phase 67</a></td>
+      <td class="clun-col"><b class="state no">No</b> not yet implemented (full-port target)<a class="phase-link" data-roadmap-phase="67" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-67">Phase 67</a></td>
       <td><b class="state yes">Yes</b> <code>bun --hot</code></td>
       <td><b class="state no">No</b> watch mode restarts processes</td>
       <td><b class="state yes">Yes</b> <code>--watch-hmr</code> preserves state when supported</td>
     </tr>
     <tr data-compat-feature="package-manager.monorepo">
       <th scope="row"><strong>Monorepo support</strong><span>Workspaces and filtered package commands</span></th>
-      <td class="clun-col"><b class="state no">No</b> workspaces are unsupported<a class="phase-link" data-roadmap-phase="60" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-60">Phase 60</a></td>
+      <td class="clun-col"><b class="state no">No</b> not yet implemented (full-port target)<a class="phase-link" data-roadmap-phase="60" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-60">Phase 60</a></td>
       <td><b class="state yes">Yes</b> workspaces and filters</td>
       <td><b class="state separate">Separate</b> provided through npm workspaces</td>
       <td><b class="state yes">Yes</b> workspaces and concurrent tasks</td>
     </tr>
     <tr data-compat-feature="tooling.frontend-dev-server">
       <th scope="row"><strong>Frontend development server</strong><span>Serve and transform browser entry points</span></th>
-      <td class="clun-col"><b class="state no">No</b><a class="phase-link" data-roadmap-phase="68" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-68">Phase 68</a></td>
+      <td class="clun-col"><b class="state no">No</b> not yet implemented (full-port target)<a class="phase-link" data-roadmap-phase="68" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-68">Phase 68</a></td>
       <td><b class="state yes">Yes</b> HTML entry points and HMR</td>
       <td><b class="state no">No</b></td>
       <td><b class="state no">No</b> use ecosystem tooling</td>
     </tr>
     <tr data-compat-feature="tooling.formatter-linter">
       <th scope="row"><strong>Formatter and linter</strong><span>First-party source formatting and linting</span></th>
-      <td class="clun-col"><b class="state no">No</b><span class="phase-links" data-roadmap-phase="70"><span>Phases</span> <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-69">69</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-70">70</a></span></td>
+      <td class="clun-col"><b class="state no">No</b> not yet implemented (full-port target)<span class="phase-links" data-roadmap-phase="70"><span>Phases</span> <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-69">69</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-70">70</a></span></td>
       <td><b class="state no">No</b></td>
       <td><b class="state no">No</b> use ecosystem tooling</td>
       <td><b class="state yes">Yes</b> <code>deno fmt</code> and <code>deno lint</code></td>
@@ -679,7 +679,7 @@ Linked phase labels are planned acceptance gates, not capabilities available tod
           <p>Bun, rewritten in pure Common Lisp. Scoped, pre-alpha, and GPL-3.0-or-later.</p>
         </div>
 <!-- clun-generated:release-links:begin -->
-<div><h2>Project</h2><a href="https://github.com/theesfeld/clun">Source</a><a href="https://github.com/theesfeld/clun/blob/master/README.md">README</a><a href="https://github.com/theesfeld/clun/issues/132">Current status</a></div>
+<div><h2>Project</h2><a href="https://github.com/theesfeld/clun">Source</a><a href="https://github.com/theesfeld/clun/blob/master/README.md">README</a><a href="https://github.com/theesfeld/clun/issues/177">Current status</a></div>
 <div><h2>Evidence</h2><a href="https://github.com/theesfeld/clun/blob/master/compat/README.md">Compatibility ledger</a><a href="https://github.com/theesfeld/clun/actions/workflows/compat.yml">Compatibility CI</a><a href="https://github.com/theesfeld/clun/blob/master/LICENSE">License</a></div>
 <div><h2>Install</h2><a href="install">Shell installer</a><a href="https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.21">v0.1.0-dev.21 release</a><a href="https://github.com/theesfeld/clun#building-from-source">Build from source</a></div>
 <!-- clun-generated:release-links:end -->
