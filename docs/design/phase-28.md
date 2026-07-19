@@ -15,8 +15,9 @@ canonical Phase 28 GitHub issue remains open. In particular, this series does no
 claim the issue's complete proxy matrix, broader pool stress, incremental
 decompression, 1 GiB transfer, remaining HTTPS cancellation-race/leak stress, or
 four-target acceptance requirements. It does not promote a compatibility-ledger
-row to `Yes`. It also does not claim browser-grade or generally fail-closed
-WebPKI; Issue #234 owns the remaining certificate-profile hardening.
+row to `Yes`. Issue #234 completed the bounded authenticated certificate profile,
+and Issue #235 adds the alert and closure lifecycle described below. Neither unit
+claims browser-grade or complete RFC 5280 WebPKI.
 
 ## 2. Architecture
 
@@ -60,8 +61,9 @@ the terminal callback.
 
 `https-request` keeps the existing vendored pure-tls TLS 1.3 client as the
 preferred path. `pure-tls:make-tls-client-stream` eagerly completes its
-handshake. Only an exact fatal `protocol_version` alert raised by that constructor
-can select the TLS 1.2 path. The handler ends before any HTTP request bytes are
+handshake. Only the exact `protocol_version` description raised by that constructor
+can select the TLS 1.2 path. It is semantically fatal under RFC 9846 section 6
+regardless of the ignored legacy alert-level byte. The handler ends before any HTTP request bytes are
 written, so a peer alert after request transmission cannot replay a POST or other
 non-idempotent request.
 
@@ -83,6 +85,18 @@ ServerHello extensions, non-empty EMS,
 invalid renegotiation information, compression, unsupported algorithms,
 unsolicited CertificateStatus or NewSessionTicket, post-handshake messages, malformed alerts, record
 overflow, and authentication failures all fail closed.
+
+Alert output has explicit terminal state in both protocol paths. TLS 1.2 parser,
+record-authentication, negotiation, signature, and certificate failures carry a standard fatal
+alert disposition and emit it at most once while the transport remains writable. TLS 1.3 maps
+certificate parsing, hostname, validity, usage, chain, and trust failures to bounded certificate
+alerts without putting local diagnostic text on the wire. A complete peer fatal is preserved as
+the reported cause and never receives a response alert. Peer `close_notify` receipt is tracked
+separately from local close transmission, so clean closure receives exactly one reciprocal
+`close_notify`; fatal termination suppresses later record reads, alerts, and buffered
+application-data output.
+These protocol rules do not expand the cipher/profile surface or establish BoringSSL/browser
+parity.
 
 No FFI, external TLS process, or shell command participates in production
 networking. OpenSSL is used only as a hermetic test oracle.
@@ -163,9 +177,11 @@ before releasing the loop-owned pool state.
 
 The trust bundle follows the established `SSL_CERT_FILE` override and system CA
 candidate search. Verification is required by default and checks both the chain
-and requested hostname. This is an experimental bounded profile, not a browser-grade
-WebPKI claim: Issue #234 blocks release on name constraints, intermediate EKU,
-strict SAN, key encoding/strength, depth, and documented revocation/CT/path-building limits.
+and requested hostname. Issue #234 completed an experimental bounded profile with
+SAN-only identity, cumulative intermediate EKU policy, strict key/encoding/strength
+and depth bounds, and fail-closed unsupported path semantics. It remains narrower
+than browser WebPKI: name-constraint paths reject, and revocation, CT, AIA,
+alternate-path building, and the full RFC 5280 policy tree are not implemented.
 
 TLS 1.3 retains its existing signature-algorithm allowlist. The shared
 CertificateVerify helper now accepts an explicit protocol policy. TLS 1.2 may
@@ -223,11 +239,16 @@ non-2xx CONNECT response delivery without redirect handling, including an
 end-to-end Fetch 302 response with a `Location` that is not followed. CONNECT 101
 and unsupported `ftp`, SOCKS, and WebSocket proxy schemes reject before origin I/O.
 
-`make test-tls12` runs that focused suite, then starts OpenSSL TLS 1.2-only peers
+`make test-tls-alerts` runs deterministic malformed record, handshake, certificate,
+peer-fatal, and clean-closure fixtures and asserts the exact emitted alert records plus one-shot
+state. `make test-tls12` requires that alert suite, then runs the broader focused transport suite
+and starts OpenSSL TLS 1.2-only peers
 with `ECDHE-RSA-AES128-GCM-SHA256` and forces `rsa_pkcs1_sha256`. It proves a
 trusted HTTP round trip, incremental response delivery, a streamed POST whose
 decrypted request has exact chunk framing, and a real wrong-host rejection. The
-upload oracle accepts the TLS 1.3 probe and the fresh TLS 1.2 fallback connection,
+required CI, Compatibility, and Release `make test-tls` gate includes this work
+and the complete pure-tls suite. The upload oracle accepts the TLS 1.3 probe and
+the fresh TLS 1.2 fallback connection,
 which also proves that the non-replayable source is not consumed before fallback.
 The focused parser policy rejects both RFC 8446 downgrade sentinels, duplicate or
 unsolicited ServerHello extensions, malformed extension acknowledgements, and

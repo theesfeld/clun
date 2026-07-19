@@ -87,20 +87,37 @@
 (defmethod open-stream-p ((stream tls-stream))
   (not (tls-stream-closed-p stream)))
 
+(defun tls-stream-terminal-output-p (stream)
+  "Whether STREAM may no longer emit application or handshake records."
+  (let ((layer (tls-stream-record-layer stream)))
+    (and layer (record-layer-terminal-output-p layer))))
+
+(defun ensure-tls-stream-writable (stream)
+  "Reject application output after close_notify or either fatal direction."
+  (when (or (tls-stream-closed-p stream)
+            (tls-stream-terminal-output-p stream))
+    (error 'tls-error :message "Cannot write after TLS terminal state")))
+
+(defun tls-stream-send-close-notify (stream)
+  "Send the local close_notify once unless a fatal alert ended the connection."
+  (let ((layer (tls-stream-record-layer stream)))
+    (when layer
+      (handler-case
+          (when (record-layer-write-alert layer
+                                          +alert-level-warning+
+                                          +alert-close-notify+)
+            (force-output (tls-stream-underlying-stream stream)))
+        (error () nil)))))
+
 (defmethod close ((stream tls-stream) &key abort)
   (unless (tls-stream-closed-p stream)
-    ;; Flush pending output unless aborting
-    (unless abort
+    ;; Fatal alert state terminates the connection immediately. Do not flush
+    ;; buffered application data after either local or peer fatal failure.
+    (unless (or abort (tls-stream-terminal-output-p stream))
       (force-output stream))
     ;; Send close_notify alert and flush to ensure it's sent before closing
     (unless abort
-      (handler-case
-          (progn
-            (record-layer-write-alert (tls-stream-record-layer stream)
-                                      +alert-level-warning+
-                                      +alert-close-notify+)
-            (force-output (tls-stream-underlying-stream stream)))
-        (error () nil)))  ; Ignore errors during shutdown
+      (tls-stream-send-close-notify stream))
     ;; Close underlying stream (ignore errors - peer may have already closed)
     (handler-case
         (close (tls-stream-underlying-stream stream) :abort abort)
@@ -313,6 +330,28 @@
                                     +alert-level-fatal+
                                     +alert-bad-record-mac+)
         (error () nil))  ; Ignore errors during alert send
+      (error e))
+    ;; A clean peer close ends peer input independently of our write side.
+    ;; This implementation elects to close its write side immediately with one
+    ;; close_notify; RFC 9846 section 6.1 does not require a synchronous reply.
+    (tls-connection-closed (e)
+      (when (tls-connection-closed-clean-p e)
+        (tls-stream-send-close-notify stream))
+      (error e))
+    ;; Decode failures raised directly by the record layer did not previously
+    ;; emit an alert. Nested handlers may already have sent one; record-layer
+    ;; alert idempotence prevents duplicates.
+    (tls-decode-error (e)
+      (ignore-errors
+        (record-layer-write-alert (tls-stream-record-layer stream)
+                                  +alert-level-fatal+
+                                  +alert-decode-error+))
+      (error e))
+    (tls-handshake-error (e)
+      (ignore-errors
+        (record-layer-write-alert (tls-stream-record-layer stream)
+                                  +alert-level-fatal+
+                                  +alert-handshake-failure+))
       (error e))))
 
 (defun tls-stream-buffer-remaining (stream)
@@ -325,7 +364,10 @@
   (let ((record-layer (tls-stream-record-layer stream)))
     (when record-layer
       (check-tls-context)))
-  (when (tls-stream-closed-p stream)
+  (when (or (tls-stream-closed-p stream)
+            (and (tls-stream-record-layer stream)
+                 (record-layer-peer-close-received-p
+                  (tls-stream-record-layer stream))))
     (return-from stream-read-byte :eof))
   ;; Refill buffer if empty
   (when (zerop (tls-stream-buffer-remaining stream))
@@ -347,7 +389,10 @@
   (let ((record-layer (tls-stream-record-layer stream)))
     (when record-layer
       (check-tls-context)))
-  (when (tls-stream-closed-p stream)
+  (when (or (tls-stream-closed-p stream)
+            (and (tls-stream-record-layer stream)
+                 (record-layer-peer-close-received-p
+                  (tls-stream-record-layer stream))))
     (return-from stream-read-sequence start))
   (let ((pos start)
         (first-read t))  ; Track if this is the first read
@@ -387,8 +432,7 @@
 ;;;; Output Methods
 
 (defmethod stream-write-byte ((stream tls-stream) byte)
-  (when (tls-stream-closed-p stream)
-    (error 'tls-error :message "Cannot write to closed stream"))
+  (ensure-tls-stream-writable stream)
   (let ((buf (tls-stream-output-buffer stream))
         (pos (tls-stream-output-position stream)))
     (setf (aref buf pos) byte)
@@ -399,8 +443,7 @@
   byte)
 
 (defmethod stream-write-sequence ((stream tls-stream) sequence start end &key)
-  (when (tls-stream-closed-p stream)
-    (error 'tls-error :message "Cannot write to closed stream"))
+  (ensure-tls-stream-writable stream)
   (loop while (< start end)
         do (let* ((buf (tls-stream-output-buffer stream))
                   (pos (tls-stream-output-position stream))
@@ -418,6 +461,7 @@
   sequence)
 
 (defmethod stream-force-output ((stream tls-stream))
+  (ensure-tls-stream-writable stream)
   (when (plusp (tls-stream-output-position stream))
     (let ((data (subseq (tls-stream-output-buffer stream)
                         0 (tls-stream-output-position stream))))
@@ -494,6 +538,85 @@
       (client-handshake-ech-accepted hs))))
 
 ;;;; Stream Creation
+
+(defun certificate-error-alert-description (condition)
+  "Map a local certificate condition to a non-sensitive TLS 1.3 alert code."
+  (let* ((message (or (tls-error-message condition) ""))
+         (lower (string-downcase message))
+         (reason (and (typep condition 'tls-verification-error)
+                      (tls-verification-error-reason condition))))
+    (cond
+      ((or (typep condition 'tls-certificate-expired)
+           (typep condition 'tls-certificate-not-yet-valid))
+       +alert-certificate-expired+)
+      ((eq reason :unknown-ca) +alert-unknown-ca+)
+      ;; RFC 9846 section 4.5.1.3 assigns decode_error when a client receives
+      ;; an empty/missing server certificate. certificate_required is reserved
+      ;; for a server rejecting an absent client-auth certificate.
+      ((eq reason :no-peer-certificate) +alert-decode-error+)
+      ((and (typep condition 'tls-verification-error)
+            (tls-verification-error-hostname condition))
+       +alert-bad-certificate+)
+      ((search "revoked" lower) +alert-certificate-revoked+)
+      ((or (search "extendedkeyusage" lower)
+           (search "key usage" lower)
+           (search "not valid for" lower)
+           (search "unsupported" lower))
+       +alert-unsupported-certificate+)
+      ((or (search "not anchored" lower)
+           (search "trusted root" lower)
+           (search "unknown ca" lower))
+       +alert-unknown-ca+)
+      ;; DER parsing, signature failures, malformed constraints, and hostname
+      ;; identity failures use the bounded bad_certificate disposition;
+      ;; diagnostic text stays local and never crosses the wire.
+      (t +alert-bad-certificate+))))
+
+(defun handshake-error-alert-description (condition)
+  "Map handshake proof failures to their RFC 9846 section 6 alert disposition."
+  (let ((message (or (tls-error-message condition) "")))
+    (if (or (search ":BAD_SIGNATURE:" message)
+            (search ":DIGEST_CHECK_FAILED:" message))
+        +alert-decrypt-error+
+        +alert-handshake-failure+)))
+
+(defun call-with-client-local-alerts (record-layer thunk)
+  "Run THUNK and emit at most one fatal alert for a local client failure.
+
+TLS-ALERT-ERROR is intentionally absent: a peer fatal remains the reported
+cause and RECORD-LAYER-WRITE-ALERT refuses all responses once it is observed."
+  (handler-bind
+      ((tls-certificate-error
+         (lambda (condition)
+           (ignore-errors
+             (record-layer-write-alert
+              record-layer +alert-level-fatal+
+              (certificate-error-alert-description condition)))))
+       (tls-decode-error
+         (lambda (condition)
+           (declare (ignore condition))
+           (ignore-errors
+             (record-layer-write-alert record-layer +alert-level-fatal+
+                                       +alert-decode-error+))))
+       (tls-mac-error
+         (lambda (condition)
+           (declare (ignore condition))
+           (ignore-errors
+             (record-layer-write-alert record-layer +alert-level-fatal+
+                                       +alert-bad-record-mac+))))
+       (tls-record-overflow
+         (lambda (condition)
+           (declare (ignore condition))
+           (ignore-errors
+             (record-layer-write-alert record-layer +alert-level-fatal+
+                                       +alert-record-overflow+))))
+       (tls-handshake-error
+         (lambda (condition)
+           (ignore-errors
+             (record-layer-write-alert record-layer +alert-level-fatal+
+                                       (handshake-error-alert-description
+                                        condition))))))
+    (funcall thunk)))
 
 (defun make-tls-client-stream (socket &key
                                         hostname
@@ -578,59 +701,65 @@
                   (if (listp ech-configs)
                       ech-configs
                       (list ech-configs))))))
-      (let ((hs (perform-client-handshake
-                  record-layer
-                  :hostname sni-name
-                  :alpn-protocols (or alpn-protocols
-                                      (tls-context-alpn-protocols context))
-                  :verify-mode verify
-                  :trust-store trust-store
-                  :verify-depth (tls-context-verify-depth context)
-                  :skip-hostname-verify (and sni-hostname (null hostname))
-                  :client-certificate client-cert
-                  :client-private-key private-key
-                  :client-certificate-chain chain-certs
-                  :ech-configs parsed-ech-configs
-                  :ech-enabled ech-enabled
-                  :hostname-policy (tls-context-hostname-policy context))))
+      (let ((hs (call-with-client-local-alerts
+                 record-layer
+                 (lambda ()
+                   (perform-client-handshake
+                    record-layer
+                    :hostname sni-name
+                    :alpn-protocols (or alpn-protocols
+                                        (tls-context-alpn-protocols context))
+                    :verify-mode verify
+                    :trust-store trust-store
+                    :verify-depth (tls-context-verify-depth context)
+                    :skip-hostname-verify (and sni-hostname (null hostname))
+                    :client-certificate client-cert
+                    :client-private-key private-key
+                    :client-certificate-chain chain-certs
+                    :ech-configs parsed-ech-configs
+                    :ech-enabled ech-enabled
+                    :hostname-policy (tls-context-hostname-policy context))))))
         (setf (tls-stream-handshake stream) hs)
-        ;; clun security patch (Phase 20): +verify-required+ with NO recorded peer certificate
-        ;; MUST fail closed. Upstream only verifies inside the (when … peer-certificate) below,
-        ;; so a handshake that completes without the client recording a server certificate
-        ;; (a self-interop race, an abbreviated/PSK handshake, a malicious peer) would SKIP
-        ;; verification and silently accept — a certificate-authentication bypass. "Required"
-        ;; means required. (See DECISIONS 2026-07-13.)
-        (when (and (= verify +verify-required+)
-                   (null (client-handshake-peer-certificate hs)))
-          (error 'tls-verification-error :hostname hostname :reason :no-peer-certificate
-                 :message "verify-required: peer presented no certificate"))
-        ;; Verify certificate chain and hostname if verification enabled
-        (when (and (member verify (list +verify-peer+ +verify-required+))
-                   (client-handshake-peer-certificate hs))
-          (let ((cert (client-handshake-peer-certificate hs))
-                (chain (client-handshake-peer-certificate-chain hs)))
-            ;; Verify hostname - only if hostname (not just sni-hostname) was provided
-            (when hostname
-              (verify-hostname cert hostname :policy (tls-context-hostname-policy context)))
-            ;; Verify certificate chain for both +verify-peer+ and +verify-required+
-            ;; (+verify-peer+ means "verify if presented" - servers always present certs)
-            (when chain
-              ;; On Windows/macOS with native verification enabled, verify even without trust-store
-              ;; (they use their own trusted root stores)
-              (let ((trusted-roots (when trust-store
-                                     (trust-store-certificates trust-store))))
-                (verify-certificate-chain chain trusted-roots
-                                          (get-universal-time) hostname
-                                          :purpose :server-auth
-                                          :maximum-chain-depth
-                                          (tls-context-verify-depth context))))
-            ;; Record the verified identity when this full handshake proved it
-            ;; under +verify-required+ (hostname supplied, hostname + chain
-            ;; verified without error above).  A NewSessionTicket read later on
-            ;; this stream carries this forward so a resumption can rely on the
-            ;; original handshake's authentication (RFC 8446 Section 4.2.11).
-            (when (and (= verify +verify-required+) hostname chain)
-              (setf (client-handshake-verified-hostname hs) hostname))))))
+        (call-with-client-local-alerts
+         record-layer
+         (lambda ()
+           ;; clun security patch (Phase 20): +verify-required+ with NO recorded peer certificate
+           ;; MUST fail closed. Upstream only verifies inside the (when … peer-certificate) below,
+           ;; so a handshake that completes without the client recording a server certificate
+           ;; (a self-interop race, an abbreviated/PSK handshake, a malicious peer) would SKIP
+           ;; verification and silently accept — a certificate-authentication bypass. "Required"
+           ;; means required. (See DECISIONS 2026-07-13.)
+           (when (and (= verify +verify-required+)
+                      (null (client-handshake-peer-certificate hs)))
+             (error 'tls-decode-error
+                    :message ":DECODE_ERROR: required server Certificate was missing"))
+           ;; Verify certificate chain and hostname if verification enabled
+           (when (and (member verify (list +verify-peer+ +verify-required+))
+                      (client-handshake-peer-certificate hs))
+             (let ((cert (client-handshake-peer-certificate hs))
+                   (chain (client-handshake-peer-certificate-chain hs)))
+               ;; Verify hostname - only if hostname (not just sni-hostname) was provided
+               (when hostname
+                 (verify-hostname cert hostname :policy (tls-context-hostname-policy context)))
+               ;; Verify certificate chain for both +verify-peer+ and +verify-required+
+               ;; (+verify-peer+ means "verify if presented" - servers always present certs)
+               (when chain
+                 ;; On Windows/macOS with native verification enabled, verify even without trust-store
+                 ;; (they use their own trusted root stores)
+                 (let ((trusted-roots (when trust-store
+                                        (trust-store-certificates trust-store))))
+                   (verify-certificate-chain chain trusted-roots
+                                             (get-universal-time) hostname
+                                             :purpose :server-auth
+                                             :maximum-chain-depth
+                                             (tls-context-verify-depth context))))
+               ;; Record the verified identity when this full handshake proved it
+               ;; under +verify-required+ (hostname supplied, hostname + chain
+               ;; verified without error above).  A NewSessionTicket read later on
+               ;; this stream carries this forward so a resumption can rely on the
+               ;; original handshake's authentication (RFC 8446 Section 4.2.11).
+               (when (and (= verify +verify-required+) hostname chain)
+                 (setf (client-handshake-verified-hostname hs) hostname))))))))
     ;; Wrap with flexi-stream if external-format specified
     (if external-format
         (flexi-streams:make-flexi-stream stream :external-format external-format)

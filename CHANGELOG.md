@@ -39,6 +39,9 @@ installable release checkpoints.
 
 ### Fixed
 
+- Emit one typed fatal TLS alert for local TLS 1.2 failures and TLS 1.3
+  certificate failures, never answer peer fatal alerts, and reciprocate a valid
+  `close_notify` exactly once with independent receive/send state.
 - Preserve Linux wrapper loaders and `libexec/clun` instead of replacing only
   the running core image.
 - Resolve bare `argv[0]` only through `PATH`, preventing an updater from

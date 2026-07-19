@@ -154,6 +154,13 @@
   (stream nil)
   (max-send-fragment +max-record-size+ :type fixnum)
   (ccs-count 0 :type fixnum)
+  ;; Alert state is deliberately independent from socket/stream closure.  This
+  ;; implementation elects to reciprocate a peer close once, while a peer
+  ;; fatal must never receive a newly manufactured alert.
+  (peer-close-received-p nil :type boolean)
+  (local-close-sent-p nil :type boolean)
+  (fatal-alert-sent-p nil :type boolean)
+  (peer-fatal-alert-received-p nil :type boolean)
   (request-context nil :type t))
 
 (defun make-record-layer (stream &key (max-send-fragment +max-record-size+)
@@ -180,6 +187,10 @@
    read-tls-record are automatically recycled on scope exit.
    The returned fragment is always a fresh exact-sized buffer safe
    for use beyond the context scope."
+  (when (or (record-layer-fatal-alert-sent-p layer)
+            (record-layer-peer-fatal-alert-received-p layer)
+            (record-layer-peer-close-received-p layer))
+    (error 'tls-error :message ":READ_AFTER_TERMINAL_ALERT:"))
   (check-tls-context)
   (with-buffer-context (*buffer-pool*)
     (let* ((record (read-tls-record (record-layer-stream layer)
@@ -232,8 +243,23 @@
       ;; No encryption - return plaintext record
       (values content-type fragment))))
 
-(defun record-layer-write (layer content-type data)
-  "Write and potentially encrypt a record to the record layer."
+(defun record-layer-terminal-output-p (layer)
+  "Whether LAYER has permanently closed its local record-output direction."
+  (or (record-layer-fatal-alert-sent-p layer)
+      (record-layer-peer-fatal-alert-received-p layer)
+      (record-layer-local-close-sent-p layer)))
+
+(defun ensure-record-layer-writable (layer)
+  "Reject record output after a fatal alert or local close_notify."
+  (when (record-layer-terminal-output-p layer)
+    (error 'tls-error :message ":WRITE_AFTER_TERMINAL_ALERT:")))
+
+(defun record-layer-write (layer content-type data &key allow-terminal)
+  "Write and potentially encrypt a record to the record layer.
+
+ALLOW-TERMINAL is reserved for the one alert that establishes terminal state."
+  (unless allow-terminal
+    (ensure-record-layer-writable layer))
   (let* ((cipher (record-layer-write-cipher layer))
          (stream (record-layer-stream layer)))
     (if cipher
@@ -249,9 +275,23 @@
           (write-tls-record stream record)))))
 
 (defun record-layer-write-alert (layer level description)
-  "Write an alert record."
+  "Write an alert record once for terminal alerts.
+
+Fatal alerts and close_notify are idempotent.  Once a complete peer fatal has
+been received, no alert is written in response."
+  (when (or (record-layer-peer-fatal-alert-received-p layer)
+            (record-layer-fatal-alert-sent-p layer)
+            (record-layer-local-close-sent-p layer))
+    (return-from record-layer-write-alert nil))
+  (cond
+    ((= level +alert-level-fatal+)
+     ;; Mark before I/O so a short write cannot trigger a duplicate retry.
+     (setf (record-layer-fatal-alert-sent-p layer) t))
+    ((= description +alert-close-notify+)
+     (setf (record-layer-local-close-sent-p layer) t)))
   (let ((data (octet-vector level description)))
-    (record-layer-write layer +content-type-alert+ data)))
+    (record-layer-write layer +content-type-alert+ data :allow-terminal t))
+  t)
 
 (defun record-layer-write-handshake (layer handshake-data)
   "Write a handshake record, fragmenting if necessary."
@@ -267,6 +307,7 @@
    a single CCS record immediately after the first ClientHello (client)
    or ServerHello (server) for compatibility with broken middleboxes.
    The CCS record is always sent unencrypted with content byte 0x01."
+  (ensure-record-layer-writable layer)
   (let* ((ccs-data (octet-vector 1))  ; Single byte 0x01
          (record (make-tls-record :content-type +content-type-change-cipher-spec+
                                   :version +tls-1.2+
@@ -312,47 +353,30 @@
     (error 'tls-error :message ":BAD_ALERT: Alert record too long"))
   (let ((level (aref content 0))
         (description (aref content 1)))
-    ;; close_notify is a clean shutdown; respond with our own close_notify if possible
-    (when (= description +alert-close-notify+)
-      (when record-layer
-        (handler-case
-            (record-layer-write-alert record-layer +alert-level-warning+ +alert-close-notify+)
-          (error () nil)))
-      (error 'tls-connection-closed :clean t))
-    ;; Check for invalid alert level or unknown alert description
-    ;; Valid alert levels are 1 (warning) and 2 (fatal)
-    (unless (or (= level +alert-level-warning+) (= level +alert-level-fatal+))
-      (when record-layer
-        (handler-case
-            (record-layer-write-alert record-layer +alert-level-fatal+ +alert-illegal-parameter+)
-          (error () nil)))
-      (error 'tls-error
-             :message (format nil ":UNKNOWN_ALERT_TYPE: Unknown alert level ~D" level)))
-    ;; Check for unknown alert description - send illegal_parameter
-    (unless (known-alert-description-p description)
-      (when record-layer
-        (handler-case
-            (record-layer-write-alert record-layer +alert-level-fatal+ +alert-illegal-parameter+)
-          (error () nil)))
-      (error 'tls-error
-             :message (format nil ":UNKNOWN_ALERT_TYPE: Unknown alert type ~D" description)))
-    ;; RFC 8446 Section 6: In TLS 1.3, all alerts except close_notify and
-    ;; user_canceled MUST be sent at fatal level.
-    (when (= level +alert-level-warning+)
-      (cond
-        ;; user_canceled warning is allowed in TLS 1.3 - ignore it
-        ((= description +alert-user-canceled+)
-         (return-from process-alert nil))
-        ;; All other warning alerts are forbidden in TLS 1.3
-        (t
-         ;; Send decode_error alert for invalid warning alerts (per BoringSSL expectation)
-         (when record-layer
-           (handler-case
-               (record-layer-write-alert record-layer +alert-level-fatal+ +alert-decode-error+)
-             (error () nil)))
-         ;; Treat forbidden warning alerts as fatal protocol error
-         (error 'tls-error
-                :message (format nil ":BAD_ALERT: Invalid warning-level alert in TLS 1.3: ~A"
-                                (alert-description-name description))))))
-    ;; All other alerts (fatal level) signal an error
-    (error 'tls-alert-error :level level :description description)))
+    ;; RFC 9846 section 6 retains AlertLevel only for TLS 1.2 compatibility:
+    ;; receivers MUST ignore it. AlertDescription alone determines semantics.
+    (cond
+      ((= description +alert-close-notify+)
+       (when record-layer
+         (setf (record-layer-peer-close-received-p record-layer) t)
+         ;; RFC 9846 section 6.1 makes the two write directions independent and
+         ;; does not carry TLS 1.2's mandatory reciprocal-alert rule. We choose
+         ;; to close our still-open write side immediately. The independent
+         ;; local flag makes that one-shot policy safe when a stream handler
+         ;; also observes the clean-close condition.
+         (handler-case
+             (record-layer-write-alert record-layer
+                                       +alert-level-warning+
+                                       +alert-close-notify+)
+           (error () nil)))
+       (error 'tls-connection-closed :clean t))
+      ((= description +alert-user-canceled+)
+       ;; RFC 9846 section 6.1 permits recipients to ignore user_canceled.
+       nil)
+      (t
+       ;; Every other known or unknown description is terminal peer input.
+       ;; Never manufacture an alert in response, regardless of the legacy
+       ;; level byte supplied by the peer.
+       (when record-layer
+         (setf (record-layer-peer-fatal-alert-received-p record-layer) t))
+       (error 'tls-alert-error :level level :description description)))))

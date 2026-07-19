@@ -94,10 +94,10 @@ registry metadata and public HTTPS tarball fallback are denied. This live, non-h
 Clun's experimental bounded pure-CL TLS profile. The still-published
 `v0.1.0-dev.21` binary predates the pure-CL TLS 1.2 fallback and returns a fatal
 `protocol_version` alert against the public registry. The current source contains the working package
-path from [Issue #233](https://github.com/theesfeld/clun/issues/233) and bounded WebPKI hardening from
-[Issue #234](https://github.com/theesfeld/clun/issues/234). It remains a source candidate while
-[Issue #235](https://github.com/theesfeld/clun/issues/235) closes the remaining TLS alert/close
-compliance findings, and until the exact `master` candidate passes CI, Compatibility, Documentation,
+path from [Issue #233](https://github.com/theesfeld/clun/issues/233), completed bounded WebPKI
+hardening from [Issue #234](https://github.com/theesfeld/clun/issues/234), and the one-shot TLS
+alert/close lifecycle from [Issue #235](https://github.com/theesfeld/clun/issues/235). It remains a
+source candidate until the exact `master` candidate passes CI, Compatibility, Documentation,
 immutable release-asset, Pages, and hosted-installer gates.
 
 ## What works
@@ -275,6 +275,14 @@ reinstalls, the lockfile's already-recorded integrity detects cache corruption o
 fresh resolution, however, integrity and tarball URLs both come from registry metadata authenticated
 by TLS; SRI alone does not protect against a transport compromise that can replace both metadata and
 tarball.
+
+Within that bounded profile, local TLS 1.2 protocol/authentication failures and TLS 1.3
+certificate failures emit at most one standard fatal alert; a peer fatal is preserved without a
+response alert, and a valid peer `close_notify` receives exactly one reciprocal `close_notify`.
+Deterministic byte-level fixtures run through `make test-tls-alerts`, which is required by the
+full CI, Compatibility, and Release TLS gate. Issue #234's bounded WebPKI work and Issue #235's alert
+and closure lifecycle are both implemented in this candidate. This is not a claim of full BoringSSL,
+browser TLS, or complete RFC 5280 parity.
 
 ## Building from source
 

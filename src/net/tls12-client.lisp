@@ -11,15 +11,44 @@
 (in-package :clun.net)
 
 (define-condition tls12-error (error)
-  ((message :initarg :message :reader tls12-error-message))
+  ((message :initarg :message :reader tls12-error-message)
+   (alert-description
+    :initarg :alert-description
+    :initform 40
+    :reader tls12-error-alert-description))
   (:report (lambda (condition stream)
              (write-string (tls12-error-message condition) stream))))
+
+(define-condition tls12-peer-alert (tls12-error)
+  ((level :initarg :level :reader tls12-peer-alert-level)
+   (description :initarg :description :reader tls12-peer-alert-description))
+  (:report (lambda (condition stream)
+             (format stream "TLS 1.2 peer alert level ~d description ~d"
+                     (tls12-peer-alert-level condition)
+                     (tls12-peer-alert-description condition)))))
 
 (defconstant +tls12-change-cipher-spec+ 20)
 (defconstant +tls12-alert+ 21)
 (defconstant +tls12-handshake+ 22)
 (defconstant +tls12-application-data+ 23)
 (defconstant +tls12-version+ #x0303)
+(defconstant +tls12-alert-close-notify+ 0)
+(defconstant +tls12-alert-unexpected-message+ 10)
+(defconstant +tls12-alert-bad-record-mac+ 20)
+(defconstant +tls12-alert-record-overflow+ 22)
+(defconstant +tls12-alert-handshake-failure+ 40)
+(defconstant +tls12-alert-bad-certificate+ 42)
+(defconstant +tls12-alert-certificate-expired+ 45)
+(defconstant +tls12-alert-certificate-unknown+ 46)
+(defconstant +tls12-alert-illegal-parameter+ 47)
+(defconstant +tls12-alert-unknown-ca+ 48)
+(defconstant +tls12-alert-decode-error+ 50)
+(defconstant +tls12-alert-decrypt-error+ 51)
+(defconstant +tls12-alert-protocol-version+ 70)
+(defconstant +tls12-alert-internal-error+ 80)
+(defconstant +tls12-alert-inappropriate-fallback+ 86)
+(defconstant +tls12-alert-unsupported-extension+ 110)
+(defconstant +tls12-alert-no-application-protocol+ 120)
 (defconstant +tls12-suite-ecdhe-ecdsa-aes128-gcm-sha256+ #xc02b)
 (defconstant +tls12-suite-ecdhe-rsa-aes128-gcm-sha256+ #xc02f)
 (defconstant +tls12-fallback-scsv+ #x5600)
@@ -65,10 +94,45 @@ never an authenticated identity.")
                                      :adjustable t :fill-pointer 0))
   (client-encrypted-p nil)
   (server-encrypted-p nil)
-  (closed-p nil))
+  (peer-close-received-p nil)
+  (local-close-sent-p nil)
+  (fatal-alert-sent-p nil)
+  (peer-fatal-alert-received-p nil))
+
+(defun %tls12-terminal-read-p (state)
+  "Whether normal record input is permanently unavailable for STATE."
+  (or (tls12-fatal-alert-sent-p state)
+      (tls12-peer-fatal-alert-received-p state)
+      (tls12-local-close-sent-p state)
+      (tls12-peer-close-received-p state)))
+
+(defun %tls12-terminal-write-p (state)
+  "Whether normal record output is permanently unavailable for STATE."
+  (or (tls12-fatal-alert-sent-p state)
+      (tls12-peer-fatal-alert-received-p state)
+      (tls12-local-close-sent-p state)
+      (tls12-peer-close-received-p state)))
+
+(defun %tls12-ensure-readable (state)
+  (when (%tls12-terminal-read-p state)
+    ;; A local misuse after terminal state is not a new peer-visible protocol
+    ;; failure.  The NIL disposition keeps the one-shot alert boundary silent.
+    (error 'tls12-error :alert-description nil
+           :message "TLS 1.2 read after terminal alert")))
+
+(defun %tls12-ensure-writable (state)
+  (when (%tls12-terminal-write-p state)
+    (error 'tls12-error :alert-description nil
+           :message "TLS 1.2 write after terminal alert")))
+
+(defun %tls12-fail-alert (description control &rest arguments)
+  (error 'tls12-error
+         :alert-description description
+         :message (apply #'format nil control arguments)))
 
 (defun %tls12-fail (control &rest arguments)
-  (error 'tls12-error :message (apply #'format nil control arguments)))
+  "Signal a local TLS 1.2 decode failure with a wire alert disposition."
+  (apply #'%tls12-fail-alert +tls12-alert-decode-error+ control arguments))
 
 (defun %tls12-cat (&rest vectors)
   (let* ((length (reduce #'+ vectors :key #'length :initial-value 0))
@@ -183,9 +247,12 @@ never an authenticated identity.")
         (setf offset end)))
     result))
 
-(defun %tls12-write-plain-record (state type payload)
+(defun %tls12-write-plain-record (state type payload &key allow-terminal-alert)
+  (unless allow-terminal-alert
+    (%tls12-ensure-writable state))
   (when (> (length payload) +tls12-max-plaintext+)
-    (%tls12-fail "TLS plaintext record exceeds ~d bytes" +tls12-max-plaintext+))
+    (%tls12-fail-alert +tls12-alert-record-overflow+
+                       "TLS plaintext record exceeds ~d bytes" +tls12-max-plaintext+))
   (write-sequence
    (%tls12-cat (%tls12-u8 type) (%tls12-u16 +tls12-version+)
                (%tls12-u16 (length payload)) payload)
@@ -204,13 +271,15 @@ never an authenticated identity.")
                       (tls12-client-key state) nonce plaintext
                       (%tls12-aad sequence type (length plaintext)))))
     (when (= sequence #xffffffffffffffff)
-      (%tls12-fail "TLS 1.2 client sequence number exhausted"))
+      (%tls12-fail-alert +tls12-alert-internal-error+
+                         "TLS 1.2 client sequence number exhausted"))
     (incf (tls12-client-sequence state))
     (%tls12-cat explicit ciphertext)))
 
 (defun %tls12-decrypt-record (state type payload)
   (when (< (length payload) 24)
-    (%tls12-fail "TLS 1.2 AEAD record is too short"))
+    (%tls12-fail-alert +tls12-alert-bad-record-mac+
+                       "TLS 1.2 AEAD record is too short"))
   (let* ((sequence (tls12-server-sequence state))
          (explicit (subseq payload 0 8))
          (ciphertext (subseq payload 8))
@@ -219,18 +288,24 @@ never an authenticated identity.")
          (plaintext
            (progn
              (when (> plaintext-length +tls12-max-plaintext+)
-               (%tls12-fail "TLS 1.2 plaintext record exceeds bound"))
+               (%tls12-fail-alert +tls12-alert-record-overflow+
+                                  "TLS 1.2 plaintext record exceeds bound"))
            (handler-case
                (pure-tls::aes-gcm-decrypt
                 (tls12-server-key state) nonce ciphertext
                 (%tls12-aad sequence type plaintext-length))
-             (error () (%tls12-fail "TLS 1.2 record authentication failed"))))))
+             (error ()
+               (%tls12-fail-alert +tls12-alert-bad-record-mac+
+                                  "TLS 1.2 record authentication failed"))))))
     (when (= sequence #xffffffffffffffff)
-      (%tls12-fail "TLS 1.2 server sequence number exhausted"))
+      (%tls12-fail-alert +tls12-alert-internal-error+
+                         "TLS 1.2 server sequence number exhausted"))
     (incf (tls12-server-sequence state))
     plaintext))
 
-(defun %tls12-write-record (state type payload)
+(defun %tls12-write-record (state type payload &key allow-terminal-alert)
+  (unless allow-terminal-alert
+    (%tls12-ensure-writable state))
   (if (tls12-client-encrypted-p state)
       (let ((ciphertext (%tls12-encrypt-record state type payload)))
         (write-sequence
@@ -238,30 +313,53 @@ never an authenticated identity.")
                      (%tls12-u16 (length ciphertext)) ciphertext)
          (tls12-stream state))
         (force-output (tls12-stream state)))
-      (%tls12-write-plain-record state type payload)))
+      (%tls12-write-plain-record state type payload
+                                 :allow-terminal-alert allow-terminal-alert)))
 
 (defun %tls12-read-record (state &key eof-ok)
+  (%tls12-ensure-readable state)
   (let ((header (%tls12-read-exactly (tls12-stream state) 5 :eof-ok eof-ok)))
     (unless header (return-from %tls12-read-record (values nil nil)))
     (let ((type (aref header 0))
           (version (%tls12-read-u16 header 1))
           (length (%tls12-read-u16 header 3)))
       (unless (member version '(#x0301 #x0302 #x0303))
-        (%tls12-fail "invalid TLS record version 0x~4,'0x" version))
+        (%tls12-fail-alert +tls12-alert-protocol-version+
+                           "invalid TLS record version 0x~4,'0x" version))
       (when (> length +tls12-max-ciphertext+)
-        (%tls12-fail "TLS ciphertext record exceeds bound"))
+        (%tls12-fail-alert +tls12-alert-record-overflow+
+                           "TLS ciphertext record exceeds bound"))
       (let ((payload (%tls12-read-exactly (tls12-stream state) length)))
         (values type (if (tls12-server-encrypted-p state)
                          (%tls12-decrypt-record state type payload)
                          payload))))))
 
-(defun %tls12-alert (payload)
+(defun %tls12-alert (payload &optional state)
   (unless (= (length payload) 2)
     (%tls12-fail "invalid TLS alert length"))
   (let ((level (aref payload 0)) (description (aref payload 1)))
-    (if (and (= level 1) (= description 0))
-        :close-notify
-        (%tls12-fail "TLS 1.2 alert level ~d description ~d" level description))))
+    (cond
+      ;; A complete peer fatal is terminal. Preserve it as the cause and never
+      ;; manufacture a response alert (RFC 5246 section 7.2).
+      ((= level 2)
+       ;; Mark before signaling so even a caller that catches this condition
+       ;; outside %TLS12-CALL-WITH-ALERTS cannot emit close_notify afterward.
+       (when state (setf (tls12-peer-fatal-alert-received-p state) t))
+       (error 'tls12-peer-alert :level level :description description
+              :alert-description nil
+              :message (format nil "TLS 1.2 peer fatal alert ~d" description)))
+      ((/= level 1)
+       (%tls12-fail-alert +tls12-alert-illegal-parameter+
+                          "invalid TLS 1.2 alert level ~d" level))
+      ((= description +tls12-alert-close-notify+)
+       (when state (setf (tls12-peer-close-received-p state) t))
+       :close-notify)
+      (t
+       ;; TLS 1.2 warning alerts other than close_notify terminate this bounded
+       ;; client profile, but remain peer-originated and are not answered.
+       (error 'tls12-peer-alert :level level :description description
+              :alert-description nil
+              :message (format nil "TLS 1.2 peer warning alert ~d" description))))))
 
 (defun %tls12-next-handshake (state &key allow-ccs)
   "Return the next complete handshake message and its type. Handshake messages may
@@ -293,10 +391,17 @@ span records or share a record. When ALLOW-CCS is true, return (:ccs, payload)."
         (#.+tls12-change-cipher-spec+
          (if allow-ccs
              (return (values :ccs payload))
-             (%tls12-fail "unexpected change_cipher_spec")))
-        (#.+tls12-alert+ (%tls12-alert payload))
-        (otherwise (%tls12-fail "unexpected TLS record type ~d during handshake"
-                                record-type))))))
+             (%tls12-fail-alert +tls12-alert-unexpected-message+
+                                "unexpected change_cipher_spec")))
+        (#.+tls12-alert+
+         (when (eq (%tls12-alert payload state) :close-notify)
+           (error 'tls12-peer-alert :level 1 :description +tls12-alert-close-notify+
+                  :alert-description nil
+                  :message "TLS 1.2 peer closed during handshake")))
+        (otherwise
+         (%tls12-fail-alert +tls12-alert-unexpected-message+
+                            "unexpected TLS record type ~d during handshake"
+                            record-type))))))
 
 (defun %tls12-client-hello (hostname random)
   (let* ((host (%tls12-ascii hostname))
@@ -352,7 +457,8 @@ span records or share a record. When ALLOW-CCS is true, return (:ccs, payload)."
               (when (> data-end end)
                 (%tls12-fail "truncated ServerHello extension data"))
               (when (nth-value 1 (gethash type seen))
-                (%tls12-fail "duplicate ServerHello extension ~d" type))
+                (%tls12-fail-alert +tls12-alert-illegal-parameter+
+                                   "duplicate ServerHello extension ~d" type))
               (setf (gethash type seen) t)
               (push (cons type (subseq body data-start data-end)) result)
               (setf start data-end)))
@@ -364,7 +470,8 @@ span records or share a record. When ALLOW-CCS is true, return (:ccs, payload)."
     (when (< (length body) minimum)
       (%tls12-fail "truncated ServerHello"))
     (unless (= (%tls12-read-u16 body 0) +tls12-version+)
-      (%tls12-fail "server did not select TLS 1.2"))
+      (%tls12-fail-alert +tls12-alert-protocol-version+
+                         "server did not select TLS 1.2"))
     (let* ((server-random (subseq body 2 34))
            (session-length (aref body 34))
            (suite-offset (+ 35 session-length)))
@@ -376,7 +483,8 @@ span records or share a record. When ALLOW-CCS is true, return (:ccs, payload)."
                     '(#(#x44 #x4f #x57 #x4e #x47 #x52 #x44 #x01)
                       #(#x44 #x4f #x57 #x4e #x47 #x52 #x44 #x00))
                     :test #'equalp)
-        (%tls12-fail "TLS 1.3 downgrade sentinel received during TLS 1.2 fallback"))
+        (%tls12-fail-alert +tls12-alert-inappropriate-fallback+
+                           "TLS 1.3 downgrade sentinel received during TLS 1.2 fallback"))
       (when (> (+ suite-offset 3) (length body))
         (%tls12-fail "truncated ServerHello session"))
       (let ((suite (%tls12-read-u16 body suite-offset))
@@ -385,19 +493,23 @@ span records or share a record. When ALLOW-CCS is true, return (:ccs, payload)."
         (unless (member suite
                         (list +tls12-suite-ecdhe-ecdsa-aes128-gcm-sha256+
                               +tls12-suite-ecdhe-rsa-aes128-gcm-sha256+))
-          (%tls12-fail "server selected unsupported TLS 1.2 suite 0x~4,'0x" suite))
+          (%tls12-fail-alert +tls12-alert-illegal-parameter+
+                             "server selected unsupported TLS 1.2 suite 0x~4,'0x" suite))
         (unless (zerop compression)
-          (%tls12-fail "server selected TLS compression"))
+          (%tls12-fail-alert +tls12-alert-illegal-parameter+
+                             "server selected TLS compression"))
         ;; RFC 5246 section 7.4.1.4: a server cannot send an extension the
         ;; client did not request. The renegotiation_info exception is covered
         ;; by the SCSV advertised in the ClientHello.
         (dolist (extension extensions)
           (unless (member (car extension) +tls12-server-hello-extension-types+)
-            (%tls12-fail "server sent unsolicited TLS 1.2 extension ~d"
-                         (car extension))))
+            (%tls12-fail-alert +tls12-alert-unsupported-extension+
+                               "server sent unsolicited TLS 1.2 extension ~d"
+                               (car extension))))
         (let ((server-name (assoc 0 extensions)))
           (when (and server-name (plusp (length (cdr server-name))))
-            (%tls12-fail "server_name ServerHello extension is not empty")))
+            (%tls12-fail-alert +tls12-alert-illegal-parameter+
+                               "server_name ServerHello extension is not empty")))
         (let ((point-format-extension (assoc 11 extensions)))
           ;; RFC 8422 sections 5.1.2 and 5.2 encode this acknowledgement as a
           ;; one-byte-length vector. If it is omitted, uncompressed is implied;
@@ -409,7 +521,8 @@ span records or share a record. When ALLOW-CCS is true, return (:ccs, payload)."
                               (1- (length point-formats))))
                 (%tls12-fail "invalid ec_point_formats ServerHello extension"))
               (unless (find 0 point-formats :start 1)
-                (%tls12-fail "server does not support uncompressed EC points")))))
+                (%tls12-fail-alert +tls12-alert-illegal-parameter+
+                                   "server does not support uncompressed EC points")))))
         (let ((alpn-extension (assoc 16 extensions)))
           ;; RFC 7301 section 3.1 requires a ServerHello ALPN response to be a
           ;; single, non-empty ProtocolName. This profile offered only
@@ -419,19 +532,22 @@ span records or share a record. When ALLOW-CCS is true, return (:ccs, payload)."
                             (%tls12-vector16
                              (%tls12-cat (%tls12-u8 8)
                                          (%tls12-ascii "http/1.1"))))
-              (%tls12-fail "server selected an unsupported ALPN protocol"))))
+              (%tls12-fail-alert +tls12-alert-no-application-protocol+
+                                 "server selected an unsupported ALPN protocol"))))
         (let ((ems (assoc 23 extensions))
               (renegotiation (assoc #xff01 extensions)))
           (when (and ems (plusp (length (cdr ems))))
             (%tls12-fail "extended_master_secret ServerHello extension is not empty"))
           (when (and renegotiation
                      (not (equalp (cdr renegotiation) #(#x00))))
-            (%tls12-fail "invalid renegotiation_info ServerHello extension"))
+            (%tls12-fail-alert +tls12-alert-handshake-failure+
+                               "invalid renegotiation_info ServerHello extension"))
           ;; This HTTPS profile always offers and requires RFC 7627 EMS. A
           ;; legacy peer that declines it is not safe enough for registry or
           ;; updater traffic and must fail closed.
           (unless ems
-            (%tls12-fail "server did not negotiate extended_master_secret"))
+            (%tls12-fail-alert +tls12-alert-handshake-failure+
+                               "server did not negotiate extended_master_secret"))
           (values server-random suite t))))))
 
 (defun %tls12-parse-certificates
@@ -454,7 +570,14 @@ span records or share a record. When ALLOW-CCS is true, return (:ccs, payload)."
                (end (+ start length)))
           (when (or (zerop length) (> end (length body)))
             (%tls12-fail "invalid certificate entry length"))
-          (push (pure-tls:parse-certificate (subseq body start end)) certificates)
+          (push (handler-case
+                    (pure-tls:parse-certificate (subseq body start end))
+                  (error (condition)
+                    (%tls12-fail-alert
+                     +tls12-alert-bad-certificate+
+                     "TLS 1.2 certificate ~d could not be parsed: ~a"
+                     (length certificates) condition)))
+                certificates)
           (setf offset end)))
       (unless certificates (%tls12-fail "server supplied no certificate"))
       (nreverse certificates))))
@@ -464,7 +587,8 @@ span records or share a record. When ALLOW-CCS is true, return (:ccs, payload)."
          (store (pure-tls::tls-context-trust-store context))
          (roots (and store (pure-tls::trust-store-certificates store))))
     (unless roots
-      (%tls12-fail "no trusted root certificates are available"))
+      (%tls12-fail-alert +tls12-alert-unknown-ca+
+                         "no trusted root certificates are available"))
     (pure-tls:verify-hostname
      leaf hostname :policy (pure-tls::tls-context-hostname-policy context))
     (pure-tls::verify-certificate-chain certificates roots
@@ -480,12 +604,14 @@ span records or share a record. When ALLOW-CCS is true, return (:ccs, payload)."
     (when (< (length body) minimum)
       (%tls12-fail "truncated ServerKeyExchange"))
     (unless (= (aref body 0) 3)
-      (%tls12-fail "server did not use named_curve ECDHE"))
+      (%tls12-fail-alert +tls12-alert-illegal-parameter+
+                         "server did not use named_curve ECDHE"))
     (let* ((group (%tls12-read-u16 body 1))
            (key-length (aref body 3))
            (key-end (+ 4 key-length)))
       (unless (= group #x0017)
-        (%tls12-fail "server selected unsupported ECDHE group 0x~4,'0x" group))
+        (%tls12-fail-alert +tls12-alert-illegal-parameter+
+                           "server selected unsupported ECDHE group 0x~4,'0x" group))
       (when (> (+ key-end 4) (length body))
         (%tls12-fail "truncated ServerKeyExchange key or signature"))
       (let* ((peer-key (subseq body 4 key-end))
@@ -500,12 +626,28 @@ span records or share a record. When ALLOW-CCS is true, return (:ccs, payload)."
                   (#.+tls12-suite-ecdhe-ecdsa-aes128-gcm-sha256+ (= algorithm #x0403))
                   (#.+tls12-suite-ecdhe-rsa-aes128-gcm-sha256+
                    (member algorithm '(#x0401 #x0804))))
-          (%tls12-fail "signature algorithm is incompatible with selected cipher suite"))
-        (pure-tls::verify-certificate-verify-signature
-         (first certificates) algorithm (subseq body signature-start signature-end)
-         (%tls12-cat client-random server-random params)
-         :allowed-algorithms '(#x0403 #x0804 #x0401)
-         :protocol-version :tls12)
+          (%tls12-fail-alert
+           +tls12-alert-illegal-parameter+
+           "signature algorithm is incompatible with selected cipher suite"))
+        (handler-case
+            (pure-tls::verify-certificate-verify-signature
+             (first certificates) algorithm (subseq body signature-start signature-end)
+             (%tls12-cat client-random server-random params)
+             :allowed-algorithms '(#x0403 #x0804 #x0401)
+             :protocol-version :tls12)
+          (pure-tls:tls-certificate-error (condition)
+            (%tls12-fail-alert
+             +tls12-alert-bad-certificate+
+             "TLS 1.2 ServerKeyExchange certificate rejected: ~a"
+             condition))
+          (pure-tls:tls-handshake-error (condition)
+            (%tls12-fail-alert
+             (if (search ":BAD_SIGNATURE:"
+                         (or (pure-tls::tls-error-message condition) ""))
+                 +tls12-alert-decrypt-error+
+                 +tls12-alert-bad-certificate+)
+             "TLS 1.2 ServerKeyExchange proof rejected: ~a"
+             condition)))
         peer-key))))
 
 (defun %tls12-derive-keys (state premaster extended-master-secret-p)
@@ -541,22 +683,29 @@ span records or share a record. When ALLOW-CCS is true, return (:ccs, payload)."
     ((= type 4)
      ;; RFC 5077 section 3.3 permits this only after SessionTicket was
      ;; negotiated in ServerHello; this client never offers that extension.
-     (%tls12-fail "unsolicited TLS 1.2 NewSessionTicket message"))
-    (t (%tls12-fail "expected server change_cipher_spec, received ~a" type))))
+     (%tls12-fail-alert +tls12-alert-unexpected-message+
+                        "unsolicited TLS 1.2 NewSessionTicket message"))
+    (t (%tls12-fail-alert +tls12-alert-unexpected-message+
+                          "expected server change_cipher_spec, received ~a" type))))
 
-(defun %tls12-handshake (stream hostname ca-file verify)
-  (let* ((random (sys:os-random-bytes 32))
-         (state (make-tls12-state :stream stream :client-random random))
+(defun %tls12-handshake (stream hostname ca-file verify &key state)
+  (let* ((random (or (and state (tls12-client-random state))
+                     (sys:os-random-bytes 32)))
+         (state (or state (make-tls12-state :stream stream)))
          (hello (%tls12-client-hello hostname random))
          (context (%make-https-tls-context ca-file))
          (certificates nil)
          (suite nil)
          (extended-master-secret-p nil)
          (server-key nil))
+    (setf (tls12-stream state) stream
+          (tls12-client-random state) random)
     (%tls12-write-plain-record state +tls12-handshake+ hello)
     (%tls12-append-transcript state hello)
     (multiple-value-bind (type message) (%tls12-next-handshake state)
-      (unless (= type 2) (%tls12-fail "expected ServerHello, received handshake ~a" type))
+      (unless (= type 2)
+        (%tls12-fail-alert +tls12-alert-unexpected-message+
+                           "expected ServerHello, received handshake ~a" type))
       (multiple-value-bind (server-random selected-suite ems)
           (%tls12-parse-server-hello message)
         (setf (tls12-server-random state) server-random
@@ -567,24 +716,32 @@ span records or share a record. When ALLOW-CCS is true, return (:ccs, payload)."
       (multiple-value-bind (type message) (%tls12-next-handshake state)
         (case type
           (11
-           (when certificates (%tls12-fail "duplicate Certificate message"))
+           (when certificates
+             (%tls12-fail-alert +tls12-alert-unexpected-message+
+                                "duplicate Certificate message"))
            (setf certificates
                  (%tls12-parse-certificates
                   message (pure-tls::tls-context-verify-depth context))))
           (12
-           (unless certificates (%tls12-fail "ServerKeyExchange preceded Certificate"))
+           (unless certificates
+             (%tls12-fail-alert +tls12-alert-unexpected-message+
+                                "ServerKeyExchange preceded Certificate"))
            (setf server-key
                  (%tls12-parse-server-key-exchange
                   message certificates suite random (tls12-server-random state))))
-          (22 (%tls12-fail "unsolicited TLS 1.2 CertificateStatus message"))
+          (22 (%tls12-fail-alert +tls12-alert-unexpected-message+
+                                 "unsolicited TLS 1.2 CertificateStatus message"))
           (14
            (unless (and certificates server-key)
-             (%tls12-fail "incomplete TLS 1.2 server flight"))
+             (%tls12-fail-alert +tls12-alert-handshake-failure+
+                                "incomplete TLS 1.2 server flight"))
            (unless (= (length message) 4)
              (%tls12-fail "ServerHelloDone message is not empty"))
            (%tls12-append-transcript state message)
            (return))
-          (otherwise (%tls12-fail "unexpected server handshake message ~a" type)))
+          (otherwise
+           (%tls12-fail-alert +tls12-alert-unexpected-message+
+                              "unexpected server handshake message ~a" type)))
         (unless (= type 14) (%tls12-append-transcript state message))))
     (when verify (%tls12-verify-chain certificates hostname context))
     (let* ((key-exchange (pure-tls::generate-key-exchange #x0017))
@@ -618,11 +775,15 @@ span records or share a record. When ALLOW-CCS is true, return (:ccs, payload)."
                                            (tls12-transcript state)))
                 (actual (subseq server-finished 4)))
             (unless (ironclad:constant-time-equal expected actual)
-              (%tls12-fail "server Finished verification failed")))
+              (%tls12-fail-alert +tls12-alert-decrypt-error+
+                                 "server Finished verification failed")))
           (%tls12-append-transcript state server-finished))))
     state))
 
 (defun %tls12-write-application-data (state octets)
+  ;; Check once even for an empty application write, then retain the record
+  ;; guard for every fragment in case state changes between iterations.
+  (%tls12-ensure-writable state)
   (loop for start from 0 below (length octets) by +tls12-max-plaintext+
         for end = (min (length octets) (+ start +tls12-max-plaintext+))
         do (%tls12-write-record state +tls12-application-data+
@@ -635,7 +796,8 @@ span records or share a record. When ALLOW-CCS is true, return (:ccs, payload)."
                (let* ((old (fill-pointer result))
                       (new (+ old (length octets))))
                  (when (> new (+ *max-header-bytes* *max-body-bytes*))
-                   (%tls12-fail "TLS HTTP response exceeds transport bound"))
+                   (%tls12-fail-alert +tls12-alert-record-overflow+
+                                      "TLS HTTP response exceeds transport bound"))
                  (when (> new (array-total-size result))
                    (adjust-array result
                                  (min (+ *max-header-bytes* *max-body-bytes*)
@@ -649,14 +811,16 @@ span records or share a record. When ALLOW-CCS is true, return (:ccs, payload)."
           (case type
             (#.+tls12-application-data+ (append-octets payload))
             (#.+tls12-alert+
-             (when (eq (%tls12-alert payload) :close-notify)
-               (setf (tls12-closed-p state) t)
+             (when (eq (%tls12-alert payload state) :close-notify)
                (return)))
             (#.+tls12-handshake+
-             (%tls12-fail "post-handshake TLS messages are not supported"))
-            (otherwise (%tls12-fail "unexpected TLS record type ~d" type))))))
+             (%tls12-fail-alert +tls12-alert-unexpected-message+
+                                "post-handshake TLS messages are not supported"))
+            (otherwise
+             (%tls12-fail-alert +tls12-alert-unexpected-message+
+                                "unexpected TLS record type ~d" type))))))
     (values (subseq result 0 (fill-pointer result))
-            (tls12-closed-p state))))
+            (tls12-peer-close-received-p state))))
 
 (defun %tls12-read-application-data-stream (state on-data)
   "Deliver authenticated application records incrementally to ON-DATA.
@@ -667,36 +831,95 @@ termination keyword and whether a peer close_notify was authenticated."
   (loop
     (multiple-value-bind (type payload) (%tls12-read-record state :eof-ok t)
       (unless type
-        (return (values :eof (tls12-closed-p state))))
+        (return (values :eof (tls12-peer-close-received-p state))))
       (case type
         (#.+tls12-application-data+
          (when (and (plusp (length payload)) (funcall on-data payload))
-           (return (values :message-complete (tls12-closed-p state)))))
+           (return (values :message-complete
+                           (tls12-peer-close-received-p state)))))
         (#.+tls12-alert+
-         (when (eq (%tls12-alert payload) :close-notify)
-           (setf (tls12-closed-p state) t)
+         (when (eq (%tls12-alert payload state) :close-notify)
            (return (values :close-notify t))))
         (#.+tls12-handshake+
-         (%tls12-fail "post-handshake TLS messages are not supported"))
-        (otherwise (%tls12-fail "unexpected TLS record type ~d" type))))))
+         (%tls12-fail-alert +tls12-alert-unexpected-message+
+                            "post-handshake TLS messages are not supported"))
+        (otherwise
+         (%tls12-fail-alert +tls12-alert-unexpected-message+
+                            "unexpected TLS record type ~d" type))))))
 
 (defun %tls12-close-notify (state)
-  (unless (tls12-closed-p state)
-    (ignore-errors (%tls12-write-record state +tls12-alert+
-                                        (make-array 2 :element-type '(unsigned-byte 8)
-                                                      :initial-contents '(1 0))))
-    (setf (tls12-closed-p state) t)))
+  (unless (or (tls12-local-close-sent-p state)
+              (tls12-fatal-alert-sent-p state)
+              (tls12-peer-fatal-alert-received-p state))
+    ;; Set before writing: a short/broken transport must not cause retries that
+    ;; duplicate the closure alert on a partially written connection.
+    (setf (tls12-local-close-sent-p state) t)
+    (ignore-errors
+      (%tls12-write-record
+       state +tls12-alert+
+       (make-array 2 :element-type '(unsigned-byte 8)
+                     :initial-contents (list 1 +tls12-alert-close-notify+))
+       :allow-terminal-alert t))))
+
+(defun %tls12-send-fatal-alert (state description)
+  "Best-effort one-shot fatal alert for a local TLS 1.2 failure."
+  (unless (or (null description)
+              (tls12-fatal-alert-sent-p state)
+              (tls12-peer-fatal-alert-received-p state)
+              (tls12-local-close-sent-p state)
+              (tls12-peer-close-received-p state))
+    (setf (tls12-fatal-alert-sent-p state) t)
+    (ignore-errors
+      (%tls12-write-record
+       state +tls12-alert+
+       (make-array 2 :element-type '(unsigned-byte 8)
+                     :initial-contents (list 2 description))
+       :allow-terminal-alert t))))
+
+(defun %tls12-call-with-alerts (state thunk)
+  "Run THUNK and translate local failures to one fatal wire alert.
+
+Peer fatal alerts are preserved verbatim as the reported condition and suppress
+both fatal responses and close_notify."
+  (handler-bind
+      ((tls12-peer-alert
+         (lambda (condition)
+           (when (= (tls12-peer-alert-level condition) 2)
+             (setf (tls12-peer-fatal-alert-received-p state) t))))
+       (tls12-error
+         (lambda (condition)
+           ;; TLS12-PEER-ALERT is more specific and its handler above marks the
+           ;; state; never answer it from this general local-error handler.
+           (unless (typep condition 'tls12-peer-alert)
+             (%tls12-send-fatal-alert
+              state (tls12-error-alert-description condition)))))
+       (pure-tls:tls-certificate-error
+         (lambda (condition)
+           (%tls12-send-fatal-alert
+            state (pure-tls::certificate-error-alert-description condition))))
+       (pure-tls::tls-crypto-error
+         (lambda (condition)
+           (%tls12-send-fatal-alert
+            state
+            (if (search ":BAD_ECPOINT:"
+                        (or (pure-tls::tls-error-message condition) ""))
+                +tls12-alert-illegal-parameter+
+                +tls12-alert-internal-error+)))))
+    (funcall thunk)))
 
 (defun https-request-tls12 (stream hostname request-bytes &key ca-file (verify t))
   "Perform one TLS 1.2 HTTP exchange over an already-connected binary STREAM.
 Returns the complete HTTP response wire bytes and whether the peer authenticated EOF
 with close_notify. Certificate and hostname verification
 are mandatory unless VERIFY is explicitly NIL for a hermetic fixture."
-  (let ((state (%tls12-handshake stream hostname ca-file verify)))
+  (let ((state (make-tls12-state :stream stream)))
     (unwind-protect
-         (progn
-           (%tls12-write-application-data state request-bytes)
-           (%tls12-read-application-data state))
+         (%tls12-call-with-alerts
+          state
+          (lambda ()
+            (%tls12-handshake stream hostname ca-file verify :state state)
+            (%tls12-write-application-data state request-bytes)
+            (%tls12-read-application-data state)))
       (%tls12-close-notify state))))
 
 (defun https-request-tls12-stream
@@ -706,25 +929,29 @@ are mandatory unless VERIFY is explicitly NIL for a hermetic fixture."
 
 This is the streaming counterpart to HTTPS-REQUEST-TLS12. It preserves the
 same handshake, certificate, hostname, record-MAC, and close-notify behavior."
-  (let ((state (%tls12-handshake stream hostname ca-file verify)))
+  (let ((state (make-tls12-state :stream stream)))
     (unwind-protect
-         (progn
-           (%tls12-write-application-data state request-bytes)
-           (when request-body-source
-             (let ((total 0))
-               (loop
-                 (multiple-value-bind (chunk done-p)
-                     (funcall request-body-source)
-                   (when done-p
-                     (%tls12-write-application-data
-                      state +chunked-request-end+)
-                     (return))
-                   (when (plusp (length chunk))
-                     (incf total (length chunk))
-                     (when (> total *max-body-bytes*)
-                       (%tls12-fail
-                        "streaming request body exceeded the size limit"))
-                     (%tls12-write-application-data
-                      state (%chunked-request-frame chunk)))))))
-           (%tls12-read-application-data-stream state on-data))
+         (%tls12-call-with-alerts
+          state
+          (lambda ()
+            (%tls12-handshake stream hostname ca-file verify :state state)
+            (%tls12-write-application-data state request-bytes)
+            (when request-body-source
+              (let ((total 0))
+                (loop
+                  (multiple-value-bind (chunk done-p)
+                      (funcall request-body-source)
+                    (when done-p
+                      (%tls12-write-application-data
+                       state +chunked-request-end+)
+                      (return))
+                    (when (plusp (length chunk))
+                      (incf total (length chunk))
+                      (when (> total *max-body-bytes*)
+                        (%tls12-fail-alert
+                         +tls12-alert-record-overflow+
+                         "streaming request body exceeded the size limit"))
+                      (%tls12-write-application-data
+                       state (%chunked-request-frame chunk)))))))
+            (%tls12-read-application-data-stream state on-data)))
       (%tls12-close-notify state))))
