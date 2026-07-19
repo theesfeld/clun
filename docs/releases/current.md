@@ -1,10 +1,10 @@
 <!-- clun-generated:release-notes:begin -->
-# Clun 0.1.0-dev.59
+# Clun 0.1.0-dev.60
 
-Phase 39: Full TypeScript transforms.
+Phase 38: Web platform foundations.
 
 - SemVer impact: `minor` within the selected `0.1.0` prerelease train.
-- Compatibility snapshot: 26 Yes / 2 Partial / 2 No across 30 generated rows.
+- Compatibility snapshot: 27 Yes / 1 Partial / 2 No across 30 generated rows.
 - Public baseline: Bun 1.3.14; engineering baseline: Bun `c1076ce95e`.
 - Target release platforms: Linux and macOS, x64 and arm64.
 - License: `GPL-3.0-or-later`.
@@ -13,5 +13,6 @@ The canonical evidence and current limitations are in `compat/`; `make compat-va
 <!-- clun-generated:release-notes:end -->
 ## Highlights
 
-- Issue #192 promotes `language.typescript` Partial→**Yes** (pure-CL transpile+decorators+tsx+structural typecheck exceeding Bun strip).
-- Slot: free `0.1.0-dev.59` after master SFE Yes `0.1.0-dev.57` (leave `0.1.0-dev.58` for webstd #210).
+- Issue #207 promotes `runtime.web-standard-apis` Partial→**Yes** (pure-CL full Web Standard surface exceeding Bun).
+- Residual streams edge cases, EventTarget/FormData/File, CompressionStream, crypto.subtle.digest, atob/btoa, performance, MessageChannel, queuing strategies, and hermetic large-transfer/network stress evidence.
+- Slot: free `0.1.0-dev.60` after master TypeScript Yes `0.1.0-dev.59`.

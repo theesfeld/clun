@@ -338,4 +338,6 @@ Phase 69 frontend-dev FULL PORT (#189) stages free `0.1.0-dev.56` / `v0.1.0-dev.
 
 Phase 52 single-file executables FULL PORT (#181) stages free `0.1.0-dev.57` / `v0.1.0-dev.57` with pure-CL compile/cross-compile/embed/sign exceeding Bun compile; SemVer impact is `minor`.
 
-Phase 39 TypeScript FULL PORT (#192 / canonical #13) stages free `0.1.0-dev.59` / `v0.1.0-dev.59` (leave `0.1.0-dev.58` for webstd #210); SemVer impact is `minor`.
+Phase 39 TypeScript FULL PORT (#192 / canonical #13) stages free `0.1.0-dev.59` / `v0.1.0-dev.59`; SemVer impact is `minor`.
+
+Phase 38 runtime.web-standard-apis FULL PORT (#207) stages free `0.1.0-dev.60` / `v0.1.0-dev.60` after TypeScript Yes `0.1.0-dev.59`; SemVer impact is `minor`.

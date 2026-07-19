@@ -3393,7 +3393,17 @@ strip plus enums, namespaces, parameter properties, experimental decorators
 (`__decorate`/`__param`), `import =` / `export =`, angle-bracket casts, `.tsx`
 (JSX lower then type strip), and structural typecheck via `clun tsc` (exceeds Bun,
 which has no typecheck). Soft Yes banned; gap empty. SemVer `0.1.0-dev.59` minor
-(slot after SFE `0.1.0-dev.57`; leave `0.1.0-dev.58` for webstd #210).
+after SFE `0.1.0-dev.57`.
 Parent epic #177; supersedes soft-out Partial after #133 transforms.
 
 Refs: #192, #177, #133
+
+## 2026-07-19 — runtime.web-standard-apis FULL PORT Yes (#207)
+
+Promote `runtime.web-standard-apis` Partial→Yes under parent #177. Soft/scoped Yes
+(#159) was honesty-demoted; this unit closes residual streams edge cases, broader
+standards globals (EventTarget/FormData/File/atob/performance/MessageChannel/
+CompressionStream/crypto.subtle.digest/queuing strategies), and hermetic
+large-transfer/network stress evidence. Pure Common Lisp only. Stages
+`0.1.0-dev.60` after master TypeScript Yes `0.1.0-dev.59`.
+Refs: #207, #12, #177

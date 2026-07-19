@@ -7,14 +7,14 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **39 - Full TypeScript transforms**  (FULL PORT Yes #192)
+## Current phase: **38 - Web platform foundations**  (FULL PORT Yes #207)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/13
+**Canonical issue:** https://github.com/theesfeld/clun/issues/12
 **Parent:** https://github.com/theesfeld/clun/issues/177
-**Current implementation unit:** language.typescript full port Yes (#192) pure-CL transpile+structural typecheck exceeding Bun strip.
+**Current implementation unit:** runtime.web-standard-apis full port Yes (#207) pure-CL Web Standard surface exceeding Bun.
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.59` / `v0.1.0-dev.59`
+**Candidate release:** `0.1.0-dev.60` / `v0.1.0-dev.60`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
-**Entry boundary:** installer on `v0.1.0-dev.21`; free slot after SFE Yes `0.1.0-dev.57` (leave `0.1.0-dev.58` for webstd #210).
+**Entry boundary:** installer on `v0.1.0-dev.21`; free slot after TypeScript Yes `0.1.0-dev.59`.
 
-**Next scope:** remaining FULL PORT ledger Nos / soft residuals under #177.
+**Next scope:** remaining FULL PORT ledger Nos/Partials under #177.
