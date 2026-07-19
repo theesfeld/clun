@@ -1011,9 +1011,12 @@
   (let* ((cert-msg (handshake-message-body message))
          (cert-list (certificate-message-certificate-list cert-msg)))
     (when (null cert-list)
-      (when (= (client-handshake-verify-mode hs) +verify-required+)
-        (error 'tls-certificate-error
-               :message "Server did not provide a certificate")))
+      ;; RFC 9846 section 4.5.1.3: an empty server Certificate message is a
+      ;; protocol decoding failure regardless of local verification policy.
+      ;; certificate_required is a server-to-client-auth disposition and must
+      ;; never describe this client error.
+      (error 'tls-decode-error
+             :message ":DECODE_ERROR: Server Certificate list is empty"))
     (when (> (length cert-list) (client-handshake-verify-depth hs))
       (error 'tls-certificate-error
              :message (format nil "Server certificate chain has ~D entries; maximum is ~D"
@@ -1099,10 +1102,13 @@
                     collect (handler-case
                                 (parse-certificate (certificate-entry-cert-data entry))
                               (error (e)
-                                ;; Re-throw with proper error message for BoringSSL tests
-                                (error 'tls-decode-error
-                                       :message (format nil ":CANNOT_PARSE_LEAF_CERT: Certificate ~D: ~A"
-                                                       i e)))))))
+                                ;; A structurally valid TLS Certificate message
+                                ;; carrying invalid DER is a bad_certificate,
+                                ;; not a generic handshake framing error.
+                                (error 'tls-certificate-error
+                                       :message (format nil
+                                                        ":CANNOT_PARSE_LEAF_CERT: Certificate ~D: ~A"
+                                                        i e)))))))
         ;; Store the full chain
         (setf (client-handshake-peer-certificate-chain hs) parsed-chain)
         ;; Store the leaf certificate (first in chain) for easy access
@@ -1665,8 +1671,8 @@
          (trust-store (client-handshake-trust-store hs)))
     ;; Must have a certificate to verify
     (unless cert
-      (error 'tls-handshake-error
-             :message ":PEER_DID_NOT_RETURN_A_CERTIFICATE:"))
+      (error 'tls-decode-error
+             :message ":DECODE_ERROR: CertificateVerify without server Certificate"))
     ;; Get the transcript hash at this point (excludes CertificateVerify)
     (let* ((ks (client-handshake-key-schedule hs))
            (transcript-hash (key-schedule-transcript-hash-value ks))
@@ -2102,8 +2108,8 @@
                                  (client-handshake-hostname hs)
                                  (string= (session-ticket-verified-hostname ticket)
                                           (client-handshake-hostname hs)))
-                      (error 'tls-certificate-error
-                             :message "Server did not provide a certificate but verification is required"))
+                      (error 'tls-decode-error
+                             :message ":DECODE_ERROR: Server Finished without required Certificate"))
                     ;; Authenticated resumption: carry the proven authentication
                     ;; forward so a NewSessionTicket minted on this resumed
                     ;; connection inherits the same provenance, keeping repeated

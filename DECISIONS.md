@@ -3556,8 +3556,44 @@ policy:
 
 Validity, SAN identity, BasicConstraints, pathLen, KeyUsage, signatures, and cryptographic anchoring
 remain mandatory. Revocation, Certificate Transparency, and RFC 5280 policy-tree processing are not
-implemented, so this is explicitly not a browser-grade or complete RFC 5280 claim.
-Issue #235 remains the separate release blocker for TLS alert/close compliance; #234 does not claim
-that record-layer lifecycle work is complete.
+implemented, so this is explicitly not a browser-grade or complete RFC 5280 claim. This completed
+the bounded WebPKI work in #234; the following #235 decision adds the separate record-layer alert
+and closure lifecycle without weakening those checks.
 
 Refs: #234, #233, #2
+
+## 2026-07-19 — one-shot TLS fatal alerts and bidirectional clean closure (#235)
+
+- TLS 1.2 local failures carry explicit standard alert dispositions. The outer
+  client boundary emits a best-effort fatal alert once, then suppresses
+  `close_notify`; complete peer fatal alerts remain the reported cause and are
+  never answered.
+- TLS 1.3 applies the same terminal-state rule in the record layer and maps
+  certificate parsing, hostname, validity, usage, chain, and trust conditions to
+  non-sensitive certificate alert codes. RFC 9846 (July 2026), which obsoletes
+  RFC 8446, is the governing TLS 1.3 specification for these dispositions. An
+  empty or missing server Certificate is specifically `decode_error` per RFC
+  9846 section 4.5.1.3, never the
+  server-side client-auth `certificate_required` alert. Local diagnostic strings
+  are not sent.
+- TLS 1.3 alert severity is derived from AlertDescription; RFC 9846 section 6
+  retains the legacy AlertLevel byte only for compatibility and requires receivers
+  to ignore it. Only `protocol_version` selects the fresh-connection TLS 1.2
+  fallback, so this correction does not broaden downgrade triggers.
+- Peer close receipt and local close transmission are distinct state. RFC 9846
+  section 6.1 does not require a synchronous close reply; this implementation
+  safely elects to send exactly one reciprocal alert. TLS 1.2 terminal state
+  blocks normal reads and writes after either fatal direction or local close, and
+  peer close blocks application output while permitting only that explicit
+  reciprocal alert. Fatal termination suppresses later alerts and application
+  output.
+- `make test-tls-alerts` uses exact wire fixtures for malformed records,
+  handshakes, certificates, peer fatal silence, and reciprocal closure. It is a
+  prerequisite of `make test-tls12`; the required CI, Compatibility, and Release
+  `make test-tls` gate includes that target plus the complete pure-tls suite.
+  OpenSSL remains a test oracle only; the bounded profile is not represented as
+  browser or BoringSSL parity.
+
+SemVer impact is `patch` inside the pending `0.2.0-dev.1` prerelease.
+
+Refs: #235, #233, #234

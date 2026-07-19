@@ -13,7 +13,7 @@ PHASE_25B_M5_MANIFEST      ?= tests/conformance/phase-25b-m5.tsv
 PHASE_25B_M6_MANIFEST      ?= tests/conformance/phase-25b-m6.tsv
 FEATURE                    ?= all
 
-.PHONY: all build test test-lisp test-net test-cookie-resources test-glob test-router test-js test-tls test-tls12 test-proxy test-dns test-crypto registry-fixture smoke-npm purity bench \
+.PHONY: all build test test-lisp test-net test-cookie-resources test-glob test-router test-js test-tls test-tls12 test-tls-alerts test-proxy test-dns test-crypto registry-fixture smoke-npm purity bench \
 		bench-check compile-tier-ceiling test-installer test-release-live-check \
 		public-claims-check version-transition-check test-version-transition-check \
 		compat compat-validate docs-generate docs-check test-compat-tools \
@@ -87,7 +87,10 @@ test-tls: test-tls12
 	$(SBCL) --dynamic-space-size 4096 $(SBCL_FLAGS) --load scripts/run-pure-tls-suites.lisp
 
 ## test-tls12 — focused transport security tests plus hermetic TLS 1.2-only interop.
-test-tls12:
+test-tls-alerts:
+	$(SBCL) $(SBCL_FLAGS) --load scripts/run-tls-alert-tests.lisp
+
+test-tls12: test-tls-alerts
 	$(SBCL) $(SBCL_FLAGS) --load scripts/run-tls12-tests.lisp
 	sh scripts/test-tls12-interop.sh
 

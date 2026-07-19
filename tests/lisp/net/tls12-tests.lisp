@@ -5,6 +5,55 @@
 (defun %tls12-hex (string)
   (ironclad:hex-string-to-byte-array string))
 
+(defun %tls-alert-record (level description)
+  (make-array 7 :element-type '(unsigned-byte 8)
+                :initial-contents
+                (list 21 #x03 #x03 0 2 level description)))
+
+(defun %tls-test-two-way-stream (input)
+  (let ((output (ironclad:make-octet-output-stream)))
+    (values (make-two-way-stream
+             (ironclad:make-octet-input-stream input) output)
+            output)))
+
+(defun %tls-alert-fixture-certificate ()
+  (pure-tls:parse-certificate-from-file
+   (namestring
+    (merge-pathnames "tests/fixtures/certs/localhost-leaf.crt"
+                     (asdf:system-source-directory :clun)))))
+
+(defun %tls12-server-hello-fixture (&rest extensions)
+  (clun.net::%tls12-handshake-message
+   2 (clun.net::%tls12-cat
+      (clun.net::%tls12-u16 clun.net::+tls12-version+)
+      (make-array 32 :element-type '(unsigned-byte 8) :initial-element 0)
+      (clun.net::%tls12-u8 0)
+      (clun.net::%tls12-u16
+       clun.net::+tls12-suite-ecdhe-rsa-aes128-gcm-sha256+)
+      (clun.net::%tls12-u8 0)
+      (clun.net::%tls12-vector16
+       (apply #'clun.net::%tls12-cat extensions)))))
+
+(defun %capture-tls12-alert (thunk)
+  (multiple-value-bind (stream output)
+      (%tls-test-two-way-stream
+       (make-array 0 :element-type '(unsigned-byte 8)))
+    (let ((state (clun.net::make-tls12-state :stream stream)))
+      (handler-case
+          (clun.net::%tls12-call-with-alerts
+           state (lambda () (funcall thunk state)))
+        (error () nil))
+      (values (ironclad:get-output-stream-octets output) state))))
+
+(defun %capture-tls13-local-alert (condition)
+  (let* ((output (ironclad:make-octet-output-stream))
+         (layer (pure-tls::make-record-layer output)))
+    (handler-case
+        (pure-tls::call-with-client-local-alerts
+         layer (lambda () (error condition)))
+      (error () nil))
+    (values (ironclad:get-output-stream-octets output) layer)))
+
 (define-test net/tls12-prf-sha256
   ;; Independently reproduced with OpenSSL 3 EVP_KDF TLS1-PRF. The hex seed
   ;; supplied to OpenSSL is ASCII("master secret") || SEED; Clun's PRF accepts
@@ -43,6 +92,508 @@
              23 tampered)
             clun.net::tls12-error))))
 
+(define-test net/tls12-local-fatal-alert-wire-contract
+  ;; Handshake framing failures carry decode_error and emit exactly one
+  ;; plaintext fatal alert before encryption is installed.
+  (multiple-value-bind (wire state)
+      (%capture-tls12-alert
+       (lambda (state)
+         (declare (ignore state))
+         (clun.net::%tls12-parse-server-hello
+          (make-array 4 :element-type '(unsigned-byte 8)
+                        :initial-contents '(2 0 0 0)))))
+    (is equalp (%tls-alert-record 2 clun.net::+tls12-alert-decode-error+) wire)
+    (true (clun.net::tls12-fatal-alert-sent-p state)))
+  ;; Record authentication failures use bad_record_mac.  A second nested
+  ;; failure cannot duplicate the terminal alert.
+  (multiple-value-bind (wire state)
+      (%capture-tls12-alert
+       (lambda (state)
+         (setf (clun.net::tls12-server-key state)
+               (make-array 16 :element-type '(unsigned-byte 8)
+                              :initial-element 0)
+               (clun.net::tls12-server-iv state)
+               (make-array 4 :element-type '(unsigned-byte 8)
+                             :initial-element 0))
+         (clun.net::%tls12-decrypt-record
+          state 23 (make-array 3 :element-type '(unsigned-byte 8)
+                                  :initial-element 0))))
+    (declare (ignore state))
+    (is equalp (%tls-alert-record 2 clun.net::+tls12-alert-bad-record-mac+)
+        wire))
+  (multiple-value-bind (wire state)
+      (%capture-tls12-alert
+       (lambda (state)
+         (setf (clun.net::tls12-server-key state)
+               (make-array 16 :element-type '(unsigned-byte 8)
+                              :initial-element 0)
+               (clun.net::tls12-server-iv state)
+               (make-array 4 :element-type '(unsigned-byte 8)
+                             :initial-element 0))
+         (clun.net::%tls12-decrypt-record
+          state 23
+          (make-array (+ 8 16 (1+ clun.net::+tls12-max-plaintext+))
+                      :element-type '(unsigned-byte 8)
+                      :initial-element 0))))
+    (declare (ignore state))
+    (is equalp (%tls-alert-record 2 clun.net::+tls12-alert-record-overflow+)
+        wire))
+  (multiple-value-bind (wire state)
+      (%capture-tls12-alert
+       (lambda (state)
+         (clun.net::%tls12-send-fatal-alert
+          state clun.net::+tls12-alert-decode-error+)
+         (clun.net::%tls12-send-fatal-alert
+          state clun.net::+tls12-alert-handshake-failure+)))
+    (declare (ignore state))
+    (is equalp (%tls-alert-record 2 clun.net::+tls12-alert-decode-error+)
+        wire))
+  ;; A fatal alert closes both normal record directions before its bytes are
+  ;; written. Application output and later reads cannot follow it on the wire.
+  (multiple-value-bind (stream output)
+      (%tls-test-two-way-stream
+       (make-array 0 :element-type '(unsigned-byte 8)))
+    (let ((state (clun.net::make-tls12-state :stream stream)))
+      (clun.net::%tls12-send-fatal-alert
+       state clun.net::+tls12-alert-decode-error+)
+      (fail (clun.net::%tls12-write-application-data
+             state (%tls12-hex "010203"))
+            clun.net::tls12-error)
+      (fail (clun.net::%tls12-read-record state :eof-ok t)
+            clun.net::tls12-error)
+      (is equalp (%tls-alert-record 2 clun.net::+tls12-alert-decode-error+)
+          (ironclad:get-output-stream-octets output))))
+  ;; Terminal state is committed before transport I/O, including a failed
+  ;; write, so cleanup cannot retry or append another record.
+  (let* ((output (ironclad:make-octet-output-stream))
+         (state (clun.net::make-tls12-state :stream output)))
+    (close output)
+    (clun.net::%tls12-send-fatal-alert
+     state clun.net::+tls12-alert-internal-error+)
+    (true (clun.net::tls12-fatal-alert-sent-p state))
+    (clun.net::%tls12-send-fatal-alert
+     state clun.net::+tls12-alert-decode-error+)
+    (false (clun.net::tls12-local-close-sent-p state)))
+  ;; Certificate trust and hostname failures are typed independently without
+  ;; sending local diagnostic material over the wire.
+  (multiple-value-bind (wire state)
+      (%capture-tls12-alert
+       (lambda (state)
+         (declare (ignore state))
+         (error 'pure-tls:tls-verification-error
+                :reason :unknown-ca
+                :message "fixture trust anchor missing")))
+    (declare (ignore state))
+    (is equalp (%tls-alert-record 2 clun.net::+tls12-alert-unknown-ca+) wire))
+  (multiple-value-bind (wire state)
+      (%capture-tls12-alert
+       (lambda (state)
+         (declare (ignore state))
+         (error 'pure-tls:tls-verification-error
+                :hostname "wrong.example"
+                :message "fixture hostname mismatch")))
+    (declare (ignore state))
+    (is equalp (%tls-alert-record 2 clun.net::+tls12-alert-bad-certificate+)
+        wire))
+  ;; Negotiation errors retain distinct RFC dispositions rather than all
+  ;; collapsing into decode_error.
+  (multiple-value-bind (wire state)
+      (%capture-tls12-alert
+       (lambda (state)
+         (declare (ignore state))
+         (clun.net::%tls12-parse-server-hello
+          (%tls12-server-hello-fixture
+           (clun.net::%tls12-extension
+            35 (make-array 0 :element-type '(unsigned-byte 8)))))))
+    (declare (ignore state))
+    (is equalp (%tls-alert-record
+                2 clun.net::+tls12-alert-unsupported-extension+)
+        wire))
+  (multiple-value-bind (wire state)
+      (%capture-tls12-alert
+       (lambda (state)
+         (declare (ignore state))
+         (clun.net::%tls12-parse-server-hello
+          (%tls12-server-hello-fixture))))
+    (declare (ignore state))
+    (is equalp (%tls-alert-record 2 clun.net::+tls12-alert-handshake-failure+)
+        wire))
+  (multiple-value-bind (wire state)
+      (%capture-tls12-alert
+       (lambda (state)
+         (declare (ignore state))
+         (clun.net::%tls12-parse-server-key-exchange
+          (clun.net::%tls12-handshake-message
+           12 (make-array 8 :element-type '(unsigned-byte 8)
+                            :initial-contents '(3 0 24 1 4 0 0 0)))
+          (list (%tls-alert-fixture-certificate))
+          clun.net::+tls12-suite-ecdhe-rsa-aes128-gcm-sha256+
+          (make-array 32 :element-type '(unsigned-byte 8) :initial-element 1)
+          (make-array 32 :element-type '(unsigned-byte 8) :initial-element 2))))
+    (declare (ignore state))
+    (is equalp (%tls-alert-record 2 clun.net::+tls12-alert-illegal-parameter+)
+        wire))
+  ;; The P-256 shared-secret primitive rejects malformed/off-curve peer points
+  ;; as illegal_parameter at the outer TLS 1.2 boundary.
+  (multiple-value-bind (wire state)
+      (%capture-tls12-alert
+       (lambda (state)
+         (declare (ignore state))
+         (let ((bad-point (make-array 65 :element-type '(unsigned-byte 8)
+                                         :initial-element 0)))
+           (setf (aref bad-point 0) 4)
+           (pure-tls::compute-shared-secret
+            (pure-tls::generate-key-exchange #x0017) bad-point))))
+    (declare (ignore state))
+    (is equalp (%tls-alert-record 2 clun.net::+tls12-alert-illegal-parameter+)
+        wire))
+  ;; Feed a structurally complete Certificate handshake containing malformed
+  ;; DER through the real TLS 1.2 certificate parser.
+  (let* ((bad-der (%tls12-hex "010203"))
+         (entry (clun.net::%tls12-cat
+                 (clun.net::%tls12-u24 (length bad-der)) bad-der))
+         (message (clun.net::%tls12-handshake-message
+                   11 (clun.net::%tls12-cat
+                       (clun.net::%tls12-u24 (length entry)) entry))))
+    (multiple-value-bind (wire state)
+        (%capture-tls12-alert
+         (lambda (state)
+           (declare (ignore state))
+           (clun.net::%tls12-parse-certificates message)))
+      (declare (ignore state))
+      (is equalp (%tls-alert-record
+                  2 clun.net::+tls12-alert-bad-certificate+)
+          wire)))
+  ;; Exercise the actual TLS 1.2 ServerKeyExchange signature verifier with an
+  ;; invalid RSA signature. Signature proof failure is decrypt_error.
+  (let* ((peer-key (make-array 65 :element-type '(unsigned-byte 8)
+                                  :initial-element 0))
+         (_ (setf (aref peer-key 0) 4))
+         (params (clun.net::%tls12-cat
+                  (clun.net::%tls12-u8 3)
+                  (clun.net::%tls12-u16 #x0017)
+                  (clun.net::%tls12-u8 (length peer-key))
+                  peer-key))
+         (signature (%tls12-hex "00"))
+         (message
+           (clun.net::%tls12-handshake-message
+            12 (clun.net::%tls12-cat
+                params
+                (clun.net::%tls12-u16 #x0401)
+                (clun.net::%tls12-u16 (length signature))
+                signature))))
+    (declare (ignore _))
+    (multiple-value-bind (wire state)
+        (%capture-tls12-alert
+         (lambda (state)
+           (declare (ignore state))
+           (clun.net::%tls12-parse-server-key-exchange
+            message (list (%tls-alert-fixture-certificate))
+            clun.net::+tls12-suite-ecdhe-rsa-aes128-gcm-sha256+
+            (make-array 32 :element-type '(unsigned-byte 8) :initial-element 1)
+            (make-array 32 :element-type '(unsigned-byte 8) :initial-element 2))))
+      (declare (ignore state))
+      (is equalp (%tls-alert-record 2 clun.net::+tls12-alert-decrypt-error+)
+          wire))))
+
+(define-test net/tls12-peer-alert-and-close-wire-contract
+  ;; %TLS12-ALERT itself marks a peer fatal before signaling. Even a direct
+  ;; catch outside the outer handler cannot answer it or close normally.
+  (multiple-value-bind (stream output)
+      (%tls-test-two-way-stream
+       (make-array 0 :element-type '(unsigned-byte 8)))
+    (let ((state (clun.net::make-tls12-state :stream stream))
+          (caught nil))
+      (handler-case
+          (clun.net::%tls12-alert
+           (make-array 2 :element-type '(unsigned-byte 8)
+                         :initial-contents '(2 42))
+           state)
+        (clun.net::tls12-peer-alert (condition)
+          (setf caught condition)))
+      (true caught)
+      (true (clun.net::tls12-peer-fatal-alert-received-p state))
+      (clun.net::%tls12-close-notify state)
+      (fail (clun.net::%tls12-write-application-data state (%tls12-hex "01"))
+            clun.net::tls12-error)
+      (fail (clun.net::%tls12-read-record state :eof-ok t)
+            clun.net::tls12-error)
+      (false (clun.net::tls12-local-close-sent-p state))
+      (is = 0 (length (ironclad:get-output-stream-octets output)))))
+  ;; Peer receipt and local transmission are distinct. A valid close_notify
+  ;; receives one, and only one, reciprocal warning alert.
+  (multiple-value-bind (stream output)
+      (%tls-test-two-way-stream
+       (make-array 0 :element-type '(unsigned-byte 8)))
+    (let ((state (clun.net::make-tls12-state :stream stream)))
+      (is eq :close-notify
+          (clun.net::%tls12-alert
+           (make-array 2 :element-type '(unsigned-byte 8)
+                         :initial-contents '(1 0))
+           state))
+      (true (clun.net::tls12-peer-close-received-p state))
+      (false (clun.net::tls12-local-close-sent-p state))
+      (fail (clun.net::%tls12-write-application-data state (%tls12-hex "01"))
+            clun.net::tls12-error)
+      (fail (clun.net::%tls12-read-record state :eof-ok t)
+            clun.net::tls12-error)
+      (clun.net::%tls12-close-notify state)
+      (clun.net::%tls12-close-notify state)
+      (true (clun.net::tls12-local-close-sent-p state))
+      (is equalp (%tls-alert-record 1 0)
+          (ironclad:get-output-stream-octets output))))
+  ;; A locally initiated close likewise commits terminal state before I/O.
+  (multiple-value-bind (stream output)
+      (%tls-test-two-way-stream
+       (make-array 0 :element-type '(unsigned-byte 8)))
+    (let ((state (clun.net::make-tls12-state :stream stream)))
+      (clun.net::%tls12-close-notify state)
+      (fail (clun.net::%tls12-write-application-data state (%tls12-hex "01"))
+            clun.net::tls12-error)
+      (fail (clun.net::%tls12-read-record state :eof-ok t)
+            clun.net::tls12-error)
+      (is equalp (%tls-alert-record 1 0)
+          (ironclad:get-output-stream-octets output))))
+  ;; The close flag likewise survives a failed transport write and suppresses
+  ;; all retries.
+  (let* ((output (ironclad:make-octet-output-stream))
+         (state (clun.net::make-tls12-state :stream output)))
+    (close output)
+    (clun.net::%tls12-close-notify state)
+    (true (clun.net::tls12-local-close-sent-p state))
+    (clun.net::%tls12-close-notify state)
+    (false (clun.net::tls12-fatal-alert-sent-p state))))
+
+(define-test net/tls13-fatal-alert-wire-contract
+  (dolist (fixture
+           (list
+            (list (make-condition 'pure-tls:tls-verification-error
+                                  :hostname "wrong.example"
+                                  :message "hostname mismatch")
+                  pure-tls:+alert-bad-certificate+)
+            (list (make-condition 'pure-tls:tls-verification-error
+                                  :reason :unknown-ca
+                                  :message "untrusted root")
+                  pure-tls:+alert-unknown-ca+)
+            (list (make-condition 'pure-tls:tls-verification-error
+                                  :reason :no-peer-certificate
+                                  :message "server certificate missing")
+                  pure-tls:+alert-decode-error+)
+            (list (make-condition 'pure-tls::tls-certificate-expired
+                                  :not-after 0 :message "expired")
+                  pure-tls:+alert-certificate-expired+)
+            (list (make-condition 'pure-tls:tls-certificate-error
+                                  :message "invalid ExtendedKeyUsage")
+                  pure-tls::+alert-unsupported-certificate+)
+            (list (make-condition 'pure-tls:tls-certificate-error
+                                  :message "malformed certificate DER")
+                  pure-tls:+alert-bad-certificate+)))
+    (destructuring-bind (condition expected-description) fixture
+      (multiple-value-bind (wire layer)
+          (%capture-tls13-local-alert condition)
+        (true (pure-tls::record-layer-fatal-alert-sent-p layer))
+        (is equalp (%tls-alert-record 2 expected-description) wire))))
+  ;; The one-shot record-layer guard prevents duplicate terminal alerts from
+  ;; nested parser/stream handlers.
+  (let* ((output (ironclad:make-octet-output-stream))
+         (layer (pure-tls::make-record-layer output)))
+    (pure-tls::record-layer-write-alert
+     layer pure-tls::+alert-level-fatal+ pure-tls:+alert-decode-error+)
+    (pure-tls::record-layer-write-alert
+     layer pure-tls::+alert-level-fatal+ pure-tls:+alert-handshake-failure+)
+    (pure-tls::record-layer-write-alert
+     layer pure-tls::+alert-level-warning+ pure-tls:+alert-close-notify+)
+    (fail (pure-tls::record-layer-write-application-data
+           layer (%tls12-hex "01"))
+          pure-tls:tls-error)
+    (fail (pure-tls::record-layer-read layer) pure-tls:tls-error)
+    (is equalp (%tls-alert-record 2 pure-tls:+alert-decode-error+)
+        (ironclad:get-output-stream-octets output)))
+  ;; Exercise the real TLS 1.3 CertificateVerify signature helper. The outer
+  ;; client disposition maps its BAD_SIGNATURE condition to decrypt_error.
+  (let* ((output (ironclad:make-octet-output-stream))
+         (layer (pure-tls::make-record-layer output)))
+    (handler-case
+        (pure-tls::call-with-client-local-alerts
+         layer
+         (lambda ()
+           (pure-tls::verify-certificate-verify-signature
+            (%tls-alert-fixture-certificate)
+            pure-tls::+sig-rsa-pss-rsae-sha256+
+            (%tls12-hex "00") (%tls12-hex "010203")
+            :allowed-algorithms
+            (pure-tls::supported-signature-algorithms-tls13))))
+      (pure-tls:tls-handshake-error () nil))
+    (is equalp (%tls-alert-record 2 pure-tls:+alert-decrypt-error+)
+        (ironclad:get-output-stream-octets output)))
+  ;; Exercise the TLS 1.3 Certificate message processor with malformed DER.
+  ;; The local diagnostic remains a condition while the peer receives only
+  ;; the standard bad_certificate disposition.
+  (let* ((output (ironclad:make-octet-output-stream))
+         (layer (pure-tls::make-record-layer output))
+         (handshake (pure-tls::make-client-handshake
+                     :record-layer layer
+                     :verify-mode pure-tls:+verify-required+))
+         (message
+           (pure-tls::make-handshake-message
+            :type pure-tls::+handshake-certificate+
+            :body
+            (pure-tls::make-certificate-message
+             :certificate-request-context
+             (make-array 0 :element-type '(unsigned-byte 8))
+             :certificate-list
+             (list
+              (pure-tls::make-certificate-entry
+               :cert-data (%tls12-hex "010203")
+               :extensions nil))))))
+    (handler-case
+        (pure-tls::call-with-client-local-alerts
+         layer (lambda () (pure-tls::process-certificate handshake message)))
+      (pure-tls:tls-certificate-error () nil))
+    (is equalp (%tls-alert-record 2 pure-tls:+alert-bad-certificate+)
+        (ironclad:get-output-stream-octets output)))
+  ;; RFC 9846 section 4.5.1.3 requires decode_error for an empty server
+  ;; Certificate. Exercise the real processor after installing write keys and
+  ;; independently decrypt the exact encrypted alert record disposition.
+  (let* ((key (%tls12-hex "000102030405060708090a0b0c0d0e0f"))
+         (iv (%tls12-hex "101112131415161718191a1b"))
+         (output (ironclad:make-octet-output-stream))
+         (layer (pure-tls::make-record-layer output))
+         (handshake (pure-tls::make-client-handshake
+                     :record-layer layer
+                     :verify-mode pure-tls:+verify-required+))
+         (message
+           (pure-tls::make-handshake-message
+            :type pure-tls::+handshake-certificate+
+            :body
+            (pure-tls::make-certificate-message
+             :certificate-request-context
+             (make-array 0 :element-type '(unsigned-byte 8))
+             :certificate-list nil))))
+    (pure-tls::record-layer-install-keys
+     layer :write key iv pure-tls::+tls-aes-128-gcm-sha256+)
+    (handler-case
+        (pure-tls::call-with-client-local-alerts
+         layer (lambda () (pure-tls::process-certificate handshake message)))
+      (pure-tls:tls-decode-error () nil))
+    (let* ((wire (ironclad:get-output-stream-octets output))
+           (header (subseq wire 0 5))
+           (ciphertext (subseq wire 5))
+           (decoder (pure-tls::make-aead
+                     pure-tls::+tls-aes-128-gcm-sha256+ key iv)))
+      (is equalp
+          (%tls12-hex "1703030013c61c16e03610d81433fceeee3bf782f00face0")
+          wire)
+      (is equalp (%tls12-hex "1703030013") header)
+      (multiple-value-bind (plaintext content-type)
+          (pure-tls::tls13-decrypt-record decoder ciphertext header)
+        (is = pure-tls::+content-type-alert+ content-type)
+        (is equalp
+            (make-array 2 :element-type '(unsigned-byte 8)
+                          :initial-contents
+                          (list pure-tls::+alert-level-fatal+
+                                pure-tls:+alert-decode-error+))
+            plaintext)))))
+
+(define-test net/tls13-peer-alert-and-close-wire-contract
+  ;; Never answer a complete peer fatal, even when its description is unknown.
+  (let* ((output (ironclad:make-octet-output-stream))
+         (layer (pure-tls::make-record-layer output))
+         (caught nil))
+    (handler-case
+        (pure-tls::process-alert
+         (make-array 2 :element-type '(unsigned-byte 8)
+                       :initial-contents '(2 222))
+         layer)
+      (pure-tls:tls-alert-error (condition)
+        (setf caught condition)))
+    (true caught)
+    (is = 222 (pure-tls::tls-alert-error-description caught))
+    (true (pure-tls::record-layer-peer-fatal-alert-received-p layer))
+    (pure-tls::record-layer-write-alert
+     layer pure-tls::+alert-level-fatal+ pure-tls:+alert-decode-error+)
+    (pure-tls::record-layer-write-alert
+     layer pure-tls::+alert-level-warning+ pure-tls:+alert-close-notify+)
+    (fail (pure-tls::record-layer-write-application-data
+           layer (%tls12-hex "01"))
+          pure-tls:tls-error)
+    (fail (pure-tls::record-layer-read layer) pure-tls:tls-error)
+    (is = 0 (length (ironclad:get-output-stream-octets output))))
+  ;; TLS 1.3 ignores the legacy level byte. An unknown description is a peer
+  ;; fatal even when labeled warning and receives no response.
+  (let* ((output (ironclad:make-octet-output-stream))
+         (layer (pure-tls::make-record-layer output))
+         (caught nil))
+    (handler-case
+        (pure-tls::process-alert
+         (make-array 2 :element-type '(unsigned-byte 8)
+                       :initial-contents '(1 222))
+         layer)
+      (pure-tls:tls-alert-error (condition)
+        (setf caught condition)))
+    (true caught)
+    (true (pure-tls::record-layer-peer-fatal-alert-received-p layer))
+    (is = 0 (length (ironclad:get-output-stream-octets output))))
+  ;; The same rule makes close_notify clean for any legacy level. This direct
+  ;; process fixture covers handshake-time close before a TLS stream exists.
+  (let* ((output (ironclad:make-octet-output-stream))
+         (layer (pure-tls::make-record-layer output))
+         (clean nil))
+    (handler-case
+        (pure-tls::process-alert
+         (make-array 2 :element-type '(unsigned-byte 8)
+                       :initial-contents '(99 0))
+         layer)
+      (pure-tls::tls-connection-closed (condition)
+        (setf clean (pure-tls::tls-connection-closed-clean-p condition))))
+    (true clean)
+    (true (pure-tls::record-layer-peer-close-received-p layer))
+    (true (pure-tls::record-layer-local-close-sent-p layer))
+    (fail (pure-tls::record-layer-write-application-data
+           layer (%tls12-hex "01"))
+          pure-tls:tls-error)
+    (is equalp (%tls-alert-record 1 0)
+        (ironclad:get-output-stream-octets output)))
+  ;; Feed a real plaintext close_notify record through the TLS stream. The
+  ;; input side reaches clean EOF and the output side contains one reciprocal.
+  (multiple-value-bind (underlying output)
+      (%tls-test-two-way-stream (%tls-alert-record 1 0))
+    (let* ((stream (make-instance 'pure-tls::tls-client-stream
+                                  :stream underlying))
+           (layer (pure-tls::make-record-layer underlying)))
+      (setf (pure-tls::tls-stream-record-layer stream) layer)
+      (is eq :fixture-eof (read-byte stream nil :fixture-eof))
+      (true (pure-tls::record-layer-peer-close-received-p layer))
+      (true (pure-tls::record-layer-local-close-sent-p layer))
+      (pure-tls::tls-stream-send-close-notify stream)
+      (fail (write-byte 1 stream) pure-tls:tls-error)
+      (true (close stream))
+      (false (open-stream-p stream))
+      (is equalp (%tls-alert-record 1 0)
+          (ironclad:get-output-stream-octets output)))))
+
+(define-test net/tls13-malformed-record-alert-wire-contract
+  (dolist (input
+           (list
+            ;; Invalid outer content type, otherwise a complete empty record.
+            (make-array 5 :element-type '(unsigned-byte 8)
+                          :initial-contents '(25 3 3 0 0))
+            ;; A malformed one-byte alert record.
+            (make-array 6 :element-type '(unsigned-byte 8)
+                          :initial-contents '(21 3 3 0 1 2))
+            ;; Empty post-handshake record.
+            (make-array 5 :element-type '(unsigned-byte 8)
+                          :initial-contents '(22 3 3 0 0))))
+    (multiple-value-bind (underlying output)
+        (%tls-test-two-way-stream input)
+      (let* ((stream (make-instance 'pure-tls::tls-client-stream
+                                    :stream underlying))
+             (layer (pure-tls::make-record-layer underlying)))
+        (setf (pure-tls::tls-stream-record-layer stream) layer)
+        (fail (read-byte stream) pure-tls:tls-error)
+        (is equalp (%tls-alert-record 2 pure-tls:+alert-decode-error+)
+            (ironclad:get-output-stream-octets output))))))
+
 (define-test net/tls12-client-hello-contract
   (let* ((random (make-array 32 :element-type '(unsigned-byte 8) :initial-element #x5a))
          (message (clun.net::%tls12-client-hello "registry.npmjs.org" random))
@@ -65,10 +616,12 @@
          (make-condition 'pure-tls:tls-alert-error
                          :level pure-tls::+alert-level-fatal+
                          :description pure-tls:+alert-protocol-version+)))
-  (false (clun.net::%protocol-version-alert-p
-          (make-condition 'pure-tls:tls-alert-error
-                          :level pure-tls::+alert-level-warning+
-                          :description pure-tls:+alert-protocol-version+)))
+  ;; TLS 1.3 ignores the legacy level byte; the description remains the exact
+  ;; semantically fatal downgrade trigger.
+  (true (clun.net::%protocol-version-alert-p
+         (make-condition 'pure-tls:tls-alert-error
+                         :level pure-tls::+alert-level-warning+
+                         :description pure-tls:+alert-protocol-version+)))
   (false (clun.net::%protocol-version-alert-p
           (make-condition 'pure-tls:tls-alert-error
                           :level pure-tls::+alert-level-fatal+

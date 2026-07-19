@@ -37,12 +37,14 @@ condition's own report distinguishes expired vs wrong-host vs untrusted-CA vs ba
     (t                               (format nil "TLS request failed: ~a" c))))
 
 (defun %protocol-version-alert-p (condition)
-  "Whether CONDITION is the peer explicitly declining the TLS 1.3-only offer. Only
-this alert enables the TLS 1.2 fallback; certificate, MAC, parse, and all other TLS
-failures remain terminal and can never downgrade authentication."
+  "Whether CONDITION is the peer explicitly declining the TLS 1.3-only offer.
+
+RFC 9846 section 6 retains AlertLevel only as a compatibility field that
+receivers ignore, so the protocol_version description is semantically fatal
+regardless of that byte. Only this description enables TLS 1.2 fallback;
+certificate, MAC, parse, and all other TLS failures remain terminal and can never
+downgrade authentication."
   (and (typep condition 'pure-tls:tls-alert-error)
-       (= (pure-tls::tls-alert-error-level condition)
-          pure-tls::+alert-level-fatal+)
        (= (pure-tls::tls-alert-error-description condition)
           pure-tls:+alert-protocol-version+)))
 

@@ -100,10 +100,11 @@
             </p>
             <p class="installer-note">
               The hosted command still installs verified <code>v0.1.0-dev.21</code>;
-              <code>v0.2.0-dev.1</code> is a source candidate, not an installable Release, until its
-              remaining <a href="https://github.com/theesfeld/clun/issues/235">TLS alert/close compliance</a>,
-              exact-candidate CI/Compatibility/Documentation, tag, four archives, checksums, Pages,
-              and hosted smoke test all pass.
+              <code>v0.2.0-dev.1</code> is a source candidate, not an installable Release. Its bounded
+              <a href="https://github.com/theesfeld/clun/issues/234">WebPKI</a> and
+              <a href="https://github.com/theesfeld/clun/issues/235">TLS alert/close</a> work are
+              implemented; exact-candidate CI/Compatibility/Documentation, tag, four archives,
+              checksums, Pages, and hosted smoke must still pass.
             </p>
             <p class="installer-note">Pre-alpha software: pre-1.0 minor versions may include breaking changes.</p>
           </div>
@@ -281,7 +282,7 @@ Phase 26 remains deferred until after Phase 82 and will be re-baselined for the 
                 <li>Lifecycle scripts are never executed</li>
               </ul>
               <div class="tool-status warning"><span>Published dev.21</span> Public npm fails with fatal <code>protocol_version</code></div>
-              <div class="tool-status warning"><span>Source candidate</span> Public add/install and <a href="https://github.com/theesfeld/clun/issues/234">bounded WebPKI hardening</a> are implemented; <a href="https://github.com/theesfeld/clun/issues/235">TLS alert/close compliance</a> and exact-candidate publication gates remain</div>
+              <div class="tool-status warning"><span>Source candidate</span> Public add/install, <a href="https://github.com/theesfeld/clun/issues/234">bounded WebPKI hardening</a>, and <a href="https://github.com/theesfeld/clun/issues/235">TLS alert/close compliance</a> are implemented; exact-candidate publication gates remain</div>
             </article>
 
             <article class="tool-card tool-test">
@@ -309,7 +310,8 @@ Phase 26 remains deferred until after Phase 82 and will be re-baselined for the 
                 <li>AbortController and timeout support</li>
                 <li>Streaming request and response bodies; WebSocket + Pub/Sub; no HTTP/2 server</li>
               </ul>
-              <div class="tool-status warning"><span>Security</span> TLS is unaudited; bounded <a href="https://github.com/theesfeld/clun/issues/234">WebPKI hardening</a> is implemented, while <a href="https://github.com/theesfeld/clun/issues/235">alert/close compliance</a> still blocks release</div>
+              <div class="tool-status warning"><span>Security</span> TLS is unaudited; bounded <a href="https://github.com/theesfeld/clun/issues/234">WebPKI hardening</a> is implemented</div>
+              <div class="tool-status"><span>Protocol</span> <a href="https://github.com/theesfeld/clun/issues/235">Alert/close compliance</a> is implemented: bounded fatal alerts are one-shot, peer fatal alerts are not answered, and valid <code>close_notify</code> is reciprocated exactly once; this is not browser TLS parity</div>
             </article>
           </div>
         </div>
@@ -674,7 +676,7 @@ Linked phase labels are planned acceptance gates, not capabilities available tod
             <li><span>01</span><div><strong>From-scratch engine</strong><p>Lexer, parser, object model, modules, async execution, and runtime APIs live in the repository.</p></div></li>
             <li><span>02</span><div><strong>Vendored and pinned</strong><p>A fresh source build fetches no Lisp dependencies and uses no Quicklisp installation.</p></div></li>
             <li><span>03</span><div><strong>Purity is checked</strong><p><code>make purity</code> scans source and vendored code at every phase gate.</p></div></li>
-            <li><span>04</span><div><strong>Security limits stay visible</strong><p>The pure-Common-Lisp TLS stack is experimental and unaudited. HTTPS uses a bounded authenticated profile: SAN-only identity, 2048–8192-bit RSA keys, and an eight-certificate ordered path to a configured trust anchor. DER/certificate-list input is capped at one MiB, nesting at 32 levels, nodes at 4,096, and TLS 1.3 entry extensions at 16; certificate, name, time, algorithm, key, and signature structures are consumed exactly. RDN ordering, canonical EC named-curve coordinates, supported SAN forms, and exact declared RSA-PSS salt lengths are checked explicitly; TLS CertificateVerify uses the protocol-required hash-length salt. Unsupported path semantics fail closed (including every <code>nameConstraints</code> path); AIA/alternate-path building, CT, online revocation, and the full RFC 5280 policy tree are not implemented, so this is not browser-grade WebPKI. The required live package smoke exercises both add/install spellings, a transitive graph, SRI, execution, and frozen reinstalls with public transport denied. <a href="https://github.com/theesfeld/clun/issues/235">TLS alert/close compliance</a> remains open before release.</p></div></li>
+            <li><span>04</span><div><strong>Security limits stay visible</strong><p>The pure-Common-Lisp TLS stack is experimental and unaudited. HTTPS uses a bounded authenticated profile: SAN-only identity, 2048–8192-bit RSA keys, and an eight-certificate ordered path to a configured trust anchor. DER/certificate-list input is capped at one MiB, nesting at 32 levels, nodes at 4,096, and TLS 1.3 entry extensions at 16; certificate, name, time, algorithm, key, and signature structures are consumed exactly. RDN ordering, canonical EC named-curve coordinates, supported SAN forms, and exact declared RSA-PSS salt lengths are checked explicitly; TLS CertificateVerify uses the protocol-required hash-length salt. Unsupported path semantics fail closed (including every <code>nameConstraints</code> path); AIA/alternate-path building, CT, online revocation, and the full RFC 5280 policy tree are not implemented, so this is not browser-grade WebPKI. Bounded fatal alerts are one-shot, peer fatal alerts are not answered, and valid <code>close_notify</code> is reciprocated exactly once. The required live package smoke exercises both add/install spellings, a transitive graph, SRI, execution, and frozen reinstalls with public transport denied.</p></div></li>
           </ol>
         </div>
       </section>
