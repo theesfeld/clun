@@ -6,14 +6,23 @@ Ship path: topic branch → PR → squash-merge into `master` (not direct push).
 Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
-## Current phase: **49 - HTTP server parity**  (YES CONVERSION #128)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/128
-**Parent phase issue:** https://github.com/theesfeld/clun/issues/23
-**Current implementation unit:** Phase 49 `server.http` Partial→Yes (#128).
-`server.http` is **Yes** (HTTP/1.1 streaming request/response bodies; four-target supported).
+## Current phase: **59 - Package registry and dependency-spec breadth**  (YES CONVERSION #131)
+
+**Canonical issue:** https://github.com/theesfeld/clun/issues/131
+**Parallel compatibility issues:** https://github.com/theesfeld/clun/issues/33,
+https://github.com/theesfeld/clun/issues/2, https://github.com/theesfeld/clun/issues/34,
+and https://github.com/theesfeld/clun/issues/35
+**Current implementation unit:** `package-manager.npm` Partial→Yes (#131).
+`package-manager.npm` is **Yes** — `clun install`/`add`/`remove` with registry packages (semver
+ranges, dist-tags), npm: aliases, file:/link: local packages, optionalDependencies soft-fail,
+hoisted node_modules, clun.lock offline reinstall, SRI-verified tarballs, and four-target hermetic
+install receipts. Workspaces remain `package-manager.monorepo` No; publish and git-deps stay Phase
+61/59 residual outside this Yes claim (Bun matrix Yes is install-class; Deno Partial for publish).
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.43` / `v0.1.0-dev.43`
+**Candidate release:** `0.1.0-dev.44` / `v0.1.0-dev.44`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
-**Entry boundary:** installer on `v0.1.0-dev.21`; free slot after npm `.41` + node `.42`.
-**Next scope:** remaining Partial rows; HTTP/2 multi-listen residual.
+**Entry boundary:** installer on `v0.1.0-dev.21`; this unit stages `0.1.0-dev.44` after master tip
+`0.1.0-dev.43` (server.http Yes #128).
+**Next scope:** fleet Yes queue; monorepo / publish / git+ssh remain separate phases.
+

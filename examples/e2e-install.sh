@@ -32,12 +32,18 @@ done
 [ -s "$URLFILE" ] || { echo "fixture did not start" >&2; exit 1; }
 BASE=$(cat "$URLFILE"); echo "fixture: $BASE"
 
-# 2. a project depending on a transitive graph + the diamond
-printf '{"name":"app","version":"1.0.0","dependencies":{"left-pad":"^1.0.0","@scope/widget":"^1.0.0","conflict-a":"1.0.0","conflict-b":"1.0.0"}}\n' > "$PROJ/package.json"
-printf "console.log(require('left-pad'));console.log(require('@scope/widget'));\n" > "$PROJ/app.cjs"
+# 2. a project depending on a transitive graph + the diamond + dep-spec breadth
+#    (npm: alias, file: local package, optionalDependencies soft-fail).
+mkdir -p "$PROJ/vendor/local-pkg"
+printf '{"name":"local-pkg","version":"9.9.9"}\n' > "$PROJ/vendor/local-pkg/package.json"
+printf "module.exports='local-pkg@9.9.9';\n" > "$PROJ/vendor/local-pkg/index.js"
+printf '%s\n' '{"name":"app","version":"1.0.0","dependencies":{"left-pad":"^1.0.0","@scope/widget":"^1.0.0","conflict-a":"1.0.0","conflict-b":"1.0.0","pad":"npm:left-pad@1.3.0","local-pkg":"file:./vendor/local-pkg"},"optionalDependencies":{"does-not-exist-xyz":"1.0.0"}}' > "$PROJ/package.json"
+printf "console.log(require('left-pad'));console.log(require('@scope/widget'));console.log(require('pad'));console.log(require('local-pkg'));\n" > "$PROJ/app.cjs"
 
 EXPECT="left-pad@1.3.0
-@scope/widget@1.0.0"
+@scope/widget@1.0.0
+left-pad@1.3.0
+local-pkg@9.9.9"
 
 # 3. install (online) + run through the binary
 CLUN_CACHE="$CACHE" "$clun" --cwd "$PROJ" install --registry "$BASE"

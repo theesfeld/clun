@@ -80,3 +80,65 @@ shared diamond conflict.")
     ;; a 404 surfaces as the registry's package-not-found (preserved, not rewrapped) — a clean
     ;; catchable error, not a hang/crash.
     (true (typep err 'reg:package-not-found) "unknown package → package-not-found")))
+
+(define-test resolver/classify-dep-specs
+  (is equal '(:range "^1.0.0") (inst:classify-dep-spec "^1.0.0"))
+  (is equal '(:range "latest") (inst:classify-dep-spec "latest"))
+  (is equal '(:file "./vendor/foo") (inst:classify-dep-spec "file:./vendor/foo"))
+  (is equal '(:file "../bar") (inst:classify-dep-spec "link:../bar"))
+  (is equal '(:npm-alias "left-pad" "^1.0.0") (inst:classify-dep-spec "npm:left-pad@^1.0.0"))
+  (is equal '(:npm-alias "@scope/widget" "1.0.0") (inst:classify-dep-spec "npm:@scope/widget@1.0.0"))
+  (is equal '(:url "https://example.com/pkg.tgz")
+      (inst:classify-dep-spec "https://example.com/pkg.tgz")))
+
+(define-test resolver/npm-alias-installs-as-alias-name
+  ;; pad@npm:left-pad@1.3.0 places under node_modules/pad while fetching left-pad metadata.
+  (multiple-value-bind (nodes ev plan err) (%resolve-plan '(("pad" . "npm:left-pad@1.3.0")))
+    (false err)
+    (true (gethash "pad@1.3.0" nodes) "alias install-name@version")
+    (false (gethash "left-pad@1.3.0" nodes) "registry name is not the install key")
+    (is string= "left-pad" (inst:in-real-name (gethash "pad@1.3.0" nodes)))
+    (is string= "node_modules/pad" (%placement-of plan "pad@1.3.0"))
+    (is equal "1.3.0" (gethash (inst::%edge-key ":root" "pad") ev))))
+
+(define-test resolver/optional-missing-soft-fails
+  ;; optionalDependencies that 404 do not fail the install; required peers still fail.
+  (multiple-value-bind (nodes ev plan err)
+      (%resolve-plan '(("left-pad" . "1.3.0")
+                       ("missing-opt" "1.0.0" :optional t)))
+    (false err "optional miss is soft-fail")
+    (true (gethash "left-pad@1.3.0" nodes))
+    (false (gethash "missing-opt@1.0.0" nodes))
+    (is string= "node_modules/left-pad" (%placement-of plan "left-pad@1.3.0"))
+    (false (gethash (inst::%edge-key ":root" "missing-opt") ev))))
+
+(define-test resolver/file-dep-resolves-and-places
+  (let* ((root (clun.sys:make-temp-dir "/tmp/clun-filedep-"))
+         (local (clun.sys:path-join root "local-pkg")))
+    (unwind-protect
+         (progn
+           (clun.sys:make-directory local :recursive t :mode #o755)
+           (clun.sys:write-file-octets
+            (clun.sys:path-join local "package.json")
+            (sb-ext:string-to-octets
+             "{\"name\":\"local-pkg\",\"version\":\"2.1.0\",\"dependencies\":{}}"
+             :external-format :utf-8))
+           (clun.sys:write-file-octets
+            (clun.sys:path-join local "index.js")
+            (map '(simple-array (unsigned-byte 8) (*)) #'char-code
+                 "module.exports='local-pkg@2.1.0';"))
+           (let ((loop (lp:make-event-loop :workers 0)) nodes ev err)
+             (unwind-protect
+                  (progn
+                    (inst:resolve-install loop '(("local-pkg" . "file:./local-pkg"))
+                      :project-root root :retries 0
+                      :on-ok (lambda (n e) (setf nodes n ev e) (lp:loop-stop loop))
+                      :on-err (lambda (c) (setf err c) (lp:loop-stop loop)))
+                    (lp:run-loop loop))
+               (lp:destroy-event-loop loop))
+             (false err)
+             (true (gethash "local-pkg@2.1.0" nodes))
+             (is eq :file (inst:in-kind (gethash "local-pkg@2.1.0" nodes)))
+             (let ((plan (inst:plan-layout nodes ev '(("local-pkg" . "file:./local-pkg")))))
+               (is string= "node_modules/local-pkg" (%placement-of plan "local-pkg@2.1.0")))))
+      (ignore-errors (clun.sys:remove-recursive root)))))

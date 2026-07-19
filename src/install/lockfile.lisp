@@ -72,31 +72,54 @@ skips an entry whose value is not an object or whose version is not a string."
           (destructuring-bind (physical . obj) entry
             (let ((version (sys:jget obj "version")))
               (when (stringp version)
-                (let ((name (name-from-physical physical))
-                      (deps (let ((d (sys:jget obj "dependencies"))) (if (eq d :empty-object) '() (or d '()))))
-                      (bin (let ((b (sys:jget obj "bin"))) (if (eq b :empty-object) nil b))))
+                (let* ((name (name-from-physical physical))
+                       (deps (let ((d (sys:jget obj "dependencies"))) (if (eq d :empty-object) '() (or d '()))))
+                       (bin (let ((b (sys:jget obj "bin"))) (if (eq b :empty-object) nil b)))
+                       (resolved (sys:jget obj "resolved"))
+                       (file-p (and (stringp resolved) (>= (length resolved) 5)
+                                    (string= "file:" resolved :end2 5)))
+                       (local (when file-p (subseq resolved 5))))
                   (setf (gethash (format nil "~a@~a" name version) nodes)
                         (make-inst-node :name name :version version :deps deps
-                                        :tarball (sys:jget obj "resolved")
-                                        :integrity (sys:jget obj "integrity")
-                                        :bin bin))
+                                        :tarball resolved
+                                        :integrity (or (sys:jget obj "integrity") "")
+                                        :bin bin
+                                        :kind (cond (file-p :file)
+                                                    ((and (stringp resolved)
+                                                          (or (and (>= (length resolved) 8)
+                                                                   (string-equal "https://" resolved :end2 8))
+                                                              (and (>= (length resolved) 7)
+                                                                   (string-equal "http://" resolved :end2 7))))
+                                                     :url)
+                                                    (t :registry))
+                                        :local-path local
+                                        :real-name name))
                   (push (cons physical (format nil "~a@~a" name version)) plan))))))))
     (values (nreverse plan) nodes)))
 
 (defun lock-satisfies-p (lock root-deps)
-  "T iff LOCK is a usable object AND has a root-level (hoisted) version for every ROOT-DEPS name that
-satisfies its range — the freshness/no-drift test. A dist-tag range (not a valid semver range, e.g.
-`latest`) is considered pinned once locked (satisfied by any concrete locked version), mirroring
-pick-version + npm/bun. A malformed lock is simply not fresh (→ re-resolve, or drift under --frozen);
-it never raises a raw error."
+  "T iff LOCK is a usable object AND has a root-level (hoisted) version for every required ROOT-DEPS
+name that satisfies its range — the freshness/no-drift test. Optional entries are ignored (they may
+be absent after soft-fail). A non-semver range (dist-tag, file:, npm:, URL) is considered pinned once
+locked. A malformed lock is simply not fresh (→ re-resolve, or drift under --frozen); it never raises
+a raw error."
   (let ((packages (%packages-object lock)))
     (and packages (not (eq packages :malformed))
          (every (lambda (d)
-                  (let* ((name (car d)) (range (cdr d))
-                         (obj (cdr (assoc (format nil "node_modules/~a" name) packages :test #'string=))))
-                    (and (consp obj)
-                         (let ((v (sys:jget obj "version")))
-                           (and (stringp v)
-                                (or (not (sv:range-valid-p range))   ; a dist-tag — pinned once locked
-                                    (sv:version-satisfies v range)))))))
+                  (if (%dep-optional-p d)
+                      t
+                      (let* ((name (%dep-name d))
+                             (range (%dep-range d))
+                             (obj (cdr (assoc (format nil "node_modules/~a" name) packages
+                                              :test #'string=))))
+                        (and (consp obj)
+                             (let ((v (sys:jget obj "version")))
+                               (and (stringp v)
+                                    (let ((class (ignore-errors (classify-dep-spec range))))
+                                      (cond
+                                        ((null class) nil)
+                                        ((eq (first class) :range)
+                                         (or (not (sv:range-valid-p range))
+                                             (sv:version-satisfies v range)))
+                                        (t t)))))))))  ; file:/npm:/url — pin once locked
                 root-deps))))
