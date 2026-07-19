@@ -11,10 +11,10 @@ database.redis	darwin-arm64	supported	ev.database.redis.basic.v1	Clun.redis pure
 database.redis	darwin-x64	supported	ev.database.redis.basic.v1	Clun.redis pure-CL embedded store exercises on shipped binary
 database.redis	linux-arm64	supported	ev.database.redis.basic.v1	Clun.redis pure-CL embedded store exercises on shipped binary
 database.redis	linux-x64	supported	ev.database.redis.basic.v1	Clun.redis pure-CL embedded store exercises on shipped binary
-database.sql-drivers	darwin-arm64	unsupported	-	Capability is not implemented.
-database.sql-drivers	darwin-x64	unsupported	-	Capability is not implemented.
-database.sql-drivers	linux-arm64	unsupported	-	Capability is not implemented.
-database.sql-drivers	linux-x64	unsupported	-	Capability is not implemented.
+database.sql-drivers	darwin-arm64	supported	ev.database.sql-drivers.core-suite.v1,ev.database.sql-drivers.public.v1	Pure-CL Clun.SQL (PG/MySQL wire + SQLite engine); four-target receipts.
+database.sql-drivers	darwin-x64	supported	ev.database.sql-drivers.core-suite.v1,ev.database.sql-drivers.public.v1	Pure-CL Clun.SQL (PG/MySQL wire + SQLite engine); four-target receipts.
+database.sql-drivers	linux-arm64	supported	ev.database.sql-drivers.core-suite.v1,ev.database.sql-drivers.public.v1	Pure-CL Clun.SQL (PG/MySQL wire + SQLite engine); four-target receipts.
+database.sql-drivers	linux-x64	supported	ev.database.sql-drivers.core-suite.v1,ev.database.sql-drivers.public.v1	Pure-CL Clun.SQL (PG/MySQL wire + SQLite engine); four-target receipts.
 filesystem.glob	darwin-arm64	supported	ev.filesystem.glob.adversarial.v1,ev.filesystem.glob.api.v1,ev.filesystem.glob.match-corpus.v1,ev.filesystem.glob.oracle.v1,ev.filesystem.glob.scan.v1,ev.filesystem.glob.stress.v1,ev.filesystem.glob.upstream-match.v1	The complete public surface executes through the shipped binary.
 filesystem.glob	darwin-x64	supported	ev.filesystem.glob.adversarial.v1,ev.filesystem.glob.api.v1,ev.filesystem.glob.match-corpus.v1,ev.filesystem.glob.oracle.v1,ev.filesystem.glob.scan.v1,ev.filesystem.glob.stress.v1,ev.filesystem.glob.upstream-match.v1	The complete public surface executes through the shipped binary.
 filesystem.glob	linux-arm64	supported	ev.filesystem.glob.adversarial.v1,ev.filesystem.glob.api.v1,ev.filesystem.glob.match-corpus.v1,ev.filesystem.glob.oracle.v1,ev.filesystem.glob.scan.v1,ev.filesystem.glob.stress.v1,ev.filesystem.glob.upstream-match.v1	The complete public surface executes through the shipped binary.

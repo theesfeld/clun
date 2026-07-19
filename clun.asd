@@ -73,6 +73,18 @@
                               :components ((:file "resp")
                                            (:file "server")
                                            (:file "client")))
+                             ;; FULL PORT #183 pure-CL SQL drivers (PG/MySQL/SQLite).
+                             (:module "sql"
+                              :serial t
+                              :components ((:file "errors")
+                                           (:file "url")
+                                           (:file "wire")
+                                           (:file "query")
+                                           (:file "sqlite")
+                                           (:file "postgres")
+                                           (:file "mysql")
+                                           (:file "pool")
+                                           (:file "client")))
                              ;; Cookie parsing/serialization is engine-free so HTTP
                              ;; transport and runtime bindings share one contract.
                              (:module "http"
@@ -224,6 +236,7 @@
                                            (:file "clun-plugin")  ; Clun.plugin / Bun.plugin (Issue #187)
                                            (:file "clun-redis") ; Clun.redis pure-CL (#184)
                                            (:file "clun-s3") ; Clun.s3 pure-CL (#185)
+                                           (:file "clun-sql") ; Clun.SQL pure-CL (#183)
                                            (:file "clun-string-width") ; Clun.stringWidth (Phase 33) — before clun-global
                                            (:file "clun-glob") ; Clun.Glob (Phase 30) — before clun-global
                                            (:file "clun-filesystem-router") ; Clun.FileSystemRouter (Phase 50)
@@ -306,6 +319,9 @@
                                            (:module "redis"
                                             :serial t
                                             :components ((:file "redis-tests")))
+                                           (:module "sql"
+                                            :serial t
+                                            :components ((:file "sql-tests")))
                                            (:module "cloud"
                                             :serial t
                                             :components ((:file "s3-tests")))

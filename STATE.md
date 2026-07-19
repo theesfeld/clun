@@ -7,14 +7,14 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **53 - S3 client**  (FULL PORT Yes #185)
+## Current phase: **55 - SQL drivers**  (FULL PORT Yes #183)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/185
+**Canonical issue:** https://github.com/theesfeld/clun/issues/183
 **Parent:** https://github.com/theesfeld/clun/issues/177
-**Current implementation unit:** cloud.s3 full port Yes (#185) pure-CL SigV4 S3-compatible client exceeding Bun.s3.
+**Current implementation unit:** database.sql-drivers full port Yes (#183) pure-CL PG/MySQL/SQLite exceeding Bun.SQL.
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.53` / `v0.1.0-dev.53`
+**Candidate release:** `0.1.0-dev.54` / `v0.1.0-dev.54`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
-**Entry boundary:** installer on `v0.1.0-dev.21`; free slot after hot-reload Yes `0.1.0-dev.52`.
+**Entry boundary:** installer on `v0.1.0-dev.21`; free slot after S3 Yes `0.1.0-dev.53`.
 
 **Next scope:** remaining FULL PORT ledger Nos under #177.

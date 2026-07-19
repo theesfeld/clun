@@ -629,3 +629,41 @@ and concurrent topological script runs.")
    #:parse-workspaces-field #:expand-dep-spec #:resolve-catalog-range
    #:collect-install-deps #:workspace-link-deps #:workspace-topo-waves
    #:run-workspace-scripts #:workspace-spec-p #:catalog-spec-p))
+(defpackage :clun.sql
+  (:use :cl)
+  (:local-nicknames (:crypto :ironclad) (:sys :clun.sys))
+  (:documentation "Pure-CL unified SQL client: PostgreSQL + MySQL wire protocols and embedded SQLite engine (Issue #183). Exceeds Bun.SQL with inspect/stats/export/query-log.")
+  (:export
+   ;; errors
+   #:sql-error #:sql-error-message #:sql-error-code #:sql-error-adapter
+   #:sql-error-sqlstate #:sql-error-detail #:sql-error-hint #:sql-error-query
+   #:sql-error-position #:sql-error-errno #:sql-error-severity
+   #:sql-error-schema #:sql-error-table #:sql-error-column #:sql-error-constraint
+   #:sql-error-byte-offset
+   #:postgres-error #:mysql-error #:sqlite-error
+   #:sql-protocol-error #:sql-connection-error #:sql-timeout-error #:sql-cancel-error
+   ;; options / client
+   #:sql-options #:sql-options-p #:so-adapter #:so-hostname #:so-port #:so-username
+   #:so-password #:so-database #:so-filename #:so-max
+   #:parse-sql-url #:merge-sql-options
+   #:sql-client #:sql-client-p #:client-adapter #:client-options #:client-closed
+   #:make-sql-client #:sql-connect #:sql-close #:sql-end #:sql-flush
+   #:sql-execute #:sql-query #:sql-unsafe #:sql-file
+   #:sql-array #:sql-helper #:sql-fragment
+   #:sql-reserve #:sql-release
+   #:sql-begin #:sql-transaction #:sql-savepoint
+   #:sql-begin-distributed #:sql-commit-distributed #:sql-rollback-distributed
+   ;; exceed
+   #:sql-inspect #:sql-stats #:sql-export #:sql-enable-query-log #:sql-query-log
+   #:result-rows #:result-first
+   #:make-sql-fragment #:make-sql-helper #:make-sql-array-parameter
+   #:frag-sql #:frag-params #:helper-value #:helper-columns
+   #:sql-array-parameter
+   ;; mocks for hermetic tests
+   #:*sql-mock-postgres* #:*sql-mock-mysql*
+   ;; low-level backends (tests)
+   #:open-sqlite #:close-sqlite #:sqlite-exec #:sqlite-inspect #:sqlite-export-json
+   #:connect-postgres #:close-postgres #:postgres-exec
+   #:connect-mysql #:close-mysql #:mysql-exec
+   #:compile-template #:serialize-array-parameter))
+

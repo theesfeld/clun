@@ -1,0 +1,8 @@
+api function clun-sql-1 postgres,mysql,sqlite
+adapter sqlite
+select|1:Grace:45
+tx|1:Tx
+inspect|sqlite:1
+stats|sqlite:ok
+invalid Error|ERR_CLOSED|SQL client is closed
+done
