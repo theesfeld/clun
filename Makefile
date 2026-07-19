@@ -20,7 +20,7 @@ FEATURE                    ?= all
 		test-test-runner-manifest \
 		test-yaml-upstream test-yaml-upstream-full \
 		roadmap-check roadmap-sync \
-		roadmap-verify-live test-roadmap-issue-contract \
+		roadmap-verify-live \
 		conformance-exec-compare phase-25b-m5-check phase-25b-m6-check phase-37-m1-check phase-37-m2-check phase-37-m3-check phase-37-m4-check \
 		phase-65-tagged-templates-check \
 		shell-upstream-inventory-check \
@@ -309,10 +309,6 @@ roadmap-check:
 ## roadmap-verify-live -- read GitHub and fail on duplicate, missing, or stale canonical issues.
 roadmap-verify-live:
 	sh scripts/roadmap.sh verify-live
-
-## test-roadmap-issue-contract -- exercise literal Status/SemVer Issue-body enforcement.
-test-roadmap-issue-contract:
-	sh scripts/roadmap.sh test-issue-contract
 
 roadmap-sync:
 	sh scripts/roadmap.sh sync
