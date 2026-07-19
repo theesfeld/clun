@@ -18,10 +18,9 @@
   "Transform TypeScript SOURCE (.ts/.mts/.cts, or post-JSX .tsx via spoofed .ts path)
 to executable JS:
   - erasable type syntax → length-preserving whitespace when no runtime rewrite;
-  - enums, runtime namespaces, and constructor parameter properties → Bun/TS-shaped
-    emits (length may change).
-Signals unsupported-ts-syntax on remaining non-supported forms (decorators,
-import/export =, angle casts). JSX/TSX is lowered by TRANSFORM-JSX before this runs."
+  - enums, runtime namespaces, parameter properties, experimental decorators,
+    import=/export=, and angle-bracket casts → Bun/tsc-shaped emits (length may change).
+JSX/TSX is lowered by TRANSFORM-JSX before this runs (loader spoofs .ts for strip)."
   (when (tsx-path-p path)
     (error 'unsupported-ts-syntax
            :message ".tsx must be JSX-transformed before type strip"

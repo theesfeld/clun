@@ -9,8 +9,8 @@ targets are workload-specific and published;
 Clun does not claim blanket speed parity with Bun.
 
 <!-- clun-generated:release:begin -->
-> **Status: pre-alpha, under active construction.** [Phase 52](https://github.com/theesfeld/clun/issues/181) is in progress.
-> Its release-bearing target is `0.1.0-dev.57` / `v0.1.0-dev.57` (SemVer impact: `minor`).
+> **Status: pre-alpha, under active construction.** [Phase 39](https://github.com/theesfeld/clun/issues/13) is in progress.
+> Its release-bearing target is `0.1.0-dev.59` / `v0.1.0-dev.59` (SemVer impact: `minor`).
 > The verified release boundary is `v0.1.0-dev.21`, with four native archives, checksums, Pages,
 > and hosted-installer evidence.
 > Phase 26 remains deferred until after Phase 82 and will
@@ -48,8 +48,9 @@ interoperability gap.
 
 ## What works
 
-- JavaScript, JSON, ESM, CommonJS, TypeScript (erasable strip plus enum, namespace, and
-  parameter-property transforms), and JSX/TSX execution via pure Common Lisp transform
+- JavaScript, JSON, ESM, CommonJS, TypeScript (erasable strip, enums/namespaces/param-props,
+  experimental decorators, import=/export=, angle-bracket casts, `.tsx`, and `clun tsc`
+  structural typecheck — Phase 39 / #192), and JSX/TSX execution via pure Common Lisp transform
   (classic and automatic runtimes; Phase 40 / #186).
 - Object integrity and legacy accessor operations including `Object.seal`, `Object.isSealed`,
   `__defineGetter__`, `__defineSetter__`, `__lookupGetter__`, and `__lookupSetter__`. Proxy remains
@@ -110,7 +111,7 @@ July 16, 2026. Engineering references are separately pinned to Bun commit `c1076
 | Node.js compatibility | Partial: selected pure-CL modules (path/fs/url/buffer/events/assert/util/timers/querystring/os/process/crypto helpers) | Phases [42](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-42), [43](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-43), [44](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-44), [45](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-45), [46](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-46), [47](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-47) |
 | Web Standard APIs | Partial: streaming fetch, clone/tee, timeouts, HTTP/HTTPS proxy and pooling, ReadableStream/WritableStream/TransformStream, Response/Request.body streams; remaining Web surface (full Streams edge cases, broader standards globals, residual network stress) full-port in progress | [Phase 38](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-38) |
 | Native addons | No: not yet implemented (full-port target) | [Phase 48](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-48) |
-| TypeScript | Partial: erasable stripping + enums/namespaces/param-props; .tsx, decorators, full tsc-class typecheck not yet full-ported | [Phase 39](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-39) |
+| TypeScript | Yes: pure Common Lisp TypeScript execution: erasable strip, enums, namespaces, parameter properties, experimental decorators, import=/export=, angle-bracket casts, .tsx via JSX lower+strip, and structural typecheck CLI (clun tsc) exceeding Bun (Bun has no typecheck) | [Phase 39](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-39) |
 | JSX | Yes: pure Common Lisp JSX and TSX parse, transform, and execute with classic React.createElement and automatic jsx/jsxs/Fragment runtimes, file pragmas, tsconfig/jsconfig compilerOptions, fragments, spreads, nested expressions, member tags, HTML entity decoding, and built-in offline helpers that run without a react package (exceeds Bun) | [Phase 40](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-40) |
 | Module loader plugins | Yes: pure Common Lisp Bun.plugin-compatible Clun.plugin with ordered onResolve/onLoad/onStart/onEnd, namespaces, virtual builder.module, object/js/json/yaml/text/file loaders, clearAll plus exceed list/clear/priority/registerHooks and pure-CL register-cl-plugin (exceeds Bun.plugin and node:module hooks) | [Phase 41](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-41) |
 | SQL database drivers | Yes: `Clun.SQL` pure-CL PostgreSQL+MySQL wire + embedded SQLite engine; Bun.SQL-compatible unified API plus inspect/stats/export/queryLog | Phases [55](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-55), [56](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-56), [57](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-57) |
@@ -166,10 +167,10 @@ workflows are read-only and fail closed if the canonical issues, README, or site
 
 <!-- clun-generated:release-summary:begin -->
 Release versions follow the actual SemVer impact recorded in the canonical issue, not the number of pushes.
-The current source is the `0.1.0-dev.57` release candidate; the immutable tag and assets are not published yet.
+The current source is the `0.1.0-dev.59` release candidate; the immutable tag and assets are not published yet.
 The last published prerelease remains [`v0.1.0-dev.21`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.21).
 [The versioning contract](docs/versioning.md) defines prerelease sequencing, synchronized surfaces, immutable tags, assets, and installer evidence.
-[Phase 52 issue #181](https://github.com/theesfeld/clun/issues/181) is the canonical live release record.
+[Phase 39 issue #13](https://github.com/theesfeld/clun/issues/13) is the canonical live release record.
 <!-- clun-generated:release-summary:end -->
 
 ## The purity contract
@@ -179,8 +180,7 @@ The last published prerelease remains [`v0.1.0-dev.21`](https://github.com/thees
 - **Forbidden:** CFFI or any foreign library; any JavaScript as part of the *implementation* (JS/TS
   appears only as test fixtures). No shelling out to system tools as an implementation crutch.
 - **Enforced:** `make purity` scans every source under `src/` and `vendor/` for foreign-code entry
-./build/clun --version   # => clun 0.1.0-dev.57
-./build/clun --version   # => clun 0.1.0-dev.57
+./build/clun --version   # => clun 0.1.0-dev.59
 ./build/clun --version   # => clun 0.1.0-dev.55
 ./build/clun --version   # => clun 0.1.0-dev.53
 ./build/clun --version   # => clun 0.1.0-dev.54

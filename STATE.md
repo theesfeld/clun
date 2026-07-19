@@ -7,14 +7,14 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **52 - Single-file executables**  (FULL PORT Yes #181)
+## Current phase: **39 - Full TypeScript transforms**  (FULL PORT Yes #192)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/181
+**Canonical issue:** https://github.com/theesfeld/clun/issues/13
 **Parent:** https://github.com/theesfeld/clun/issues/177
-**Current implementation unit:** tooling.single-file-executables full port Yes (#181) pure-CL compile/cross-compile/embed/sign exceeding Bun.
+**Current implementation unit:** language.typescript full port Yes (#192) pure-CL transpile+structural typecheck exceeding Bun strip.
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.57` / `v0.1.0-dev.57`
+**Candidate release:** `0.1.0-dev.59` / `v0.1.0-dev.59`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
-**Entry boundary:** installer on `v0.1.0-dev.21`; free slot after frontend-dev Yes `0.1.0-dev.56`.
+**Entry boundary:** installer on `v0.1.0-dev.21`; free slot after SFE Yes `0.1.0-dev.57` (leave `0.1.0-dev.58` for webstd #210).
 
-**Next scope:** remaining FULL PORT ledger Nos under #177.
+**Next scope:** remaining FULL PORT ledger Nos / soft residuals under #177.
