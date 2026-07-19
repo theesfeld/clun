@@ -3356,3 +3356,8 @@ Bun-compatible TypeScript execution Yes bar without full tsc typecheck:
 - Decorators, `import =` / `export =`, angle-cast, and `.tsx` still hard-error.
 - Four-target platforms.tsv `supported`; ledger `clun_state=Yes`.
 - Release train: `0.1.0-dev.40`.
+
+## 2026-07-19 — server.http Partial→Yes (#128)
+
+- Streaming response bodies pure-CL (chunked); request.body ReadableStream.
+- Ledger Yes + four-target supported. Train: `0.1.0-dev.41`.

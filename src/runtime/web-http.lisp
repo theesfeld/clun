@@ -1272,7 +1272,7 @@ Rejects when the body stream is locked by getReader()."
 
 (defun %construct-readable-stream (underlying-source)
   "Minimal `new ReadableStream({ start(controller), cancel })`."
-  (let* ((stream (%new-readable-stream :closed-p nil))
+  (let* ((stream (%new-readable-stream :closed-p nil :wait-for-data-p t))
          (controller (%controller-for stream))
          (source (if (eng:js-object-p underlying-source)
                      underlying-source
@@ -2929,9 +2929,30 @@ body consumers (text/bytes/blob/getReader) call this helper first."
      (%clone-response this)))
   prototype)
 
+(defun %response-streaming-body-p (response)
+  "True when RESPONSE should be written with Transfer-Encoding: chunked.
+
+Explicit null bodies use Content-Length: 0. ReadableStream bodies are chunked
+even when the stream has already closed with queued chunks."
+  (let* ((response (%require-response response))
+         (body (js-response-body response))
+         (stream (js-response-body-stream response)))
+    (cond
+      ((js-response-body-null-p response) nil)
+      ((js-readable-stream-p stream) t)
+      ((js-readable-stream-p body) t)
+      ((js-body-stream-p body) t)
+      ((and (js-body-stream-p stream)
+            (or (null body) (eng:js-null-p body) (eng:js-undefined-p body)))
+       t)
+      (t nil))))
+
 (defun %init-response (object body init &key body-stream body-null-p)
   "Populate and return a branded Response.  OBJECT is retained for old CL callers
-but an ordinary object is never promoted into the Response brand."
+but an ordinary object is never promoted into the Response brand.
+
+BODY may be a ReadableStream (streamed on the wire as chunked Transfer-Encoding
+by Clun.serve), a Clun.file (lazy file response), or a buffered value."
   (let* ((state (%http-state))
          (response
            (if (js-response-p object)
@@ -2952,23 +2973,31 @@ but an ordinary object is never promoted into the Response brand."
                (%status-text status)))
          (headers-init (and init-object-p (eng:js-get init "headers")))
          (headers (%new-headers headers-init))
-         (stream (or body-stream (%new-body-stream)))
-         (deferred-file-p (and (not body-stream) (js-clun-file-p body))))
+         (stream-body-p
+           (or (js-readable-stream-p body) (js-body-stream-p body)))
+         (stream (or body-stream
+                     (and stream-body-p body)
+                     (%new-body-stream)))
+         (deferred-file-p (and (not body-stream)
+                               (not stream-body-p)
+                               (js-clun-file-p body))))
     (when (and (js-blob-p body)
                (null (%header-values headers "content-type")))
       (let ((content-type (%blob-response-content-type body)))
         (when content-type
           (%headers-set headers "content-type" content-type))))
-    (setf (js-response-body response) body
+    (setf (js-response-body response) (if stream-body-p eng:+null+ body)
           (js-response-body-stream response) stream
           (js-response-body-null-p response)
-          (if body-stream
-              body-null-p
-              (or (null body) (eng:js-undefined-p body)
-                  (eng:js-null-p body))))
+          (cond
+            (body-stream body-null-p)
+            (stream-body-p nil)
+            (t (or (null body) (eng:js-undefined-p body)
+                   (eng:js-null-p body)))))
     ;; Clun.file bodies stay deferred so construction cannot hang on FIFO/special
     ;; files. Serve freezes them through file-response-source; body methods materialize.
-    (unless (or body-stream deferred-file-p)
+    ;; Stream bodies remain open for progressive chunked write-out.
+    (unless (or body-stream stream-body-p deferred-file-p)
       (let ((octets (%body->octets body)))
         (when (plusp (length octets))
           (%body-stream-enqueue stream octets))

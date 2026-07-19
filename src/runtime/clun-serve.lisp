@@ -164,6 +164,34 @@
   status-text
   headers)
 
+(defstruct (stream-send-plan (:constructor %make-stream-send-plan))
+  "Progressive Transfer-Encoding: chunked write plan for a ReadableStream body."
+  head
+  body-stream
+  method
+  keep-alive
+  (active-p t)
+  reader)
+
+(defparameter +chunked-response-end+
+  (%ascii-octets (format nil "0~c~c~c~c" #\Return #\Newline #\Return #\Newline))
+  "Final zero-length chunk + trailer terminator for HTTP/1.1 chunked responses.")
+
+(defun %chunked-response-frame (octets)
+  "Frame one non-empty response body chunk using HTTP/1.1 chunked coding."
+  (when (zerop (length octets))
+    (return-from %chunked-response-frame
+      (make-array 0 :element-type '(unsigned-byte 8))))
+  (let* ((prefix (%ascii-octets
+                  (format nil "~x~c~c" (length octets) #\Return #\Newline)))
+         (suffix (%ascii-octets (format nil "~c~c" #\Return #\Newline)))
+         (result (make-array (+ (length prefix) (length octets) (length suffix))
+                             :element-type '(unsigned-byte 8))))
+    (replace result prefix)
+    (replace result octets :start1 (length prefix))
+    (replace result suffix :start1 (+ (length prefix) (length octets)))
+    result))
+
 (defun %close-file-send-plan (plan)
   (when (file-send-plan-stream plan)
     (ignore-errors (close (file-send-plan-stream plan)))
@@ -417,9 +445,36 @@
           (when stream (ignore-errors (close stream)))
           (error error))))))
 
+(defun %serialize-stream-response (resp method keep-alive request)
+  "Build a progressive chunked write plan for a ReadableStream Response body."
+  (multiple-value-bind (status status-text) (%response-status-and-text resp)
+    (let* ((user (%response-headers-for-wire resp request))
+           (user (remove-if (lambda (pair)
+                              (member (car pair)
+                                      '("content-length" "transfer-encoding"
+                                        "connection" "date")
+                                      :test #'string=))
+                            user))
+           (head (make-string-output-stream)))
+      (format head "HTTP/1.1 ~d ~a~c~c" status status-text #\Return #\Newline)
+      (format head "Date: ~a~c~c" (%http-date) #\Return #\Newline)
+      (dolist (p user)
+        (format head "~a: ~a~c~c" (%header-title-case (car p))
+                (cdr p) #\Return #\Newline))
+      (format head "Transfer-Encoding: chunked~c~c" #\Return #\Newline)
+      (format head "Connection: ~a~c~c"
+              (if keep-alive "keep-alive" "close") #\Return #\Newline)
+      (format head "~c~c" #\Return #\Newline)
+      (%make-stream-send-plan
+       :head (%ascii-octets (get-output-stream-string head))
+       :body-stream (js-response-body-stream resp)
+       :method method
+       :keep-alive keep-alive))))
+
 (defun %serialize-response (resp method keep-alive &optional request static-p)
-  "Freeze a Response into wire octets or a lazy file source. HEAD omits the body.
-Date/Content-Length/Connection are set by us (user copies of those are dropped)."
+  "Freeze a Response into wire octets, a lazy file source, or a stream-send plan.
+HEAD omits the body. Date/Content-Length/Connection/Transfer-Encoding are set by
+us (user copies of those are dropped)."
   (%require-response resp)
   (when (js-clun-file-p (%response-body-value resp))
     (multiple-value-bind (status status-text) (%response-status-and-text resp)
@@ -429,6 +484,9 @@ Date/Content-Length/Connection are set by us (user copies of those are dropped).
          :keep-alive keep-alive :request request :status status
          :status-text status-text
          :headers (%response-headers-for-wire resp request)))))
+  (when (%response-streaming-body-p resp)
+    (return-from %serialize-response
+      (%serialize-stream-response resp method keep-alive request)))
   (multiple-value-bind (body default-ct) (%response-body-octets resp)
     (let* ((status-value (eng:js-get resp "status"))
            (status (if (eng:js-number-p status-value)
@@ -699,6 +757,92 @@ When CONTEXT is upgraded to WebSocket, COMMIT is not invoked with HTTP payload."
       (net:tcp-write connection (file-send-plan-head plan))
       (pump))))
 
+(defun %serve-stream-get-reader (stream)
+  (cond
+    ((js-body-stream-p stream) (%body-stream-reader stream))
+    ((js-readable-stream-p stream) (%make-default-reader stream))
+    (t (eng:throw-type-error "Response body stream is not readable"))))
+
+(defun %serve-stream-reader-read (reader)
+  (cond
+    ((js-body-reader-p reader) (%body-reader-read reader))
+    ((js-readable-stream-reader-p reader) (%reader-read reader))
+    (t (eng:throw-type-error "Invalid body stream reader"))))
+
+(defun %send-stream-plan (connection plan complete)
+  "Write PLAN headers, then pump ReadableStream body chunks as Transfer-Encoding: chunked."
+  (let ((active-p t)
+        (head-sent-p nil)
+        (reader nil))
+    (labels
+        ((finish (success-p)
+           (when active-p
+             (setf active-p nil
+                   (stream-send-plan-active-p plan) nil
+                   (net:tcp-on-drain connection) nil)
+             (funcall complete success-p)))
+         (write-and-maybe-wait (octets continue)
+           (cond
+             ((not active-p) nil)
+             ((eq (net:tcp-state connection) :closed) (finish nil) nil)
+             (t
+              (when (plusp (length octets))
+                (net:tcp-write connection octets))
+              (if (plusp (net:tcp-queued-bytes connection))
+                  (progn
+                    (setf (net:tcp-on-drain connection)
+                          (lambda (c)
+                            (declare (ignore c))
+                            (when active-p (funcall continue))))
+                    nil)
+                  t))))
+         (end-body ()
+           (when (write-and-maybe-wait +chunked-response-end+ #'end-body)
+             (finish t)))
+         (pull ()
+           (when active-p
+             (handler-case
+                 (cond
+                   ((eq (net:tcp-state connection) :closed) (finish nil))
+                   ((string= (stream-send-plan-method plan) "HEAD")
+                    (finish t))
+                   (t
+                    (%promise-then
+                     (%serve-stream-reader-read reader)
+                     (lambda (result)
+                       (when active-p
+                         (handler-case
+                             (if (eng:js-truthy (eng:js-get result "done"))
+                                 (end-body)
+                                 (let* ((chunk
+                                          (%body->octets
+                                           (eng:js-get result "value")))
+                                        (framed (%chunked-response-frame chunk)))
+                                   (if (write-and-maybe-wait framed #'pull)
+                                       (pull)
+                                       nil)))
+                           (eng:js-condition () (finish nil))
+                           (condition () (finish nil)))))
+                     (lambda (ignored)
+                       (declare (ignore ignored))
+                       (finish nil)))))
+               (eng:js-condition () (finish nil))
+               (condition () (finish nil))))))
+      (handler-case
+          (progn
+            (setf reader
+                  (%serve-stream-get-reader (stream-send-plan-body-stream plan)))
+            (setf (stream-send-plan-reader plan) reader)
+            (when (write-and-maybe-wait (stream-send-plan-head plan)
+                                        (lambda ()
+                                          (unless head-sent-p
+                                            (setf head-sent-p t)
+                                            (pull))))
+              (setf head-sent-p t)
+              (pull)))
+        (eng:js-condition () (finish nil))
+        (condition () (finish nil))))))
+
 (defun %serve-connection (conn fetch-cell err-handler-cell routes-cell
                           server websocket-cell
                           &key (max-body net:*max-body-bytes*)
@@ -717,6 +861,7 @@ SERVER / WEBSOCKET-CELL enable Phase 51 M1 upgrade when handlers are configured.
          (ready (make-hash-table :test #'eql))
          (contexts '())
          (active-file-plan nil)
+         (active-stream-plan nil)
          (closed-p nil)
          (final-request-seen-p nil)
          (upgraded-p nil)
@@ -753,12 +898,17 @@ SERVER / WEBSOCKET-CELL enable Phase 51 M1 upgrade when handlers are configured.
            (when active-file-plan
              (%close-file-send-plan active-file-plan)
              (setf active-file-plan nil))
+           (when active-stream-plan
+             (setf (stream-send-plan-active-p active-stream-plan) nil
+                   active-stream-plan nil))
            (maphash
             (lambda (sequence entry)
               (declare (ignore sequence))
               (let ((payload (first entry)))
                 (when (file-send-plan-p payload)
-                  (%close-file-send-plan payload))))
+                  (%close-file-send-plan payload))
+                (when (stream-send-plan-p payload)
+                  (setf (stream-send-plan-active-p payload) nil))))
             ready)
            (dolist (context contexts)
              (setf (serve-request-context-connection-closed-p context) t))
@@ -766,6 +916,7 @@ SERVER / WEBSOCKET-CELL enable Phase 51 M1 upgrade when handlers are configured.
            (clrhash ready))
          (finish-slot (keep-alive context success-p)
            (setf active-file-plan nil
+                 active-stream-plan nil
                  contexts (delete context contexts :test #'eq))
            (cond
              ((or closed-p (not success-p))
@@ -801,9 +952,11 @@ SERVER / WEBSOCKET-CELL enable Phase 51 M1 upgrade when handlers are configured.
                  (file-response-source-method source)
                  (file-response-source-request source))
                 nil))))
+         (busy-p ()
+           (or active-file-plan active-stream-plan))
          (flush-ready ()
            (when upgraded-p (return-from flush-ready nil))
-           (loop while (null active-file-plan) do
+           (loop while (not (busy-p)) do
              (multiple-value-bind (entry present-p) (gethash next-commit ready)
                (unless (and present-p (not closed-p)) (return))
                (remhash next-commit ready)
@@ -811,29 +964,38 @@ SERVER / WEBSOCKET-CELL enable Phase 51 M1 upgrade when handlers are configured.
                  (when (file-response-source-p payload)
                    (multiple-value-setq (payload keep-alive)
                      (materialize-file-source payload)))
-                 (if (file-send-plan-p payload)
-                     (progn
-                       (setf active-file-plan payload)
-                       (arm-idle)
-                       (%send-file-plan
-                        conn payload
-                        (lambda (success-p)
-                          (finish-slot keep-alive context success-p))))
-                     (progn
-                       (incf next-commit)
-                       (setf contexts (delete context contexts :test #'eq))
-                       (write-octets payload)
-                       (unless keep-alive
-                         (setf closed-p t
-                               (serve-request-context-connection-closed-p context) t)
-                         (mark-contexts-closed)
-                         (net:tcp-shutdown conn))))))))
+                 (cond
+                   ((file-send-plan-p payload)
+                    (setf active-file-plan payload)
+                    (arm-idle)
+                    (%send-file-plan
+                     conn payload
+                     (lambda (success-p)
+                       (finish-slot keep-alive context success-p))))
+                   ((stream-send-plan-p payload)
+                    (setf active-stream-plan payload)
+                    (arm-idle)
+                    (%send-stream-plan
+                     conn payload
+                     (lambda (success-p)
+                       (finish-slot keep-alive context success-p))))
+                   (t
+                    (incf next-commit)
+                    (setf contexts (delete context contexts :test #'eq))
+                    (write-octets payload)
+                    (unless keep-alive
+                      (setf closed-p t
+                            (serve-request-context-connection-closed-p context) t)
+                      (mark-contexts-closed)
+                      (net:tcp-shutdown conn))))))))
          (queue-response (sequence payload keep-alive context)
            (cond
              ((or closed-p upgraded-p
                   (serve-request-context-upgraded-p context))
               (when (file-send-plan-p payload)
                 (%close-file-send-plan payload))
+              (when (stream-send-plan-p payload)
+                (setf (stream-send-plan-active-p payload) nil))
               (when (serve-request-context-upgraded-p context)
                 (setf upgraded-p t
                       final-request-seen-p t)))
