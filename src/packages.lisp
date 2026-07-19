@@ -78,6 +78,40 @@
    #:vault-path #:default-vault-path
    #:*vault-path-override* #:*master-key-override*))
 
+(defpackage :clun.ffi
+  (:use :cl)
+  (:documentation
+   "Pure-CL FFI / N-API native-addon host (Issue #178). Linear memory, typed
+symbols, pure-CL library registry, .claddon packs, Bun.ffi-compatible ABI —
+no machine-code loading. Purity is language, not exclusion (epic #177).")
+  (:export
+   ;; conditions
+   #:ffi-error #:ffi-error-kind #:ffi-error-detail #:ffi-error-code
+   ;; types
+   #:*ffi-type-table* #:normalize-type-name #:type-info #:type-id #:type-size
+   #:type-category #:ffi-type-enum-alist
+   ;; pointers / memory
+   #:ptr-entry #:ptr-entry-p #:pe-kind #:pe-offset #:pe-length #:pe-bytes #:pe-closed #:pe-fn
+   #:pe-sig #:pe-meta
+   #:null-pointer-p #:pointer-id #:lookup-ptr
+   #:heap-alloc #:heap-free #:register-view #:register-fn-ptr
+   #:ptr-bytes-window #:read-bytes #:read-cstring #:alloc-cstring
+   #:read-u8 #:read-i8 #:read-u16 #:read-i16 #:read-u32 #:read-i32
+   #:read-u64 #:read-i64 #:read-f32 #:read-f64 #:read-ptr
+   #:write-u8 #:write-i8 #:write-u16 #:write-i16 #:write-u32 #:write-i32
+   #:write-u64 #:write-i64 #:write-f32 #:write-f64 #:write-ptr
+   #:reset-ffi-state
+   ;; libraries
+   #:ffi-symbol #:fs-name #:fs-args #:fs-returns #:fs-fn #:fs-ptr-id
+   #:ffi-library #:fl-name #:fl-path #:fl-symbols #:fl-closed #:fl-meta
+   #:register-library #:unregister-library #:list-libraries #:resolve-library-name
+   #:open-library #:link-symbols #:library-close #:call-symbol
+   #:view-source-for-symbol #:compile-cc-source #:shared-library-suffix
+   #:register-builtin-libraries
+   ;; N-API addons
+   #:napi-addon #:na-name #:na-version #:na-init #:na-exports #:na-path #:na-meta
+   #:define-addon #:list-addons #:resolve-addon #:load-addon #:load-claddon-file))
+
 (defpackage :clun.s3
   (:use :cl)
   (:local-nicknames (:crypto :ironclad))

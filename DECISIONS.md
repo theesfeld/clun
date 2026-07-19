@@ -3425,6 +3425,12 @@ Soft-outs rejected. Candidate `0.1.0-dev.67` after master Phase 37 m4 `0.1.0-dev
 Parent #177; phase #21.
 Refs: #191, #21, #177
 
+## 2026-07-19 — runtime.native-addons full port Yes (#178)
+
+Pure-CL N-API/FFI/native module host surface exceeding Bun. Soft-outs rejected.
+Candidate `0.1.0-dev.66` after master Phase 37 m4 `0.1.0-dev.63`. Parent #177; phase #22.
+Refs: #178, #22, #177
+
 Refs: #11
 
 ## 2026-07-19 — tooling.formatter-linter full port Yes (#190)

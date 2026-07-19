@@ -188,15 +188,38 @@ mutate_version() {
 
 mutate_feature_status() {
   file=$1
+  # Prefer No→Partial. When the ledger has zero No rows (full-port near-complete),
+  # fall back to Partial→No or Yes→Partial so deliberate-drift coverage still runs.
+  # Two-pass: pick a target row by priority, then rewrite that row only.
   # shellcheck disable=SC2016 # AWK field references must not expand in the shell.
   replace_file "$file" awk -F "$TAB" -v OFS="$TAB" '
-    NR > 1 && !changed && $6 == "No" {
-      $6 = "Partial"
-      if ($8 == "-") $8 = "Deliberate status drift."
-      changed = 1
+    NR == 1 { header = $0; next }
+    {
+      rows[++n] = $0
+      status[n] = $6
+      if (!pick && $6 == "No") { pick = n; mode = "no" }
+      if (!pick_partial && $6 == "Partial") pick_partial = n
+      if (!pick_yes && $6 == "Yes") pick_yes = n
     }
-    { print }
-    END { if (!changed) exit 3 }
+    END {
+      if (!pick && pick_partial) { pick = pick_partial; mode = "partial" }
+      if (!pick && pick_yes) { pick = pick_yes; mode = "yes" }
+      if (!pick) exit 3
+      print header
+      for (i = 1; i <= n; i++) {
+        if (i != pick) { print rows[i]; continue }
+        $0 = rows[i]
+        if (mode == "no") {
+          $6 = "Partial"
+        } else if (mode == "partial") {
+          $6 = "No"
+        } else {
+          $6 = "Partial"
+        }
+        if ($8 == "-") $8 = "Deliberate status drift."
+        print
+      }
+    }
   ' "$file"
 }
 

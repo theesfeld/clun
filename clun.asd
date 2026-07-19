@@ -127,6 +127,10 @@
                                            (:file "tls12-client")
                                            (:file "tls-client")
                                            (:file "websocket"))) ; Phase 51
+                             ;; FULL PORT #178: pure-CL FFI / N-API native-addon host.
+                             (:module "ffi"
+                              :serial t
+                              :components ((:file "core")))
                              ;; cloud (Phase 53 / #185): pure-CL S3-compatible client.
                              (:module "cloud"
                               :serial t
@@ -252,6 +256,7 @@
                                            (:file "clun-csrf")  ; Clun.CSRF (Phase 35) — before clun-global
                                            (:file "clun-password-hash") ; Clun.password/hash (Phase 36)
                                            (:file "clun-secrets") ; Clun.secrets pure-CL vault (#179)
+                                           (:file "clun-ffi")     ; bun:ffi / Clun.ffi / Clun.native (#178)
                                            (:file "clun-plugin")  ; Clun.plugin / Bun.plugin (Issue #187)
                                            (:file "clun-redis") ; Clun.redis pure-CL (#184)
                                            (:file "clun-s3") ; Clun.s3 pure-CL (#185)
@@ -365,6 +370,9 @@
                                             :components ((:file "csrf-tests")
                                                          (:file "password-hash-tests")
                                                          (:file "secrets-tests")))
+                                           (:module "ffi"
+                                            :serial t
+                                            :components ((:file "ffi-tests")))
                                            (:module "redis"
                                             :serial t
                                             :components ((:file "redis-tests")))
