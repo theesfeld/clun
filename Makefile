@@ -21,7 +21,7 @@ FEATURE                    ?= all
 		test-yaml-upstream test-yaml-upstream-full \
 		roadmap-check roadmap-sync \
 		roadmap-verify-live \
-		conformance-exec-compare phase-25b-m5-check phase-25b-m6-check phase-37-m1-check phase-37-m2-check phase-37-m3-check \
+		conformance-exec-compare phase-25b-m5-check phase-25b-m6-check phase-37-m1-check phase-37-m2-check phase-37-m3-check phase-37-m4-check \
 		phase-65-tagged-templates-check \
 		shell-upstream-inventory-check \
 		shell-upstream-corpus-check shell-upstream-yes-check \
@@ -152,6 +152,10 @@ phase-37-m2-check:
 ## phase-37-m3-check -- require all 151 frozen Set methods entry failures to pass.
 phase-37-m3-check:
 	$(SBCL) --dynamic-space-size 6144 $(SBCL_FLAGS) --load scripts/phase-37-m3.lisp
+
+## phase-37-m4-check -- require all 74 frozen keyed Promise combinator failures to pass.
+phase-37-m4-check:
+	$(SBCL) --dynamic-space-size 6144 $(SBCL_FLAGS) --load scripts/phase-37-m4.lisp
 
 ## phase-65-tagged-templates-check -- freeze the engine prerequisite without
 ## claiming completion of the public shell API.

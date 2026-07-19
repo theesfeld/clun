@@ -1,7 +1,7 @@
 <!-- clun-generated:release-notes:begin -->
-# Clun 0.1.0-dev.59
+# Clun 0.1.0-dev.63
 
-Phase 39: Full TypeScript transforms.
+Phase 37: Modern ECMAScript gap wave.
 
 - SemVer impact: `minor` within the selected `0.1.0` prerelease train.
 - Compatibility snapshot: 26 Yes / 2 Partial / 2 No across 30 generated rows.
@@ -13,5 +13,15 @@ The canonical evidence and current limitations are in `compat/`; `make compat-va
 <!-- clun-generated:release-notes:end -->
 ## Highlights
 
-- Issue #192 promotes `language.typescript` Partial→**Yes** (pure-CL transpile+decorators+tsx+structural typecheck exceeding Bun strip).
-- Slot: free `0.1.0-dev.59` after master SFE Yes `0.1.0-dev.57` (leave `0.1.0-dev.58` for webstd #210).
+- Stages Phase 37 milestone 4 as a bounded engine residual conversion: pure-CL
+  TC39 await-dictionary combinators `Promise.allKeyed` and `Promise.allSettledKeyed`
+  (PerformPromiseAllKeyed over enumerable own keys; null-proto result objects).
+- Converts **74** frozen keyed-Promise Test262 failures (`make phase-37-m4-check` → 74/74).
+  One `allSettledKeyed/result-property-descriptors` row remains outside the freeze
+  (Test262 propertyHelper `isConfigurable` is destructive; not an engine semantic gap).
+- Test262 ledger: **26018** pass / **2145** fail; Phase 37 residual ownership **378** (−74).
+- Does **not** claim a compatibility-table matrix **Yes**. Phase 37 stays open.
+- Slot map: published base `v0.1.0-dev.21` (previous_version); master tip `0.1.0-dev.59`;
+  concurrent open trains claim free `.58`/`.60`–`.62`; this candidate allocates free
+  `0.1.0-dev.63` / `v0.1.0-dev.63` (SemVer `minor`). Hosted installer remains on
+  published dev.21 until a later unit publishes.
