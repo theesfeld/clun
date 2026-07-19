@@ -27,7 +27,8 @@ workload or metric requires a new `.vN` ID.
   pinned Node.js and Deno primary-repository sources. Comparison assertions exactly snapshot each
   runtime's `state: detail` fields from `features.tsv`.
 - `release.tsv` reconciles the current Clun version, ASDF core, installer default, tag, publication
-  state, canonical STATE phase/issue, and exact tagged commit once published.
+  state, canonical STATE phase/issue, and exact tagged commit once a candidate tag exists. A tagged
+  candidate remains distinct from a published GitHub Release.
 - `upstream-assets.tsv` pins the four Bun 1.3.14 release binaries used by later stable probes.
 - `benchmarks/workloads.tsv` and `benchmarks/metrics.tsv` freeze the four existing Phase 25
   self-relative workloads. They contain no Clun-versus-Bun performance claim.

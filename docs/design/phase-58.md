@@ -1,16 +1,14 @@
 # Phase 58 — Operating-system secrets constitutional checkpoint
 
-> **Superseded for ledger disposition by Issue #179 / epic #177 (FULL PORT, 2026-07-18).**
-> Purity is implementation language (pure Common Lisp), not feature exclusion. `security.encrypted-secrets`
-> is **Yes**: `Clun.secrets` is backed by a pure-CL AES-256-GCM encrypted file vault that meets
-> Bun.secrets (`get`/`set`/`delete`, service/name, empty-value delete, `allowUnrestrictedAccess`) and
-> exceeds it (`has`/`list`/`clear`, `CLUN_SECRETS_KEY`/`CLUN_SECRETS_PATH`, `backend: "vault"`) on all
-> four targets without CFFI. Historical Phase 58 text below records the original constitutional
-> checkpoint and spike results; do not re-apply the fail-closed disposition.
+> **Issue #215 adversarial disposition:** `security.encrypted-secrets` is **Partial**. PR #194 shipped
+> a real pure-CL AES-256-GCM file vault with Bun-shaped `get`/`set`/`delete` plus
+> `has`/`list`/`clear`, but it did not implement the row's operating-system keychain capability.
+> The vault receipts prove that subset on four targets; they do not prove Keychain/libsecret behavior,
+> native ACLs and prompts, locked-store semantics, or cross-tool credential interoperability.
 
 Status (historical Phase 58): accepted as **No — constitutional** under the then-active purity-as-exclusion
-reading. That disposition is **revoked** for the matrix row by #179. OS keychain foreign APIs remain
-unused; the Yes realization is the pure vault, not a fake OS keychain.
+reading. Productizing the file vault under #179 advances the row from No to **Partial**, not Yes. The
+original distinction between a Clun vault and OS-keychain parity remains controlling.
 
 ## Objective
 
@@ -68,8 +66,9 @@ impossible under the current purity contract.**
 Secret Service is a D-Bus API. A pure Common Lisp D-Bus client over Unix domain sockets is
 theoretically possible without CFFI. Barriers to ledger `Yes`:
 
-1. **Target matrix** — even a complete Secret Service client does not help Darwin or Windows, and
-   Phase 58 `Yes` requires native jobs on Linux/macOS x64/arm64 with OS store behavior.
+1. **Target matrix** — even a complete Secret Service client addresses only Linux, while Phase 58
+   `Yes` requires native jobs on Linux/macOS x64/arm64 with OS store behavior. Windows is part of
+   Bun's implementation inventory, not Clun's current four-target release gate.
 2. **Session reality** — CI and headless hosts often lack a session bus or unlocked collection;
    Bun already surfaces `libsecret not available` / platform errors. Hermetic locked/unlocked
    fixtures need a real agent, not a file.
@@ -89,8 +88,8 @@ without FFI. It is **not** OS keychain integration: different ACL model, no syst
 sharing with other tools' keychain entries, different threat model. PLAN requires distinguishing an
 encrypted Clun file from OS-keychain parity and never relabeling it.
 
-**Result: out of scope for `security.encrypted-secrets`. If ever productized, it must be a separate
-capability ID and must not be claimed as Bun OS-secrets parity.**
+**Result: this implementation is useful evidence for a Partial row, but it must not be claimed as
+Bun OS-secrets parity or a complete operating-system keychain integration.**
 
 ### Spike D — Optional purity amendment
 
@@ -101,19 +100,18 @@ libsecret / Credential Manager. That path is not taken in this unit. No amendmen
 
 | Option | Disposition |
 | --- | --- |
-| Pure OS keychain on all targets | **Rejected** — Darwin/Windows require native frameworks; Linux-only pure D-Bus fails the four-target gate |
+| Pure OS keychain on all targets | **Rejected** — Darwin requires a native framework, and Linux-only pure D-Bus fails the four-target gate; Windows is inventory-only |
 | Narrow optional-boundary amendment | **Not requested** — purity retained |
 | Explicit unsupported (constitutional) | **Accepted** |
-| File vault labeled as OS secrets | **Rejected** — would falsify the ledger |
+| File vault as an implemented subset | **Accepted as Partial only** — must not be labeled OS-keychain parity or Yes |
 
-**Decision:** retain purity. Ledger row `security.encrypted-secrets` remains **`No`** with detail
-that OS keychain integration is excluded by the purity contract (constitutional). Ship
-`Clun.secrets` that:
+**Current decision:** retain purity. Ledger row `security.encrypted-secrets` is **`Partial`**: the
+file-vault API below is implemented, while OS keychain integration remains an explicit gap and full-port
+target. `Clun.secrets`:
 
 1. exposes Bun-shaped `get` / `set` / `delete` (object form and positional form);
 2. validates arguments with Bun-shaped `TypeError` + `ERR_INVALID_ARG_TYPE` messages;
-3. rejects every store operation with `Error` + `ERR_SECRETS_NOT_AVAILABLE` and a message that
-   names the purity / constitutional checkpoint (not a fake empty store).
+3. stores data in the Clun AES-256-GCM file vault and adds `has` / `list` / `clear`.
 
 ## Public surface (Clun)
 
@@ -126,15 +124,15 @@ Clun.secrets.delete({ service, name }) // or delete(service, name)
 - `Clun.secrets` is a non-configurable data property on `Clun`.
 - Methods return Promises (async shape matches Bun).
 - Invalid arguments reject/throw with `ERR_INVALID_ARG_TYPE` before the constitutional code.
-- Valid calls settle as rejected Promises (async methods) with `ERR_SECRETS_NOT_AVAILABLE`.
-- `allowUnrestrictedAccess` is accepted and ignored for validation parity; it never enables a store.
+- Valid calls perform file-vault operations and settle through Promises.
+- `allowUnrestrictedAccess` is accepted but cannot reproduce OS keychain ACL behavior.
 
 ## Non-goals
 
 - Implementing Keychain, libsecret, or Credential Manager access
 - Shelling out to `security`, `secret-tool`, or similar
-- File-encrypted vault marketed as OS secrets
-- Ledger `Yes` or `Partial` for `security.encrypted-secrets`
+- File-encrypted vault marketed as OS keychain parity
+- Ledger `Yes` before OS keychain behavior and four-target receipts exist
 - Amending the purity contract
 
 ## Evidence and gate
@@ -143,21 +141,19 @@ Clun.secrets.delete({ service, name }) // or delete(service, name)
 | --- | --- |
 | Design + DECISIONS | This document and a DECISIONS.md entry |
 | Lisp suite | Argument validation + constitutional disposition |
-| `make compat FEATURE=security.encrypted-secrets` | Shipped fixture proves API presence and fail-closed errors (PLAN shorthand `os-secrets`) |
-| Platforms | All four targets `unsupported` with constitutional note |
+| `make compat FEATURE=security.encrypted-secrets` | Shipped fixture proves Bun-shaped operations against the Clun file vault only |
+| Platforms | All four targets `unverified` for the full OS-keychain capability; subset receipts remain attached |
 | `make build` / `make test` / `make purity` / `make docs-check` | Green |
-| Ledger claim | Stays **No** (not Yes, not Partial) |
+| Ledger claim | **Partial**, with the OS-keychain gap explicit |
 
 ## Architecture
 
-- `clun.secrets` — engine-free disposition constants, message text, and pure argument checks used by
-  tests without a realm.
-- `clun.runtime` (`clun-secrets.lisp`) — JS coercion, Promise construction, error objects with
-  `code`, install onto `Clun`.
-- No CFFI, no subprocess, no on-disk secret store.
+- `clun.secrets` — engine-free AES-256-GCM vault, key-file handling, serialization, and operations.
+- `clun.runtime` (`clun-secrets.lisp`) — JS coercion, Promise construction, errors, and installation
+  onto `Clun`.
+- No CFFI, subprocess, Keychain, or libsecret integration.
 
 ## SemVer
 
-Public addition of `Clun.secrets` is backward-compatible API surface → prerelease **minor** advance
-on the active `0.1.0-dev.N` train. Compatibility matrix counts stay **9 Yes / 7 Partial / 14 No**
-(no promotion of this row).
+Public addition of the file-vault-backed `Clun.secrets` surface was backward-compatible API work.
+Issue #215 changes only evidence disposition and public claims; its recorded SemVer impact is `none`.

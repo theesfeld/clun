@@ -227,8 +227,10 @@ release_id version asdf_core installer_default tag publication_state license act
 
 Exactly one active row is allowed. Its version must match `src/version.lisp`, its ASDF core must match
 `clun.asd`, its installer default must match `site/install`, and its tag must be `v<version>`. Publication state
-is `candidate` or `published`; the license is exactly `GPL-3.0-or-later`. A candidate uses `pending` for
-`release_commit`; a published row must record the exact 40-character commit peeled from its immutable tag.
+is `candidate` or `published`; the license is exactly `GPL-3.0-or-later`. An untagged candidate uses
+`pending` for `release_commit`; after an immutable candidate tag exists, the row may record the exact
+40-character peeled commit while remaining `candidate` until a GitHub Release and its assets exist. A
+published row must record that exact tagged commit.
 The Phase 27 candidate row records `0.1.0-dev.7`, `v0.1.0-dev.7`, issue `#1`, impact `minor`, and previous
 version `0.1.0-dev.6`.
 
