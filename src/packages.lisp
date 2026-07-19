@@ -78,43 +78,36 @@
    #:vault-path #:default-vault-path
    #:*vault-path-override* #:*master-key-override*))
 
-(defpackage :clun.sql
+(defpackage :clun.s3
   (:use :cl)
-  (:local-nicknames (:crypto :ironclad) (:sys :clun.sys))
-  (:documentation "Pure-CL unified SQL client: PostgreSQL + MySQL wire protocols and embedded SQLite engine (Issue #183). Exceeds Bun.SQL with inspect/stats/export/query-log.")
+  (:local-nicknames (:crypto :ironclad))
+  (:documentation
+   "Pure-CL S3-compatible client (Bun.s3 / S3Client surface + exceed: copy, batch-delete, multipart).")
   (:export
-   ;; errors
-   #:sql-error #:sql-error-message #:sql-error-code #:sql-error-adapter
-   #:sql-error-sqlstate #:sql-error-detail #:sql-error-hint #:sql-error-query
-   #:sql-error-position #:sql-error-errno #:sql-error-severity
-   #:sql-error-schema #:sql-error-table #:sql-error-column #:sql-error-constraint
-   #:sql-error-byte-offset
-   #:postgres-error #:mysql-error #:sqlite-error
-   #:sql-protocol-error #:sql-connection-error #:sql-timeout-error #:sql-cancel-error
-   ;; options / client
-   #:sql-options #:sql-options-p #:so-adapter #:so-hostname #:so-port #:so-username
-   #:so-password #:so-database #:so-filename #:so-max
-   #:parse-sql-url #:merge-sql-options
-   #:sql-client #:sql-client-p #:client-adapter #:client-options #:client-closed
-   #:make-sql-client #:sql-connect #:sql-close #:sql-end #:sql-flush
-   #:sql-execute #:sql-query #:sql-unsafe #:sql-file
-   #:sql-array #:sql-helper #:sql-fragment
-   #:sql-reserve #:sql-release
-   #:sql-begin #:sql-transaction #:sql-savepoint
-   #:sql-begin-distributed #:sql-commit-distributed #:sql-rollback-distributed
-   ;; exceed
-   #:sql-inspect #:sql-stats #:sql-export #:sql-enable-query-log #:sql-query-log
-   #:result-rows #:result-first
-   #:make-sql-fragment #:make-sql-helper #:make-sql-array-parameter
-   #:frag-sql #:frag-params #:helper-value #:helper-columns
-   #:sql-array-parameter
-   ;; mocks for hermetic tests
-   #:*sql-mock-postgres* #:*sql-mock-mysql*
-   ;; low-level backends (tests)
-   #:open-sqlite #:close-sqlite #:sqlite-exec #:sqlite-inspect #:sqlite-export-json
-   #:connect-postgres #:close-postgres #:postgres-exec
-   #:connect-mysql #:close-mysql #:mysql-exec
-   #:compile-template #:serialize-array-parameter))
+   #:s3-error #:s3-error-kind #:s3-error-status #:s3-error-code
+   #:s3-error-message #:s3-error-key #:s3-error-bucket #:s3-error-detail
+   #:s3-options #:s3-options-p #:make-s3-options #:merge-options
+   #:s3o-access-key-id #:s3o-secret-access-key #:s3o-session-token
+   #:s3o-bucket #:s3o-region #:s3o-endpoint #:s3o-virtual-hosted-style
+   #:s3o-path-style #:s3o-part-size #:s3o-retry #:s3o-content-type
+   #:resolve-credentials #:require-credentials
+   #:s3-client #:s3-client-p #:make-s3-client #:client-options #:default-client
+   #:s3-file #:s3-file-p #:s3f-key #:s3f-client #:s3f-start #:s3f-end
+   #:s3-file-slice #:s3-file-get #:s3-file-text #:s3-file-write
+   #:s3-file-delete #:s3-file-exists #:s3-file-stat #:s3-file-presign
+   #:s3-put #:s3-get #:s3-get-text #:s3-delete #:s3-head
+   #:s3-exists #:s3-size #:s3-stat #:s3-stat-p #:s3s-size #:s3s-etag
+   #:s3s-last-modified #:s3s-content-type
+   #:s3-list #:s3-copy #:s3-delete-objects #:s3-write
+   #:s3-create-multipart #:s3-upload-part #:s3-complete-multipart
+   #:s3-abort-multipart
+   #:presign #:sign-request #:signing-key #:create-canonical-request
+   #:create-string-to-sign #:amz-date #:amz-datestamp
+   #:*s3-clock* #:*s3-http-fn*
+   #:s3-http-response #:s3hr-status #:s3hr-headers #:s3hr-body
+   #:make-s3-mock #:s3-mock-handler #:with-s3-mock
+   #:resolve-endpoint #:object-canonical-uri #:%uri-encode #:%sha256-hex
+   #:%empty-payload-hash #:%hex #:%hmac-sha256))
 
 (defpackage :clun.hash
   (:use :cl)
@@ -636,3 +629,41 @@ and concurrent topological script runs.")
    #:parse-workspaces-field #:expand-dep-spec #:resolve-catalog-range
    #:collect-install-deps #:workspace-link-deps #:workspace-topo-waves
    #:run-workspace-scripts #:workspace-spec-p #:catalog-spec-p))
+(defpackage :clun.sql
+  (:use :cl)
+  (:local-nicknames (:crypto :ironclad) (:sys :clun.sys))
+  (:documentation "Pure-CL unified SQL client: PostgreSQL + MySQL wire protocols and embedded SQLite engine (Issue #183). Exceeds Bun.SQL with inspect/stats/export/query-log.")
+  (:export
+   ;; errors
+   #:sql-error #:sql-error-message #:sql-error-code #:sql-error-adapter
+   #:sql-error-sqlstate #:sql-error-detail #:sql-error-hint #:sql-error-query
+   #:sql-error-position #:sql-error-errno #:sql-error-severity
+   #:sql-error-schema #:sql-error-table #:sql-error-column #:sql-error-constraint
+   #:sql-error-byte-offset
+   #:postgres-error #:mysql-error #:sqlite-error
+   #:sql-protocol-error #:sql-connection-error #:sql-timeout-error #:sql-cancel-error
+   ;; options / client
+   #:sql-options #:sql-options-p #:so-adapter #:so-hostname #:so-port #:so-username
+   #:so-password #:so-database #:so-filename #:so-max
+   #:parse-sql-url #:merge-sql-options
+   #:sql-client #:sql-client-p #:client-adapter #:client-options #:client-closed
+   #:make-sql-client #:sql-connect #:sql-close #:sql-end #:sql-flush
+   #:sql-execute #:sql-query #:sql-unsafe #:sql-file
+   #:sql-array #:sql-helper #:sql-fragment
+   #:sql-reserve #:sql-release
+   #:sql-begin #:sql-transaction #:sql-savepoint
+   #:sql-begin-distributed #:sql-commit-distributed #:sql-rollback-distributed
+   ;; exceed
+   #:sql-inspect #:sql-stats #:sql-export #:sql-enable-query-log #:sql-query-log
+   #:result-rows #:result-first
+   #:make-sql-fragment #:make-sql-helper #:make-sql-array-parameter
+   #:frag-sql #:frag-params #:helper-value #:helper-columns
+   #:sql-array-parameter
+   ;; mocks for hermetic tests
+   #:*sql-mock-postgres* #:*sql-mock-mysql*
+   ;; low-level backends (tests)
+   #:open-sqlite #:close-sqlite #:sqlite-exec #:sqlite-inspect #:sqlite-export-json
+   #:connect-postgres #:close-postgres #:postgres-exec
+   #:connect-mysql #:close-mysql #:mysql-exec
+   #:compile-template #:serialize-array-parameter))
+
