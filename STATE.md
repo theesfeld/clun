@@ -13,7 +13,7 @@ Update when work completes; keep consistent with the Issue, README, and site.
 **Parent:** https://github.com/theesfeld/clun/issues/177
 **Current implementation unit:** built-in `clun --update` / `check-update` + GitHub Release ship preparation.
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.68` / `v0.1.0-dev.68`
+**Candidate release:** `0.1.0-dev.69` / `v0.1.0-dev.69`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
 
 **Next scope:** tag/publish after CI green; then post-fullport verification #215.
