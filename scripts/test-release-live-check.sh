@@ -184,5 +184,16 @@ if ! awk '
     'release-live-check test: candidate Pages must configure, upload, deploy, and run its hosted smoke' >&2
   exit 1
 fi
+# shellcheck disable=SC2016 # Match literal workflow variables, not this fixture process.
+for hosted_update_check in \
+  'clun --check-update' \
+  'clun --update' \
+  'test "$install_after" = "$install_before"'; do
+  grep -Fq "$hosted_update_check" "$pages_workflow" || {
+    printf 'release-live-check test: Pages is missing hosted proof: %s\n' \
+      "$hosted_update_check" >&2
+    exit 1
+  }
+done
 
 printf 'release live-check fixtures passed\n'

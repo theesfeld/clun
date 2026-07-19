@@ -114,6 +114,8 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v5
       - name: Smoke test hosted installer and installed launcher
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
@@ -152,3 +154,22 @@ jobs:
             sleep 15
           done
           test "$passed" = 1
+
+          if test "$state" = published; then
+            launcher_before=$(readlink "$bin/clun")
+            install_before=$(
+              cd "$home/.local/share/clun"
+              find . -printf '%P\t%y\t%s\t%T@\t%l\n' | LC_ALL=C sort
+            )
+            check_output=$(HOME="$home" PATH="$bin:$PATH" clun --check-update)
+            test "$check_output" = "clun $version is up to date (latest v$version)"
+            update_output=$(HOME="$home" PATH="$bin:$PATH" clun --update)
+            test "$update_output" = "clun $version needs no update (published latest v$version)"
+            test "$(readlink "$bin/clun")" = "$launcher_before"
+            install_after=$(
+              cd "$home/.local/share/clun"
+              find . -printf '%P\t%y\t%s\t%T@\t%l\n' | LC_ALL=C sort
+            )
+            test "$install_after" = "$install_before"
+            test "$(PATH="$bin:$PATH" clun --version)" = "clun $version"
+          fi
