@@ -22,6 +22,8 @@
                   ~8@Tclun build <entry…>     production bundle (Clun.build / Bun.build)~%~
                   ~8@Tclun fmt [paths…]       format JS/TS/JSON/YAML/CSS (check/write/stdin)~%~
                   ~8@Tclun lint [paths…]      lint JS/TS with recommended ruleset~%~
+                  ~8@Tclun build --compile <entry> --outfile <bin>   single-file executable~%~
+                  ~8@Tclun compile <entry> …  alias of build --compile~%~
                   ~8@Tclun run [--filter <p>] <script>  run package.json scripts (filtered monorepo)~%~
                   ~%~
                   Flags: --cwd <dir>   set the working directory~%~
@@ -567,114 +569,204 @@ Flags: --format stylish|json, --fix, --config PATH, --rule name=severity."
 
 ;;; --- build (tooling.bundler #180) -------------------------------------------
 
-(defun run-build-command (r)
-  "Handle `clun build [entry…]` with Bun-compatible flags."
-  (let ((cwd (resolve-cwd r))
-        (entries '())
-        (outdir nil) (outfile nil) (format "esm") (target "browser")
-        (minify nil) (splitting nil) (sourcemap nil) (metafile nil)
-        (external '()) (define '()) (banner nil) (footer nil)
-        (packages nil) (public-path nil))
-    (loop with rest = (remove nil (cons (cli:cli-get r :file) (cli:cli-get r :args)))
-          while rest
-          for tok = (pop rest) do
-            (cond
-              ((or (string= tok "--outdir") (string= tok "-d"))
-               (if (and rest (not (%flag-p (car rest))))
-                   (setf outdir (pop rest))
-                   (progn (format *error-output* "clun build: ~a needs a value~%" tok)
-                          (return-from run-build-command 2))))
-              ((or (string= tok "--outfile") (string= tok "-o"))
-               (if (and rest (not (%flag-p (car rest))))
-                   (setf outfile (pop rest))
-                   (progn (format *error-output* "clun build: ~a needs a value~%" tok)
-                          (return-from run-build-command 2))))
-              ((string= tok "--format")
-               (if (and rest (not (%flag-p (car rest))))
-                   (setf format (pop rest))
-                   (progn (format *error-output* "clun build: --format needs a value~%")
-                          (return-from run-build-command 2))))
-              ((string= tok "--target")
-               (if (and rest (not (%flag-p (car rest))))
-                   (setf target (pop rest))
-                   (progn (format *error-output* "clun build: --target needs a value~%")
-                          (return-from run-build-command 2))))
-              ((string= tok "--minify") (setf minify t))
-              ((string= tok "--splitting") (setf splitting t))
-              ((string= tok "--sourcemap")
-               (setf sourcemap (if (and rest (not (%flag-p (car rest))))
-                                   (pop rest)
-                                   "inline")))
-              ((string= tok "--metafile") (setf metafile t))
-              ((string= tok "--external")
-               (if (and rest (not (%flag-p (car rest))))
-                   (push (pop rest) external)
-                   (progn (format *error-output* "clun build: --external needs a value~%")
-                          (return-from run-build-command 2))))
-              ((string= tok "--define")
-               (if (and rest (not (%flag-p (car rest))))
-                   (let* ((pair (pop rest))
-                          (eqpos (position #\= pair)))
-                     (if eqpos
-                         (push (cons (subseq pair 0 eqpos) (subseq pair (1+ eqpos))) define)
-                         (push (cons pair "true") define)))
-                   (progn (format *error-output* "clun build: --define needs a value~%")
-                          (return-from run-build-command 2))))
-              ((string= tok "--banner")
-               (when (and rest (not (%flag-p (car rest)))) (setf banner (pop rest))))
-              ((string= tok "--footer")
-               (when (and rest (not (%flag-p (car rest)))) (setf footer (pop rest))))
-              ((string= tok "--packages")
-               (when (and rest (not (%flag-p (car rest)))) (setf packages (pop rest))))
-              ((string= tok "--public-path")
-               (when (and rest (not (%flag-p (car rest)))) (setf public-path (pop rest))))
-              ((%flag-p tok)
-               (format *error-output* "clun build: unknown flag ~a~%" tok)
-               (return-from run-build-command 2))
-              (t (push tok entries))))
-    (setf entries (nreverse entries) external (nreverse external) define (nreverse define))
-    (when (null entries)
-      (format *error-output* "clun build: no entrypoints~%")
-      (return-from run-build-command 2))
-    (unless (or outdir outfile)
-      (setf outdir (sys:path-join cwd "dist")))
+;;; --- single-file executable compile (Issue #181) ---------------------------
+
+(defun run-sfe-compile-command (r)
+  "`clun build --compile` / `clun compile` pure-CL SFE path."
+  (let* ((sub (cli:cli-get r :subcommand))
+         (trailing (remove nil (cons (cli:cli-get r :file) (cli:cli-get r :args))))
+         ;; `clun compile …` implies --compile; `clun build` needs the flag (Bun shape).
+         (argv (if (equal sub "compile")
+                   (cons "--compile" trailing)
+                   trailing))
+         (opts (cli:parse-build-args argv))
+         (cwd (resolve-cwd r)))
+    (when (getf opts :error)
+      (format *error-output* "clun: ~a~%" (getf opts :error))
+      (return-from run-sfe-compile-command 2))
+    (when (getf opts :verify)
+      (let ((v (clun.sfe:verify-path (getf opts :verify))))
+        (format t "ok=~A algo=~A digest=~A signed=~A~@[ error=~A~]~%"
+                (getf v :ok) (getf v :algo) (getf v :digest)
+                (getf v :signed) (getf v :error))
+        (return-from run-sfe-compile-command (if (getf v :ok) 0 1))))
+    (unless (or (getf opts :compile) (equal sub "compile"))
+      (format *error-output*
+              "clun: internal error — SFE path without --compile~%")
+      (return-from run-sfe-compile-command 2))
     (handler-case
-        (let* ((plist (list :entrypoints entries
-                            :outdir outdir
-                            :outfile outfile
-                            :root cwd
-                            :format format
-                            :target target
-                            :minify minify
-                            :splitting splitting
-                            :sourcemap sourcemap
-                            :metafile metafile
-                            :external external
-                            :define define
-                            :banner banner
-                            :footer footer
-                            :packages packages
-                            :public-path public-path
-                            :throw t))
-               (result (clun.bundler:build plist)))
-          (if (clun.bundler:br-success result)
-              (progn
-                (dolist (out (clun.bundler:br-outputs result))
-                  (when (clun.bundler:ba-path out)
-                    (format t "~a  ~a bytes~%"
-                            (clun.bundler:ba-path out)
-                            (length (clun.bundler:ba-text out)))))
-                0)
-              (progn
-                (dolist (log (clun.bundler:br-logs result))
-                  (format *error-output* "clun build: ~a~%" (getf log :message)))
-                1)))
-      (clun.bundler:build-error (e)
-        (format *error-output* "clun build: ~a~%" (clun.bundler:build-error-message e))
-        1)
-      (error (e)
-        (format *error-output* "clun build: ~a~%" e)
+        (if (getf opts :all-targets)
+            (let ((results (clun.sfe:compile-all-targets
+                            (getf opts :entry)
+                            :outfile (getf opts :outfile)
+                            :assets (getf opts :assets)
+                            :defines (getf opts :defines)
+                            :minify (getf opts :minify)
+                            :bytecode (getf opts :bytecode)
+                            :sign (getf opts :sign)
+                            :cwd cwd)))
+              (dolist (res results)
+                (if (getf res :skipped)
+                    (format t "skip ~A: ~A~%" (getf res :target) (getf res :error))
+                    (format t "compiled ~A -> ~A (modules=~A assets=~A buildId=~A)~%"
+                            (getf res :target) (getf res :outfile)
+                            (getf res :modules) (getf res :assets)
+                            (getf res :build-id))))
+              0)
+            (let ((res (clun.sfe:compile-executable
+                        (getf opts :entry)
+                        :outfile (getf opts :outfile)
+                        :target (getf opts :target)
+                        :template (getf opts :template)
+                        :assets (getf opts :assets)
+                        :defines (getf opts :defines)
+                        :minify (getf opts :minify)
+                        :bytecode (getf opts :bytecode)
+                        :sign (getf opts :sign)
+                        :cwd cwd
+                        :host-path (clun.sfe:self-executable-path))))
+              (format t "compiled ~A -> ~A (modules=~A assets=~A buildId=~A~@[ signed~])~%"
+                      (getf res :target) (getf res :outfile)
+                      (getf res :modules) (getf res :assets)
+                      (getf res :build-id) (getf res :signed))
+              0))
+      (clun.sfe:sfe-error (e)
+        (format *error-output* "clun: ~a~%" e)
         1))))
+
+(defun run-sfe-image-if-any (argv)
+  "If this process is a dumped SFE image (and not CLUN_BE_CLUN), run the app.
+   Returns exit code or NIL."
+  (when (clun.sfe:be-clun-mode-p)
+    (return-from run-sfe-image-if-any nil))
+  (when (clun.sfe:image-sfe-p)
+    (return-from run-sfe-image-if-any
+      (clun.sfe::run-image-embedded argv)))
+  nil)
+
+;;; --- build (tooling.bundler #180 + SFE #181) --------------------------------
+
+(defun %build-has-compile-p (rest)
+  "True when trailing build argv requests the SFE compile path."
+  (or (member "--compile" rest :test #'string=)
+      (member "--verify" rest :test #'string=)
+      (member "--targets" rest :test #'string=)
+      (member "--asset" rest :test #'string=)
+      (member "--template" rest :test #'string=)
+      (member "--sign" rest :test #'string=)
+      (member "--bytecode" rest :test #'string=)))
+
+(defun run-build-command (r)
+  "Handle `clun build [entry…]` — bundler by default; SFE when --compile."
+  (let* ((sub (cli:cli-get r :subcommand))
+         (rest (remove nil (cons (cli:cli-get r :file) (cli:cli-get r :args)))))
+    (when (or (equal sub "compile") (%build-has-compile-p rest))
+      (return-from run-build-command (run-sfe-compile-command r)))
+    (let ((cwd (resolve-cwd r))
+          (entries '())
+          (outdir nil) (outfile nil) (format "esm") (target "browser")
+          (minify nil) (splitting nil) (sourcemap nil) (metafile nil)
+          (external '()) (define '()) (banner nil) (footer nil)
+          (packages nil) (public-path nil))
+      (loop with toks = rest
+            while toks
+            for tok = (pop toks) do
+              (cond
+                ((or (string= tok "--outdir") (string= tok "-d"))
+                 (if (and toks (not (%flag-p (car toks))))
+                     (setf outdir (pop toks))
+                     (progn (format *error-output* "clun build: ~a needs a value~%" tok)
+                            (return-from run-build-command 2))))
+                ((or (string= tok "--outfile") (string= tok "-o"))
+                 (if (and toks (not (%flag-p (car toks))))
+                     (setf outfile (pop toks))
+                     (progn (format *error-output* "clun build: ~a needs a value~%" tok)
+                            (return-from run-build-command 2))))
+                ((string= tok "--format")
+                 (if (and toks (not (%flag-p (car toks))))
+                     (setf format (pop toks))
+                     (progn (format *error-output* "clun build: --format needs a value~%")
+                            (return-from run-build-command 2))))
+                ((string= tok "--target")
+                 (if (and toks (not (%flag-p (car toks))))
+                     (setf target (pop toks))
+                     (progn (format *error-output* "clun build: --target needs a value~%")
+                            (return-from run-build-command 2))))
+                ((string= tok "--minify") (setf minify t))
+                ((string= tok "--splitting") (setf splitting t))
+                ((string= tok "--sourcemap") (setf sourcemap t))
+                ((string= tok "--metafile") (setf metafile t))
+                ((string= tok "--external")
+                 (if (and toks (not (%flag-p (car toks))))
+                     (push (pop toks) external)
+                     (progn (format *error-output* "clun build: --external needs a value~%")
+                            (return-from run-build-command 2))))
+                ((string= tok "--define")
+                 (if (and toks (not (%flag-p (car toks))))
+                     (let* ((d (pop toks))
+                            (eq (position #\= d)))
+                       (if eq
+                           (push (cons (subseq d 0 eq) (subseq d (1+ eq))) define)
+                           (progn
+                             (format *error-output* "clun build: --define needs name=value~%")
+                             (return-from run-build-command 2))))
+                     (progn (format *error-output* "clun build: --define needs a value~%")
+                            (return-from run-build-command 2))))
+                ((string= tok "--banner")
+                 (when (and toks (not (%flag-p (car toks)))) (setf banner (pop toks))))
+                ((string= tok "--footer")
+                 (when (and toks (not (%flag-p (car toks)))) (setf footer (pop toks))))
+                ((string= tok "--packages")
+                 (when (and toks (not (%flag-p (car toks)))) (setf packages (pop toks))))
+                ((string= tok "--public-path")
+                 (when (and toks (not (%flag-p (car toks)))) (setf public-path (pop toks))))
+                ((and (> (length tok) 0) (char= (char tok 0) #\-))
+                 (format *error-output* "clun build: unknown flag ~a~%" tok)
+                 (return-from run-build-command 2))
+                (t (push tok entries))))
+      (setf entries (nreverse entries)
+            external (nreverse external)
+            define (nreverse define))
+      (unless entries
+        (format *error-output* "clun build: no entrypoints~%")
+        (return-from run-build-command 2))
+      (handler-case
+          (let* ((plist (list :entrypoints entries
+                              :outdir outdir
+                              :outfile outfile
+                              :root cwd
+                              :target target
+                              :format format
+                              :splitting splitting
+                              :minify minify
+                              :external external
+                              :define define
+                              :banner banner
+                              :footer footer
+                              :packages packages
+                              :public-path public-path
+                              :sourcemap sourcemap
+                              :metafile metafile
+                              :throw t))
+                 (result (clun.bundler:build plist)))
+            (if (clun.bundler:br-success result)
+                (progn
+                  (dolist (out (clun.bundler:br-outputs result))
+                    (when (clun.bundler:ba-path out)
+                      (format t "~a  ~a bytes~%"
+                              (clun.bundler:ba-path out)
+                              (length (clun.bundler:ba-text out)))))
+                  0)
+                (progn
+                  (dolist (log (clun.bundler:br-logs result))
+                    (format *error-output* "clun build: ~a~%" (getf log :message)))
+                  1)))
+        (clun.bundler:build-error (e)
+          (format *error-output* "clun build: ~a~%" (clun.bundler:build-error-message e))
+          1)
+        (error (e)
+          (format *error-output* "clun build: ~a~%" e)
+          1)))))
 
 ;;; --- dispatch ---------------------------------------------------------------
 
@@ -694,7 +786,7 @@ Flags: --format stylish|json, --fix, --config PATH, --rule name=severity."
               (cond
                 ((equal sub "test") (run-test r))
                 ((member sub '("install" "add" "remove") :test #'equal) (run-install-command r))
-                ((equal sub "build") (run-build-command r))
+                ((member sub '("build" "compile") :test #'equal) (run-build-command r))
                 ((member sub '("fmt" "format") :test #'equal) (run-fmt-command r))
                 ((equal sub "lint") (run-lint-command r))
                 ((equal sub "exec") (run-exec r))
@@ -709,19 +801,22 @@ unless --backtrace was passed; JS throws render as the value + stack."
          (code
            (handler-case
                (progn
+                 (when (equal (first argv) "--internal-sfe-dump")
+                   (clun.sfe:perform-image-dump (second argv))
+                   (return-from main 0))
                  (eng::cs-reset-telemetry)
                  (setf eng::*compile-tier-mode* (eng::compile-tier-mode-from-environment)
                        eng::*cs-trace-executions* (eng::compile-tier-trace-enabled-p))
-                 (dispatch argv))
+                 (or (run-sfe-image-if-any argv)
+                     (dispatch argv)))
              (rt:process-exit (c) (rt:process-exit-code c))
              (eng:js-condition (c)
                (render-uncaught (eng:js-condition-value c))
-               (ignore-errors (rt:run-exit-handlers 1))       ; 'exit' fires on uncaught too
+               (ignore-errors (rt:run-exit-handlers 1))
                1)
              (bad-cwd (c)
                (format *error-output* "clun: cannot change directory to '~a'~%" (bad-cwd-dir c))
                2)
-             ;; stack/heap exhaustion → a JS RangeError, never a raw Lisp backtrace
              (storage-condition ()
                (format *error-output* "RangeError: Maximum call stack size exceeded~%")
                (when backtrace (sb-debug:print-backtrace :stream *error-output* :count 30))

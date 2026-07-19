@@ -98,6 +98,15 @@
                               :components ((:file "conditions")
                                            (:file "package-json")
                                            (:file "resolve")))
+                             ;; FULL PORT #181 pure-CL single-file executables
+                             ;; (needs resolver for module graph collection).
+                             (:module "sfe"
+                              :serial t
+                              :components ((:file "format")
+                                           (:file "targets")
+                                           (:file "bundle")
+                                           (:file "sign")
+                                           (:file "compile")))
                              ;; the event loop is pure substrate (no engine deps) and
                              ;; loads before the engine so the async files can call it.
                              (:module "loop"
@@ -246,7 +255,7 @@
                                            (:file "clun-redis") ; Clun.redis pure-CL (#184)
                                            (:file "clun-s3") ; Clun.s3 pure-CL (#185)
                                            (:file "clun-sql") ; Clun.SQL pure-CL (#183)
-                                           (:file "clun-build") ; Clun.build pure-CL bundler (#180)
+                                           (:file "clun-build") ; Clun.build bundler (#180) + SFE compile (#181)
                                            (:file "clun-fmt-lint") ; Clun.format / Clun.lint (#190)
                                            (:file "clun-string-width") ; Clun.stringWidth (Phase 33) — before clun-global
                                            (:file "clun-glob") ; Clun.Glob (Phase 30) — before clun-global
@@ -331,6 +340,9 @@
                                            (:module "redis"
                                             :serial t
                                             :components ((:file "redis-tests")))
+                                           (:module "sfe"
+                                            :serial t
+                                            :components ((:file "sfe-tests")))
                                            (:module "sql"
                                             :serial t
                                             :components ((:file "sql-tests")))

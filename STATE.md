@@ -9,7 +9,7 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ## Current phase: **69 - Formatter**  (FULL PORT Yes #190)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/43
+**Canonical issue:** https://github.com/theesfeld/clun/issues/190
 **Parent:** https://github.com/theesfeld/clun/issues/177
 **Current implementation unit:** tooling.formatter-linter full port Yes (#190) pure-CL fmt+lint exceeding Bun.
 **SemVer impact:** `minor`

@@ -336,4 +336,9 @@ Phase 62 bundler FULL PORT (#180) stages free `0.1.0-dev.55` / `v0.1.0-dev.55`; 
 Phase 68 frontend-dev-server FULL PORT (#189) stages free `0.1.0-dev.54` / `v0.1.0-dev.54`; SemVer impact is `minor`.
 Phase 69 frontend-dev FULL PORT (#189) stages free `0.1.0-dev.56` / `v0.1.0-dev.56`; SemVer impact is `minor`.
 
-Phase 69–70 / Issue #190 promotes `tooling.formatter-linter` No→Yes as immutable prerelease `0.1.0-dev.60` / `v0.1.0-dev.60` (minor; pure-CL first-party fmt+lint exceeding Bun).
+Phase 68 frontend-dev-server FULL PORT (#189) stages free `0.1.0-dev.54` / `v0.1.0-dev.54`; SemVer impact is `minor`.
+Phase 69 frontend-dev FULL PORT (#189) stages free `0.1.0-dev.56` / `v0.1.0-dev.56`; SemVer impact is `minor`.
+
+Phase 52 single-file executables FULL PORT (#181) stages free `0.1.0-dev.57` / `v0.1.0-dev.57` with pure-CL compile/cross-compile/embed/sign exceeding Bun compile; SemVer impact is `minor`.
+Phase 69–70 tooling.formatter-linter FULL PORT (#190) stages free `0.1.0-dev.60` / `v0.1.0-dev.60` with pure-CL `clun fmt`/`clun lint` and `Clun.format`/`Clun.lint` exceeding Bun (no first-party fmt/lint); SemVer impact is `minor`.
+

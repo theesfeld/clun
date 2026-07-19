@@ -487,13 +487,40 @@
    #:gunzip #:zlib-decompress #:raw-inflate
    #:gzip-magic-p))
 
+(defpackage :clun.sfe
+  (:use :cl)
+  (:local-nicknames (:sys :clun.sys) (:crypto :ironclad) (:eng :clun.engine))
+  (:documentation
+   "Pure-CL single-file executables (FULL PORT #181 / epic #177).
+    Compile, cross-compile via offline templates, embed assets, pure-CL sign/verify.
+    Exceeds Bun compile: multi-target offline packaging, all-platform signatures,
+    registerTemplate, verify without codesign, GPL source notice, reproducible build-id.")
+  (:export
+   #:sfe-error #:sfe-error-kind #:sfe-error-detail
+   #:+sea-magic+ #:+sea-version+
+   #:sea-file-p #:open-sea #:strip-sea #:write-sea #:read-footer
+   #:encode-payload #:decode-payload
+   #:host-target #:normalize-target #:all-four-targets
+   #:register-template #:clear-templates #:list-templates #:resolve-template
+   #:self-executable-path
+   #:collect-module-graph #:load-assets #:prepare-modules
+   #:generate-signing-key #:sign-payload #:verify-payload #:verify-sea
+   #:payload-digest-hex
+   #:compile-executable #:compile-all-targets
+   #:sea-boot-info #:materialize-modules #:be-clun-mode-p
+   #:install-embedded-assets #:embedded-asset #:embedded-asset-text
+   #:*embedded-sea* #:*embedded-assets*
+   #:+gpl-source-notice+
+   #:perform-image-dump #:image-sfe-p #:verify-path
+   #:*sfe-image-mode* #:*sfe-entry* #:*sfe-manifest*))
 ;; --- dependent layer (local-nicknames into the base packages above) ---------
 
 (defpackage :clun.cli
   (:use :cl)
   (:local-nicknames (:eng :clun.engine) (:sys :clun.sys))
   (:documentation "Per-command argument parsing, help/version, .env loader.")
-  (:export #:parse-cli-args #:cli-action #:cli-get #:load-dotenv))
+  (:export #:parse-cli-args #:cli-action #:cli-get #:load-dotenv
+           #:parse-build-args))
 
 (defpackage :clun.runtime
   (:use :cl)

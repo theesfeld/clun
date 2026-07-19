@@ -3382,3 +3382,14 @@ JS/TS/JSX/JSON/YAML/CSS formatting with check/write/stdin/ignore; versioned
 recommended lint ruleset with stylish+JSON reporters and safe fixes. Exceeds
 Bun (no first-party fmt/lint). Soft-outs rejected. Candidate `0.1.0-dev.57`.
 Parent epic #177.
+
+## 2026-07-19 — tooling.single-file-executables Yes (Issue #181)
+
+Pure-CL single-file executables: `clun build --compile` / `Clun.build({compile})` with
+module graph, embedded assets, Ed25519/HMAC sign+verify, cross-target offline portable
+CLUNSEA packages, and native SBCL image-dump packaging (append trailers break SBCL core-at-EOF).
+Exceeds Bun: all-platform signatures, `Clun.compile.registerTemplate`, `CLUN_BE_CLUN`, GPL source
+notice, reproducible build-id. Coexists with bundler `Clun.build` (#180): compile option routes
+to SFE; default remains production bundle. Ledger Yes, gap `-`, four-target supported.
+Slot `0.1.0-dev.57` after master frontend-dev Yes `0.1.0-dev.56`.
+Refs: #181, #177
