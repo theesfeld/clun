@@ -7,14 +7,15 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **38 - Web platform foundations**  (FULL PORT Yes #207)
+## Current phase: **69 - Formatter**  (FULL PORT Yes #190)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/12
+**Canonical issue:** https://github.com/theesfeld/clun/issues/43
 **Parent:** https://github.com/theesfeld/clun/issues/177
-**Current implementation unit:** runtime.web-standard-apis full port Yes (#207) pure-CL Web Standard surface exceeding Bun.
+**Full-port child:** https://github.com/theesfeld/clun/issues/190
+**Current implementation unit:** tooling.formatter-linter full port Yes (#190) pure-CL fmt+lint exceeding Bun.
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.64` / `v0.1.0-dev.64`
+**Candidate release:** `0.1.0-dev.65` / `v0.1.0-dev.65`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
-**Entry boundary:** installer on `v0.1.0-dev.21`; free slot after master Phase 37 m4 Yes `0.1.0-dev.63`.
+**Entry boundary:** installer on `v0.1.0-dev.21`; free slot after master webstd Yes `0.1.0-dev.64`.
 
 **Next scope:** remaining FULL PORT ledger Nos/Partials under #177.

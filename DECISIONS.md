@@ -3418,3 +3418,12 @@ GetV-based thenable Invoke, and null-proto CreateKeyedPromiseCombinatorResultObj
 Focused gate `make phase-37-m4-check` is 74/74. Stages `0.1.0-dev.63` (free after master tip TypeScript Yes `0.1.0-dev.59`; concurrent open trains claim `.58`/`.60`–`.62`; previous_version remains published `0.1.0-dev.21`). No matrix Yes; Phase 37 remains open with residual
 ownership 378.
 Refs: #11
+
+## 2026-07-19 — tooling.formatter-linter full port Yes (#190)
+
+Pure-CL first-party `clun fmt` / `clun lint` and `Clun.format` / `Clun.lint`.
+JS/TS/JSX/JSON/YAML/CSS formatting with check/write/stdin/ignore; versioned
+recommended lint ruleset with stylish+JSON reporters and safe fixes. Exceeds
+Bun (no first-party fmt/lint). Soft-outs rejected. Candidate `0.1.0-dev.65`
+after master webstd Yes `0.1.0-dev.64`. Parent epic #177; phase #43.
+Refs: #190, #43, #177
