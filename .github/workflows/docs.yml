@@ -59,6 +59,7 @@ jobs:
       - uses: actions/checkout@v7
       - run: sh scripts/public-claims-check.sh
       - run: make test-compat-tools
+      - run: sh scripts/roadmap.sh test-issue-contract
       - name: Verify canonical live roadmap issues
         if: github.event_name == 'push'
         env:
