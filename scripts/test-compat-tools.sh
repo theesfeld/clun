@@ -554,6 +554,11 @@ expect_pass pristine-validate "$pristine" validate
 expect_pass pristine-docs-check "$pristine" check
 
 fresh_case tagged-candidate-render
+# A fresh release candidate is pending by definition. Exercise the distinct
+# immutable-tag/no-Release rendering state explicitly instead of depending on
+# whatever state the repository's current candidate happens to have.
+mutate_release_commit "$case_root/compat/release.tsv" \
+  7895ac1263e7b61e57eb310a3546cc083f02034d
 expect_pass tagged-candidate-generate "$case_root" generate
 grep -F 'Tag only / no Release' "$case_root/site/index.html" >/dev/null 2>&1 ||
   fail 'tagged candidate render did not expose the tag-only publication state'

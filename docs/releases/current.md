@@ -1,9 +1,9 @@
 <!-- clun-generated:release-notes:begin -->
-# Clun 0.1.0-dev.69
+# Clun 0.1.0-dev.70
 
 Phase 82: Purity-compatible Bun-surface final audit and release.
 
-- SemVer impact: `minor` within the selected `0.1.0` prerelease train.
+- SemVer impact: `patch` within the selected `0.1.0` prerelease train.
 - Compatibility snapshot: 28 Yes / 2 Partial / 0 No across 30 generated rows.
 - Public baseline: Bun 1.3.14; engineering baseline: Bun `c1076ce95e`.
 - Target release platforms: Linux and macOS, x64 and arm64.
@@ -13,5 +13,7 @@ The canonical evidence and current limitations are in `compat/`; `make compat-va
 <!-- clun-generated:release-notes:end -->
 ## Highlights
 
-- Issue #191 promotes `runtime.node-compatibility` Partial→**Yes** (pure-CL Node surface exceeding Bun).
-- Slot: free `0.1.0-dev.68` after master Phase 37 m4 `0.1.0-dev.63` (webstd `.64`, fmt-lint `.65`, native-addons `.66`).
+- Issue #219 recovers the immutable tag-only dev.69 candidate on a new dev.70 slot.
+- Darwin workspace links now survive the `/tmp` to `/private/tmp` alias, blocking HTTPS completes on
+  valid framing without weakening truncation checks, and CookieMap timing remains strict but deterministic.
+- Darwin CI removes the runner image's untrusted `aws/tap` before Homebrew dependency resolution.

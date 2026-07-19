@@ -10,10 +10,9 @@ Clun does not claim blanket speed parity with Bun.
 
 <!-- clun-generated:release:begin -->
 > **Status: pre-alpha, under active construction.** [Phase 82](https://github.com/theesfeld/clun/issues/56) is in progress.
-> Its release-bearing target is `0.1.0-dev.69` / `v0.1.0-dev.69` (SemVer impact: `minor`).
-> The annotated tag `v0.1.0-dev.69` points to candidate commit `7895ac1263e7b61e57eb310a3546cc083f02034d`, but no GitHub Release or release assets were published.
-> The latest verified installable boundary remains `v0.1.0-dev.21`, with four native archives, checksums, Pages, and hosted-installer evidence.
-> Audit/evidence records: [truth audit #215](https://github.com/theesfeld/clun/issues/215) and [issue reconciliation #220](https://github.com/theesfeld/clun/issues/220). Active release work: [dev.69 release record #216](https://github.com/theesfeld/clun/issues/216) and [release recovery #219](https://github.com/theesfeld/clun/issues/219).
+> Its release-bearing target is `0.1.0-dev.70` / `v0.1.0-dev.70` (SemVer impact: `patch`).
+> The verified release boundary is `v0.1.0-dev.21`, with four native archives, checksums, Pages,
+> and hosted-installer evidence.
 > Phase 26 remains deferred until after Phase 82 and will
 > be rewritten for the repository state that exists then.
 > Clun's full-port target requires every ledger Yes to survive executable and public-claim audit. The current snapshot is 28 Yes / 2 Partial / 0 No; qualified evidence is not treated as complete.
@@ -21,13 +20,14 @@ Clun does not claim blanket speed parity with Bun.
 > the local resume checklist.
 <!-- clun-generated:release:end -->
 
-The exact current source is `0.1.0-dev.69`. Its annotated tag points to the source commit, but the
-GitHub Release and assets were not published; [`v0.1.0-dev.21`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.21)
+The exact current source is the `0.1.0-dev.70` recovery candidate. The immutable annotated
+`v0.1.0-dev.69` tag points to its source commit, but its GitHub Release and assets were not published;
+[`v0.1.0-dev.21`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.21)
 therefore remains the verified installable boundary. The generated ledger is the current evidence
 snapshot. [Truth audit #215](https://github.com/theesfeld/clun/issues/215) records the qualified-claim
 review, and [issue reconciliation #220](https://github.com/theesfeld/clun/issues/220) records the
 canonical issue alignment. Active release work remains in the
-[dev.69 release record #216](https://github.com/theesfeld/clun/issues/216) and
+[dev.70 release record #216](https://github.com/theesfeld/clun/issues/216) and
 [release recovery #219](https://github.com/theesfeld/clun/issues/219).
 
 ## Install
@@ -54,7 +54,8 @@ The installer detects x86-64 or arm64, verifies the release SHA-256 checksum, an
 both architectures. macOS archives target macOS 13.0 or newer, but are runtime-tested on macOS 15.
 Windows is not supported.
 
-Clun is still pre-alpha. In particular, `clun install` is verified against the hermetic registry
+Clun is still pre-alpha; pre-1.0 minor versions may include breaking changes. In particular,
+`clun install` is verified against the hermetic registry
 fixture, but the default public npm registry currently hits a TLS `protocol_version`
 interoperability gap.
 
@@ -180,11 +181,10 @@ workflows are read-only and fail closed if the canonical issues, README, or site
 
 <!-- clun-generated:release-summary:begin -->
 Release versions follow the actual SemVer impact recorded in the canonical issue, not the number of pushes.
-The current source is the `0.1.0-dev.69` release candidate. Its annotated [`v0.1.0-dev.69`](https://github.com/theesfeld/clun/tree/v0.1.0-dev.69) points to commit `7895ac1263e7b61e57eb310a3546cc083f02034d`, but no GitHub Release or release assets were published.
+The current source is the `0.1.0-dev.70` release candidate; the immutable tag and assets are not published yet.
 The last published prerelease remains [`v0.1.0-dev.21`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.21).
 [The versioning contract](docs/versioning.md) defines prerelease sequencing, synchronized surfaces, immutable tags, assets, and installer evidence.
 [Phase 82 issue #56](https://github.com/theesfeld/clun/issues/56) is the canonical live release record.
-Audit/evidence records: [truth audit #215](https://github.com/theesfeld/clun/issues/215) and [issue reconciliation #220](https://github.com/theesfeld/clun/issues/220). Active release work remains tracked in [dev.69 release record #216](https://github.com/theesfeld/clun/issues/216) and [release recovery #219](https://github.com/theesfeld/clun/issues/219).
 <!-- clun-generated:release-summary:end -->
 
 ## The purity contract
@@ -224,7 +224,7 @@ vendored under `vendor/` and located via `scripts/registry.lisp`.
 make build     # compile everything, save build/clun (save-lisp-and-die)
 make test      # run the CL suites and JS/TS fixture harnesses
 make purity    # fail on any CFFI/foreign-code token
-./build/clun --version   # => clun 0.1.0-dev.69
+./build/clun --version   # => clun 0.1.0-dev.70
 ```
 
 A fresh clone builds with `make build` alone: ASDF compiles the vendored closure and `src/` into
