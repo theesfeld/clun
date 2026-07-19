@@ -9,7 +9,7 @@ targets are workload-specific and published;
 Clun does not claim blanket speed parity with Bun.
 
 <!-- clun-generated:release:begin -->
-> **Status: pre-alpha, under active construction.** [Phase 47](https://github.com/theesfeld/clun/issues/21) is in progress.
+> **Status: pre-alpha, under active construction.** [Phase 47](https://github.com/theesfeld/clun/issues/191) is in progress.
 > Its release-bearing target is `0.1.0-dev.67` / `v0.1.0-dev.67` (SemVer impact: `minor`).
 > The verified release boundary is `v0.1.0-dev.21`, with four native archives, checksums, Pages,
 > and hosted-installer evidence.
@@ -109,7 +109,7 @@ July 16, 2026. Engineering references are separately pinned to Bun commit `c1076
 | Capability | Current pre-alpha state | Evidence-backed target |
 |---|---|---|
 | Node.js compatibility | Yes: pure-CL Bun-comparable node: matrix (54 builtins: assert async_hooks buffer child_process cluster console constants crypto dgram diagnostics_channel dns domain events fs http http2 https inspector module net os path perf_hooks process punycode querystring readline repl sqlite stream string_decoder sys timers tls trace_events tty url util v8 vm wasi worker_threads zlib test); exceeds Bun on sqlite module.register registerHooks createSecurePair repl | Phases [42](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-42), [43](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-43), [44](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-44), [45](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-45), [46](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-46), [47](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-47) |
-| Web Standard APIs | Partial: streaming fetch, clone/tee, timeouts, HTTP/HTTPS proxy and pooling, ReadableStream/WritableStream/TransformStream, Response/Request.body streams; remaining Web surface (full Streams edge cases, broader standards globals, residual network stress) full-port in progress | [Phase 38](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-38) |
+| Web Standard APIs | Yes: `fetch` with streaming clone/tee, operation-wide timeouts, HTTP proxy and HTTPS CONNECT including proxy object `{url,headers}`, plain HTTP and origin-keyed pure-tls HTTPS idle pooling; URL/URLSearchParams; Headers/Request/Response/Blob/File/FormData; AbortController/AbortSignal; Event/EventTarget/CustomEvent/DOMException; TextEncoder/TextDecoder; atob/btoa; performance.now; MessageChannel/MessagePort; crypto.randomUUID/getRandomValues and crypto.subtle.digest; ReadableStream default and BYOB readers, WritableStream, TransformStream with pipeTo/pipeThrough, CountQueuingStrategy/ByteLengthQueuingStrategy; CompressionStream/DecompressionStream (gzip/deflate/deflate-raw); structuredClone; WebSocket client; hermetic large-transfer and network-stress receipts (exceeds Bun pure-CL surface) | [Phase 38](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-38) |
 | Native addons | No: not yet implemented (full-port target) | [Phase 48](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-48) |
 | TypeScript | Yes: pure Common Lisp TypeScript execution: erasable strip, enums, namespaces, parameter properties, experimental decorators, import=/export=, angle-bracket casts, .tsx via JSX lower+strip, and structural typecheck CLI (clun tsc) exceeding Bun (Bun has no typecheck) | [Phase 39](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-39) |
 | JSX | Yes: pure Common Lisp JSX and TSX parse, transform, and execute with classic React.createElement and automatic jsx/jsxs/Fragment runtimes, file pragmas, tsconfig/jsconfig compilerOptions, fragments, spreads, nested expressions, member tags, HTML entity decoding, and built-in offline helpers that run without a react package (exceeds Bun) | [Phase 40](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-40) |
@@ -170,7 +170,7 @@ Release versions follow the actual SemVer impact recorded in the canonical issue
 The current source is the `0.1.0-dev.67` release candidate; the immutable tag and assets are not published yet.
 The last published prerelease remains [`v0.1.0-dev.21`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.21).
 [The versioning contract](docs/versioning.md) defines prerelease sequencing, synchronized surfaces, immutable tags, assets, and installer evidence.
-[Phase 47 issue #21](https://github.com/theesfeld/clun/issues/21) is the canonical live release record.
+[Phase 47 issue #191](https://github.com/theesfeld/clun/issues/191) is the canonical live release record.
 <!-- clun-generated:release-summary:end -->
 
 ## The purity contract

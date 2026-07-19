@@ -4,7 +4,7 @@
 Phase 47: Node compatibility certification.
 
 - SemVer impact: `minor` within the selected `0.1.0` prerelease train.
-- Compatibility snapshot: 27 Yes / 1 Partial / 2 No across 30 generated rows.
+- Compatibility snapshot: 28 Yes / 0 Partial / 2 No across 30 generated rows.
 - Public baseline: Bun 1.3.14; engineering baseline: Bun `c1076ce95e`.
 - Target release platforms: Linux and macOS, x64 and arm64.
 - License: `GPL-3.0-or-later`.
