@@ -1,7 +1,7 @@
 <!-- clun-generated:release-notes:begin -->
-# Clun 0.1.0-dev.67
+# Clun 0.1.0-dev.68
 
-Phase 47: Node compatibility certification.
+Phase 82: Purity-compatible Bun-surface final audit and release.
 
 - SemVer impact: `minor` within the selected `0.1.0` prerelease train.
 - Compatibility snapshot: 30 Yes / 0 Partial / 0 No across 30 generated rows.
@@ -14,4 +14,4 @@ The canonical evidence and current limitations are in `compat/`; `make compat-va
 ## Highlights
 
 - Issue #191 promotes `runtime.node-compatibility` Partial→**Yes** (pure-CL Node surface exceeding Bun).
-- Slot: free `0.1.0-dev.67` after master Phase 37 m4 `0.1.0-dev.63` (webstd `.64`, fmt-lint `.65`, native-addons `.66`).
+- Slot: free `0.1.0-dev.68` after master Phase 37 m4 `0.1.0-dev.63` (webstd `.64`, fmt-lint `.65`, native-addons `.66`).

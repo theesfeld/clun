@@ -7,15 +7,13 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **47 - Node compatibility certification**  (FULL PORT Yes #191)
+## Current phase: **82 - Purity-compatible Bun-surface final audit and release**  (Release ship #216)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/21
+**Canonical issue:** https://github.com/theesfeld/clun/issues/56
 **Parent:** https://github.com/theesfeld/clun/issues/177
-**Full-port child:** https://github.com/theesfeld/clun/issues/191
-**Current implementation unit:** runtime.node-compatibility full port Yes (#191) pure-CL Node surface exceeding Bun.
+**Current implementation unit:** built-in `clun --update` / `check-update` + GitHub Release ship preparation.
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.67` / `v0.1.0-dev.67`
+**Candidate release:** `0.1.0-dev.68` / `v0.1.0-dev.68`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
-**Entry boundary:** installer on `v0.1.0-dev.21`; free slot after master native-addons Yes `0.1.0-dev.66`.
 
-**Next scope:** remaining FULL PORT under #177.
+**Next scope:** tag/publish after CI green; then post-fullport verification #215.

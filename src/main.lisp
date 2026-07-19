@@ -40,6 +40,9 @@
                   ~8@T--backtrace       show the Lisp backtrace on an internal error~%~
                   ~8@T-v, --version     print the version~%~
                   ~8@T--revision        print the build revision~%~
+                  ~8@T--update          download latest GitHub Release and replace this binary~%~
+                  ~8@T--check-update    report whether a newer Release is available (no mutation)~%~
+                  ~8@Tclun update / check-update  same as --update / --check-update~%~
                   ~8@T-h, --help        print this help~%"
           *clun-version*))
 
@@ -788,6 +791,8 @@ remaining argv tokens; exit 1 when any diagnostic is reported."
       (:version (print-version) 0)
       (:revision (format t "~a~%" *clun-revision*) 0)
       (:help (print-help) 0)
+      (:update (cli:perform-update))
+      (:check-update (cli:check-update))
       (:error (format *error-output* "clun: ~a~%note: run `clun --help` for usage~%"
                       (cli:cli-get r :error-msg))
               2)
