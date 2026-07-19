@@ -64,12 +64,19 @@
 
 (defpackage :clun.secrets
   (:use :cl)
-  (:documentation "Engine-free OS-secrets constitutional disposition (Phase 58).")
+  (:local-nicknames (:crypto :ironclad))
+  (:documentation
+   "Engine-free pure-CL encrypted secrets vault (Bun.secrets API + exceed surface).")
   (:export
-   #:secrets-error #:secrets-error-kind #:secrets-error-detail
+   #:secrets-error #:secrets-error-kind #:secrets-error-detail #:secrets-error-code
    #:+not-available-code+ #:+not-available-message+
-   #:os-secrets-available-p #:reject-os-secrets
-   #:validate-service-name #:validate-set-value))
+   #:+platform-error-code+ #:+access-denied-code+
+   #:secrets-available-p #:os-secrets-available-p #:reject-os-secrets
+   #:validate-service-name #:validate-set-value
+   #:secrets-get #:secrets-set #:secrets-delete
+   #:secrets-has #:secrets-list #:secrets-clear
+   #:vault-path #:default-vault-path
+   #:*vault-path-override* #:*master-key-override*))
 
 (defpackage :clun.hash
   (:use :cl)

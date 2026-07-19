@@ -209,7 +209,7 @@
                                            (:file "clun-semver"); Clun.semver (Phase 29) — before clun-global
                                            (:file "clun-csrf")  ; Clun.CSRF (Phase 35) — before clun-global
                                            (:file "clun-password-hash") ; Clun.password/hash (Phase 36)
-                                           (:file "clun-secrets") ; Clun.secrets (Phase 58 constitutional)
+                                           (:file "clun-secrets") ; Clun.secrets pure-CL vault (#179)
                                            (:file "clun-string-width") ; Clun.stringWidth (Phase 33) — before clun-global
                                            (:file "clun-glob") ; Clun.Glob (Phase 30) — before clun-global
                                            (:file "clun-filesystem-router") ; Clun.FileSystemRouter (Phase 50)

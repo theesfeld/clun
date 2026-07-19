@@ -51,10 +51,10 @@ runtime.web-standard-apis	darwin-arm64	supported	ev.runtime.web-standard-apis.ba
 runtime.web-standard-apis	darwin-x64	supported	ev.runtime.web-standard-apis.basic.v1,ev.runtime.web-standard-apis.fetch-suite.v1,ev.runtime.web-standard-apis.proxy-suite.v1,ev.runtime.web-standard-apis.streams-stress.v1,ev.runtime.web-standard-apis.streams-suite.v1	The complete public Web Standard surface executes through the shipped binary.
 runtime.web-standard-apis	linux-arm64	supported	ev.runtime.web-standard-apis.basic.v1,ev.runtime.web-standard-apis.fetch-suite.v1,ev.runtime.web-standard-apis.proxy-suite.v1,ev.runtime.web-standard-apis.streams-stress.v1,ev.runtime.web-standard-apis.streams-suite.v1	The complete public Web Standard surface executes through the shipped binary.
 runtime.web-standard-apis	linux-x64	supported	ev.runtime.web-standard-apis.basic.v1,ev.runtime.web-standard-apis.fetch-suite.v1,ev.runtime.web-standard-apis.proxy-suite.v1,ev.runtime.web-standard-apis.streams-stress.v1,ev.runtime.web-standard-apis.streams-suite.v1	The complete public Web Standard surface executes through the shipped binary.
-security.encrypted-secrets	darwin-arm64	unsupported	-	Not yet implemented — FULL PORT #179 Clun.secrets exceeding Bun.secrets.
-security.encrypted-secrets	darwin-x64	unsupported	-	Not yet implemented — FULL PORT #179 Clun.secrets exceeding Bun.secrets.
-security.encrypted-secrets	linux-arm64	unsupported	-	Not yet implemented — FULL PORT #179 Clun.secrets exceeding Bun.secrets.
-security.encrypted-secrets	linux-x64	unsupported	-	Not yet implemented — FULL PORT #179 Clun.secrets exceeding Bun.secrets.
+security.encrypted-secrets	darwin-arm64	supported	ev.security.encrypted-secrets.core-suite.v1,ev.security.encrypted-secrets.public.v1	Pure-CL AES-256-GCM vault; Bun.secrets API plus has/list/clear.
+security.encrypted-secrets	darwin-x64	supported	ev.security.encrypted-secrets.core-suite.v1,ev.security.encrypted-secrets.public.v1	Pure-CL AES-256-GCM vault; Bun.secrets API plus has/list/clear.
+security.encrypted-secrets	linux-arm64	supported	ev.security.encrypted-secrets.core-suite.v1,ev.security.encrypted-secrets.public.v1	Pure-CL AES-256-GCM vault; Bun.secrets API plus has/list/clear.
+security.encrypted-secrets	linux-x64	supported	ev.security.encrypted-secrets.core-suite.v1,ev.security.encrypted-secrets.public.v1	Pure-CL AES-256-GCM vault; Bun.secrets API plus has/list/clear.
 security.password-hashing	darwin-arm64	supported	ev.security.password-hashing.public.v1	The complete public surface executes through the shipped binary.
 security.password-hashing	darwin-x64	supported	ev.security.password-hashing.public.v1	The complete public surface executes through the shipped binary.
 security.password-hashing	linux-arm64	supported	ev.security.password-hashing.public.v1	The complete public surface executes through the shipped binary.

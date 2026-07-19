@@ -1,8 +1,8 @@
-;;;; clun-secrets.lisp -- Clun.secrets JavaScript boundary (Phase 58).
+;;;; clun-secrets.lisp -- Clun.secrets JavaScript boundary (Issue #179 FULL PORT).
 ;;;;
-;;;; Fail-closed OS-secrets surface: Bun-shaped argument validation, then
-;;;; ERR_SECRETS_NOT_AVAILABLE. Never stores credentials and never opens a
-;;;; keychain, D-Bus session, or file vault under this API.
+;;;; Bun-compatible get/set/delete (service/name, empty-value delete,
+;;;; allowUnrestrictedAccess) backed by the pure-CL AES-256-GCM vault.
+;;;; Exceed surface: has, list, clear.
 
 (in-package :clun.runtime)
 
@@ -11,28 +11,64 @@
     (eng:js-set error "code" "ERR_INVALID_ARG_TYPE" nil)
     (eng:throw-js-value error)))
 
-(defun %secrets-not-available-error ()
-  (let ((error (eng:make-error-object
-                :error-prototype "Error"
-                clun.secrets:+not-available-message+)))
-    (eng:js-set error "code" clun.secrets:+not-available-code+ nil)
+(defun %secrets-error-object (condition)
+  (let* ((kind (clun.secrets:secrets-error-kind condition))
+         (detail (or (clun.secrets:secrets-error-detail condition)
+                     (string kind)))
+         (code (or (clun.secrets:secrets-error-code condition)
+                   (case kind
+                     (:access-denied clun.secrets:+access-denied-code+)
+                     (:platform-error clun.secrets:+platform-error-code+)
+                     (:not-available clun.secrets:+not-available-code+)
+                     (t clun.secrets:+platform-error-code+))))
+         (name (if (eq kind :invalid-arg) "TypeError" "Error"))
+         (proto (if (eq kind :invalid-arg)
+                    :type-error-prototype
+                    :error-prototype))
+         (error (eng:make-error-object proto name detail)))
+    (eng:js-set error "code"
+                (if (eq kind :invalid-arg) "ERR_INVALID_ARG_TYPE" code)
+                nil)
     error))
 
-(defun %secrets-throw-not-available ()
-  (eng:throw-js-value (%secrets-not-available-error)))
+(defun %secrets-resolved-promise (global value)
+  (eng:js-construct
+   (eng:js-get global "Promise")
+   (list
+    (eng:make-native-function
+     "" 2
+     (lambda (this args)
+       (declare (ignore this))
+       (eng:js-call (eng:arg args 0) eng:+undefined+ (list value))
+       eng:+undefined+)))))
 
-(defun %secrets-rejected-promise (global)
-  "Promise that rejects with ERR_SECRETS_NOT_AVAILABLE (async path)."
-  (let ((error (%secrets-not-available-error)))
-    (eng:js-construct
-     (eng:js-get global "Promise")
-     (list
-      (eng:make-native-function
-       "" 2
-       (lambda (this args)
-         (declare (ignore this))
-         (eng:js-call (eng:arg args 1) eng:+undefined+ (list error))
-         eng:+undefined+))))))
+(defun %secrets-rejected-promise (global error)
+  (eng:js-construct
+   (eng:js-get global "Promise")
+   (list
+    (eng:make-native-function
+     "" 2
+     (lambda (this args)
+       (declare (ignore this))
+       (eng:js-call (eng:arg args 1) eng:+undefined+ (list error))
+       eng:+undefined+)))))
+
+(defmacro %secrets-async ((global) &body body)
+  (let ((g (gensym)) (e (gensym)))
+    `(let ((,g ,global))
+       (handler-case (%secrets-resolved-promise ,g (progn ,@body))
+         (clun.secrets:secrets-error (,e)
+           (if (eq (clun.secrets:secrets-error-kind ,e) :invalid-arg)
+               (eng:throw-js-value (%secrets-error-object ,e))
+               (%secrets-rejected-promise ,g (%secrets-error-object ,e))))
+         (error (,e)
+           (%secrets-rejected-promise
+            ,g
+            (let ((err (eng:make-error-object
+                        :error-prototype "Error"
+                        (format nil "~A" ,e))))
+              (eng:js-set err "code" clun.secrets:+platform-error-code+ nil)
+              err)))))))
 
 (defun %secrets-js-string (value)
   (and (eng:js-string-p value) value))
@@ -55,8 +91,9 @@
    VALUE is meaningful only for :set.
 
    Positional forms:
-     get/delete: (service name)
-     set:        (service name value)
+     get/delete/has: (service name)
+     set:            (service name value)
+     list/clear:     (service?) optional
    When the first two arguments are strings, the call is treated as positional
    even if `value` is missing or the wrong type (so set reports a value error,
    not \"Expected options to be an object\")."
@@ -64,6 +101,23 @@
         (first (eng:arg args 0))
         (second (eng:arg args 1))
         (third (eng:arg args 2)))
+    (when (member operation '(:list :clear))
+      (cond
+        ((zerop n) (return-from %secrets-parse-options (values nil nil nil nil nil)))
+        ((eng:js-string-p first)
+         (when (zerop (length first))
+           (%secrets-type-error "Expected service to not be empty"))
+         (return-from %secrets-parse-options (values first nil nil nil nil)))
+        ((eng:js-object-p first)
+         (let* ((service (eng:js-get first "service"))
+                (service-s (%secrets-js-string service)))
+           (unless service-s
+             (%secrets-type-error "Expected service to be a string"))
+           (when (zerop (length service-s))
+             (%secrets-type-error "Expected service to not be empty"))
+           (return-from %secrets-parse-options
+             (values service-s nil nil nil nil))))
+        (t (%secrets-type-error "Expected service to be a string or options object"))))
     (when (and (>= n 2)
                (eng:js-string-p first)
                (eng:js-string-p second))
@@ -96,11 +150,43 @@
                            (eng:js-truthy allow)))))
           (values service-s name-s nil nil nil)))))
 
+(defun %secrets-list-to-js (pairs)
+  "PAIRS is a list of (service . name) conses → JS array of {service,name}."
+  (eng:new-array
+   (mapcar (lambda (pair)
+             (let ((obj (eng:new-object)))
+               (eng:data-prop obj "service" (car pair))
+               (eng:data-prop obj "name" (cdr pair))
+               obj))
+           pairs)))
+
 (defun %secrets-dispatch (global args operation)
-  "Validate ARGS then reject with the constitutional not-available error."
-  (%secrets-parse-options args operation)
-  ;; Validation succeeded; purity contract forbids any OS store access.
-  (%secrets-rejected-promise global))
+  "Validate ARGS and perform the vault operation as a Promise."
+  (multiple-value-bind (service name value value-p allow)
+      (%secrets-parse-options args operation)
+    (declare (ignore value-p))
+    (%secrets-async (global)
+      (ecase operation
+        (:get
+         (let ((v (clun.secrets:secrets-get service name)))
+           (if v v eng:+null+)))
+        (:set
+         (clun.secrets:secrets-set service name value
+                                   :allow-unrestricted allow)
+         eng:+undefined+)
+        (:delete
+         (if (clun.secrets:secrets-delete service name)
+             eng:+true+
+             eng:+false+))
+        (:has
+         (if (clun.secrets:secrets-has service name)
+             eng:+true+
+             eng:+false+))
+        (:list
+         (%secrets-list-to-js (clun.secrets:secrets-list service)))
+        (:clear
+         (let ((n (clun.secrets:secrets-clear service)))
+           (coerce (float n 1d0) 'double-float)))))))
 
 (defun make-clun-secrets (global)
   (let ((object (eng:new-object)))
@@ -122,6 +208,25 @@
                     (lambda (this args)
                       (declare (ignore this))
                       (%secrets-dispatch global args :delete))))
+    (eng:data-prop object "has"
+                   (eng:make-native-function
+                    "has" 1
+                    (lambda (this args)
+                      (declare (ignore this))
+                      (%secrets-dispatch global args :has))))
+    (eng:data-prop object "list"
+                   (eng:make-native-function
+                    "list" 0
+                    (lambda (this args)
+                      (declare (ignore this))
+                      (%secrets-dispatch global args :list))))
+    (eng:data-prop object "clear"
+                   (eng:make-native-function
+                    "clear" 0
+                    (lambda (this args)
+                      (declare (ignore this))
+                      (%secrets-dispatch global args :clear))))
+    (eng:data-prop object "backend" "vault")
     object))
 
 (defun install-clun-secrets (clun global)
