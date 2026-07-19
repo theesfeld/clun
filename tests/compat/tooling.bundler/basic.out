@@ -1,0 +1,6 @@
+ok
+outputs 1
+analyze 2
+sync true
+buildfn function
+buildSync function

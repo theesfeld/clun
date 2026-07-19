@@ -667,3 +667,16 @@ and concurrent topological script runs.")
    #:connect-mysql #:close-mysql #:mysql-exec
    #:compile-template #:serialize-array-parameter))
 
+(defpackage :clun.bundler
+  (:use :cl)
+  (:local-nicknames (:eng :clun.engine) (:sys :clun.sys) (:rslv :clun.resolver))
+  (:documentation
+   "Pure-CL production bundler (Bun.build surface): graph, loaders, split, minify, assets.")
+  (:export
+   #:build #:analyze #:build-to-string
+   #:build-config #:make-build-config #:make-config-from-plist #:build-config-p
+   #:build-result #:build-result-p #:br-success #:br-outputs #:br-logs #:br-metafile
+   #:build-artifact #:build-artifact-p #:ba-path #:ba-kind #:ba-text #:ba-loader
+   #:ba-hash #:ba-entry-point-p #:ba-sourcemap
+   #:build-error #:build-error-message #:build-error-path #:build-error-level))
+

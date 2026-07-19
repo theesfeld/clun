@@ -329,3 +329,6 @@ Phase 53 cloud.s3 FULL PORT (#185) stages free `0.1.0-dev.53` / `v0.1.0-dev.53` 
 Phase 53 S3 FULL PORT (#185) stages free `0.1.0-dev.53` / `v0.1.0-dev.53`; SemVer impact is `minor`.
 Phase 55–57 SQL drivers FULL PORT (#183) stages free `0.1.0-dev.50` / `v0.1.0-dev.50` with pure-CL PostgreSQL+MySQL wire protocols, embedded SQLite engine, unified Clun.SQL exceeding Bun.SQL (inspect/stats/export/queryLog), and four-target supported receipts; SemVer impact is `minor`.
 Phase 55-57 SQL FULL PORT (#183) stages free `0.1.0-dev.54` / `v0.1.0-dev.54`; SemVer impact is `minor`.
+
+Phase 62 tooling.bundler FULL PORT (#180) stages free `0.1.0-dev.53` / `v0.1.0-dev.53` with pure-CL Clun.build (entry/split/minify/loaders/assets) exceeding Bun.build; SemVer impact is `minor`.
+Phase 62 bundler FULL PORT (#180) stages free `0.1.0-dev.55` / `v0.1.0-dev.55`; SemVer impact is `minor`.

@@ -1,10 +1,10 @@
 <!-- clun-generated:release-notes:begin -->
-# Clun 0.1.0-dev.54
+# Clun 0.1.0-dev.55
 
-Phase 55: PostgreSQL driver.
+Phase 62: Bundler core.
 
 - SemVer impact: `minor` within the selected `0.1.0` prerelease train.
-- Compatibility snapshot: 22 Yes / 3 Partial / 5 No across 30 generated rows.
+- Compatibility snapshot: 23 Yes / 3 Partial / 4 No across 30 generated rows.
 - Public baseline: Bun 1.3.14; engineering baseline: Bun `c1076ce95e`.
 - Target release platforms: Linux and macOS, x64 and arm64.
 - License: `GPL-3.0-or-later`.
