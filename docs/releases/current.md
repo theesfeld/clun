@@ -1,7 +1,7 @@
 <!-- clun-generated:release-notes:begin -->
 # Clun 0.1.0-dev.60
 
-Phases 69–70: Formatter and linter.
+Phase 69: Formatter.
 
 - SemVer impact: `minor` within the selected `0.1.0` prerelease train.
 - Compatibility snapshot: 25 Yes / 3 Partial / 2 No across 30 generated rows.
