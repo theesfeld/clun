@@ -45,7 +45,7 @@
             (t
              (next)
              (if (member tok '("run" "test" "install" "add" "remove" "exec"
-                              "build" "compile" "x" "create" "init" "tsc" "typecheck")
+                              "build" "compile" "fmt" "format" "lint" "x" "create" "init" "tsc" "typecheck")
                          :test #'string=)
                  (progn (setf subcommand tok action :run)
                         ;; tsc/typecheck take zero or more path args (not a single file slot)

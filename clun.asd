@@ -234,6 +234,11 @@
                              (:module "bundler"
                               :serial t
                               :components ((:file "core")))
+                             ;; tooling.formatter-linter FULL PORT (#190): pure-CL fmt + lint.
+                             (:module "fmt"
+                              :serial t
+                              :components ((:file "format")
+                                           (:file "lint")))
                              ;; runtime globals (Phase 08): console/process/Clun,
                              ;; installed onto a realm by the CLI (not by make-realm).
                              (:module "runtime"
@@ -252,6 +257,7 @@
                                            (:file "clun-s3") ; Clun.s3 pure-CL (#185)
                                            (:file "clun-sql") ; Clun.SQL pure-CL (#183)
                                            (:file "clun-build") ; Clun.build bundler (#180) + SFE compile (#181)
+                                           (:file "clun-fmt-lint") ; Clun.format / Clun.lint (#190)
                                            (:file "clun-string-width") ; Clun.stringWidth (Phase 33) — before clun-global
                                            (:file "clun-glob") ; Clun.Glob (Phase 30) — before clun-global
                                            (:file "clun-filesystem-router") ; Clun.FileSystemRouter (Phase 50)
@@ -437,6 +443,9 @@
                                            (:module "bundler"
                                             :serial t
                                             :components ((:file "bundler-tests")))
+                                           (:module "fmt"
+                                            :serial t
+                                            :components ((:file "fmt-lint-tests")))
                                            (:module "loop"
                                             :serial t
                                             :components ((:file "loop-tests")))
