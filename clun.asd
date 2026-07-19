@@ -227,6 +227,7 @@
                                            (:file "ts-type")
                                            (:file "ts-emit")
                                            (:file "ts-scan")
+                                           (:file "ts-check")
                                            (:file "jsx")
                                            (:file "strip")))
                              ;; tooling.bundler FULL PORT (#180): pure-CL Bun.build-class bundler.

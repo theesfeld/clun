@@ -22,6 +22,7 @@
                   ~8@Tclun build <entry…>     production bundle (Clun.build / Bun.build)~%~
                   ~8@Tclun build --compile <entry> --outfile <bin>   single-file executable~%~
                   ~8@Tclun compile <entry> …  alias of build --compile~%~
+                  ~8@Tclun tsc <file…>        structural TypeScript typecheck (exceeds Bun strip)~%~
                   ~8@Tclun run [--filter <p>] <script>  run package.json scripts (filtered monorepo)~%~
                   ~%~
                   Flags: --cwd <dir>   set the working directory~%~
@@ -603,6 +604,16 @@ waves with `--parallel`, sequential with `--sequential`; exceeds Bun with `--con
           (format *error-output* "clun build: ~a~%" e)
           1)))))
 
+(defun run-tsc-command (r)
+  "Structural TypeScript typecheck (`clun tsc` / `clun typecheck`). Paths are the
+remaining argv tokens; exit 1 when any diagnostic is reported."
+  (resolve-cwd r)
+  (let ((paths (cli:cli-get r :args)))
+    (unless paths
+      (format *error-output* "clun tsc: missing file path(s)~%")
+      (return-from run-tsc-command 2))
+    (clun.transpiler:typecheck-paths paths)))
+
 ;;; --- dispatch ---------------------------------------------------------------
 
 (defun dispatch (argv)
@@ -622,6 +633,7 @@ waves with `--parallel`, sequential with `--sequential`; exceeds Bun with `--con
                 ((equal sub "test") (run-test r))
                 ((member sub '("install" "add" "remove") :test #'equal) (run-install-command r))
                 ((member sub '("build" "compile") :test #'equal) (run-build-command r))
+                ((member sub '("tsc" "typecheck") :test #'equal) (run-tsc-command r))
                 ((equal sub "exec") (run-exec r))
                 ((equal sub "run") (run-script r))
                 (t (run-file r (cli:cli-get r :file)))))))))

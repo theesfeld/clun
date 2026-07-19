@@ -45,11 +45,14 @@
             (t
              (next)
              (if (member tok '("run" "test" "install" "add" "remove" "exec"
-                              "build" "compile" "x" "create" "init")
+                              "build" "compile" "x" "create" "init" "tsc" "typecheck")
                          :test #'string=)
                  (progn (setf subcommand tok action :run)
-                        (setf file (next))     ; the file/script name after the subcommand
-                        (setf args toks))       ; remaining verbatim
+                        ;; tsc/typecheck take zero or more path args (not a single file slot)
+                        (if (member tok '("tsc" "typecheck") :test #'string=)
+                            (progn (setf file nil args toks))
+                            (progn (setf file (next))
+                                   (setf args toks))))
                  (progn (setf action :run file tok args toks)))
              (setf toks nil))))))
     (cond
