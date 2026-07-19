@@ -41,8 +41,12 @@ jobs:
             < <(tail -n +2 compat/release.tsv)
           case "$state" in
             candidate)
-              test "$commit" = pending
-              echo "candidate site validated without deployment"
+              if [[ "$commit" == pending ]]; then
+                echo "untagged candidate site validated without deployment"
+              else
+                [[ "$commit" =~ ^[0-9a-f]{40}$ ]]
+                echo "tagged candidate site validated without deployment"
+              fi
               ;;
             published)
               [[ "$commit" =~ ^[0-9a-f]{40}$ ]]

@@ -3441,3 +3441,23 @@ recommended lint ruleset with stylish+JSON reporters and safe fixes. Exceeds
 Bun (no first-party fmt/lint). Soft-outs rejected. Candidate `0.1.0-dev.65`
 after master webstd Yes `0.1.0-dev.64`. Parent epic #177; phase #43.
 Refs: #190, #43, #177
+
+## 2026-07-19 — Issue #215 qualified-Yes correction: native addons and OS secrets
+
+The post-fullport adversarial audit supersedes the `Yes` dispositions from PR #213 / #178 and
+PR #194 / #179 without discarding their implemented subsets:
+
+- `runtime.native-addons` is **Partial**. The shipped pure-CL registered-library host, virtual
+  memory, addon registry, and `.claddon` packs are real. They do not load or call machine-code
+  `.so`, `.dylib`, or `.node` addons and do not satisfy canonical Phase 48's complete frozen
+  N-API/V8/FFI corpus gate on four targets.
+- `security.encrypted-secrets` is **Partial**. The shipped AES-256-GCM file vault and Bun-shaped
+  operations are real. They do not implement the row's operating-system keychain capability,
+  including native ACL/prompt/locked-store semantics or Keychain/libsecret interoperability.
+
+All eight platform rows return to `unverified` for the full capabilities while retaining receipts
+for the implemented subsets. This follows the permanent rule that a qualified `Yes` is not `Yes`;
+the missing capabilities remain full-port targets under #177. Issue #215 is documentation and
+evidence reconciliation with SemVer impact `none`.
+
+Refs: #215, #178, #179, #22, #32, #177

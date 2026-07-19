@@ -2,7 +2,7 @@
 
 **Bun, rewritten in pure Common Lisp.** Clun is a JavaScript/TypeScript runtime and toolkit —
 including a from-scratch ECMAScript engine — implemented in **pure Common Lisp** with zero CFFI
-and zero foreign libraries. v0.1 prioritizes correctness and purity while FULL PORT targets complete capability over
+and zero foreign libraries. v0.1 prioritizes correctness and purity while the full-port program targets complete capability over
 breadth. The active prerelease roadmap targets evidence-backed parity with Bun's purity-compatible
 surface, one gated capability at a time, before a final re-baselined hardening phase. Performance
 targets are workload-specific and published;
@@ -11,23 +11,24 @@ Clun does not claim blanket speed parity with Bun.
 <!-- clun-generated:release:begin -->
 > **Status: pre-alpha, under active construction.** [Phase 82](https://github.com/theesfeld/clun/issues/56) is in progress.
 > Its release-bearing target is `0.1.0-dev.69` / `v0.1.0-dev.69` (SemVer impact: `minor`).
-> The verified release boundary is `v0.1.0-dev.21`, with four native archives, checksums, Pages,
-> and hosted-installer evidence.
+> The annotated tag `v0.1.0-dev.69` points to candidate commit `7895ac1263e7b61e57eb310a3546cc083f02034d`, but no GitHub Release or release assets were published.
+> The latest verified installable boundary remains `v0.1.0-dev.21`, with four native archives, checksums, Pages, and hosted-installer evidence.
+> Audit/evidence records: [truth audit #215](https://github.com/theesfeld/clun/issues/215) and [issue reconciliation #220](https://github.com/theesfeld/clun/issues/220). Active release work: [dev.69 release record #216](https://github.com/theesfeld/clun/issues/216) and [release recovery #219](https://github.com/theesfeld/clun/issues/219).
 > Phase 26 remains deferred until after Phase 82 and will
 > be rewritten for the repository state that exists then.
-> Clun is a pure Common Lisp full-port runtime: every ledger row is a Yes target that must meet or exceed Bun/npm/Node/Deno. Partial is temporary honesty, never a destination.
+> Clun's full-port target requires every ledger Yes to survive executable and public-claim audit. The current snapshot is 28 Yes / 2 Partial / 0 No; qualified evidence is not treated as complete.
 > The canonical issue is the live source of truth; `PLAN.md` is the technical contract and `STATE.md` is
 > the local resume checklist.
 <!-- clun-generated:release:end -->
 
-Source stages `runtime.loader-plugins` No→Yes under Issue
-[#187](https://github.com/theesfeld/clun/issues/187) / Phase 41 as `0.1.0-dev.50`
-Source stages `cloud.s3` No→Yes under Issue
-[#185](https://github.com/theesfeld/clun/issues/185) / Phase 53 as `0.1.0-dev.50`
-(parent FULL PORT epic [#177](https://github.com/theesfeld/clun/issues/177)).
-Published [`v0.1.0-dev.21`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.21) remains the
-verified release boundary. The hosted installer correctly remains on published dev.21 until the
-candidate is merged, tagged, and released.
+The exact current source is `0.1.0-dev.69`. Its annotated tag points to the source commit, but the
+GitHub Release and assets were not published; [`v0.1.0-dev.21`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.21)
+therefore remains the verified installable boundary. The generated ledger is the current evidence
+snapshot. [Truth audit #215](https://github.com/theesfeld/clun/issues/215) records the qualified-claim
+review, and [issue reconciliation #220](https://github.com/theesfeld/clun/issues/220) records the
+canonical issue alignment. Active release work remains in the
+[dev.69 release record #216](https://github.com/theesfeld/clun/issues/216) and
+[release recovery #219](https://github.com/theesfeld/clun/issues/219).
 
 ## Install
 
@@ -64,8 +65,8 @@ interoperability gap.
   structural typecheck — Phase 39 / #192), and JSX/TSX execution via pure Common Lisp transform
   (classic and automatic runtimes; Phase 40 / #186).
 - Object integrity and legacy accessor operations including `Object.seal`, `Object.isSealed`,
-  `__defineGetter__`, `__defineSetter__`, `__lookupGetter__`, and `__lookupSetter__`. Proxy remains
-  unsupported.
+  `__defineGetter__`, `__defineSetter__`, `__lookupGetter__`, and `__lookupSetter__`. Proxy traps and
+  invariants are implemented for the covered paths; this is not a blanket modern-ECMAScript claim.
 - Shared iterator operations now drive lazy `for...of`, destructuring, `Array.from`, collection
   constructors, and Promise combinators, including iterator close on abrupt completion.
 - Parameter defaults, catch patterns, and the covered destructuring paths enforce temporal dead
@@ -79,9 +80,10 @@ interoperability gap.
 - Async generators serialize `next`, `return`, and `throw` requests, await yielded and returned
   values, reject incompatible receivers, and support async `yield*`. Async iteration includes
   AsyncFromSync fallback and completion-correct `for await...of` close behavior.
-- Timers, promises, files, buffered HTTP serving, `fetch`, URL APIs, and process spawning.
-- `clun test` with hooks, filters, async tests, timeouts, 33 core matchers, function mocks/spies,
-  expected-failure modifiers, array-parameterized tests and suites, retries, and repeats.
+- Timers, promises, files, streaming HTTP request/response bodies, `fetch`, URL APIs, and process spawning.
+- `clun test` with hooks, filters, async tests, timeouts, 62 core and extended matchers, function
+  mocks/spies, expected-failure modifiers, snapshots, cooperative concurrency, parallel files,
+  array-parameterized tests and suites, retries, and repeats.
 - `clun install`, `add`, `remove`, and package scripts with a deterministic lockfile and cache.
 
 The checked-in curated test262 pass list contains 26,018 tests. The current
@@ -121,7 +123,7 @@ July 16, 2026. Engineering references are separately pinned to Bun commit `c1076
 |---|---|---|
 | Node.js compatibility | Yes: pure-CL Bun-comparable node: matrix (54 builtins: assert async_hooks buffer child_process cluster console constants crypto dgram diagnostics_channel dns domain events fs http http2 https inspector module net os path perf_hooks process punycode querystring readline repl sqlite stream string_decoder sys timers tls trace_events tty url util v8 vm wasi worker_threads zlib test); exceeds Bun on sqlite module.register registerHooks createSecurePair repl | Phases [42](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-42), [43](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-43), [44](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-44), [45](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-45), [46](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-46), [47](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-47) |
 | Web Standard APIs | Yes: `fetch` with streaming clone/tee, operation-wide timeouts, HTTP proxy and HTTPS CONNECT including proxy object `{url,headers}`, plain HTTP and origin-keyed pure-tls HTTPS idle pooling; URL/URLSearchParams; Headers/Request/Response/Blob/File/FormData; AbortController/AbortSignal; Event/EventTarget/CustomEvent/DOMException; TextEncoder/TextDecoder; atob/btoa; performance.now; MessageChannel/MessagePort; crypto.randomUUID/getRandomValues and crypto.subtle.digest; ReadableStream default and BYOB readers, WritableStream, TransformStream with pipeTo/pipeThrough, CountQueuingStrategy/ByteLengthQueuingStrategy; CompressionStream/DecompressionStream (gzip/deflate/deflate-raw); structuredClone; WebSocket client; hermetic large-transfer and network-stress receipts (exceeds Bun pure-CL surface) | [Phase 38](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-38) |
-| Native addons | Yes: pure Common Lisp bun:ffi host with Clun.ffi/Clun.native/Clun.napi: typed symbol libraries, bounds-checked linear memory, CString/JSCallback/linkSymbols/cc pure-CL DSL, N-API-style defineAddon and process.dlopen for pure-CL addons, .claddon JSON packs (exceeds Bun.ffi crash-prone raw pointers and requires no machine-code objects) | [Phase 48](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-48) |
+| Native addons | Partial: pure-CL bun:ffi-shaped subset for registered Common Lisp libraries, bounds-checked virtual memory, an N-API-style addon registry, and .claddon packs; no machine-code .so/.dylib/.node loading or calls | [Phase 48](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-48) |
 | TypeScript | Yes: pure Common Lisp TypeScript execution: erasable strip, enums, namespaces, parameter properties, experimental decorators, import=/export=, angle-bracket casts, .tsx via JSX lower+strip, and structural typecheck CLI (clun tsc) exceeding Bun (Bun has no typecheck) | [Phase 39](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-39) |
 | JSX | Yes: pure Common Lisp JSX and TSX parse, transform, and execute with classic React.createElement and automatic jsx/jsxs/Fragment runtimes, file pragmas, tsconfig/jsconfig compilerOptions, fragments, spreads, nested expressions, member tags, HTML entity decoding, and built-in offline helpers that run without a react package (exceeds Bun) | [Phase 40](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-40) |
 | Module loader plugins | Yes: pure Common Lisp Bun.plugin-compatible Clun.plugin with ordered onResolve/onLoad/onStart/onEnd, namespaces, virtual builder.module, object/js/json/yaml/text/file loaders, clearAll plus exceed list/clear/priority/registerHooks and pure-CL register-cl-plugin (exceeds Bun.plugin and node:module hooks) | [Phase 41](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-41) |
@@ -134,7 +136,7 @@ July 16, 2026. Engineering references are separately pinned to Bun commit `c1076
 | Single-file executables | Yes: `clun build --compile` / `Clun.build({compile})` pure-CL single-file executables with cross-target offline templates, embedded assets, Ed25519/HMAC sign+verify on every platform, GPL source notice, reproducible build-id, and CLUN_BE_CLUN CLI mode (exceeds Bun compile) | Phases [52](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-52), [77](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-77) |
 | YAML | Yes: `Clun.YAML` parser/stringifier and `.yaml`/`.yml` module loading | [Phase 31](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-31) |
 | Cookies API | Yes: `Clun.Cookie` and `Clun.CookieMap` with request/response integration | [Phase 32](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-32) |
-| Encrypted secrets storage | Yes: `Clun.secrets` pure-CL AES-256-GCM encrypted vault (get/set/delete by service+name); Bun.secrets-compatible surface | [Phase 58](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-58) |
+| Encrypted secrets storage | Partial: `Clun.secrets` Bun-shaped get/set/delete plus has/list/clear backed by a pure-CL AES-256-GCM file vault; no OS keychain, native ACL/prompt/locked-store behavior, or Keychain/libsecret interoperability | [Phase 58](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-58) |
 | npm package management | Yes: `clun install`/`add`/`remove` with registry packages (semver ranges, dist-tags), npm: aliases, file:/link: local packages, optionalDependencies soft-fail, hoisted node_modules, clun.lock offline reinstall, SRI-verified tarballs, and four-target hermetic install receipts | Phases [28](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-28), [59](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-59), [60](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-60), [61](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-61) |
 | Bundler | Yes: Clun.build and clun build pure-CL production bundler: entrypoints, dependency graph, ESM/CJS/IIFE formats, code splitting, minification, loaders (js/ts/tsx/jsx/json/text/file/dataurl/css/html), define, external, packages external or bundle, naming templates, banner/footer, metafile, sourcemaps, target, publicPath, env inlining, drop, features, virtual files, tree shaking, asset hashing, Clun.build.analyze and Clun.buildSync exceed surface, four-target receipts | Phases [62](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-62), [63](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-63), [64](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-64), [77](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-77) |
 | Cross-platform shell API | Yes: `Clun.$`, `clun exec`, standalone `.bun.sh` files with positional parameters, dollar and backtick command substitution, background jobs and wait, merged stdout/stderr pipelines, grouped subshells and brace groups nested across `if` control flow, Blob/Response I/O, positive extended-glob conditions, compound-word field splitting, 100-level arrays, Unicode, tilde and continuation expansion, builtins, and 1,598/1,630 pinned shell sites (32 upstream-inactive) | [Phase 65](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-65) |
@@ -178,10 +180,11 @@ workflows are read-only and fail closed if the canonical issues, README, or site
 
 <!-- clun-generated:release-summary:begin -->
 Release versions follow the actual SemVer impact recorded in the canonical issue, not the number of pushes.
-The current source is the `0.1.0-dev.69` release candidate; the immutable tag and assets are not published yet.
+The current source is the `0.1.0-dev.69` release candidate. Its annotated [`v0.1.0-dev.69`](https://github.com/theesfeld/clun/tree/v0.1.0-dev.69) points to commit `7895ac1263e7b61e57eb310a3546cc083f02034d`, but no GitHub Release or release assets were published.
 The last published prerelease remains [`v0.1.0-dev.21`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.21).
 [The versioning contract](docs/versioning.md) defines prerelease sequencing, synchronized surfaces, immutable tags, assets, and installer evidence.
 [Phase 82 issue #56](https://github.com/theesfeld/clun/issues/56) is the canonical live release record.
+Audit/evidence records: [truth audit #215](https://github.com/theesfeld/clun/issues/215) and [issue reconciliation #220](https://github.com/theesfeld/clun/issues/220). Active release work remains tracked in [dev.69 release record #216](https://github.com/theesfeld/clun/issues/216) and [release recovery #219](https://github.com/theesfeld/clun/issues/219).
 <!-- clun-generated:release-summary:end -->
 
 ## The purity contract

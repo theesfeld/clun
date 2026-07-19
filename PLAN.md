@@ -998,11 +998,12 @@ accepted, add gated milestones inside Phase 48 for the foreign-call boundary, dy
 N-API lifecycle/thread-safety, the pinned V8 compatibility subset, `bun:ffi`, and all four targets; do not
 advance `STATE.md` to Phase 49 while any conditional milestone is incomplete.
 **Gate:** `docs/design/phase-48.md` contains cited executable spike evidence and an operator decision is
-recorded in `DECISIONS.md`. If purity is retained, `make compat FEATURE=native-addons` proves a clear,
-tested unsupported error and the matrix remains `No — constitutional`; if amended, the implemented Phase-48
-milestones and `make compat FEATURE=native-addons` must pass the complete frozen N-API/V8/FFI corpus on all
-four targets before the phase completes or any `Yes` claim appears. In either completed branch: `make build`;
-`make test`; the decision-adjusted `make purity`; and `make docs-check` remain green.
+recorded in `DECISIONS.md`. If purity is retained, a tested pure-CL substitute may support only `Partial`,
+with the machine-code/N-API/V8/FFI gap explicit and the full-capability platform rows unverified (`No` if no
+useful substitute ships); it cannot support `Yes`. If amended, the implemented Phase-48 milestones and
+`make compat FEATURE=native-addons` must pass the complete frozen N-API/V8/FFI corpus on all four targets
+before the phase completes or any `Yes` claim appears. In either completed branch: `make build`; `make test`;
+the decision-adjusted `make purity`; and `make docs-check` remain green.
 
 ### Phase 49 — HTTP server parity  *(deps: 38, 44)* ~8k LOC ⚡
 Objective: meet the pinned `Bun.serve` HTTP/TLS surface before routing and WebSocket extensions.
@@ -1128,8 +1129,9 @@ encrypted Clun file from OS-keychain parity and never relabel it. Present pure i
 optional-boundary amendment and explicit unsupported choices to the operator.
 **Gate:** an operator decision with cited spikes is recorded. A positive path must pass
 `make compat FEATURE=os-secrets`, hermetic locked/unlocked/error/concurrency fixtures and native jobs on
-Linux/macOS x64/arm64 before `Yes`; otherwise the ledger remains `No — constitutional` with a tested clear
-error. Always run `make build`; `make test`; `make purity`; `make docs-check`.
+Linux/macOS x64/arm64 before `Yes`; otherwise a tested encrypted file-vault substitute may support only
+`Partial`, with the operating-system keychain gap explicit and all full-capability platform rows unverified
+(`No` if no useful substitute ships). Always run `make build`; `make test`; `make purity`; `make docs-check`.
 
 ### Phase 59 — Package registry and dependency-spec breadth  *(deps: 19, 28)* estimate after Git/SSH design ⚡⚡
 Objective: match Bun's accepted package specifications, registry configuration and deterministic install graph.

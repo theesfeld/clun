@@ -179,7 +179,7 @@ For a release-bearing unit, all of these must agree before the PR is merged:
 - `clun.asd` SemVer core;
 - version assertions in the test suite;
 - `site/install` default tag;
-- `compat/release.tsv` publication state and exact tagged commit once published;
+- `compat/release.tsv` publication state and exact tagged commit once a candidate tag exists;
 - `README.md` and `site/index.html` release claims;
 - generated conformance evidence and the canonical issue.
 
@@ -222,6 +222,11 @@ Do not land release-bearing work by pushing a feature commit straight to `origin
    system.
 8. Record commit, workflow, tag, assets, checksum, installer, and Pages evidence in the canonical
    issue.
+
+If release publication fails after step 3, the immutable tag still consumes that version. Keep the
+ledger in `candidate`, replace `pending` with the exact peeled tag commit, leave the installer on the
+last published release, and recover under a newly allocated prerelease slot. Never move or reuse the
+failed tag, and never describe it as a GitHub Release.
 
 Phase 25b milestone 3 added backward-compatible shared iterator-record operations, lazy
 iterable consumers, iterator-closing behavior, and binding/destructuring fixes. Its impact is `minor`.
@@ -319,7 +324,7 @@ Phase 47 selected Node surface Partial→Yes (#132) stages `0.1.0-dev.45` / `v0.
 Phase 40 language.jsx No→Yes (#186) stages `0.1.0-dev.47` / `v0.1.0-dev.47` with four-target supported receipts and pure-CL classic/automatic runtimes (offline helpers exceed Bun).
 Phase 60 package-manager.monorepo No→Yes (#182) stages `0.1.0-dev.48` / `v0.1.0-dev.48` with workspaces, filters, catalog: protocols, live symlink packages, topological concurrent script waves, and four-target monorepo receipts; SemVer impact is `minor`.
 
-Phase 58 secrets FULL PORT (#179) stages free `0.1.0-dev.49` / `v0.1.0-dev.49`; SemVer impact is `minor`.
+Phase 58 file-vault work (#179) staged free `0.1.0-dev.49` / `v0.1.0-dev.49`; Issue #215 later corrected the compatibility disposition to Partial because OS-keychain behavior was not implemented. The original implementation impact was `minor`; the evidence correction is `none`.
 
 Phase 41 runtime.loader-plugins FULL PORT (#187) stages free `0.1.0-dev.53` / `v0.1.0-dev.53` with pure-CL `Clun.plugin` (Bun.plugin-compatible onResolve/onLoad/module/clearAll plus exceed list/clear/priority/registerHooks); SemVer impact is `minor`.
 Phase 54 Redis FULL PORT (#184) stages free `0.1.0-dev.51` / `v0.1.0-dev.51`; SemVer impact is `minor`.
@@ -342,6 +347,6 @@ Phase 38 runtime.web-standard-apis FULL PORT (#207 / canonical #12) stages free 
 
 Phase 69–70 tooling.formatter-linter FULL PORT (#190 / canonical #43) stages free `0.1.0-dev.65` / `v0.1.0-dev.65` after webstd Yes `0.1.0-dev.64` with pure-CL `clun fmt`/`clun lint` and `Clun.format`/`Clun.lint` exceeding Bun (no first-party fmt/lint); SemVer impact is `minor`.
 
-Phase 48 runtime.native-addons FULL PORT (#178 / canonical #22) stages free `0.1.0-dev.66` / `v0.1.0-dev.66` after fmt-lint Yes `0.1.0-dev.65`; SemVer impact is `minor`.
+Phase 48 native-host subset (#178 / canonical #22) staged free `0.1.0-dev.66` / `v0.1.0-dev.66` after fmt-lint Yes `0.1.0-dev.65`; Issue #215 later corrected the compatibility disposition to Partial because machine-code ABI and complete N-API/V8/FFI corpus parity were not implemented. The original implementation impact was `minor`; the evidence correction is `none`.
 
 Release ship #216 stages free `0.1.0-dev.69` / `v0.1.0-dev.69` with built-in `--update`/`check-update` (GitHub Releases assets + SHA-256); SemVer impact is `minor`.

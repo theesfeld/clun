@@ -234,6 +234,16 @@ FILENAME ~ /compat\/features\.tsv$/ {
     fail("invalid comparison-runtime state")
   if ($6 == "Partial" && $8 == "-") fail("Partial requires an explicit gap")
   if ($6 == "Yes" && $8 != "-") fail("Yes cannot retain a gap")
+  qualified_detail = tolower($7)
+  if ($6 == "Yes" && ($1 == "runtime.native-addons" || $1 == "security.encrypted-secrets"))
+    fail("audited incomplete capability cannot be Yes before its full gate passes: " $1)
+  # Defense in depth for every row; prose matching is not a substitute for the
+  # exact capability locks above or for review against the summary and receipts.
+  if ($6 == "Yes" && qualified_detail ~ /subset|facade|emulat(ed|ion)|limited|selected surface|not full|out of scope|not included in v0[.]1|excluded by purity|yes but|remain(s)? incomplete|encrypted (file )?vault|file vault/)
+    fail("Yes detail contains qualified-scope language: " $1)
+  if ($1 == "security.encrypted-secrets" && $6 == "Yes" && \
+      tolower($5) ~ /operating-system keychain/ && qualified_detail ~ /file vault/)
+    fail("Yes detail does not satisfy capability summary: " $1)
   if ($6 == "No" && $7 == "-" && $8 == "-") fail("No requires a detail or gap")
   if (!valid_phase($15)) fail("invalid primary phase: " $15)
   if (!($15 in roadmap_phase)) fail("primary phase is absent from docs/roadmap.tsv: " $15)
@@ -373,8 +383,9 @@ FILENAME ~ /compat\/release\.tsv$/ {
   if (!valid_semver($11)) fail("previous release version must be strict SemVer")
   if ($12 != "src/version.lisp" || $13 != "clun.asd" || $14 != "site/install")
     fail("release source paths are not canonical")
-  if ($6 == "candidate" && $15 != "pending")
-    fail("candidate release commit must be pending")
+  if ($6 == "candidate" && $15 != "pending" && \
+      ($15 !~ /^[0-9a-f]+$/ || length($15) != 40))
+    fail("candidate release commit must be pending or a full tagged commit SHA")
   if ($6 == "published" && ($15 !~ /^[0-9a-f]+$/ || length($15) != 40))
     fail("published release commit must be a full commit SHA")
   active_release_id = $1

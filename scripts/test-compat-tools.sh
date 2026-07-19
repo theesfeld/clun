@@ -273,6 +273,17 @@ mutate_release_previous_version() {
   ' "$file"
 }
 
+mutate_release_commit() {
+  file=$1
+  value=$2
+  # shellcheck disable=SC2016 # AWK field references must not expand in the shell.
+  replace_file "$file" awk -F "$TAB" -v OFS="$TAB" -v value="$value" '
+    NR == 2 { $15 = value; changed = 1 }
+    { print }
+    END { if (!changed) exit 3 }
+  ' "$file"
+}
+
 mutate_baseline_revision() {
   file=$1
   baseline_id=$2
@@ -473,6 +484,22 @@ promote_feature_to_yes() {
   ' "$file"
 }
 
+mutate_feature_detail() {
+  file=$1
+  feature_id=$2
+  detail=$3
+  # shellcheck disable=SC2016 # AWK field references must not expand in the shell.
+  replace_file "$file" awk -F "$TAB" -v OFS="$TAB" -v feature_id="$feature_id" \
+    -v detail="$detail" '
+    NR > 1 && $1 == feature_id {
+      $7 = detail
+      changed = 1
+    }
+    { print }
+    END { if (!changed) exit 3 }
+  ' "$file"
+}
+
 support_feature_on_all_targets() {
   file=$1
   feature_id=$2
@@ -526,6 +553,21 @@ mutate_platform_target() {
 expect_pass pristine-validate "$pristine" validate
 expect_pass pristine-docs-check "$pristine" check
 
+fresh_case tagged-candidate-render
+expect_pass tagged-candidate-generate "$case_root" generate
+grep -F 'Tag only / no Release' "$case_root/site/index.html" >/dev/null 2>&1 ||
+  fail 'tagged candidate render did not expose the tag-only publication state'
+grep -F 'but no GitHub Release or release assets were published.' \
+  "$case_root/README.md" >/dev/null 2>&1 ||
+  fail 'tagged candidate render did not distinguish the tag from a GitHub Release'
+grep -F 'github.com/theesfeld/clun/issues/215' "$case_root/site/index.html" >/dev/null 2>&1 ||
+  fail 'tagged candidate render lost the truth-audit link'
+
+fresh_case malformed-candidate-commit
+mutate_release_commit "$case_root/compat/release.tsv" not-a-tagged-commit
+expect_failure_matching malformed-candidate-commit "$case_root" validate \
+  'candidate release commit must be pending or a full tagged commit SHA'
+
 fresh_case version
 mutate_version "$case_root/src/version.lisp"
 expect_failure version-drift "$case_root" check
@@ -556,6 +598,22 @@ printf '  (pass) stale-binary rejected deliberate drift\n'
 fresh_case feature-status
 mutate_feature_status "$case_root/compat/features.tsv"
 expect_failure feature-status-drift "$case_root" check
+
+fresh_case native-addons-qualified-yes
+promote_feature_to_yes "$case_root/compat/features.tsv" runtime.native-addons
+expect_failure_matching native-addons-qualified-yes "$case_root" validate \
+  'audited incomplete capability cannot be Yes before its full gate passes: runtime.native-addons'
+
+fresh_case encrypted-secrets-qualified-yes
+promote_feature_to_yes "$case_root/compat/features.tsv" security.encrypted-secrets
+expect_failure_matching encrypted-secrets-qualified-yes "$case_root" validate \
+  'audited incomplete capability cannot be Yes before its full gate passes: security.encrypted-secrets'
+
+fresh_case qualified-yes-synonyms
+mutate_feature_detail "$case_root/compat/features.tsv" runtime.loader-plugins \
+  'limited emulation facade for selected operations'
+expect_failure_matching qualified-yes-synonyms "$case_root" validate \
+  'Yes detail contains qualified-scope language: runtime.loader-plugins'
 
 fresh_case next-phase-render
 move_release_to_test_phase "$case_root/compat/release.tsv"
@@ -772,4 +830,4 @@ mutate_platform_target "$case_root/compat/platforms.tsv" cloud.s3 darwin-arm64 m
 expect_failure_matching invalid-platform-target "$case_root" validate \
   'invalid target: macos-arm64'
 
-printf 'test-compat-tools: 2 pristine checks, 3 forward-render cases, and 30 deliberate-drift cases passed\n'
+printf 'test-compat-tools: 2 pristine checks, 4 forward-render cases, and 34 deliberate-drift cases passed\n'

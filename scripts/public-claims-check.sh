@@ -72,12 +72,53 @@ fi
   fail "release ledger installer default $installer_tag disagrees with $release_state expectation $expected_installer_tag"
 case "$active_phase:$active_issue" in *[!0-9:]*|:*|*:|*::* ) fail 'release ledger has invalid phase or issue' ;; esac
 case "$semver_impact" in major|minor|patch|none) ;; *) fail 'release ledger has invalid SemVer impact' ;; esac
+candidate_tagged=0
 if [ "$release_state" = candidate ]; then
-  [ "$release_commit" = pending ] || fail 'candidate release ledger commit must be pending'
+  if [ "$release_commit" = pending ]; then
+    candidate_tagged=0
+  elif printf '%s\n' "$release_commit" | LC_ALL=C grep -Eq '^[0-9a-f]{40}$'; then
+    candidate_tagged=1
+  else
+    fail 'candidate release ledger commit must be pending or a full tagged commit SHA'
+  fi
 else
   printf '%s\n' "$release_commit" | LC_ALL=C grep -Eq '^[0-9a-f]{40}$' ||
     fail 'published release ledger commit must be a full commit SHA'
 fi
+
+TAB=$(printf '\t')
+feature_field() {
+  feature_id=$1
+  column=$2
+  awk -F "$TAB" -v feature_id="$feature_id" -v column="$column" '
+    NR > 1 && $1 == feature_id { print $column; found++ }
+    END { if (found != 1) exit 2 }
+  ' compat/features.tsv || fail "expected exactly one feature row for $feature_id"
+}
+
+native_addons_state=$(feature_field runtime.native-addons 6)
+native_addons_gap=$(feature_field runtime.native-addons 8)
+encrypted_secrets_state=$(feature_field security.encrypted-secrets 6)
+encrypted_secrets_gap=$(feature_field security.encrypted-secrets 8)
+[ "$native_addons_state" = Partial ] ||
+  fail 'runtime.native-addons must remain Partial until the actual native ABI and complete corpus gate pass'
+[ "$encrypted_secrets_state" = Partial ] ||
+  fail 'security.encrypted-secrets must remain Partial until operating-system keychain parity passes'
+case "$native_addons_gap" in
+  *'No machine-code .so/.dylib/.node loading or calls'*) ;;
+  *) fail 'runtime.native-addons is missing its machine-code ABI gap' ;;
+esac
+case "$encrypted_secrets_gap" in
+  *'No operating-system keychain integration'*) ;;
+  *) fail 'security.encrypted-secrets is missing its OS-keychain gap' ;;
+esac
+for audited_feature in runtime.native-addons security.encrypted-secrets; do
+  awk -F "$TAB" -v feature_id="$audited_feature" '
+    NR > 1 && $1 == feature_id { found++; if ($3 != "unverified") bad = 1 }
+    END { exit !(found == 4 && !bad) }
+  ' compat/platforms.tsv ||
+    fail "$audited_feature must remain unverified on all four full-capability platform rows"
+done
 
 baseline_row() {
   runtime=$1
@@ -99,7 +140,6 @@ human_date() {
   }'
 }
 
-TAB=$(printf '\t')
 bun_public_row=$(baseline_row Bun stable-executable)
 IFS="$TAB" read -r bun_version _ bun_checked bun_source <<EOF
 $bun_public_row
@@ -764,16 +804,33 @@ grep -Fq -- "$site_candidate_marker" site/index.html && site_candidate=1
 if [ "$release_state" = candidate ]; then
   [ "$readme_candidate" -eq 1 ] || fail "release ledger says candidate but generated documents do not"
   require_text README.md "The current source is the \`$version\` release candidate"
-  require_text README.md "immutable tag and assets are not published yet"
+  if [ "$candidate_tagged" -eq 1 ]; then
+    require_text README.md "Its annotated [\`v$version\`](https://github.com/theesfeld/clun/tree/v$version) points to commit \`$release_commit\`, but no GitHub Release or release assets were published."
+    reject_text README.md "immutable tag and assets are not published yet"
+  else
+    require_text README.md "immutable tag and assets are not published yet"
+  fi
   require_text README.md "The last published prerelease remains"
   require_text README.md "[Phase $active_phase]($active_issue_url) is in progress."
   require_text README.md "[\`v$previous_version\`]($previous_release_url)"
   reject_text README.md "$release_url"
 
-  require_text site/index.html "<a href=\"$active_issue_url\">"
-  require_text site/index.html "<span>In development</span>"
+  if [ "$candidate_tagged" -eq 1 ]; then
+    require_text site/index.html '<a href="https://github.com/theesfeld/clun/issues/215">'
+    require_text site/index.html '<span>Tag only / no Release</span>'
+    require_text site/index.html 'The annotated candidate tag exists, but its GitHub Release and assets do not.'
+    require_text site/index.html 'Audit/evidence records:'
+    require_text site/index.html 'Active release work remains in'
+  else
+    require_text site/index.html "<a href=\"$active_issue_url\">"
+    require_text site/index.html "<span>In development</span>"
+  fi
   require_text site/index.html "Phase $active_phase is active:"
-  require_text site/index.html ">Current status</a>"
+  if [ "$candidate_tagged" -eq 1 ]; then
+    require_text site/index.html '>Truth audit record #215</a>'
+  else
+    require_text site/index.html ">Current status</a>"
+  fi
   require_text site/index.html "v$version / Phase $active_phase"
   require_text site/index.html "<a href=\"$previous_release_url\">v$previous_version release</a>"
   require_text site/index.html "v$version release candidate / pre-alpha</p>"
@@ -796,6 +853,35 @@ else
   require_text site/index.html "<span>$version / pre-alpha</span>"
   reject_text site/index.html "release candidate"
 fi
+
+if [ "$candidate_tagged" -eq 1 ]; then
+  for issue in 215 216 219 220; do
+    require_text README.md "https://github.com/theesfeld/clun/issues/$issue"
+    require_text site/index.html "https://github.com/theesfeld/clun/issues/$issue"
+  done
+  require_text README.md 'Audit/evidence records:'
+  require_text README.md 'Active release work remains tracked in'
+  require_text site/index.html '>Active release recovery #219</a>'
+  require_text site/index.html '>Active dev.69 release #216</a>'
+  require_text site/index.html '>Issue evidence record #220</a>'
+  reject_text README.md 'Active follow-up:'
+  reject_text README.md 'Current follow-up is tracked in'
+fi
+require_text site/index.html 'clun --check-update'
+require_text site/index.html 'clun --update'
+require_text site/index.html 'Proxy traps and invariants are implemented for the covered paths'
+require_text site/index.html 'Snapshot edge formats and cooperative/parallel concurrency are covered; test-watch reruns remain a known gap'
+require_text site/index.html 'Streaming request and response bodies; WebSocket + Pub/Sub; no HTTP/2 server'
+require_text site/index.html 'Source checkpoints already exist for archive/compression, Markdown and HTML rewriting, Cron, and build APIs.'
+reject_text site/index.html 'No Proxy, Intl, or native addons (JSX/TSX is built in)'
+reject_text site/index.html 'Exotic snapshot edges, watch, and concurrency'
+reject_text site/index.html 'Buffered bodies; WebSocket + Pub/Sub; no HTTP/2'
+reject_text site/index.html 'none is implemented or claimed today'
+reject_text site/index.html 'Pre-alpha FULL PORT: exceed Bun/npm'
+reject_text site/index.html 'FULL PORT of Bun/npm capability'
+reject_text README.md 'Proxy remains unsupported.'
+reject_text README.md '33 core matchers'
+reject_text README.md 'buffered HTTP serving'
 
 require_text site/index.html "$pretty_passes pass"
 require_text site/index.html "Full run: $pretty_report_total total = $pretty_report_pass pass / $pretty_report_fail fail / $pretty_report_skip skip / $report_crash crash."

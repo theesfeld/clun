@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#f4f1e9">
     <meta name="description" content="Clun is a pre-alpha JavaScript and TypeScript runtime and toolkit written in pure Common Lisp.">
     <meta property="og:title" content="Clun - JavaScript tooling in pure Common Lisp">
-    <meta property="og:description" content="A pure Common Lisp JavaScript runtime, package manager, test runner, and HTTP toolkit — FULL PORT of Bun/npm capability.">
+    <meta property="og:description" content="A pre-alpha pure Common Lisp JavaScript runtime and toolkit with a full-port target under evidence audit.">
     <meta property="og:image" content="https://clun.sh/assets/clun.jpg">
     <meta property="og:url" content="https://clun.sh/">
     <meta property="og:type" content="website">
@@ -20,8 +20,8 @@
 
     <div class="announcement">
 <!-- clun-generated:release:begin -->
-<a href="https://github.com/theesfeld/clun/issues/56">
-  <span>In development</span>
+<a href="https://github.com/theesfeld/clun/issues/215">
+  <span>Tag only / no Release</span>
   v0.1.0-dev.69 / Phase 82
   <span aria-hidden="true">-&gt;</span>
 </a>
@@ -83,6 +83,10 @@
             <p class="installer-note" role="status" aria-live="polite" data-copy-status>
               The installer verifies the release checksum and writes to <code>~/.clun/bin</code>.
             </p>
+            <p class="installer-note">
+              Existing install: run <code>clun --check-update</code> to check without changing files,
+              then <code>clun --update</code> to download, verify, and replace the binary from the latest published Release.
+            </p>
           </div>
 
         </div>
@@ -119,6 +123,7 @@
             and the hosted installer are verified. Phase 25b and its handoff are closed.
 <!-- clun-generated:phase-status:begin -->
 Phase 82 is active: <a href="https://github.com/theesfeld/clun/issues/56">Purity-compatible Bun-surface final audit and release in issue #56</a>.
+The annotated candidate tag exists, but its GitHub Release and assets do not. Audit/evidence records: <a href="https://github.com/theesfeld/clun/issues/215">truth audit #215</a> and <a href="https://github.com/theesfeld/clun/issues/220">issue reconciliation #220</a>. Active release work remains in <a href="https://github.com/theesfeld/clun/issues/216">release record #216</a> and <a href="https://github.com/theesfeld/clun/issues/219">recovery #219</a>.
 Phase 26 remains deferred until after Phase 82 and will be re-baselined for the system state at that time.
 <!-- clun-generated:phase-status:end -->
             The issue is the canonical live record; <a href="https://github.com/theesfeld/clun/blob/master/PLAN.md">PLAN</a>
@@ -224,7 +229,7 @@ Phase 26 remains deferred until after Phase 82 and will be re-baselined for the 
           <div class="section-heading">
             <p class="eyebrow">Four tools, one experimental toolkit</p>
             <h2>The daily loop is already here.</h2>
-            <p>Each current surface is real and tested; the roadmap tracks the remaining Bun gaps.</p>
+            <p>Each listed surface is tied to repository evidence; truth audit <a href="https://github.com/theesfeld/clun/issues/215">#215</a> records the review of qualified or overbroad claims.</p>
           </div>
 
           <div class="tool-grid">
@@ -242,7 +247,7 @@ Phase 26 remains deferred until after Phase 82 and will be re-baselined for the 
                 <li><code>Object.seal</code>, <code>Object.isSealed</code>, and legacy accessor hooks</li>
                 <li>ESM and CommonJS resolution</li>
                 <li>Timers, promises, files, fetch, and URL</li>
-                <li>No Proxy, Intl, or native addons (JSX/TSX is built in)</li>
+                <li>Proxy traps and invariants are implemented for the covered paths; Intl and blanket modern-ECMAScript parity remain incomplete</li>
               </ul>
               <div class="tool-status"><span>Scope</span> ES2017-tier, partial</div>
             </article>
@@ -271,7 +276,7 @@ Phase 26 remains deferred until after Phase 82 and will be re-baselined for the 
                 <li>Bun-formatted snapshots, mocks, preloads, fake timers, and JUnit</li>
                 <li>Source-aligned JS/TS coverage with text, LCOV, filters, and thresholds</li>
               </ul>
-              <div class="tool-status warning"><span>Known gaps</span> Exotic snapshot edges, watch, and concurrency</div>
+              <div class="tool-status warning"><span>Known gap</span> Snapshot edge formats and cooperative/parallel concurrency are covered; test-watch reruns remain a known gap</div>
               <div class="tool-status"><span>Output</span> Deterministic by design</div>
             </article>
 
@@ -283,7 +288,7 @@ Phase 26 remains deferred until after Phase 82 and will be re-baselined for the 
                 <li><code>Clun.serve</code> HTTP/1.1 server</li>
                 <li>Request, Response, and Headers</li>
                 <li>AbortController and timeout support</li>
-                <li>Buffered bodies; WebSocket + Pub/Sub; no HTTP/2</li>
+                <li>Streaming request and response bodies; WebSocket + Pub/Sub; no HTTP/2 server</li>
               </ul>
               <div class="tool-status warning"><span>Security</span> TLS is unaudited</div>
             </article>
@@ -387,7 +392,7 @@ Linked phase labels are planned acceptance gates, not capabilities available tod
     </tr>
     <tr data-compat-feature="runtime.native-addons">
       <th scope="row"><strong>Native addons</strong><span>N-API, FFI, or native C/C++ modules</span></th>
-      <td class="clun-col"><b class="state yes">Yes</b> pure Common Lisp bun:ffi host with Clun.ffi/Clun.native/Clun.napi: typed symbol libraries, bounds-checked linear memory, CString/JSCallback/linkSymbols/cc pure-CL DSL, N-API-style defineAddon and process.dlopen for pure-CL addons, .claddon JSON packs (exceeds Bun.ffi crash-prone raw pointers and requires no machine-code objects)<a class="phase-link" data-roadmap-phase="48" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-48">Phase 48</a></td>
+      <td class="clun-col"><b class="state partial">Partial</b> pure-CL bun:ffi-shaped subset for registered Common Lisp libraries, bounds-checked virtual memory, an N-API-style addon registry, and .claddon packs; no machine-code .so/.dylib/.node loading or calls<a class="phase-link" data-roadmap-phase="48" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-48">Phase 48</a></td>
       <td><b class="state yes">Yes</b> FFI, N-API, and partial V8 C++ API</td>
       <td><b class="state yes">Yes</b> stable Node-API</td>
       <td><b class="state yes">Yes</b> Node-API and FFI</td>
@@ -483,7 +488,7 @@ Linked phase labels are planned acceptance gates, not capabilities available tod
     </tr>
     <tr data-compat-feature="security.encrypted-secrets">
       <th scope="row"><strong>Encrypted secrets storage</strong><span>Operating-system keychain integration</span></th>
-      <td class="clun-col"><b class="state yes">Yes</b> <code>Clun.secrets</code> pure-CL AES-256-GCM encrypted vault (get/set/delete by service+name); Bun.secrets-compatible surface<a class="phase-link" data-roadmap-phase="58" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-58">Phase 58</a></td>
+      <td class="clun-col"><b class="state partial">Partial</b> <code>Clun.secrets</code> Bun-shaped get/set/delete plus has/list/clear backed by a pure-CL AES-256-GCM file vault; no OS keychain, native ACL/prompt/locked-store behavior, or Keychain/libsecret interoperability<a class="phase-link" data-roadmap-phase="58" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-58">Phase 58</a></td>
       <td><b class="state yes">Yes</b> <code>Bun.secrets</code></td>
       <td><b class="state no">No</b></td>
       <td><b class="state no">No</b></td>
@@ -616,8 +621,8 @@ Linked phase labels are planned acceptance gates, not capabilities available tod
               <p class="eyebrow">Beyond the matrix</p>
               <h3 id="beyond-matrix-title">Full public-surface roadmap</h3>
               <p>
-                Bun exposes public APIs beyond its 30-row homepage matrix. Every item below is
-                planned work with an acceptance gate; none is implemented or claimed today.
+                Bun exposes public APIs beyond its 30-row homepage matrix. Source checkpoints already exist for archive/compression, Markdown and HTML rewriting, Cron, and build APIs.
+                The phase links remain acceptance and audit gates; they do not assert full phase completion.
               </p>
             </div>
             <ol class="beyond-roadmap" role="list">
@@ -676,11 +681,11 @@ Linked phase labels are planned acceptance gates, not capabilities available tod
       <div class="shell footer-grid">
         <div class="footer-brand">
           <a class="brand" href="#top"><img src="assets/clun.jpg" alt="" width="40" height="40"><span>Clun</span></a>
-          <p>Bun, rewritten in pure Common Lisp. Pre-alpha FULL PORT: exceed Bun/npm. GPL-3.0-or-later.</p>
+          <p>Bun, rewritten in pure Common Lisp. Pre-alpha full-port target under evidence audit. GPL-3.0-or-later.</p>
         </div>
 <!-- clun-generated:release-links:begin -->
-<div><h2>Project</h2><a href="https://github.com/theesfeld/clun">Source</a><a href="https://github.com/theesfeld/clun/blob/master/README.md">README</a><a href="https://github.com/theesfeld/clun/issues/56">Current status</a></div>
-<div><h2>Evidence</h2><a href="https://github.com/theesfeld/clun/blob/master/compat/README.md">Compatibility ledger</a><a href="https://github.com/theesfeld/clun/actions/workflows/compat.yml">Compatibility CI</a><a href="https://github.com/theesfeld/clun/blob/master/LICENSE">License</a></div>
+<div><h2>Project</h2><a href="https://github.com/theesfeld/clun">Source</a><a href="https://github.com/theesfeld/clun/blob/master/README.md">README</a><a href="https://github.com/theesfeld/clun/issues/215">Truth audit record #215</a><a href="https://github.com/theesfeld/clun/issues/219">Active release recovery #219</a></div>
+<div><h2>Evidence</h2><a href="https://github.com/theesfeld/clun/blob/master/compat/README.md">Compatibility ledger</a><a href="https://github.com/theesfeld/clun/actions/workflows/compat.yml">Compatibility CI</a><a href="https://github.com/theesfeld/clun/issues/216">Active dev.69 release #216</a><a href="https://github.com/theesfeld/clun/issues/220">Issue evidence record #220</a><a href="https://github.com/theesfeld/clun/blob/master/LICENSE">License</a></div>
 <div><h2>Install</h2><a href="install">Shell installer</a><a href="https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.21">v0.1.0-dev.21 release</a><a href="https://github.com/theesfeld/clun#building-from-source">Build from source</a></div>
 <!-- clun-generated:release-links:end -->
       </div>
