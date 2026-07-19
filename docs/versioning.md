@@ -337,3 +337,5 @@ Phase 68 frontend-dev-server FULL PORT (#189) stages free `0.1.0-dev.54` / `v0.1
 Phase 69 frontend-dev FULL PORT (#189) stages free `0.1.0-dev.56` / `v0.1.0-dev.56`; SemVer impact is `minor`.
 
 Phase 37 milestone 4 (keyed Promise combinators, Issue #11) stages free `0.1.0-dev.63` / `v0.1.0-dev.63`: pure-CL `Promise.allKeyed` / `Promise.allSettledKeyed` converting 74 frozen Test262 failures. SemVer impact is `minor`. No matrix Yes; Phase 37 remains open.
+
+Phase 38 runtime.web-standard-apis FULL PORT (#207 / canonical #12) stages free `0.1.0-dev.64` / `v0.1.0-dev.64` after Phase 37 m4 `0.1.0-dev.63`; SemVer impact is `minor`.

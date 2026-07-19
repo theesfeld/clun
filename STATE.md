@@ -7,19 +7,14 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **37 - Modern ECMAScript gap wave**  (MILESTONE 4)
+## Current phase: **38 - Web platform foundations**  (FULL PORT Yes #207)
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/11
-**Current implementation unit:** Phase 37 milestone 4 — pure-CL `Promise.allKeyed` /
-`Promise.allSettledKeyed` (TC39 await-dictionary). Converts 74 frozen keyed-Promise
-Test262 failures. No compatibility-table `Yes`; Phase 37 remains open with residual
-ownership **378** after reclassification.
+**Canonical issue:** https://github.com/theesfeld/clun/issues/12
+**Parent:** https://github.com/theesfeld/clun/issues/177
+**Current implementation unit:** runtime.web-standard-apis full port Yes (#207) pure-CL Web Standard surface exceeding Bun.
 **SemVer impact:** `minor`
-**Candidate release:** `0.1.0-dev.63` / `v0.1.0-dev.63`
+**Candidate release:** `0.1.0-dev.64` / `v0.1.0-dev.64`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
-**Entry boundary:** installer on `v0.1.0-dev.21` (last published tag; unpublished-gap
-policy); free slot after master tip TypeScript Yes `0.1.0-dev.59` (open concurrent
-trains claim `.58`/`.60`–`.62`).
+**Entry boundary:** installer on `v0.1.0-dev.21`; free slot after master Phase 37 m4 Yes `0.1.0-dev.63`.
 
-**Next scope:** keep Phase 37 open (no matrix Yes); further residual clusters
-(upsert, Float16, RegExp.escape, groupBy, error-stack, immutable ArrayBuffer, etc.).
+**Next scope:** remaining FULL PORT ledger Nos/Partials under #177.
