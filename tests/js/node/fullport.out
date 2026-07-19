@@ -1,0 +1,26 @@
+modules 54
+sha256 true 168b59ff
+randomBytes true
+timingSafeEqual true
+zlib true true
+string_decoder true
+stream true true true true
+isBuiltin true true
+builtinCount true
+register true true
+processModule true
+consoleModule true
+als true
+perf true true
+diag true
+execSync true
+isIP true true
+pathAlias true true
+puny true true
+sqlite true true
+vm true
+constants true
+sys true true
+dns true
+tlsPair true
+FULLPORT_OK

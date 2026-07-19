@@ -9,8 +9,8 @@ targets are workload-specific and published;
 Clun does not claim blanket speed parity with Bun.
 
 <!-- clun-generated:release:begin -->
-> **Status: pre-alpha, under active construction.** [Phase 68](https://github.com/theesfeld/clun/issues/42) is in progress.
-> Its release-bearing target is `0.1.0-dev.56` / `v0.1.0-dev.56` (SemVer impact: `minor`).
+> **Status: pre-alpha, under active construction.** [Phase 47](https://github.com/theesfeld/clun/issues/191) is in progress.
+> Its release-bearing target is `0.1.0-dev.57` / `v0.1.0-dev.57` (SemVer impact: `minor`).
 > The verified release boundary is `v0.1.0-dev.21`, with four native archives, checksums, Pages,
 > and hosted-installer evidence.
 > Phase 26 remains deferred until after Phase 82 and will
@@ -107,7 +107,7 @@ July 16, 2026. Engineering references are separately pinned to Bun commit `c1076
 
 | Capability | Current pre-alpha state | Evidence-backed target |
 |---|---|---|
-| Node.js compatibility | Partial: selected pure-CL modules (path/fs/url/buffer/events/assert/util/timers/querystring/os/process/crypto helpers) | Phases [42](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-42), [43](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-43), [44](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-44), [45](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-45), [46](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-46), [47](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-47) |
+| Node.js compatibility | Yes: pure-CL Bun-comparable node: matrix (54 builtins: assert async_hooks buffer child_process cluster console constants crypto dgram diagnostics_channel dns domain events fs http http2 https inspector module net os path perf_hooks process punycode querystring readline repl sqlite stream string_decoder sys timers tls trace_events tty url util v8 vm wasi worker_threads zlib test); exceeds Bun on sqlite module.register registerHooks createSecurePair repl | Phases [42](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-42), [43](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-43), [44](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-44), [45](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-45), [46](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-46), [47](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-47) |
 | Web Standard APIs | Partial: streaming fetch, clone/tee, timeouts, HTTP/HTTPS proxy and pooling, ReadableStream/WritableStream/TransformStream, Response/Request.body streams; remaining Web surface (full Streams edge cases, broader standards globals, residual network stress) full-port in progress | [Phase 38](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-38) |
 | Native addons | No: not yet implemented (full-port target) | [Phase 48](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-48) |
 | TypeScript | Partial: erasable stripping + enums/namespaces/param-props; .tsx, decorators, full tsc-class typecheck not yet full-ported | [Phase 39](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-39) |
@@ -166,10 +166,10 @@ workflows are read-only and fail closed if the canonical issues, README, or site
 
 <!-- clun-generated:release-summary:begin -->
 Release versions follow the actual SemVer impact recorded in the canonical issue, not the number of pushes.
-The current source is the `0.1.0-dev.56` release candidate; the immutable tag and assets are not published yet.
+The current source is the `0.1.0-dev.57` release candidate; the immutable tag and assets are not published yet.
 The last published prerelease remains [`v0.1.0-dev.21`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.21).
 [The versioning contract](docs/versioning.md) defines prerelease sequencing, synchronized surfaces, immutable tags, assets, and installer evidence.
-[Phase 68 issue #42](https://github.com/theesfeld/clun/issues/42) is the canonical live release record.
+[Phase 47 issue #191](https://github.com/theesfeld/clun/issues/191) is the canonical live release record.
 <!-- clun-generated:release-summary:end -->
 
 ## The purity contract
@@ -179,7 +179,7 @@ The last published prerelease remains [`v0.1.0-dev.21`](https://github.com/thees
 - **Forbidden:** CFFI or any foreign library; any JavaScript as part of the *implementation* (JS/TS
   appears only as test fixtures). No shelling out to system tools as an implementation crutch.
 - **Enforced:** `make purity` scans every source under `src/` and `vendor/` for foreign-code entry
-./build/clun --version   # => clun 0.1.0-dev.56
+./build/clun --version   # => clun 0.1.0-dev.57
 ./build/clun --version   # => clun 0.1.0-dev.55
 ./build/clun --version   # => clun 0.1.0-dev.53
 ./build/clun --version   # => clun 0.1.0-dev.54

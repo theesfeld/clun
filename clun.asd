@@ -16,7 +16,7 @@
                ;; the vendored TLS 1.3 stack (ironclad + the Phase-19 closure come with it).
                ;; flexi-streams (in pure-tls's closure) gives an in-memory octet input stream for
                ;; the Phase-22 bounded gzip inflate (chipz decompressing stream).
-               "cl-ppcre" "chipz" "salza2" "pure-tls" "flexi-streams" "ironclad")
+               "cl-ppcre" "chipz" "salza2" "pure-tls" "flexi-streams" "ironclad" "cl-base64" "idna")
   :serial t
   :components ((:module "src"
                 :serial t
@@ -272,13 +272,39 @@
                                                          (:file "path")
                                                          (:file "os")
                                                          (:file "querystring")
-                                                         (:file "url")      ; node:url legacy (Phase 47 residual)
+                                                         (:file "url")
                                                          (:file "util")
                                                          (:file "events")
                                                          (:file "assert")
                                                          (:file "buffer")
                                                          (:file "fs")
-                                                         (:file "timers")))))
+                                                         (:file "timers")
+                                                         (:file "process")
+                                                         (:file "console")
+                                                         (:file "string_decoder")
+                                                         (:file "punycode")
+                                                         (:file "stream")
+                                                         (:file "crypto")
+                                                         (:file "zlib")
+                                                         (:file "module")
+                                                         (:file "sys")
+                                                         (:file "constants")
+                                                         (:file "perf_hooks")
+                                                         (:file "diagnostics_channel")
+                                                         (:file "async_hooks")
+                                                         (:file "domain")
+                                                         (:file "tty")
+                                                         (:file "dns")
+                                                         (:file "net")
+                                                         (:file "http")
+                                                         (:file "https")
+                                                         (:file "child_process")
+                                                         (:file "readline")
+                                                         (:file "tls")
+                                                         (:file "http2")
+                                                         (:file "dgram")
+                                                         (:file "remaining")
+                                                         (:file "aliases")))))
                              ;; test runner (Phase 15): clun test — discovery, tree +
                              ;; JS globals, matchers, diff, scheduler, reporter.
                              (:module "test-runner"

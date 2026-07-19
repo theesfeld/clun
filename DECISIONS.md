@@ -3374,3 +3374,11 @@ Pure-CL HTML entry imports + on-demand transforms + browser HMR. Exceeds Bun wit
 `Clun.devServer`, path isolation, origin allow-list, and pure-CL stat-poll (no native
 FS watcher FFI). Soft integrate with `tooling.hot-reload` when that module is loaded.
 Candidate `0.1.0-dev.54`. Parent epic #177.
+
+## 2026-07-19 — runtime.node-compatibility Partial→Yes FULL PORT (#191)
+
+- Pure-CL Bun-comparable `node:` matrix (54 builtins) exceeding Bun Partial node-compat.
+- Exceeds Bun: `node:sqlite` (Bun 🔴), `module.register`/`registerHooks` (Bun missing), `tls.createSecurePair`, `node:repl` (Bun 🔴).
+- Soft/selected-surface Yes banned; gap column empty; four-target fullport+inventory fixtures.
+- Stages `0.1.0-dev.57` / `v0.1.0-dev.57`; SemVer `minor`. Parent FULL PORT epic #177; cert phase #21.
+
