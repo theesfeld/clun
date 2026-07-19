@@ -576,6 +576,60 @@ cached_issue_has_label() (
   ' "$issue_cache"
 )
 
+cached_issue_matching_label() (
+  issue_cache=$1
+  issue_number=$2
+  pattern=$3
+  awk -F "$TAB" -v target="$issue_number" -v pattern="$pattern" '
+    $1 == target {
+      found++
+      count = split($3, labels, ",")
+      for (i = 1; i <= count; i++) {
+        if (labels[i] ~ pattern) {
+          matched++
+          value = labels[i]
+        }
+      }
+    }
+    END {
+      if (found != 1 || matched != 1) exit 2
+      print value
+    }
+  ' "$issue_cache"
+)
+
+verify_phase_issue_labels() (
+  issue_cache=$1
+  issue_number=$2
+  phase=$3
+  body=$4
+
+  type_label=$(cached_issue_matching_label "$issue_cache" "$issue_number" '^type:') ||
+    fail "Phase $phase issue #$issue_number must have exactly one type label"
+  [ "$type_label" = type:phase ] ||
+    fail "Phase $phase issue #$issue_number must use type:phase, not $type_label"
+
+  priority_label=$(cached_issue_matching_label "$issue_cache" "$issue_number" '^P[0-3]$') ||
+    fail "Phase $phase issue #$issue_number must have exactly one P0..P3 priority label"
+  semver_label=$(cached_issue_matching_label "$issue_cache" "$issue_number" \
+    '^semver:(major|minor|patch|none)$') ||
+    fail "Phase $phase issue #$issue_number must have exactly one SemVer label"
+  status_label=$(cached_issue_matching_label "$issue_cache" "$issue_number" '^status:') ||
+    fail "Phase $phase issue #$issue_number must have exactly one status label"
+
+  phase_status=$(sed -n 's/^\*\*Phase status:\*\* `\([^`]*\)`$/\1/p' "$body")
+  case "$phase_status:$status_label" in
+    not-started:status:backlog|not-started:status:ready|not-started:status:review|\
+    in-progress:status:in-progress|in-progress:status:review|\
+    blocked:status:blocked|complete:status:done) ;;
+    *)
+      fail "Phase $phase issue #$issue_number body status $phase_status disagrees with label $status_label"
+      ;;
+  esac
+
+  : "$priority_label" "$semver_label"
+)
+
 cached_issue_state() (
   issue_cache=$1
   issue_number=$2
@@ -991,6 +1045,7 @@ verify_phase26_issue() (
   reference_count=$(grep -F -x -c "$plan_reference" "$body" 2>/dev/null || :)
   [ "$reference_count" -eq 1 ] ||
     fail "Phase 26 issue #$issue_number must contain the exact master PLAN.md Phase 26 link"
+  verify_phase_issue_labels "$issue_cache" "$issue_number" 26 "$body"
 
   printf 'roadmap: verified canonical open Phase 26 issue #%s and PLAN.md link\n' "$issue_number"
 )
@@ -1053,6 +1108,7 @@ verify_live_roadmap() {
     cmp -s "$expected_contract" "$actual_contract" ||
       fail "Phase $phase issue #$issue_number technical contract differs from PLAN.md/docs/roadmap.tsv"
     verify_generated_live_sections "$body" "$phase" "$issue_number" "$issue_state"
+    verify_phase_issue_labels "$issue_cache" "$issue_number" "$phase" "$body"
     if [ "$phase" = "$active_phase" ]; then
       [ "$issue_number" = "$active_issue" ] ||
         fail "active release points to issue #$active_issue, but Phase $phase canonical issue is #$issue_number"
