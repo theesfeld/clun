@@ -78,4 +78,5 @@ loader) — evaluation is driven by status, not mere existence."
                 (mr-resolved-path mr))))
       ((eq (mr-format mr) :json) (mr-cjs-exports mr))
       ((eq (mr-format mr) :yaml) (mr-cjs-exports mr))
+      ((eq (mr-format mr) :html) (mr-cjs-exports mr))
       (t (mr-cjs-exports mr)))))

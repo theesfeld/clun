@@ -3367,3 +3367,10 @@ Purity = implementation language; full port under epic #177. Soft-outs rejected.
 - Pure-CL `Clun.SQL`: PostgreSQL protocol v3, MySQL client protocol, embedded SQLite engine (no CFFI).
 - Exceeds Bun.SQL: inspect, stats, export, queryLog, SQL.adapters.
 - SemVer: `0.1.0-dev.50` minor. Parent #177.
+
+## 2026-07-19 — tooling.frontend-dev-server full port Yes (#189)
+
+Pure-CL HTML entry imports + on-demand transforms + browser HMR. Exceeds Bun with
+`Clun.devServer`, path isolation, origin allow-list, and pure-CL stat-poll (no native
+FS watcher FFI). Soft integrate with `tooling.hot-reload` when that module is loaded.
+Candidate `0.1.0-dev.54`. Parent epic #177.

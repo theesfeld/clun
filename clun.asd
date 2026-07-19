@@ -259,6 +259,7 @@
                                            (:file "clun-router") ; Clun.serve route table (Phase 50)
                                            (:file "clun-serve"); Clun.serve HTTP server (Phase 17)
                                            (:file "hot-reload"); --hot/--watch state-preserving reload (#188)
+                                           (:file "frontend-dev-server") ; HTML entry + HMR (#189)
                                            (:file "web-url")   ; URL/URLSearchParams (Phase 18)
                                            (:file "web-proxy") ; fetch proxy selection/auth/bypass (Phase 28)
                                            (:file "web-fetch") ; fetch (Phase 18)
@@ -387,7 +388,8 @@
                                                          (:file "shell-tests")
                                                          (:file "scripts-tests")
                                                          (:file "cron-tests")
-                                                         (:file "hot-reload-tests")))
+                                                         (:file "hot-reload-tests")
+                                                         (:file "frontend-dev-server-tests")))
                                            (:module "transpiler"
                                             :serial t
                                             :components ((:file "ts-strip-tests")

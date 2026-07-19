@@ -82,7 +82,13 @@
             wildcard-p)))
 
 (defun %route-action-p (value)
-  (or (eng:callable-p value) (%response-object-p value) (js-clun-file-p value)))
+  (or (eng:callable-p value)
+      (%response-object-p value)
+      (js-clun-file-p value)
+      ;; HTML entry brands from `import page from "./index.html"` (Phase 68).
+      (and (find-symbol "HTML-ENTRY-P" :clun.runtime)
+           (funcall (symbol-function (find-symbol "HTML-ENTRY-P" :clun.runtime))
+                    value))))
 
 (defun %compile-route-value (value)
   (let ((entry (%make-route-entry)))
