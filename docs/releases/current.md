@@ -1,5 +1,5 @@
 <!-- clun-generated:release-notes:begin -->
-# Clun 0.1.0-dev.60
+# Clun 0.1.0-dev.65
 
 Phase 69: Formatter.
 
@@ -14,6 +14,4 @@ The canonical evidence and current limitations are in `compat/`; `make compat-va
 ## Highlights
 
 - Issue #190 promotes `tooling.formatter-linter` No→**Yes** (pure-CL `clun fmt` / `clun lint` exceeding Bun).
-- Issue #189 promotes `tooling.frontend-dev-server` No→**Yes**.
-- Issue #180 promotes `tooling.bundler` No→**Yes**.
-- Slot: free `0.1.0-dev.60` after master frontend Yes `0.1.0-dev.56`.
+- Slot: free `0.1.0-dev.65` after master Phase 37 m4 `0.1.0-dev.63` (webstd concurrent train claims `.64`).
