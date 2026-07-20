@@ -167,18 +167,19 @@ fi
 "$package_dir/bin/clun" --version
 # Prefer portable ustar without macOS AppleDouble/xattr noise so pure-CL extractors
 # see regular-file typeflags and the full bin/clun path on every platform.
-if COPYFILE_DISABLE=1 tar --format=ustar -C "$work_dir" -czf "$output_dir/clun-$target.tar.gz" "clun-$target" 2>/dev/null; then
-  :
-elif COPYFILE_DISABLE=1 tar -C "$work_dir" -czf "$output_dir/clun-$target.tar.gz" "clun-$target"; then
-  :
+archive_path="$output_dir/clun-$target.tar.gz"
+export COPYFILE_DISABLE=1
+if tar --help 2>&1 | grep -q -- '--format'; then
+  tar --format=ustar -C "$work_dir" -czf "$archive_path" "clun-$target"
 else
-  echo "package: tar failed for $target" >&2
-  exit 1
+  tar -C "$work_dir" -czf "$archive_path" "clun-$target"
 fi
 # Fail closed if the archive omits the launcher path the updater chmod's after extract.
-if ! tar -tzf "$output_dir/clun-$target.tar.gz" | grep -Eq "^clun-$target/bin/clun\$"; then
+# Accept optional ./ prefix from some tar list implementations.
+if ! tar -tzf "$archive_path" | grep -Eq "^(./)?clun-$target/bin/clun\$"; then
   echo "package: archive is missing clun-$target/bin/clun" >&2
-  tar -tzf "$output_dir/clun-$target.tar.gz" | head -40 >&2
+  tar -tzf "$archive_path" 2>&1 | head -40 >&2 || true
+  ls -la "$archive_path" >&2 || true
   exit 1
 fi
-echo "created $output_dir/clun-$target.tar.gz"
+echo "created $archive_path"
