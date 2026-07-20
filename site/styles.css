@@ -835,14 +835,18 @@ code {
   font-size: 11px;
   margin-top: 2px;
 }
+.compat-table thead th.clun-col {
+  background: rgba(93, 222, 160, 0.1);
+  color: var(--ink);
+}
 .compat-table .clun-col {
-  background: rgba(255, 107, 90, 0.05);
+  background: rgba(93, 222, 160, 0.04);
 }
 .compat-table tbody tr { transition: background 160ms ease, box-shadow 200ms ease; }
 .compat-table tbody tr:hover,
 .compat-table tbody tr.is-hot {
-  background: rgba(245, 197, 66, 0.06);
-  box-shadow: inset 3px 0 0 var(--amber);
+  background: rgba(93, 222, 160, 0.06);
+  box-shadow: inset 3px 0 0 var(--mint);
 }
 .compare-group th {
   background: rgba(255,255,255,0.03);
@@ -875,17 +879,47 @@ code {
   font-size: 12px;
   font-weight: 800;
 }
-.mark-yes .mark-glyph { background: var(--mint-soft); color: var(--mint); }
+/* Yes cells read as success (green wash), not as bare icons on dark void */
+.mark-cell:has(.mark-yes) {
+  background: rgba(93, 222, 160, 0.12);
+}
+.mark-cell:has(.mark-partial) {
+  background: rgba(245, 197, 66, 0.1);
+}
+.mark-cell:has(.mark-no) {
+  background: rgba(255, 255, 255, 0.03);
+}
+.compat-table .clun-col.mark-cell:has(.mark-yes) {
+  background: rgba(93, 222, 160, 0.16);
+}
+.mark-yes .mark-glyph {
+  background: rgba(93, 222, 160, 0.28);
+  color: #7dffc0;
+  box-shadow: 0 0 0 1px rgba(93, 222, 160, 0.35);
+}
 .mark-partial .mark-glyph { background: var(--amber-soft); color: var(--amber); }
 .mark-no .mark-glyph { background: rgba(255,255,255,0.06); color: #777; }
 .mark .state { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+/* Positive differentiator, not an error */
 .exceed-note {
   display: block;
   margin-top: 6px;
-  color: var(--coral);
+  color: #8be9b8;
   font-size: 11px;
   line-height: 1.35;
   max-width: 14rem;
+  font-weight: 500;
+}
+/* Fallback when :has() is unavailable */
+.mark-yes {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+  min-height: 2rem;
+  padding: 4px 6px;
+  border-radius: 999px;
+  background: rgba(93, 222, 160, 0.18);
 }
 
 /* github */
