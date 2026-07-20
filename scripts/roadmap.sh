@@ -23,10 +23,10 @@ PHASE_COUNT=57
 TAB=$(printf '\t')
 CONTRACT_BEGIN='<!-- clun-roadmap-technical-contract:begin -->'
 CONTRACT_END='<!-- clun-roadmap-technical-contract:end -->'
-PHASE26_TITLE='Phase 26: Hardening, docs, release'
+PHASE26_TITLE='Phase 26: Final hardening, docs, and release'
 PHASE26_LABEL='phase-26'
 PHASE26_MARKER='<!-- clun-canonical-phase:26 -->'
-PHASE26_HEADER='# Canonical status'
+PHASE26_HEADER='# Canonical live phase record'
 PHASE26_PLAN_ANCHOR='phase-26--final-hardening-docs-and-release--deferred-to-the-end-deps-82--all-prior-phases'
 SEMVER_IDENTIFIER='(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)'
 SEMVER_PATTERN="^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(-${SEMVER_IDENTIFIER}(\\.${SEMVER_IDENTIFIER})*)?(\\+[0-9A-Za-z-]+(\\.[0-9A-Za-z-]+)*)?$"
@@ -766,9 +766,11 @@ verify_additional_phase_issues() (
     additional=$((additional + 1))
   done < "$phase_issues"
 
-  canonical=$((PHASE_COUNT + 2))
+  # PHASE_COUNT covers roadmap phases (now 26–82). +1 is Phase 25b outside that range.
+  # (Phase 26 used to be the extra +1 while deferred; it is now in PHASE_COUNT.)
+  canonical=$((PHASE_COUNT + 1))
   [ "$total" -eq $((canonical + additional)) ] ||
-    fail "not every type:phase issue is covered by a canonical or additional phase contract"
+    fail "not every type:phase issue is covered by a canonical or additional phase contract (total=$total canonical=$canonical additional=$additional)"
   printf 'roadmap: verified %s additional type:phase issue contract(s); %s total\n' \
     "$additional" "$total"
 )
@@ -1172,6 +1174,25 @@ verify_phase26_issue() (
 
   body="$scratch/phase-26-body.md"
   fetch_issue_body "$repo" "$issue_number" "$body"
+
+  active_phase=$(awk -F "$TAB" 'NR == 2 { print $8 }' "$RELEASE_LEDGER")
+  phase_status=$(sed -n 's/^\*\*Phase status:\*\* `\([^`]*\)`$/\1/p' "$body")
+
+  # After Phase 82 closes, Phase 26 is the active program phase and is already
+  # verified by the main roadmap loop (generated contract + release disposition).
+  # Only enforce the deferred-phase blocked contract while it is not yet active.
+  if [ "$active_phase" = 26 ]; then
+    case "$phase_status" in
+      in-progress|blocked) ;;
+      *)
+        fail "active Phase 26 issue #$issue_number must record Phase status in-progress or blocked"
+        ;;
+    esac
+    printf 'roadmap: verified active Phase 26 issue #%s (standard roadmap loop owns the contract)\n' \
+      "$issue_number"
+    return 0
+  fi
+
   [ "$(grep -F -x -c '**Phase status:** `blocked`' "$body" 2>/dev/null || :)" -eq 1 ] ||
     fail "Phase 26 issue #$issue_number must record Phase status blocked while its dependency is open"
   marker_count=$(grep -F -x -c "$PHASE26_MARKER" "$body" 2>/dev/null || :)
