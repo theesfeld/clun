@@ -9,18 +9,18 @@ targets are workload-specific and published;
 Clun does not claim blanket speed parity with Bun.
 
 <!-- clun-generated:release:begin -->
-> **Status: pre-alpha, under active construction.** [Phase 82](https://github.com/theesfeld/clun/issues/56) tracks the published prerelease and remaining phase work.
-> Published release: `0.2.0-dev.11` / `v0.2.0-dev.11` (SemVer impact: `patch`).
+> **Status: pre-alpha, under active construction.** [Phase 26](https://github.com/theesfeld/clun/issues/58) tracks the published prerelease and remaining phase work.
+> Published release: `0.2.0-dev.11` / `v0.2.0-dev.11` (SemVer impact: `minor`).
 > The verified release boundary is `v0.2.0-dev.11`, with four native archives and checksums.
 > Release-gated Pages and hosted-installer results are recorded in the canonical issue.
-> Phase 26 remains deferred until after Phase 82 and will
-> be rewritten for the repository state that exists then.
+> Phase 26 (final hardening) is the active program phase after Phase 82 closed.
+> Checklist and SemVer disposition live on the canonical issue; stable `0.2.0` is not assumed until gates pass.
 > Clun's full-port target requires every ledger Yes to survive executable and public-claim audit. The current snapshot is 30 Yes / 0 Partial / 0 No; qualified evidence is not treated as complete.
 > The canonical issue is the live source of truth; `PLAN.md` is the technical contract and `STATE.md` is
 > the local resume checklist.
 <!-- clun-generated:release:end -->
 
-Published [`v0.2.0-dev.11`](https://github.com/theesfeld/clun/releases/tag/v0.2.0-dev.11) is the verified installable boundary (four native archives, `checksums.txt`, modern `~/.local/bin` layout, built-in updater, human registry errors, and install progress chrome). Immutable tag-only attempts `v0.1.0-dev.69`, `v0.1.0-dev.70`, `v0.2.0-dev.1`–`v0.2.0-dev.4`, and wrong-peel `v0.2.0-dev.9` produced no installable assets and were not moved or reused. [Phase 82 issue #56](https://github.com/theesfeld/clun/issues/56) tracks the published prerelease and remaining phase work.
+Published [`v0.2.0-dev.11`](https://github.com/theesfeld/clun/releases/tag/v0.2.0-dev.11) is the verified installable boundary (four native archives, `checksums.txt`, modern `~/.local/bin` layout, built-in updater, human registry errors, and install progress chrome). Immutable tag-only attempts `v0.1.0-dev.69`, `v0.1.0-dev.70`, `v0.2.0-dev.1`–`v0.2.0-dev.4`, and wrong-peel `v0.2.0-dev.9` produced no installable assets and were not moved or reused. Phase 82 ([#56](https://github.com/theesfeld/clun/issues/56)) closed the purity-compatible surface audit; [Phase 26 issue #58](https://github.com/theesfeld/clun/issues/58) tracks final hardening.
 
 ## Install
 Tagged releases are installed by the same POSIX shell command on Linux and macOS:
@@ -206,7 +206,7 @@ workflows are read-only and fail closed if the canonical issues, README, or site
 Release versions follow the actual SemVer impact recorded in the canonical issue, not the number of pushes.
 The current source version and latest published prerelease are [`0.2.0-dev.11`](https://github.com/theesfeld/clun/releases/tag/v0.2.0-dev.11).
 [The versioning contract](docs/versioning.md) defines prerelease sequencing, synchronized surfaces, immutable tags, assets, and installer evidence.
-[Phase 82 issue #56](https://github.com/theesfeld/clun/issues/56) is the canonical live release record.
+[Phase 26 issue #58](https://github.com/theesfeld/clun/issues/58) is the canonical live release record.
 <!-- clun-generated:release-summary:end -->
 
 ## The purity contract

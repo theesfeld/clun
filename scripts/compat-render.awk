@@ -287,8 +287,13 @@ END {
       print "> The verified release boundary is `v" previous_version "`, with four native archives, checksums, Pages,"
       print "> and hosted-installer evidence."
     }
-    print "> Phase 26 remains deferred until after Phase 82 and will"
-    print "> be rewritten for the repository state that exists then."
+    if (active_phase == 26) {
+      print "> Phase 26 (final hardening) is the active program phase after Phase 82 closed."
+      print "> Checklist and SemVer disposition live on the canonical issue; stable `0.2.0` is not assumed until gates pass."
+    } else {
+      print "> Phase 26 remains deferred until after Phase 82 and will"
+      print "> be rewritten for the repository state that exists then."
+    }
     print "> Clun's full-port target requires every ledger Yes to survive executable and public-claim audit. The current snapshot is " ledger_yes " Yes / " ledger_partial " Partial / " ledger_no " No; qualified evidence is not treated as complete."
     print "> The canonical issue is the live source of truth; `PLAN.md` is the technical contract and `STATE.md` is"
     print "> the local resume checklist."
