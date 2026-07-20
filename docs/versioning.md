@@ -170,6 +170,13 @@ AbortSignal, timeout/killSignal, killed, ref/unref). SemVer impact is `minor`. S
 honest Partial (no IPC, ReadableStream stdout, #61 loop ownership). Master tip was `0.1.0-dev.28`
 after path.win32 #114; this unit takes free `0.1.0-dev.31` under the unpublished-intermediate gap policy.
 
+
+Phase 82 recovery after immutable tag-only `v0.2.0-dev.2` (Release failed the darwin-x64
+packaged-updater extract before assets published) advances the candidate to
+`0.2.0-dev.3` / `v0.2.0-dev.3` under Issue #216. SemVer impact remains `major` for the
+0.2.0 train (install path + safe updater). Installer boundary stays `v0.1.0-dev.21` until
+dev.3 assets pass the release gates.
+
 ## Canonical record
 
 The applicable GitHub issue is the live source of truth. Before publication, its body must record:

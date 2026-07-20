@@ -10,7 +10,7 @@ Clun does not claim blanket speed parity with Bun.
 
 <!-- clun-generated:release:begin -->
 > **Status: pre-alpha, under active construction.** [Phase 82](https://github.com/theesfeld/clun/issues/56) is in progress.
-> Its release-bearing target is `0.2.0-dev.2` / `v0.2.0-dev.2` (SemVer impact: `major`).
+> Its release-bearing target is `0.2.0-dev.3` / `v0.2.0-dev.3` (SemVer impact: `major`).
 > The verified release boundary is `v0.1.0-dev.21`, with four native archives, checksums, Pages,
 > and hosted-installer evidence.
 > Phase 26 remains deferred until after Phase 82 and will
@@ -20,7 +20,7 @@ Clun does not claim blanket speed parity with Bun.
 > the local resume checklist.
 <!-- clun-generated:release:end -->
 
-The exact current source is the `0.2.0-dev.2` recovery candidate. Immutable tags
+The exact current source is the `0.2.0-dev.3` recovery candidate. Immutable tags
 `v0.1.0-dev.69`, `v0.1.0-dev.70`, and `v0.2.0-dev.1` produced no GitHub Release assets and are not
 installable checkpoints. The `v0.2.0-dev.1` release run passed Linux x64/arm64 and macOS arm64 but
 exposed a fresh-install materialization race on macOS x64; publication was skipped. Published
@@ -28,7 +28,7 @@ exposed a fresh-install materialization race on macOS x64; publication was skipp
 boundary. The deterministic ancestor-before-descendant materialization fix from
 [Issue #241](https://github.com/theesfeld/clun/issues/241) / [PR #242](https://github.com/theesfeld/clun/pull/242)
 is on `master`. [Issue #216](https://github.com/theesfeld/clun/issues/216) owns immutable
-`v0.2.0-dev.2` publication, [Issue #239](https://github.com/theesfeld/clun/issues/239) owns
+`v0.2.0-dev.3` publication, [Issue #239](https://github.com/theesfeld/clun/issues/239) owns
 post-publication surface reconcile, and [Phase 82 issue #56](https://github.com/theesfeld/clun/issues/56)
 remains the canonical program record.
 
@@ -63,7 +63,7 @@ curl -fsSL https://clun.sh/install | ADD_PATH=1 sh   # ensure the managed rc blo
 
 Existing `~/.clun` installations remain supported: `CLUN_INSTALL="$HOME/.clun"` retains the legacy
 release-root layout, while `CLUN_VERSION` and `CLUN_NO_MODIFY_PATH=1` remain compatibility aliases.
-The verified `v0.1.0-dev.21` boundary predates the built-in updater. After `v0.2.0-dev.2` is
+The verified `v0.1.0-dev.21` boundary predates the built-in updater. After `v0.2.0-dev.3` is
 published and shown here as the installable boundary, existing users can upgrade that layout once
 through the checksum-verifying installer; the new release then supports future `clun --update` runs:
 
@@ -100,7 +100,7 @@ metadata and public HTTPS tarball fallback are denied. Build from source and run
 manifest) against the public registry today; the hosted installer still ships only verified
 `v0.1.0-dev.21`, which cannot. The `v0.2.0-dev.1` release run reproduced those receipts on three
 native targets before macOS x64 exposed an order-dependent fresh-hoist race; the landed
-`0.2.0-dev.2` source keeps downloads concurrent but commits ready packages in deterministic
+`0.2.0-dev.3` source keeps downloads concurrent but commits ready packages in deterministic
 ancestor-before-descendant order regardless of lockfile member order. Completed bodies wait on disk,
 not as an unbounded in-memory set. The live, non-hermetic gate uses Clun's experimental bounded
 pure-CL TLS profile. The still-published
@@ -112,7 +112,7 @@ alert/close lifecycle from [Issue #235](https://github.com/theesfeld/clun/issues
 materialization ordering fix from [Issue #241](https://github.com/theesfeld/clun/issues/241) /
 [PR #242](https://github.com/theesfeld/clun/pull/242). It remains a source candidate until the newest
 exact-SHA `master` push runs for CI, Documentation, Compatibility, and Pages succeed, and
-[Issue #216](https://github.com/theesfeld/clun/issues/216) publishes immutable `v0.2.0-dev.2` with
+[Issue #216](https://github.com/theesfeld/clun/issues/216) publishes immutable `v0.2.0-dev.3` with
 four archives plus `checksums.txt` under the strict release-asset gates.
 
 ## What works
@@ -239,7 +239,7 @@ workflows are read-only and fail closed if the canonical issues, README, or site
 
 <!-- clun-generated:release-summary:begin -->
 Release versions follow the actual SemVer impact recorded in the canonical issue, not the number of pushes.
-The current source is the `0.2.0-dev.2` release candidate; the immutable tag and assets are not published yet.
+The current source is the `0.2.0-dev.3` release candidate; the immutable tag and assets are not published yet.
 The last published prerelease remains [`v0.1.0-dev.21`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.21).
 [The versioning contract](docs/versioning.md) defines prerelease sequencing, synchronized surfaces, immutable tags, assets, and installer evidence.
 [Phase 82 issue #56](https://github.com/theesfeld/clun/issues/56) is the canonical live release record.
@@ -310,7 +310,7 @@ vendored under `vendor/` and located via `scripts/registry.lisp`.
 make build     # compile everything, save build/clun (save-lisp-and-die)
 make test      # run the CL suites and JS/TS fixture harnesses
 make purity    # fail on any CFFI/foreign-code token
-./build/clun --version   # => clun 0.2.0-dev.2
+./build/clun --version   # => clun 0.2.0-dev.3
 ```
 
 A fresh clone builds with `make build` alone: ASDF compiles the vendored closure and `src/` into

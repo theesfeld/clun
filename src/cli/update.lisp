@@ -14,10 +14,11 @@
 (defparameter *update-user-agent* "clun-update/0.1"
   "GitHub requires a User-Agent on unauthenticated downloads.")
 
-(defparameter *update-max-asset-bytes* net:*max-body-bytes*
-  "Hard upper bound for a downloaded release asset (currently 100 MiB).
-The transport rejects larger bodies before returning, and activation starts
-only after the complete bounded payload has been checksum-verified.")
+(defparameter *update-max-asset-bytes* (* 300 1024 1024)
+  "Hard upper bound for a downloaded release asset (300 MiB).
+Sized for full SBCL release bundles plus licenses. The transport rejects larger
+bodies before returning, and activation starts only after the complete bounded
+payload has been checksum-verified.")
 
 (defvar *update-fetch-function* nil
   "Optional test seam. When non-NIL, called instead of the pure-CL fetch transport.")
@@ -421,7 +422,14 @@ provides a non-API fallback. A usable redirect is retained if both fail."
 (defun %prepare-release-modes (bundle)
   ;; The hardened archive extractor intentionally ignores archive modes. Restore
   ;; only the known executable release surfaces after structural extraction.
-  (sys:change-mode (sys:path-join bundle "bin" "clun") #o755)
+  (let ((launcher (sys:path-join bundle "bin" "clun")))
+    (unless (sys:file-p launcher)
+      (error "release bundle extract is missing bin/clun under ~a (entries: ~{~a~^, ~})"
+             bundle
+             (ignore-errors
+               (loop for e in (sys:read-directory bundle)
+                     collect e))))
+    (sys:change-mode launcher #o755))
   (when (string= (sys:platform-name) "linux")
     (sys:change-mode (sys:path-join bundle "libexec" "clun") #o755)
     (let ((lib (sys:path-join bundle "lib")))

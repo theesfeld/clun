@@ -13,6 +13,23 @@ installable release checkpoints.
 
 ## [Unreleased]
 
+## [0.2.0-dev.3] - 2026-07-20
+
+### Fixed
+
+- Package release archives as portable ustar without macOS AppleDouble noise so the
+  pure-CL extractor materializes `bin/clun` on every platform.
+- Raise packaged-updater and self-update asset ceilings to 300 MiB for full SBCL
+  bundles.
+- Auto-create `package.json` on empty-directory `clun add` / `clun install <pkg>`.
+- Repair site compatibility intro baseline-refresh contract for CI/Docs gates.
+
+### Changed
+
+- Advance the recovery candidate past immutable tag-only `v0.2.0-dev.2` (Release
+  gates failed before assets); verified installer remains `v0.1.0-dev.21` until
+  publication of `v0.2.0-dev.3` assets succeeds.
+
 ## [0.2.0-dev.2] - 2026-07-19
 
 ### Changed

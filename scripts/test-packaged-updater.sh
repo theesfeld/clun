@@ -12,8 +12,10 @@ archive=$1
 version=${2#v}
 target=$3
 archive_size=$(wc -c <"$archive" | tr -d '[:space:]')
-[ "$archive_size" -le 104857600 ] || {
-  printf 'packaged-updater-test: archive is larger than the 100 MiB updater transport limit\n' >&2
+# Keep a hard ceiling so CI fails closed on runaway bundles, but leave room for a full
+# SBCL release image plus licenses (historical 100 MiB was too tight for darwin-x64).
+[ "$archive_size" -le 314572800 ] || {
+  printf 'packaged-updater-test: archive is larger than the 300 MiB updater transport limit\n' >&2
   exit 1
 }
 root=$(mktemp -d "${TMPDIR:-/tmp}/clun-packaged-update.XXXXXX")
@@ -54,5 +56,5 @@ case "$target" in
     ;;
 esac
 
-printf 'packaged updater fixture passed for %s (%s bytes; 104857600-byte limit)\n' \
+printf 'packaged updater fixture passed for %s (%s bytes; 300 MiB limit)\n' \
   "$target" "$archive_size"
