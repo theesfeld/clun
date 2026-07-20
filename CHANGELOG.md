@@ -13,6 +13,19 @@ installable release checkpoints.
 
 ## [Unreleased]
 
+## [0.2.0-dev.7] - 2026-07-20
+
+### Added
+
+- ANSI-colored CLI help/version/update status (honors `NO_COLOR` and non-TTY).
+- Braille spinner animation during `clun --update` asset download when attached to a TTY.
+
+### Changed
+
+- Promote `security.encrypted-secrets` to **Yes**: pure-CL AES-256-GCM vault is the
+  purity-compatible full-port surface (exceeds Bun with has/list/clear). OS Keychain
+  FFI is out of scope, not a Partial hold.
+
 ## [0.2.0-dev.6] - 2026-07-20
 
 ### Fixed

@@ -348,6 +348,7 @@
                               :serial t
                               :components ((:file "dotenv")
                                            (:file "args")
+                                           (:file "style")
                                            (:file "update")))
                              (:file "main")))))
 

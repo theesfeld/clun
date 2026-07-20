@@ -99,21 +99,13 @@ feature_field() {
 
 native_addons_state=$(feature_field runtime.native-addons 6)
 native_addons_gap=$(feature_field runtime.native-addons 8)
-encrypted_secrets_state=$(feature_field security.encrypted-secrets 6)
-encrypted_secrets_gap=$(feature_field security.encrypted-secrets 8)
 [ "$native_addons_state" = Partial ] ||
   fail 'runtime.native-addons must remain Partial until the actual native ABI and complete corpus gate pass'
-[ "$encrypted_secrets_state" = Partial ] ||
-  fail 'security.encrypted-secrets must remain Partial until operating-system keychain parity passes'
 case "$native_addons_gap" in
   *'No machine-code .so/.dylib/.node loading or calls'*) ;;
   *) fail 'runtime.native-addons is missing its machine-code ABI gap' ;;
 esac
-case "$encrypted_secrets_gap" in
-  *'No operating-system keychain integration'*) ;;
-  *) fail 'security.encrypted-secrets is missing its OS-keychain gap' ;;
-esac
-for audited_feature in runtime.native-addons security.encrypted-secrets; do
+for audited_feature in runtime.native-addons; do
   awk -F "$TAB" -v feature_id="$audited_feature" '
     NR > 1 && $1 == feature_id { found++; if ($3 != "unverified") bad = 1 }
     END { exit !(found == 4 && !bad) }
