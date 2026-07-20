@@ -13,6 +13,14 @@ installable release checkpoints.
 
 ## [Unreleased]
 
+## [0.2.0-dev.6] - 2026-07-20
+
+### Fixed
+
+- Stop pure-tls system CA bundle loading from emitting a WARNING for every
+  unparseable PEM (legacy serial/GeneralizedTime/SAN forms). Trust-store skips
+  match OpenSSL behavior; handshake verification remains fail-closed.
+
 ## [0.2.0-dev.5] - 2026-07-20
 
 ### Fixed
@@ -312,7 +320,8 @@ installable release checkpoints.
 
 - Publish the initial Clun development release.
 
-[Unreleased]: https://github.com/theesfeld/clun/compare/v0.2.0-dev.5...HEAD
+[Unreleased]: https://github.com/theesfeld/clun/compare/v0.2.0-dev.6...HEAD
+[0.2.0-dev.6]: https://github.com/theesfeld/clun/compare/v0.2.0-dev.5...v0.2.0-dev.6
 [0.2.0-dev.5]: https://github.com/theesfeld/clun/compare/v0.2.0-dev.4...v0.2.0-dev.5
 [0.2.0-dev.4]: https://github.com/theesfeld/clun/compare/v0.2.0-dev.2...v0.2.0-dev.4
 [0.2.0-dev.2]: https://github.com/theesfeld/clun/compare/v0.2.0-dev.1...v0.2.0-dev.2

@@ -173,33 +173,44 @@
 
 ;;;; Certificate Loading
 
-(defun load-certificate-chain (path)
+(defun load-certificate-chain (path &key (on-error :skip))
   "Load a certificate chain from a PEM file.
-   Skips certificates that fail to parse (with a warning)."
+
+Skips certificates that fail to parse. System trust stores routinely contain
+legacy/non-strict PEMs; OpenSSL skips them silently. ON-ERROR is:
+
+  :skip  — drop the block (default; no warn spam on every HTTPS call)
+  :warn  — skip and warn once per failed block
+  :error — re-signal the parse failure"
   (let ((bytes (read-file-bytes path))
         (certs nil))
-    (if (pem-encoded-p bytes)
-        ;; Parse all certificate blocks
-        (let ((text (octets-to-string bytes))
-              (start 0))
-          (loop
-            (let ((begin-pos (search "-----BEGIN CERTIFICATE-----" text :start2 start)))
-              (unless begin-pos (return))
-              (let ((end-pos (search "-----END CERTIFICATE-----" text :start2 begin-pos)))
-                (unless end-pos (return))
-                (let* ((block-end (+ end-pos (length "-----END CERTIFICATE-----")))
-                       (pem-block (subseq text begin-pos block-end)))
-                  (handler-case
-                      (let ((der (pem-decode (string-to-octets pem-block) "CERTIFICATE")))
-                        (push (parse-certificate der) certs))
-                    (error (e)
-                      (warn "Failed to parse certificate at position ~D: ~A" begin-pos e)))
-                  (setf start block-end))))))
-        ;; Single DER certificate
-        (handler-case
-            (push (parse-certificate bytes) certs)
-          (error (e)
-            (warn "Failed to parse certificate from ~A: ~A" path e))))
+    (flet ((handle-parse-error (e context)
+             (ecase on-error
+               (:skip nil)
+               (:warn (warn "Failed to parse certificate ~A: ~A" context e))
+               (:error (error e)))))
+      (if (pem-encoded-p bytes)
+          ;; Parse all certificate blocks
+          (let ((text (octets-to-string bytes))
+                (start 0))
+            (loop
+              (let ((begin-pos (search "-----BEGIN CERTIFICATE-----" text :start2 start)))
+                (unless begin-pos (return))
+                (let ((end-pos (search "-----END CERTIFICATE-----" text :start2 begin-pos)))
+                  (unless end-pos (return))
+                  (let* ((block-end (+ end-pos (length "-----END CERTIFICATE-----")))
+                         (pem-block (subseq text begin-pos block-end)))
+                    (handler-case
+                        (let ((der (pem-decode (string-to-octets pem-block) "CERTIFICATE")))
+                          (push (parse-certificate der) certs))
+                      (error (e)
+                        (handle-parse-error e (format nil "at position ~D" begin-pos))))
+                    (setf start block-end))))))
+          ;; Single DER certificate
+          (handler-case
+              (push (parse-certificate bytes) certs)
+            (error (e)
+              (handle-parse-error e (format nil "from ~A" path))))))
     (nreverse certs)))
 
 (defun load-private-key (path)
