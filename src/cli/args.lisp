@@ -51,12 +51,12 @@
                 (setf action :update))
                ((member tok '("check-update") :test #'string=)
                 (setf action :check-update))
-               ((member tok '("run" "test" "install" "add" "remove" "exec"
+               ((member tok '("run" "test" "install" "add" "remove" "publish" "exec"
                               "build" "compile" "fmt" "format" "lint" "x" "create" "init" "tsc" "typecheck")
                         :test #'string=)
                 (setf subcommand tok action :run)
-                ;; tsc/typecheck take zero or more path args (not a single file slot)
-                (if (member tok '("tsc" "typecheck") :test #'string=)
+                ;; tsc/typecheck/publish take zero or more path args (not a single file slot)
+                (if (member tok '("tsc" "typecheck" "publish") :test #'string=)
                     (progn (setf file nil args toks))
                     (progn (setf file (next))
                            (setf args toks))))

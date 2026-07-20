@@ -22,6 +22,7 @@
                   ~8@T~a install [pkg…]     install package.json deps, or add package(s) + install~%~
                   ~8@T~a add <pkg…>         add package(s) (-d dev, -E exact) + install~%~
                   ~8@T~a remove <pkg>       remove a dependency + reinstall~%~
+                  ~8@T~a publish            pack + publish to npm registry (NPM_TOKEN / .npmrc)~%~
                   ~8@T~a build <entry…>     production bundle (Clun.build / Bun.build)~%~
                   ~8@T~a fmt [paths…]       format JS/TS/JSON/YAML/CSS (check/write/stdin)~%~
                   ~8@T~a lint [paths…]      lint JS/TS with recommended ruleset~%~
@@ -52,21 +53,22 @@
           (cli:style-ok *clun-version* stream)
           (cli:style-info "Bun, rewritten in pure Common Lisp" stream)
           (cli:style-dim "Usage:" stream)
-          (cli:style-brand "clun" stream)
-          (cli:style-brand "clun" stream)
-          (cli:style-brand "clun" stream)
-          (cli:style-brand "clun" stream)
-          (cli:style-brand "clun" stream)
-          (cli:style-brand "clun" stream)
-          (cli:style-brand "clun" stream)
-          (cli:style-brand "clun" stream)
-          (cli:style-brand "clun" stream)
-          (cli:style-brand "clun" stream)
-          (cli:style-brand "clun" stream)
-          (cli:style-brand "clun" stream)
-          (cli:style-brand "clun" stream)
-          (cli:style-brand "clun" stream)
-          (cli:style-brand "clun" stream)
+          (cli:style-brand "clun" stream)   ; <file>
+          (cli:style-brand "clun" stream)   ; run
+          (cli:style-brand "clun" stream)   ; -e
+          (cli:style-brand "clun" stream)   ; -p
+          (cli:style-brand "clun" stream)   ; exec
+          (cli:style-brand "clun" stream)   ; install
+          (cli:style-brand "clun" stream)   ; add
+          (cli:style-brand "clun" stream)   ; remove
+          (cli:style-brand "clun" stream)   ; publish
+          (cli:style-brand "clun" stream)   ; build
+          (cli:style-brand "clun" stream)   ; fmt
+          (cli:style-brand "clun" stream)   ; lint
+          (cli:style-brand "clun" stream)   ; build --compile
+          (cli:style-brand "clun" stream)   ; compile
+          (cli:style-brand "clun" stream)   ; tsc
+          (cli:style-brand "clun" stream)   ; run script
           (cli:style-dim "Flags:" stream)))
 
 ;;; --- uncaught-error rendering ----------------------------------------------
@@ -191,6 +193,54 @@ With --hot / --watch, state-preserving (or hard) reload is armed for the process
       (when (plusp (length stderr))
         (sys:write-fd-octets 2 stderr))
       (if (= status 127) 1 status))))
+
+;;; --- publish ----------------------------------------------------------------
+
+(defun run-publish-command (r)
+  "Handle `clun publish [--dry-run] [--registry URL] [--tag TAG] [--access public|restricted]`."
+  (let ((cwd (handler-case (resolve-cwd r)
+               (bad-cwd (c)
+                 (error 'clun.installer:install-error
+                        :message (format nil "bad --cwd ~a" (bad-cwd-dir c))))))
+        (dry-run nil) (registry nil) (tag nil) (access nil)
+        (toks (copy-list (cli:cli-get r :args))))
+    (loop while toks do
+      (let ((tok (pop toks)))
+        (cond
+          ((or (string= tok "--dry-run") (string= tok "-n")) (setf dry-run t))
+          ((string= tok "--registry")
+           (setf registry (or (pop toks)
+                              (error 'clun.installer:install-error
+                                     :message "--registry requires a value"))))
+          ((string= tok "--tag")
+           (setf tag (or (pop toks)
+                         (error 'clun.installer:install-error
+                                :message "--tag requires a value"))))
+          ((string= tok "--access")
+           (setf access (or (pop toks)
+                            (error 'clun.installer:install-error
+                                   :message "--access requires a value"))))
+          ((and (plusp (length tok)) (char= (char tok 0) #\-))
+           (error 'clun.installer:install-error
+                  :message (format nil "unknown publish flag ~a" tok)))
+          (t (setf cwd (sys:path-join cwd tok))))))
+    (handler-case
+        (let ((res (clun.installer:publish-package
+                    cwd :registry registry :tag tag :access access :dry-run dry-run)))
+          (if dry-run
+              (format t "clun publish (dry-run): ~a@~a -> ~a (~d bytes, ~a)~%"
+                      (clun.installer:pr-name res)
+                      (clun.installer:pr-version res)
+                      (clun.installer:pr-filename res)
+                      (length (clun.installer:pr-tarball-bytes res))
+                      (clun.installer:pr-integrity res))
+              (format t "+ ~a@~a~%"
+                      (clun.installer:pr-name res)
+                      (clun.installer:pr-version res)))
+          0)
+      (clun.installer:install-error (e)
+        (format *error-output* "clun: ~a~%" (clun.installer:install-error-message e))
+        1))))
 
 ;;; --- install / add / remove -------------------------------------------------
 
@@ -830,6 +880,7 @@ remaining argv tokens; exit 1 when any diagnostic is reported."
               (cond
                 ((equal sub "test") (run-test r))
                 ((member sub '("install" "add" "remove") :test #'equal) (run-install-command r))
+                ((equal sub "publish") (run-publish-command r))
                 ((member sub '("build" "compile") :test #'equal) (run-build-command r))
                 ((member sub '("fmt" "format") :test #'equal) (run-fmt-command r))
                 ((equal sub "lint") (run-lint-command r))

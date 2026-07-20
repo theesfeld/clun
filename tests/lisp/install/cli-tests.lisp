@@ -124,3 +124,78 @@ require() resolves through PROJ/node_modules."
                (is equal (format nil "left-pad@1.3.0~%@scope/widget@1.0.0~%") out
                    "the app require()s the installed packages and prints their exports")))
         (ignore-errors (clun.sys:remove-recursive proj))))))
+
+(define-test cli/publish-dry-run-packs
+  "Issue #262: dry-run packs package/ tarball with integrity without network."
+  (let ((proj (clun.sys:make-temp-dir "/tmp/clun-pub-")))
+    (unwind-protect
+         (progn
+           (clun.sys:write-file-octets
+            (clun.sys:path-join proj "package.json")
+            (sb-ext:string-to-octets
+             "{\"name\":\"clun-pub-demo\",\"version\":\"1.2.3\",\"description\":\"d\",\"main\":\"index.js\"}"
+             :external-format :utf-8))
+           (clun.sys:write-file-octets
+            (clun.sys:path-join proj "index.js")
+            (sb-ext:string-to-octets "module.exports = 1;~%" :external-format :utf-8))
+           (let ((res (inst:publish-package proj :dry-run t)))
+             (is equal "clun-pub-demo" (inst:pr-name res))
+             (is equal "1.2.3" (inst:pr-version res))
+             (is equal "clun-pub-demo-1.2.3.tgz" (inst:pr-filename res))
+             (true (plusp (length (inst:pr-tarball-bytes res))))
+             (true (search "sha512-" (inst:pr-integrity res) :test #'char=))
+             (true (inst:pr-dry-run res))
+             ;; round-trip inflate/read
+             (let ((entries (tb:read-tar-entries
+                             (tb:inflate-gzip (inst:pr-tarball-bytes res)))))
+               (true (find "package/package.json" entries
+                           :key #'tb:te-name :test #'string=))
+               (true (find "package/index.js" entries
+                           :key #'tb:te-name :test #'string=)))))
+      (ignore-errors (clun.sys:remove-recursive proj)))))
+
+(define-test cli/publish-fixture-put
+  "Issue #262: authenticated PUT against fixture registry succeeds."
+  (let ((proj (clun.sys:make-temp-dir "/tmp/clun-pub-fix-"))
+        (loop (lp:make-event-loop :workers 0)))
+    (unwind-protect
+         (progn
+           (clun.sys:write-file-octets
+            (clun.sys:path-join proj "package.json")
+            (sb-ext:string-to-octets
+             "{\"name\":\"fixture-pub\",\"version\":\"0.1.0\",\"main\":\"i.js\"}"
+             :external-format :utf-8))
+           (clun.sys:write-file-octets
+            (clun.sys:path-join proj "i.js")
+            (sb-ext:string-to-octets "exports.x=1~%" :external-format :utf-8))
+           (multiple-value-bind (listener reg base)
+               (start-fixture-registry loop)
+             (declare (ignore reg))
+             (let* ((token "test-token-xyz")
+                    (res (inst:publish-package
+                          proj :registry base :token token :tag "latest")))
+               (is eql 201 (inst:pr-status res))
+               (is equal "fixture-pub@0.1.0" (inst:pr-id res))
+               (true (search "ok" (inst:pr-body res) :test #'char-equal)))
+             (net:listener-close listener)))
+      (ignore-errors (lp:destroy-event-loop loop))
+      (ignore-errors (clun.sys:remove-recursive proj)))))
+
+(define-test cli/publish-cli-dry-run
+  "CLI surface for clun publish --dry-run."
+  (let ((proj (clun.sys:make-temp-dir "/tmp/clun-pub-cli-")))
+    (unwind-protect
+         (progn
+           (clun.sys:write-file-octets
+            (clun.sys:path-join proj "package.json")
+            (sb-ext:string-to-octets
+             "{\"name\":\"cli-pub\",\"version\":\"9.9.9\"}"
+             :external-format :utf-8))
+           (let* ((r (cli:parse-cli-args
+                      (list "--cwd" proj "publish" "--dry-run")))
+                  (out (with-output-to-string (o)
+                         (let ((*standard-output* o))
+                           (is = 0 (clun::run-publish-command r))))))
+             (true (search "cli-pub@9.9.9" out))
+             (true (search "dry-run" out))))
+      (ignore-errors (clun.sys:remove-recursive proj)))))

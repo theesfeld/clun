@@ -203,17 +203,46 @@ byte vector."
   (let* ((target (net:hr-target req))
          (qpos (position #\? target))
          (path (if qpos (subseq target 0 qpos) target))
-         (headers (net:hr-headers req)))
+         (headers (net:hr-headers req))
+         (method (string-upcase (or (net:hr-method req) "GET"))))
     (cond
+      ;; Issue #262: publish PUT /<encoded-name> with Bearer auth + attach document.
+      ((and (string= method "PUT") (> (length path) 1))
+       (let* ((name (%url-decode (subseq path 1)))
+              (auth (or (net:%header headers "authorization") ""))
+              (ok-auth (and (>= (length auth) 7)
+                            (string-equal "Bearer " auth :end2 7)
+                            (plusp (length (subseq auth 7)))))
+              (body (or (net:hr-body req)
+                        (make-array 0 :element-type '(unsigned-byte 8)))))
+         (cond
+           ((not ok-auth)
+            (%http-response 401 (sb-ext:string-to-octets
+                                 "{\"error\":\"unauthorized\"}" :external-format :utf-8)))
+           ((zerop (length body))
+            (%http-response 400 (sb-ext:string-to-octets
+                                 "{\"error\":\"empty body\"}" :external-format :utf-8)))
+           (t
+            ;; Accept and remember metadata so a subsequent GET succeeds.
+            (let ((text (handler-case
+                            (sb-ext:octets-to-string body :external-format :utf-8)
+                          (error () "{}"))))
+              (setf (gethash name (fixture-registry-metadata reg)) text
+                    (gethash name (fixture-registry-etags reg))
+                    (format nil "\"pub-~a\"" (sxhash text)))
+              (%http-response 201 (sb-ext:string-to-octets
+                                   (format nil "{\"ok\":true,\"id\":~s}" name)
+                                   :external-format :utf-8)))))))
       ;; tarball: GET /tarballs/<file>
-      ((and (> (length path) 10) (string= "/tarballs/" path :end2 10))
+      ((and (string= method "GET")
+            (> (length path) 10) (string= "/tarballs/" path :end2 10))
        (let* ((file (subseq path 10)) (bytes (gethash file (fixture-registry-tarballs reg))))
          (if bytes
              (%http-response 200 bytes :content-type "application/octet-stream")
              (%http-response 404 (sb-ext:string-to-octets "not found" :external-format :latin-1)
                              :content-type "text/plain"))))
       ;; metadata: GET /<encoded-name>
-      ((> (length path) 1)
+      ((and (string= method "GET") (> (length path) 1))
        (let* ((name (%url-decode (subseq path 1)))
               (json (gethash name (fixture-registry-metadata reg)))
               (etag (gethash name (fixture-registry-etags reg))))
