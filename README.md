@@ -142,6 +142,8 @@ four archives plus `checksums.txt` under the strict release-asset gates.
   mocks/spies, expected-failure modifiers, snapshots, cooperative concurrency, parallel files,
   array-parameterized tests and suites, retries, and repeats.
 - `clun install [pkg…]`, `add`, `remove`, and package scripts with a deterministic lockfile and cache.
+  First `add` / `install <pkg>` in a directory without `package.json` creates a minimal manifest
+  (npm/Bun empty-dir behavior). Bare `clun install` still requires an existing project manifest.
 
 The checked-in curated test262 pass list contains 26,018 tests. The current
 40,654-row off-mode execution ledger measures 26,018 passes and 2,145 gaps across 28,163 eligible tests

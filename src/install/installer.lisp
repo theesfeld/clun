@@ -91,10 +91,23 @@ preserving) or appending; :empty-object PKG becomes a fresh alist."
       (lp:destroy-event-loop loop))
     (if err (error err) ver)))
 
+(defun ensure-package-json (root)
+  "If ROOT has no package.json, write a minimal empty object (npm-compatible) and return :created.
+If one already exists, return :existing without reading or rewriting it. Used by add / install-with-
+package-args so the first package command in an empty directory works without a manual init step."
+  (let ((path (sys:path-join root "package.json")))
+    (if (sys:path-exists-p path)
+        :existing
+        (progn
+          (%write-package-json-file root :empty-object)
+          :created))))
+
 (defun add-dependencies (root names &key dev exact registry)
   "Add NAMES (each `pkg` or `pkg@range`) to ROOT/package.json's dependencies (or devDependencies if
 DEV) and rewrite the file. A bare name resolves to the registry's latest as `^version` (or exact
-`version`). Returns the (name . range) list added."
+`version`). When package.json is missing, create a minimal empty object first (npm/Bun empty-dir
+behavior). Returns the (name . range) list added."
+  (ensure-package-json root)
   (let* ((pkg (read-package-json root))
          (field (if dev "devDependencies" "dependencies"))
          (added (loop for spec in names collect

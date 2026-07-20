@@ -33,6 +33,24 @@ manifest install path. The dry-run surface makes this dispatch proof hermetic."
       (declare (ignore result))
       (is equal (format nil "clun install (dry-run)~%") output))))
 
+(define-test cli/add-creates-package-json-when-missing
+  "Empty directory: add must create package.json (npm/Bun first-use path)."
+  (let ((proj (clun.sys:make-temp-dir "/tmp/clun-cli-empty-")))
+    (unwind-protect
+         (progn
+           (false (clun.sys:path-exists-p (clun.sys:path-join proj "package.json"))
+                  "starts without package.json")
+           (is eq :created (inst:ensure-package-json proj))
+           (true (clun.sys:path-exists-p (clun.sys:path-join proj "package.json")))
+           (is eq :existing (inst:ensure-package-json proj) "second call is a no-op")
+           ;; explicit ranges — no registry — after auto-init
+           (clun.sys:remove-file (clun.sys:path-join proj "package.json"))
+           (inst:add-dependencies proj '("left-pad@1.3.0" "is-number@7.0.0"))
+           (let ((deps (clun.sys:jget (inst:read-package-json proj) "dependencies")))
+             (is equal "1.3.0" (cdr (assoc "left-pad" deps :test #'string=)))
+             (is equal "7.0.0" (cdr (assoc "is-number" deps :test #'string=)))))
+      (ignore-errors (clun.sys:remove-recursive proj)))))
+
 (define-test cli/add-remove-edits-package-json
   ;; add (explicit ranges — no registry) merges into dependencies / devDependencies; remove prunes.
   (let ((proj (clun.sys:make-temp-dir "/tmp/clun-cli-")))

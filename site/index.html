@@ -284,6 +284,7 @@ Phase 26 remains deferred until after Phase 82 and will be re-baselined for the 
               <p>Resolve semver graphs into a deterministic hoisted tree with a content cache and lockfile.</p>
               <ul>
                 <li>SRI SHA-512 verifies tarballs against resolved or locked integrity; fresh resolution still depends on TLS-authenticated metadata</li>
+                <li><code>clun add</code> / <code>clun install &lt;pkg&gt;</code> create a minimal <code>package.json</code> when the directory has none (npm/Bun empty-dir path)</li>
                 <li>Offline reinstall from <code>clun.lock</code></li>
                 <li>Hardened tarball extraction</li>
                 <li>Lifecycle scripts are never executed</li>
