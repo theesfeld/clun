@@ -537,6 +537,48 @@ publication_reconciliation_requested() {
   [ "$(release_field "$requested_release" 6)" = published ]
 }
 
+# After a version is published, allow only the live phase tracker columns to move
+# (active_phase / issue / semver_impact) without a new prerelease slot. Used when
+# closing a phase and pointing the ledger at the next program Issue.
+is_phase_handoff_reconciliation() {
+  grep -Fxq compat/release.tsv "$changed_files" || return 1
+  base_release=$scratch_dir/phase-handoff-base-release.tsv
+  current_release=$scratch_dir/phase-handoff-current-release.tsv
+  git show "$base_sha:compat/release.tsv" >"$base_release" 2>/dev/null || return 1
+  materialize_checked_path compat/release.tsv "$current_release" || return 1
+  [ "$(awk 'END { print NR + 0 }' "$base_release")" -eq 2 ] || return 1
+  [ "$(awk 'END { print NR + 0 }' "$current_release")" -eq 2 ] || return 1
+  [ "$(sed -n '1p' "$base_release")" = "$(sed -n '1p' "$current_release")" ] || return 1
+  [ "$(release_field "$base_release" 2)" = "$current_version" ] || return 1
+  [ "$(release_field "$current_release" 2)" = "$current_version" ] || return 1
+  [ "$(release_field "$base_release" 6)" = published ] || return 1
+  [ "$(release_field "$current_release" 6)" = published ] || return 1
+
+  # Immutable publication columns must not move.
+  for col in 1 3 4 5 6 7 11 12 13 14 15; do
+    [ "$(release_field "$base_release" "$col")" = \
+      "$(release_field "$current_release" "$col")" ] || return 1
+  done
+  # At least one tracker column must change (else this is not a handoff).
+  tracker_changed=0
+  for col in 8 9 10; do
+    if [ "$(release_field "$base_release" "$col")" != \
+      "$(release_field "$current_release" "$col")" ]; then
+      tracker_changed=1
+    fi
+  done
+  [ "$tracker_changed" -eq 1 ] || return 1
+
+  # Only docs / ledger / generator surfaces may accompany a phase handoff.
+  while IFS= read -r handoff_path; do
+    case $handoff_path in
+      README.md|STATE.md|compat/release.tsv|site/index.html|site/styles.css|site/app.js|site/install|docs/*|scripts/compat-render.awk|scripts/compat-validate.awk|scripts/roadmap.sh|scripts/version-transition-check.sh|scripts/test-version-transition-check.sh|scripts/test-compat-tools.sh|scripts/public-claims-check.sh) ;;
+      *) return 1 ;;
+    esac
+  done <"$changed_files"
+  return 0
+}
+
 git rev-parse --git-dir >/dev/null 2>&1 ||
   fail "repository root is not a Git worktree: $repo_root"
 
@@ -652,6 +694,11 @@ if [ "$current_version" = "$base_version" ]; then
   if is_publication_reconciliation; then
     printf 'version-transition-check: %s publication reconciliation for %s\n' \
       "$current_version" "$release_tag"
+    exit 0
+  fi
+  if is_phase_handoff_reconciliation; then
+    printf 'version-transition-check: %s phase-handoff reconciliation (tracker columns only)\n' \
+      "$current_version"
     exit 0
   fi
   if publication_reconciliation_requested; then
