@@ -534,6 +534,7 @@ metric_value() {
   '
 }
 
+# Keep metric integrity against docs/benchmarks.md only (no landing-page bar chart).
 benchmark_met=0
 benchmark_column=3
 while [ "$benchmark_column" -le 5 ]; do
@@ -541,8 +542,8 @@ while [ "$benchmark_column" -le 5 ]; do
   current_value=$(metric_value "$benchmark_latest" "$benchmark_column")
   gain=$(awk -v baseline="$baseline_value" -v current="$current_value" \
     'BEGIN { printf "%.2f", baseline / current }')
-  require_text site/index.html "$current_value ms"
-  require_text site/index.html "${gain}x"
+  require_text docs/benchmarks.md "$current_value ms"
+  require_text docs/benchmarks.md "${gain}×"
   if awk -v baseline="$baseline_value" -v current="$current_value" \
     'BEGIN { exit !((baseline / current) >= 5) }'; then
     benchmark_met=$((benchmark_met + 1))
@@ -925,8 +926,13 @@ else
   require_text site/index.html "90% target met"
 fi
 require_text site/index.html "github.com/theesfeld/clun/blob/master/PLAN.md"
-require_text site/index.html "Phase 25 / milestone ${benchmark_milestone#m}"
-require_text site/index.html "$benchmark_met of 3 workloads"
+# Engine microbenchmark tables live in docs/benchmarks.md — not a landing-page bar chart.
+require_text docs/benchmarks.md "Phase-24 baseline"
+require_text docs/benchmarks.md "| $benchmark_milestone "
+# Landing page must keep npm + secrets as first-class product copy (honest Partial is fine).
+require_text site/index.html "npm package management"
+require_text site/index.html "Encrypted secrets storage"
+require_text site/index.html "tool-critical"
 require_text README.md "Bun $bun_version, Node.js $node_version, and Deno $deno_version"
 require_text README.md "$baseline_date"
 require_text README.md "$bun_engineering_short"
