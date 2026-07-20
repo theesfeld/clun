@@ -197,13 +197,15 @@ With --hot / --watch, state-preserving (or hard) reload is armed for the process
 ;;; --- publish ----------------------------------------------------------------
 
 (defun run-publish-command (r)
-  "Handle `clun publish [--dry-run] [--registry URL] [--tag TAG] [--access public|restricted]`."
-  (let ((cwd (handler-case (resolve-cwd r)
-               (bad-cwd (c)
-                 (error 'clun.installer:install-error
-                        :message (format nil "bad --cwd ~a" (bad-cwd-dir c))))))
+  "Handle `clun publish [--dry-run] [--registry URL] [--tag TAG] [--access public|restricted]`.
+Does not permanently chdir (unlike resolve-cwd); package root is an explicit path."
+  (let ((cwd (or (cli:cli-get r :cwd) (sys:current-directory)))
         (dry-run nil) (registry nil) (tag nil) (access nil)
         (toks (copy-list (cli:cli-get r :args))))
+    (when (and (cli:cli-get r :cwd)
+               (not (sys:directory-p (cli:cli-get r :cwd))))
+      (error 'clun.installer:install-error
+             :message (format nil "bad --cwd ~a" (cli:cli-get r :cwd))))
     (loop while toks do
       (let ((tok (pop toks)))
         (cond
