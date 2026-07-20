@@ -13,6 +13,12 @@ installable release checkpoints.
 
 ## [Unreleased]
 
+## [0.2.0-dev.9] - 2026-07-20
+
+### Fixed
+
+- `clun --update` multi-asset HTTPS: allow TLS 1.3 PSK resumption under `+verify-required+` when the session ticket carries a verified hostname (Phase 20 fail-closed patch was rejecting legitimate certificate-less resumed handshakes). Issue #272.
+
 ## [0.2.0-dev.8] - 2026-07-20
 
 ### Added

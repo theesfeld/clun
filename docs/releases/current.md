@@ -1,9 +1,9 @@
 <!-- clun-generated:release-notes:begin -->
-# Clun 0.2.0-dev.8
+# Clun 0.2.0-dev.9
 
 Phase 82: Purity-compatible Bun-surface final audit and release.
 
-- SemVer impact: `minor` within the selected `0.2.0` prerelease train.
+- SemVer impact: `patch` within the selected `0.2.0` prerelease train.
 - Compatibility snapshot: 30 Yes / 0 Partial / 0 No across 30 generated rows.
 - Public baseline: Bun 1.3.14; engineering baseline: Bun `c1076ce95e`.
 - Target release platforms: Linux and macOS, x64 and arm64.
