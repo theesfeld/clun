@@ -127,10 +127,11 @@
                                            (:file "tls12-client")
                                            (:file "tls-client")
                                            (:file "websocket"))) ; Phase 51
-                             ;; FULL PORT #178: pure-CL FFI / N-API native-addon host.
+                             ;; #178 / #265: FFI host + allowlisted machine load/call boundary.
                              (:module "ffi"
                               :serial t
-                              :components ((:file "core")))
+                              :components ((:file "core")
+                                           (:file "machine-boundary")))
                              ;; cloud (Phase 53 / #185): pure-CL S3-compatible client.
                              (:module "cloud"
                               :serial t

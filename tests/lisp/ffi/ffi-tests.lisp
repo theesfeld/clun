@@ -171,7 +171,25 @@ globalThis.napiBackend = Clun.napi.backend;
       (is = 99d0 (eng:js-get g "r"))
       (true (eng:js-string-p (eng:js-get g "suffix")))
       (true (eq eng:+true+ (eng:js-get g "hasDemo")))
-      (is string= "pure-cl" (eng:js-get g "backend"))
+      (is string= "cl-host" (eng:js-get g "backend"))
       (is string= "hello-from-pure-cl-napi" (eng:js-get g "hello"))
-      (is string= "pure-cl" (eng:js-get g "nativeBackend"))
-      (is string= "pure-cl" (eng:js-get g "napiBackend")))))
+      (is string= "cl-host" (eng:js-get g "nativeBackend"))
+      (is string= "cl-host" (eng:js-get g "napiBackend")))))
+
+(define-test ffi/machine-libc-abs
+  "Issue #265: real machine-code load + typed call through the CL host."
+  (clun.ffi:reset-ffi-state)
+  (true (clun.ffi:machine-available-p))
+  (let* ((h (clun.ffi:open-system-libc))
+         (addr (clun.ffi:machine-symbol-address h "abs"))
+         (fn (clun.ffi:make-machine-symbol-fn addr '("i32") "i32")))
+    (true (plusp addr))
+    (is eql 42 (funcall fn -42))
+    (is eql 7 (funcall fn -7)))
+  (let* ((handle (clun.ffi:open-library
+                  (first (clun.ffi:system-libc-candidates))
+                  `(("abs" :args ("i32") :returns "i32"))))
+         (abs-sym (gethash "abs" (getf handle :bound))))
+    (true (getf handle :machine))
+    (is eql 99 (clun.ffi:call-symbol abs-sym '(-99)))
+    (clun.ffi:library-close (getf handle :library))))

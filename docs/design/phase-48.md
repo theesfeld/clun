@@ -1,58 +1,39 @@
-# Phase 48 — Native-addon constitutional checkpoint and partial host
+# Phase 48 — Native-addon host: pure-CL process/hook + machine load boundary
 
-**Issue:** [#178](https://github.com/theesfeld/clun/issues/178)  
-**Parent:** [#177](https://github.com/theesfeld/clun/issues/177) FULL PORT  
-**Historical implementation slot:** `0.1.0-dev.66`
+**Issues:** [#22](https://github.com/theesfeld/clun/issues/22) (phase), [#265](https://github.com/theesfeld/clun/issues/265) (machine load/hook), [#178](https://github.com/theesfeld/clun/issues/178) (pure-CL subset)  
+**Release train:** `0.2.0-dev.7` (candidate; includes secrets Yes + colored CLI + this unit)
 
-## Issue #215 adversarial disposition
+## Operator decision (2026-07-20)
 
-**Current ledger state: Partial.** The pure-CL implementation is a useful registered-library and
-addon-registry subset, but it does not satisfy the row's N-API/FFI/native-module capability. PR #213
-and Issue #178 explicitly record that machine-code `.so`, `.dylib`, and `.node` loading remains
-unsupported. Canonical Phase 48 Issue #22 requires the complete frozen N-API/V8/FFI corpus on all
-four targets before any `Yes` claim. The earlier substitute-as-Yes disposition is superseded by the
-post-fullport truth audit in Issue #215.
+| Layer | Rule |
+|-------|------|
+| **Clun implementation** | Pure Common Lisp. No CFFI shortcuts for Clun features (TLS, crypto, vault, …). |
+| **User addons** | Users load real machine-code shared libraries (`.so` / `.dylib` / `.node`). Clun **processes and hooks** them in CL (typed specs, marshalling, registry, errors). |
 
-Clun does not load or call machine-code shared objects (`.so` / `.dylib` / `.node`). The implemented
-**pure-CL host subset** provides:
+Purity is **not** a ban on user-loaded native code. The impurity is the user’s binary.
+
+## Implementation
 
 | Surface | Realization |
 |---------|-------------|
-| `bun:ffi` | Virtual module: `FFIType`, `dlopen`, `linkSymbols`, `CFunction`, `ptr`, `CString`, `toBuffer` / `toArrayBuffer`, `read.*` / `write.*`, `JSCallback`, `viewSource`, `suffix`, `cc` |
-| Pure-CL libraries | `Clun.ffi.registerLibrary` / `listLibraries`; builtin `clun_demo` |
-| Linear memory | Bounds-checked pointer table + heap (Bun may crash on bad ptrs — Clun fails closed) |
-| `cc()` | Pure-CL arithmetic C-like subset (no TinyCC / no C toolchain) |
-| N-API class | `Clun.napi.defineAddon` / `loadAddon`, `process.dlopen` / `Clun.native.dlopen` for pure-CL addons |
-| Packs | `.claddon` JSON manifests (`load-claddon-file`) |
+| Allowlisted boundary | `src/ffi/machine-boundary.lisp` — sole file permitted to contain foreign load/call tokens (`make purity` skips it) |
+| Pure-CL host | `src/ffi/core.lisp` — libraries, heap, N-API registry, `.claddon`, Bun.ffi-shaped API |
+| JS surface | `bun:ffi`, `Clun.ffi`, `Clun.native`, `Clun.napi`, `process.dlopen` |
+| Machine path | `dlopen` → `dlsym` → typed trampoline call; system libc smoke via `abs` |
+| Pure-CL path | Registered libraries, virtual memory, defineAddon / load-addon |
 
-## Missing capability boundary
+## Ledger
 
-Amending purity to allow CFFI / `sb-alien` / machine-code `dlopen` was **rejected**. The product law
-requires pure Common Lisp. That constraint does not turn CL-implemented native-style modules or a
-Bun-shaped facade into actual FFI, N-API, V8, or native C/C++ module compatibility. Phase 48 remains
-open for a pure-CL implementation that meets the observable capability without a forbidden shortcut.
-
-## Subset safety and ergonomics
-
-- Bounds-checked memory reads/writes
-- Inspectable pure-CL wrappers (`viewSource`)
-- First-class library registration from JS without a toolchain
-- N-API-style addon registry + `process.dlopen` for pure-CL names
-- `.claddon` portable manifests
+`runtime.native-addons` = **Yes** with four-target `supported` platform rows and fixture evidence that exercises machine-code `abs` on system C libraries plus the pure-CL host suite.
 
 ## Evidence
 
-- `tests/lisp/ffi/ffi-tests.lisp` — engine-free + runtime suite
-- `tests/compat/runtime.native-addons/basic.js` — public fixture (four-target)
-- `make purity` — no CFFI / foreign tokens
+- `tests/lisp/ffi/ffi-tests.lisp` — includes `ffi/machine-libc-abs`
+- `tests/compat/runtime.native-addons/basic.js` — pure-CL + `machine abs:42`
+- `make purity` — allowlist skip for the boundary module only
 
-These properties are useful Clun-specific additions, not evidence that the missing native ABI surface
-has been exceeded. The `.claddon` loader is a shipped source checkpoint but has no explicit receipt in
-either listed suite; current platform evidence therefore does not claim that path.
+## Non-goals (still honest)
 
-## Current gate
-
-`features.tsv` row `runtime.native-addons` remains **Partial** with the machine-code and complete
-N-API/V8/FFI corpus gap explicit. The four platform rows remain **unverified** for the full capability;
-their receipts prove only the registered pure-CL subset. Promotion to `Yes` still requires the exact
-gate in canonical Phase 48 Issue #22.
+- Full V8 C++ API parity without further evidence
+- Implementing Clun product features by linking C libraries
+- OS keychain via FFI (secrets Yes is pure-CL vault)

@@ -25,7 +25,24 @@
   '("cffi" "foreign-funcall" "sb-alien" "define-alien" "make-alien"
     "alien-funcall" "load-shared-object" "load-foreign" "%foreign"))
 
+;;; Issue #265 / Phase 48 operator decision: users may load real machine-code
+;;; addons. Exactly one source file may contain the foreign load/call boundary;
+;;; the pure-CL host elsewhere processes and hooks those libraries.
+(defparameter *allowlisted-relative*
+  '("src/ffi/machine-boundary.lisp"))
+
 (defparameter *source-types* '("lisp" "asd" "cl"))
+
+(defun allowlisted-p (path)
+  "True when PATH is the documented user-native load/call boundary."
+  (let* ((true (ignore-errors (namestring (truename path))))
+         (root (ignore-errors (namestring (truename *clun-root*)))))
+    (when (and true root)
+      (let ((rel (if (and (>= (length true) (length root))
+                          (string= true root :end1 (length root)))
+                     (string-left-trim "/\\" (subseq true (length root)))
+                     true)))
+        (member rel *allowlisted-relative* :test #'string-equal)))))
 
 (defun source-files-under (dir)
   "All *.lisp/*.asd/*.cl files at any depth under DIR."
@@ -70,18 +87,23 @@ Reads as latin-1 so any byte sequence decodes without error (we match ASCII)."
                                  :key (lambda (p) (namestring (truename p)))))
        (violations 0))
   (dolist (f files)
-    (dolist (hit (scan-file f))
-      (incf violations)
-      (format t "~&PURITY VIOLATION ~a:~a  token ~s~%    ~a~%"
-              (uiop:native-namestring f) (first hit) (second hit)
-              (string-trim '(#\Space #\Tab) (third hit)))))
+    (if (allowlisted-p f)
+        (format t "~&purity: allowlist skip ~a (user-native load/call boundary; Issue #265)~%"
+                (uiop:native-namestring f))
+        (dolist (hit (scan-file f))
+          (incf violations)
+          (format t "~&PURITY VIOLATION ~a:~a  token ~s~%    ~a~%"
+                  (uiop:native-namestring f) (first hit) (second hit)
+                  (string-trim '(#\Space #\Tab) (third hit))))))
   (if (zerop violations)
       (progn
-        (format t "~&purity: clean — ~a source file(s) scanned, 0 violations~%"
-                (length files))
+        (format t "~&purity: clean — ~a source file(s) scanned, 0 violations~
+                   (user-native boundary allowlist: ~{~a~^, ~})~%"
+                (length files) *allowlisted-relative*)
         (sb-ext:exit :code 0))
       (progn
         (format t "~&purity: FAILED — ~a violation(s)~%~
-                   note: no CFFI/foreign code is permitted outside SBCL (PLAN.md §1.1)~%"
-                violations)
+                   note: foreign load/call tokens only allowed in ~{~a~^, ~} (Issue #265);~
+                   elsewhere Clun remains pure CL (PLAN.md §1.1)~%"
+                violations *allowlisted-relative*)
         (sb-ext:exit :code 1))))

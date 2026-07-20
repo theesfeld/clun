@@ -741,7 +741,7 @@
 (defun make-clun-ffi (global)
   (declare (ignore global))
   (let ((o (eng:new-object)))
-    (eng:data-prop o "backend" "pure-cl")
+    (eng:data-prop o "backend" "cl-host")
     (eng:data-prop o "suffix" (clun.ffi:shared-library-suffix))
     (eng:install-method o "registerLibrary" 2
       (lambda (this args) (declare (ignore this)) (%register-library-js args)))
@@ -778,7 +778,7 @@
 (defun make-clun-native (global)
   (declare (ignore global))
   (let ((o (eng:new-object)))
-    (eng:data-prop o "backend" "pure-cl")
+    (eng:data-prop o "backend" "cl-host")
     (eng:install-method o "dlopen" 2
       (lambda (this args) (declare (ignore this)) (%native-dlopen args)))
     (eng:install-method o "load" 1
@@ -794,7 +794,7 @@
 (defun make-clun-napi (global)
   (declare (ignore global))
   (let ((o (eng:new-object)))
-    (eng:data-prop o "backend" "pure-cl")
+    (eng:data-prop o "backend" "cl-host")
     (eng:install-method o "defineAddon" 2
       (lambda (this args) (declare (ignore this)) (%define-addon-js args)))
     (eng:install-method o "listAddons" 0

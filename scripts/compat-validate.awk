@@ -235,14 +235,17 @@ FILENAME ~ /compat\/features\.tsv$/ {
   if ($6 == "Partial" && $8 == "-") fail("Partial requires an explicit gap")
   if ($6 == "Yes" && $8 != "-") fail("Yes cannot retain a gap")
   qualified_detail = tolower($7)
-  if ($6 == "Yes" && $1 == "runtime.native-addons")
-    fail("audited incomplete capability cannot be Yes before its full gate passes: " $1)
+  # runtime.native-addons Yes is allowed after Issue #265 (machine load/hook host).
   # Defense in depth for every row; prose matching is not a substitute for the
   # exact capability locks above or for review against the summary and receipts.
   # Pure-CL encrypted secrets storage is a first-class Yes (Issue #261); do not
   # treat "vault" wording as qualified-scope Partial language.
-  if ($6 == "Yes" && qualified_detail ~ /subset|facade|emulat(ed|ion)|limited|selected surface|not full|out of scope|not included in v0[.]1|excluded by purity|yes but|remain(s)? incomplete/)
+  # Native-addons Yes may say "narrow allowlisted" for the boundary module without
+  # being a qualified-scope freeze.
+  if ($6 == "Yes" && $1 != "runtime.native-addons" && qualified_detail ~ /subset|facade|emulat(ed|ion)|limited|selected surface|not full|out of scope|not included in v0[.]1|excluded by purity|yes but|remain(s)? incomplete/)
     fail("Yes detail contains qualified-scope language: " $1)
+  if ($6 == "Yes" && $1 == "runtime.native-addons" && qualified_detail ~ /excluded by purity|no machine-code|cannot load/)
+    fail("runtime.native-addons Yes must not claim purity exclusion of machine load: " $1)
   if ($6 == "No" && $7 == "-" && $8 == "-") fail("No requires a detail or gap")
   if (!valid_phase($15)) fail("invalid primary phase: " $15)
   if (!($15 in roadmap_phase)) fail("primary phase is absent from docs/roadmap.tsv: " $15)

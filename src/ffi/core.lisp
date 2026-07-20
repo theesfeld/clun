@@ -1,18 +1,16 @@
-;;;; core.lisp — Pure-CL FFI / native-addon substrate (Issue #178 / FULL PORT).
+;;;; core.lisp — FFI / native-addon host (Issues #178 / #265 / Phase 48).
 ;;;;
-;;;; Clun cannot load machine-code shared objects (constitutional purity: Common
-;;;; Lisp only). This module is the full-port realization of runtime.native-addons:
-;;;; a real ABI host with linear memory, typed symbols, dynamic pure-CL library
-;;;; registration, N-API-shaped addon lifecycle, and Bun.ffi-compatible surface
-;;;; implemented entirely in Common Lisp. Purity is the implementation language,
-;;;; not a feature exclusion (epic #177).
+;;;; Constitutional split: Clun product code stays pure Common Lisp. Users may
+;;;; load real machine-code shared libraries; this host *processes and hooks*
+;;;; them (typed specs, marshalling, registry, errors). Machine load/call lives
+;;;; only in machine-boundary.lisp (purity-scan allowlist).
 ;;;;
-;;;; Exceeds Bun.ffi:
-;;;;   - Bounds-checked pointer reads/writes (Bun can crash on bad ptrs)
-;;;;   - register-library / list-libraries from CL and JS
-;;;;   - Pure-CL addon packs (.claddon JSON) + N-API define-addon
-;;;;   - Inspectable ABI (view-source, library metadata)
-;;;;   - cc() accepts pure-CL arithmetic DSL (no TinyCC / no C toolchain)
+;;;; Surfaces:
+;;;;   - Bun.ffi-shaped dlopen / linkSymbols / typed call (pure-CL + machine)
+;;;;   - Bounds-checked pure-CL linear memory (+ machine address pointers)
+;;;;   - register-library / list-libraries / .claddon packs
+;;;;   - N-API-shaped define-addon / load-addon / process.dlopen
+;;;;   - cc() pure-CL arithmetic DSL
 
 (in-package :clun.ffi)
 
@@ -128,6 +126,8 @@
         *heap-brks* nil)
   (clrhash *libraries*)
   (clrhash *addons*)
+  (when (fboundp 'reset-machine-state)
+    (reset-machine-state))
   (register-builtin-libraries)
   t)
 
@@ -491,51 +491,114 @@ or hash-table name → plist."
       (apply (fs-fn fs) coerced))))
 
 (defun library-close (lib)
-  (setf (fl-closed lib) t)
+  (when lib
+    (setf (fl-closed lib) t)
+    (let ((mh (getf (fl-meta lib) :machine-handle)))
+      (when mh
+        (machine-close mh))))
   t)
 
+(defun %bind-symbol-specs (lib symbol-specs &key machine-handle)
+  "Bind SYMBOL-SPECS against LIB (and optional MACHINE-HANDLE for dlsym)."
+  (let ((bound (make-hash-table :test #'equal)))
+    (dolist (spec symbol-specs)
+      (let* ((sym-name (string (car spec)))
+             (plist (cdr spec))
+             (want-args (mapcar #'normalize-type-name
+                                (or (getf plist :args) '())))
+             (want-ret (normalize-type-name (or (getf plist :returns) "void")))
+             (existing (gethash sym-name (fl-symbols lib)))
+             (ptr (getf plist :ptr)))
+        (cond
+          (ptr
+           (let* ((e (lookup-ptr ptr))
+                  (fn (and e (pe-fn e)))
+                  (fs (make-ffi-symbol :name sym-name
+                                       :args want-args
+                                       :returns want-ret
+                                       :fn (or fn
+                                               (%fail :invalid-ptr
+                                                      "ptr is not a function"
+                                                      "ERR_FFI_INVALID_PTR"))
+                                       :ptr-id (pointer-id ptr))))
+             (setf (gethash sym-name bound) fs)))
+          (existing
+           (setf (gethash sym-name bound) existing))
+          (machine-handle
+           (let* ((addr (machine-symbol-address machine-handle sym-name))
+                  (fn (make-machine-symbol-fn addr want-args want-ret))
+                  (pid (register-fn-ptr fn
+                                        (list :args want-args :returns want-ret)
+                                        (list :library (fl-name lib)
+                                              :symbol sym-name
+                                              :machine t
+                                              :addr addr)))
+                  (fs (make-ffi-symbol :name sym-name
+                                       :args want-args
+                                       :returns want-ret
+                                       :fn fn
+                                       :ptr-id pid)))
+             (setf (gethash sym-name (fl-symbols lib)) fs
+                   (gethash sym-name bound) fs)))
+          (t
+           (%fail :dlopen
+                  (format nil "symbol '~A' not found in library '~A'"
+                          sym-name (fl-name lib))
+                  "ERR_DLOPEN_FAILED")))))
+    bound))
+
+(defun %open-machine-library (name symbol-specs)
+  "Load a real shared object and bind SYMBOL-SPECS via the machine boundary."
+  (let* ((probe (or (machine-probe-path name)
+                    (when (and (stringp name)
+                               (not (resolve-library-name name)))
+                      ;; Bare name with no registered pure-CL lib: try as soname.
+                      (string name))))
+         (path (or probe
+                   (%fail :dlopen
+                          (format nil "Cannot open library '~A' (not registered, not a path/soname)"
+                                  name)
+                          "ERR_DLOPEN_FAILED")))
+         (mh (machine-open path))
+         (key (library-key (or (mh-path mh) path)))
+         (lib (make-ffi-library :name key
+                                :path path
+                                :meta (list :machine t :machine-handle mh)))
+         (bound (%bind-symbol-specs lib symbol-specs :machine-handle mh)))
+    (setf (gethash key *libraries*) lib)
+    (list :library lib :bound bound :name (fl-name lib) :machine t)))
+
 (defun open-library (name symbol-specs)
-  "Resolve pure-CL library NAME and bind SYMBOL-SPECS (alist name → type plist).
+  "Resolve library NAME (pure-CL registry first, then machine .so/.dylib/.node)
+and bind SYMBOL-SPECS (alist name → type plist).
 Returns a live handle plist (:library lib :bound hash name→ffi-symbol)."
   (let ((lib (resolve-library-name name)))
-    (unless lib
-      (%fail :dlopen
-             (format nil "Cannot open pure-CL addon library '~A'. Register it with Clun.ffi.registerLibrary or load a .claddon."
-                     name)
-             "ERR_DLOPEN_FAILED"))
-    (when (fl-closed lib)
-      (%fail :dlopen "library is closed" "ERR_DLOPEN_FAILED"))
-    (let ((bound (make-hash-table :test #'equal)))
-      (dolist (spec symbol-specs)
-        (let* ((sym-name (string (car spec)))
-               (plist (cdr spec))
-               (want-args (mapcar #'normalize-type-name
-                                  (or (getf plist :args) '())))
-               (want-ret (normalize-type-name (or (getf plist :returns) "void")))
-               (existing (gethash sym-name (fl-symbols lib)))
-               (ptr (getf plist :ptr)))
-          (cond
-            (ptr
-             (let* ((e (lookup-ptr ptr))
-                    (fn (and e (pe-fn e)))
-                    (fs (make-ffi-symbol :name sym-name
-                                         :args want-args
-                                         :returns want-ret
-                                         :fn (or fn
-                                                 (%fail :invalid-ptr
-                                                        "ptr is not a function"
-                                                        "ERR_FFI_INVALID_PTR"))
-                                         :ptr-id (pointer-id ptr))))
-               (setf (gethash sym-name bound) fs)))
-            (existing
-             (setf (gethash sym-name bound) existing))
-            (t
-             (%fail :dlopen
-                    (format nil "symbol '~A' not found in library '~A'"
-                            sym-name (fl-name lib))
-                    "ERR_DLOPEN_FAILED")))))
-      (list :library lib :bound bound :name (fl-name lib)))))
-
+    (cond
+      ((and lib (not (fl-closed lib)))
+       (let* ((mh (getf (fl-meta lib) :machine-handle))
+              (bound (%bind-symbol-specs lib symbol-specs :machine-handle mh)))
+         (list :library lib :bound bound :name (fl-name lib)
+               :machine (and mh t))))
+      (t
+       ;; Prefer .claddon file next to path when present.
+       (let* ((raw (string name))
+              (claddon (when (and (plusp (length raw))
+                                  (or (probe-file raw)
+                                      (probe-file (concatenate 'string raw ".claddon"))))
+                         (or (and (probe-file raw)
+                                  (let ((p (namestring (probe-file raw))))
+                                    (when (search ".claddon" p) p)))
+                             (let ((c (probe-file (concatenate 'string raw ".claddon"))))
+                               (and c (namestring c)))))))
+         (when claddon
+           (load-claddon-file claddon)
+           (let ((lib2 (resolve-library-name name)))
+             (when lib2
+               (return-from open-library
+                 (list :library lib2
+                       :bound (%bind-symbol-specs lib2 symbol-specs)
+                       :name (fl-name lib2))))))
+         (%open-machine-library name symbol-specs))))))
 (defun link-symbols (symbol-specs)
   "Bind symbols that already have :ptr (like Bun.linkSymbols)."
   (let ((bound (make-hash-table :test #'equal))
@@ -836,18 +899,56 @@ may populate exports-hash with string keys → CL values or functions."
         (gethash stripped *addons*))))
 
 (defun load-addon (name)
-  "Run addon init and return a fresh exports hash-table (string → value)."
-  (let ((addon (or (resolve-addon name)
+  "Run addon init and return a fresh exports hash-table (string → value).
+Pure-CL registered addons and .claddon packs are preferred. For a machine
+shared object path, open it and expose a CL-managed hook table (path +
+loaded flag); full N-API register_module remains available via Bun.ffi
+symbol binding on the same handle."
+  (let ((addon (resolve-addon name)))
+    (when addon
+      (let ((exports (make-hash-table :test #'equal))
+            (env (list :napi-env t :addon (na-name addon))))
+        (when (na-init addon)
+          (funcall (na-init addon) env exports))
+        (setf (na-exports addon) exports)
+        (return-from load-addon exports))))
+  ;; Filesystem .claddon
+  (let* ((raw (string name))
+         (claddon (cond
+                    ((and (probe-file raw) (search ".claddon" raw))
+                     (namestring (probe-file raw)))
+                    ((probe-file (concatenate 'string raw ".claddon"))
+                     (namestring (probe-file (concatenate 'string raw ".claddon"))))
+                    (t nil))))
+    (when claddon
+      (load-claddon-file claddon)
+      (return-from load-addon (load-addon (or (clun.sys:path-basename claddon) name)))))
+  ;; Machine shared object — process/hook with CL (open + registry entry).
+  (let* ((probe (machine-probe-path name))
+         (path (or probe
                    (%fail :dlopen
-                          (format nil "Cannot load pure-CL addon '~A'" name)
-                          "ERR_DLOPEN_FAILED"))))
-    (let ((exports (make-hash-table :test #'equal))
-          (env (list :napi-env t :addon (na-name addon))))
-      (when (na-init addon)
-        (funcall (na-init addon) env exports))
-      (setf (na-exports addon) exports)
-      exports)))
-
+                          (format nil "Cannot load addon '~A'" name)
+                          "ERR_DLOPEN_FAILED")))
+         (mh (machine-open path))
+         (key (library-key path))
+         (exports (make-hash-table :test #'equal)))
+    (setf (gethash "path" exports) path
+          (gethash "loaded" exports) t
+          (gethash "backend" exports) "machine"
+          (gethash "dlopen" exports)
+          (lambda (&rest _av)
+            (declare (ignore _av))
+            path))
+    (define-addon key
+        (lambda (env exp)
+          (declare (ignore env))
+          (maphash (lambda (k v) (setf (gethash k exp) v)) exports)
+          exp)
+        :path path
+        :meta (list :machine t :machine-handle mh))
+    (register-library key '() :path path
+                      :meta (list :machine t :machine-handle mh))
+    exports))
 (defun %json-object-pairs (obj)
   "Return alist pairs for a clun.sys JSON object (or empty list)."
   (cond

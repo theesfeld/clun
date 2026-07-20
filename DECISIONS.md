@@ -3620,3 +3620,16 @@ recovery advances to the new immutable candidate `0.2.0-dev.2` / `v0.2.0-dev.2`;
 reuses the failed tag.
 
 Refs: #241, #216, #56
+
+## 2026-07-20 — runtime.native-addons Yes: user load/hook, pure-CL process (#265)
+
+Operator decision on Phase 48 (#22): purity constrains **Clun implementation**, not
+user-loaded machine code. Users open real `.so` / `.dylib` / `.node` libraries; Clun
+processes and hooks them in Common Lisp (typed specs, marshalling, registry, errors).
+
+Implementation: allowlisted `src/ffi/machine-boundary.lisp` (sole foreign load/call
+site) + pure-CL host in `src/ffi/core.lisp`. Ledger **Yes** with four-target receipts
+exercising system C library `abs` through the host boundary. Does not authorize CFFI
+shortcuts for Clun product features (TLS, crypto, secrets vault, …).
+
+Refs: #265, #22, #178, #177
