@@ -9,10 +9,10 @@ targets are workload-specific and published;
 Clun does not claim blanket speed parity with Bun.
 
 <!-- clun-generated:release:begin -->
-> **Status: pre-alpha, under active construction.** [Phase 82](https://github.com/theesfeld/clun/issues/56) is in progress.
-> Its release-bearing target is `0.2.0-dev.7` / `v0.2.0-dev.7` (SemVer impact: `major`).
-> The verified release boundary is `v0.2.0-dev.6`, with four native archives, checksums, Pages,
-> and hosted-installer evidence.
+> **Status: pre-alpha, under active construction.** [Phase 82](https://github.com/theesfeld/clun/issues/56) tracks the published prerelease and remaining phase work.
+> Published release: `0.2.0-dev.7` / `v0.2.0-dev.7` (SemVer impact: `major`).
+> The verified release boundary is `v0.2.0-dev.7`, with four native archives and checksums.
+> Release-gated Pages and hosted-installer results are recorded in the canonical issue.
 > Phase 26 remains deferred until after Phase 82 and will
 > be rewritten for the repository state that exists then.
 > Clun's full-port target requires every ledger Yes to survive executable and public-claim audit. The current snapshot is 29 Yes / 1 Partial / 0 No; qualified evidence is not treated as complete.
@@ -20,7 +20,7 @@ Clun does not claim blanket speed parity with Bun.
 > the local resume checklist.
 <!-- clun-generated:release:end -->
 
-Published [`v0.2.0-dev.6`](https://github.com/theesfeld/clun/releases/tag/v0.2.0-dev.6) is the verified installable boundary (four native archives, `checksums.txt`, modern `~/.local/bin` layout, built-in updater with quiet pure-CL TLS trust loading). Immutable tag-only attempts `v0.1.0-dev.69`, `v0.1.0-dev.70`, and `v0.2.0-dev.1`–`v0.2.0-dev.4` produced no installable assets and were not moved or reused. [Phase 82 issue #56](https://github.com/theesfeld/clun/issues/56) tracks the published prerelease and remaining phase work.
+Published [`v0.2.0-dev.7`](https://github.com/theesfeld/clun/releases/tag/v0.2.0-dev.7) is the verified installable boundary (four native archives, `checksums.txt`, modern `~/.local/bin` layout, built-in updater with quiet pure-CL TLS trust loading). Immutable tag-only attempts `v0.1.0-dev.69`, `v0.1.0-dev.70`, and `v0.2.0-dev.1`–`v0.2.0-dev.4` produced no installable assets and were not moved or reused. [Phase 82 issue #56](https://github.com/theesfeld/clun/issues/56) tracks the published prerelease and remaining phase work.
 
 ## Install
 Tagged releases are installed by the same POSIX shell command on Linux and macOS:
@@ -53,7 +53,7 @@ curl -fsSL https://clun.sh/install | ADD_PATH=1 sh   # ensure the managed rc blo
 
 Existing `~/.clun` installations remain supported: `CLUN_INSTALL="$HOME/.clun"` retains the legacy
 release-root layout, while `CLUN_VERSION` and `CLUN_NO_MODIFY_PATH=1` remain compatibility aliases.
-The verified `v0.2.0-dev.6` boundary already includes the built-in updater. After `v0.2.0-dev.7` is
+The published `v0.2.0-dev.7` boundary includes the built-in updater. After a later prerelease is
 published and shown here as the installable boundary, existing users can upgrade that layout once
 through the checksum-verifying installer; the new release then supports future `clun --update` runs:
 
@@ -61,7 +61,7 @@ through the checksum-verifying installer; the new release then supports future `
 curl -fsSL https://clun.sh/install | CLUN_INSTALL="$HOME/.clun" CLUN_NO_MODIFY_PATH=1 sh
 ```
 
-While the hosted boundary remains `v0.2.0-dev.6`, that command only reinstalls `v0.2.0-dev.6` and does not
+While the hosted boundary remains `v0.2.0-dev.7`, that command only reinstalls `v0.2.0-dev.7` and does not
 add the updater.
 
 The release workflow exercises the modern installer on Ubuntu and macOS 15 runners for x64 and arm64.
@@ -81,7 +81,7 @@ clun --update         # verify and activate the complete release bundle
 # or: clun check-update / clun update
 ```
 
-Clun is still pre-alpha; pre-1.0 minor versions may include breaking changes. The published `v0.2.0-dev.6` binary has live `registry.npmjs.org` receipts for both `clun add <pkg>` and Bun-compatible `clun install <pkg>`, including a transitive dependency graph, SRI-verified tarballs, installed-package execution, and byte-identical frozen cache-only reinstalls while both registry metadata and public HTTPS tarball fallback are denied. Empty directories get an auto-created `package.json` on first add/install. Packages commit in deterministic ancestor-before-descendant order. The live, non-hermetic gate uses Clun's experimental bounded pure-CL TLS profile (not browser-grade WebPKI). Prior `v0.1.0-dev.21` binaries predate that TLS path and cannot talk to public npm. Publication evidence for this boundary is on [Issue #257](https://github.com/theesfeld/clun/issues/257) and [Issue #259](https://github.com/theesfeld/clun/issues/259).
+Clun is still pre-alpha; pre-1.0 minor versions may include breaking changes. The published `v0.2.0-dev.7` binary has live `registry.npmjs.org` receipts for both `clun add <pkg>` and Bun-compatible `clun install <pkg>`, including a transitive dependency graph, SRI-verified tarballs, installed-package execution, and byte-identical frozen cache-only reinstalls while both registry metadata and public HTTPS tarball fallback are denied. Empty directories get an auto-created `package.json` on first add/install. Packages commit in deterministic ancestor-before-descendant order. The live, non-hermetic gate uses Clun's experimental bounded pure-CL TLS profile (not browser-grade WebPKI). Prior `v0.1.0-dev.21` binaries predate that TLS path and cannot talk to public npm. Publication evidence for this boundary is on [Issue #257](https://github.com/theesfeld/clun/issues/257) and [Issue #259](https://github.com/theesfeld/clun/issues/259).
 
 ## What works
 
@@ -207,8 +207,7 @@ workflows are read-only and fail closed if the canonical issues, README, or site
 
 <!-- clun-generated:release-summary:begin -->
 Release versions follow the actual SemVer impact recorded in the canonical issue, not the number of pushes.
-The current source is the `0.2.0-dev.7` release candidate; the immutable tag and assets are not published yet.
-The last published prerelease remains [`v0.2.0-dev.6`](https://github.com/theesfeld/clun/releases/tag/v0.2.0-dev.6).
+The current source version and latest published prerelease are [`0.2.0-dev.7`](https://github.com/theesfeld/clun/releases/tag/v0.2.0-dev.7).
 [The versioning contract](docs/versioning.md) defines prerelease sequencing, synchronized surfaces, immutable tags, assets, and installer evidence.
 [Phase 82 issue #56](https://github.com/theesfeld/clun/issues/56) is the canonical live release record.
 <!-- clun-generated:release-summary:end -->
