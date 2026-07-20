@@ -7,17 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Clun is pre-1.0; minor versions may include breaking changes.
 
 The immutable tags `v0.1.0-dev.2`, `v0.1.0-dev.11`, `v0.1.0-dev.12`,
-`v0.1.0-dev.15`, `v0.1.0-dev.68`, `v0.1.0-dev.69`, `v0.1.0-dev.70`, and
-`v0.2.0-dev.1`–`v0.2.0-dev.4` did not produce GitHub Releases or assets and are not
-installable release checkpoints.
+`v0.1.0-dev.15`, `v0.1.0-dev.68`, `v0.1.0-dev.69`, `v0.1.0-dev.70`,
+`v0.2.0-dev.1`–`v0.2.0-dev.4`, and `v0.2.0-dev.9` did not produce GitHub Releases
+or assets and are not installable release checkpoints.
 
 ## [Unreleased]
 
-## [0.2.0-dev.9] - 2026-07-20
+## [0.2.0-dev.10] - 2026-07-20
 
 ### Fixed
 
-- `clun --update` multi-asset HTTPS: allow TLS 1.3 PSK resumption under `+verify-required+` when the session ticket carries a verified hostname (Phase 20 fail-closed patch was rejecting legitimate certificate-less resumed handshakes). Issue #272.
+- `clun --update` multi-asset HTTPS: allow TLS 1.3 PSK resumption under `+verify-required+` when the session ticket carries a verified hostname (Phase 20 fail-closed patch was rejecting legitimate certificate-less resumed handshakes). Issue #272 / recovery Issue #276.
+
+### Changed
+
+- Advance the recovery candidate past immutable tag-only `v0.2.0-dev.9` (annotated tag peeled to the wrong historical commit; Release claims failed before assets). Verified installer remains `v0.2.0-dev.8` until `v0.2.0-dev.10` assets publish.
+
+## [0.2.0-dev.9] - 2026-07-20
+
+### Notes
+
+- Immutable annotated tag only; **no GitHub Release or assets**. Peel was not the intended master TLS fix. Do not reinstall from this tag. Superseded by `0.2.0-dev.10`.
 
 ## [0.2.0-dev.8] - 2026-07-20
 
