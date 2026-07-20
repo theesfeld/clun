@@ -272,6 +272,7 @@ Phase 26 remains deferred until after Phase 82 and will be re-baselined for the 
               <h3>Package manager (npm-compatible)</h3>
               <p>Install packages the way you already do: add a dependency, resolve the graph, write a lockfile, fill <code>node_modules</code>.</p>
               <ul>
+                <li><code>clun add</code> / <code>clun install &lt;pkg&gt;</code> create a minimal <code>package.json</code> when the directory has none</li>
                 <li><code>clun add picocolors</code> or <code>clun install picocolors</code></li>
                 <li>Public npm registry over pure-CL TLS; SRI checks; offline reinstall from <code>clun.lock</code></li>
                 <li>Workspaces / monorepo filters when you need them</li>
@@ -364,12 +365,13 @@ Clun.write(file, <span class="tok-str">"hello from Clun\n"</span>)
             </div>
             <p>
 <!-- clun-generated:compatibility-intro:begin -->
-Same public matrix Bun publishes for its toolkit — with a Clun column. <strong>27 Yes</strong> / 
-<strong>3 Partial</strong> / <strong>0 No</strong> on the 30 capability rows below.
-A Yes means evidence-backed Bun-shaped (or better) behavior in pure Common Lisp for that row — not a claim that Clun is a finished drop-in for every Node or Bun program.
-Several rows already <em>exceed</em> Bun (TypeScript typecheck, fmt/lint, offline Redis, SQLite module surface, and more).
-Baseline: Bun 1.3.14; engineering audit also tracks Bun
-<code>c1076ce95e</code> (<code>1.4.0-dev</code>).
+This follows the stable Bun 1.3.14 runtime feature matrix and adds Clun.
+<strong>27 Yes</strong> / <strong>3 Partial</strong> / <strong>0 No</strong>
+on the 30 capability rows below — evidence-backed Bun-shaped (or better) behavior in pure Common Lisp,
+not a finished drop-in for every Node or Bun program. Several rows already <em>exceed</em> Bun
+(TypeScript typecheck, fmt/lint, offline Redis, SQLite module surface, and more).
+The engineering roadmap separately audits Bun source commit
+<code>c1076ce95e</code> (<code>1.4.0-dev</code>) for newer upstream work.
 This is capability, not speed. Phase links are roadmap references.
 <!-- clun-generated:compatibility-intro:end -->
             </p>
