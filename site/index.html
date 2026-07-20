@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#0b0b0c">
+    <meta name="theme-color" content="#08090b">
     <meta name="description" content="Clun is Bun-shaped JavaScript and TypeScript tooling implemented entirely in pure Common Lisp — runtime, package manager, tests, and HTTP. No Node, no V8, no CFFI.">
     <meta property="og:title" content="Clun — JavaScript tooling in pure Common Lisp">
     <meta property="og:description" content="Run JS/TS, install packages, test, and serve — pure Common Lisp underneath. Pre-alpha.">
@@ -12,11 +12,16 @@
     <meta property="og:type" content="website">
     <title>Clun — JavaScript tooling in pure Common Lisp</title>
     <link rel="icon" href="assets/clun.jpg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
     <script src="app.js" defer></script>
   </head>
   <body>
     <a class="skip-link" href="#main">Skip to content</a>
+    <div class="mesh" aria-hidden="true"></div>
+    <div class="noise" aria-hidden="true"></div>
 
     <div class="announcement">
 <!-- clun-generated:release:begin -->
@@ -26,12 +31,13 @@
   <span aria-hidden="true">-&gt;</span>
 </a>
 <!-- clun-generated:release:end -->
+
     </div>
 
     <header class="site-header">
       <div class="nav-shell">
         <a class="brand" href="#top" aria-label="Clun home">
-          <img src="assets/clun.jpg" alt="" width="44" height="44">
+          <img src="assets/clun.jpg" alt="" width="36" height="36">
           <span>Clun</span>
         </a>
         <button class="menu-button" type="button" aria-expanded="false" aria-controls="site-nav">
@@ -40,36 +46,44 @@
         </button>
         <nav id="site-nav" class="site-nav" aria-label="Primary navigation">
           <a href="#install">Install</a>
-          <a href="#why">Why</a>
+          <a href="#toolkit">Toolkit</a>
           <a href="#compatibility">Compare</a>
           <a href="#github">GitHub</a>
           <a class="star-link" href="https://github.com/theesfeld/clun" rel="noopener">
             <span aria-hidden="true">★</span> Star
+            <span class="star-count" data-github-stars>—</span>
           </a>
         </nav>
       </div>
     </header>
 
     <main id="main">
-      <section id="top" class="hero section-band">
-        <div class="hero-glow" aria-hidden="true"></div>
-        <div class="hero-lines" aria-hidden="true"></div>
+      <section id="top" class="hero">
+        <div class="hero-orb hero-orb-a" aria-hidden="true"></div>
+        <div class="hero-orb hero-orb-b" aria-hidden="true"></div>
         <div class="shell hero-inner reveal">
-          <div class="hero-mark-wrap">
-            <img class="hero-mark" src="assets/clun.jpg" alt="Clun mascot wearing a Lisp helmet" width="250" height="250">
-          </div>
+          <div class="hero-badge-row">
+            <div class="hero-mark-wrap">
+              <img class="hero-mark" src="assets/clun.jpg" alt="Clun mascot" width="120" height="120">
+            </div>
 <!-- clun-generated:version:begin -->
 <p class="eyebrow"><span class="status-dot" aria-hidden="true"></span> v0.2.0-dev.11 / pre-alpha</p>
 <!-- clun-generated:version:end -->
-          <h1 class="hero-title">JavaScript tooling.<br><span class="hero-title-accent">Pure Common Lisp.</span></h1>
+          </div>
+          <h1 class="hero-title">
+            JavaScript tooling.<br>
+            <span class="grad-text">Pure Common Lisp.</span>
+          </h1>
           <p class="hero-copy">
-            Run TypeScript, install packages, test, and serve — with Bun-shaped commands —
-            while the entire implementation is <strong>Common Lisp</strong>. No Node. No V8. No CFFI.
+            Run TypeScript, install packages, test, and serve with Bun-shaped commands —
+            while the entire implementation is Common Lisp. No Node. No V8. No CFFI.
+            JavaScript is only what <em>you</em> run.
           </p>
           <div class="hero-actions">
-            <a class="btn btn-primary" href="#install">Install</a>
+            <a class="btn btn-primary" href="#install">Get Clun</a>
+            <a class="btn btn-ghost" href="#compatibility">See the matrix</a>
             <a class="btn btn-ghost star-btn" href="https://github.com/theesfeld/clun" rel="noopener">
-              <span aria-hidden="true">★</span> Star on GitHub
+              <span aria-hidden="true">★</span> Star
               <span class="star-count" data-github-stars>—</span>
             </a>
           </div>
@@ -78,9 +92,9 @@
             <div class="installer-head">
               <div>
                 <span class="installer-kicker">Linux + macOS · x64 + arm64</span>
-                <h2 id="install-title">Install Clun</h2>
+                <h2 id="install-title">Install in one line</h2>
               </div>
-              <a href="install">View shell script</a>
+              <a class="installer-script" href="install">install.sh</a>
             </div>
             <div class="command-row">
               <span class="prompt" aria-hidden="true">$</span>
@@ -89,37 +103,36 @@
                 <span data-copy-label>Copy</span>
               </button>
             </div>
+            <div class="installer-meta">
+              <span>SHA-256 verified</span>
+              <span>~/.local/bin/clun</span>
+              <span><code>clun --update</code></span>
+              <span>Pin with <code>INSTALL_VERSION</code></span>
+            </div>
             <p class="installer-note" role="status" aria-live="polite" data-copy-status>
               Verifies SHA-256 and installs to <code>~/.local/bin/clun</code>.
               Update with <code>clun --update</code>. Pin with <code>INSTALL_VERSION</code>;
               override bin dir with <code>INSTALL_DIR</code>; PATH edits with
               <code>ADD_PATH=0</code> / <code>ADD_PATH=1</code>.
             </p>
-            <p class="installer-note">Pre-alpha — pre-1.0 may include breaking changes.</p>
           </div>
 
-        </div>
-      </section>
-
-      <section class="status-band section-band" aria-label="Project status at a glance">
-        <div class="shell status-shell reveal">
-          <dl class="hero-facts" tabindex="0" role="region" aria-label="Project facts">
+          <dl class="stat-strip reveal" aria-label="Project facts">
             <div><dt>Implementation</dt><dd>100% Common Lisp</dd></div>
             <div><dt>Bun matrix</dt><dd>30 Yes · 0 Partial · 0 No</dd></div>
             <div><dt>test262 pass list</dt><dd>26,018 pass</dd></div>
             <div><dt>test262 rate</dt><dd>92.38% current / 90% target met</dd></div>
           </dl>
-          <p class="hero-lede">
-            Pre-alpha and shipping in the open. Runtime, package manager, TLS, tests, and servers are pure Common Lisp — JavaScript is only what <em>you</em> run.
-            The matrix below is evidence-backed Yes / Partial / No, not marketing.
+          <p class="hero-lede reveal">
+            Pre-alpha and shipping in the open. Runtime, package manager, TLS, tests, and servers are pure Common Lisp —
+            the matrix below is evidence-backed Yes / Partial / No, not marketing.
           </p>
-          <!-- Generator anchors + claim strings stay in DOM; not shown as product chrome. -->
           <p class="sr-only">
 <!-- clun-generated:phase-status:begin -->
 Release tracking: <a href="https://github.com/theesfeld/clun/issues/56">issue #56</a>.
 <!-- clun-generated:phase-status:end -->
           </p>
-          <details class="evidence-details">
+          <details class="evidence-details reveal">
             <summary>Numbers (test262, suite, gates)</summary>
             <p class="evidence-body">
             Full run: 40,654 total = 26,018 pass / 2,145 fail / 12,491 skip / 0 crash.
@@ -144,109 +157,89 @@ Release tracking: <a href="https://github.com/theesfeld/clun/issues/56">issue #5
         </div>
       </section>
 
-      <section id="why" class="proof-band section-band" aria-labelledby="workflow-title">
-        <div class="shell proof-layout">
-          <div class="section-intro proof-copy">
-            <p class="eyebrow eyebrow-light">Why this exists</p>
-            <h2 id="workflow-title">Same jobs as Bun — without a JavaScript implementation underneath.</h2>
-            <p>
-              Run TypeScript, install packages from the public npm registry, run tests, and serve HTTP
-              with commands that feel like the modern JS toolkit. The difference: every line of the
-              implementation is Common Lisp. That is the product, not a footnote.
-            </p>
-            <a class="text-link light-link" href="#compatibility">See the Bun / Node matrix <span aria-hidden="true">-&gt;</span></a>
+      <section id="why" class="why-section">
+        <div class="shell">
+          <div class="section-intro reveal">
+            <p class="eyebrow">Why Clun</p>
+            <h2>A different substrate for familiar tools.</h2>
+            <p>Keep the JS/TS ergonomics you already know. Swap the implementation for a purity-checked Common Lisp stack you can audit end-to-end.</p>
           </div>
-
-          <div class="terminal" aria-label="Example Clun workflow">
-            <div class="terminal-bar">
-              <span>clun / everyday use</span>
-              <span class="terminal-state">pure Common Lisp</span>
-            </div>
-            <div class="terminal-body">
-              <p><span>$</span> clun install picocolors</p>
-              <p class="terminal-good">installed picocolors</p>
-              <p><span>$</span> clun app.ts</p>
-              <p class="terminal-output">hello from Common Lisp</p>
-              <p><span>$</span> clun test</p>
-              <p class="terminal-good">(pass) adds two values</p>
-              <p><span>$</span> clun run start</p>
-              <p class="terminal-output">clun serving on http://127.0.0.1:3000</p>
-            </div>
+          <div class="bento">
+            <article class="bento-card bento-wide reveal">
+              <span class="bento-icon" aria-hidden="true">◆</span>
+              <h3>Pure Common Lisp</h3>
+              <p>Engine, package manager, TLS, and servers — no CFFI shortcuts for Clun itself. <code>make purity</code> fails closed.</p>
+            </article>
+            <article class="bento-card reveal">
+              <span class="bento-icon" aria-hidden="true">›</span>
+              <h3>Bun-shaped CLI</h3>
+              <p><code>install</code>, <code>test</code>, <code>serve</code>, <code>build</code> — commands you already reach for.</p>
+            </article>
+            <article class="bento-card reveal">
+              <span class="bento-icon" aria-hidden="true">●</span>
+              <h3>Evidence, not vibes</h3>
+              <p>Capability matrix is Yes / Partial / No with receipts — not a marketing checklist.</p>
+            </article>
+            <article class="bento-card reveal">
+              <span class="bento-icon" aria-hidden="true">↑</span>
+              <h3>Self-updating</h3>
+              <p>Checksum-verified <code>clun --update</code> from GitHub Releases. Same assets as the installer.</p>
+            </article>
           </div>
         </div>
       </section>
 
-      <section id="toolkit" class="tools-section section-band">
+      <section id="toolkit" class="toolkit-section">
         <div class="shell">
-          <div class="section-heading">
-            <p class="eyebrow">What you use day to day</p>
-            <h2>Run, install packages, store secrets, test, and serve — in Common Lisp.</h2>
-            <p>
-              <strong>npm package management</strong> and <strong>encrypted secrets storage</strong> are
-              first-class product surfaces, not side notes. Commands mirror the Bun/npm-era toolkit so
-              existing JS project habits transfer. Every tool below is pure Common Lisp with repository
-              evidence for the claimed surface.
-            </p>
+          <div class="section-intro reveal">
+            <p class="eyebrow">Toolkit</p>
+            <h2>What you actually use.</h2>
           </div>
-
           <div class="tool-grid">
-            <article class="tool-card tool-runtime">
-              <div class="tool-topline"><span>01</span><code>$ clun app.ts</code></div>
-              <h3>JavaScript &amp; TypeScript runtime</h3>
-              <p>A from-scratch engine in Common Lisp runs your JS, ESM/CJS, JSON, and TypeScript.</p>
-              <ul>
-                <li>TypeScript strip + transforms; <code>clun tsc</code> structural typecheck (Bun has no typecheck)</li>
-                <li>JSX/TSX, modules, timers, promises, files, <code>fetch</code>, URL</li>
-                <li>Node-shaped builtins for the covered matrix (path, fs, buffer, crypto, …)</li>
-                <li>Proxy traps and invariants are implemented for the covered paths</li>
-              </ul>
-              <div class="tool-status"><span>Built in</span> Pure Common Lisp · no V8 · no Node</div>
-            </article>
-
-            <article class="tool-card tool-install tool-critical">
-              <div class="tool-topline"><span>02</span><code>$ clun install [pkg…]</code></div>
+            <article class="tool-card tool-install tool-critical reveal">
+              <div class="tool-icon" aria-hidden="true">📦</div>
               <h3>npm package management</h3>
-              <p><strong>Critical path.</strong> Install packages the way you already do: add a dependency, resolve the graph, write a lockfile, fill <code>node_modules</code>.</p>
               <ul>
-                <li><code>clun add</code> / <code>clun install &lt;pkg&gt;</code> create a minimal <code>package.json</code> when the directory has none</li>
-                <li>Public npm registry over pure-CL TLS; SRI checks; offline reinstall from <code>clun.lock</code></li>
-                <li>Workspaces / monorepo filters when you need them</li>
+                <li><code>clun install</code> / <code>add</code> / <code>remove</code></li>
+                <li>registry.npmjs.org + SRI tarballs</li>
+                <li>Human errors · progress spinner</li>
                 <li>Hosted <code>v0.2.0-dev.11</code> ships this path — try <code>clun add picocolors</code></li>
-                <li>No lifecycle scripts (install hooks never run)</li>
               </ul>
               <div class="tool-status"><span>Shipped</span> Public add/install on <code>v0.2.0-dev.11</code></div>
-              <div class="tool-status"><span>Shipped</span> <code>clun publish</code> pack + authenticated registry PUT</div>
             </article>
-
-            <article class="tool-card tool-secrets tool-critical">
-              <div class="tool-topline"><span>03</span><code>Clun.secrets</code></div>
+            <article class="tool-card tool-secrets tool-critical reveal">
+              <div class="tool-icon" aria-hidden="true">🔐</div>
               <h3>Encrypted secrets storage</h3>
-              <p><strong>Critical path.</strong> Bun-shaped <code>get</code>/<code>set</code>/<code>delete</code> plus <code>has</code>/<code>list</code>/<code>clear</code> backed by a pure-CL AES-256-GCM vault — no CFFI, no OS keychain required for the vault API.</p>
               <ul>
-                <li>Object and positional argument forms match the Bun-shaped surface</li>
-                <li>Persistence, wrong-key denial, and suite receipts in-repo</li>
-                <li>Exceeds Bun’s API with list/clear helpers on the vault</li>
+                <li>Bun-shaped secrets API</li>
+                <li>Pure-CL AES-256-GCM vault</li>
+                <li>No OS keychain dependency for Clun itself</li>
               </ul>
-              <div class="tool-status"><span>Shipped</span> Pure-CL AES-256-GCM vault (ledger Yes)</div>
+              <div class="tool-status"><span>Shipped</span> Matrix Yes</div>
             </article>
-
-            <article class="tool-card tool-test">
-              <div class="tool-topline"><span>04</span><code>$ clun test</code></div>
-              <h3>Test runner</h3>
-              <p>Jest-style globals, Bun-shaped snapshots and matchers, coverage, and parallel files — all pure CL.</p>
+            <article class="tool-card reveal">
+              <div class="tool-icon" aria-hidden="true">🧪</div>
+              <h3>Tests</h3>
               <ul>
-                <li>Hooks, filters, retries, concurrent suites</li>
-                <li>62+ matchers, mocks/spies, fake timers, JUnit</li>
-                <li>Source-aligned coverage (text + LCOV)</li>
+                <li><code>clun test</code> runner</li>
+                <li>Matchers, async, concurrent files</li>
+                <li>Snapshots &amp; filtering</li>
               </ul>
-              <div class="tool-status warning"><span>Known gap</span> Snapshot edge formats and cooperative/parallel concurrency are covered; test-watch reruns remain a known gap</div>
-              <div class="tool-status"><span>Familiar</span> Write tests like you already do</div>
+              <div class="tool-status"><span>Shipped</span> Built-in runner</div>
             </article>
-
-            <article class="tool-card tool-server">
-              <div class="tool-topline"><span>05</span><code>$ clun server.ts</code></div>
-              <h3>HTTP &amp; WebSocket</h3>
-              <p><code>Clun.serve</code> with fetch-style handlers, streaming bodies, WebSockets, and pure-CL TLS for clients.</p>
+            <article class="tool-card reveal">
+              <div class="tool-icon" aria-hidden="true">⚡</div>
+              <h3>Runtime</h3>
+              <ul>
+                <li>TypeScript strip + structural check</li>
+                <li>JSX / TSX</li>
+                <li>Node compatibility surface</li>
+              </ul>
+              <div class="tool-status"><span>Shipped</span> Matrix Yes</div>
+            </article>
+            <article class="tool-card reveal">
+              <div class="tool-icon" aria-hidden="true">🌐</div>
+              <h3>HTTP &amp; streams</h3>
               <ul>
                 <li>HTTP/1.1 serve + router helpers</li>
                 <li>Request / Response / Headers / AbortController</li>
@@ -259,15 +252,12 @@ Release tracking: <a href="https://github.com/theesfeld/clun/issues/56">issue #5
         </div>
       </section>
 
-      <section class="code-section section-band" aria-labelledby="code-title">
+      <section class="code-section" aria-labelledby="code-title">
         <div class="shell code-layout">
-          <div class="code-copy">
-            <p class="eyebrow eyebrow-light">Familiar APIs · pure Lisp underneath</p>
-            <h2 id="code-title">Write JavaScript the way you already do.</h2>
-            <p>
-              Handlers look like Bun or the web platform. The process executing them is Common Lisp.
-              Unsupported behavior fails loudly instead of silently pretending.
-            </p>
+          <div class="code-copy reveal">
+            <p class="eyebrow">Familiar APIs</p>
+            <h2 id="code-title">Write JavaScript you already know.</h2>
+            <p>Handlers look like Bun or the web platform. The process underneath is Common Lisp.</p>
             <div class="code-tabs" role="tablist" aria-label="Code examples">
               <button type="button" role="tab" aria-selected="true" aria-controls="code-runtime" id="tab-runtime" data-code-tab="runtime">Run TypeScript</button>
               <button type="button" role="tab" aria-selected="false" aria-controls="code-server" id="tab-server" data-code-tab="server" tabindex="-1">Serve HTTP</button>
@@ -275,9 +265,9 @@ Release tracking: <a href="https://github.com/theesfeld/clun/issues/56">issue #5
               <button type="button" role="tab" aria-selected="false" aria-controls="code-file" id="tab-file" data-code-tab="file" tabindex="-1">Write a file</button>
             </div>
           </div>
-
-          <div class="code-window">
+          <div class="code-window reveal">
             <div class="code-window-bar">
+              <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
               <span data-code-filename>hello.ts</span>
               <button type="button" class="code-copy-button" data-copy-code aria-label="Copy code example">Copy</button>
             </div>
@@ -305,12 +295,12 @@ Clun.write(file, <span class="tok-str">"hello from Clun\n"</span>)
         </div>
       </section>
 
-      <section id="compatibility" class="compat-section section-band">
+      <section id="compatibility" class="compat-section">
         <div class="shell">
-          <div class="section-heading split-heading reveal">
+          <div class="section-heading reveal">
             <div>
               <p class="eyebrow">Capability matrix</p>
-              <h2>Bun · Node · Deno · Clun.</h2>
+              <h2>Bun · Node · Deno · Clun</h2>
             </div>
             <p>
 <!-- clun-generated:compatibility-intro:begin -->
@@ -321,14 +311,12 @@ Only Clun’s column calls out where it <em>exceeds</em> the others.
 <!-- clun-generated:compatibility-intro:end -->
             </p>
           </div>
-
           <ul class="matrix-legend reveal" aria-label="Legend">
-            <li><span class="mark mark-yes"><span class="mark-glyph" aria-hidden="true">✓</span></span> full support</li>
+            <li><span class="mark mark-yes"><span class="mark-glyph" aria-hidden="true">✓</span></span> full</li>
             <li><span class="mark mark-partial"><span class="mark-glyph" aria-hidden="true">∼</span></span> partial</li>
             <li><span class="mark mark-no"><span class="mark-glyph" aria-hidden="true">✗</span></span> none</li>
-            <li class="legend-clun">Clun column only: short “exceeds …” notes</li>
+            <li class="legend-clun">Clun: “exceeds …” notes only</li>
           </ul>
-
           <div class="table-wrap reveal" tabindex="0" role="region" aria-label="Capability comparison table">
 <!-- clun-generated:compatibility:begin -->
 <table class="compat-table compat-table-icons">
@@ -589,27 +577,26 @@ Only Clun’s column calls out where it <em>exceeds</em> the others.
         </div>
       </section>
 
-      <section id="github" class="github-section section-band">
-        <div class="shell github-layout reveal">
-          <div class="github-copy">
+      <section id="github" class="github-section">
+        <div class="shell github-layout">
+          <div class="github-copy reveal">
             <p class="eyebrow">Open source</p>
             <h2>Star on GitHub.</h2>
             <p>
-              Roadmaps, phase trackers, release trains, and deep evidence live on GitHub —
-              not on this page. If Clun is useful to you, a star helps others find it.
+              Roadmaps, phase trackers, and deep evidence live on GitHub — not buried in this page.
+              If Clun is useful, a star helps others find it.
             </p>
             <a class="btn btn-primary star-btn" href="https://github.com/theesfeld/clun" rel="noopener">
               <span aria-hidden="true">★</span> Star theesfeld/clun
               <span class="star-count" data-github-stars>—</span>
             </a>
             <p class="github-issues-note">
-              <strong data-github-issues>—</strong> open Issues right now are mostly
-              <em>roadmap placeholders and release bookkeeping</em> (one Issue per unit of work),
-              not twenty concurrent fires. Process trackers stay on
+              <strong data-github-issues>—</strong> open Issues are mostly roadmap and release bookkeeping
+              (one Issue per unit of work). Trackers stay on
               <a href="https://github.com/theesfeld/clun/issues">GitHub Issues</a>.
             </p>
           </div>
-          <div class="github-stats" aria-label="GitHub popularity">
+          <div class="github-stats reveal" aria-label="GitHub popularity">
             <div class="stat-card">
               <span class="stat-value" data-github-stars>—</span>
               <span class="stat-label">Stars</span>
@@ -630,35 +617,32 @@ Only Clun’s column calls out where it <em>exceeds</em> the others.
               <span class="stat-label">Open issues</span>
               <div class="stat-bar" data-stat-bar="issues" style="--fill: 0%"></div>
             </div>
-            <p class="stat-footnote">Live from the GitHub API. Bars are relative to the largest of these four counts.</p>
           </div>
         </div>
       </section>
 
-      <section id="internals" class="internals-section section-band">
-        <div class="shell internals-layout reveal">
-          <div class="section-intro">
-            <p class="eyebrow">The implementation is the point</p>
+      <section id="internals" class="internals-section">
+        <div class="shell internals-layout">
+          <div class="section-intro reveal">
+            <p class="eyebrow">Implementation</p>
             <h2>Common Lisp all the way down.</h2>
             <p>
-              Not a thin wrapper around Node. Not a foreign-function bridge to V8.
-              ANSI Common Lisp + SBCL + vendored Lisp libraries only — CFFI shortcuts for
-              Clun itself are rejected (<code>make purity</code>); user native addons load
-              through a pure-CL host with a narrow allowlisted load/call boundary.
+              Not a thin wrapper around Node. Not a foreign bridge to V8.
+              ANSI Common Lisp + SBCL + vendored Lisp libraries — CFFI shortcuts for Clun itself are rejected.
             </p>
           </div>
           <ol class="contract-list">
-            <li><span>01</span><div><strong>From-scratch engine</strong><p>Lexer, parser, object model, modules, async, and runtime APIs are all in this repository.</p></div></li>
-            <li><span>02</span><div><strong>Vendored and pinned</strong><p>A fresh source build pulls no Quicklisp packages and no runtime npm for Clun itself.</p></div></li>
-            <li><span>03</span><div><strong>Purity is checked</strong><p>CI runs <code>make purity</code> so CFFI / foreign-library slips cannot land quietly.</p></div></li>
-            <li><span>04</span><div><strong>TLS is pure Lisp too</strong><p>HTTPS for package installs and clients uses Clun’s own TLS stack. It is experimental and unaudited — good enough for development and evidence gates, not a claim of browser-grade WebPKI.</p></div></li>
+            <li class="reveal"><span>01</span><div><strong>From-scratch engine</strong><p>Lexer, parser, object model, modules, async, and runtime APIs live in this repository.</p></div></li>
+            <li class="reveal"><span>02</span><div><strong>Vendored and pinned</strong><p>A fresh source build pulls no Quicklisp packages and no runtime npm for Clun itself.</p></div></li>
+            <li class="reveal"><span>03</span><div><strong>Purity is checked</strong><p>CI runs <code>make purity</code> so foreign-library slips cannot land quietly.</p></div></li>
+            <li class="reveal"><span>04</span><div><strong>TLS is pure Lisp too</strong><p>HTTPS for installs and clients uses Clun’s own TLS stack — experimental and unaudited, not browser-grade WebPKI.</p></div></li>
           </ol>
         </div>
       </section>
 
-      <section class="closing section-band">
+      <section class="closing">
         <div class="shell closing-inner reveal">
-          <img src="assets/clun.jpg" alt="" width="132" height="132">
+          <img src="assets/clun.jpg" alt="" width="100" height="100" class="closing-mark">
           <p class="eyebrow">Try it</p>
           <h2>One command. Pure Common Lisp underneath.</h2>
           <div class="command-row closing-command">
@@ -673,7 +657,7 @@ Only Clun’s column calls out where it <em>exceeds</em> the others.
               <span aria-hidden="true">★</span> Star on GitHub
             </a>
           </div>
-          <p class="closing-caveat">Pre-alpha. Hosted install is the last published Release; build from source for tip. Matrix before production use.</p>
+          <p class="closing-caveat">Pre-alpha. Hosted install is the last published Release; build from source for tip.</p>
         </div>
       </section>
     </main>
@@ -681,7 +665,7 @@ Only Clun’s column calls out where it <em>exceeds</em> the others.
     <footer class="site-footer">
       <div class="shell footer-grid">
         <div class="footer-brand">
-          <a class="brand" href="#top"><img src="assets/clun.jpg" alt="" width="40" height="40"><span>Clun</span></a>
+          <a class="brand" href="#top"><img src="assets/clun.jpg" alt="" width="36" height="36"><span>Clun</span></a>
           <p>Bun-shaped JavaScript tooling, implemented entirely in pure Common Lisp. Pre-alpha · evidence-backed matrix · GPL-3.0-or-later.</p>
         </div>
 <!-- clun-generated:release-links:begin -->
@@ -690,7 +674,7 @@ Only Clun’s column calls out where it <em>exceeds</em> the others.
 <div><h2>Install</h2><a href="install">Shell installer</a><a href="https://github.com/theesfeld/clun/releases/tag/v0.2.0-dev.11">v0.2.0-dev.11 release</a><a href="https://github.com/theesfeld/clun#building-from-source">Build from source</a></div>
 <!-- clun-generated:release-links:end -->
       </div>
-      <div class="shell footer-bottom"><span>(c) 2026 TJ Theesfeld</span><span>clun.sh</span></div>
+      <div class="shell footer-bottom"><span>© 2026 TJ Theesfeld</span><span>clun.sh</span></div>
     </footer>
     <span class="sr-only" role="status" aria-live="polite" data-copy-feedback></span>
   </body>

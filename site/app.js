@@ -192,7 +192,14 @@
 
   // Scroll reveals + sticky header polish
   const revealEls = [...document.querySelectorAll(".reveal")];
-  if (revealEls.length && "IntersectionObserver" in window) {
+  const reduceMotionEarly = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (reduceMotionEarly || !("IntersectionObserver" in window)) {
+    revealEls.forEach((el) => el.classList.add("is-visible"));
+  } else if (revealEls.length) {
+    // Hero content should paint immediately; stagger the rest on scroll.
+    revealEls.forEach((el) => {
+      if (el.closest(".hero")) el.classList.add("is-visible");
+    });
     const io = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -201,14 +208,22 @@
           io.unobserve(entry.target);
         });
       },
-      { rootMargin: "0px 0px -8% 0px", threshold: 0.12 }
+      { rootMargin: "0px 0px -6% 0px", threshold: 0.08 }
     );
     revealEls.forEach((el, i) => {
-      el.style.setProperty("--reveal-delay", `${Math.min(i % 6, 5) * 40}ms`);
+      if (el.classList.contains("is-visible")) return;
+      el.style.setProperty("--reveal-delay", `${Math.min(i % 6, 5) * 45}ms`);
       io.observe(el);
     });
-  } else {
-    revealEls.forEach((el) => el.classList.add("is-visible"));
+  }
+
+  // Matrix row spotlight — subtle interactive depth on capability table
+  const tableWrap = document.querySelector(".table-wrap");
+  if (tableWrap && !reduceMotionEarly) {
+    tableWrap.querySelectorAll("tbody tr:not(.compare-group)").forEach((row) => {
+      row.addEventListener("pointerenter", () => row.classList.add("is-hot"));
+      row.addEventListener("pointerleave", () => row.classList.remove("is-hot"));
+    });
   }
 
   if (siteHeader) {
@@ -297,7 +312,7 @@
   window.addEventListener("resize", updateProgress, { passive: true });
 
   const magnetic = document.querySelectorAll(".btn-primary, .star-btn, .copy-button");
-  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const reduceMotion = reduceMotionEarly;
   if (!reduceMotion) {
     magnetic.forEach((el) => {
       el.addEventListener("pointermove", (e) => {
