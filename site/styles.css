@@ -1239,17 +1239,48 @@ a {
 }
 
 .state.yes {
-  color: #277c39;
+  color: #14532d;
+  background: #bbf7d0;
+  border-color: #16a34a;
+}
+
+/* Full ledger cell tint so Yes reads as green at a glance */
+.compat-table td:has(> .state.yes),
+.compat-table td:has(.state.yes) {
+  background: #dcfce7;
+}
+
+.compat-table td:has(> .state.partial),
+.compat-table td:has(.state.partial),
+.compat-table td:has(> .state.separate),
+.compat-table td:has(.state.separate) {
+  background: #fef9c3;
+}
+
+.compat-table td:has(> .state.no),
+.compat-table td:has(.state.no),
+.compat-table td:has(> .state.blocked),
+.compat-table td:has(.state.blocked) {
+  background: #fee2e2;
 }
 
 .state.partial,
 .state.separate {
-  color: #76600d;
+  color: #713f12;
+  background: #fde68a;
+  border-color: #ca8a04;
 }
 
 .state.no,
 .state.blocked {
-  color: #a33c32;
+  color: #7f1d1d;
+  background: #fecaca;
+  border-color: #dc2626;
+}
+
+.tool-card.tool-critical {
+  border-color: rgba(22, 163, 74, 0.45);
+  box-shadow: 0 0 0 1px rgba(22, 163, 74, 0.12);
 }
 
 .source-note {

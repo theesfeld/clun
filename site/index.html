@@ -174,76 +174,16 @@ Phase 26 remains deferred until after Phase 82 and will be re-baselined for the 
         </div>
       </section>
 
-      <section id="benchmarks" class="bench-section section-band">
-        <div class="shell">
-          <div class="section-heading split-heading">
-            <div>
-              <p class="eyebrow">Performance progress · Phase 25 / milestone 10</p>
-              <h2>Faster at the same work — measured against earlier Clun.</h2>
-            </div>
-            <p>
-              These numbers are <strong>not</strong> a Bun or Node race. They show Clun got much faster
-              on three classic JavaScript microbenchmarks (same machine, same workloads).
-              Plain reading: <strong>2 of 3 workloads</strong> improved more than 5× from the earlier baseline.
-              Methodology lives in the repo for people who want the raw tables.
-            </p>
-          </div>
-
-          <div class="benchmark-panel">
-            <div class="benchmark-head">
-              <div>
-                <span class="panel-label">Internal progress · Phase 25</span>
-                <h3>Time to finish three workloads (lower is better)</h3>
-              </div>
-              <div class="benchmark-key" aria-label="Chart legend">
-                <span><i class="key-baseline"></i> Earlier Clun baseline</span>
-                <span><i class="key-current"></i> Current result</span>
-              </div>
-            </div>
-
-            <div class="benchmark-chart" role="img" aria-label="Clun got faster on three internal JavaScript workloads. Richards: 3600.4 ms down to 539.3 ms (6.68x). DeltaBlue: 2942.0 ms down to 764.5 ms (3.85x). Splay: 1520.3 ms down to 283.9 ms (5.36x).">
-              <div class="bench-row">
-                <div class="bench-meta"><strong>Richards</strong><span>scheduler simulation</span></div>
-                <div class="bars">
-                  <div class="bar baseline" style="--bar: 100%"><span>3600.4 ms</span></div>
-                  <div class="bar current coral" style="--bar: 15.0%"><span>539.3 ms</span></div>
-                </div>
-                <div class="gain met">6.68x</div>
-              </div>
-              <div class="bench-row">
-                <div class="bench-meta"><strong>DeltaBlue</strong><span>constraint solver</span></div>
-                <div class="bars">
-                  <div class="bar baseline" style="--bar: 100%"><span>2942.0 ms</span></div>
-                  <div class="bar current yellow" style="--bar: 26.0%"><span>764.5 ms</span></div>
-                </div>
-                <div class="gain">3.85x</div>
-              </div>
-              <div class="bench-row">
-                <div class="bench-meta"><strong>Splay</strong><span>allocation + trees</span></div>
-                <div class="bars">
-                  <div class="bar baseline" style="--bar: 100%"><span>1520.3 ms</span></div>
-                  <div class="bar current green" style="--bar: 18.7%"><span>283.9 ms</span></div>
-                </div>
-                <div class="gain met">5.36x</div>
-              </div>
-            </div>
-
-            <div class="benchmark-foot">
-              <p>Overall geometric mean improvement is about <strong>5.16x</strong> on this suite. Not a cross-runtime speed ranking.</p>
-              <a class="text-link" href="https://github.com/theesfeld/clun/blob/master/docs/benchmarks.md">Full methodology <span aria-hidden="true">-&gt;</span></a>
-            </div>
-          </div>
-        </div>
-      </section>
-
       <section id="toolkit" class="tools-section section-band">
         <div class="shell">
           <div class="section-heading">
             <p class="eyebrow">What you use day to day</p>
-            <h2>Run, install packages, test, and serve — in Common Lisp.</h2>
+            <h2>Run, install packages, store secrets, test, and serve — in Common Lisp.</h2>
             <p>
-              Commands mirror the Bun/npm-era toolkit so existing JS project habits transfer.
-              Every tool below is pure Common Lisp with repository evidence for the claimed surface.
+              <strong>npm package management</strong> and <strong>encrypted secrets storage</strong> are
+              first-class product surfaces, not side notes. Commands mirror the Bun/npm-era toolkit so
+              existing JS project habits transfer. Every tool below is pure Common Lisp with repository
+              evidence for the claimed surface.
             </p>
           </div>
 
@@ -261,23 +201,36 @@ Phase 26 remains deferred until after Phase 82 and will be re-baselined for the 
               <div class="tool-status"><span>Built in</span> Pure Common Lisp · no V8 · no Node</div>
             </article>
 
-            <article class="tool-card tool-install">
+            <article class="tool-card tool-install tool-critical">
               <div class="tool-topline"><span>02</span><code>$ clun install [pkg…]</code></div>
-              <h3>Package manager (npm-compatible)</h3>
-              <p>Install packages the way you already do: add a dependency, resolve the graph, write a lockfile, fill <code>node_modules</code>.</p>
+              <h3>npm package management</h3>
+              <p><strong>Critical path.</strong> Install packages the way you already do: add a dependency, resolve the graph, write a lockfile, fill <code>node_modules</code>.</p>
               <ul>
                 <li><code>clun add</code> / <code>clun install &lt;pkg&gt;</code> create a minimal <code>package.json</code> when the directory has none</li>
-                <li><code>clun add picocolors</code> or <code>clun install picocolors</code></li>
                 <li>Public npm registry over pure-CL TLS; SRI checks; offline reinstall from <code>clun.lock</code></li>
                 <li>Workspaces / monorepo filters when you need them</li>
+                <li>Hosted <code>v0.2.0-dev.5</code> ships this path — try <code>clun add picocolors</code></li>
                 <li>No lifecycle scripts (install hooks never run)</li>
               </ul>
-              <div class="tool-status"><span>Source today</span> Public add/install works on current master builds</div>
-              <div class="tool-status warning"><span>Published binary</span> Hosted <code>v0.2.0-dev.5</code> includes public npm over bounded pure-CL TLS</div>
+              <div class="tool-status"><span>Shipped</span> Public add/install on <code>v0.2.0-dev.5</code></div>
+              <div class="tool-status warning"><span>Still open</span> <code>npm publish</code> and full registry-auth corpus remain Partial on the ledger</div>
+            </article>
+
+            <article class="tool-card tool-secrets tool-critical">
+              <div class="tool-topline"><span>03</span><code>Clun.secrets</code></div>
+              <h3>Encrypted secrets storage</h3>
+              <p><strong>Critical path.</strong> Bun-shaped <code>get</code>/<code>set</code>/<code>delete</code> plus <code>has</code>/<code>list</code>/<code>clear</code> backed by a pure-CL AES-256-GCM vault — no CFFI, no OS keychain required for the vault API.</p>
+              <ul>
+                <li>Object and positional argument forms match the Bun-shaped surface</li>
+                <li>Persistence, wrong-key denial, and suite receipts in-repo</li>
+                <li>Exceeds Bun’s API with list/clear helpers on the vault</li>
+              </ul>
+              <div class="tool-status"><span>Shipped</span> Pure-CL encrypted vault</div>
+              <div class="tool-status warning"><span>Still open</span> OS Keychain/libsecret parity stays Partial under the purity contract</div>
             </article>
 
             <article class="tool-card tool-test">
-              <div class="tool-topline"><span>03</span><code>$ clun test</code></div>
+              <div class="tool-topline"><span>04</span><code>$ clun test</code></div>
               <h3>Test runner</h3>
               <p>Jest-style globals, Bun-shaped snapshots and matchers, coverage, and parallel files — all pure CL.</p>
               <ul>
@@ -290,7 +243,7 @@ Phase 26 remains deferred until after Phase 82 and will be re-baselined for the 
             </article>
 
             <article class="tool-card tool-server">
-              <div class="tool-topline"><span>04</span><code>$ clun server.ts</code></div>
+              <div class="tool-topline"><span>05</span><code>$ clun server.ts</code></div>
               <h3>HTTP &amp; WebSocket</h3>
               <p><code>Clun.serve</code> with fetch-style handlers, streaming bodies, WebSockets, and pure-CL TLS for clients.</p>
               <ul>
