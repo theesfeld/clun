@@ -685,7 +685,8 @@ and concurrent topological script runs.")
    ;; top-level install
    #:read-package-json #:root-deps #:install #:install-async
    ;; package.json editing (add / remove) + latest resolution
-   #:add-dependencies #:remove-dependencies #:resolve-latest #:resolve-latest-async
+   #:ensure-package-json #:add-dependencies #:remove-dependencies
+   #:resolve-latest #:resolve-latest-async
    #:install-result #:install-result-p #:ir-source #:ir-plan #:ir-node-count #:ir-lifecycle-skipped
    ;; monorepo workspaces (Phase 60)
    #:workspace #:workspace-p #:ws-name #:ws-version #:ws-path #:ws-relative #:ws-package #:ws-deps #:ws-scripts

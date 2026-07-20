@@ -175,10 +175,12 @@ With --hot / --watch, state-preserving (or hard) reload is armed for the process
 
 (defun run-install-command (r)
   "Handle `clun install [pkg…]` / `add <pkg…>` / `remove <pkg…>`.
-With package arguments, INSTALL is the Bun-compatible alias of ADD: edit
-package.json and then install. With no package arguments, INSTALL installs the
-existing manifest. Flags: -d/-D/--dev, -E/--exact, --frozen-lockfile,
---production, --dry-run, --registry, --filter/-F (monorepo package selection)."
+With package arguments, INSTALL is the Bun-compatible alias of ADD: ensure
+package.json exists (create a minimal one when missing, like npm/Bun in an
+empty directory), edit it, and install. With no package arguments, INSTALL
+installs the existing manifest and still requires package.json. Flags:
+-d/-D/--dev, -E/--exact, --frozen-lockfile, --production, --dry-run,
+--registry, --filter/-F (monorepo package selection)."
   (let ((sub (cli:cli-get r :subcommand))
         (cwd (resolve-cwd r))
         (names '()) (registry nil) (filters '())
