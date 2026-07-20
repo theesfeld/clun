@@ -1,19 +1,17 @@
-;;;; style.lisp — modern CLI surface: color, progress, and one emit API.
+;;;; style.lisp — Clun CLI surface: palette, glyphs, emit API, motion.
 ;;;;
-;;;; Every user-facing success/error/warn/info line should go through this file
-;;;; (or thin wrappers that call it). Ad-hoc `format *error-output* "clun: …"`
-;;;; elsewhere is a bug — route it here so TTY/NO_COLOR, glyphs, and wording stay
-;;;; consistent.
+;;;; Canonical home for every user-facing line. Commands must not ad-hoc
+;;;; `format *error-output* "clun: …"` — route through emit-* / fail / progress.
 ;;;;
-;;;; Design (2026 product feel — Bun/uv/cargo-adjacent):
-;;;;   ✔  green success     (style-ok)
-;;;;   ✖  red failure       (style-err) — also plain `clun: …` for errors
-;;;;   !  yellow warning    (style-warn)
-;;;;   ·  cyan info / step  (style-info)
-;;;;   dim secondary text
-;;;;   braille spinner while long work runs on a TTY
+;;;; Visual language (2026 product CLI):
+;;;;   ◆  brand mark (magenta)
+;;;;   ●  success (bright green)   /  ✕  failure (bright red)
+;;;;   ▲  warning (bright yellow)
+;;;;   ›  info / step (bright cyan)
+;;;;   →  transition (dim → bright)
+;;;;   dense braille spinner while work runs on a TTY
 ;;;;
-;;;; Env: NO_COLOR disables; CLUN_FORCE_COLOR / *cli-force-color* forces.
+;;;; Env: NO_COLOR off; CLUN_FORCE_COLOR / *cli-force-color* force on (beats NO_COLOR).
 
 (in-package :clun.cli)
 
@@ -26,6 +24,9 @@
 (defparameter *cli-brand* "clun"
   "Product name used as the default error/success prefix.")
 
+(defparameter *cli-ascii-glyphs* nil
+  "When T, use ASCII glyph fallbacks even on a color TTY.")
+
 ;;; --- color enablement -------------------------------------------------------
 
 (defun %env-no-color-p ()
@@ -36,10 +37,14 @@
   (let ((v (clun.sys:getenv "CLUN_FORCE_COLOR")))
     (and v (plusp (length v)) (not (string= v "0")))))
 
+(defun %env-ascii-glyphs-p ()
+  (let ((v (clun.sys:getenv "CLUN_ASCII")))
+    (and v (plusp (length v)) (not (string= v "0")))))
+
 (defun cli-color-enabled-p (&optional (stream *standard-output*))
   "T when ANSI styling should be applied to STREAM.
 Order: explicit Lisp force/off → CLUN_FORCE_COLOR → NO_COLOR → TTY detect.
-CLUN_FORCE_COLOR wins over NO_COLOR so CI demos and recordings can opt back in."
+CLUN_FORCE_COLOR wins over NO_COLOR so demos and recordings can opt back in."
   (cond
     (*cli-no-color* nil)
     (*cli-force-color* t)
@@ -59,43 +64,90 @@ CLUN_FORCE_COLOR wins over NO_COLOR so CI demos and recordings can opt back in."
       (format nil "~c[~{~a~^;~}m~a~c[0m" #\Esc codes text #\Esc)
       text))
 
-(defun style (text &key (stream *standard-output*) bold dim green yellow red cyan magenta)
-  "Return TEXT with optional SGR attributes when color is enabled for STREAM."
+(defun style (text &key (stream *standard-output*) bold dim
+                     green yellow red cyan magenta blue white
+                     bright)
+  "Return TEXT with optional SGR attributes when color is enabled for STREAM.
+BRIGHT uses the 90–97 bright palette (modern terminals)."
   (let ((enabled (cli-color-enabled-p stream))
         (codes '()))
     (when bold (push 1 codes))
     (when dim (push 2 codes))
-    (when red (push 31 codes))
-    (when green (push 32 codes))
-    (when yellow (push 33 codes))
-    (when cyan (push 36 codes))
-    (when magenta (push 35 codes))
+    (cond
+      (bright
+       (when red (push 91 codes))
+       (when green (push 92 codes))
+       (when yellow (push 93 codes))
+       (when blue (push 94 codes))
+       (when magenta (push 95 codes))
+       (when cyan (push 96 codes))
+       (when white (push 97 codes)))
+      (t
+       (when red (push 31 codes))
+       (when green (push 32 codes))
+       (when yellow (push 33 codes))
+       (when blue (push 34 codes))
+       (when magenta (push 35 codes))
+       (when cyan (push 36 codes))
+       (when white (push 37 codes))))
     (%sgr (nreverse codes) text enabled)))
 
 (defun style-ok (text &optional (stream *standard-output*))
-  (style text :stream stream :green t :bold t))
+  (style text :stream stream :green t :bold t :bright t))
 
 (defun style-warn (text &optional (stream *standard-output*))
-  (style text :stream stream :yellow t :bold t))
+  (style text :stream stream :yellow t :bold t :bright t))
 
 (defun style-err (text &optional (stream *error-output*))
-  (style text :stream stream :red t :bold t))
+  (style text :stream stream :red t :bold t :bright t))
 
 (defun style-info (text &optional (stream *standard-output*))
-  (style text :stream stream :cyan t))
+  (style text :stream stream :cyan t :bright t))
 
 (defun style-dim (text &optional (stream *standard-output*))
   (style text :stream stream :dim t))
 
 (defun style-brand (text &optional (stream *standard-output*))
-  (style text :stream stream :magenta t :bold t))
+  (style text :stream stream :magenta t :bold t :bright t))
 
-;;; --- glyphs (one place) -----------------------------------------------------
+(defun style-accent (text &optional (stream *standard-output*))
+  "Secondary accent (blue) for meta labels."
+  (style text :stream stream :blue t :bright t))
 
-(defparameter *glyph-ok* "✔")
-(defparameter *glyph-err* "✖")
-(defparameter *glyph-warn* "!")
-(defparameter *glyph-info* "·")
+;;; --- glyphs (one place — the product mark language) -------------------------
+
+(defun %use-unicode-glyphs-p ()
+  (not (or *cli-ascii-glyphs* (%env-ascii-glyphs-p))))
+
+(defun glyph-ok ()
+  (if (%use-unicode-glyphs-p) "●" "*"))
+
+(defun glyph-err ()
+  (if (%use-unicode-glyphs-p) "✕" "x"))
+
+(defun glyph-warn ()
+  (if (%use-unicode-glyphs-p) "▲" "!"))
+
+(defun glyph-info ()
+  (if (%use-unicode-glyphs-p) "›" ">"))
+
+(defun glyph-step ()
+  (if (%use-unicode-glyphs-p) "→" "->"))
+
+(defun glyph-brand ()
+  (if (%use-unicode-glyphs-p) "◆" "#"))
+
+(defun glyph-up ()
+  (if (%use-unicode-glyphs-p) "↑" "^"))
+
+(defun glyph-spin ()
+  (if (%use-unicode-glyphs-p) "◎" "o"))
+
+;;; Backward-compatible parameters (resolved at emit time via functions above).
+(defparameter *glyph-ok* "●")
+(defparameter *glyph-err* "✕")
+(defparameter *glyph-warn* "▲")
+(defparameter *glyph-info* "›")
 (defparameter *glyph-step* "→")
 
 ;;; --- brand / command prefix -------------------------------------------------
@@ -108,45 +160,73 @@ CLUN_FORCE_COLOR wins over NO_COLOR so CI demos and recordings can opt back in."
     ((symbolp command) (format nil "~a ~a" *cli-brand* (string-downcase (symbol-name command))))
     (t (format nil "~a ~a" *cli-brand* command))))
 
-(defun brand-prefix (&optional command (stream *error-output*))
-  "Styled brand/command prefix ending with ':' (e.g. clun: / clun install:)."
-  (style-err (format nil "~a:" (%cmd-label command)) stream))
+(defun brand-prefix (&optional command (stream *error-output*) &key (kind :err))
+  "Styled brand/command prefix ending with ':'."
+  (let ((label (format nil "~a:" (%cmd-label command))))
+    (ecase kind
+      (:err (style-err label stream))
+      (:ok (style-ok label stream))
+      (:info (style-info label stream))
+      (:brand (style-brand label stream)))))
 
-;;; --- high-level emit API (THE place for messages) ---------------------------
+;;; --- high-level emit API ----------------------------------------------------
 
 (defun emit-ok (message &key (stream *standard-output*) command)
-  "Print a success line:  ✔ message  (optional dim command context is unused for OK)."
+  "Success:  ● message  (bright green)."
   (declare (ignore command))
-  (format stream "~a ~a~%" (style-ok *glyph-ok* stream) message)
+  (format stream "~a ~a~%"
+          (style-ok (glyph-ok) stream)
+          message)
   (force-output stream)
   (values))
 
 (defun emit-err (message &key (stream *error-output*) command)
-  "Print an error line:  clun[ cmd]: message  in red."
-  (format stream "~a ~a~%"
-          (brand-prefix command stream)
+  "Error:  ✕ clun[ cmd]: message  (bright red)."
+  (format stream "~a ~a ~a~%"
+          (style-err (glyph-err) stream)
+          (brand-prefix command stream :kind :err)
           (style-err (princ-to-string message) stream))
   (force-output stream)
   (values))
 
 (defun emit-warn (message &key (stream *standard-output*) command)
-  "Print a warning:  ! message  (yellow)."
+  "Warning:  ▲ message  (bright yellow)."
   (declare (ignore command))
-  (format stream "~a ~a~%" (style-warn *glyph-warn* stream) message)
+  (format stream "~a ~a~%"
+          (style-warn (glyph-warn) stream)
+          (style-warn (princ-to-string message) stream))
   (force-output stream)
   (values))
 
 (defun emit-info (message &key (stream *standard-output*) command)
-  "Print an info/step line:  · message  (cyan)."
+  "Info/step:  › message  (bright cyan)."
   (declare (ignore command))
-  (format stream "~a ~a~%" (style-info *glyph-info* stream) message)
+  (format stream "~a ~a~%"
+          (style-info (glyph-info) stream)
+          message)
+  (force-output stream)
+  (values))
+
+(defun emit-step (message &key (stream *standard-output*))
+  "Explicit step marker:  → message."
+  (format stream "~a ~a~%"
+          (style-info (glyph-step) stream)
+          message)
   (force-output stream)
   (values))
 
 (defun emit-note (message &key (stream *standard-output*))
-  "Dim secondary note (no glyph)."
+  "Dim secondary note indented under a prior line."
   (format stream "  ~a ~a~%"
-          (style-dim "note:" stream)
+          (style-dim "·" stream)
+          (style-dim (princ-to-string message) stream))
+  (force-output stream)
+  (values))
+
+(defun emit-hint (message &key (stream *error-output*))
+  "Actionable hint under an error (dim, indented)."
+  (format stream "  ~a ~a~%"
+          (style-dim "hint" stream)
           (style-dim (princ-to-string message) stream))
   (force-output stream)
   (values))
@@ -157,10 +237,38 @@ CLUN_FORCE_COLOR wins over NO_COLOR so CI demos and recordings can opt back in."
   (force-output stream)
   (values))
 
+(defun emit-brand-line (message &key (stream *standard-output*))
+  "Brand-led line:  ◆ clun …"
+  (format stream "~a ~a~%"
+          (style-brand (glyph-brand) stream)
+          message)
+  (force-output stream)
+  (values))
+
+(defun emit-version (version &key (stream *standard-output*) (revision nil))
+  "Chromed version line used by --version."
+  (format stream "~a ~a ~a~@[ ~a~]~%"
+          (style-brand (glyph-brand) stream)
+          (style-brand *cli-brand* stream)
+          (style-ok version stream)
+          (when revision (style-dim revision stream)))
+  (force-output stream)
+  (values))
+
+(defun emit-transition (from to &key (stream *standard-output*) prefix)
+  "Show FROM → TO with dim old, bright new."
+  (format stream "~a~a ~a ~a~%"
+          (if prefix (format nil "~a " prefix) "")
+          (style-dim (princ-to-string from) stream)
+          (style-info (glyph-step) stream)
+          (style-ok (princ-to-string to) stream))
+  (force-output stream)
+  (values))
+
 (defun fail (message &key command (exit 1) (stream *error-output*) hint)
-  "Emit an error and return EXIT (default 1). Optional HINT prints as a dim note."
+  "Emit an error and return EXIT (default 1). Optional HINT is a dim actionable line."
   (emit-err message :stream stream :command command)
-  (when hint (emit-note hint :stream stream))
+  (when hint (emit-hint hint :stream stream))
   exit)
 
 (defun usage-fail (message &key command (stream *error-output*))
@@ -171,15 +279,22 @@ CLUN_FORCE_COLOR wins over NO_COLOR so CI demos and recordings can opt back in."
 ;;; --- spinner / animated progress --------------------------------------------
 
 (defparameter *spinner-frames*
-  #("⠋" "⠙" "⠹" "⠸" "⠼" "⠴" "⠦" "⠧" "⠇" "⠏")
-  "Braille spinner frames (compact, modern terminals).")
+  #("⣾" "⣽" "⣻" "⢿" "⡿" "⣟" "⣯" "⣷")
+  "Dense braille spinner (kinetic, compact).")
 
 (defparameter *spinner-ascii-frames*
   #("|" "/" "-" "\\")
-  "ASCII fallback when color/TTY is off or glyphs unavailable.")
+  "ASCII fallback when glyphs are off.")
+
+(defparameter *spinner-pulse-colors*
+  '((:cyan t :bright t)
+    (:magenta t :bright t)
+    (:blue t :bright t)
+    (:cyan t :bright t))
+  "Rotate accent colors across spinner frames for a living pulse.")
 
 (defun %spinner-frames ()
-  (if (cli-color-enabled-p)
+  (if (and (cli-color-enabled-p) (%use-unicode-glyphs-p))
       *spinner-frames*
       *spinner-ascii-frames*))
 
@@ -193,35 +308,50 @@ CLUN_FORCE_COLOR wins over NO_COLOR so CI demos and recordings can opt back in."
 (defun make-spinner (&key (label "working") (stream *standard-output*))
   (make-cli-spinner :label label :stream stream :frames (%spinner-frames)))
 
+(defun %spinner-frame-style (frame index stream)
+  "Color FRAME with a pulsing accent based on INDEX."
+  (let* ((palette *spinner-pulse-colors*)
+         (n (length palette))
+         (spec (nth (mod index n) palette)))
+    (apply #'style frame :stream stream spec)))
+
 (defun spinner-tick (spinner)
   "Advance SPINNER one frame (carriage-return line). No-op when not a TTY."
   (unless (cli-color-enabled-p (spinner-stream spinner))
     (return-from spinner-tick nil))
   (let* ((frames (spinner-frames spinner))
          (i (mod (spinner-index spinner) (length frames)))
-         (frame (aref frames i)))
-    (format (spinner-stream spinner) "~c~a ~a~c"
+         (frame (aref frames i))
+         (stream (spinner-stream spinner)))
+    (format stream "~c~a ~a  ~a~c"
             #\Return
-            (style frame :stream (spinner-stream spinner) :cyan t)
-            (spinner-label spinner)
+            (%spinner-frame-style frame i stream)
+            (style-dim (spinner-label spinner) stream)
+            (style-dim " " stream)
             #\Space)
-    (force-output (spinner-stream spinner))
+    (force-output stream)
     (incf (spinner-index spinner))
     (setf (spinner-active spinner) t)
     t))
 
-(defun spinner-stop (spinner &key (ok t) (message nil))
-  "Clear the spinner line and print a final status."
+(defun spinner-clear (spinner)
+  "Erase the active spinner line without printing a status."
   (when (spinner-active spinner)
-    (format (spinner-stream spinner) "~c~80@t~c" #\Return #\Return)
+    (format (spinner-stream spinner) "~c~100@t~c" #\Return #\Return)
     (force-output (spinner-stream spinner))
-    (setf (spinner-active spinner) nil))
-  (let* ((msg (or message (spinner-label spinner)))
-         (mark (if ok
-                   (style-ok *glyph-ok* (spinner-stream spinner))
-                   (style-err *glyph-err* (spinner-stream spinner)))))
-    (format (spinner-stream spinner) "~a ~a~%" mark msg)
-    (force-output (spinner-stream spinner))))
+    (setf (spinner-active spinner) nil)))
+
+(defun spinner-stop (spinner &key (ok t) (message nil) (silent nil))
+  "Clear the spinner line; unless SILENT, print a final status."
+  (spinner-clear spinner)
+  (unless silent
+    (let* ((stream (spinner-stream spinner))
+           (msg (or message (spinner-label spinner)))
+           (mark (if ok
+                     (style-ok (glyph-ok) stream)
+                     (style-err (glyph-err) stream))))
+      (format stream "~a ~a~%" mark msg)
+      (force-output stream))))
 
 (defmacro with-spinner ((var &key (label "working") (stream '*standard-output*))
                         &body body)
@@ -237,8 +367,8 @@ CLUN_FORCE_COLOR wins over NO_COLOR so CI demos and recordings can opt back in."
 (defun call-with-progress (label thunk &key done-message (stream *standard-output*))
   "Run THUNK while animating a TTY spinner labelled LABEL.
 DONE-MESSAGE may be a string or a function of the thunk's primary return value.
-On non-TTY sinks, prints a single ✔ line after success (no animation).
-Errors propagate after the spinner is stopped with ✖."
+On non-TTY sinks, prints a single success line after completion.
+On failure, clears the spinner and re-signals so the caller can emit-err."
   (let* ((use-spin (cli-color-enabled-p stream))
          (spin (when use-spin (make-spinner :label label :stream stream)))
          (stop nil)
@@ -252,7 +382,7 @@ Errors propagate after the spinner is stopped with ✖."
              (lambda ()
                (loop until stop do
                  (spinner-tick spin)
-                 (sleep 0.08)))
+                 (sleep 0.07)))
              :name "clun-cli-spinner")))
     (unwind-protect
          (progn
@@ -267,17 +397,12 @@ Errors propagate after the spinner is stopped with ✖."
       (when thread
         (ignore-errors (sb-thread:join-thread thread :timeout 0.5)))
       (cond
-        ;; Success: ✔ final. Failure: clear the spinner line only — the caller
-        ;; (cli:fail / condition handler) prints the real human error.
         ((and use-spin ok)
          (spinner-stop spin :ok t :message final))
         (use-spin
-         (when (spinner-active spin)
-           (format stream "~c~80@t~c" #\Return #\Return)
-           (force-output stream)
-           (setf (spinner-active spin) nil)))
+         (spinner-clear spin))
         (ok
-         (format stream "~a ~a~%" (style-ok *glyph-ok* stream) final)
+         (format stream "~a ~a~%" (style-ok (glyph-ok) stream) final)
          (force-output stream))))))
 
 (defmacro with-progress ((label &key (stream '*standard-output*) done-message) &body body)
