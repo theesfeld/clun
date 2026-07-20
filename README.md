@@ -25,10 +25,12 @@ The exact current source is the `0.2.0-dev.2` recovery candidate. Immutable tags
 installable checkpoints. The `v0.2.0-dev.1` release run passed Linux x64/arm64 and macOS arm64 but
 exposed a fresh-install materialization race on macOS x64; publication was skipped. Published
 [`v0.1.0-dev.21`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.21) remains the verified
-boundary. [Issue #241](https://github.com/theesfeld/clun/issues/241) owns the deterministic
-ancestor-before-descendant materialization fix, [Issue #216](https://github.com/theesfeld/clun/issues/216)
-owns publication, and [Phase 82 issue #56](https://github.com/theesfeld/clun/issues/56) remains the
-canonical program record.
+boundary. The deterministic ancestor-before-descendant materialization fix from
+[Issue #241](https://github.com/theesfeld/clun/issues/241) / [PR #242](https://github.com/theesfeld/clun/pull/242)
+is on `master`. [Issue #216](https://github.com/theesfeld/clun/issues/216) owns immutable
+`v0.2.0-dev.2` publication, [Issue #239](https://github.com/theesfeld/clun/issues/239) owns
+post-publication surface reconcile, and [Phase 82 issue #56](https://github.com/theesfeld/clun/issues/56)
+remains the canonical program record.
 
 ## Install
 Tagged releases are installed by the same POSIX shell command on Linux and macOS:
@@ -93,20 +95,25 @@ Clun is still pre-alpha; pre-1.0 minor versions may include breaking changes. Th
 current source has live `registry.npmjs.org` receipts for both `clun add <pkg>` and Bun-compatible
 `clun install <pkg>`, including a transitive dependency graph, SRI-verified tarballs,
 installed-package execution, and byte-identical frozen cache-only reinstalls while both registry
-metadata and public HTTPS tarball fallback are denied. The `v0.2.0-dev.1` release run reproduced
-those receipts on three native targets before macOS x64 exposed an order-dependent fresh-hoist race;
-the `0.2.0-dev.2` candidate keeps downloads concurrent but commits ready packages in deterministic
+metadata and public HTTPS tarball fallback are denied. Build from source and run
+`clun add picocolors` / `clun install picocolors` (or no-argument `clun install` against an existing
+manifest) against the public registry today; the hosted installer still ships only verified
+`v0.1.0-dev.21`, which cannot. The `v0.2.0-dev.1` release run reproduced those receipts on three
+native targets before macOS x64 exposed an order-dependent fresh-hoist race; the landed
+`0.2.0-dev.2` source keeps downloads concurrent but commits ready packages in deterministic
 ancestor-before-descendant order regardless of lockfile member order. Completed bodies wait on disk,
 not as an unbounded in-memory set. The live, non-hermetic gate uses Clun's experimental bounded
 pure-CL TLS profile. The still-published
 `v0.1.0-dev.21` binary predates the pure-CL TLS 1.2 fallback and returns a fatal
 `protocol_version` alert against the public registry. The current source contains the working package
 path from [Issue #233](https://github.com/theesfeld/clun/issues/233), completed bounded WebPKI
-hardening from [Issue #234](https://github.com/theesfeld/clun/issues/234), and the one-shot TLS
-alert/close lifecycle from [Issue #235](https://github.com/theesfeld/clun/issues/235). It remains a
-source candidate until Issue #241's regression and full gates pass, the newest exact-SHA `master`
-push runs for CI, Documentation, Compatibility, and Pages succeed, and the staged and freshly
-downloaded four archives plus `checksums.txt` pass the strict release-asset gates.
+hardening from [Issue #234](https://github.com/theesfeld/clun/issues/234), the one-shot TLS
+alert/close lifecycle from [Issue #235](https://github.com/theesfeld/clun/issues/235), and the
+materialization ordering fix from [Issue #241](https://github.com/theesfeld/clun/issues/241) /
+[PR #242](https://github.com/theesfeld/clun/pull/242). It remains a source candidate until the newest
+exact-SHA `master` push runs for CI, Documentation, Compatibility, and Pages succeed, and
+[Issue #216](https://github.com/theesfeld/clun/issues/216) publishes immutable `v0.2.0-dev.2` with
+four archives plus `checksums.txt` under the strict release-asset gates.
 
 ## What works
 
