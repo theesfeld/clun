@@ -565,7 +565,11 @@ Purity constrains Clun implementation, not user-loaded addons.")
            #:cli-color-enabled-p #:style #:style-ok #:style-warn #:style-err
            #:style-info #:style-dim #:style-brand
            #:make-spinner #:spinner-tick #:spinner-stop #:with-spinner
-           #:*cli-force-color* #:*cli-no-color*))
+           #:call-with-progress #:with-progress
+           #:emit-ok #:emit-err #:emit-warn #:emit-info #:emit-note #:emit-plain
+           #:fail #:usage-fail #:brand-prefix
+           #:*cli-force-color* #:*cli-no-color* #:*cli-brand*
+           #:*glyph-ok* #:*glyph-err* #:*glyph-warn* #:*glyph-info*))
 
 (defpackage :clun.runtime
   (:use :cl)

@@ -136,7 +136,7 @@ the CLI's trailing args). .ts/.mts/.cts are stripped by *ts-strip-hook*; .jsx/.t
 With --hot / --watch, state-preserving (or hard) reload is armed for the process lifetime."
   (cond
     ((null file)
-     (format *error-output* "clun: no file to run~%") 2)
+     (cli:usage-fail "no file to run"))
     (t
      (let* ((cwd (resolve-cwd r))
             (abs (if (sys:absolute-path-p file) file (sys:path-join cwd file)))
@@ -144,7 +144,7 @@ With --hot / --watch, state-preserving (or hard) reload is armed for the process
             (watch (cli:cli-get r :watch))
             (no-clear (cli:cli-get r :no-clear-screen)))
        (if (not (sys:file-p abs))
-           (progn (format *error-output* "clun: cannot find module '~a'~%" file) 1)
+           (cli:fail (format nil "cannot find module '~a'" file))
            (if (bun-shell-file-p abs)
                (run-shell-file abs rest cwd)
                (let ((realm (make-runtime-realm r cwd :script abs :rest rest)))
@@ -286,6 +286,7 @@ installs the existing manifest and still requires package.json. Flags:
               ((%flag-p tok) nil)                             ; ignore any other flag
               (t (push tok names))))
     (setf names (nreverse names) filters (nreverse filters))
+    ;; All install UX goes through cli:emit-* / call-with-progress (src/cli/style.lisp).
     (handler-case
         (progn
           (cond
@@ -293,37 +294,54 @@ installs the existing manifest and still requires package.json. Flags:
                  (and (string= sub "install") names))
              (when (null names) (error 'clun.installer:install-error :message "add: no packages given"))
              (if dry-run
-                 (format t "clun ~a (dry-run): ~{~a~^, ~}~%" sub names)
-                 (progn (clun.installer:add-dependencies cwd names :dev dev :exact exact :registry registry)
-                        (clun.installer:install cwd :registry registry :production production
-                                                :filters filters)
-                        (format t "installed ~{~a~^, ~}~%" names))))
+                 (cli:emit-info (format nil "~a (dry-run): ~{~a~^, ~}" sub names))
+                 (cli:call-with-progress
+                  (format nil "resolving ~{~a~^, ~}" names)
+                  (lambda ()
+                    (clun.installer:add-dependencies cwd names :dev dev :exact exact :registry registry)
+                    (clun.installer:install cwd :registry registry :production production
+                                            :filters filters))
+                  :done-message (format nil "installed ~{~a~^, ~}" names))))
             ((string= sub "remove")
              (when (null names) (error 'clun.installer:install-error :message "remove: no packages given"))
              (if dry-run
-                 (format t "clun remove (dry-run): ~{~a~^, ~}~%" names)
-                 (progn (clun.installer:remove-dependencies cwd names)
-                        (clun.installer:install cwd :registry registry :production production
-                                                :filters filters)
-                        (format t "removed ~{~a~^, ~}~%" names))))
+                 (cli:emit-info (format nil "remove (dry-run): ~{~a~^, ~}" names))
+                 (cli:call-with-progress
+                  (format nil "removing ~{~a~^, ~}" names)
+                  (lambda ()
+                    (clun.installer:remove-dependencies cwd names)
+                    (clun.installer:install cwd :registry registry :production production
+                                            :filters filters))
+                  :done-message (format nil "removed ~{~a~^, ~}" names))))
             (t
              (if dry-run
-                 (format t "clun install (dry-run)~%")
-                 (let ((res (clun.installer:install cwd :registry registry :frozen frozen
-                                                        :production production :filters filters)))
-                   (format t "clun install: ~(~a~), ~d package~:p~%"
-                           (clun.installer:ir-source res) (clun.installer:ir-node-count res))
+                 (cli:emit-info "install (dry-run)")
+                 (let ((res
+                         (cli:call-with-progress
+                          "installing dependencies"
+                          (lambda ()
+                            (clun.installer:install cwd :registry registry :frozen frozen
+                                                         :production production :filters filters))
+                          :done-message
+                          (lambda (r)
+                            (format nil "install: ~(~a~), ~d package~:p"
+                                    (clun.installer:ir-source r)
+                                    (clun.installer:ir-node-count r))))))
                    (dolist (s (clun.installer:ir-lifecycle-skipped res))
-                     (format t "  note: lifecycle scripts skipped for ~a (clun never runs them)~%" s))))))
+                     (cli:emit-note
+                      (format nil "lifecycle scripts skipped for ~a (clun never runs them)" s)))))))
           0)
       (clun.installer:install-error (e)
-        (format *error-output* "clun: ~a~%" (clun.installer:install-error-message e)) 1)
+        (cli:fail (clun.installer:install-error-message e) :command sub))
       (clun.registry:registry-error (e)
-        (format *error-output* "clun: ~a~%" (clun.registry:registry-error-message e)) 1)
+        ;; Prefer condition report so package-not-found includes the package name.
+        (cli:fail (princ-to-string e) :command sub))
       (clun.integrity:integrity-error (e)
-        (format *error-output* "clun: integrity error: ~a~%" (clun.integrity:integrity-error-message e)) 1)
+        (cli:fail (format nil "integrity error: ~a" (clun.integrity:integrity-error-message e))
+                  :command sub))
       (clun.tarball:tarball-error (e)
-        (format *error-output* "clun: tarball error: ~a~%" (clun.tarball:tarball-error-message e)) 1))))
+        (cli:fail (format nil "tarball error: ~a" (clun.tarball:tarball-error-message e))
+                  :command sub)))))
 
 ;;; --- clun run <script> (package.json scripts, §3.6) ------------------------
 
@@ -873,9 +891,7 @@ remaining argv tokens; exit 1 when any diagnostic is reported."
       (:help (print-help) 0)
       (:update (cli:perform-update))
       (:check-update (cli:check-update))
-      (:error (format *error-output* "clun: ~a~%note: run `clun --help` for usage~%"
-                      (cli:cli-get r :error-msg))
-              2)
+      (:error (cli:usage-fail (cli:cli-get r :error-msg)))
       (:eval (run-eval r (cli:cli-get r :code) nil))
       (:print (run-eval r (cli:cli-get r :code) t))
       (:run (let ((sub (cli:cli-get r :subcommand)))
@@ -913,14 +929,14 @@ unless --backtrace was passed; JS throws render as the value + stack."
                (ignore-errors (rt:run-exit-handlers 1))
                1)
              (bad-cwd (c)
-               (format *error-output* "clun: cannot change directory to '~a'~%" (bad-cwd-dir c))
+               (cli:emit-err (format nil "cannot change directory to '~a'" (bad-cwd-dir c)))
                2)
              (storage-condition ()
-               (format *error-output* "RangeError: Maximum call stack size exceeded~%")
+               (cli:emit-err "RangeError: Maximum call stack size exceeded")
                (when backtrace (sb-debug:print-backtrace :stream *error-output* :count 30))
                1)
              (error (c)
-               (format *error-output* "clun: ~a~%" c)
+               (cli:emit-err (princ-to-string c))
                (when backtrace (sb-debug:print-backtrace :stream *error-output* :count 30))
                1))))
     (when (eng::compile-tier-report-enabled-p) (eng::write-compile-tier-report))

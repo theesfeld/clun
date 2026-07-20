@@ -23,11 +23,24 @@
   ((name :initarg :name :reader package-not-found-name))
   (:report (lambda (c s) (format s "package not found: ~a" (package-not-found-name c)))))
 
+(defun %package-not-found (name)
+  "Construct package-not-found with an honest message slot (SBCL condition slots
+ignore post-init setf from shared-initialize :after)."
+  (make-condition 'package-not-found
+                  :name name
+                  :message (format nil "package not found: ~a" name)))
+
 (define-condition registry-status-error (registry-error)
   ((status :initarg :status :reader registry-status-error-status)
    (name :initarg :name :initform nil :reader registry-status-error-name))
   (:report (lambda (c s) (format s "registry returned HTTP ~a~@[ for ~a~]"
                                  (registry-status-error-status c) (registry-status-error-name c)))))
+
+(defun %registry-status-error (status &optional name)
+  (make-condition 'registry-status-error
+                  :status status
+                  :name name
+                  :message (format nil "registry returned HTTP ~a~@[ for ~a~]" status name)))
 
 (defparameter *default-registry* "https://registry.npmjs.org/"
   "The registry base URL used when neither --registry nor .npmrc overrides it.")
@@ -302,7 +315,7 @@ is given), and on success calls ON-OK with a pkg-metadata (or the keyword :not-m
                    (let ((status (net:hres-status resp)))
                      (cond
                        ((= status 304) (settle-ok :not-modified))
-                       ((= status 404) (settle-err (make-condition 'package-not-found :name name)))
+                       ((= status 404) (settle-err (%package-not-found name)))
                        ((and (>= status 200) (< status 300))
                         (handler-case
                             (let ((et (net:%header (net:hres-headers resp) "etag"))
@@ -312,8 +325,7 @@ is given), and on success calls ON-OK with a pkg-metadata (or the keyword :not-m
                             (settle-err (make-condition 'registry-error
                               :message (format nil "bad metadata for ~a: ~a" name e))))))
                        ((and (%transient-status-p status) (< n retries)) (%retry n))
-                       (t (settle-err (make-condition 'registry-status-error
-                            :status status :name name))))))
+                       (t (settle-err (%registry-status-error status name))))))
                  (on-err-code (code n)
                    (if (and (< n retries) (not (string= code "abort")))
                        (%retry n)
