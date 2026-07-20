@@ -13,6 +13,17 @@ or assets and are not installable release checkpoints.
 
 ## [Unreleased]
 
+## [0.2.0-dev.11] - 2026-07-20
+
+### Fixed
+
+- `clun install` / `add` / `remove`: unknown packages report `package not found: <name>` (not bare `registry error`); registry HTTP status errors include status and package name (Issue #280).
+- Async `Clun.spawn` subprocesses are loop-owned via `register-loop-handle-resource` and cleaned up on settle or loop destroy (Issue #61).
+
+### Added
+
+- Unified CLI emit surface in `src/cli/style.lisp` (`emit-ok` / `emit-err` / `emit-warn` / `emit-info` / `fail` / `call-with-progress`) with TTY braille spinner for install progress; `CLUN_FORCE_COLOR` overrides `NO_COLOR`.
+
 ## [0.2.0-dev.10] - 2026-07-20
 
 ### Fixed

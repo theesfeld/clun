@@ -404,3 +404,5 @@ race and advances recovery exactly once to `0.2.0-dev.2` / `v0.2.0-dev.2` withou
 dev.1. The verified installer stays on dev.21 until dev.2 assets and hosted installation are proven.
 
 Issue #272 (`clun --update` TLS PSK resume) merged on master as candidate `0.2.0-dev.9`, but immutable tag `v0.2.0-dev.9` was accidentally peeled to an unrelated historical commit (no Release/assets). Issue #276 recovers exactly once to free `0.2.0-dev.10` / `v0.2.0-dev.10` after published `v0.2.0-dev.8`. SemVer impact is `patch`. Do not move or reuse `v0.2.0-dev.9`.
+
+Issue #280 (human CLI registry errors + install progress spinner) and Issue #61 (async spawn loop ownership) advance the prerelease train to free `0.2.0-dev.11` / `v0.2.0-dev.11` after published `v0.2.0-dev.10`. SemVer impact is `patch`. The verified installer remains `v0.2.0-dev.10` until `v0.2.0-dev.11` assets publish.

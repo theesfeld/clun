@@ -9,7 +9,7 @@ Ship path: topic branch → PR → squash-merge into `master` (not direct push).
 ## Current phase: **82 - Purity-compatible Bun-surface final audit and release**
 
 **Canonical issue:** https://github.com/theesfeld/clun/issues/56
-**Published release:** `0.2.0-dev.10` / `v0.2.0-dev.10`
+**Source candidate:** `0.2.0-dev.11` / `v0.2.0-dev.11` (not yet tagged)
 **Tag peel:** `dc3827ee958ea1b5fc328d633778cfc9e8560e32`
 **Release run:** https://github.com/theesfeld/clun/actions/runs/29765892528
 **Installer default:** `verified_installer_tag=v0.2.0-dev.10`

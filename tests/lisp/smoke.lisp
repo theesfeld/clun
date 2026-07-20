@@ -9,4 +9,4 @@
 
 (define-test version-loaded
   (true (fboundp 'clun:main))
-  (is string= "0.2.0-dev.10" clun::*clun-version*))
+  (is string= "0.2.0-dev.11" clun::*clun-version*))
