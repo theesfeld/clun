@@ -581,10 +581,10 @@ grep -F 'Tag only / no Release' "$case_root/site/index.html" >/dev/null 2>&1 ||
 grep -F 'but no GitHub Release or release assets were published.' \
   "$case_root/README.md" >/dev/null 2>&1 ||
   fail 'tagged candidate render did not distinguish the tag from a GitHub Release'
-grep -F "the canonical Phase $current_phase record" "$case_root/site/index.html" >/dev/null 2>&1 ||
-  fail 'tagged candidate render lost the active canonical recovery record'
-grep -F '>Canonical phase record</a>' "$case_root/site/index.html" >/dev/null 2>&1 ||
-  fail 'tagged candidate render lost the canonical evidence link'
+grep -F 'Candidate tag only (no GitHub Release yet).' "$case_root/site/index.html" >/dev/null 2>&1 ||
+  fail 'tagged candidate render lost the active tag-only recovery notice'
+grep -F '>Release issue</a>' "$case_root/site/index.html" >/dev/null 2>&1 ||
+  fail 'tagged candidate render lost the release issue evidence link'
 
 fresh_case malformed-candidate-commit
 # Force candidate so the commit-shape diagnostic stays specific; when the
@@ -668,12 +668,14 @@ grep -F "Phase $test_phase: $test_phase_title." \
 if grep -Fq 'Phase 25b is complete' "$case_root/README.md"; then
   fail 'next-phase render retained a Phase 25b-specific prior-release statement'
 fi
-grep -F "Phase $test_phase is active:" "$case_root/site/index.html" >/dev/null 2>&1 ||
-  fail 'next-phase render did not update the landing-page phase status'
-grep -F "github.com/theesfeld/clun/issues/$test_issue" "$case_root/site/index.html" >/dev/null 2>&1 ||
+grep -F "Current release work:" "$case_root/site/index.html" >/dev/null 2>&1 ||
+  fail 'next-phase render did not update the landing-page status line'
+grep -F "issue #$test_issue" "$case_root/site/index.html" >/dev/null 2>&1 ||
   fail 'next-phase render did not update the landing-page canonical issue'
-if grep -Fq "Phase $current_phase is active:" "$case_root/site/index.html"; then
-  fail 'next-phase render retained the active landing-page phase status'
+grep -F "github.com/theesfeld/clun/issues/$test_issue" "$case_root/site/index.html" >/dev/null 2>&1 ||
+  fail 'next-phase render did not update the landing-page issue URL'
+if grep -Fq "issue #$current_issue" "$case_root/site/index.html"; then
+  fail 'next-phase render retained the prior landing-page issue number'
 fi
 
 fresh_case active-state-drift
@@ -688,8 +690,10 @@ grep -F 'Available now' "$case_root/site/index.html" >/dev/null 2>&1 ||
   fail 'published render did not expose the published release'
 grep -F 'latest published prerelease' "$case_root/README.md" >/dev/null 2>&1 ||
   fail 'published render did not expose the published release summary'
-grep -F "Phase $current_phase has a published prerelease:" "$case_root/site/index.html" >/dev/null 2>&1 ||
-  fail 'published render did not separate publication from landing-page phase completion'
+grep -F 'Release tracking:' "$case_root/site/index.html" >/dev/null 2>&1 ||
+  fail 'published render did not expose the published landing-page status line'
+grep -F "issue #$current_issue" "$case_root/site/index.html" >/dev/null 2>&1 ||
+  fail 'published render lost the published issue number on the landing page'
 grep -F "[Phase $current_phase]" "$case_root/README.md" >/dev/null 2>&1 ||
   fail 'published render lost the README phase link'
 grep -F 'tracks the published prerelease and remaining phase work' "$case_root/README.md" >/dev/null 2>&1 ||
@@ -736,12 +740,13 @@ expect_pass refreshed-baselines-generate "$case_root" generate
 grep -F 'Bun 9.8.7, Node.js 99.1.0, and Deno 9.2.0' \
   "$case_root/README.md" >/dev/null 2>&1 ||
   fail 'baseline refresh did not update the README snapshot'
-grep -F 'stable Bun 9.8.7 runtime feature matrix' "$case_root/site/index.html" >/dev/null 2>&1 ||
+grep -F 'Same public toolkit matrix as Bun 9.8.7' "$case_root/site/index.html" >/dev/null 2>&1 ||
   fail 'baseline refresh did not update the landing-page comparison introduction'
-grep -F '2222222222</code> (<code>9.9.0-dev</code>)' \
+# Engineering Bun pin lives in the matrix source-note (not a landing-page roadmap).
+grep -F 'github.com/oven-sh/bun/tree/2222222222222222222222222222222222222222' \
   "$case_root/site/index.html" >/dev/null 2>&1 ||
-  fail 'baseline refresh did not update the engineering introduction'
-if grep -Fq 'stable Bun 1.3.14 runtime feature matrix' "$case_root/site/index.html"; then
+  fail 'baseline refresh did not update the engineering Bun source pin'
+if grep -Fq 'Same public toolkit matrix as Bun 1.3.14' "$case_root/site/index.html"; then
   fail 'baseline refresh retained stale landing-page baseline copy'
 fi
 

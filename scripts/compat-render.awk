@@ -91,29 +91,39 @@ function markdown_phases(primary, integrations,    count, phase, result, first) 
   return result
 }
 
-function html_phases(primary, integrations,    count, phase, result, first, label, maximum) {
-  count = phase_count(primary, integrations)
-  maximum = primary + 0
-  for (phase = 27; phase <= 82; phase++)
-    if (phase_present(primary, integrations, phase) && phase > maximum) maximum = phase
-  if (count == 1) {
-    return "<a class=\"phase-link\" data-roadmap-phase=\"" primary "\" href=\"" issue_query(primary) "\">Phase " primary "</a>"
-  }
-  result = "<span class=\"phase-links\" data-roadmap-phase=\"" maximum "\"><span>Phases</span> "
-  first = 1
-  for (phase = 27; phase <= 82; phase++) {
-    if (!phase_present(primary, integrations, phase)) continue
-    if (!first) result = result ", "
-    result = result "<a href=\"" issue_query(phase) "\">" phase "</a>"
-    first = 0
-  }
-  return result "</span>"
+function html_phases(primary, integrations) {
+  # Public site: capability state only. Phase numbers stay on GitHub Issues, not in the matrix UI.
+  return ""
 }
 
 function html_state(state, detail,    result) {
   result = "<b class=\"state " lower(state) "\">" html(state) "</b>"
   if (detail != "-") result = result " " html_prose(detail)
   return result
+}
+
+# Site matrix: icon mark only. Green check = Yes (fully has the capability).
+function html_mark(state,    cls, glyph) {
+  if (state == "Yes") { cls = "yes"; glyph = "✓" }
+  else if (state == "Partial") { cls = "partial"; glyph = "∼" }
+  else { cls = "no"; glyph = "✗" }
+  return "<span class=\"mark mark-" cls "\" title=\"" html(state) "\">" \
+         "<span class=\"mark-glyph\" aria-hidden=\"true\">" glyph "</span>" \
+         "<b class=\"state " lower(state) "\">" html(state) "</b></span>"
+}
+
+# Only Clun may show a short "exceeds …" note when ledger detail claims it.
+function html_clun_mark(state, detail,    result, note, low, pos) {
+  result = html_mark(state)
+  if (detail == "-" || detail == "") return result
+  low = tolower(detail)
+  pos = index(low, "exceed")
+  if (pos == 0) return result
+  # Start at exceed/exceeds/exceeding so the note is about the delta, not the whole detail.
+  note = substr(detail, pos)
+  # Drop trailing parenthetical noise like "… (exceeds Bun)" wrappers already mid-sentence.
+  if (length(note) > 88) note = substr(note, 1, 85) "…"
+  return result "<span class=\"exceed-note\">" html_prose(note) "</span>"
 }
 
 function group_title(group) {
@@ -210,14 +220,14 @@ END {
       print "| " markdown(capability[i]) " | " markdown(current) " | " markdown_phases(primary_phase[i], integration_phases[i]) " |"
     }
   } else if (format == "site-compat") {
-    print "<table class=\"compat-table\">"
+    print "<table class=\"compat-table compat-table-icons\">"
     print "  <thead>"
     print "    <tr>"
     print "      <th scope=\"col\">Capability</th>"
-    print "      <th scope=\"col\" class=\"clun-col\"><a href=\"https://github.com/theesfeld/clun\">Clun</a><span>" html(release_version) (publication_state == "published" ? " / pre-alpha" : " candidate / pre-alpha") "</span></th>"
-    print "      <th scope=\"col\"><a href=\"https://bun.sh/\">Bun</a><span>" html(baseline_version[public_bun_id]) " / toolkit</span></th>"
-    print "      <th scope=\"col\"><a href=\"https://nodejs.org/\">Node.js</a><span>" html(baseline_version[node_id]) " / current</span></th>"
-    print "      <th scope=\"col\"><a href=\"https://deno.com/\">Deno</a><span>" html(baseline_version[deno_id]) " / runtime</span></th>"
+    print "      <th scope=\"col\"><a href=\"https://bun.sh/\">Bun</a><span>" html(baseline_version[public_bun_id]) "</span></th>"
+    print "      <th scope=\"col\"><a href=\"https://nodejs.org/\">Node.js</a><span>" html(baseline_version[node_id]) "</span></th>"
+    print "      <th scope=\"col\"><a href=\"https://deno.com/\">Deno</a><span>" html(baseline_version[deno_id]) "</span></th>"
+    print "      <th scope=\"col\" class=\"clun-col\"><a href=\"https://github.com/theesfeld/clun\">Clun</a><span>" html(release_version) "</span></th>"
     print "    </tr>"
     print "  </thead>"
     last_group = ""
@@ -232,34 +242,31 @@ END {
       }
       print "    <tr data-compat-feature=\"" html(feature_id[i]) "\">"
       print "      <th scope=\"row\"><strong>" html(capability[i]) "</strong><span>" html_prose(summary[i]) "</span></th>"
-      print "      <td class=\"clun-col\">" html_state(clun_state[i], clun_detail[i]) html_phases(primary_phase[i], integration_phases[i]) "</td>"
-      print "      <td>" html_state(bun_state[i], bun_detail[i]) "</td>"
-      print "      <td>" html_state(node_state[i], node_detail[i]) "</td>"
-      print "      <td>" html_state(deno_state[i], deno_detail[i]) "</td>"
+      print "      <td class=\"mark-cell\">" html_mark(bun_state[i]) "</td>"
+      print "      <td class=\"mark-cell\">" html_mark(node_state[i]) "</td>"
+      print "      <td class=\"mark-cell\">" html_mark(deno_state[i]) "</td>"
+      print "      <td class=\"clun-col mark-cell\">" html_clun_mark(clun_state[i], clun_detail[i]) "</td>"
       print "    </tr>"
     }
     print "  </tbody>"
     print "</table>"
     print "<p class=\"source-note\">"
-    print "  Snapshot checked " human_date(baseline_checked[public_bun_id]) ". Sources:"
-    print "  <a href=\"https://github.com/theesfeld/clun/blob/master/PLAN.md\">Clun scope</a>,"
+    print "  ✓ full support · ∼ partial · ✗ none."
+    print "  Snapshot checked " human_date(baseline_checked[public_bun_id]) "."
+    print "  Sources:"
+    print "  <a href=\"https://github.com/theesfeld/clun/blob/master/README.md\">Clun README</a>,"
     print "  <a href=\"" html(baseline_source[public_bun_id]) "\">Bun " html(baseline_version[public_bun_id]) "</a>,"
-    print "  the roadmap's separate"
     print "  <a href=\"" html(baseline_source[engineering_bun_id]) "\">Bun source audit</a>,"
-    print "  <a href=\"" html(baseline_source[node_id]) "\">Node.js " html(baseline_version[node_id]) "</a>, and"
+    print "  <a href=\"" html(baseline_source[node_id]) "\">Node.js " html(baseline_version[node_id]) "</a>,"
     print "  <a href=\"" html(baseline_source[deno_id]) "\">Deno " html(baseline_version[deno_id]) "</a>."
-    print "  npm appears as tooling, not as a runtime column. Clun has no same-host speed"
-    print "  comparison against these projects."
+    print "  <a href=\"https://github.com/theesfeld/clun/blob/master/compat/README.md\">Ledger on GitHub</a>."
+    print "  Capability, not speed."
     print "</p>"
   } else if (format == "site-compat-intro") {
-    print "This follows the stable Bun " html(baseline_version[public_bun_id]) " runtime feature matrix and adds Clun."
-    print "<strong>" ledger_yes " Yes</strong> / <strong>" ledger_partial " Partial</strong> / <strong>" ledger_no " No</strong>"
-    print "on the " ledger_total " capability rows below — evidence-backed Bun-shaped (or better) behavior in pure Common Lisp,"
-    print "not a finished drop-in for every Node or Bun program. Several rows already <em>exceed</em> Bun"
-    print "(TypeScript typecheck, fmt/lint, offline Redis, SQLite module surface, and more)."
-    print "The engineering roadmap separately audits Bun source commit"
-    print "<code>" html(substr(baseline_revision[engineering_bun_id], 1, 10)) "</code> (<code>" html(baseline_version[engineering_bun_id]) "</code>) for newer upstream work."
-    print "This is capability, not speed. Phase links are roadmap references."
+    print "Same public toolkit matrix as Bun " html(baseline_version[public_bun_id]) " — Clun last."
+    print "<strong>" ledger_yes " full</strong> · <strong>" ledger_partial " partial</strong> · <strong>" ledger_no " none</strong>."
+    print "A green check means that runtime has the capability (evidence-backed Yes / Partial / No)."
+    print "Only Clun’s column calls out where it <em>exceeds</em> the others."
   } else if (format == "readme-release") {
     tagged_candidate = publication_state == "candidate" && release_commit != "pending"
     if (publication_state == "published") {
@@ -296,19 +303,18 @@ END {
       print "<a href=\"https://github.com/theesfeld/clun/issues/" active_issue "\">"
       print "  <span>In development</span>"
     }
-    print "  " html(release_tag) " / Phase " active_phase
+    print "  " html(release_tag)
     print "  <span aria-hidden=\"true\">-&gt;</span>"
     print "</a>"
   } else if (format == "site-version") {
     print "<p class=\"eyebrow\"><span class=\"status-dot\" aria-hidden=\"true\"></span> v" release_version (publication_state == "published" ? " / pre-alpha" : " release candidate / pre-alpha") "</p>"
   } else if (format == "site-phase-status") {
     if (publication_state == "published")
-      print "Phase " active_phase " has a published prerelease: <a href=\"https://github.com/theesfeld/clun/issues/" active_issue "\">" html(roadmap_title[active_phase]) " in issue #" active_issue "</a>. Consult the live Issue for remaining work and completion status."
+      print "Release tracking: <a href=\"https://github.com/theesfeld/clun/issues/" active_issue "\">issue #" active_issue "</a>."
+    else if (publication_state == "candidate" && release_commit != "pending")
+      print "Candidate tag only (no GitHub Release yet). Tracking: <a href=\"https://github.com/theesfeld/clun/issues/" active_issue "\">issue #" active_issue "</a>."
     else
-      print "Phase " active_phase " is active: <a href=\"https://github.com/theesfeld/clun/issues/" active_issue "\">" html(roadmap_title[active_phase]) " in issue #" active_issue "</a>."
-    if (publication_state == "candidate" && release_commit != "pending")
-      print "The annotated candidate tag exists, but its GitHub Release and assets do not. Tag-only recovery remains in <a href=\"https://github.com/theesfeld/clun/issues/" active_issue "\">the canonical Phase " active_phase " record</a>; the failed tag is immutable and recovery must use a new prerelease slot."
-    print "Phase 26 remains deferred until after Phase 82 and will be re-baselined for the system state at that time."
+      print "Current release work: <a href=\"https://github.com/theesfeld/clun/issues/" active_issue "\">issue #" active_issue "</a>."
   } else if (format == "readme-release-summary") {
     print "Release versions follow the actual SemVer impact recorded in the canonical issue, not the number of pushes."
     if (publication_state == "published") {
@@ -326,7 +332,7 @@ END {
       print "Tag-only recovery remains tracked in [Phase " active_phase " issue #" active_issue "](https://github.com/theesfeld/clun/issues/" active_issue "); the failed tag is immutable and recovery must use a new prerelease slot."
   } else if (format == "site-release-links") {
     print "<div><h2>Project</h2><a href=\"https://github.com/theesfeld/clun\">Source</a><a href=\"https://github.com/theesfeld/clun/blob/master/README.md\">README</a><a href=\"https://github.com/theesfeld/clun/issues/" active_issue "\">" (publication_state == "published" ? "Release record" : "Current status") "</a></div>"
-    print "<div><h2>Evidence</h2><a href=\"https://github.com/theesfeld/clun/blob/master/compat/README.md\">Compatibility ledger</a><a href=\"https://github.com/theesfeld/clun/actions/workflows/compat.yml\">Compatibility CI</a><a href=\"https://github.com/theesfeld/clun/issues/" active_issue "\">Canonical phase record</a><a href=\"https://github.com/theesfeld/clun/blob/master/LICENSE\">License</a></div>"
+    print "<div><h2>Evidence</h2><a href=\"https://github.com/theesfeld/clun/blob/master/compat/README.md\">Compatibility ledger</a><a href=\"https://github.com/theesfeld/clun/actions/workflows/compat.yml\">Compatibility CI</a><a href=\"https://github.com/theesfeld/clun/issues/" active_issue "\">Release issue</a><a href=\"https://github.com/theesfeld/clun/blob/master/LICENSE\">License</a></div>"
     if (publication_state == "published")
       print "<div><h2>Install</h2><a href=\"install\">Shell installer</a><a href=\"https://github.com/theesfeld/clun/releases/tag/" release_tag "\">" release_tag " release</a><a href=\"https://github.com/theesfeld/clun#building-from-source\">Build from source</a></div>"
     else

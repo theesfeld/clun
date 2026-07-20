@@ -560,26 +560,29 @@ write_canonical_matrix() {
         [ -n "${capability}${state}${phase_list}${marker}${extra}" ]; do
     [ -n "$capability" ] || fail "$kind matrix contains a blank capability row"
     [ -z "$extra" ] || fail "$kind matrix row has unexpected fields: $capability"
-    [ -n "$phase_list" ] || fail "$kind matrix has no phase URLs for $capability"
-    seen_phases=,
-    for phase in $(printf '%s\n' "$phase_list" | tr ',' ' '); do
-      case "$phase" in
-        *[!0-9]*|'') fail "$kind matrix has an invalid phase URL for $capability" ;;
-      esac
-      case "$seen_phases" in
-        *",$phase,"*) fail "$kind matrix repeats phase $phase for $capability" ;;
-      esac
-      seen_phases="${seen_phases}${phase},"
-      phase_exists "$phase" ||
-        fail "$kind matrix references undefined phase $phase for $capability"
-    done
-    if [ "$kind" = site ]; then
-      case "$seen_phases" in
-        *",$marker,"*) ;;
-        *) fail "site matrix marker phase $marker has no row-local URL for $capability" ;;
-      esac
+    # README still carries phase target URLs; the public site matrix is state-only.
+    if [ "$kind" = README ]; then
+      [ -n "$phase_list" ] || fail "$kind matrix has no phase URLs for $capability"
+      seen_phases=,
+      for phase in $(printf '%s\n' "$phase_list" | tr ',' ' '); do
+        case "$phase" in
+          *[!0-9]*|'') fail "$kind matrix has an invalid phase URL for $capability" ;;
+        esac
+        case "$seen_phases" in
+          *",$phase,"*) fail "$kind matrix repeats phase $phase for $capability" ;;
+        esac
+        seen_phases="${seen_phases}${phase},"
+        phase_exists "$phase" ||
+          fail "$kind matrix references undefined phase $phase for $capability"
+      done
+    elif [ "$kind" = site ]; then
+      [ -z "$phase_list" ] || fail "site matrix must not embed phase URLs for $capability"
+      [ -z "$marker" ] || fail "site matrix must not embed roadmap markers for $capability"
+    else
+      fail "unknown matrix kind: $kind"
     fi
-    printf '%s\t%s\t%s\n' "$capability" "$state" "$phase_list" >>"$output"
+    # Public claim identity is capability + Yes/Partial/No. Phase anchors are README-only.
+    printf '%s\t%s\n' "$capability" "$state" >>"$output"
   done <"$input"
 }
 
@@ -689,11 +692,12 @@ awk '
     failed = 1
     exit 2
   }
-  function process_row(value, heading, capability, cell, marker_prefix, url_prefix,
-                       marker, phases, opening, closing, bold, state) {
+  function process_row(value, heading, capability, cell, url_prefix,
+                       opening, closing, bold, state) {
     opening = "<th scope=\"row\">"
     if (!index(value, opening)) {
-      if (index(value, "data-roadmap-phase")) die("phase marker outside a capability row")
+      if (index(value, "data-roadmap-phase") || index(value, "label%3Aphase-"))
+        die("phase marker outside a capability row")
       return
     }
     heading = between(value, opening, "</th>")
@@ -701,32 +705,27 @@ awk '
     if (capability == "") capability = text(heading)
     if (capability == "") die("capability row has no name")
     if (seen[capability]++) die("duplicate capability: " capability)
-    if (occurrences(value, "data-roadmap-phase") != 1)
-      die("roadmap marker is not unique within the row for " capability)
-    if (occurrences(value, "<td class=\"clun-col\">") != 1)
+    if (index(value, "data-roadmap-phase") || index(value, "label%3Aphase-") ||
+        index(value, "phase-link") || index(value, "phase-links"))
+      die("site matrix must not embed phase links for " capability)
+    # Clun is last column; class may be "clun-col" or "clun-col mark-cell".
+    if (occurrences(value, "class=\"clun-col") != 1)
       die("expected one Clun cell for " capability)
-    cell = between(value, "<td class=\"clun-col\">", "</td>")
-    marker_prefix = "data-roadmap-phase=\""
-    if (occurrences(cell, marker_prefix) != 1)
-      die("expected one row-local roadmap marker for " capability)
-    marker = digits_after(cell, marker_prefix)
-    if (marker == "") die("malformed roadmap marker for " capability)
-    url_prefix = "href=\"https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-"
-    if (occurrences(cell, url_prefix) < 1)
-      die("expected at least one canonical phase URL for " capability)
-    phases = phase_urls(cell, url_prefix, "\"")
-    if (phases == "") die("malformed phase URL for " capability)
+    if (match(value, /<td class="clun-col[^"]*">/) == 0)
+      die("malformed Clun cell for " capability)
+    cell = between(value, substr(value, RSTART, RLENGTH), "</td>")
     bold = substr(cell, index(cell, "<b class=\"state "))
     opening = index(bold, ">")
     closing = index(bold, "</b>")
     if (!opening || closing <= opening) die("missing state for " capability)
     state = text(substr(bold, opening + 1, closing - opening - 1))
     if (state !~ /^(Yes|Partial|No)$/) die("invalid state for " capability ": " state)
-    print capability, state, phases, marker
+    # Site rows are state-only; phase columns stay on README / GitHub Issues.
+    print capability, state, "", ""
     rows++
   }
   {
-    if (!in_row && index($0, "data-roadmap-phase"))
+    if (!in_row && (index($0, "data-roadmap-phase") || index($0, "label%3Aphase-")))
       die("phase marker outside a table row")
     if ($0 ~ /<tr([[:space:]>])/) {
       if (in_row) die("nested table rows")
@@ -751,7 +750,7 @@ write_canonical_matrix README "$readme_rows" "$readme_matrix"
 write_canonical_matrix site "$site_rows" "$site_matrix"
 if ! cmp -s "$readme_matrix" "$site_matrix"; then
   diff -u "$readme_matrix" "$site_matrix" >&2 || :
-  fail "README and site capability/state/phase anchors disagree"
+  fail "README and site capability/state rows disagree"
 fi
 capability_rows=$(wc -l <"$site_matrix" | tr -d ' ')
 
@@ -816,24 +815,21 @@ if [ "$release_state" = candidate ]; then
   if [ "$candidate_tagged" -eq 1 ]; then
     require_text site/index.html "<a href=\"$active_issue_url\">"
     require_text site/index.html '<span>Tag only / no Release</span>'
-    require_text site/index.html 'The annotated candidate tag exists, but its GitHub Release and assets do not.'
-    require_text site/index.html 'Tag-only recovery remains in'
-    require_text site/index.html "the canonical Phase $active_phase record"
+    require_text site/index.html "Candidate tag only (no GitHub Release yet)."
   else
     require_text site/index.html "<a href=\"$active_issue_url\">"
     require_text site/index.html "<span>In development</span>"
+    require_text site/index.html "Current release work:"
   fi
-  require_text site/index.html "Phase $active_phase is active:"
-  if [ "$candidate_tagged" -eq 1 ]; then
-    require_text site/index.html '>Current status</a>'
-    require_text site/index.html '>Canonical phase record</a>'
-  else
-    require_text site/index.html ">Current status</a>"
-  fi
-  require_text site/index.html "v$version / Phase $active_phase"
+  require_text site/index.html "issue #$active_issue"
+  require_text site/index.html ">Current status</a>"
+  require_text site/index.html ">Release issue</a>"
+  require_text site/index.html "v$version"
+  reject_text site/index.html "v$version / Phase $active_phase"
+  reject_text site/index.html "Phase $active_phase is active:"
   require_text site/index.html "<a href=\"$previous_release_url\">v$previous_version release</a>"
   require_text site/index.html "v$version release candidate / pre-alpha</p>"
-  require_text site/index.html "<span>$version candidate / pre-alpha</span>"
+  require_text site/index.html "class=\"clun-col\"><a href=\"https://github.com/theesfeld/clun\">Clun</a><span>$version</span>"
   reject_text site/index.html "$release_url"
 else
   [ "$readme_candidate" -eq 0 ] || fail "release ledger says published but generated documents say candidate"
@@ -845,31 +841,41 @@ else
 
   require_text site/index.html "href=\"$release_url\""
   require_text site/index.html "<span>Available now</span>"
-  require_text site/index.html "Phase $active_phase has a published prerelease:"
-  require_text site/index.html "Consult the live Issue for remaining work and completion status."
+  require_text site/index.html "Release tracking:"
+  require_text site/index.html "issue #$active_issue"
   require_text site/index.html ">Release record</a>"
+  require_text site/index.html ">Release issue</a>"
   reject_text site/index.html "Phase $active_phase is active:"
   reject_text site/index.html "Phase $active_phase is complete:"
+  reject_text site/index.html "Phase $active_phase has a published prerelease:"
+  reject_text site/index.html "v$version / Phase $active_phase"
   require_text site/index.html "<a href=\"$release_url\">v$version release</a>"
   require_text site/index.html "v$version / pre-alpha</p>"
-  require_text site/index.html "<span>$version / pre-alpha</span>"
+  require_text site/index.html "class=\"clun-col\"><a href=\"https://github.com/theesfeld/clun\">Clun</a><span>$version</span>"
   reject_text site/index.html "release candidate"
 fi
-require_text site/index.html 'clun --check-update'
 require_text site/index.html 'clun --update'
+# Installer copy is intentionally short (elonoptimizer): no "until then / reinstalls same" wall.
+reject_text site/index.html "Until then, the command only reinstalls"
+reject_text site/index.html "The hosted command installs verified"
 if [ "$release_state" = candidate ]; then
   require_text README.md "While the hosted boundary remains \`v$previous_version\`, that command only reinstalls \`v$previous_version\` and does not"
-  require_text site/index.html "Until then, the command only reinstalls <code>v$previous_version</code>."
 else
   require_text README.md "The published \`v$version\` boundary includes the built-in updater"
-  require_text site/index.html "The hosted command installs verified <code>v$version</code>"
   reject_text README.md "While the hosted boundary remains \`v$previous_version\`"
-  reject_text site/index.html "Until then, the command only reinstalls <code>v$previous_version</code>."
 fi
-require_text site/index.html 'Proxy traps and invariants are implemented for the covered paths'
-require_text site/index.html 'Snapshot edge formats and cooperative/parallel concurrency are covered; test-watch reruns remain a known gap'
+require_text site/index.html 'JavaScript is only what <em>you</em> run'
+require_text site/index.html 'evidence-backed Yes / Partial / No'
+# Matrix honesty samples (state cells remain; phase links removed)
 require_text site/index.html 'Streaming request and response bodies; WebSocket + Pub/Sub; no HTTP/2 server'
-require_text site/index.html 'Source checkpoints already exist for archive/compression, Markdown and HTML rewriting, Cron, and build APIs.'
+require_text site/index.html 'CompressionStream'
+# Landing page is product-facing: no phase links, no roadmap chrome, no process walls.
+reject_text site/index.html 'label%3Aphase-'
+reject_text site/index.html 'phase-link'
+reject_text site/index.html 'Phase 26 remains deferred'
+reject_text site/index.html 'beyond-matrix'
+reject_text site/index.html 'beyond-roadmap'
+reject_text site/index.html 'Still expanding the surface'
 reject_text site/index.html 'No Proxy, Intl, or native addons (JSX/TSX is built in)'
 reject_text site/index.html 'Exotic snapshot edges, watch, and concurrency'
 reject_text site/index.html 'Buffered bodies; WebSocket + Pub/Sub; no HTTP/2'
@@ -913,7 +919,7 @@ require_text site/index.html "Current full Common Lisp suite: $pretty_lisp_pass 
 if [ "$report_lift" -gt 0 ]; then
   require_text README.md "the $pretty_report_target-pass target requires $pretty_report_lift additional live"
   reject_text README.md "Phase 25b's 90% target is met"
-  require_text site/index.html "<dt>Phase 25b progress</dt><dd>$report_rate% current</dd>"
+  require_text site/index.html "<dt>test262 rate</dt><dd>$report_rate% current</dd>"
   reject_text site/index.html "90% target met"
 else
   require_text README.md "Phase 25b's 90% target is met"
@@ -921,7 +927,7 @@ else
   require_text site/index.html "$report_rate% current"
   require_text site/index.html "90% target met"
 fi
-require_text site/index.html "github.com/theesfeld/clun/blob/master/PLAN.md"
+require_text site/index.html "github.com/theesfeld/clun/blob/master/README.md"
 # Engine microbenchmark tables live in docs/benchmarks.md — not a landing-page bar chart.
 require_text docs/benchmarks.md "Phase-24 baseline"
 require_text docs/benchmarks.md "| $benchmark_milestone "
@@ -932,13 +938,17 @@ require_text site/index.html "tool-critical"
 require_text README.md "Bun $bun_version, Node.js $node_version, and Deno $deno_version"
 require_text README.md "$baseline_date"
 require_text README.md "$bun_engineering_short"
-require_text site/index.html "<span>$node_version / current</span>"
+require_text site/index.html "<span>$node_version</span>"
 require_text site/index.html "$node_source"
-require_text site/index.html "<span>$deno_version / runtime</span>"
+require_text site/index.html "<span>$deno_version</span>"
 require_text site/index.html "$deno_source"
 require_text site/index.html "Snapshot checked $baseline_date"
 require_text site/index.html "$bun_source"
 require_text site/index.html "$bun_engineering_source"
+# Icon matrix: Clun is the last column; only Clun may carry exceed notes.
+require_text site/index.html 'class="clun-col"'
+require_text site/index.html 'mark-yes'
+require_text site/index.html 'Only Clun'
 installer_boundary="verified_installer_tag=$installer_tag"
 [ "$(grep -Fxc "$installer_boundary" site/install)" -eq 1 ] ||
   fail 'site/install verified default disagrees with the release ledger installer boundary'

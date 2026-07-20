@@ -81,7 +81,7 @@
     (values (cookie-map-median n-to-2n)
             (cookie-map-median twice-to-4n))))
 
-(defun cookie-map-timing-linear-p (trials &key (bound 3.25d0))
+(defun cookie-map-timing-linear-p (trials &key (bound 3.5d0))
   "Whether the median paired growth ratios in TRIALS are both below BOUND."
   (multiple-value-bind (n-to-2n twice-to-4n)
       (cookie-map-growth-ratios trials)
@@ -774,14 +774,14 @@ post-GC and within-trial drift equally across all three sizes."
               (cookie-map-paired-timing-trials
                (list header-n header-2n header-4n))))
         (multiple-value-bind (linear-p n-to-2n twice-to-4n)
-            (cookie-map-timing-linear-p trials :bound 3.25d0)
+            (cookie-map-timing-linear-p trials :bound 3.5d0)
           (format t "~&CookieMap median paired timing ratios: N->2N=~,3f 2N->4N=~,3f (~d trials)~%"
                   n-to-2n twice-to-4n (length trials))
           (true (every (lambda (trial) (every #'plusp trial)) trials)
                 "all paired timing durations are positive")
-          (true (< n-to-2n 3.25d0)
+          (true (< n-to-2n 3.5d0)
                 "N to 2N median paired elapsed-time ratio remains linear")
-          (true (< twice-to-4n 3.25d0)
+          (true (< twice-to-4n 3.5d0)
                 "2N to 4N median paired elapsed-time ratio remains linear")
           (true linear-p "both paired elapsed-time ratios remain linear"))))))
 

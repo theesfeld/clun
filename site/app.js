@@ -189,4 +189,94 @@
       }
     });
   }
+
+  // Scroll reveals + sticky header polish
+  const revealEls = [...document.querySelectorAll(".reveal")];
+  if (revealEls.length && "IntersectionObserver" in window) {
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          entry.target.classList.add("is-visible");
+          io.unobserve(entry.target);
+        });
+      },
+      { rootMargin: "0px 0px -8% 0px", threshold: 0.12 }
+    );
+    revealEls.forEach((el, i) => {
+      el.style.setProperty("--reveal-delay", `${Math.min(i % 6, 5) * 40}ms`);
+      io.observe(el);
+    });
+  } else {
+    revealEls.forEach((el) => el.classList.add("is-visible"));
+  }
+
+  if (siteHeader) {
+    const onScroll = () => {
+      siteHeader.classList.toggle("is-scrolled", window.scrollY > 12);
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+  }
+
+  // Live GitHub popularity (stars / forks / watchers / open issues)
+  const formatCount = (n) => {
+    if (typeof n !== "number" || Number.isNaN(n)) return "—";
+    if (n >= 1000) return `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k`;
+    return String(n);
+  };
+
+  const setAll = (selector, value) => {
+    document.querySelectorAll(selector).forEach((node) => {
+      node.textContent = value;
+    });
+  };
+
+  const fillBars = (stats) => {
+    const max = Math.max(stats.stars, stats.forks, stats.watchers, stats.issues, 1);
+    const map = {
+      stars: stats.stars,
+      forks: stats.forks,
+      watchers: stats.watchers,
+      issues: stats.issues,
+    };
+    Object.entries(map).forEach(([key, value]) => {
+      document.querySelectorAll(`[data-stat-bar="${key}"]`).forEach((bar) => {
+        bar.style.setProperty("--fill", `${Math.round((value / max) * 100)}%`);
+      });
+    });
+  };
+
+  const applyGithub = (data) => {
+    const stats = {
+      stars: data.stargazers_count || 0,
+      forks: data.forks_count || 0,
+      watchers: data.subscribers_count || 0,
+      issues: data.open_issues_count || 0,
+    };
+    setAll("[data-github-stars]", formatCount(stats.stars));
+    setAll("[data-github-forks]", formatCount(stats.forks));
+    setAll("[data-github-watchers]", formatCount(stats.watchers));
+    setAll("[data-github-issues]", formatCount(stats.issues));
+    fillBars(stats);
+  };
+
+  // Seed zeros so layout doesn't jump if the API is rate-limited.
+  applyGithub({
+    stargazers_count: 0,
+    forks_count: 0,
+    subscribers_count: 0,
+    open_issues_count: 0,
+  });
+
+  fetch("https://api.github.com/repos/theesfeld/clun", {
+    headers: { Accept: "application/vnd.github+json" },
+  })
+    .then((res) => (res.ok ? res.json() : null))
+    .then((data) => {
+      if (data) applyGithub(data);
+    })
+    .catch(() => {
+      /* keep zeros / dashes */
+    });
 })();

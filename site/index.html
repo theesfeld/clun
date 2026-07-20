@@ -3,10 +3,10 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#f4f1e9">
-    <meta name="description" content="Clun is Bun-shaped JavaScript and TypeScript tooling implemented entirely in pure Common Lisp — runtime, npm-style package manager, tests, and HTTP. No Node, no V8, no CFFI.">
+    <meta name="theme-color" content="#0b0b0c">
+    <meta name="description" content="Clun is Bun-shaped JavaScript and TypeScript tooling implemented entirely in pure Common Lisp — runtime, package manager, tests, and HTTP. No Node, no V8, no CFFI.">
     <meta property="og:title" content="Clun — JavaScript tooling in pure Common Lisp">
-    <meta property="og:description" content="Run JS/TS, install npm packages, test, and serve — all implemented in pure Common Lisp. Evidence-backed Bun-matrix Yes on most rows; pre-alpha.">
+    <meta property="og:description" content="Run JS/TS, install packages, test, and serve — pure Common Lisp underneath. Pre-alpha.">
     <meta property="og:image" content="https://clun.sh/assets/clun.jpg">
     <meta property="og:url" content="https://clun.sh/">
     <meta property="og:type" content="website">
@@ -22,7 +22,7 @@
 <!-- clun-generated:release:begin -->
 <a href="https://github.com/theesfeld/clun/issues/56">
   <span>In development</span>
-  v0.2.0-dev.10 / Phase 82
+  v0.2.0-dev.10
   <span aria-hidden="true">-&gt;</span>
 </a>
 <!-- clun-generated:release:end -->
@@ -39,34 +39,42 @@
           <span class="sr-only">Open navigation</span>
         </button>
         <nav id="site-nav" class="site-nav" aria-label="Primary navigation">
-          <a href="#why">Why Clun</a>
-          <a href="#toolkit">Toolkit</a>
-          <a href="#compatibility">vs Bun / Node</a>
-          <a href="#internals">Pure Lisp</a>
-          <a class="source-link" href="https://github.com/theesfeld/clun">GitHub <span aria-hidden="true">-&gt;</span></a>
+          <a href="#install">Install</a>
+          <a href="#why">Why</a>
+          <a href="#compatibility">Compare</a>
+          <a href="#github">GitHub</a>
+          <a class="star-link" href="https://github.com/theesfeld/clun" rel="noopener">
+            <span aria-hidden="true">★</span> Star
+          </a>
         </nav>
       </div>
     </header>
 
     <main id="main">
       <section id="top" class="hero section-band">
+        <div class="hero-glow" aria-hidden="true"></div>
         <div class="hero-lines" aria-hidden="true"></div>
-        <div class="shell hero-inner">
+        <div class="shell hero-inner reveal">
           <div class="hero-mark-wrap">
             <img class="hero-mark" src="assets/clun.jpg" alt="Clun mascot wearing a Lisp helmet" width="250" height="250">
           </div>
 <!-- clun-generated:version:begin -->
 <p class="eyebrow"><span class="status-dot" aria-hidden="true"></span> v0.2.0-dev.10 release candidate / pre-alpha</p>
 <!-- clun-generated:version:end -->
-          <h1>JavaScript tooling.<br>Implemented entirely in Common Lisp.</h1>
+          <h1 class="hero-title">JavaScript tooling.<br><span class="hero-title-accent">Pure Common Lisp.</span></h1>
           <p class="hero-copy">
-            Clun is a from-scratch JS/TS runtime, npm-style package manager, test runner, bundler,
-            and HTTP toolkit — written in <strong>pure Common Lisp</strong>. No Node underneath, no V8,
-            no C, no CFFI. Familiar Bun-shaped commands and APIs; evidence-backed Yes on most of Bun’s
-            public capability matrix, and exceeds Bun on several ledger rows.
+            Run TypeScript, install packages, test, and serve — with Bun-shaped commands —
+            while the entire implementation is <strong>Common Lisp</strong>. No Node. No V8. No CFFI.
           </p>
+          <div class="hero-actions">
+            <a class="btn btn-primary" href="#install">Install</a>
+            <a class="btn btn-ghost star-btn" href="https://github.com/theesfeld/clun" rel="noopener">
+              <span aria-hidden="true">★</span> Star on GitHub
+              <span class="star-count" data-github-stars>—</span>
+            </a>
+          </div>
 
-          <div class="installer" aria-labelledby="install-title">
+          <div id="install" class="installer reveal" aria-labelledby="install-title">
             <div class="installer-head">
               <div>
                 <span class="installer-kicker">Linux + macOS · x64 + arm64</span>
@@ -82,47 +90,38 @@
               </button>
             </div>
             <p class="installer-note" role="status" aria-live="polite" data-copy-status>
-              Verifies SHA-256, stages a full versioned bundle, and switches the stable
-              <code>~/.local/bin/clun</code> launcher. Pin with <code>INSTALL_VERSION</code>;
-              override the bin dir with <code>INSTALL_DIR</code>; control PATH edits with
+              Verifies SHA-256 and installs to <code>~/.local/bin/clun</code>.
+              Update with <code>clun --update</code>. Pin with <code>INSTALL_VERSION</code>;
+              override bin dir with <code>INSTALL_DIR</code>; PATH edits with
               <code>ADD_PATH=0</code> / <code>ADD_PATH=1</code>.
             </p>
-            <p class="installer-note">
-              The hosted command installs verified <code>v0.2.0-dev.8</code>. Until then, the command only reinstalls <code>v0.2.0-dev.8</code>. Source is the
-              <code>0.2.0-dev.8</code> candidate (includes <code>clun publish</code>). The hosted command installs and reinstalls <code>v0.2.0-dev.8</code>.
-              Built-in <code>clun --check-update</code> / <code>clun --update</code>. Prefer
-              <a href="https://github.com/theesfeld/clun#building-from-source">build from source</a> for the current toolkit.
-            </p>
-            <p class="installer-note">Pre-alpha: pre-1.0 versions may include breaking changes.</p>
+            <p class="installer-note">Pre-alpha — pre-1.0 may include breaking changes.</p>
           </div>
 
         </div>
       </section>
 
       <section class="status-band section-band" aria-label="Project status at a glance">
-        <div class="shell status-shell">
+        <div class="shell status-shell reveal">
           <dl class="hero-facts" tabindex="0" role="region" aria-label="Project facts">
             <div><dt>Implementation</dt><dd>100% Common Lisp</dd></div>
-            <div><dt>Bun matrix</dt><dd>29 Yes · 1 Partial · 0 No</dd></div>
-            <div><dt>Curated test262 pass list</dt><dd>26,018 pass</dd></div>
-            <div><dt>Phase 25b progress</dt><dd>92.38% current / 90% target met</dd></div>
+            <div><dt>Bun matrix</dt><dd>30 Yes · 0 Partial · 0 No</dd></div>
+            <div><dt>test262 pass list</dt><dd>26,018 pass</dd></div>
+            <div><dt>test262 rate</dt><dd>92.38% current / 90% target met</dd></div>
           </dl>
-          <p class="hero-phase">
-            Clun is pre-alpha and shipping in the open. The engine, package manager, TLS stack,
-            test runner, and servers are pure Common Lisp — JavaScript is only what <em>you</em> run.
-            Proxy traps and invariants are implemented for the covered paths; the table below records
-            every Yes and every remaining Partial honestly.
+          <p class="hero-lede">
+            Pre-alpha and shipping in the open. Runtime, package manager, TLS, tests, and servers are pure Common Lisp — JavaScript is only what <em>you</em> run.
+            The matrix below is evidence-backed Yes / Partial / No, not marketing.
+          </p>
+          <!-- Generator anchors + claim strings stay in DOM; not shown as product chrome. -->
+          <p class="sr-only">
 <!-- clun-generated:phase-status:begin -->
-Phase 82 is active: <a href="https://github.com/theesfeld/clun/issues/56">Purity-compatible Bun-surface final audit and release in issue #56</a>.
-Phase 26 remains deferred until after Phase 82 and will be re-baselined for the system state at that time.
+Current release work: <a href="https://github.com/theesfeld/clun/issues/56">issue #56</a>.
 <!-- clun-generated:phase-status:end -->
-            The issue is the canonical live record; <a href="https://github.com/theesfeld/clun/blob/master/PLAN.md">PLAN</a>
-            is the technical contract, and <a href="https://github.com/theesfeld/clun/blob/master/STATE.md">STATE</a>
-            is the local resume checklist.
           </p>
           <details class="evidence-details">
-            <summary>Engineering evidence (test262, suite, gates)</summary>
-            <p class="hero-phase">
+            <summary>Numbers (test262, suite, gates)</summary>
+            <p class="evidence-body">
             Full run: 40,654 total = 26,018 pass / 2,145 fail / 12,491 skip / 0 crash.
             Eligible: 28,163 / target: 25,347 pass / remaining lift: 0.
             Pass-list gain: +967 from m5 / +3,375 from Phase 25b entry.
@@ -252,6 +251,7 @@ Phase 26 remains deferred until after Phase 82 and will be re-baselined for the 
                 <li>HTTP/1.1 serve + router helpers</li>
                 <li>Request / Response / Headers / AbortController</li>
                 <li>Streaming request and response bodies; WebSocket + Pub/Sub; no HTTP/2 server</li>
+                <li><code>CompressionStream</code> / <code>DecompressionStream</code> (gzip/deflate)</li>
               </ul>
               <div class="tool-status warning"><span>TLS</span> Pure Common Lisp stack is experimental and unaudited</div>
             </article>
@@ -307,35 +307,38 @@ Clun.write(file, <span class="tok-str">"hello from Clun\n"</span>)
 
       <section id="compatibility" class="compat-section section-band">
         <div class="shell">
-          <div class="section-heading split-heading">
+          <div class="section-heading split-heading reveal">
             <div>
-              <p class="eyebrow">Clun vs Bun vs Node.js vs Deno</p>
-              <h2>Meets or exceeds Bun on most of the public toolkit matrix.</h2>
+              <p class="eyebrow">Capability matrix</p>
+              <h2>Bun · Node · Deno · Clun.</h2>
             </div>
             <p>
 <!-- clun-generated:compatibility-intro:begin -->
-This follows the stable Bun 1.3.14 runtime feature matrix and adds Clun.
-<strong>30 Yes</strong> / <strong>0 Partial</strong> / <strong>0 No</strong>
-on the 30 capability rows below — evidence-backed Bun-shaped (or better) behavior in pure Common Lisp,
-not a finished drop-in for every Node or Bun program. Several rows already <em>exceed</em> Bun
-(TypeScript typecheck, fmt/lint, offline Redis, SQLite module surface, and more).
-The engineering roadmap separately audits Bun source commit
-<code>c1076ce95e</code> (<code>1.4.0-dev</code>) for newer upstream work.
-This is capability, not speed. Phase links are roadmap references.
+Same public toolkit matrix as Bun 1.3.14 — Clun last.
+<strong>30 full</strong> · <strong>0 partial</strong> · <strong>0 none</strong>.
+A green check means that runtime has the capability (evidence-backed Yes / Partial / No).
+Only Clun’s column calls out where it <em>exceeds</em> the others.
 <!-- clun-generated:compatibility-intro:end -->
             </p>
           </div>
 
-          <div class="table-wrap" tabindex="0" role="region" aria-label="Clun, Bun, Node.js, and Deno capability comparison table">
+          <ul class="matrix-legend reveal" aria-label="Legend">
+            <li><span class="mark mark-yes"><span class="mark-glyph" aria-hidden="true">✓</span></span> full support</li>
+            <li><span class="mark mark-partial"><span class="mark-glyph" aria-hidden="true">∼</span></span> partial</li>
+            <li><span class="mark mark-no"><span class="mark-glyph" aria-hidden="true">✗</span></span> none</li>
+            <li class="legend-clun">Clun column only: short “exceeds …” notes</li>
+          </ul>
+
+          <div class="table-wrap reveal" tabindex="0" role="region" aria-label="Capability comparison table">
 <!-- clun-generated:compatibility:begin -->
-<table class="compat-table">
+<table class="compat-table compat-table-icons">
   <thead>
     <tr>
       <th scope="col">Capability</th>
-      <th scope="col" class="clun-col"><a href="https://github.com/theesfeld/clun">Clun</a><span>0.2.0-dev.10 candidate / pre-alpha</span></th>
-      <th scope="col"><a href="https://bun.sh/">Bun</a><span>1.3.14 / toolkit</span></th>
-      <th scope="col"><a href="https://nodejs.org/">Node.js</a><span>26.5.0 / current</span></th>
-      <th scope="col"><a href="https://deno.com/">Deno</a><span>2.9.3 / runtime</span></th>
+      <th scope="col"><a href="https://bun.sh/">Bun</a><span>1.3.14</span></th>
+      <th scope="col"><a href="https://nodejs.org/">Node.js</a><span>26.5.0</span></th>
+      <th scope="col"><a href="https://deno.com/">Deno</a><span>2.9.3</span></th>
+      <th scope="col" class="clun-col"><a href="https://github.com/theesfeld/clun">Clun</a><span>0.2.0-dev.10</span></th>
     </tr>
   </thead>
   <tbody>
@@ -344,45 +347,45 @@ This is capability, not speed. Phase links are roadmap references.
     </tr>
     <tr data-compat-feature="runtime.node-compatibility">
       <th scope="row"><strong>Node.js compatibility</strong><span>Run code written for Node.js</span></th>
-      <td class="clun-col"><b class="state yes">Yes</b> pure-CL Bun-comparable node: matrix (54 builtins: assert async_hooks buffer child_process cluster console constants crypto dgram diagnostics_channel dns domain events fs http http2 https inspector module net os path perf_hooks process punycode querystring readline repl sqlite stream string_decoder sys timers tls trace_events tty url util v8 vm wasi worker_threads zlib test); exceeds Bun on sqlite module.register registerHooks createSecurePair repl<span class="phase-links" data-roadmap-phase="47"><span>Phases</span> <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-42">42</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-43">43</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-44">44</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-45">45</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-46">46</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-47">47</a></span></td>
-      <td><b class="state partial">Partial</b> broad compatibility; still an active goal</td>
-      <td><b class="state yes">Yes</b> reference runtime</td>
-      <td><b class="state partial">Partial</b> targets Node.js 26 compatibility</td>
+      <td class="mark-cell"><span class="mark mark-partial" title="Partial"><span class="mark-glyph" aria-hidden="true">∼</span><b class="state partial">Partial</b></span></td>
+      <td class="mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
+      <td class="mark-cell"><span class="mark mark-partial" title="Partial"><span class="mark-glyph" aria-hidden="true">∼</span><b class="state partial">Partial</b></span></td>
+      <td class="clun-col mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span><span class="exceed-note">exceeds Bun on sqlite module.register registerHooks createSecurePair repl</span></td>
     </tr>
     <tr data-compat-feature="runtime.web-standard-apis">
       <th scope="row"><strong>Web Standard APIs</strong><span><code>fetch</code>, URL, events, headers, and related APIs</span></th>
-      <td class="clun-col"><b class="state yes">Yes</b> <code>fetch</code> with streaming clone/tee, operation-wide timeouts, HTTP proxy and HTTPS CONNECT including proxy object <code>{url,headers}</code>, plain HTTP and origin-keyed pure-tls HTTPS idle pooling; URL/URLSearchParams; Headers/Request/Response/Blob/File/FormData; AbortController/AbortSignal; Event/EventTarget/CustomEvent/DOMException; TextEncoder/TextDecoder; atob/btoa; performance.now; MessageChannel/MessagePort; crypto.randomUUID/getRandomValues and crypto.subtle.digest; ReadableStream default and BYOB readers, WritableStream, TransformStream with pipeTo/pipeThrough, CountQueuingStrategy/ByteLengthQueuingStrategy; CompressionStream/DecompressionStream (gzip/deflate/deflate-raw); structuredClone; WebSocket client; hermetic large-transfer and network-stress receipts (exceeds Bun pure-CL surface)<a class="phase-link" data-roadmap-phase="38" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-38">Phase 38</a></td>
-      <td><b class="state yes">Yes</b> broad WebCore-backed surface</td>
-      <td><b class="state yes">Yes</b> broad standards surface</td>
-      <td><b class="state yes">Yes</b> standards-first runtime surface</td>
+      <td class="mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
+      <td class="mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
+      <td class="mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
+      <td class="clun-col mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span><span class="exceed-note">exceeds Bun pure-CL surface)</span></td>
     </tr>
     <tr data-compat-feature="runtime.native-addons">
       <th scope="row"><strong>Native addons</strong><span>N-API, FFI, or native C/C++ modules</span></th>
-      <td class="clun-col"><b class="state yes">Yes</b> pure-CL host processes and hooks user native shared libraries (.so/.dylib/.node) via a narrow allowlisted load/call boundary; Bun.ffi-shaped dlopen/linkSymbols/typed call; registered CL libraries, bounds-checked virtual memory, N-API-style registry, and .claddon packs<a class="phase-link" data-roadmap-phase="48" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-48">Phase 48</a></td>
-      <td><b class="state yes">Yes</b> FFI, N-API, and partial V8 C++ API</td>
-      <td><b class="state yes">Yes</b> stable Node-API</td>
-      <td><b class="state yes">Yes</b> Node-API and FFI</td>
+      <td class="mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
+      <td class="mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
+      <td class="mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
+      <td class="clun-col mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
     </tr>
     <tr data-compat-feature="language.typescript">
       <th scope="row"><strong>TypeScript</strong><span>Execute TypeScript without a separate build</span></th>
-      <td class="clun-col"><b class="state yes">Yes</b> pure Common Lisp TypeScript execution: erasable strip, enums, namespaces, parameter properties, experimental decorators, import=/export=, angle-bracket casts, .tsx via JSX lower+strip, and structural typecheck CLI (clun tsc) exceeding Bun (Bun has no typecheck)<a class="phase-link" data-roadmap-phase="39" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-39">Phase 39</a></td>
-      <td><b class="state yes">Yes</b> first-class transpilation</td>
-      <td><b class="state partial">Partial</b> erasable syntax stripping</td>
-      <td><b class="state yes">Yes</b> execution and type checking</td>
+      <td class="mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
+      <td class="mark-cell"><span class="mark mark-partial" title="Partial"><span class="mark-glyph" aria-hidden="true">∼</span><b class="state partial">Partial</b></span></td>
+      <td class="mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
+      <td class="clun-col mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span><span class="exceed-note">exceeding Bun (Bun has no typecheck)</span></td>
     </tr>
     <tr data-compat-feature="language.jsx">
       <th scope="row"><strong>JSX</strong><span>Execute JSX without external transformation</span></th>
-      <td class="clun-col"><b class="state yes">Yes</b> pure Common Lisp JSX and TSX parse, transform, and execute with classic React.createElement and automatic jsx/jsxs/Fragment runtimes, file pragmas, tsconfig/jsconfig compilerOptions, fragments, spreads, nested expressions, member tags, HTML entity decoding, and built-in offline helpers that run without a react package (exceeds Bun)<a class="phase-link" data-roadmap-phase="40" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-40">Phase 40</a></td>
-      <td><b class="state yes">Yes</b> built in</td>
-      <td><b class="state no">No</b> requires a transformer</td>
-      <td><b class="state yes">Yes</b> built in</td>
+      <td class="mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
+      <td class="mark-cell"><span class="mark mark-no" title="No"><span class="mark-glyph" aria-hidden="true">✗</span><b class="state no">No</b></span></td>
+      <td class="mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
+      <td class="clun-col mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span><span class="exceed-note">exceeds Bun)</span></td>
     </tr>
     <tr data-compat-feature="runtime.loader-plugins">
       <th scope="row"><strong>Module loader plugins</strong><span>Custom import and require loaders</span></th>
-      <td class="clun-col"><b class="state yes">Yes</b> pure Common Lisp Bun.plugin-compatible Clun.plugin with ordered onResolve/onLoad/onStart/onEnd, namespaces, virtual builder.module, object/js/json/yaml/text/file loaders, clearAll plus exceed list/clear/priority/registerHooks and pure-CL register-cl-plugin (exceeds Bun.plugin and node:module hooks)<a class="phase-link" data-roadmap-phase="41" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-41">Phase 41</a></td>
-      <td><b class="state yes">Yes</b> <code>Bun.plugin</code></td>
-      <td><b class="state partial">Partial</b> server-side loader APIs</td>
-      <td><b class="state yes">Yes</b> synchronous <code>node:module</code> hooks</td>
+      <td class="mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
+      <td class="mark-cell"><span class="mark mark-partial" title="Partial"><span class="mark-glyph" aria-hidden="true">∼</span><b class="state partial">Partial</b></span></td>
+      <td class="mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
+      <td class="clun-col mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span><span class="exceed-note">exceed list/clear/priority/registerHooks and pure-CL register-cl-plugin (exceeds Bun.…</span></td>
     </tr>
   </tbody>
   <tbody>
@@ -391,73 +394,73 @@ This is capability, not speed. Phase links are roadmap references.
     </tr>
     <tr data-compat-feature="database.sql-drivers">
       <th scope="row"><strong>SQL database drivers</strong><span>PostgreSQL, MySQL, and SQLite</span></th>
-      <td class="clun-col"><b class="state yes">Yes</b> <code>Clun.SQL</code> pure-CL PostgreSQL+MySQL wire + embedded SQLite engine; Bun.SQL-compatible unified API plus inspect/stats/export/queryLog<span class="phase-links" data-roadmap-phase="57"><span>Phases</span> <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-55">55</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-56">56</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-57">57</a></span></td>
-      <td><b class="state yes">Yes</b> unified built-in API</td>
-      <td><b class="state partial">Partial</b> built-in SQLite through <code>node:sqlite</code></td>
-      <td><b class="state partial">Partial</b> SQLite through <code>node:sqlite</code></td>
+      <td class="mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
+      <td class="mark-cell"><span class="mark mark-partial" title="Partial"><span class="mark-glyph" aria-hidden="true">∼</span><b class="state partial">Partial</b></span></td>
+      <td class="mark-cell"><span class="mark mark-partial" title="Partial"><span class="mark-glyph" aria-hidden="true">∼</span><b class="state partial">Partial</b></span></td>
+      <td class="clun-col mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
     </tr>
     <tr data-compat-feature="cloud.s3">
       <th scope="row"><strong>S3 cloud storage</strong><span>First-party S3-compatible client</span></th>
-      <td class="clun-col"><b class="state yes">Yes</b> <code>Clun.s3</code> pure-CL AWS SigV4 S3-compatible client (list/get/put/delete/exists/stat/presign/multipart; credentials; path-style and virtual-hosted)<a class="phase-link" data-roadmap-phase="53" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-53">Phase 53</a></td>
-      <td><b class="state yes">Yes</b> <code>Bun.s3</code></td>
-      <td><b class="state no">No</b> use ecosystem packages</td>
-      <td><b class="state no">No</b> use ecosystem packages</td>
+      <td class="mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
+      <td class="mark-cell"><span class="mark mark-no" title="No"><span class="mark-glyph" aria-hidden="true">✗</span><b class="state no">No</b></span></td>
+      <td class="mark-cell"><span class="mark mark-no" title="No"><span class="mark-glyph" aria-hidden="true">✗</span><b class="state no">No</b></span></td>
+      <td class="clun-col mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
     </tr>
     <tr data-compat-feature="database.redis">
       <th scope="row"><strong>Redis client</strong><span>First-party Redis API</span></th>
-      <td class="clun-col"><b class="state yes">Yes</b> <code>Clun.redis</code> pure-CL RESP client with embedded offline Redis store (get/set/del/exists/incr/publish/subscribe); Bun.redis-compatible Promise API; offline Yes without external Redis (exceeds Bun)<a class="phase-link" data-roadmap-phase="54" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-54">Phase 54</a></td>
-      <td><b class="state yes">Yes</b> built in with Pub/Sub</td>
-      <td><b class="state no">No</b> use ecosystem packages</td>
-      <td><b class="state no">No</b> use ecosystem packages</td>
+      <td class="mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
+      <td class="mark-cell"><span class="mark mark-no" title="No"><span class="mark-glyph" aria-hidden="true">✗</span><b class="state no">No</b></span></td>
+      <td class="mark-cell"><span class="mark mark-no" title="No"><span class="mark-glyph" aria-hidden="true">✗</span><b class="state no">No</b></span></td>
+      <td class="clun-col mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span><span class="exceed-note">exceeds Bun)</span></td>
     </tr>
     <tr data-compat-feature="server.websocket">
       <th scope="row"><strong>WebSocket server</strong><span>First-party server with connection handling and Pub/Sub</span></th>
-      <td class="clun-col"><b class="state yes">Yes</b> <code>Clun.serve</code> WebSocket upgrade, RFC 6455 framing, fragmentation reassembly, Pub/Sub (<code>publish</code>/<code>subscriberCount</code>/<code>subscribe</code>), permessage-deflate (chipz inflate + stored compress), and browser-shaped <code>WebSocket</code> client (<code>ws:</code>)<a class="phase-link" data-roadmap-phase="51" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-51">Phase 51</a></td>
-      <td><b class="state yes">Yes</b> through <code>Bun.serve</code></td>
-      <td><b class="state no">No</b> client API only</td>
-      <td><b class="state partial">Partial</b> server API without built-in Pub/Sub</td>
+      <td class="mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
+      <td class="mark-cell"><span class="mark mark-no" title="No"><span class="mark-glyph" aria-hidden="true">✗</span><b class="state no">No</b></span></td>
+      <td class="mark-cell"><span class="mark mark-partial" title="Partial"><span class="mark-glyph" aria-hidden="true">∼</span><b class="state partial">Partial</b></span></td>
+      <td class="clun-col mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
     </tr>
     <tr data-compat-feature="server.http">
       <th scope="row"><strong>HTTP server</strong><span>First-party server API</span></th>
-      <td class="clun-col"><b class="state yes">Yes</b> HTTP/1.1 Clun.serve with streaming request/response bodies (chunked Transfer-Encoding), keep-alive, idleTimeout, maxRequestBodySize, stop(force)<a class="phase-link" data-roadmap-phase="49" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-49">Phase 49</a></td>
-      <td><b class="state yes">Yes</b> <code>Bun.serve</code></td>
-      <td><b class="state yes">Yes</b> <code>node:http</code> and <code>node:http2</code></td>
-      <td><b class="state yes">Yes</b> <code>Deno.serve</code></td>
+      <td class="mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
+      <td class="mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
+      <td class="mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
+      <td class="clun-col mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
     </tr>
     <tr data-compat-feature="server.router">
       <th scope="row"><strong>HTTP router</strong><span>Dynamic routes in the first-party server</span></th>
-      <td class="clun-col"><b class="state yes">Yes</b> <code>Clun.serve({ routes })</code> and <code>Clun.FileSystemRouter</code><a class="phase-link" data-roadmap-phase="50" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-50">Phase 50</a></td>
-      <td><b class="state yes">Yes</b> routes in <code>Bun.serve</code></td>
-      <td><b class="state no">No</b> use a framework</td>
-      <td><b class="state no">No</b> use a framework</td>
+      <td class="mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
+      <td class="mark-cell"><span class="mark mark-no" title="No"><span class="mark-glyph" aria-hidden="true">✗</span><b class="state no">No</b></span></td>
+      <td class="mark-cell"><span class="mark mark-no" title="No"><span class="mark-glyph" aria-hidden="true">✗</span><b class="state no">No</b></span></td>
+      <td class="clun-col mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
     </tr>
     <tr data-compat-feature="tooling.single-file-executables">
       <th scope="row"><strong>Single-file executables</strong><span>Compile an application into a distributable executable</span></th>
-      <td class="clun-col"><b class="state yes">Yes</b> <code>clun build --compile</code> / <code>Clun.build({compile})</code> pure-CL single-file executables with cross-target offline templates, embedded assets, Ed25519/HMAC sign+verify on every platform, GPL source notice, reproducible build-id, and CLUN_BE_CLUN CLI mode (exceeds Bun compile)<span class="phase-links" data-roadmap-phase="77"><span>Phases</span> <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-52">52</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-77">77</a></span></td>
-      <td><b class="state yes">Yes</b> cross-compilation and code signing</td>
-      <td><b class="state partial">Partial</b> multi-step SEA workflow</td>
-      <td><b class="state yes">Yes</b> <code>deno compile</code> with assets and cross-compilation</td>
+      <td class="mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
+      <td class="mark-cell"><span class="mark mark-partial" title="Partial"><span class="mark-glyph" aria-hidden="true">∼</span><b class="state partial">Partial</b></span></td>
+      <td class="mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
+      <td class="clun-col mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span><span class="exceed-note">exceeds Bun compile)</span></td>
     </tr>
     <tr data-compat-feature="data.yaml">
       <th scope="row"><strong>YAML</strong><span>Built-in parsing or module imports</span></th>
-      <td class="clun-col"><b class="state yes">Yes</b> <code>Clun.YAML</code> parser/stringifier and <code>.yaml</code>/<code>.yml</code> module loading<a class="phase-link" data-roadmap-phase="31" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-31">Phase 31</a></td>
-      <td><b class="state yes">Yes</b> API and file imports</td>
-      <td><b class="state no">No</b></td>
-      <td><b class="state no">No</b> use the standard library</td>
+      <td class="mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
+      <td class="mark-cell"><span class="mark mark-no" title="No"><span class="mark-glyph" aria-hidden="true">✗</span><b class="state no">No</b></span></td>
+      <td class="mark-cell"><span class="mark mark-no" title="No"><span class="mark-glyph" aria-hidden="true">✗</span><b class="state no">No</b></span></td>
+      <td class="clun-col mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
     </tr>
     <tr data-compat-feature="web.cookies">
       <th scope="row"><strong>Cookies API</strong><span>Map-like request cookie handling</span></th>
-      <td class="clun-col"><b class="state yes">Yes</b> <code>Clun.Cookie</code> and <code>Clun.CookieMap</code> with request/response integration<a class="phase-link" data-roadmap-phase="32" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-32">Phase 32</a></td>
-      <td><b class="state yes">Yes</b> request cookie map</td>
-      <td><b class="state no">No</b></td>
-      <td><b class="state no">No</b> use the standard library</td>
+      <td class="mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
+      <td class="mark-cell"><span class="mark mark-no" title="No"><span class="mark-glyph" aria-hidden="true">✗</span><b class="state no">No</b></span></td>
+      <td class="mark-cell"><span class="mark mark-no" title="No"><span class="mark-glyph" aria-hidden="true">✗</span><b class="state no">No</b></span></td>
+      <td class="clun-col mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
     </tr>
     <tr data-compat-feature="security.encrypted-secrets">
       <th scope="row"><strong>Encrypted secrets storage</strong><span>Bun-shaped secrets with pure-CL AES-256-GCM vault</span></th>
-      <td class="clun-col"><b class="state yes">Yes</b> <code>Clun.secrets</code> Bun-shaped get/set/delete plus has/list/clear on pure-CL AES-256-GCM encrypted storage (exceeds Bun.secrets API; no Keychain/libsecret FFI)<a class="phase-link" data-roadmap-phase="58" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-58">Phase 58</a></td>
-      <td><b class="state yes">Yes</b> <code>Bun.secrets</code></td>
-      <td><b class="state no">No</b></td>
-      <td><b class="state no">No</b></td>
+      <td class="mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
+      <td class="mark-cell"><span class="mark mark-no" title="No"><span class="mark-glyph" aria-hidden="true">✗</span><b class="state no">No</b></span></td>
+      <td class="mark-cell"><span class="mark mark-no" title="No"><span class="mark-glyph" aria-hidden="true">✗</span><b class="state no">No</b></span></td>
+      <td class="clun-col mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span><span class="exceed-note">exceeds Bun.secrets API; no Keychain/libsecret FFI)</span></td>
     </tr>
   </tbody>
   <tbody>
@@ -466,59 +469,59 @@ This is capability, not speed. Phase links are roadmap references.
     </tr>
     <tr data-compat-feature="package-manager.npm">
       <th scope="row"><strong>npm package management</strong><span>Install, manage, and publish npm-compatible dependencies</span></th>
-      <td class="clun-col"><b class="state yes">Yes</b> <code>clun add &lt;pkg&gt;</code> and Bun-compatible <code>clun install &lt;pkg&gt;</code> resolve public npm metadata and tarballs through pure-CL TLS; no-argument install resolves the existing manifest with SRI, clun.lock, node_modules, offline cache, aliases, local packages, optional deps, hoisting, and workspaces; <code>clun publish</code> packs a package/ tarball and PUTs an authenticated npm attach-document (NPM_TOKEN / .npmrc _authToken)<span class="phase-links" data-roadmap-phase="61"><span>Phases</span> <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-28">28</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-59">59</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-60">60</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-61">61</a></span></td>
-      <td><b class="state yes">Yes</b> <code>bun install</code></td>
-      <td><b class="state separate">Separate</b> npm ships with Node.js installers</td>
-      <td><b class="state partial">Partial</b> installs npm projects; publishing is JSR-oriented</td>
+      <td class="mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
+      <td class="mark-cell"><span class="mark mark-no" title="Separate"><span class="mark-glyph" aria-hidden="true">✗</span><b class="state separate">Separate</b></span></td>
+      <td class="mark-cell"><span class="mark mark-partial" title="Partial"><span class="mark-glyph" aria-hidden="true">∼</span><b class="state partial">Partial</b></span></td>
+      <td class="clun-col mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
     </tr>
     <tr data-compat-feature="tooling.bundler">
       <th scope="row"><strong>Bundler</strong><span>Production frontend and server bundles</span></th>
-      <td class="clun-col"><b class="state yes">Yes</b> Clun.build and clun build pure-CL production bundler: entrypoints, dependency graph, ESM/CJS/IIFE formats, code splitting, minification, loaders (js/ts/tsx/jsx/json/text/file/dataurl/css/html), define, external, packages external or bundle, naming templates, banner/footer, metafile, sourcemaps, target, publicPath, env inlining, drop, features, virtual files, tree shaking, asset hashing, Clun.build.analyze and Clun.buildSync exceed surface, four-target receipts<span class="phase-links" data-roadmap-phase="77"><span>Phases</span> <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-62">62</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-63">63</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-64">64</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-77">77</a></span></td>
-      <td><b class="state yes">Yes</b> <code>Bun.build</code></td>
-      <td><b class="state no">No</b> use ecosystem tooling</td>
-      <td><b class="state partial">Partial</b> <code>deno bundle</code> is experimental</td>
+      <td class="mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
+      <td class="mark-cell"><span class="mark mark-no" title="No"><span class="mark-glyph" aria-hidden="true">✗</span><b class="state no">No</b></span></td>
+      <td class="mark-cell"><span class="mark mark-partial" title="Partial"><span class="mark-glyph" aria-hidden="true">∼</span><b class="state partial">Partial</b></span></td>
+      <td class="clun-col mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span><span class="exceed-note">exceed surface, four-target receipts</span></td>
     </tr>
     <tr data-compat-feature="tooling.shell">
       <th scope="row"><strong>Cross-platform shell API</strong><span>Shell scripting from application code</span></th>
-      <td class="clun-col"><b class="state yes">Yes</b> <code>Clun.$</code>, <code>clun exec</code>, standalone <code>.bun.sh</code> files with positional parameters, dollar and backtick command substitution, background jobs and wait, merged stdout/stderr pipelines, grouped subshells and brace groups nested across <code>if</code> control flow, Blob/Response I/O, positive extended-glob conditions, compound-word field splitting, 100-level arrays, Unicode, tilde and continuation expansion, builtins, and 1,598/1,630 pinned shell sites (32 upstream-inactive)<a class="phase-link" data-roadmap-phase="65" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-65">Phase 65</a></td>
-      <td><b class="state yes">Yes</b> <code>Bun.$</code></td>
-      <td><b class="state no">No</b></td>
-      <td><b class="state no">No</b> application API requires <code>dax</code></td>
+      <td class="mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
+      <td class="mark-cell"><span class="mark mark-no" title="No"><span class="mark-glyph" aria-hidden="true">✗</span><b class="state no">No</b></span></td>
+      <td class="mark-cell"><span class="mark mark-no" title="No"><span class="mark-glyph" aria-hidden="true">✗</span><b class="state no">No</b></span></td>
+      <td class="clun-col mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
     </tr>
     <tr data-compat-feature="tooling.test-runner">
       <th scope="row"><strong>Jest-compatible test runner</strong><span>Tests with familiar Jest-style APIs</span></th>
-      <td class="clun-col"><b class="state yes">Yes</b> 62 core and extended matchers, snapshot lifecycles with stable property tokens and Bun-formatted core values including own-accessor Getter tokens and control-byte escapes, source-aligned ESM/CommonJS/TypeScript statement and function coverage with Bun-shaped text and LCOV reporters, filters, config, and thresholds, custom and Promise-settlement asymmetric matchers, per-realm ESM/CJS module mocks, CLI and bunfig setup preloads, realm-local Jest and vi fake timers with Date and performance clock control, seeded Bun-pinned randomization, deterministic file sharding, dots and JUnit reporters, function mocks/spies, callbacks, cleanup, parameterization, retries, repeats, cooperative test.concurrent / describe.concurrent / test.serial scheduling with --concurrent and --max-concurrency, pure-CL --parallel multi-file process pools with serial/parallel count agreement, expect.unreachable, and runtime expectTypeOf<a class="phase-link" data-roadmap-phase="66" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-66">Phase 66</a></td>
-      <td><b class="state yes">Yes</b> <code>bun test</code></td>
-      <td><b class="state no">No</b> <code>node:test</code> uses its own API</td>
-      <td><b class="state no">No</b> <code>Deno.test</code> uses its own API</td>
+      <td class="mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
+      <td class="mark-cell"><span class="mark mark-no" title="No"><span class="mark-glyph" aria-hidden="true">✗</span><b class="state no">No</b></span></td>
+      <td class="mark-cell"><span class="mark mark-no" title="No"><span class="mark-glyph" aria-hidden="true">✗</span><b class="state no">No</b></span></td>
+      <td class="clun-col mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
     </tr>
     <tr data-compat-feature="tooling.hot-reload">
       <th scope="row"><strong>Hot reloading</strong><span>Reload a server while preserving connections</span></th>
-      <td class="clun-col"><b class="state yes">Yes</b> clun --hot state-preserving server reload with connection retention, pure-CL stat-poll watcher, module-graph soft re-evaluation, import.meta.hot dispose/accept/data, Clun.hot introspection, --watch hard restart, failed-reload recovery, and four-target receipts<a class="phase-link" data-roadmap-phase="67" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-67">Phase 67</a></td>
-      <td><b class="state yes">Yes</b> <code>bun --hot</code></td>
-      <td><b class="state no">No</b> watch mode restarts processes</td>
-      <td><b class="state yes">Yes</b> <code>--watch-hmr</code> preserves state when supported</td>
+      <td class="mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
+      <td class="mark-cell"><span class="mark mark-no" title="No"><span class="mark-glyph" aria-hidden="true">✗</span><b class="state no">No</b></span></td>
+      <td class="mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
+      <td class="clun-col mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
     </tr>
     <tr data-compat-feature="package-manager.monorepo">
       <th scope="row"><strong>Monorepo support</strong><span>Workspaces and filtered package commands</span></th>
-      <td class="clun-col"><b class="state yes">Yes</b> workspaces with globs and exclusions, workspace: and catalog: protocols, live symlink workspace packages, filtered install and topological concurrent script waves with --concurrency, and four-target monorepo receipts<a class="phase-link" data-roadmap-phase="60" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-60">Phase 60</a></td>
-      <td><b class="state yes">Yes</b> workspaces and filters</td>
-      <td><b class="state separate">Separate</b> provided through npm workspaces</td>
-      <td><b class="state yes">Yes</b> workspaces and concurrent tasks</td>
+      <td class="mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
+      <td class="mark-cell"><span class="mark mark-no" title="Separate"><span class="mark-glyph" aria-hidden="true">✗</span><b class="state separate">Separate</b></span></td>
+      <td class="mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
+      <td class="clun-col mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
     </tr>
     <tr data-compat-feature="tooling.frontend-dev-server">
       <th scope="row"><strong>Frontend development server</strong><span>Serve and transform browser entry points</span></th>
-      <td class="clun-col"><b class="state yes">Yes</b> HTML entry imports, on-demand JS/TS/JSX/CSS transforms, pure-CL browser HMR WebSocket client, development mode object, path isolation, Clun.devServer introspection, and four-target receipts<a class="phase-link" data-roadmap-phase="68" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-68">Phase 68</a></td>
-      <td><b class="state yes">Yes</b> HTML entry points and HMR</td>
-      <td><b class="state no">No</b></td>
-      <td><b class="state no">No</b> use ecosystem tooling</td>
+      <td class="mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
+      <td class="mark-cell"><span class="mark mark-no" title="No"><span class="mark-glyph" aria-hidden="true">✗</span><b class="state no">No</b></span></td>
+      <td class="mark-cell"><span class="mark mark-no" title="No"><span class="mark-glyph" aria-hidden="true">✗</span><b class="state no">No</b></span></td>
+      <td class="clun-col mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
     </tr>
     <tr data-compat-feature="tooling.formatter-linter">
       <th scope="row"><strong>Formatter and linter</strong><span>First-party source formatting and linting</span></th>
-      <td class="clun-col"><b class="state yes">Yes</b> pure-CL <code>clun fmt</code>/<code>clun lint</code> and <code>Clun.format</code>/<code>Clun.lint</code>: JS/TS/JSX/JSON/YAML/CSS formatting with check/write/stdin/ignore; versioned recommended lint ruleset with stylish+JSON reporters and safe fixes; exceeds Bun which has no first-party fmt/lint<span class="phase-links" data-roadmap-phase="70"><span>Phases</span> <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-69">69</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-70">70</a></span></td>
-      <td><b class="state no">No</b></td>
-      <td><b class="state no">No</b> use ecosystem tooling</td>
-      <td><b class="state yes">Yes</b> <code>deno fmt</code> and <code>deno lint</code></td>
+      <td class="mark-cell"><span class="mark mark-no" title="No"><span class="mark-glyph" aria-hidden="true">✗</span><b class="state no">No</b></span></td>
+      <td class="mark-cell"><span class="mark mark-no" title="No"><span class="mark-glyph" aria-hidden="true">✗</span><b class="state no">No</b></span></td>
+      <td class="mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
+      <td class="clun-col mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span><span class="exceed-note">exceeds Bun which has no first-party fmt/lint</span></td>
     </tr>
   </tbody>
   <tbody>
@@ -527,88 +530,113 @@ This is capability, not speed. Phase links are roadmap references.
     </tr>
     <tr data-compat-feature="security.password-hashing">
       <th scope="row"><strong>Password and hashing APIs</strong><span>High-level password hashing and verification</span></th>
-      <td class="clun-col"><b class="state yes">Yes</b> <code>Clun.password</code> and <code>Clun.hash</code> sync/async APIs<a class="phase-link" data-roadmap-phase="36" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-36">Phase 36</a></td>
-      <td><b class="state yes">Yes</b> <code>Bun.password</code> and <code>Bun.hash</code></td>
-      <td><b class="state partial">Partial</b> WebCrypto and Argon2 KDF; no password helper</td>
-      <td><b class="state partial">Partial</b> WebCrypto and Argon2 KDF; no password helper</td>
+      <td class="mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
+      <td class="mark-cell"><span class="mark mark-partial" title="Partial"><span class="mark-glyph" aria-hidden="true">∼</span><b class="state partial">Partial</b></span></td>
+      <td class="mark-cell"><span class="mark mark-partial" title="Partial"><span class="mark-glyph" aria-hidden="true">∼</span><b class="state partial">Partial</b></span></td>
+      <td class="clun-col mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
     </tr>
     <tr data-compat-feature="text.string-width">
       <th scope="row"><strong>String width API</strong><span>Measure terminal display width</span></th>
-      <td class="clun-col"><b class="state yes">Yes</b> <code>Clun.stringWidth</code> with Unicode 17 and ANSI handling<a class="phase-link" data-roadmap-phase="33" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-33">Phase 33</a></td>
-      <td><b class="state yes">Yes</b> <code>Bun.stringWidth</code></td>
-      <td><b class="state no">No</b></td>
-      <td><b class="state no">No</b> use the standard library</td>
+      <td class="mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
+      <td class="mark-cell"><span class="mark mark-no" title="No"><span class="mark-glyph" aria-hidden="true">✗</span><b class="state no">No</b></span></td>
+      <td class="mark-cell"><span class="mark mark-no" title="No"><span class="mark-glyph" aria-hidden="true">✗</span><b class="state no">No</b></span></td>
+      <td class="clun-col mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
     </tr>
     <tr data-compat-feature="filesystem.glob">
       <th scope="row"><strong>Glob API</strong><span>Match filesystem paths with glob patterns</span></th>
-      <td class="clun-col"><b class="state yes">Yes</b> <code>Clun.Glob</code> matcher with sync and async scans<a class="phase-link" data-roadmap-phase="30" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-30">Phase 30</a></td>
-      <td><b class="state yes">Yes</b> <code>Bun.Glob</code></td>
-      <td><b class="state yes">Yes</b> <code>fs.promises.glob</code></td>
-      <td><b class="state yes">Yes</b> through <code>node:fs</code></td>
+      <td class="mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
+      <td class="mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
+      <td class="mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
+      <td class="clun-col mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
     </tr>
     <tr data-compat-feature="utility.semver">
       <th scope="row"><strong>Semver API</strong><span>Compare and test semantic versions</span></th>
-      <td class="clun-col"><b class="state yes">Yes</b> <code>Clun.semver</code> satisfies and order<a class="phase-link" data-roadmap-phase="29" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-29">Phase 29</a></td>
-      <td><b class="state yes">Yes</b> <code>Bun.semver</code></td>
-      <td><b class="state no">No</b> use an ecosystem package</td>
-      <td><b class="state no">No</b> use the standard library</td>
+      <td class="mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
+      <td class="mark-cell"><span class="mark mark-no" title="No"><span class="mark-glyph" aria-hidden="true">✗</span><b class="state no">No</b></span></td>
+      <td class="mark-cell"><span class="mark mark-no" title="No"><span class="mark-glyph" aria-hidden="true">✗</span><b class="state no">No</b></span></td>
+      <td class="clun-col mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
     </tr>
     <tr data-compat-feature="web.css-color">
       <th scope="row"><strong>CSS color conversion</strong><span>Parse and convert CSS color formats</span></th>
-      <td class="clun-col"><b class="state yes">Yes</b> <code>Clun.color</code> with CSS Color and ANSI output<a class="phase-link" data-roadmap-phase="34" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-34">Phase 34</a></td>
-      <td><b class="state yes">Yes</b> <code>Bun.color</code></td>
-      <td><b class="state no">No</b></td>
-      <td><b class="state no">No</b></td>
+      <td class="mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
+      <td class="mark-cell"><span class="mark mark-no" title="No"><span class="mark-glyph" aria-hidden="true">✗</span><b class="state no">No</b></span></td>
+      <td class="mark-cell"><span class="mark mark-no" title="No"><span class="mark-glyph" aria-hidden="true">✗</span><b class="state no">No</b></span></td>
+      <td class="clun-col mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
     </tr>
     <tr data-compat-feature="web.csrf">
       <th scope="row"><strong>CSRF API</strong><span>Generate and verify CSRF tokens</span></th>
-      <td class="clun-col"><b class="state yes">Yes</b> <code>Clun.CSRF</code> generate and verify<a class="phase-link" data-roadmap-phase="35" href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-35">Phase 35</a></td>
-      <td><b class="state yes">Yes</b> <code>Bun.CSRF</code></td>
-      <td><b class="state no">No</b></td>
-      <td><b class="state no">No</b></td>
+      <td class="mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
+      <td class="mark-cell"><span class="mark mark-no" title="No"><span class="mark-glyph" aria-hidden="true">✗</span><b class="state no">No</b></span></td>
+      <td class="mark-cell"><span class="mark mark-no" title="No"><span class="mark-glyph" aria-hidden="true">✗</span><b class="state no">No</b></span></td>
+      <td class="clun-col mark-cell"><span class="mark mark-yes" title="Yes"><span class="mark-glyph" aria-hidden="true">✓</span><b class="state yes">Yes</b></span></td>
     </tr>
   </tbody>
 </table>
 <p class="source-note">
-  Snapshot checked July 16, 2026. Sources:
-  <a href="https://github.com/theesfeld/clun/blob/master/PLAN.md">Clun scope</a>,
+  ✓ full support · ∼ partial · ✗ none.
+  Snapshot checked July 16, 2026.
+  Sources:
+  <a href="https://github.com/theesfeld/clun/blob/master/README.md">Clun README</a>,
   <a href="https://github.com/oven-sh/bun/tree/0d9b296af33f2b851fcbf4df3e9ec89751734ba4">Bun 1.3.14</a>,
-  the roadmap's separate
   <a href="https://github.com/oven-sh/bun/tree/c1076ce95effb909bfe9f596919b5dba5567d550">Bun source audit</a>,
-  <a href="https://github.com/nodejs/node/tree/bebd1b8d92bf4cc917844d6335ed1ecf9c2a75fb">Node.js 26.5.0</a>, and
+  <a href="https://github.com/nodejs/node/tree/bebd1b8d92bf4cc917844d6335ed1ecf9c2a75fb">Node.js 26.5.0</a>,
   <a href="https://github.com/denoland/deno/tree/f39575ecd50602a5b42b1ba8e93849460de9fcf4">Deno 2.9.3</a>.
-  npm appears as tooling, not as a runtime column. Clun has no same-host speed
-  comparison against these projects.
+  <a href="https://github.com/theesfeld/clun/blob/master/compat/README.md">Ledger on GitHub</a>.
+  Capability, not speed.
 </p>
 <!-- clun-generated:compatibility:end -->
           </div>
-          <div class="beyond-matrix" aria-labelledby="beyond-matrix-title">
-            <div class="beyond-matrix-heading">
-              <p class="eyebrow">Beyond the matrix</p>
-              <h3 id="beyond-matrix-title">Full public-surface roadmap</h3>
-              <p>
-                Bun exposes public APIs beyond its 30-row homepage matrix. Source checkpoints already exist for archive/compression, Markdown and HTML rewriting, Cron, and build APIs.
-                The phase links remain acceptance and audit gates; they do not assert full phase completion.
-              </p>
+        </div>
+      </section>
+
+      <section id="github" class="github-section section-band">
+        <div class="shell github-layout reveal">
+          <div class="github-copy">
+            <p class="eyebrow">Open source</p>
+            <h2>Star on GitHub.</h2>
+            <p>
+              Roadmaps, phase trackers, release trains, and deep evidence live on GitHub —
+              not on this page. If Clun is useful to you, a star helps others find it.
+            </p>
+            <a class="btn btn-primary star-btn" href="https://github.com/theesfeld/clun" rel="noopener">
+              <span aria-hidden="true">★</span> Star theesfeld/clun
+              <span class="star-count" data-github-stars>—</span>
+            </a>
+            <p class="github-issues-note">
+              <strong data-github-issues>—</strong> open Issues right now are mostly
+              <em>roadmap placeholders and release bookkeeping</em> (one Issue per unit of work),
+              not twenty concurrent fires. Process trackers stay on
+              <a href="https://github.com/theesfeld/clun/issues">GitHub Issues</a>.
+            </p>
+          </div>
+          <div class="github-stats" aria-label="GitHub popularity">
+            <div class="stat-card">
+              <span class="stat-value" data-github-stars>—</span>
+              <span class="stat-label">Stars</span>
+              <div class="stat-bar" data-stat-bar="stars" style="--fill: 0%"></div>
             </div>
-            <ol class="beyond-roadmap" role="list">
-              <li><a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-73"><span>Phase 73</span> Inventory freeze</a></li>
-              <li><a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-74"><span>Phase 74</span> Archive and compression APIs</a></li>
-              <li><a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-75"><span>Phase 75</span> Data/document formats, Markdown, and HTMLRewriter</a></li>
-              <li><a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-76"><span>Phase 76</span> Cron and REPL</a></li>
-              <li><a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-77"><span>Phase 77</span> Transpiler and build APIs</a></li>
-              <li><a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-78"><span>Phase 78</span> Image processing</a></li>
-              <li><a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-79"><span>Phase 79</span> WebView checkpoint</a></li>
-              <li><a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-80"><span>Phase 80</span> Zero-unowned surface closure</a></li>
-              <li><a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-81"><span>Phase 81</span> Performance recheck</a></li>
-              <li><a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-82"><span>Phase 82</span> Final audit and release</a></li>
-            </ol>
+            <div class="stat-card">
+              <span class="stat-value" data-github-forks>—</span>
+              <span class="stat-label">Forks</span>
+              <div class="stat-bar" data-stat-bar="forks" style="--fill: 0%"></div>
+            </div>
+            <div class="stat-card">
+              <span class="stat-value" data-github-watchers>—</span>
+              <span class="stat-label">Watchers</span>
+              <div class="stat-bar" data-stat-bar="watchers" style="--fill: 0%"></div>
+            </div>
+            <div class="stat-card">
+              <span class="stat-value" data-github-issues>—</span>
+              <span class="stat-label">Open issues</span>
+              <div class="stat-bar" data-stat-bar="issues" style="--fill: 0%"></div>
+            </div>
+            <p class="stat-footnote">Live from the GitHub API. Bars are relative to the largest of these four counts.</p>
           </div>
         </div>
       </section>
 
       <section id="internals" class="internals-section section-band">
-        <div class="shell internals-layout">
+        <div class="shell internals-layout reveal">
           <div class="section-intro">
             <p class="eyebrow">The implementation is the point</p>
             <h2>Common Lisp all the way down.</h2>
@@ -629,10 +657,10 @@ This is capability, not speed. Phase links are roadmap references.
       </section>
 
       <section class="closing section-band">
-        <div class="shell closing-inner">
+        <div class="shell closing-inner reveal">
           <img src="assets/clun.jpg" alt="" width="132" height="132">
           <p class="eyebrow">Try it</p>
-          <h2>One command to install · pure Common Lisp underneath.</h2>
+          <h2>One command. Pure Common Lisp underneath.</h2>
           <div class="command-row closing-command">
             <span class="prompt" aria-hidden="true">$</span>
             <code data-install-command-bottom>curl -fsSL https://clun.sh/install | sh</code>
@@ -640,7 +668,12 @@ This is capability, not speed. Phase links are roadmap references.
               <span data-copy-label>Copy</span>
             </button>
           </div>
-          <p class="closing-caveat">Pre-alpha. Hosted install is still the last published Release; build from source for unreleased tip commits. Review the compatibility table before production use.</p>
+          <div class="closing-actions">
+            <a class="btn btn-ghost star-btn" href="https://github.com/theesfeld/clun" rel="noopener">
+              <span aria-hidden="true">★</span> Star on GitHub
+            </a>
+          </div>
+          <p class="closing-caveat">Pre-alpha. Hosted install is the last published Release; build from source for tip. Matrix before production use.</p>
         </div>
       </section>
     </main>
@@ -653,7 +686,7 @@ This is capability, not speed. Phase links are roadmap references.
         </div>
 <!-- clun-generated:release-links:begin -->
 <div><h2>Project</h2><a href="https://github.com/theesfeld/clun">Source</a><a href="https://github.com/theesfeld/clun/blob/master/README.md">README</a><a href="https://github.com/theesfeld/clun/issues/56">Current status</a></div>
-<div><h2>Evidence</h2><a href="https://github.com/theesfeld/clun/blob/master/compat/README.md">Compatibility ledger</a><a href="https://github.com/theesfeld/clun/actions/workflows/compat.yml">Compatibility CI</a><a href="https://github.com/theesfeld/clun/issues/56">Canonical phase record</a><a href="https://github.com/theesfeld/clun/blob/master/LICENSE">License</a></div>
+<div><h2>Evidence</h2><a href="https://github.com/theesfeld/clun/blob/master/compat/README.md">Compatibility ledger</a><a href="https://github.com/theesfeld/clun/actions/workflows/compat.yml">Compatibility CI</a><a href="https://github.com/theesfeld/clun/issues/56">Release issue</a><a href="https://github.com/theesfeld/clun/blob/master/LICENSE">License</a></div>
 <div><h2>Install</h2><a href="install">Shell installer</a><a href="https://github.com/theesfeld/clun/releases/tag/v0.2.0-dev.8">v0.2.0-dev.8 release</a><a href="https://github.com/theesfeld/clun#building-from-source">Build from source</a></div>
 <!-- clun-generated:release-links:end -->
       </div>
