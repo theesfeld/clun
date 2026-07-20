@@ -165,17 +165,17 @@ else
 fi
 
 "$package_dir/bin/clun" --version
-# Prefer portable ustar without macOS AppleDouble/xattr noise so pure-CL extractors
-# see regular-file typeflags and the full bin/clun path on every platform.
+# Archive must contain bin/clun for the pure-CL updater. On Darwin, force ustar and
+# disable AppleDouble xattrs so extractors see ordinary file typeflags. On Linux,
+# use the platform default (GNU tar) so long vendor-license paths are not truncated
+# by the 100-byte ustar name field.
 archive_path="$output_dir/clun-$target.tar.gz"
 export COPYFILE_DISABLE=1
-if tar --help 2>&1 | grep -q -- '--format'; then
+if [[ "$platform" == darwin ]] && tar --help 2>&1 | grep -q -- '--format'; then
   tar --format=ustar -C "$work_dir" -czf "$archive_path" "clun-$target"
 else
   tar -C "$work_dir" -czf "$archive_path" "clun-$target"
 fi
-# Fail closed if the archive omits the launcher path the updater chmod's after extract.
-# Accept optional ./ prefix from some tar list implementations.
 if ! tar -tzf "$archive_path" | grep -Eq "^(./)?clun-$target/bin/clun\$"; then
   echo "package: archive is missing clun-$target/bin/clun" >&2
   tar -tzf "$archive_path" 2>&1 | head -40 >&2 || true
