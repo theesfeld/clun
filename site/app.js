@@ -217,13 +217,56 @@
     });
   }
 
-  // Matrix row spotlight — subtle interactive depth on capability table
-  const tableWrap = document.querySelector(".table-wrap");
-  if (tableWrap && !reduceMotionEarly) {
-    tableWrap.querySelectorAll("tbody tr:not(.compare-group)").forEach((row) => {
-      row.addEventListener("pointerenter", () => row.classList.add("is-hot"));
-      row.addEventListener("pointerleave", () => row.classList.remove("is-hot"));
+  // Matrix: fluid page-scroll experience (row reveals + progress rail + hover)
+  const matrixFlow = document.querySelector(".matrix-flow");
+  const matrixTable = matrixFlow && matrixFlow.querySelector(".compat-table");
+  const matrixRail = document.querySelector("[data-matrix-rail]");
+  if (matrixFlow && matrixTable) {
+    const featureRows = [...matrixTable.querySelectorAll("tbody tr:not(.compare-group)")];
+    featureRows.forEach((row, i) => {
+      row.classList.add("matrix-row");
+      row.style.setProperty("--row-delay", `${Math.min(i % 8, 7) * 28}ms`);
     });
+
+    if (reduceMotionEarly || !("IntersectionObserver" in window)) {
+      featureRows.forEach((row) => row.classList.add("is-in"));
+    } else {
+      const rowIo = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (!entry.isIntersecting) return;
+            entry.target.classList.add("is-in");
+            rowIo.unobserve(entry.target);
+          });
+        },
+        { root: null, rootMargin: "0px 0px -12% 0px", threshold: 0.12 }
+      );
+      featureRows.forEach((row) => rowIo.observe(row));
+    }
+
+    if (!reduceMotionEarly) {
+      featureRows.forEach((row) => {
+        row.addEventListener("pointerenter", () => row.classList.add("is-hot"));
+        row.addEventListener("pointerleave", () => row.classList.remove("is-hot"));
+      });
+
+      const updateMatrixRail = () => {
+        if (!matrixRail) return;
+        const rect = matrixFlow.getBoundingClientRect();
+        const vh = window.innerHeight || 1;
+        // Progress through the matrix as it travels the viewport
+        const start = vh * 0.2;
+        const end = rect.height + vh * 0.35;
+        const traveled = start - rect.top;
+        const pct = Math.max(0, Math.min(100, (traveled / end) * 100));
+        matrixRail.style.height = `${pct}%`;
+      };
+      updateMatrixRail();
+      window.addEventListener("scroll", updateMatrixRail, { passive: true });
+      window.addEventListener("resize", updateMatrixRail, { passive: true });
+    } else if (matrixRail) {
+      matrixRail.style.height = "100%";
+    }
   }
 
   if (siteHeader) {
