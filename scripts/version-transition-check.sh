@@ -467,7 +467,7 @@ is_publication_reconciliation() {
   done
   while IFS= read -r reconciliation_path; do
     case $reconciliation_path in
-      README.md|STATE.md|compat/release.tsv|site/index.html|site/install|scripts/version-transition-check.sh|scripts/test-version-transition-check.sh) ;;
+      README.md|STATE.md|compat/release.tsv|site/index.html|site/install|docs/releases/current.md|scripts/version-transition-check.sh|scripts/test-version-transition-check.sh|scripts/test-compat-tools.sh) ;;
       *) return 1 ;;
     esac
   done <"$changed_files"
