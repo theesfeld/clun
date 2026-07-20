@@ -11,8 +11,8 @@ Clun does not claim blanket speed parity with Bun.
 <!-- clun-generated:release:begin -->
 > **Status: pre-alpha, under active construction.** [Phase 82](https://github.com/theesfeld/clun/issues/56) is in progress.
 > Its release-bearing target is `0.2.0-dev.11` / `v0.2.0-dev.11` (SemVer impact: `patch`).
-> The verified release boundary is `v0.2.0-dev.10`, with four native archives and checksums.
-> Release-gated Pages and hosted-installer results are recorded in the canonical issue.
+> The verified release boundary is `v0.2.0-dev.10`, with four native archives, checksums, Pages,
+> and hosted-installer evidence.
 > Phase 26 remains deferred until after Phase 82 and will
 > be rewritten for the repository state that exists then.
 > Clun's full-port target requires every ledger Yes to survive executable and public-claim audit. The current snapshot is 30 Yes / 0 Partial / 0 No; qualified evidence is not treated as complete.
@@ -53,7 +53,8 @@ curl -fsSL https://clun.sh/install | ADD_PATH=1 sh   # ensure the managed rc blo
 
 Existing `~/.clun` installations remain supported: `CLUN_INSTALL="$HOME/.clun"` retains the legacy
 release-root layout, while `CLUN_VERSION` and `CLUN_NO_MODIFY_PATH=1` remain compatibility aliases.
-The published `v0.2.0-dev.10` boundary includes the built-in updater. Existing users on `v0.2.0-dev.8`
+While the hosted boundary remains `v0.2.0-dev.10`, that command only reinstalls `v0.2.0-dev.10` and does not
+pick up the unpublished `0.2.0-dev.11` candidate until assets publish. Existing users on `v0.2.0-dev.8`
 or earlier can upgrade through the checksum-verifying installer (or `clun --update` once on a build
 that already has the TLS PSK-resume fix):
 
@@ -72,7 +73,9 @@ The built-in updater uses direct pure-Common-Lisp HTTPS/TLS and the same redirec
 and public Atom-feed resolution. It selects the highest suitable SemVer while keeping stable installs
 off prereleases, verifies `checksums.txt` and the package's exact `VERSION`, stages the complete
 versioned bundle, and atomically switches the installer-managed stable launcher only after the new
-bundle runs successfully. Any failure retains the prior bundle and launcher:
+bundle runs successfully. Any failure retains the prior bundle and launcher.
+While the hosted boundary remains `v0.2.0-dev.10`, that command only reinstalls `v0.2.0-dev.10` and does not
+activate the unpublished candidate.
 
 ```sh
 clun --check-update   # non-mutating; exit 1 if behind
