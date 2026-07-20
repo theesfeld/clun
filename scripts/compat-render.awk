@@ -91,23 +91,9 @@ function markdown_phases(primary, integrations,    count, phase, result, first) 
   return result
 }
 
-function html_phases(primary, integrations,    count, phase, result, first, label, maximum) {
-  count = phase_count(primary, integrations)
-  maximum = primary + 0
-  for (phase = 27; phase <= 82; phase++)
-    if (phase_present(primary, integrations, phase) && phase > maximum) maximum = phase
-  if (count == 1) {
-    return "<a class=\"phase-link\" data-roadmap-phase=\"" primary "\" href=\"" issue_query(primary) "\">Phase " primary "</a>"
-  }
-  result = "<span class=\"phase-links\" data-roadmap-phase=\"" maximum "\"><span>Phases</span> "
-  first = 1
-  for (phase = 27; phase <= 82; phase++) {
-    if (!phase_present(primary, integrations, phase)) continue
-    if (!first) result = result ", "
-    result = result "<a href=\"" issue_query(phase) "\">" phase "</a>"
-    first = 0
-  }
-  return result "</span>"
+function html_phases(primary, integrations) {
+  # Public site: capability state only. Phase numbers stay on GitHub Issues, not in the matrix UI.
+  return ""
 }
 
 function html_state(state, detail,    result) {
@@ -242,9 +228,9 @@ END {
     print "</table>"
     print "<p class=\"source-note\">"
     print "  Snapshot checked " human_date(baseline_checked[public_bun_id]) ". Sources:"
-    print "  <a href=\"https://github.com/theesfeld/clun/blob/master/PLAN.md\">Clun scope</a>,"
+    print "  <a href=\"https://github.com/theesfeld/clun/blob/master/README.md\">Clun README</a>,"
     print "  <a href=\"" html(baseline_source[public_bun_id]) "\">Bun " html(baseline_version[public_bun_id]) "</a>,"
-    print "  the roadmap's separate"
+    print "  the separate"
     print "  <a href=\"" html(baseline_source[engineering_bun_id]) "\">Bun source audit</a>,"
     print "  <a href=\"" html(baseline_source[node_id]) "\">Node.js " html(baseline_version[node_id]) "</a>, and"
     print "  <a href=\"" html(baseline_source[deno_id]) "\">Deno " html(baseline_version[deno_id]) "</a>."
@@ -259,7 +245,7 @@ END {
     print "(TypeScript typecheck, fmt/lint, offline Redis, SQLite module surface, and more)."
     print "The engineering roadmap separately audits Bun source commit"
     print "<code>" html(substr(baseline_revision[engineering_bun_id], 1, 10)) "</code> (<code>" html(baseline_version[engineering_bun_id]) "</code>) for newer upstream work."
-    print "This is capability, not speed. Phase links are roadmap references."
+    print "This is capability, not speed."
   } else if (format == "readme-release") {
     tagged_candidate = publication_state == "candidate" && release_commit != "pending"
     if (publication_state == "published") {
@@ -296,19 +282,18 @@ END {
       print "<a href=\"https://github.com/theesfeld/clun/issues/" active_issue "\">"
       print "  <span>In development</span>"
     }
-    print "  " html(release_tag) " / Phase " active_phase
+    print "  " html(release_tag)
     print "  <span aria-hidden=\"true\">-&gt;</span>"
     print "</a>"
   } else if (format == "site-version") {
     print "<p class=\"eyebrow\"><span class=\"status-dot\" aria-hidden=\"true\"></span> v" release_version (publication_state == "published" ? " / pre-alpha" : " release candidate / pre-alpha") "</p>"
   } else if (format == "site-phase-status") {
     if (publication_state == "published")
-      print "Phase " active_phase " has a published prerelease: <a href=\"https://github.com/theesfeld/clun/issues/" active_issue "\">" html(roadmap_title[active_phase]) " in issue #" active_issue "</a>. Consult the live Issue for remaining work and completion status."
+      print "Release tracking: <a href=\"https://github.com/theesfeld/clun/issues/" active_issue "\">issue #" active_issue "</a>."
+    else if (publication_state == "candidate" && release_commit != "pending")
+      print "Candidate tag only (no GitHub Release yet). Tracking: <a href=\"https://github.com/theesfeld/clun/issues/" active_issue "\">issue #" active_issue "</a>."
     else
-      print "Phase " active_phase " is active: <a href=\"https://github.com/theesfeld/clun/issues/" active_issue "\">" html(roadmap_title[active_phase]) " in issue #" active_issue "</a>."
-    if (publication_state == "candidate" && release_commit != "pending")
-      print "The annotated candidate tag exists, but its GitHub Release and assets do not. Tag-only recovery remains in <a href=\"https://github.com/theesfeld/clun/issues/" active_issue "\">the canonical Phase " active_phase " record</a>; the failed tag is immutable and recovery must use a new prerelease slot."
-    print "Phase 26 remains deferred until after Phase 82 and will be re-baselined for the system state at that time."
+      print "Current release work: <a href=\"https://github.com/theesfeld/clun/issues/" active_issue "\">issue #" active_issue "</a>."
   } else if (format == "readme-release-summary") {
     print "Release versions follow the actual SemVer impact recorded in the canonical issue, not the number of pushes."
     if (publication_state == "published") {
@@ -326,7 +311,7 @@ END {
       print "Tag-only recovery remains tracked in [Phase " active_phase " issue #" active_issue "](https://github.com/theesfeld/clun/issues/" active_issue "); the failed tag is immutable and recovery must use a new prerelease slot."
   } else if (format == "site-release-links") {
     print "<div><h2>Project</h2><a href=\"https://github.com/theesfeld/clun\">Source</a><a href=\"https://github.com/theesfeld/clun/blob/master/README.md\">README</a><a href=\"https://github.com/theesfeld/clun/issues/" active_issue "\">" (publication_state == "published" ? "Release record" : "Current status") "</a></div>"
-    print "<div><h2>Evidence</h2><a href=\"https://github.com/theesfeld/clun/blob/master/compat/README.md\">Compatibility ledger</a><a href=\"https://github.com/theesfeld/clun/actions/workflows/compat.yml\">Compatibility CI</a><a href=\"https://github.com/theesfeld/clun/issues/" active_issue "\">Canonical phase record</a><a href=\"https://github.com/theesfeld/clun/blob/master/LICENSE\">License</a></div>"
+    print "<div><h2>Evidence</h2><a href=\"https://github.com/theesfeld/clun/blob/master/compat/README.md\">Compatibility ledger</a><a href=\"https://github.com/theesfeld/clun/actions/workflows/compat.yml\">Compatibility CI</a><a href=\"https://github.com/theesfeld/clun/issues/" active_issue "\">Release issue</a><a href=\"https://github.com/theesfeld/clun/blob/master/LICENSE\">License</a></div>"
     if (publication_state == "published")
       print "<div><h2>Install</h2><a href=\"install\">Shell installer</a><a href=\"https://github.com/theesfeld/clun/releases/tag/" release_tag "\">" release_tag " release</a><a href=\"https://github.com/theesfeld/clun#building-from-source\">Build from source</a></div>"
     else

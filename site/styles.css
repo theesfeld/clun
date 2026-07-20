@@ -534,6 +534,44 @@ a {
   text-underline-offset: 3px;
 }
 
+/* Compact product lede under facts — not a yellow process wall */
+.hero-lede {
+  width: 100%;
+  margin: 0;
+  padding: 14px 18px 6px;
+  border-top: 1px solid var(--ink);
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.hero-status {
+  width: 100%;
+  margin: 0;
+  padding: 0 18px 14px;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.hero-status a {
+  font-weight: 700;
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.evidence-body {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.5;
+  opacity: 0.9;
+  overflow-wrap: anywhere;
+}
+
 .status-band {
   background: var(--paper-bright);
 }
@@ -1322,31 +1360,15 @@ a {
 
 .beyond-roadmap li {
   min-width: 0;
+  padding: 14px 16px;
   border-bottom: 1px solid var(--ink);
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.35;
 }
 
 .beyond-roadmap li:nth-child(odd) {
   border-right: 1px solid var(--ink);
-}
-
-.beyond-roadmap a {
-  display: grid;
-  grid-template-columns: 68px minmax(0, 1fr);
-  gap: 12px;
-  height: 100%;
-  padding: 13px 14px;
-  text-decoration: none;
-}
-
-.beyond-roadmap a:hover {
-  background: #e9e6de;
-}
-
-.beyond-roadmap a > span {
-  font-family: var(--mono);
-  font-size: 10px;
-  font-weight: 800;
-  text-transform: uppercase;
 }
 
 .internals-section {
