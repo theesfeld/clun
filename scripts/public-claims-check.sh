@@ -708,9 +708,12 @@ awk '
     if (index(value, "data-roadmap-phase") || index(value, "label%3Aphase-") ||
         index(value, "phase-link") || index(value, "phase-links"))
       die("site matrix must not embed phase links for " capability)
-    if (occurrences(value, "<td class=\"clun-col\">") != 1)
+    # Clun is last column; class may be "clun-col" or "clun-col mark-cell".
+    if (occurrences(value, "class=\"clun-col") != 1)
       die("expected one Clun cell for " capability)
-    cell = between(value, "<td class=\"clun-col\">", "</td>")
+    if (match(value, /<td class="clun-col[^"]*">/) == 0)
+      die("malformed Clun cell for " capability)
+    cell = between(value, substr(value, RSTART, RLENGTH), "</td>")
     bold = substr(cell, index(cell, "<b class=\"state "))
     opening = index(bold, ">")
     closing = index(bold, "</b>")
@@ -826,7 +829,7 @@ if [ "$release_state" = candidate ]; then
   reject_text site/index.html "Phase $active_phase is active:"
   require_text site/index.html "<a href=\"$previous_release_url\">v$previous_version release</a>"
   require_text site/index.html "v$version release candidate / pre-alpha</p>"
-  require_text site/index.html "<span>$version candidate / pre-alpha</span>"
+  require_text site/index.html "class=\"clun-col\"><a href=\"https://github.com/theesfeld/clun\">Clun</a><span>$version</span>"
   reject_text site/index.html "$release_url"
 else
   [ "$readme_candidate" -eq 0 ] || fail "release ledger says published but generated documents say candidate"
@@ -848,7 +851,7 @@ else
   reject_text site/index.html "v$version / Phase $active_phase"
   require_text site/index.html "<a href=\"$release_url\">v$version release</a>"
   require_text site/index.html "v$version / pre-alpha</p>"
-  require_text site/index.html "<span>$version / pre-alpha</span>"
+  require_text site/index.html "class=\"clun-col\"><a href=\"https://github.com/theesfeld/clun\">Clun</a><span>$version</span>"
   reject_text site/index.html "release candidate"
 fi
 require_text site/index.html 'clun --update'
@@ -935,13 +938,17 @@ require_text site/index.html "tool-critical"
 require_text README.md "Bun $bun_version, Node.js $node_version, and Deno $deno_version"
 require_text README.md "$baseline_date"
 require_text README.md "$bun_engineering_short"
-require_text site/index.html "<span>$node_version / current</span>"
+require_text site/index.html "<span>$node_version</span>"
 require_text site/index.html "$node_source"
-require_text site/index.html "<span>$deno_version / runtime</span>"
+require_text site/index.html "<span>$deno_version</span>"
 require_text site/index.html "$deno_source"
 require_text site/index.html "Snapshot checked $baseline_date"
 require_text site/index.html "$bun_source"
 require_text site/index.html "$bun_engineering_source"
+# Icon matrix: Clun is the last column; only Clun may carry exceed notes.
+require_text site/index.html 'class="clun-col"'
+require_text site/index.html 'mark-yes'
+require_text site/index.html 'Only Clun'
 installer_boundary="verified_installer_tag=$installer_tag"
 [ "$(grep -Fxc "$installer_boundary" site/install)" -eq 1 ] ||
   fail 'site/install verified default disagrees with the release ledger installer boundary'

@@ -740,13 +740,13 @@ expect_pass refreshed-baselines-generate "$case_root" generate
 grep -F 'Bun 9.8.7, Node.js 99.1.0, and Deno 9.2.0' \
   "$case_root/README.md" >/dev/null 2>&1 ||
   fail 'baseline refresh did not update the README snapshot'
-grep -F 'stable Bun 9.8.7 runtime feature matrix' "$case_root/site/index.html" >/dev/null 2>&1 ||
+grep -F 'Same public toolkit matrix as Bun 9.8.7' "$case_root/site/index.html" >/dev/null 2>&1 ||
   fail 'baseline refresh did not update the landing-page comparison introduction'
 # Engineering Bun pin lives in the matrix source-note (not a landing-page roadmap).
 grep -F 'github.com/oven-sh/bun/tree/2222222222222222222222222222222222222222' \
   "$case_root/site/index.html" >/dev/null 2>&1 ||
   fail 'baseline refresh did not update the engineering Bun source pin'
-if grep -Fq 'stable Bun 1.3.14 runtime feature matrix' "$case_root/site/index.html"; then
+if grep -Fq 'Same public toolkit matrix as Bun 1.3.14' "$case_root/site/index.html"; then
   fail 'baseline refresh retained stale landing-page baseline copy'
 fi
 

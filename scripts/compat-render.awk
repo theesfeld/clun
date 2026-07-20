@@ -102,6 +102,30 @@ function html_state(state, detail,    result) {
   return result
 }
 
+# Site matrix: icon mark only. Green check = Yes (fully has the capability).
+function html_mark(state,    cls, glyph) {
+  if (state == "Yes") { cls = "yes"; glyph = "✓" }
+  else if (state == "Partial") { cls = "partial"; glyph = "∼" }
+  else { cls = "no"; glyph = "✗" }
+  return "<span class=\"mark mark-" cls "\" title=\"" html(state) "\">" \
+         "<span class=\"mark-glyph\" aria-hidden=\"true\">" glyph "</span>" \
+         "<b class=\"state " lower(state) "\">" html(state) "</b></span>"
+}
+
+# Only Clun may show a short "exceeds …" note when ledger detail claims it.
+function html_clun_mark(state, detail,    result, note, low, pos) {
+  result = html_mark(state)
+  if (detail == "-" || detail == "") return result
+  low = tolower(detail)
+  pos = index(low, "exceed")
+  if (pos == 0) return result
+  # Start at exceed/exceeds/exceeding so the note is about the delta, not the whole detail.
+  note = substr(detail, pos)
+  # Drop trailing parenthetical noise like "… (exceeds Bun)" wrappers already mid-sentence.
+  if (length(note) > 88) note = substr(note, 1, 85) "…"
+  return result "<span class=\"exceed-note\">" html_prose(note) "</span>"
+}
+
 function group_title(group) {
   if (group == "core") return "Built-in core features"
   if (group == "apis") return "Built-in APIs"
@@ -196,14 +220,14 @@ END {
       print "| " markdown(capability[i]) " | " markdown(current) " | " markdown_phases(primary_phase[i], integration_phases[i]) " |"
     }
   } else if (format == "site-compat") {
-    print "<table class=\"compat-table\">"
+    print "<table class=\"compat-table compat-table-icons\">"
     print "  <thead>"
     print "    <tr>"
     print "      <th scope=\"col\">Capability</th>"
-    print "      <th scope=\"col\" class=\"clun-col\"><a href=\"https://github.com/theesfeld/clun\">Clun</a><span>" html(release_version) (publication_state == "published" ? " / pre-alpha" : " candidate / pre-alpha") "</span></th>"
-    print "      <th scope=\"col\"><a href=\"https://bun.sh/\">Bun</a><span>" html(baseline_version[public_bun_id]) " / toolkit</span></th>"
-    print "      <th scope=\"col\"><a href=\"https://nodejs.org/\">Node.js</a><span>" html(baseline_version[node_id]) " / current</span></th>"
-    print "      <th scope=\"col\"><a href=\"https://deno.com/\">Deno</a><span>" html(baseline_version[deno_id]) " / runtime</span></th>"
+    print "      <th scope=\"col\"><a href=\"https://bun.sh/\">Bun</a><span>" html(baseline_version[public_bun_id]) "</span></th>"
+    print "      <th scope=\"col\"><a href=\"https://nodejs.org/\">Node.js</a><span>" html(baseline_version[node_id]) "</span></th>"
+    print "      <th scope=\"col\"><a href=\"https://deno.com/\">Deno</a><span>" html(baseline_version[deno_id]) "</span></th>"
+    print "      <th scope=\"col\" class=\"clun-col\"><a href=\"https://github.com/theesfeld/clun\">Clun</a><span>" html(release_version) "</span></th>"
     print "    </tr>"
     print "  </thead>"
     last_group = ""
@@ -218,32 +242,31 @@ END {
       }
       print "    <tr data-compat-feature=\"" html(feature_id[i]) "\">"
       print "      <th scope=\"row\"><strong>" html(capability[i]) "</strong><span>" html_prose(summary[i]) "</span></th>"
-      print "      <td class=\"clun-col\">" html_state(clun_state[i], clun_detail[i]) html_phases(primary_phase[i], integration_phases[i]) "</td>"
-      print "      <td>" html_state(bun_state[i], bun_detail[i]) "</td>"
-      print "      <td>" html_state(node_state[i], node_detail[i]) "</td>"
-      print "      <td>" html_state(deno_state[i], deno_detail[i]) "</td>"
+      print "      <td class=\"mark-cell\">" html_mark(bun_state[i]) "</td>"
+      print "      <td class=\"mark-cell\">" html_mark(node_state[i]) "</td>"
+      print "      <td class=\"mark-cell\">" html_mark(deno_state[i]) "</td>"
+      print "      <td class=\"clun-col mark-cell\">" html_clun_mark(clun_state[i], clun_detail[i]) "</td>"
       print "    </tr>"
     }
     print "  </tbody>"
     print "</table>"
     print "<p class=\"source-note\">"
-    print "  Snapshot checked " human_date(baseline_checked[public_bun_id]) ". Sources:"
+    print "  ✓ full support · ∼ partial · ✗ none."
+    print "  Snapshot checked " human_date(baseline_checked[public_bun_id]) "."
+    print "  Sources:"
     print "  <a href=\"https://github.com/theesfeld/clun/blob/master/README.md\">Clun README</a>,"
     print "  <a href=\"" html(baseline_source[public_bun_id]) "\">Bun " html(baseline_version[public_bun_id]) "</a>,"
-    print "  the separate"
     print "  <a href=\"" html(baseline_source[engineering_bun_id]) "\">Bun source audit</a>,"
-    print "  <a href=\"" html(baseline_source[node_id]) "\">Node.js " html(baseline_version[node_id]) "</a>, and"
+    print "  <a href=\"" html(baseline_source[node_id]) "\">Node.js " html(baseline_version[node_id]) "</a>,"
     print "  <a href=\"" html(baseline_source[deno_id]) "\">Deno " html(baseline_version[deno_id]) "</a>."
-    print "  npm appears as tooling, not as a runtime column. Clun has no same-host speed"
-    print "  comparison against these projects."
+    print "  <a href=\"https://github.com/theesfeld/clun/blob/master/compat/README.md\">Ledger on GitHub</a>."
+    print "  Capability, not speed."
     print "</p>"
   } else if (format == "site-compat-intro") {
-    print "This follows the stable Bun " html(baseline_version[public_bun_id]) " runtime feature matrix and adds Clun."
-    print "<strong>" ledger_yes " Yes</strong> / <strong>" ledger_partial " Partial</strong> / <strong>" ledger_no " No</strong>"
-    print "on the " ledger_total " capability rows below — evidence-backed Bun-shaped (or better) behavior in pure Common Lisp,"
-    print "not a finished drop-in for every Node or Bun program. Several rows already <em>exceed</em> Bun"
-    print "(TypeScript typecheck, fmt/lint, offline Redis, SQLite module surface, and more)."
-    print "This is capability, not speed."
+    print "Same public toolkit matrix as Bun " html(baseline_version[public_bun_id]) " — Clun last."
+    print "<strong>" ledger_yes " full</strong> · <strong>" ledger_partial " partial</strong> · <strong>" ledger_no " none</strong>."
+    print "A green check means that runtime has the capability (evidence-backed Yes / Partial / No)."
+    print "Only Clun’s column calls out where it <em>exceeds</em> the others."
   } else if (format == "readme-release") {
     tagged_candidate = publication_state == "candidate" && release_commit != "pending"
     if (publication_state == "published") {

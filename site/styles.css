@@ -2188,3 +2188,420 @@ a {
   font-size: 0.9rem;
   opacity: 0.85;
 }
+
+/* === Elonoptimize pass: motion, icon matrix, GitHub social === */
+
+html {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .reveal,
+  .hero-title,
+  .hero-mark,
+  .stat-bar::after,
+  .hero-glow {
+    animation: none !important;
+    transition: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
+.hero-glow {
+  position: absolute;
+  inset: -20% -10% auto;
+  height: 70%;
+  background:
+    radial-gradient(ellipse 50% 45% at 50% 20%, rgba(244, 200, 75, 0.22), transparent 70%),
+    radial-gradient(ellipse 40% 35% at 80% 40%, rgba(233, 103, 90, 0.12), transparent 65%);
+  pointer-events: none;
+  animation: glow-drift 14s ease-in-out infinite alternate;
+}
+
+@keyframes glow-drift {
+  from { transform: translate3d(-2%, 0, 0) scale(1); opacity: 0.85; }
+  to { transform: translate3d(2%, 2%, 0) scale(1.05); opacity: 1; }
+}
+
+.hero-title {
+  letter-spacing: -0.03em;
+}
+
+.hero-title-accent {
+  background: linear-gradient(120deg, var(--ink) 20%, var(--coral-dark) 55%, var(--ink) 90%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: title-shimmer 8s ease-in-out infinite;
+}
+
+@keyframes title-shimmer {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0 0 28px;
+  justify-content: center;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 18px;
+  border: 1px solid var(--ink);
+  border-radius: 999px;
+  font-weight: 800;
+  font-size: 14px;
+  text-decoration: none;
+  transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 200ms ease, background 160ms ease;
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(23, 23, 22, 0.14);
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+.btn-primary {
+  background: var(--ink);
+  color: var(--white);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--ink);
+}
+
+.star-link,
+.star-btn {
+  font-weight: 800;
+}
+
+.star-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.8em;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.site-nav .star-link {
+  padding: 8px 12px;
+  border: 1px solid var(--ink);
+  border-radius: 999px;
+  text-decoration: none;
+  background: var(--paper-bright);
+}
+
+.site-nav .star-link:hover {
+  background: var(--yellow);
+}
+
+/* Scroll reveals — SpaceX/xAI style understated rise */
+.reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition:
+    opacity 700ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 700ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: var(--reveal-delay, 0ms);
+}
+
+.reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.hero-mark {
+  transition: transform 900ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.hero-inner.is-visible .hero-mark,
+.hero-mark-wrap:hover .hero-mark {
+  transform: translateY(-6px) scale(1.02);
+}
+
+/* Icon matrix */
+.matrix-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 22px;
+  margin: 0 0 18px;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 650;
+}
+
+.matrix-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.matrix-legend .mark {
+  width: 28px;
+  height: 28px;
+}
+
+.legend-clun {
+  color: var(--ink);
+}
+
+.compat-table-icons {
+  --mark-size: 1.35rem;
+}
+
+.compat-table-icons thead th {
+  text-align: center;
+}
+
+.compat-table-icons thead th:first-child {
+  text-align: left;
+}
+
+.compat-table-icons .clun-col {
+  background: color-mix(in srgb, var(--green) 10%, var(--paper-bright));
+}
+
+.compat-table-icons th.clun-col,
+.compat-table-icons td.clun-col {
+  border-left: 2px solid color-mix(in srgb, var(--green) 45%, var(--ink));
+}
+
+.mark-cell {
+  text-align: center;
+  vertical-align: middle;
+  padding: 10px 8px !important;
+}
+
+.mark {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.mark .state {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.mark-glyph {
+  font-size: var(--mark-size, 1.2rem);
+  font-weight: 900;
+}
+
+.mark-yes {
+  color: #0f7a3a;
+  background: color-mix(in srgb, var(--green) 28%, #fff);
+  border-color: color-mix(in srgb, var(--green) 55%, var(--ink));
+}
+
+.mark-partial {
+  color: #8a6a00;
+  background: color-mix(in srgb, var(--yellow) 45%, #fff);
+  border-color: color-mix(in srgb, var(--yellow) 70%, var(--ink));
+}
+
+.mark-no {
+  color: #9b2c2c;
+  background: color-mix(in srgb, var(--coral) 22%, #fff);
+  border-color: color-mix(in srgb, var(--coral) 50%, var(--ink));
+}
+
+.clun-col.mark-cell {
+  display: table-cell;
+}
+
+.exceed-note {
+  display: block;
+  margin-top: 6px;
+  max-width: 16rem;
+  margin-inline: auto;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--muted);
+  font-weight: 600;
+  text-align: left;
+}
+
+.compat-table-icons .clun-col .mark {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 18%, transparent);
+}
+
+/* GitHub social */
+.github-section {
+  background: var(--charcoal);
+  color: var(--white);
+  border-bottom: 1px solid #000;
+}
+
+.github-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(280px, 0.95fr);
+  gap: 56px;
+  align-items: center;
+  padding: 88px 0;
+}
+
+.github-copy h2 {
+  margin: 8px 0 14px;
+  font-size: clamp(32px, 4vw, 48px);
+  font-weight: 900;
+  letter-spacing: -0.03em;
+}
+
+.github-copy p {
+  color: color-mix(in srgb, var(--white) 78%, transparent);
+  max-width: 38rem;
+}
+
+.github-section .btn-primary {
+  background: var(--yellow);
+  color: var(--ink);
+  border-color: var(--yellow);
+  margin-top: 8px;
+}
+
+.github-section .btn-primary:hover {
+  background: #ffd76a;
+}
+
+.github-issues-note {
+  margin-top: 22px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: color-mix(in srgb, var(--white) 72%, transparent);
+}
+
+.github-issues-note a {
+  color: var(--yellow);
+  font-weight: 700;
+}
+
+.github-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.stat-card {
+  padding: 16px 16px 14px;
+  border: 1px solid color-mix(in srgb, var(--white) 16%, transparent);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--white) 4%, transparent);
+  backdrop-filter: blur(8px);
+  transition: transform 240ms cubic-bezier(0.22, 1, 0.36, 1), border-color 200ms ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--yellow) 55%, transparent);
+}
+
+.stat-value {
+  display: block;
+  font-size: 28px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.stat-label {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: color-mix(in srgb, var(--white) 60%, transparent);
+}
+
+.stat-bar {
+  margin-top: 12px;
+  height: 4px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--white) 12%, transparent);
+  overflow: hidden;
+}
+
+.stat-bar::after {
+  content: "";
+  display: block;
+  height: 100%;
+  width: var(--fill, 0%);
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--yellow), var(--coral));
+  transition: width 900ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.stat-footnote {
+  grid-column: 1 / -1;
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: color-mix(in srgb, var(--white) 48%, transparent);
+}
+
+.closing-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+.site-header {
+  transition: background 220ms ease, box-shadow 220ms ease, border-color 220ms ease;
+}
+
+.site-header.is-scrolled {
+  background: rgba(244, 241, 233, 0.9);
+  box-shadow: 0 8px 30px rgba(23, 23, 22, 0.08);
+}
+
+@media (max-width: 900px) {
+  .github-layout {
+    grid-template-columns: 1fr;
+    gap: 36px;
+    padding: 64px 0;
+  }
+}
+
+@media (max-width: 760px) {
+  .hero-actions {
+    width: 100%;
+  }
+  .hero-actions .btn {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+  .exceed-note {
+    max-width: 12rem;
+  }
+}
