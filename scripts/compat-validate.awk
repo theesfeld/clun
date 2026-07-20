@@ -42,7 +42,8 @@ function valid_id(value) {
 }
 
 function valid_phase(value) {
-  return value ~ /^[0-9]+$/ && (value + 0) >= 27 && (value + 0) <= 82
+  # 27–82: purity-compatible surface program; 26: final hardening (runs last).
+  return value ~ /^[0-9]+$/ && (((value + 0) >= 27 && (value + 0) <= 82) || (value + 0) == 26)
 }
 
 function valid_sha256(value) {

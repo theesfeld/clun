@@ -6,52 +6,101 @@ Ship path: topic branch → PR → squash-merge into `master` (not direct push).
 
 ---
 
-## Current phase: **82 - Purity-compatible Bun-surface final audit and release** *(audit complete pending merge)*
+## Current phase: **26 - Final hardening, docs, and release**
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/56
-**Published surface release:** `0.2.0-dev.11` / `v0.2.0-dev.11`
+**Canonical issue:** https://github.com/theesfeld/clun/issues/58
+**Prior phase:** Phase 82 (#56) **closed** — purity-compatible surface audit complete
+**Published surface tip:** `0.2.0-dev.11` / `v0.2.0-dev.11`
 **Tag peel:** `2e1957c01ac54d55238963e24a5624a21316f11a`
 **Release run:** https://github.com/theesfeld/clun/actions/runs/29772871785
 **Installer default:** `verified_installer_tag=v0.2.0-dev.11`
 
-## Phase 82 final audit — §1.5 evidence (2026-07-20)
+---
 
-**Audit host:** linux-x64 · exclusive sequential run (no concurrent builders)  
-**Log:** `tmp-test/phase82-exclusive.log`  
-**Window:** 2026-07-20T16:31:53 → 16:40:48 local
+## Phase 26 rebaseline inventory (2026-07-20)
 
-### Gate map (PLAN → executable)
+### Shipped surface (do not regress)
 
-| PLAN gate | Executable | Result |
-|-----------|------------|--------|
-| `make compat-freeze --check` | `sh scripts/compat-freeze-check.sh --check` | **PASS** — 30 Yes; freeze digest `02488b08178a4d6a5c1b22ecbfccdb70ddd5b42131b1355274e9de07bf89cae4` |
-| `make compat-validate --frozen` | `make compat-validate` + freeze-check | **PASS** |
-| `make compat FEATURE=all` | same | **PASS** — 137 executable evidence records + 47 static traces |
-| `make compat-bench FEATURE=full-surface --compare bun` | `make bench-check` | **PASS** — off/eager checksums + compile-tier telemetry |
-| `make docs-check` | same | **PASS** |
-| `make build` | same | **PASS** |
-| `make test` | `CLUN_SKIP_PERFORMANCE_TESTS=1 make test` (matches CI) | **PASS** — 19878 assertions, 0 fail |
-| `make conformance-exec` | same (prior exclusive host run) | **PASS** — 26018 pass-list hold, 0 crash |
-| `make test-crypto` | same (prior run) | **PASS** |
-| `make test-tls` | same (prior run) | **PASS** |
-| `make purity` | same | **PASS** — 865 sources, 0 violations |
+| Fact | Value |
+|------|--------|
+| Public matrix | 30 Yes / 0 Partial / 0 No |
+| Baselines | Bun 1.3.14 stable + engineering `c1076ce95e` |
+| test262 pass list | 26,018 frozen; rate 92.38% |
+| Platforms | linux/mac × x64/arm64 release assets |
+| Install | Pages `curl\|sh` → `~/.local/bin`; `clun --update` |
+| CLI | Human errors, progress spinner, chromed install (dev.11) |
+| TLS | Pure-CL stack; CI `make test-tls` / alerts / OpenSSL interop |
+| Freeze gate | `sh scripts/compat-freeze-check.sh --check` |
 
-### §1.5 Definition of Done
+### Open program after Phase 82
 
-1. **Feature-evidence:** 30/30 public matrix features `Yes`.
-2. **Primary owner + evidence:** every feature has roadmap `primary_phase`; 137 executable + 47 static evidence records green under `make compat FEATURE=all`.
-3. **Baselines not conflated:** Bun 1.3.14 stable `0d9b296af3…` + engineering pin `c1076ce95e` asserted by freeze-check (no baseline refresh).
-4. **Four-platform ship:** published `v0.2.0-dev.11` assets (linux/mac × x64/arm64) + checksums; CI Compatibility matrix on freeze PR.
-5. **Performance honesty:** `bench-check` only (same-host off/eager identity); no blanket faster-than-Bun claims.
-6. **Surfaces agree:** docs-check + public-claims-check; site redesign #287 preserved markers.
-7. **Unsupported claims:** zero Partial/No. Explicit notes: pure-CL TLS experimental; user-native FFI boundary allowlisted (`src/ffi/machine-boundary.lisp`, #265).
+- Only **#58** (this phase) open as program work.
+- No Partial/No matrix residuals.
 
-### Surface release tag disposition
+### Dispositioned residuals (explicit, not silent)
 
-`v0.2.0-dev.11` is the purity-compatible surface prerelease tag. Phase 82 audit confirms §1.5 against that published boundary. Freeze-check tooling lands as non-release-bearing script + STATE (Makefile alias deferred until a release-bearing slot because Makefile is version-gated under a published tag).
+| Item | Disposition |
+|------|-------------|
+| Local-time / TZif | Unassigned for this phase unless stress proves user-facing pain; keep UTC-correct core |
+| Third-party WebPKI audit | Not claimed; CI TLS gates remain the shipping bar |
+| HTTP/2 server | Out of matrix claim (honest “no HTTP/2 server” copy) |
+| Throughput flake under load | CI skips host perf (`CLUN_SKIP_PERFORMANCE_TESTS=1`); quiet-host re-measure optional |
+| Stable `0.2.0` | **Not** assumed — only after Phase 26 checklist green |
+
+### SemVer train (provisional)
+
+- **Impact class:** `minor` (hardening/docs/release; no intentional matrix expansion)
+- **Core:** keep `0.2.0` until completed work forces otherwise
+- **Slots:** continue prerelease `0.2.0-dev.N` for intermediate hardening releases
+- **Stable tag:** only if final checklist warrants promoting out of `-dev` — decide at checklist close, not at entry
+
+---
+
+## Finite Phase 26 checklist
+
+### A. Design & inventory
+
+- [x] Re-inventory shipped surface and open findings (this file + Issue #58)
+- [x] Finite checklist recorded (below)
+- [ ] Issue #58 body rewritten to match this rebaseline (live SoT)
+
+### B. Hardening
+
+- [ ] User-reachable errors: resource, rejected value, constraint, remedy; no bare Lisp backtrace without `--backtrace`
+- [ ] Resource-plateau stress (steady-state handles/RSS under repeated open/close)
+- [ ] Interruption / cancel paths (install, serve, spawn)
+- [ ] Partial-install recovery (failed mid-graph leaves tree consistent)
+- [ ] Largest-fixture / long-run server smoke (bounded duration, documented)
+- [ ] Platform matrix still green on four targets for any release-bearing unit
+
+### C. Docs & surfaces
+
+- [ ] README + site status track Phase 26 (#58); Phase 82 marked complete
+- [ ] Security posture page/section honest: TLS **tested** in CI; third-party audit not claimed
+- [ ] Release notes / CHANGELOG for final slot
+- [ ] `make public-claims-check` + `make docs-check` green
+
+### D. Release
+
+- [ ] Version + CHANGELOG + installer default for chosen slot
+- [ ] Tag immutable; four native assets + checksums
+- [ ] Installer + `clun --update` smoke
+- [ ] Evidence on Issue #58; close only when checklist complete
+
+### Gates (every unit + final)
+
+`make build` · `make test` · `make purity` · `make docs-check` · `make public-claims-check` ·  
+`sh scripts/compat-freeze-check.sh --check` · `make compat FEATURE=all` (release-bearing) ·  
+`make test-tls` · `make test-crypto` · four-platform Compatibility CI
+
+---
+
+## Phase 82 archive (§1.5)
+
+See closed Issue #56 and prior STATE section retained in git history / Issue comments. Summary: exclusive gates green 2026-07-20; freeze-check restored; surface tag `v0.2.0-dev.11`.
 
 ## Next
 
-- Merge freeze-check PR (#288) when CI green.
-- Close #56 with evidence comment.
-- Unblock Phase 26 (#58): re-inventory system, rewrite finite design/checklist/SemVer, then implement hardening (not start coding until design rebaseline is recorded on the Issue).
+1. Sync Issue #58 body + README status to Phase 26 active.
+2. Execute checklist B–D on `feat/issue-58-…` trains (prefer error-path + stress first).
+3. Publish only with evidence on #58.

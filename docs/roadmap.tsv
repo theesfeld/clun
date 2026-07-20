@@ -1,4 +1,5 @@
 phase	slug	title	track
+26	final-hardening-docs-release	Final hardening, docs, and release	release
 27	compatibility-evidence-ledger-release-doc-automation	Compatibility evidence ledger and release-doc automation	governance
 28	tls-dns-streaming-transport-public-npm	TLS, DNS, streaming transport, and public npm	foundation
 29	public-semver-api	Public semver API	utilities
