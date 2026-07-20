@@ -168,15 +168,22 @@ jobs:
               cd "$home/.local/share/clun"
               find . -printf '%P\t%y\t%s\t%T@\t%l\n' | LC_ALL=C sort
             )
-            check_output=$(HOME="$home" PATH="$bin:$PATH" clun --check-update)
-            test "$check_output" = "clun $version is up to date (latest v$version)"
-            update_output=$(HOME="$home" PATH="$bin:$PATH" clun --update)
-            test "$update_output" = "clun $version needs no update (published latest v$version)"
+            # Published CLI (v0.2.0-dev.11+) uses chromed emit-ok lines:
+            #   ● clun is up to date (vX.Y.Z)
+            #   ● clun needs no update (latest vX.Y.Z)
+            # Strip ANSI + optional leading glyph for exact compare.
+            strip_cli() {
+              sed -E 's/\x1b\[[0-9;]*m//g; s/^[^[:alnum:]]+[[:space:]]*//'
+            }
+            check_output=$(HOME="$home" PATH="$bin:$PATH" clun --check-update | strip_cli)
+            test "$check_output" = "clun is up to date (v$version)"
+            update_output=$(HOME="$home" PATH="$bin:$PATH" clun --update | strip_cli)
+            test "$update_output" = "clun needs no update (latest v$version)"
             test "$(readlink "$bin/clun")" = "$launcher_before"
             install_after=$(
               cd "$home/.local/share/clun"
               find . -printf '%P\t%y\t%s\t%T@\t%l\n' | LC_ALL=C sort
             )
             test "$install_after" = "$install_before"
-            test "$(PATH="$bin:$PATH" clun --version)" = "clun $version"
+            test "$(PATH="$bin:$PATH" clun --version | strip_cli)" = "clun $version"
           fi
