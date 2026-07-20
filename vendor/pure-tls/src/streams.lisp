@@ -723,14 +723,21 @@ cause and RECORD-LAYER-WRITE-ALERT refuses all responses once it is observed."
         (call-with-client-local-alerts
          record-layer
          (lambda ()
-           ;; clun security patch (Phase 20): +verify-required+ with NO recorded peer certificate
-           ;; MUST fail closed. Upstream only verifies inside the (when … peer-certificate) below,
-           ;; so a handshake that completes without the client recording a server certificate
-           ;; (a self-interop race, an abbreviated/PSK handshake, a malicious peer) would SKIP
-           ;; verification and silently accept — a certificate-authentication bypass. "Required"
-           ;; means required. (See DECISIONS 2026-07-13.)
+           ;; clun security patch (Phase 20 / Issue #272): +verify-required+ with NO
+           ;; recorded peer certificate MUST fail closed — except legitimate TLS 1.3
+           ;; PSK resumption (RFC 8446 §2.2 / §4.2.11), where the server omits
+           ;; Certificate and authentication is inherited from the minting handshake.
+           ;; The handshake layer already enforces that path only when the ticket
+           ;; carries a verified-hostname matching this connection's host; mirror
+           ;; that here so multi-request HTTPS (e.g. clun --update checksums+asset)
+           ;; does not die on the second warm connection.
            (when (and (= verify +verify-required+)
-                      (null (client-handshake-peer-certificate hs)))
+                      (null (client-handshake-peer-certificate hs))
+                      (not (and (client-handshake-psk-accepted hs)
+                                (client-handshake-verified-hostname hs)
+                                (or (null hostname)
+                                    (string= (client-handshake-verified-hostname hs)
+                                             hostname)))))
              (error 'tls-decode-error
                     :message ":DECODE_ERROR: required server Certificate was missing"))
            ;; Verify certificate chain and hostname if verification enabled

@@ -3643,3 +3643,18 @@ without network. Hermetic fixture accepts authenticated PUT. Install path alread
 publish closes the remaining Partial gap for the ledger row.
 
 Refs: #262
+
+## 2026-07-20 — TLS 1.3 PSK resumption vs +verify-required+ (#272)
+
+Phase 20 streams.lisp rejected any +verify-required+ handshake with a null peer
+certificate. That is correct for full handshakes, but TLS 1.3 PSK resumption
+omits Certificate when the ticket was minted after a verified full handshake
+(RFC 8446 §2.2 / §4.2.11). The handshake Finished path already enforced ticket
+verified-hostname; the post-handshake check did not, so the second pure-CL HTTPS
+request in one process (checksums then release asset for `clun --update`) failed
+with "required server Certificate was missing".
+
+Fix: allow null peer certificate only when psk-accepted and verified-hostname
+matches the connection host.
+
+Refs: #272

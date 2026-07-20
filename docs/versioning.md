@@ -402,3 +402,5 @@ builds but exposed an asynchronous parent/child package-materialization race on 
 publish job was skipped, so the immutable tag has no GitHub Release or assets. Issue #241 fixes the
 race and advances recovery exactly once to `0.2.0-dev.2` / `v0.2.0-dev.2` without moving or reusing
 dev.1. The verified installer stays on dev.21 until dev.2 assets and hosted installation are proven.
+
+Issue #272 (`clun --update` TLS PSK resume) stages free `0.2.0-dev.9` / `v0.2.0-dev.9` after published `v0.2.0-dev.8`. SemVer impact is `patch`.
