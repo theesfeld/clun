@@ -164,6 +164,10 @@ else
   chmod 755 "$package_dir/bin/clun"
 fi
 
+[[ -x "$package_dir/bin/clun" ]] || {
+  echo "package: package tree is missing executable bin/clun before archive" >&2
+  exit 1
+}
 "$package_dir/bin/clun" --version
 # Archive must contain bin/clun for the pure-CL updater. On Darwin, force ustar and
 # disable AppleDouble xattrs so extractors see ordinary file typeflags. On Linux,
@@ -176,9 +180,14 @@ if [[ "$platform" == darwin ]] && tar --help 2>&1 | grep -q -- '--format'; then
 else
   tar -C "$work_dir" -czf "$archive_path" "clun-$target"
 fi
-if ! tar -tzf "$archive_path" | grep -Eq "^(./)?clun-$target/bin/clun\$"; then
+# List to a file before grepping. Under `set -o pipefail`, `tar | grep` false-fails when
+# grep exits early after a match (tar gets SIGPIPE → "stdout: write error") even though
+# bin/clun is present. That blocked linux-x64/arm64 on Release runs for v0.2.0-dev.4.
+listing_file="$work_dir/archive-listing.txt"
+tar -tzf "$archive_path" >"$listing_file"
+if ! grep -Eq "^(./)?clun-$target/bin/clun\$" "$listing_file"; then
   echo "package: archive is missing clun-$target/bin/clun" >&2
-  tar -tzf "$archive_path" 2>&1 | head -40 >&2 || true
+  head -40 "$listing_file" >&2 || true
   ls -la "$archive_path" >&2 || true
   exit 1
 fi

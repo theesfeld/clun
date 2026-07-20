@@ -8,10 +8,24 @@ Clun is pre-1.0; minor versions may include breaking changes.
 
 The immutable tags `v0.1.0-dev.2`, `v0.1.0-dev.11`, `v0.1.0-dev.12`,
 `v0.1.0-dev.15`, `v0.1.0-dev.68`, `v0.1.0-dev.69`, `v0.1.0-dev.70`, and
-`v0.2.0-dev.1` did not produce GitHub Releases or assets and are not
+`v0.2.0-dev.1`–`v0.2.0-dev.4` did not produce GitHub Releases or assets and are not
 installable release checkpoints.
 
 ## [Unreleased]
+
+## [0.2.0-dev.5] - 2026-07-20
+
+### Fixed
+
+- Stop release packaging validation from false-failing under `set -o pipefail` when
+  `tar -tzf` receives SIGPIPE after an early `grep` match for `bin/clun` (Linux x64/arm64
+  Release archives contained the entry but still failed closed).
+
+### Changed
+
+- Advance the recovery candidate past immutable tag-only `v0.2.0-dev.4` (Linux packaging
+  validation false-failed; Darwin assets built but publish was skipped); verified installer
+  remains `v0.1.0-dev.21` until publication of `v0.2.0-dev.5` assets succeeds.
 
 ## [0.2.0-dev.4] - 2026-07-20
 
@@ -298,7 +312,9 @@ installable release checkpoints.
 
 - Publish the initial Clun development release.
 
-[Unreleased]: https://github.com/theesfeld/clun/compare/v0.2.0-dev.2...HEAD
+[Unreleased]: https://github.com/theesfeld/clun/compare/v0.2.0-dev.5...HEAD
+[0.2.0-dev.5]: https://github.com/theesfeld/clun/compare/v0.2.0-dev.4...v0.2.0-dev.5
+[0.2.0-dev.4]: https://github.com/theesfeld/clun/compare/v0.2.0-dev.2...v0.2.0-dev.4
 [0.2.0-dev.2]: https://github.com/theesfeld/clun/compare/v0.2.0-dev.1...v0.2.0-dev.2
 [0.2.0-dev.1]: https://github.com/theesfeld/clun/compare/v0.1.0-dev.21...v0.2.0-dev.1
 [0.1.0-dev.70]: https://github.com/theesfeld/clun/compare/v0.1.0-dev.21...v0.1.0-dev.70
