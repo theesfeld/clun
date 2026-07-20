@@ -645,10 +645,10 @@ promote_feature_to_yes "$case_root/compat/features.tsv" runtime.native-addons
 expect_failure_matching native-addons-qualified-yes "$case_root" validate \
   'audited incomplete capability cannot be Yes before its full gate passes: runtime.native-addons'
 
-fresh_case encrypted-secrets-qualified-yes
-promote_feature_to_yes "$case_root/compat/features.tsv" security.encrypted-secrets
-expect_failure_matching encrypted-secrets-qualified-yes "$case_root" validate \
-  'audited incomplete capability cannot be Yes before its full gate passes: security.encrypted-secrets'
+fresh_case encrypted-secrets-yes-allowed
+# Issue #261: pure-CL secrets storage is a full-port Yes (not held at Partial
+# for OS keychain FFI). Pristine ledger already carries Yes after promotion.
+expect_pass encrypted-secrets-yes-allowed "$case_root" validate
 
 fresh_case qualified-yes-synonyms
 mutate_feature_detail "$case_root/compat/features.tsv" runtime.loader-plugins \

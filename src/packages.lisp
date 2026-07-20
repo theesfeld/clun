@@ -552,11 +552,15 @@ no machine-code loading. Purity is language, not exclusion (epic #177).")
 (defpackage :clun.cli
   (:use :cl)
   (:local-nicknames (:eng :clun.engine) (:sys :clun.sys) (:net :clun.net))
-  (:documentation "Per-command argument parsing, help/version, .env loader, self-update.")
+  (:documentation "Per-command argument parsing, help/version, .env loader, self-update, style.")
   (:export #:parse-cli-args #:cli-action #:cli-get #:load-dotenv
            #:parse-build-args
            #:check-update #:perform-update
-           #:resolve-latest-release-tag))
+           #:resolve-latest-release-tag
+           #:cli-color-enabled-p #:style #:style-ok #:style-warn #:style-err
+           #:style-info #:style-dim #:style-brand
+           #:make-spinner #:spinner-tick #:spinner-stop #:with-spinner
+           #:*cli-force-color* #:*cli-no-color*))
 
 (defpackage :clun.runtime
   (:use :cl)

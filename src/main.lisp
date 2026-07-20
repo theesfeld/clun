@@ -6,28 +6,32 @@
 (in-package :clun)
 
 (defun print-version (&optional (stream *standard-output*))
-  (format stream "clun ~a~%" *clun-version*))
+  (format stream "~a ~a~%"
+          (cli:style-brand "clun" stream)
+          (cli:style-ok *clun-version* stream)))
 
 (defun print-help (&optional (stream *standard-output*))
-  (format stream "clun ~a — Bun, rewritten in pure Common Lisp~%~
+  (format stream "~a ~a — ~a~%~
                   ~%~
-                  Usage: clun <file>              run a .js/.mjs/.cjs/.json file~%~
-                  ~8@Tclun run <file>          run a file (package scripts: Phase 24)~%~
-                  ~8@Tclun -e '<code>'         evaluate code~%~
-                  ~8@Tclun -p '<code>'         evaluate and print the (awaited) result~%~
-                  ~8@Tclun exec '<script>'      execute a Clun shell script~%~
-                  ~8@Tclun install [pkg…]     install package.json deps, or add package(s) + install~%~
-                  ~8@Tclun add <pkg…>         add package(s) (-d dev, -E exact) + install~%~
-                  ~8@Tclun remove <pkg>       remove a dependency + reinstall~%~
-                  ~8@Tclun build <entry…>     production bundle (Clun.build / Bun.build)~%~
-                  ~8@Tclun fmt [paths…]       format JS/TS/JSON/YAML/CSS (check/write/stdin)~%~
-                  ~8@Tclun lint [paths…]      lint JS/TS with recommended ruleset~%~
-                  ~8@Tclun build --compile <entry> --outfile <bin>   single-file executable~%~
-                  ~8@Tclun compile <entry> …  alias of build --compile~%~
-                  ~8@Tclun tsc <file…>        structural TypeScript typecheck (exceeds Bun strip)~%~
-                  ~8@Tclun run [--filter <p>] <script>  run package.json scripts (filtered monorepo)~%~
+                  ~a~%~
+                  ~8@T~a <file>              run a .js/.mjs/.cjs/.json file~%~
+                  ~8@T~a run <file>          run a file (package scripts: Phase 24)~%~
+                  ~8@T~a -e '<code>'         evaluate code~%~
+                  ~8@T~a -p '<code>'         evaluate and print the (awaited) result~%~
+                  ~8@T~a exec '<script>'      execute a Clun shell script~%~
+                  ~8@T~a install [pkg…]     install package.json deps, or add package(s) + install~%~
+                  ~8@T~a add <pkg…>         add package(s) (-d dev, -E exact) + install~%~
+                  ~8@T~a remove <pkg>       remove a dependency + reinstall~%~
+                  ~8@T~a build <entry…>     production bundle (Clun.build / Bun.build)~%~
+                  ~8@T~a fmt [paths…]       format JS/TS/JSON/YAML/CSS (check/write/stdin)~%~
+                  ~8@T~a lint [paths…]      lint JS/TS with recommended ruleset~%~
+                  ~8@T~a build --compile <entry> --outfile <bin>   single-file executable~%~
+                  ~8@T~a compile <entry> …  alias of build --compile~%~
+                  ~8@T~a tsc <file…>        structural TypeScript typecheck (exceeds Bun strip)~%~
+                  ~8@T~a run [--filter <p>] <script>  run package.json scripts (filtered monorepo)~%~
                   ~%~
-                  Flags: --cwd <dir>   set the working directory~%~
+                  ~a~%~
+                  ~8@T--cwd <dir>   set the working directory~%~
                   ~8@T--hot            soft-reload modules; preserve server connections~%~
                   ~8@T--watch          hard-restart on change (stops retained servers)~%~
                   ~8@T--no-clear-screen  keep terminal output across watch reloads~%~
@@ -44,7 +48,26 @@
                   ~8@T--check-update    report whether a newer Release is available (no mutation)~%~
                   ~8@Tclun update / check-update  same as --update / --check-update~%~
                   ~8@T-h, --help        print this help~%"
-          *clun-version*))
+          (cli:style-brand "clun" stream)
+          (cli:style-ok *clun-version* stream)
+          (cli:style-info "Bun, rewritten in pure Common Lisp" stream)
+          (cli:style-dim "Usage:" stream)
+          (cli:style-brand "clun" stream)
+          (cli:style-brand "clun" stream)
+          (cli:style-brand "clun" stream)
+          (cli:style-brand "clun" stream)
+          (cli:style-brand "clun" stream)
+          (cli:style-brand "clun" stream)
+          (cli:style-brand "clun" stream)
+          (cli:style-brand "clun" stream)
+          (cli:style-brand "clun" stream)
+          (cli:style-brand "clun" stream)
+          (cli:style-brand "clun" stream)
+          (cli:style-brand "clun" stream)
+          (cli:style-brand "clun" stream)
+          (cli:style-brand "clun" stream)
+          (cli:style-brand "clun" stream)
+          (cli:style-dim "Flags:" stream)))
 
 ;;; --- uncaught-error rendering ----------------------------------------------
 
