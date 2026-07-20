@@ -10,10 +10,10 @@ Ship path: topic branch → PR → squash-merge into `master` (not direct push).
 
 **Canonical issue:** https://github.com/theesfeld/clun/issues/56
 **Release issue:** https://github.com/theesfeld/clun/issues/262
-**Published release:** `0.2.0-dev.8` / `v0.2.0-dev.8`
+**Published release:** `0.2.0-dev.10` / `v0.2.0-dev.10`
 **Tag peel:** `4f51a06aa67dfcbfc78128942b0cf471f7715e6c`
 **Release run:** https://github.com/theesfeld/clun/actions/runs/29754171650
-**Installer default:** `verified_installer_tag=v0.2.0-dev.8`
+**Installer default:** `verified_installer_tag=v0.2.0-dev.10`
 
 ## Next
 
