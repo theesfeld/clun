@@ -6,7 +6,12 @@
 (in-package :clun)
 
 (defun print-version (&optional (stream *standard-output*))
-  (cli:emit-version *clun-version* :stream stream))
+  "Machine-stable text: exactly `clun <version>` (CI and scripts pin this).
+Color only — no extra glyphs — so `test out = clun $expected` still holds on non-TTY."
+  (format stream "~a ~a~%"
+          (cli:style-brand "clun" stream)
+          (cli:style-ok *clun-version* stream))
+  (force-output stream))
 
 (defun print-help (&optional (stream *standard-output*))
   (format stream "~a ~a ~a  ~a~%~%"
