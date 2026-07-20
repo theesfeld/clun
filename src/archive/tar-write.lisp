@@ -220,7 +220,9 @@
               (when (and rel (%glob-match (tb:te-name e) glob))
                 (let ((target (%safe-join staging rel)))
                   (case (tb:te-typeflag e)
-                    ((#\0 #\Nul #\7)
+                    ;; Regular files: POSIX '0'/NUL, contiguous '7', and historical
+                    ;; space typeflag used by some BSD tar producers.
+                    ((#\0 #\Nul #\7 #\Space)
                      (sys:make-directory (sys:path-dirname target) :recursive t :mode #o755)
                      (sys:write-file-octets
                       target
@@ -230,6 +232,9 @@
                     (#\5
                      (sys:make-directory target :recursive t :mode #o755)
                      (incf count))
+                    ;; Ignore AppleDouble / extended metadata entries rather than
+                    ;; failing closed on a full release bundle extract.
+                    ((#\1 #\2 #\3 #\4 #\6 #\L #\K #\x #\g #\X #\I) nil)
                     (t nil))))))
           (when (sys:path-exists-p dest) (sys:remove-recursive dest))
           (sys:rename-path staging dest)
