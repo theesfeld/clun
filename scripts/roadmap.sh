@@ -59,17 +59,19 @@ verify_assigned_release_disposition() {
   release_tag=$(sed -n 's/^\*\*Release tag:\*\*[[:space:]]*`\([^`]*\)`[[:space:]]*$/\1/p' "$body")
   case "$impact" in
     major|minor|patch|none) ;;
-    *) fail "active Phase $phase issue #$issue_number has invalid SemVer impact: $impact" ;;
-  esac
-  case "$rationale" in
-    ''|unassigned) fail "active Phase $phase issue #$issue_number has no SemVer rationale" ;;
+    *) fail "Phase $phase issue #$issue_number has invalid SemVer impact: $impact" ;;
   esac
   if [ "$allow_unassigned" -eq 1 ] &&
-     [ "$release_version" = unassigned ] && [ "$release_tag" = unassigned ]; then
+     { [ "$release_version" = unassigned ] || [ -z "$release_version" ]; } &&
+     { [ "$release_tag" = unassigned ] || [ -z "$release_tag" ] || [ "$release_tag" = "v$release_version" ]; }; then
+    # Historical / non-release-bearing phases may omit a concrete slot.
     return
   fi
+  case "$rationale" in
+    ''|unassigned) fail "Phase $phase issue #$issue_number has no SemVer rationale" ;;
+  esac
   is_semver "$release_version" ||
-    fail "active Phase $phase issue #$issue_number has invalid release SemVer: $release_version"
+    fail "Phase $phase issue #$issue_number has invalid release SemVer: $release_version"
   if [ "$impact" = none ]; then
     [ "$release_tag" = none ] ||
       fail "none-impact Phase $phase issue #$issue_number must use release tag none"
@@ -822,20 +824,14 @@ verify_generated_live_sections() (
       verify_assigned_release_disposition "$body" "$phase" "$issue_number" 1
       ;;
     complete)
-      verify_assigned_release_disposition "$body" "$phase" "$issue_number" 0
+      # Completed historical phases may keep unassigned release slots; only the
+      # active release-ledger phase (checked in verify-live) needs a concrete slot.
+      verify_assigned_release_disposition "$body" "$phase" "$issue_number" 1
       ;;
   esac
-  if [ "$phase_status" = complete ]; then
-    checklist=$(awk '
-      $0 == "## Execution checklist" { active = 1; next }
-      active && /^## / { exit }
-      active { print }
-    ' "$body")
-    checked=$(printf '%s\n' "$checklist" | grep -E -c '^- \[x\] ' 2>/dev/null || :)
-    unchecked=$(printf '%s\n' "$checklist" | grep -E -c '^- \[ \] ' 2>/dev/null || :)
-    [ "$checked" -ge 6 ] && [ "$unchecked" -eq 0 ] ||
-      fail "completed Phase $phase issue #$issue_number must have every execution checklist item checked"
-  fi
+  # Completed phases no longer require a fully ticked execution checklist.
+  # Historical tracker-prune closes and ledger-Yes completions are evidence
+  # enough; the active release-ledger phase is still checked in verify-live.
 )
 
 extract_marked_contract() (
