@@ -279,4 +279,46 @@
     .catch(() => {
       /* keep zeros / dashes */
     });
+
+  let progress = document.querySelector(".scroll-progress");
+  if (!progress) {
+    progress = document.createElement("div");
+    progress.className = "scroll-progress";
+    progress.setAttribute("aria-hidden", "true");
+    document.body.prepend(progress);
+  }
+  const updateProgress = () => {
+    const doc = document.documentElement;
+    const max = doc.scrollHeight - doc.clientHeight;
+    const pct = max > 0 ? (doc.scrollTop / max) * 100 : 0;
+    progress.style.width = `${pct}%`;
+  };
+  updateProgress();
+  window.addEventListener("scroll", updateProgress, { passive: true });
+  window.addEventListener("resize", updateProgress, { passive: true });
+
+  const magnetic = document.querySelectorAll(".btn-primary, .star-btn, .copy-button");
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (!reduceMotion) {
+    magnetic.forEach((el) => {
+      el.addEventListener("pointermove", (e) => {
+        const r = el.getBoundingClientRect();
+        const x = ((e.clientX - r.left) / r.width - 0.5) * 6;
+        const y = ((e.clientY - r.top) / r.height - 0.5) * 6;
+        el.style.transform = `translate(${x}px, ${y}px)`;
+      });
+      el.addEventListener("pointerleave", () => {
+        el.style.transform = "";
+      });
+    });
+  }
+
+  const glow = document.querySelector(".hero-glow");
+  if (glow && !reduceMotion) {
+    window.addEventListener("pointermove", (e) => {
+      const x = (e.clientX / window.innerWidth - 0.5) * 24;
+      const y = (e.clientY / window.innerHeight - 0.5) * 16;
+      glow.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+    }, { passive: true });
+  }
 })();
