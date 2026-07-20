@@ -18,10 +18,18 @@
     <link rel="stylesheet" href="styles.css">
     <script src="app.js" defer></script>
   </head>
-  <body>
+  <body data-scroll-root>
     <a class="skip-link" href="#main">Skip to content</a>
     <div class="mesh" aria-hidden="true"></div>
     <div class="noise" aria-hidden="true"></div>
+    <div class="scroll-progress" aria-hidden="true"></div>
+    <nav class="section-rail" aria-label="On this page">
+      <a href="#top" data-rail-link="top" title="Top"><span>Top</span></a>
+      <a href="#why" data-rail-link="why" title="Why"><span>Why</span></a>
+      <a href="#toolkit" data-rail-link="toolkit" title="Toolkit"><span>Toolkit</span></a>
+      <a href="#compatibility" data-rail-link="compatibility" title="Compare"><span>Compare</span></a>
+      <a href="#github" data-rail-link="github" title="GitHub"><span>GitHub</span></a>
+    </nav>
 
     <div class="announcement">
 <!-- clun-generated:release:begin -->
@@ -58,10 +66,10 @@
     </header>
 
     <main id="main">
-      <section id="top" class="hero">
-        <div class="hero-orb hero-orb-a" aria-hidden="true"></div>
-        <div class="hero-orb hero-orb-b" aria-hidden="true"></div>
-        <div class="shell hero-inner reveal">
+      <section id="top" class="hero" data-section="top">
+        <div class="hero-orb hero-orb-a" data-parallax="0.35" aria-hidden="true"></div>
+        <div class="hero-orb hero-orb-b" data-parallax="-0.25" aria-hidden="true"></div>
+        <div class="shell hero-inner reveal" data-hero-content>
           <div class="hero-badge-row">
             <div class="hero-mark-wrap">
               <img class="hero-mark" src="assets/clun.jpg" alt="Clun mascot" width="120" height="120">
@@ -156,30 +164,30 @@ Release tracking: <a href="https://github.com/theesfeld/clun/issues/58">issue #5
         </div>
       </section>
 
-      <section id="why" class="why-section">
+      <section id="why" class="why-section" data-section="why">
         <div class="shell">
-          <div class="section-intro reveal">
+          <div class="section-intro reveal" data-scroll-fade>
             <p class="eyebrow">Why Clun</p>
             <h2>A different substrate for familiar tools.</h2>
             <p>Keep the JS/TS ergonomics you already know. Swap the implementation for a purity-checked Common Lisp stack you can audit end-to-end.</p>
           </div>
           <div class="bento">
-            <article class="bento-card bento-wide reveal">
+            <article class="bento-card bento-wide reveal" data-tilt>
               <span class="bento-icon" aria-hidden="true">◆</span>
               <h3>Pure Common Lisp</h3>
               <p>Engine, package manager, TLS, and servers — no CFFI shortcuts for Clun itself. <code>make purity</code> fails closed.</p>
             </article>
-            <article class="bento-card reveal">
+            <article class="bento-card reveal" data-tilt>
               <span class="bento-icon" aria-hidden="true">›</span>
               <h3>Bun-shaped CLI</h3>
               <p><code>install</code>, <code>test</code>, <code>serve</code>, <code>build</code> — commands you already reach for.</p>
             </article>
-            <article class="bento-card reveal">
+            <article class="bento-card reveal" data-tilt>
               <span class="bento-icon" aria-hidden="true">●</span>
               <h3>Evidence, not vibes</h3>
               <p>Capability matrix is Yes / Partial / No with receipts — not a marketing checklist.</p>
             </article>
-            <article class="bento-card reveal">
+            <article class="bento-card reveal" data-tilt>
               <span class="bento-icon" aria-hidden="true">↑</span>
               <h3>Self-updating</h3>
               <p>Checksum-verified <code>clun --update</code> from GitHub Releases. Same assets as the installer.</p>
@@ -188,72 +196,80 @@ Release tracking: <a href="https://github.com/theesfeld/clun/issues/58">issue #5
         </div>
       </section>
 
-      <section id="toolkit" class="toolkit-section">
-        <div class="shell">
-          <div class="section-intro reveal">
-            <p class="eyebrow">Toolkit</p>
-            <h2>What you actually use.</h2>
-          </div>
-          <div class="tool-grid">
-            <article class="tool-card tool-install tool-critical reveal">
-              <div class="tool-icon" aria-hidden="true">📦</div>
-              <h3>npm package management</h3>
-              <ul>
-                <li><code>clun install</code> / <code>add</code> / <code>remove</code></li>
-                <li>registry.npmjs.org + SRI tarballs</li>
-                <li>Human errors · progress spinner</li>
-                <li>Hosted <code>v0.2.0-dev.11</code> ships this path — try <code>clun add picocolors</code></li>
-              </ul>
-              <div class="tool-status"><span>Shipped</span> Public add/install on <code>v0.2.0-dev.11</code></div>
-            </article>
-            <article class="tool-card tool-secrets tool-critical reveal">
-              <div class="tool-icon" aria-hidden="true">🔐</div>
-              <h3>Encrypted secrets storage</h3>
-              <ul>
-                <li>Bun-shaped secrets API</li>
-                <li>Pure-CL AES-256-GCM vault</li>
-                <li>No OS keychain dependency for Clun itself</li>
-              </ul>
-              <div class="tool-status"><span>Shipped</span> Matrix Yes</div>
-            </article>
-            <article class="tool-card reveal">
-              <div class="tool-icon" aria-hidden="true">🧪</div>
-              <h3>Tests</h3>
-              <ul>
-                <li><code>clun test</code> runner</li>
-                <li>Matchers, async, concurrent files</li>
-                <li>Snapshots &amp; filtering</li>
-              </ul>
-              <div class="tool-status"><span>Shipped</span> Built-in runner</div>
-            </article>
-            <article class="tool-card reveal">
-              <div class="tool-icon" aria-hidden="true">⚡</div>
-              <h3>Runtime</h3>
-              <ul>
-                <li>TypeScript strip + structural check</li>
-                <li>JSX / TSX</li>
-                <li>Node compatibility surface</li>
-              </ul>
-              <div class="tool-status"><span>Shipped</span> Matrix Yes</div>
-            </article>
-            <article class="tool-card reveal">
-              <div class="tool-icon" aria-hidden="true">🌐</div>
-              <h3>HTTP &amp; streams</h3>
-              <ul>
-                <li>HTTP/1.1 serve + router helpers</li>
-                <li>Request / Response / Headers / AbortController</li>
-                <li>Streaming request and response bodies; WebSocket + Pub/Sub; no HTTP/2 server</li>
-                <li><code>CompressionStream</code> / <code>DecompressionStream</code> (gzip/deflate)</li>
-              </ul>
-              <div class="tool-status"><span>TLS</span> Pure-CL HTTPS · CI-gated (<code>make test-tls</code>)</div>
-            </article>
+      <!-- Pinned stage: vertical scroll scrubs through toolkit panels (full page, no nested list box) -->
+      <section id="toolkit" class="toolkit-stage" data-section="toolkit" data-stage>
+        <div class="stage-track" data-stage-track>
+          <div class="stage-sticky" data-stage-sticky>
+            <div class="shell stage-shell">
+              <div class="stage-intro">
+                <p class="eyebrow">Toolkit</p>
+                <h2>What you actually use.</h2>
+                <p class="stage-hint">Scroll to flip through the stack — page scroll, not a boxed list.</p>
+                <div class="stage-dots" data-stage-dots aria-hidden="true"></div>
+              </div>
+              <div class="stage-panels" data-stage-panels>
+                <article class="stage-panel tool-card tool-install tool-critical is-active" data-stage-panel>
+                  <div class="tool-icon" aria-hidden="true">📦</div>
+                  <h3>npm package management</h3>
+                  <ul>
+                    <li><code>clun install</code> / <code>add</code> / <code>remove</code></li>
+                    <li>registry.npmjs.org + SRI tarballs</li>
+                    <li>Human errors · progress spinner</li>
+                    <li>Hosted <code>v0.2.0-dev.11</code> ships this path — try <code>clun add picocolors</code></li>
+                  </ul>
+                  <div class="tool-status"><span>Shipped</span> Public add/install on <code>v0.2.0-dev.11</code></div>
+                </article>
+                <article class="stage-panel tool-card tool-secrets tool-critical" data-stage-panel>
+                  <div class="tool-icon" aria-hidden="true">🔐</div>
+                  <h3>Encrypted secrets storage</h3>
+                  <ul>
+                    <li>Bun-shaped secrets API</li>
+                    <li>Pure-CL AES-256-GCM vault</li>
+                    <li>No OS keychain dependency for Clun itself</li>
+                  </ul>
+                  <div class="tool-status"><span>Shipped</span> Matrix Yes</div>
+                </article>
+                <article class="stage-panel tool-card" data-stage-panel>
+                  <div class="tool-icon" aria-hidden="true">🧪</div>
+                  <h3>Tests</h3>
+                  <ul>
+                    <li><code>clun test</code> runner</li>
+                    <li>Matchers, async, concurrent files</li>
+                    <li>Snapshots &amp; filtering</li>
+                  </ul>
+                  <div class="tool-status"><span>Shipped</span> Built-in runner</div>
+                </article>
+                <article class="stage-panel tool-card" data-stage-panel>
+                  <div class="tool-icon" aria-hidden="true">⚡</div>
+                  <h3>Runtime</h3>
+                  <ul>
+                    <li>TypeScript strip + structural check</li>
+                    <li>JSX / TSX</li>
+                    <li>Node compatibility surface</li>
+                  </ul>
+                  <div class="tool-status"><span>Shipped</span> Matrix Yes</div>
+                </article>
+                <article class="stage-panel tool-card" data-stage-panel>
+                  <div class="tool-icon" aria-hidden="true">🌐</div>
+                  <h3>HTTP &amp; streams</h3>
+                  <ul>
+                    <li>HTTP/1.1 serve + router helpers</li>
+                    <li>Request / Response / Headers / AbortController</li>
+                    <li>Streaming request and response bodies; WebSocket + Pub/Sub; no HTTP/2 server</li>
+                    <li><code>CompressionStream</code> / <code>DecompressionStream</code> (gzip/deflate)</li>
+                  </ul>
+                  <div class="tool-status"><span>TLS</span> Pure-CL HTTPS · CI-gated (<code>make test-tls</code>)</div>
+                </article>
+              </div>
+            </div>
+            <div class="stage-fill" data-stage-fill aria-hidden="true"></div>
           </div>
         </div>
       </section>
 
-      <section class="code-section" aria-labelledby="code-title">
+      <section class="code-section" aria-labelledby="code-title" data-section="code">
         <div class="shell code-layout">
-          <div class="code-copy reveal">
+          <div class="code-copy reveal" data-scroll-fade>
             <p class="eyebrow">Familiar APIs</p>
             <h2 id="code-title">Write JavaScript you already know.</h2>
             <p>Handlers look like Bun or the web platform. The process underneath is Common Lisp.</p>
@@ -264,7 +280,7 @@ Release tracking: <a href="https://github.com/theesfeld/clun/issues/58">issue #5
               <button type="button" role="tab" aria-selected="false" aria-controls="code-file" id="tab-file" data-code-tab="file" tabindex="-1">Write a file</button>
             </div>
           </div>
-          <div class="code-window reveal">
+          <div class="code-window reveal" data-tilt>
             <div class="code-window-bar">
               <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
               <span data-code-filename>hello.ts</span>
@@ -294,9 +310,9 @@ Clun.write(file, <span class="tok-str">"hello from Clun\n"</span>)
         </div>
       </section>
 
-      <section id="compatibility" class="compat-section">
+      <section id="compatibility" class="compat-section" data-section="compatibility">
         <div class="shell">
-          <div class="section-heading reveal">
+          <div class="section-heading reveal" data-scroll-fade>
             <div>
               <p class="eyebrow">Capability matrix</p>
               <h2>Bun · Node · Deno · Clun</h2>
@@ -310,6 +326,7 @@ Only Clun’s column calls out where it <em>exceeds</em> the others.
 <!-- clun-generated:compatibility-intro:end -->
             </p>
           </div>
+          <p class="matrix-scroll-cue reveal" aria-hidden="true">Scroll the page — rows float in as you go</p>
           <ul class="matrix-legend reveal" aria-label="Legend">
             <li><span class="mark mark-yes"><span class="mark-glyph" aria-hidden="true">✓</span></span> full</li>
             <li><span class="mark mark-partial"><span class="mark-glyph" aria-hidden="true">∼</span></span> partial</li>
@@ -577,7 +594,7 @@ Only Clun’s column calls out where it <em>exceeds</em> the others.
         </div>
       </section>
 
-      <section id="github" class="github-section">
+      <section id="github" class="github-section" data-section="github">
         <div class="shell github-layout">
           <div class="github-copy reveal">
             <p class="eyebrow">Open source</p>
@@ -621,9 +638,9 @@ Only Clun’s column calls out where it <em>exceeds</em> the others.
         </div>
       </section>
 
-      <section id="internals" class="internals-section">
+      <section id="internals" class="internals-section" data-section="internals">
         <div class="shell internals-layout">
-          <div class="section-intro reveal">
+          <div class="section-intro reveal" data-scroll-fade>
             <p class="eyebrow">Implementation</p>
             <h2>Common Lisp all the way down.</h2>
             <p>
@@ -632,10 +649,10 @@ Only Clun’s column calls out where it <em>exceeds</em> the others.
             </p>
           </div>
           <ol class="contract-list">
-            <li class="reveal"><span>01</span><div><strong>From-scratch engine</strong><p>Lexer, parser, object model, modules, async, and runtime APIs live in this repository.</p></div></li>
-            <li class="reveal"><span>02</span><div><strong>Vendored and pinned</strong><p>A fresh source build pulls no Quicklisp packages and no runtime npm for Clun itself.</p></div></li>
-            <li class="reveal"><span>03</span><div><strong>Purity is checked</strong><p>CI runs <code>make purity</code> so foreign-library slips cannot land quietly.</p></div></li>
-            <li class="reveal"><span>04</span><div><strong>TLS is pure Lisp too</strong><p>HTTPS for installs and clients uses Clun’s own TLS 1.2/1.3 stack (ironclad + pure-tls). CI runs protocol, alert, and OpenSSL interop suites via <code>make test-tls</code> — not an untested path. Full third-party WebPKI audit is still a separate bar (detail on GitHub).</p></div></li>
+            <li class="reveal" data-tilt><span>01</span><div><strong>From-scratch engine</strong><p>Lexer, parser, object model, modules, async, and runtime APIs live in this repository.</p></div></li>
+            <li class="reveal" data-tilt><span>02</span><div><strong>Vendored and pinned</strong><p>A fresh source build pulls no Quicklisp packages and no runtime npm for Clun itself.</p></div></li>
+            <li class="reveal" data-tilt><span>03</span><div><strong>Purity is checked</strong><p>CI runs <code>make purity</code> so foreign-library slips cannot land quietly.</p></div></li>
+            <li class="reveal" data-tilt><span>04</span><div><strong>TLS is pure Lisp too</strong><p>HTTPS for installs and clients uses Clun’s own TLS 1.2/1.3 stack (ironclad + pure-tls). CI runs protocol, alert, and OpenSSL interop suites via <code>make test-tls</code> — not an untested path. Full third-party WebPKI audit is still a separate bar (detail on GitHub).</p></div></li>
           </ol>
         </div>
       </section>

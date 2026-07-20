@@ -92,11 +92,10 @@ button, a { -webkit-tap-highlight-color: transparent; }
     radial-gradient(ellipse 50% 35% at 90% 10%, rgba(245, 197, 66, 0.12), transparent 50%),
     radial-gradient(ellipse 45% 40% at 50% 100%, rgba(93, 222, 160, 0.08), transparent 55%),
     var(--bg);
-  animation: mesh-shift 18s ease-in-out infinite alternate;
-}
-@keyframes mesh-shift {
-  from { filter: hue-rotate(0deg); transform: scale(1); }
-  to { filter: hue-rotate(12deg); transform: scale(1.03); }
+  filter: hue-rotate(calc(var(--scroll) * 28deg));
+  transform: translate3d(0, calc(var(--scroll-px) * -0.08), 0) scale(calc(1 + var(--scroll) * 0.04));
+  will-change: transform, filter;
+  transition: filter 60ms linear;
 }
 
 .noise {
@@ -112,11 +111,80 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .scroll-progress {
   position: fixed;
   top: 0; left: 0;
-  height: 2px;
+  height: 3px;
   width: 0;
   z-index: 200;
   background: linear-gradient(90deg, var(--coral), var(--amber), var(--mint));
   pointer-events: none;
+  box-shadow: 0 0 12px rgba(245, 197, 66, 0.45);
+  transform-origin: left center;
+  will-change: width;
+}
+
+/* fixed side section rail — tracks active page section */
+.section-rail {
+  position: fixed;
+  right: 18px;
+  top: 50%;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+.section-rail a {
+  pointer-events: auto;
+  position: relative;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.06);
+  text-decoration: none;
+  transition: transform 220ms var(--ease), background 220ms ease, border-color 220ms ease, box-shadow 220ms ease;
+}
+.section-rail a span {
+  position: absolute;
+  right: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%) translateX(6px);
+  opacity: 0;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  transition: opacity 180ms ease, transform 180ms var(--ease);
+  pointer-events: none;
+}
+.section-rail a:hover span,
+.section-rail a:focus-visible span,
+.section-rail a.is-active span {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
+  color: var(--ink);
+}
+.section-rail a.is-active {
+  background: var(--mint);
+  border-color: var(--mint);
+  box-shadow: 0 0 0 4px rgba(93, 222, 160, 0.18);
+  transform: scale(1.25);
+}
+.section-rail a:hover {
+  border-color: var(--amber);
+  background: var(--amber-soft);
+}
+@media (max-width: 960px) {
+  .section-rail { display: none; }
+}
+
+/* body scroll progress CSS vars for ambient layers */
+body {
+  --scroll: 0;
+  --scroll-px: 0px;
+  --stage-p: 0;
 }
 
 /* announcement */
@@ -199,7 +267,12 @@ button, a { -webkit-tap-highlight-color: transparent; }
   font-weight: 600;
   text-decoration: none;
   color: var(--muted);
-  transition: color 160ms ease, background 160ms ease;
+  transition: background 160ms ease, color 160ms ease, box-shadow 160ms ease;
+}
+.site-nav a.is-active {
+  background: rgba(93, 222, 160, 0.12);
+  color: var(--mint);
+  box-shadow: inset 0 0 0 1px rgba(93, 222, 160, 0.28);
 }
 .site-nav a:hover { color: var(--ink); background: rgba(255,255,255,0.05); }
 .star-link {
@@ -642,18 +715,118 @@ code {
 }
 .bento-card p { font-size: 14px; }
 
-/* toolkit */
-.tool-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+/* toolkit — pinned scroll stage (page scroll scrubs panels) */
+.toolkit-stage {
+  position: relative;
+  border-block: 1px solid var(--line);
+  background:
+    radial-gradient(ellipse 50% 40% at 80% 20%, rgba(255, 107, 90, 0.08), transparent 60%),
+    radial-gradient(ellipse 40% 50% at 10% 80%, rgba(93, 222, 160, 0.06), transparent 55%),
+    var(--bg);
 }
+.stage-track {
+  /* height = panel count * viewport; sticky pins the stage while scrolling through */
+  height: 420vh;
+  position: relative;
+}
+.stage-sticky {
+  position: sticky;
+  top: 72px;
+  height: calc(100vh - 72px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+}
+.stage-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  gap: 36px;
+  align-items: center;
+  width: min(100% - 40px, var(--shell));
+  margin-inline: auto;
+}
+.stage-intro h2 { color: var(--ink); }
+.stage-hint {
+  margin-top: 10px;
+  font-size: 14px;
+  color: var(--muted);
+  max-width: 32ch;
+}
+.stage-dots {
+  display: flex;
+  gap: 8px;
+  margin-top: 22px;
+  flex-wrap: wrap;
+}
+.stage-dots button {
+  width: 10px;
+  height: 10px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  cursor: pointer;
+  transition: width 240ms var(--ease), background 200ms ease, box-shadow 200ms ease;
+}
+.stage-dots button.is-active {
+  width: 28px;
+  background: linear-gradient(90deg, var(--coral), var(--amber));
+  box-shadow: 0 0 16px rgba(255, 107, 90, 0.35);
+}
+.stage-panels {
+  position: relative;
+  min-height: 320px;
+}
+.stage-panel {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(36px) scale(0.96);
+  filter: blur(6px);
+  transition:
+    opacity 420ms var(--ease),
+    transform 520ms var(--ease),
+    filter 420ms ease;
+}
+.stage-panel.is-active {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+  filter: blur(0);
+  position: relative;
+}
+.stage-panel.is-exit {
+  opacity: 0;
+  transform: translateY(-28px) scale(0.98);
+  filter: blur(4px);
+}
+.stage-fill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.06);
+}
+.stage-fill::after {
+  content: "";
+  display: block;
+  height: 100%;
+  width: calc(var(--stage-p, 0) * 100%);
+  background: linear-gradient(90deg, var(--coral), var(--amber), var(--mint));
+  transition: width 50ms linear;
+}
+
 .tool-card {
-  padding: 22px;
+  padding: 28px;
   border-radius: var(--radius);
   border: 1px solid var(--line);
   background: var(--bg-card);
-  transition: transform 260ms var(--ease), border-color 200ms ease;
+  backdrop-filter: blur(12px);
+  box-shadow: var(--shadow);
+  transition: transform 260ms var(--ease), border-color 200ms ease, box-shadow 260ms ease;
 }
 .tool-card:hover {
   transform: translateY(-4px);
@@ -662,20 +835,21 @@ code {
 .tool-critical {
   border-color: rgba(255, 107, 90, 0.28);
   background:
-    linear-gradient(145deg, rgba(255, 107, 90, 0.08), transparent 55%),
-    var(--bg-card);
+    linear-gradient(145deg, rgba(255, 107, 90, 0.1), transparent 55%),
+    rgba(14, 16, 20, 0.85);
 }
 .tool-critical:hover {
   border-color: rgba(255, 107, 90, 0.5);
 }
-.tool-icon { font-size: 22px; margin-bottom: 10px; }
+.tool-icon { font-size: 28px; margin-bottom: 12px; }
+.tool-card h3 { font-size: 1.35rem; }
 .tool-card ul {
-  margin: 0 0 14px;
+  margin: 0 0 16px;
   padding-left: 18px;
   color: var(--muted);
-  font-size: 14px;
+  font-size: 15px;
 }
-.tool-card li { margin: 4px 0; }
+.tool-card li { margin: 6px 0; }
 .tool-status {
   display: inline-flex;
   align-items: center;
@@ -699,6 +873,32 @@ code {
 .tool-status.warning {
   background: var(--amber-soft);
   color: var(--amber);
+}
+@media (max-width: 900px) {
+  .stage-shell { grid-template-columns: 1fr; gap: 18px; }
+  .stage-track { height: auto; }
+  .stage-sticky {
+    position: relative;
+    top: 0;
+    height: auto;
+    padding: 56px 0;
+    overflow: visible;
+  }
+  .stage-panels {
+    display: grid;
+    gap: 14px;
+    min-height: 0;
+  }
+  .stage-panel {
+    position: relative;
+    inset: auto;
+    opacity: 1;
+    pointer-events: auto;
+    transform: none;
+    filter: none;
+  }
+  .stage-panel.is-exit { opacity: 1; transform: none; filter: none; }
+  .stage-hint, .stage-dots, .stage-fill { display: none; }
 }
 
 /* code */
@@ -876,17 +1076,29 @@ code {
 /* Fluid row enter as you scroll the page */
 .compat-table tbody tr.matrix-row {
   opacity: 0;
-  transform: translateY(22px);
+  transform: translateY(28px) scale(0.992);
   transition:
-    opacity 560ms var(--ease),
-    transform 560ms var(--ease),
+    opacity 640ms var(--ease),
+    transform 640ms var(--ease),
     background 180ms ease,
     box-shadow 180ms ease;
   transition-delay: var(--row-delay, 0ms);
 }
 .compat-table tbody tr.matrix-row.is-in {
   opacity: 1;
-  transform: translateY(0);
+  transform: translateY(0) scale(1);
+}
+.compat-table tbody tr.matrix-row.is-focus {
+  background: rgba(93, 222, 160, 0.1);
+  box-shadow: inset 3px 0 0 var(--mint);
+}
+.matrix-scroll-cue {
+  margin: 0 0 14px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 .compat-table tbody tr:not(.compare-group) {
   transition: background 160ms ease, box-shadow 200ms ease, opacity 560ms var(--ease), transform 560ms var(--ease);
@@ -1147,16 +1359,30 @@ code {
   font-family: var(--mono);
 }
 
-/* reveals */
+/* reveals + scroll-fade */
 .reveal {
   opacity: 0;
-  transform: translateY(24px);
-  transition: opacity 700ms var(--ease), transform 700ms var(--ease);
+  transform: translateY(28px);
+  transition: opacity 780ms var(--ease), transform 780ms var(--ease);
   transition-delay: var(--reveal-delay, 0ms);
+  will-change: opacity, transform;
 }
 .reveal.is-visible {
   opacity: 1;
   transform: translateY(0);
+}
+[data-scroll-fade] {
+  --fade: 1;
+  opacity: var(--fade);
+  transform: translate3d(0, calc((1 - var(--fade)) * 18px), 0);
+  will-change: opacity, transform;
+}
+[data-tilt] {
+  transform-style: preserve-3d;
+  transition: transform 180ms ease, border-color 200ms ease, background 200ms ease, box-shadow 200ms ease;
+}
+[data-tilt].is-tilting {
+  transition: transform 60ms linear;
 }
 
 /* responsive */
@@ -1198,14 +1424,46 @@ code {
   .command-row::after, .hero-mark-wrap::before, .hero-mark-wrap::after {
     animation: none !important;
   }
+  .mesh {
+    filter: none !important;
+    transform: none !important;
+  }
   .reveal {
     opacity: 1 !important;
     transform: none !important;
     transition: none !important;
   }
+  [data-scroll-fade] {
+    opacity: 1 !important;
+    transform: none !important;
+  }
   .btn:hover, .installer:hover, .bento-card:hover, .tool-card:hover,
   .stat-card:hover, .contract-list li:hover {
     transform: none;
   }
-  .scroll-progress { display: none; }
+  .scroll-progress, .section-rail { display: none; }
+  .stage-track { height: auto !important; }
+  .stage-sticky {
+    position: relative !important;
+    height: auto !important;
+    top: 0 !important;
+  }
+  .stage-panels {
+    display: grid !important;
+    gap: 14px;
+  }
+  .stage-panel {
+    position: relative !important;
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
+    pointer-events: auto !important;
+  }
+  .stage-hint, .stage-dots, .stage-fill { display: none !important; }
+  .compat-table tbody tr.matrix-row {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+  .matrix-rail i { transition: none !important; }
 }
