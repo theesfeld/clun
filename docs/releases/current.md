@@ -1,5 +1,5 @@
 <!-- clun-generated:release-notes:begin -->
-# Clun 0.2.0-dev.11
+# Clun 0.2.0-beta.1
 
 Phase 26: Final hardening, docs, and release.
 

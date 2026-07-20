@@ -8,10 +8,27 @@ Clun is pre-1.0; minor versions may include breaking changes.
 
 The immutable tags `v0.1.0-dev.2`, `v0.1.0-dev.11`, `v0.1.0-dev.12`,
 `v0.1.0-dev.15`, `v0.1.0-dev.68`, `v0.1.0-dev.69`, `v0.1.0-dev.70`,
-`v0.2.0-dev.1`–`v0.2.0-dev.4`, and `v0.2.0-dev.9` did not produce GitHub Releases
+`v0.2.0-dev.1–v0.2.0-dev.4`, and `v0.2.0-dev.9` did not produce GitHub Releases
 or assets and are not installable release checkpoints.
 
 ## [Unreleased]
+
+## [0.2.0-beta.1] - 2026-07-20
+
+### Added
+
+- Phase 26 final hardening gate: `make phase-26-gate` and `scripts/phase-26-hardening-smokes.sh` (backtrace discipline, resource plateau, SIGINT interruption, partial-install recovery, bounded long-run server).
+- Version-transition maturity ladder: same-core prerelease may advance `dev` → `alpha` → `beta` → `rc` starting at `.1` (enables this beta.1 ship after published `0.2.0-dev.11`).
+
+### Fixed
+
+- SIGINT / `SB-SYS:INTERACTIVE-INTERRUPT` now exits with a human `interrupted` message and code 130 instead of dumping an unhandled Lisp backtrace without `--backtrace` (Phase 26 hardening).
+
+### Changed
+
+- First **beta** prerelease of the `0.2.0` core after the purity-compatible surface train (`0.2.0-dev.*`) and Phase 82 audit.
+- Design notebook `docs/design/phase-26.md` and Issue #58 rebaseline for beta.1 (stable `0.2.0` is a later unit).
+
 
 ## [0.2.0-dev.11] - 2026-07-20
 
@@ -44,7 +61,7 @@ or assets and are not installable release checkpoints.
 
 ### Added
 
-- `clun publish` — pure-CL pack + authenticated npm registry publish (`NPM_TOKEN` /
+- `clun publish` â pure-CL pack + authenticated npm registry publish (`NPM_TOKEN` /
   `.npmrc` `_authToken`), with `--dry-run` packing a `package/`-prefixed tarball and SRI
   (Issue #262).
 
@@ -175,7 +192,7 @@ or assets and are not installable release checkpoints.
   frozen proof makes the registry unreachable and supplies an explicit empty TLS
   trust source so public tarballs cannot be downloaded as a fallback; the
   bounded WebPKI hardening recorded below now protects the authenticated path.
-- Make `clun install <pkg…>` a Bun-compatible alias for adding the named
+- Make `clun install <pkgâ¦>` a Bun-compatible alias for adding the named
   dependencies and installing them; retain no-argument `clun install` for the
   existing manifest.
 
@@ -186,7 +203,7 @@ or assets and are not installable release checkpoints.
 - Require the archive `VERSION` and staged executable version to match the
   requested immutable tag exactly before activation.
 - Harden HTTPS identity and path validation with SAN-only DNS/IP matching,
-  2048–8192-bit RSA server keys, and an eight-certificate ordered-path bound.
+  2048â8192-bit RSA server keys, and an eight-certificate ordered-path bound.
 - Enforce non-anchor CA EKU constraints and reject malformed/empty KU/EKU,
   unsupported critical policy semantics, and every path containing
   `nameConstraints` until cumulative subtree processing is implemented.

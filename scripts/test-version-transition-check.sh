@@ -518,6 +518,14 @@ run_case major 1.2.3 2.0.0 src/version.lisp pass '(major;' major
 run_case pre1-breaking-minor-core 0.1.0-dev.70 0.2.0-dev.1 src/version.lisp pass \
   '(minor; major;' major
 run_case prerelease 1.3.0-dev.1 1.3.0-dev.2 src/runtime.lisp pass '(prerelease;' minor
+run_case maturity-dev-to-beta 0.2.0-dev.11 0.2.0-beta.1 src/version.lisp pass \
+  '(prerelease;' minor
+run_case maturity-beta-to-rc 0.2.0-beta.1 0.2.0-rc.1 src/version.lisp pass \
+  '(prerelease;' minor
+run_case maturity-demote 0.2.0-beta.1 0.2.0-dev.12 src/version.lisp fail \
+  'same-core prerelease maturity must increase' minor
+run_case maturity-skip-start 0.2.0-dev.11 0.2.0-beta.2 src/version.lisp fail \
+  'new prerelease maturity train must start at .1' minor
 run_case stable-promotion 1.3.0-dev.2 1.3.0 src/version.lisp pass '(stable;' minor
 
 run_case correction-unpublished 1.3.0-dev.2 1.3.0-dev.2 src/runtime.lisp pass \
