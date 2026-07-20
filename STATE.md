@@ -14,7 +14,7 @@ Update when work completes; keep consistent with the Issue, README, and site.
 **Release issue:** https://github.com/theesfeld/clun/issues/216
 **Current implementation unit:** Issue #239 reconcile public surfaces to published `v0.2.0-dev.5`.
 **SemVer impact:** `none` for this publication-reconciliation unit (source version unchanged).
-**Candidate release:** n/a (published)
+**Candidate release:** `0.2.0-dev.6` / `v0.2.0-dev.6`
 **Published release:** `0.2.0-dev.5` / `v0.2.0-dev.5`
 **Tag peel:** `8d29ba9ce7033b41514d541c533b8e0eabe40235`
 **Release run:** https://github.com/theesfeld/clun/actions/runs/29717556484
