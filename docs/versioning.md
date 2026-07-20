@@ -171,11 +171,10 @@ honest Partial (no IPC, ReadableStream stdout, #61 loop ownership). Master tip w
 after path.win32 #114; this unit takes free `0.1.0-dev.31` under the unpublished-intermediate gap policy.
 
 
-Phase 82 recovery after immutable tag-only `v0.2.0-dev.2` (Release failed the darwin-x64
-packaged-updater extract before assets published) advances the candidate to
-`0.2.0-dev.4` / `v0.2.0-dev.4` under Issue #216. SemVer impact remains `major` for the
+Phase 82 recovery after immutable tag-only `v0.2.0-dev.1`–`v0.2.0-dev.4` (Release packaging or platform gates failed before assets published) advances the candidate to
+`0.2.0-dev.5` / `v0.2.0-dev.5` under Issues #216 and #252. SemVer impact remains `major` for the
 0.2.0 train (install path + safe updater). Installer boundary stays `v0.1.0-dev.21` until
-dev.3 assets pass the release gates.
+dev.5 assets pass the release gates.
 
 ## Canonical record
 

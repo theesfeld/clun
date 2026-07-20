@@ -12,12 +12,12 @@ Update when work completes; keep consistent with the Issue, README, and site.
 **Canonical issue:** https://github.com/theesfeld/clun/issues/56
 **Parent:** https://github.com/theesfeld/clun/issues/177
 **Release issue:** https://github.com/theesfeld/clun/issues/216
-**Current implementation unit:** Issue #216 publish immutable `v0.2.0-dev.2` (blocked on
+**Current implementation unit:** Issue #216 publish immutable `v0.2.0-dev.5` (blocked on
 exact-SHA four-workflow green + strict assets). Surface truth for the landed recovery tree is
 Issue #243.
 **SemVer impact:** `patch` recovery unit inside Phase 82's `major`-intent pre-1.0 minor-core
 transition to `0.2.0` already staged in source; publication is still open.
-**Candidate release:** `0.2.0-dev.2` / `v0.2.0-dev.2`
+**Candidate release:** `0.2.0-dev.5` / `v0.2.0-dev.5`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
 **Tagged without a GitHub Release:** `v0.1.0-dev.68`, `v0.1.0-dev.69`,
 `v0.1.0-dev.70`, and `v0.2.0-dev.1`. The latter has tag object
