@@ -67,19 +67,17 @@ Color only — no extra glyphs — so `test out = clun $expected` still holds on
   (and (eng:js-object-p v) (eq (eng:js-object-class v) :error)))
 
 (defun render-uncaught (value)
-  "Print an uncaught JS VALUE to stderr with CLI chrome around the stack."
-  (let ((err *error-output*))
-    (if (error-object-p value)
-        (let ((stack (eng:js-get value "stack"))
-              (name (eng:to-string (eng:js-get value "name")))
-              (msg (eng:to-string (eng:js-get value "message"))))
-          (cli:emit-err (format nil "Uncaught ~a: ~a" name msg) :stream err)
-          (when (and (stringp stack) (plusp (length stack)))
-            (dolist (line (uiop:split-string stack :separator '(#\Newline)))
-              (when (plusp (length line))
-                (format err "  ~a~%" (cli:style-dim line err))))
-            (force-output err)))
-        (cli:emit-err (format nil "Uncaught ~a" (eng:inspect-value value)) :stream err))))
+  "Print an uncaught JS VALUE to stderr, Bun/Node style (raw stack).
+CLI chrome is reserved for clun command failures — not for program throws,
+which tests and users expect as a plain stack on stderr."
+  (if (error-object-p value)
+      (let ((stack (eng:js-get value "stack")))
+        (if (stringp stack)
+            (format *error-output* "~a~%" stack)
+            (format *error-output* "Uncaught ~a: ~a~%"
+                    (eng:to-string (eng:js-get value "name"))
+                    (eng:to-string (eng:js-get value "message")))))
+      (format *error-output* "Uncaught ~a~%" (eng:inspect-value value))))
 
 ;;; --- run helpers ------------------------------------------------------------
 
