@@ -1,2 +1,2 @@
 release_id	version	asdf_core	installer_default	tag	publication_state	license	active_phase	issue	semver_impact	previous_version	version_source	asdf_source	installer_source	release_commit
-clun-0.2.0-dev.5	0.2.0-dev.5	0.2.0	v0.1.0-dev.21	v0.2.0-dev.5	candidate	GPL-3.0-or-later	82	56	major	0.1.0-dev.21	src/version.lisp	clun.asd	site/install	pending
+clun-0.2.0-dev.5	0.2.0-dev.5	0.2.0	v0.2.0-dev.5	v0.2.0-dev.5	published	GPL-3.0-or-later	82	56	major	0.1.0-dev.21	src/version.lisp	clun.asd	site/install	8d29ba9ce7033b41514d541c533b8e0eabe40235
