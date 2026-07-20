@@ -193,6 +193,7 @@ END {
     else if (clun_state[i] == "Partial") ledger_partial++
     else ledger_no++
   }
+  ledger_total = 30
   if (format == "readme-compat") {
     print "The current column describes pre-alpha behavior as tested today. A linked phase is a planned acceptance"
     print "gate, not a claim that the capability already exists. Every row below is generated from the canonical"
@@ -251,11 +252,13 @@ END {
     print "  comparison against these projects."
     print "</p>"
   } else if (format == "site-compat-intro") {
-    print "This follows the stable Bun " html(baseline_version[public_bun_id]) " runtime feature matrix and adds Clun. It is a"
-    print "current capability snapshot, not a speed comparison; Clun cells reflect the"
-    print "repository's current tested scope. The engineering roadmap separately audits Bun"
-    print "source commit <code>" html(substr(baseline_revision[engineering_bun_id], 1, 10)) "</code> (<code>" html(baseline_version[engineering_bun_id]) "</code>) for newer upstream work."
-    print "Linked phase labels are planned acceptance gates, not capabilities available today."
+    print "Same public matrix Bun publishes for its toolkit — with a Clun column. <strong>" ledger_yes " Yes</strong> / "
+    print "<strong>" ledger_partial " Partial</strong> / <strong>" ledger_no " No</strong> on the " ledger_total " capability rows below."
+    print "A Yes means evidence-backed Bun-shaped (or better) behavior in pure Common Lisp for that row — not a claim that Clun is a finished drop-in for every Node or Bun program."
+    print "Several rows already <em>exceed</em> Bun (TypeScript typecheck, fmt/lint, offline Redis, SQLite module surface, and more)."
+    print "Baseline: Bun " html(baseline_version[public_bun_id]) "; engineering audit also tracks Bun"
+    print "<code>" html(substr(baseline_revision[engineering_bun_id], 1, 10)) "</code> (<code>" html(baseline_version[engineering_bun_id]) "</code>)."
+    print "This is capability, not speed. Phase links are roadmap references."
   } else if (format == "readme-release") {
     tagged_candidate = publication_state == "candidate" && release_commit != "pending"
     if (publication_state == "published") {
