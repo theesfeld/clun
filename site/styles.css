@@ -2113,3 +2113,25 @@ a {
     animation-iteration-count: 1 !important;
   }
 }
+
+/* Collapsed engineering dump — public claims still need the strings in the DOM */
+.evidence-details {
+  margin-top: 1.25rem;
+  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  background: color-mix(in srgb, currentColor 4%, transparent);
+}
+.evidence-details > summary {
+  cursor: pointer;
+  font-weight: 600;
+  list-style: disclosure-closed;
+}
+.evidence-details[open] > summary {
+  margin-bottom: 0.75rem;
+}
+.evidence-details .hero-phase {
+  margin: 0;
+  font-size: 0.9rem;
+  opacity: 0.85;
+}

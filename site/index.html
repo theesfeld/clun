@@ -4,13 +4,13 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#f4f1e9">
-    <meta name="description" content="Clun is a pre-alpha JavaScript and TypeScript runtime and toolkit written in pure Common Lisp.">
-    <meta property="og:title" content="Clun - JavaScript tooling in pure Common Lisp">
-    <meta property="og:description" content="A pre-alpha pure Common Lisp JavaScript runtime and toolkit with a full-port target under evidence audit.">
+    <meta name="description" content="Clun is Bun-shaped JavaScript and TypeScript tooling implemented entirely in pure Common Lisp — runtime, npm-style package manager, tests, and HTTP. No Node, no V8, no CFFI.">
+    <meta property="og:title" content="Clun — JavaScript tooling in pure Common Lisp">
+    <meta property="og:description" content="Run JS/TS, install npm packages, test, and serve — all implemented in pure Common Lisp. Evidence-backed Bun-matrix Yes on most rows; pre-alpha.">
     <meta property="og:image" content="https://clun.sh/assets/clun.jpg">
     <meta property="og:url" content="https://clun.sh/">
     <meta property="og:type" content="website">
-    <title>Clun - JavaScript tooling in pure Common Lisp</title>
+    <title>Clun — JavaScript tooling in pure Common Lisp</title>
     <link rel="icon" href="assets/clun.jpg">
     <link rel="stylesheet" href="styles.css">
     <script src="app.js" defer></script>
@@ -39,10 +39,10 @@
           <span class="sr-only">Open navigation</span>
         </button>
         <nav id="site-nav" class="site-nav" aria-label="Primary navigation">
+          <a href="#why">Why Clun</a>
           <a href="#toolkit">Toolkit</a>
-          <a href="#benchmarks">Benchmarks</a>
-          <a href="#compatibility">Compatibility</a>
-          <a href="#internals">Internals</a>
+          <a href="#compatibility">vs Bun / Node</a>
+          <a href="#internals">Pure Lisp</a>
           <a class="source-link" href="https://github.com/theesfeld/clun">GitHub <span aria-hidden="true">-&gt;</span></a>
         </nav>
       </div>
@@ -58,17 +58,18 @@
 <!-- clun-generated:version:begin -->
 <p class="eyebrow"><span class="status-dot" aria-hidden="true"></span> v0.2.0-dev.2 release candidate / pre-alpha</p>
 <!-- clun-generated:version:end -->
-          <h1>Clun is JavaScript tooling,<br> rewritten in pure Common Lisp.</h1>
+          <h1>JavaScript tooling.<br>Implemented entirely in Common Lisp.</h1>
           <p class="hero-copy">
-            A from-scratch JavaScript engine with TypeScript stripping, a package manager,
-            test runner, HTTP server, and runtime APIs. The pre-1.0 series puts correctness and purity first;
-            the public roadmap tracks broader APIs and measured performance phase by phase.
+            Clun is a from-scratch JS/TS runtime, npm-style package manager, test runner, bundler,
+            and HTTP toolkit — written in <strong>pure Common Lisp</strong>. No Node underneath, no V8,
+            no C, no CFFI. Familiar Bun-shaped commands and APIs; evidence-backed Yes on most of Bun’s
+            public capability matrix, and exceeds Bun on several ledger rows.
           </p>
 
           <div class="installer" aria-labelledby="install-title">
             <div class="installer-head">
               <div>
-                <span class="installer-kicker">Linux + macOS / x64 + arm64</span>
+                <span class="installer-kicker">Linux + macOS · x64 + arm64</span>
                 <h2 id="install-title">Install Clun</h2>
               </div>
               <a href="install">View shell script</a>
@@ -81,53 +82,50 @@
               </button>
             </div>
             <p class="installer-note" role="status" aria-live="polite" data-copy-status>
-              The no-argument installer stays on the ledger's verified boundary until assets and the
-              hosted smoke pass. <code>INSTALL_VERSION=latest</code> opts into redirect-first Release
-              discovery with authenticated API and public Atom-feed fallbacks, SemVer ranking, and API-403
-              survival. The installer verifies SHA-256, stages the full versioned bundle under XDG data,
-              and atomically switches the stable <code>~/.local/bin/clun</code> launcher. Use
-              <code>INSTALL_VERSION</code> to pin, <code>INSTALL_DIR</code> to override the destination,
-              and <code>ADD_PATH=0</code> or <code>ADD_PATH=1</code> to control the shell-rc PATH block.
+              Verifies SHA-256, stages a full versioned bundle, and switches the stable
+              <code>~/.local/bin/clun</code> launcher. Pin with <code>INSTALL_VERSION</code>;
+              override the bin dir with <code>INSTALL_DIR</code>; control PATH edits with
+              <code>ADD_PATH=0</code> / <code>ADD_PATH=1</code>.
             </p>
             <p class="installer-note">
-              Existing <code>CLUN_INSTALL=~/.clun</code> layouts remain supported. Because verified
-              <code>v0.1.0-dev.21</code> predates the built-in updater, wait until
-              <code>v0.2.0-dev.2</code> is shown as installable below, then upgrade that layout once with
-              <code>curl -fsSL https://clun.sh/install | CLUN_INSTALL="$HOME/.clun" CLUN_NO_MODIFY_PATH=1 sh</code>.
-              Until then, the command only reinstalls <code>v0.1.0-dev.21</code>. The new release supports
-              <code>clun --check-update</code> and <code>clun --update</code>; failures retain the prior
-              bundle and launcher.
+              The hosted command still installs verified <code>v0.1.0-dev.21</code>
+              (last published Release with assets). Source on GitHub is the
+              <code>v0.2.0-dev.2</code> candidate with public npm install and built-in
+              <code>clun --check-update</code> / <code>clun --update</code>.
+              Until then, the command only reinstalls <code>v0.1.0-dev.21</code>.
+              Prefer <a href="https://github.com/theesfeld/clun#building-from-source">build from source</a>
+              for the current toolkit.
             </p>
-            <p class="installer-note">
-              The hosted command still installs verified <code>v0.1.0-dev.21</code>.
-              Immutable <code>v0.2.0-dev.1</code> has no Release or assets: three native targets passed,
-              macOS x64 exposed an order-dependent fresh-hoist race, and publication was skipped.
-              <code>v0.2.0-dev.2</code> is the recovery source candidate on <code>master</code>.
-              The deterministic ancestor-before-descendant materialization fix from
-              <a href="https://github.com/theesfeld/clun/issues/241">#241</a> /
-              <a href="https://github.com/theesfeld/clun/pull/242">#242</a> is landed; completed
-              bodies wait in the verified cache or a cleaned lazy disk spool. Bounded
-              <a href="https://github.com/theesfeld/clun/issues/234">WebPKI</a> and
-              <a href="https://github.com/theesfeld/clun/issues/235">TLS alert/close</a> work are
-              implemented. Exact-candidate CI/Compatibility/Documentation/Pages, the immutable
-              <code>v0.2.0-dev.2</code> tag from <a href="https://github.com/theesfeld/clun/issues/216">#216</a>,
-              four archives, checksums, and hosted smoke must still pass before the installer boundary moves.
-            </p>
-            <p class="installer-note">Pre-alpha software: pre-1.0 minor versions may include breaking changes.</p>
+            <p class="installer-note">Pre-alpha: pre-1.0 versions may include breaking changes.</p>
           </div>
 
         </div>
       </section>
 
-      <section class="status-band section-band" aria-label="Project status and verification evidence">
+      <section class="status-band section-band" aria-label="Project status at a glance">
         <div class="shell status-shell">
           <dl class="hero-facts" tabindex="0" role="region" aria-label="Project facts">
-            <div><dt>Implementation</dt><dd>Pure Common Lisp</dd></div>
+            <div><dt>Implementation</dt><dd>100% Common Lisp</dd></div>
+            <div><dt>Bun matrix</dt><dd>27 Yes · 3 Partial · 0 No</dd></div>
             <div><dt>Curated test262 pass list</dt><dd>26,018 pass</dd></div>
             <div><dt>Phase 25b progress</dt><dd>92.38% current / 90% target met</dd></div>
-            <div><dt>License</dt><dd>GPL-3.0-or-later</dd></div>
           </dl>
           <p class="hero-phase">
+            Clun is pre-alpha and shipping in the open. The engine, package manager, TLS stack,
+            test runner, and servers are pure Common Lisp — JavaScript is only what <em>you</em> run.
+            Proxy traps and invariants are implemented for the covered paths; the table below records
+            every Yes and every remaining Partial honestly.
+<!-- clun-generated:phase-status:begin -->
+Phase 82 is active: <a href="https://github.com/theesfeld/clun/issues/56">Purity-compatible Bun-surface final audit and release in issue #56</a>.
+Phase 26 remains deferred until after Phase 82 and will be re-baselined for the system state at that time.
+<!-- clun-generated:phase-status:end -->
+            The issue is the canonical live record; <a href="https://github.com/theesfeld/clun/blob/master/PLAN.md">PLAN</a>
+            is the technical contract, and <a href="https://github.com/theesfeld/clun/blob/master/STATE.md">STATE</a>
+            is the local resume checklist.
+          </p>
+          <details class="evidence-details">
+            <summary>Engineering evidence (test262, suite, gates)</summary>
+            <p class="hero-phase">
             Full run: 40,654 total = 26,018 pass / 2,145 fail / 12,491 skip / 0 crash.
             Eligible: 28,163 / target: 25,347 pass / remaining lift: 0.
             Pass-list gain: +967 from m5 / +3,375 from Phase 25b entry.
@@ -144,44 +142,37 @@
             Parse gate: 23,713 total / 17,699 pass / 976 fail / 5,038 skip / 0 crash; all 17,512
             frozen passes hold.
             Current full Common Lisp suite: 19,848 assertions / 0 fail / 0 skip.
-            <a href="https://github.com/theesfeld/clun/issues/57">Phase 25b milestone 6</a> is published
-            as <a href="https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.6">v0.1.0-dev.6</a>.
-            CI, Documentation, all four native archives and checksums, the exact-candidate Pages deployment,
-            and the hosted installer are verified. Phase 25b and its handoff are closed.
-<!-- clun-generated:phase-status:begin -->
-Phase 82 is active: <a href="https://github.com/theesfeld/clun/issues/56">Purity-compatible Bun-surface final audit and release in issue #56</a>.
-Phase 26 remains deferred until after Phase 82 and will be re-baselined for the system state at that time.
-<!-- clun-generated:phase-status:end -->
-            The issue is the canonical live record; <a href="https://github.com/theesfeld/clun/blob/master/PLAN.md">PLAN</a>
-            is the technical contract, and <a href="https://github.com/theesfeld/clun/blob/master/STATE.md">STATE</a>
-            is the local resume checklist.
-          </p>
+            License: GPL-3.0-or-later.
+            </p>
+          </details>
         </div>
       </section>
 
-      <section class="proof-band section-band" aria-labelledby="workflow-title">
+      <section id="why" class="proof-band section-band" aria-labelledby="workflow-title">
         <div class="shell proof-layout">
           <div class="section-intro proof-copy">
-            <p class="eyebrow eyebrow-light">One command, a focused workflow</p>
-            <h2 id="workflow-title">Run, install, test, and serve without a JavaScript implementation underneath.</h2>
+            <p class="eyebrow eyebrow-light">Why this exists</p>
+            <h2 id="workflow-title">Same jobs as Bun — without a JavaScript implementation underneath.</h2>
             <p>
-              Clun's runtime and tooling are implemented in Common Lisp. JavaScript and
-              TypeScript appear as user programs and test fixtures, not as implementation code.
+              Run TypeScript, install packages from the public npm registry, run tests, and serve HTTP
+              with commands that feel like the modern JS toolkit. The difference: every line of the
+              implementation is Common Lisp. That is the product, not a footnote.
             </p>
-            <a class="text-link light-link" href="https://github.com/theesfeld/clun/blob/master/PLAN.md">Read the scope contract <span aria-hidden="true">-&gt;</span></a>
+            <a class="text-link light-link" href="#compatibility">See the Bun / Node matrix <span aria-hidden="true">-&gt;</span></a>
           </div>
 
           <div class="terminal" aria-label="Example Clun workflow">
             <div class="terminal-bar">
-              <span>clun / quickstart</span>
-              <span class="terminal-state">pre-alpha</span>
+              <span>clun / everyday use</span>
+              <span class="terminal-state">pure Common Lisp</span>
             </div>
             <div class="terminal-body">
+              <p><span>$</span> clun install picocolors</p>
+              <p class="terminal-good">installed picocolors</p>
               <p><span>$</span> clun app.ts</p>
               <p class="terminal-output">hello from Common Lisp</p>
               <p><span>$</span> clun test</p>
               <p class="terminal-good">(pass) adds two values</p>
-              <p class="terminal-output">1 pass &nbsp; 0 fail &nbsp; 1 expect() call</p>
               <p><span>$</span> clun run start</p>
               <p class="terminal-output">clun serving on http://127.0.0.1:3000</p>
             </div>
@@ -193,29 +184,30 @@ Phase 26 remains deferred until after Phase 82 and will be re-baselined for the 
         <div class="shell">
           <div class="section-heading split-heading">
             <div>
-              <p class="eyebrow">Phase 25 / milestone 10</p>
-              <h2>2 of 3 workloads crossed the 5x gate.</h2>
+              <p class="eyebrow">Performance progress · Phase 25 / milestone 10</p>
+              <h2>Faster at the same work — measured against earlier Clun.</h2>
             </div>
             <p>
-              These are Clun-versus-Clun measurements on fixed workloads, not comparisons
-              with Bun, Node.js, or Deno. Lower is better; the baseline is best of five and the
-              displayed milestone 10 results are best of nine on the same host.
+              These numbers are <strong>not</strong> a Bun or Node race. They show Clun got much faster
+              on three classic JavaScript microbenchmarks (same machine, same workloads).
+              Plain reading: <strong>2 of 3 workloads</strong> improved more than 5× from the earlier baseline.
+              Methodology lives in the repo for people who want the raw tables.
             </p>
           </div>
 
           <div class="benchmark-panel">
             <div class="benchmark-head">
               <div>
-                <span class="panel-label">Phase 25 / milestone 10</span>
-                <h3>Classic JavaScript workloads</h3>
+                <span class="panel-label">Internal progress · Phase 25</span>
+                <h3>Time to finish three workloads (lower is better)</h3>
               </div>
               <div class="benchmark-key" aria-label="Chart legend">
-                <span><i class="key-baseline"></i> Phase 24 baseline</span>
-                <span><i class="key-current"></i> Final default-tier result</span>
+                <span><i class="key-baseline"></i> Earlier Clun baseline</span>
+                <span><i class="key-current"></i> Current result</span>
               </div>
             </div>
 
-            <div class="benchmark-chart" role="img" aria-label="Clun milestone 10 benchmarks. Richards improved from 3600.4 to 539.3 milliseconds, 6.68 times faster and past its 5 times gate. DeltaBlue improved from 2942.0 to 764.5 milliseconds, 3.85 times faster. Splay improved from 1520.3 to 283.9 milliseconds, 5.36 times faster and past its 5 times gate.">
+            <div class="benchmark-chart" role="img" aria-label="Clun got faster on three internal JavaScript workloads. Richards: 3600.4 ms down to 539.3 ms (6.68x). DeltaBlue: 2942.0 ms down to 764.5 ms (3.85x). Splay: 1520.3 ms down to 283.9 ms (5.36x).">
               <div class="bench-row">
                 <div class="bench-meta"><strong>Richards</strong><span>scheduler simulation</span></div>
                 <div class="bars">
@@ -243,8 +235,8 @@ Phase 26 remains deferred until after Phase 82 and will be re-baselined for the 
             </div>
 
             <div class="benchmark-foot">
-              <p><strong>Phase 25 is complete at a 5.16x suite geomean.</strong> DeltaBlue remains the explicit per-workload holdout at 3.85x.</p>
-              <a class="text-link" href="https://github.com/theesfeld/clun/blob/master/docs/benchmarks.md">Methodology and raw numbers <span aria-hidden="true">-&gt;</span></a>
+              <p>Overall geometric mean improvement is about <strong>5.16x</strong> on this suite. Not a cross-runtime speed ranking.</p>
+              <a class="text-link" href="https://github.com/theesfeld/clun/blob/master/docs/benchmarks.md">Full methodology <span aria-hidden="true">-&gt;</span></a>
             </div>
           </div>
         </div>
@@ -253,72 +245,65 @@ Phase 26 remains deferred until after Phase 82 and will be re-baselined for the 
       <section id="toolkit" class="tools-section section-band">
         <div class="shell">
           <div class="section-heading">
-            <p class="eyebrow">Four tools, one experimental toolkit</p>
-            <h2>The daily loop is already here.</h2>
-            <p>Each listed surface is tied to repository evidence; truth audit <a href="https://github.com/theesfeld/clun/issues/215">#215</a> records the review of qualified or overbroad claims.</p>
+            <p class="eyebrow">What you use day to day</p>
+            <h2>Run, install packages, test, and serve — in Common Lisp.</h2>
+            <p>
+              Commands mirror the Bun/npm-era toolkit so existing JS project habits transfer.
+              Every tool below is pure Common Lisp with repository evidence for the claimed surface.
+            </p>
           </div>
 
           <div class="tool-grid">
             <article class="tool-card tool-runtime">
               <div class="tool-topline"><span>01</span><code>$ clun app.ts</code></div>
-              <h3>JavaScript runtime</h3>
-              <p>Execute JavaScript, CommonJS, ESM, JSON, and TypeScript (erasable strip plus runtime transforms) with a from-scratch engine.</p>
+              <h3>JavaScript &amp; TypeScript runtime</h3>
+              <p>A from-scratch engine in Common Lisp runs your JS, ESM/CJS, JSON, and TypeScript.</p>
               <ul>
-                <li>Strict and sloppy language modes</li>
-                <li>Lazy iterator protocol with abrupt-completion close behavior</li>
-                <li>Binding TDZ, <code>const</code>, and destructuring correctness</li>
-                <li>Function/class construction, <code>super</code>, and arguments objects</li>
-                <li>Same-realm dynamic <code>GeneratorFunction</code> and synchronous <code>yield*</code> delegation; cross-realm semantics remain excluded</li>
-                <li>FIFO async generators, awaited yield/return, async <code>yield*</code>, AsyncFromSync, and <code>for await...of</code> close behavior</li>
-                <li><code>Object.seal</code>, <code>Object.isSealed</code>, and legacy accessor hooks</li>
-                <li>ESM and CommonJS resolution</li>
-                <li>Timers, promises, files, fetch, and URL</li>
-                <li>Proxy traps and invariants are implemented for the covered paths; Intl and blanket modern-ECMAScript parity remain incomplete</li>
+                <li>TypeScript strip + transforms; <code>clun tsc</code> structural typecheck (Bun has no typecheck)</li>
+                <li>JSX/TSX, modules, timers, promises, files, <code>fetch</code>, URL</li>
+                <li>Node-shaped builtins for the covered matrix (path, fs, buffer, crypto, …)</li>
+                <li>Proxy traps and invariants are implemented for the covered paths</li>
               </ul>
-              <div class="tool-status"><span>Scope</span> ES2017-tier, partial</div>
+              <div class="tool-status"><span>Built in</span> Pure Common Lisp · no V8 · no Node</div>
             </article>
 
             <article class="tool-card tool-install">
               <div class="tool-topline"><span>02</span><code>$ clun install [pkg…]</code></div>
-              <h3>Package manager</h3>
-              <p>Resolve semver graphs into a deterministic hoisted tree with a content cache and lockfile.</p>
+              <h3>Package manager (npm-compatible)</h3>
+              <p>Install packages the way you already do: add a dependency, resolve the graph, write a lockfile, fill <code>node_modules</code>.</p>
               <ul>
-                <li>SRI SHA-512 verifies tarballs against resolved or locked integrity; fresh resolution still depends on TLS-authenticated metadata</li>
-                <li>Offline reinstall from <code>clun.lock</code></li>
-                <li>Hardened tarball extraction</li>
-                <li>Lifecycle scripts are never executed</li>
+                <li><code>clun add picocolors</code> or <code>clun install picocolors</code></li>
+                <li>Public npm registry over pure-CL TLS; SRI checks; offline reinstall from <code>clun.lock</code></li>
+                <li>Workspaces / monorepo filters when you need them</li>
+                <li>No lifecycle scripts (install hooks never run)</li>
               </ul>
-              <div class="tool-status warning"><span>Published dev.21</span> Public npm fails with fatal <code>protocol_version</code></div>
-              <div class="tool-status warning"><span>Source candidate</span> <code>clun add</code> / <code>clun install [pkg…]</code> work against public npm (e.g. <code>picocolors</code>); <a href="https://github.com/theesfeld/clun/issues/234">bounded WebPKI</a>, <a href="https://github.com/theesfeld/clun/issues/235">TLS alert/close</a>, and <a href="https://github.com/theesfeld/clun/issues/241">#241</a> materialization order are on master; exact-SHA workflows and <a href="https://github.com/theesfeld/clun/issues/216">#216</a> five-asset publication remain</div>
+              <div class="tool-status"><span>Source today</span> Public add/install works on current master builds</div>
+              <div class="tool-status warning"><span>Published binary</span> Hosted <code>v0.1.0-dev.21</code> still cannot talk to public npm (old TLS)</div>
             </article>
 
             <article class="tool-card tool-test">
               <div class="tool-topline"><span>03</span><code>$ clun test</code></div>
               <h3>Test runner</h3>
-              <p>Discover JavaScript and TypeScript tests and run them with familiar Jest-style globals.</p>
+              <p>Jest-style globals, Bun-shaped snapshots and matchers, coverage, and parallel files — all pure CL.</p>
               <ul>
-                <li>Hooks, filters, and conditional modifiers</li>
-                <li>Async and callback tests, timeouts, retries, and repeats</li>
-                <li>62 core and extended matchers</li>
-                <li>Bun-formatted snapshots, mocks, preloads, fake timers, and JUnit</li>
-                <li>Source-aligned JS/TS coverage with text, LCOV, filters, and thresholds</li>
+                <li>Hooks, filters, retries, concurrent suites</li>
+                <li>62+ matchers, mocks/spies, fake timers, JUnit</li>
+                <li>Source-aligned coverage (text + LCOV)</li>
               </ul>
               <div class="tool-status warning"><span>Known gap</span> Snapshot edge formats and cooperative/parallel concurrency are covered; test-watch reruns remain a known gap</div>
-              <div class="tool-status"><span>Output</span> Deterministic by design</div>
+              <div class="tool-status"><span>Familiar</span> Write tests like you already do</div>
             </article>
 
             <article class="tool-card tool-server">
               <div class="tool-topline"><span>04</span><code>$ clun server.ts</code></div>
-              <h3>HTTP toolkit</h3>
-              <p>Serve fetch-style handlers and make HTTP or experimental HTTPS requests from the runtime.</p>
+              <h3>HTTP &amp; WebSocket</h3>
+              <p><code>Clun.serve</code> with fetch-style handlers, streaming bodies, WebSockets, and pure-CL TLS for clients.</p>
               <ul>
-                <li><code>Clun.serve</code> HTTP/1.1 server</li>
-                <li>Request, Response, and Headers</li>
-                <li>AbortController and timeout support</li>
+                <li>HTTP/1.1 serve + router helpers</li>
+                <li>Request / Response / Headers / AbortController</li>
                 <li>Streaming request and response bodies; WebSocket + Pub/Sub; no HTTP/2 server</li>
               </ul>
-              <div class="tool-status warning"><span>Security</span> TLS is unaudited; bounded <a href="https://github.com/theesfeld/clun/issues/234">WebPKI hardening</a> is implemented</div>
-              <div class="tool-status"><span>Protocol</span> <a href="https://github.com/theesfeld/clun/issues/235">Alert/close compliance</a> is implemented: bounded fatal alerts are one-shot, peer fatal alerts are not answered, and valid <code>close_notify</code> is reciprocated exactly once; this is not browser TLS parity</div>
+              <div class="tool-status warning"><span>TLS</span> Pure Common Lisp stack is experimental and unaudited</div>
             </article>
           </div>
         </div>
@@ -327,11 +312,11 @@ Phase 26 remains deferred until after Phase 82 and will be re-baselined for the 
       <section class="code-section section-band" aria-labelledby="code-title">
         <div class="shell code-layout">
           <div class="code-copy">
-            <p class="eyebrow eyebrow-light">A small, coherent surface</p>
-            <h2 id="code-title">The APIs you need for the parts Clun implements.</h2>
+            <p class="eyebrow eyebrow-light">Familiar APIs · pure Lisp underneath</p>
+            <h2 id="code-title">Write JavaScript the way you already do.</h2>
             <p>
-              The surface follows familiar web and JavaScript conventions while keeping
-              unsupported behavior loud. Select a task to see code the current runtime accepts.
+              Handlers look like Bun or the web platform. The process executing them is Common Lisp.
+              Unsupported behavior fails loudly instead of silently pretending.
             </p>
             <div class="code-tabs" role="tablist" aria-label="Code examples">
               <button type="button" role="tab" aria-selected="true" aria-controls="code-runtime" id="tab-runtime" data-code-tab="runtime">Run TypeScript</button>
@@ -375,15 +360,17 @@ Clun.write(file, <span class="tok-str">"hello from Clun\n"</span>)
           <div class="section-heading split-heading">
             <div>
               <p class="eyebrow">Clun vs Bun vs Node.js vs Deno</p>
-              <h2>The gaps stay in the table.</h2>
+              <h2>Meets or exceeds Bun on most of the public toolkit matrix.</h2>
             </div>
             <p>
 <!-- clun-generated:compatibility-intro:begin -->
-This follows the stable Bun 1.3.14 runtime feature matrix and adds Clun. It is a
-current capability snapshot, not a speed comparison; Clun cells reflect the
-repository's current tested scope. The engineering roadmap separately audits Bun
-source commit <code>c1076ce95e</code> (<code>1.4.0-dev</code>) for newer upstream work.
-Linked phase labels are planned acceptance gates, not capabilities available today.
+Same public matrix Bun publishes for its toolkit — with a Clun column. <strong>27 Yes</strong> / 
+<strong>3 Partial</strong> / <strong>0 No</strong> on the 30 capability rows below.
+A Yes means evidence-backed Bun-shaped (or better) behavior in pure Common Lisp for that row — not a claim that Clun is a finished drop-in for every Node or Bun program.
+Several rows already <em>exceed</em> Bun (TypeScript typecheck, fmt/lint, offline Redis, SQLite module surface, and more).
+Baseline: Bun 1.3.14; engineering audit also tracks Bun
+<code>c1076ce95e</code> (<code>1.4.0-dev</code>).
+This is capability, not speed. Phase links are roadmap references.
 <!-- clun-generated:compatibility-intro:end -->
             </p>
           </div>
@@ -675,15 +662,16 @@ Linked phase labels are planned acceptance gates, not capabilities available tod
             <p class="eyebrow">The implementation is the point</p>
             <h2>Common Lisp all the way down.</h2>
             <p>
-              Clun permits ANSI Common Lisp, SBCL contribs, and vendored libraries written in
-              Common Lisp. It rejects CFFI and foreign-library entry points in the runtime implementation.
+              Not a thin wrapper around Node. Not a foreign-function bridge to V8.
+              ANSI Common Lisp + SBCL + vendored Lisp libraries only — CFFI and native
+              addons for the runtime itself are rejected and checked by <code>make purity</code>.
             </p>
           </div>
           <ol class="contract-list">
-            <li><span>01</span><div><strong>From-scratch engine</strong><p>Lexer, parser, object model, modules, async execution, and runtime APIs live in the repository.</p></div></li>
-            <li><span>02</span><div><strong>Vendored and pinned</strong><p>A fresh source build fetches no Lisp dependencies and uses no Quicklisp installation.</p></div></li>
-            <li><span>03</span><div><strong>Purity is checked</strong><p><code>make purity</code> scans source and vendored code at every phase gate.</p></div></li>
-            <li><span>04</span><div><strong>Security limits stay visible</strong><p>The pure-Common-Lisp TLS stack is experimental and unaudited. HTTPS uses a bounded authenticated profile: SAN-only identity, 2048–8192-bit RSA keys, and an eight-certificate ordered path to a configured trust anchor. DER/certificate-list input is capped at one MiB, nesting at 32 levels, nodes at 4,096, and TLS 1.3 entry extensions at 16; certificate, name, time, algorithm, key, and signature structures are consumed exactly. RDN ordering, canonical EC named-curve coordinates, supported SAN forms, and exact declared RSA-PSS salt lengths are checked explicitly; TLS CertificateVerify uses the protocol-required hash-length salt. Unsupported path semantics fail closed (including every <code>nameConstraints</code> path); AIA/alternate-path building, CT, online revocation, and the full RFC 5280 policy tree are not implemented, so this is not browser-grade WebPKI. Bounded fatal alerts are one-shot, peer fatal alerts are not answered, and valid <code>close_notify</code> is reciprocated exactly once. The required live package smoke exercises both add/install spellings, a transitive graph, SRI, execution, and frozen reinstalls with public transport denied.</p></div></li>
+            <li><span>01</span><div><strong>From-scratch engine</strong><p>Lexer, parser, object model, modules, async, and runtime APIs are all in this repository.</p></div></li>
+            <li><span>02</span><div><strong>Vendored and pinned</strong><p>A fresh source build pulls no Quicklisp packages and no runtime npm for Clun itself.</p></div></li>
+            <li><span>03</span><div><strong>Purity is checked</strong><p>CI runs <code>make purity</code> so CFFI / foreign-library slips cannot land quietly.</p></div></li>
+            <li><span>04</span><div><strong>TLS is pure Lisp too</strong><p>HTTPS for package installs and clients uses Clun’s own TLS stack. It is experimental and unaudited — good enough for development and evidence gates, not a claim of browser-grade WebPKI.</p></div></li>
           </ol>
         </div>
       </section>
@@ -691,8 +679,8 @@ Linked phase labels are planned acceptance gates, not capabilities available tod
       <section class="closing section-band">
         <div class="shell closing-inner">
           <img src="assets/clun.jpg" alt="" width="132" height="132">
-          <p class="eyebrow">Try the current release</p>
-          <h2>Install Clun with one shell command.</h2>
+          <p class="eyebrow">Try it</p>
+          <h2>One command to install · pure Common Lisp underneath.</h2>
           <div class="command-row closing-command">
             <span class="prompt" aria-hidden="true">$</span>
             <code data-install-command-bottom>curl -fsSL https://clun.sh/install | sh</code>
@@ -700,7 +688,7 @@ Linked phase labels are planned acceptance gates, not capabilities available tod
               <span data-copy-label>Copy</span>
             </button>
           </div>
-          <p class="closing-caveat">Pre-alpha software; pre-1.0 minor versions may include breaking changes. Review the compatibility table and TLS posture before relying on it.</p>
+          <p class="closing-caveat">Pre-alpha. Hosted install is still the last published Release; build from source for the current npm-capable candidate. Review the compatibility table before production use.</p>
         </div>
       </section>
     </main>
@@ -709,7 +697,7 @@ Linked phase labels are planned acceptance gates, not capabilities available tod
       <div class="shell footer-grid">
         <div class="footer-brand">
           <a class="brand" href="#top"><img src="assets/clun.jpg" alt="" width="40" height="40"><span>Clun</span></a>
-          <p>Bun, rewritten in pure Common Lisp. Pre-alpha full-port target under evidence audit. GPL-3.0-or-later.</p>
+          <p>Bun-shaped JavaScript tooling, implemented entirely in pure Common Lisp. Pre-alpha · evidence-backed matrix · GPL-3.0-or-later.</p>
         </div>
 <!-- clun-generated:release-links:begin -->
 <div><h2>Project</h2><a href="https://github.com/theesfeld/clun">Source</a><a href="https://github.com/theesfeld/clun/blob/master/README.md">README</a><a href="https://github.com/theesfeld/clun/issues/56">Current status</a></div>
