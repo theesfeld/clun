@@ -13,6 +13,19 @@ installable release checkpoints.
 
 ## [Unreleased]
 
+## [0.2.0-dev.8] - 2026-07-20
+
+### Added
+
+- `clun publish` — pure-CL pack + authenticated npm registry publish (`NPM_TOKEN` /
+  `.npmrc` `_authToken`), with `--dry-run` packing a `package/`-prefixed tarball and SRI
+  (Issue #262).
+
+### Changed
+
+- Promote `package-manager.npm` to **Yes**: install + publish surfaces complete on the
+  pure-CL registry client (30 Yes / 0 Partial / 0 No).
+
 ## [0.2.0-dev.7] - 2026-07-20
 
 ### Added

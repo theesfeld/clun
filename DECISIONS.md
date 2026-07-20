@@ -3633,3 +3633,13 @@ exercising system C library `abs` through the host boundary. Does not authorize 
 shortcuts for Clun product features (TLS, crypto, secrets vault, …).
 
 Refs: #265, #22, #178, #177
+
+## 2026-07-20 — package-manager.npm Yes via clun publish (#262)
+
+`clun publish` packs the package tree into a `package/`-prefixed gzip tarball, computes
+sha1/shasum + sha512 SRI, and PUTs the classic npm attach-document to the registry with
+Bearer auth from `NPM_TOKEN` or `.npmrc` `//host/:_authToken`. Dry-run proves packing
+without network. Hermetic fixture accepts authenticated PUT. Install path already Yes-quality;
+publish closes the remaining Partial gap for the ledger row.
+
+Refs: #262

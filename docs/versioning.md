@@ -176,6 +176,10 @@ Phase 82 recovery after immutable tag-only `v0.2.0-dev.1`–`v0.2.0-dev.4` (Rele
 0.2.0 train (install path + safe updater). Installer boundary stays `v0.1.0-dev.21` until
 dev.5 assets pass the release gates.
 
+Issue #262 (`clun publish` pure-CL npm registry publish) stages free `0.2.0-dev.8` / `v0.2.0-dev.8`
+after published `v0.2.0-dev.7`. SemVer impact is `minor`. The verified installer boundary remains
+`v0.2.0-dev.7` until `v0.2.0-dev.8` assets and hosted installation are proven.
+
 ## Canonical record
 
 The applicable GitHub issue is the live source of truth. Before publication, its body must record:

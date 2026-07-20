@@ -9,13 +9,13 @@ targets are workload-specific and published;
 Clun does not claim blanket speed parity with Bun.
 
 <!-- clun-generated:release:begin -->
-> **Status: pre-alpha, under active construction.** [Phase 82](https://github.com/theesfeld/clun/issues/56) tracks the published prerelease and remaining phase work.
-> Published release: `0.2.0-dev.7` / `v0.2.0-dev.7` (SemVer impact: `major`).
-> The verified release boundary is `v0.2.0-dev.7`, with four native archives and checksums.
-> Release-gated Pages and hosted-installer results are recorded in the canonical issue.
+> **Status: pre-alpha, under active construction.** [Phase 82](https://github.com/theesfeld/clun/issues/56) is in progress.
+> Its release-bearing target is `0.2.0-dev.8` / `v0.2.0-dev.8` (SemVer impact: `minor`).
+> The verified release boundary is `v0.2.0-dev.7`, with four native archives, checksums, Pages,
+> and hosted-installer evidence.
 > Phase 26 remains deferred until after Phase 82 and will
 > be rewritten for the repository state that exists then.
-> Clun's full-port target requires every ledger Yes to survive executable and public-claim audit. The current snapshot is 29 Yes / 1 Partial / 0 No; qualified evidence is not treated as complete.
+> Clun's full-port target requires every ledger Yes to survive executable and public-claim audit. The current snapshot is 30 Yes / 0 Partial / 0 No; qualified evidence is not treated as complete.
 > The canonical issue is the live source of truth; `PLAN.md` is the technical contract and `STATE.md` is
 > the local resume checklist.
 <!-- clun-generated:release:end -->
@@ -164,7 +164,7 @@ July 16, 2026. Engineering references are separately pinned to Bun commit `c1076
 | YAML | Yes: `Clun.YAML` parser/stringifier and `.yaml`/`.yml` module loading | [Phase 31](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-31) |
 | Cookies API | Yes: `Clun.Cookie` and `Clun.CookieMap` with request/response integration | [Phase 32](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-32) |
 | Encrypted secrets storage | Yes: `Clun.secrets` Bun-shaped get/set/delete plus has/list/clear on pure-CL AES-256-GCM encrypted storage (exceeds Bun.secrets API; no Keychain/libsecret FFI) | [Phase 58](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-58) |
-| npm package management | Partial: `clun add <pkg>` and Bun-compatible `clun install <pkg>` resolve public npm metadata and tarballs through an experimental bounded pure-CL TLS profile; no-argument install resolves the existing manifest; all paths enforce SRI, write `clun.lock`, materialize `node_modules`, and reinstall offline from cache; aliases, local packages, optional dependencies, hoisting, workspaces, and four-target hermetic receipts are covered; npm publishing and full registry-auth compatibility remain unavailable | Phases [28](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-28), [59](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-59), [60](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-60), [61](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-61) |
+| npm package management | Yes: `clun add <pkg>` and Bun-compatible `clun install <pkg>` resolve public npm metadata and tarballs through pure-CL TLS; no-argument install resolves the existing manifest with SRI, clun.lock, node_modules, offline cache, aliases, local packages, optional deps, hoisting, and workspaces; `clun publish` packs a package/ tarball and PUTs an authenticated npm attach-document (NPM_TOKEN / .npmrc _authToken) | Phases [28](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-28), [59](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-59), [60](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-60), [61](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-61) |
 | Bundler | Yes: Clun.build and clun build pure-CL production bundler: entrypoints, dependency graph, ESM/CJS/IIFE formats, code splitting, minification, loaders (js/ts/tsx/jsx/json/text/file/dataurl/css/html), define, external, packages external or bundle, naming templates, banner/footer, metafile, sourcemaps, target, publicPath, env inlining, drop, features, virtual files, tree shaking, asset hashing, Clun.build.analyze and Clun.buildSync exceed surface, four-target receipts | Phases [62](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-62), [63](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-63), [64](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-64), [77](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-77) |
 | Cross-platform shell API | Yes: `Clun.$`, `clun exec`, standalone `.bun.sh` files with positional parameters, dollar and backtick command substitution, background jobs and wait, merged stdout/stderr pipelines, grouped subshells and brace groups nested across `if` control flow, Blob/Response I/O, positive extended-glob conditions, compound-word field splitting, 100-level arrays, Unicode, tilde and continuation expansion, builtins, and 1,598/1,630 pinned shell sites (32 upstream-inactive) | [Phase 65](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-65) |
 | Jest-compatible test runner | Yes: 62 core and extended matchers, snapshot lifecycles with stable property tokens and Bun-formatted core values including own-accessor Getter tokens and control-byte escapes, source-aligned ESM/CommonJS/TypeScript statement and function coverage with Bun-shaped text and LCOV reporters, filters, config, and thresholds, custom and Promise-settlement asymmetric matchers, per-realm ESM/CJS module mocks, CLI and bunfig setup preloads, realm-local Jest and vi fake timers with Date and performance clock control, seeded Bun-pinned randomization, deterministic file sharding, dots and JUnit reporters, function mocks/spies, callbacks, cleanup, parameterization, retries, repeats, cooperative test.concurrent / describe.concurrent / test.serial scheduling with --concurrent and --max-concurrency, pure-CL --parallel multi-file process pools with serial/parallel count agreement, expect.unreachable, and runtime expectTypeOf | [Phase 66](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-66) |
@@ -207,7 +207,8 @@ workflows are read-only and fail closed if the canonical issues, README, or site
 
 <!-- clun-generated:release-summary:begin -->
 Release versions follow the actual SemVer impact recorded in the canonical issue, not the number of pushes.
-The current source version and latest published prerelease are [`0.2.0-dev.7`](https://github.com/theesfeld/clun/releases/tag/v0.2.0-dev.7).
+The current source is the `0.2.0-dev.8` release candidate; the immutable tag and assets are not published yet.
+The last published prerelease remains [`v0.2.0-dev.7`](https://github.com/theesfeld/clun/releases/tag/v0.2.0-dev.7).
 [The versioning contract](docs/versioning.md) defines prerelease sequencing, synchronized surfaces, immutable tags, assets, and installer evidence.
 [Phase 82 issue #56](https://github.com/theesfeld/clun/issues/56) is the canonical live release record.
 <!-- clun-generated:release-summary:end -->
@@ -277,7 +278,7 @@ vendored under `vendor/` and located via `scripts/registry.lisp`.
 make build     # compile everything, save build/clun (save-lisp-and-die)
 make test      # run the CL suites and JS/TS fixture harnesses
 make purity    # fail on any CFFI/foreign-code token
-./build/clun --version   # => clun 0.2.0-dev.7
+./build/clun --version   # => clun 0.2.0-dev.8
 ```
 
 A fresh clone builds with `make build` alone: ASDF compiles the vendored closure and `src/` into

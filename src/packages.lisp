@@ -673,11 +673,10 @@ hardened verify-then-commit extractor + content-addressed cache.")
 (defpackage :clun.installer
   (:use :cl)
   (:local-nicknames (:sys :clun.sys) (:sv :clun.install) (:reg :clun.registry)
-                    (:tb :clun.tarball) (:integ :clun.integrity) (:lp :clun.loop) (:net :clun.net))
-  (:documentation "clun install: dependency resolution (breadth-first, highest-satisfying,
-cycle-safe) + hoisted-layout placement over the Phase-21 registry client, feeding the Phase-22
-extractor + cache and the clun.lock lockfile. Phase 60 monorepo workspaces, catalogs, filters,
-and concurrent topological script runs.")
+                    (:tb :clun.tarball) (:integ :clun.integrity) (:lp :clun.loop) (:net :clun.net)
+                    (:arch :clun.archive))
+  (:documentation "clun install/publish: dependency resolution, hoisted layout, lockfile,
+workspaces, and pure-CL npm registry publish (Issue #262).")
   (:export
    ;; conditions
    #:install-error #:install-error-message #:lock-drift-error
@@ -697,6 +696,11 @@ and concurrent topological script runs.")
    #:ensure-package-json #:add-dependencies #:remove-dependencies
    #:resolve-latest #:resolve-latest-async
    #:install-result #:install-result-p #:ir-source #:ir-plan #:ir-node-count #:ir-lifecycle-skipped
+   ;; publish (#262)
+   #:publish-package #:pack-package #:publish-result #:publish-result-p
+   #:pr-name #:pr-version #:pr-filename #:pr-tarball-bytes #:pr-integrity #:pr-shasum
+   #:pr-registry #:pr-tag #:pr-dry-run #:pr-status #:pr-body #:pr-id
+   #:load-publish-npmrc #:publish-token #:build-publish-document
    ;; monorepo workspaces (Phase 60)
    #:workspace #:workspace-p #:ws-name #:ws-version #:ws-path #:ws-relative #:ws-package #:ws-deps #:ws-scripts
    #:workspace-graph #:workspace-graph-p #:wg-root #:wg-packages #:wg-by-name #:wg-catalog #:wg-catalogs

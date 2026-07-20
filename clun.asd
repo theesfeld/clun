@@ -156,6 +156,11 @@
                               :components ((:file "compress")
                                            (:file "tar-write")
                                            (:file "zip")))
+                             ;; Issue #262: publish packs with archive writer (after archive).
+                             (:module "install-publish"
+                              :pathname "install"
+                              :serial t
+                              :components ((:file "publish")))
                              (:module "engine"
                               :serial t
                               :components ((:file "values")
