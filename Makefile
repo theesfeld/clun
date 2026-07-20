@@ -13,7 +13,7 @@ PHASE_25B_M5_MANIFEST      ?= tests/conformance/phase-25b-m5.tsv
 PHASE_25B_M6_MANIFEST      ?= tests/conformance/phase-25b-m6.tsv
 FEATURE                    ?= all
 
-.PHONY: all build test test-lisp test-net test-cookie-resources test-glob test-router test-js test-tls test-tls12 test-tls-alerts test-proxy test-dns test-crypto registry-fixture smoke-npm purity bench \
+.PHONY: all build test test-lisp test-net test-cookie-resources test-glob test-router test-js test-tls test-tls12 test-tls-alerts test-proxy test-dns test-crypto registry-fixture smoke-npm purity bench phase-26-gate phase-26-hardening-smokes \
 		bench-check compile-tier-ceiling test-installer test-release-live-check test-release-workflow \
 		public-claims-check version-transition-check test-version-transition-check \
 		compat compat-validate docs-generate docs-check test-compat-tools \
@@ -120,6 +120,13 @@ registry-fixture:
 ## purity — fail on any CFFI/foreign-code token under src/ or vendor/ (§1.1).
 purity:
 	$(SBCL) $(SBCL_FLAGS) --load scripts/purity-scan.lisp
+
+## phase-26-gate — exclusive sequential final-hardening gates for Phase 26 / beta.
+phase-26-gate:
+	sh scripts/phase-26-gate.sh
+
+phase-26-hardening-smokes: build
+	sh scripts/phase-26-hardening-smokes.sh
 
 ## conformance — test262 parse phase: 0 crashes + no pass-list regressions.
 ## CLUN_GEN=1 make conformance regenerates the pass-list (only grows).

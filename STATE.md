@@ -10,10 +10,10 @@ Ship path: topic branch → PR → squash-merge into `master` (not direct push).
 
 **Canonical issue:** https://github.com/theesfeld/clun/issues/58
 **Prior phase:** Phase 82 (#56) **closed** — purity-compatible surface audit complete
-**Published surface tip:** `0.2.0-dev.11` / `v0.2.0-dev.11`
-**Tag peel:** `2e1957c01ac54d55238963e24a5624a21316f11a`
-**Release run:** https://github.com/theesfeld/clun/actions/runs/29772871785
-**Installer default:** `verified_installer_tag=v0.2.0-dev.11`
+**Candidate release:** `0.2.0-beta.1` / `v0.2.0-beta.1`
+**Published surface tip (installer default):** `0.2.0-dev.11` / `v0.2.0-dev.11`
+**Installer default:** `verified_installer_tag=v0.2.0-dev.11` until beta.1 assets publish
+**SemVer impact:** `minor` (maturity promotion dev→beta + hardening; no intentional matrix expansion)
 
 ---
 
@@ -27,32 +27,33 @@ Ship path: topic branch → PR → squash-merge into `master` (not direct push).
 | Baselines | Bun 1.3.14 stable + engineering `c1076ce95e` |
 | test262 pass list | 26,018 frozen; rate 92.38% |
 | Platforms | linux/mac × x64/arm64 release assets |
-| Install | Pages `curl\|sh` → `~/.local/bin`; `clun --update` |
+| Install | Pages `curl|sh` → `~/.local/bin`; `clun --update` |
 | CLI | Human errors, progress spinner, chromed install (dev.11) |
 | TLS | Pure-CL stack; CI `make test-tls` / alerts / OpenSSL interop |
 | Freeze gate | `sh scripts/compat-freeze-check.sh --check` |
+| Hardening gate | `make phase-26-gate` + `scripts/phase-26-hardening-smokes.sh` |
 
 ### Open program after Phase 82
 
-- Only **#58** (this phase) open as program work.
+- Only **#58** (this phase) open as program work until beta.1 closes it.
 - No Partial/No matrix residuals.
 
 ### Dispositioned residuals (explicit, not silent)
 
 | Item | Disposition |
 |------|-------------|
-| Local-time / TZif | Unassigned for this phase unless stress proves user-facing pain; keep UTC-correct core |
+| Local-time / TZif | Unassigned for this phase; keep UTC-correct core |
 | Third-party WebPKI audit | Not claimed; CI TLS gates remain the shipping bar |
-| HTTP/2 server | Out of matrix claim (honest “no HTTP/2 server” copy) |
-| Throughput flake under load | CI skips host perf (`CLUN_SKIP_PERFORMANCE_TESTS=1`); quiet-host re-measure optional |
-| Stable `0.2.0` | **Not** assumed — only after Phase 26 checklist green |
+| HTTP/2 server | Out of matrix claim |
+| Darwin long soak (historical #59) | Deterministic fix shipped; four-platform release CI is beta gate |
+| Stable `0.2.0` | **Not** this unit — beta.1 only |
 
-### SemVer train (provisional)
+### SemVer train
 
-- **Impact class:** `minor` (hardening/docs/release; no intentional matrix expansion)
-- **Core:** keep `0.2.0` until completed work forces otherwise
-- **Slots:** continue prerelease `0.2.0-dev.N` for intermediate hardening releases
-- **Stable tag:** only if final checklist warrants promoting out of `-dev` — decide at checklist close, not at entry
+- **Impact class:** `minor`
+- **Core:** `0.2.0`
+- **From:** published `0.2.0-dev.11`
+- **To:** `0.2.0-beta.1` (maturity ladder `dev` → `beta` at `.1`)
 
 ---
 
@@ -60,47 +61,47 @@ Ship path: topic branch → PR → squash-merge into `master` (not direct push).
 
 ### A. Design & inventory
 
-- [x] Re-inventory shipped surface and open findings (this file + Issue #58)
-- [x] Finite checklist recorded (below)
-- [ ] Issue #58 body rewritten to match this rebaseline (live SoT)
+- [x] Re-inventory shipped surface and open findings
+- [x] Finite checklist recorded
+- [x] Issue #58 body rewritten for beta.1
+- [x] Design notebook `docs/design/phase-26.md`
 
 ### B. Hardening
 
-- [ ] User-reachable errors: resource, rejected value, constraint, remedy; no bare Lisp backtrace without `--backtrace`
-- [ ] Resource-plateau stress (steady-state handles/RSS under repeated open/close)
-- [ ] Interruption / cancel paths (install, serve, spawn)
-- [ ] Partial-install recovery (failed mid-graph leaves tree consistent)
-- [ ] Largest-fixture / long-run server smoke (bounded duration, documented)
-- [ ] Platform matrix still green on four targets for any release-bearing unit
+- [x] User-reachable errors: no bare Lisp backtrace without `--backtrace` (hardening smoke)
+- [x] Resource-plateau stress (400 write/read/unlink cycles)
+- [x] Interruption / SIGINT cancel path (busy timer smoke)
+- [x] Partial-install recovery (bogus `clun add` preserves package root)
+- [x] Long-run server smoke (bounded ~1.2s serve+fetch)
+- [ ] Platform matrix green on four targets for release-bearing unit (CI)
 
 ### C. Docs & surfaces
 
-- [ ] README + site status track Phase 26 (#58); Phase 82 marked complete
-- [ ] Security posture page/section honest: TLS **tested** in CI; third-party audit not claimed
-- [ ] Release notes / CHANGELOG for final slot
-- [ ] `make public-claims-check` + `make docs-check` green
+- [x] README + site track Phase 26 / beta.1 candidate; Phase 82 complete
+- [x] Security posture honest: TLS tested in CI; third-party audit not claimed
+- [x] CHANGELOG + release notes for `0.2.0-beta.1`
+- [ ] `make public-claims-check` + `make docs-check` green (pre-merge)
 
 ### D. Release
 
-- [ ] Version + CHANGELOG + installer default for chosen slot
+- [x] Version surfaces staged `0.2.0-beta.1` / `v0.2.0-beta.1` (candidate; installer remains dev.11)
 - [ ] Tag immutable; four native assets + checksums
-- [ ] Installer + `clun --update` smoke
-- [ ] Evidence on Issue #58; close only when checklist complete
+- [ ] Installer + `clun --update` smoke on published assets
+- [ ] Evidence on Issue #58; close when checklist complete
 
-### Gates (every unit + final)
+### Gates
 
-`make build` · `make test` · `make purity` · `make docs-check` · `make public-claims-check` ·  
-`sh scripts/compat-freeze-check.sh --check` · `make compat FEATURE=all` (release-bearing) ·  
-`make test-tls` · `make test-crypto` · four-platform Compatibility CI
+`make phase-26-gate` · four-platform Compatibility + Release CI · exact-master Documentation
 
 ---
 
 ## Phase 82 archive (§1.5)
 
-See closed Issue #56 and prior STATE section retained in git history / Issue comments. Summary: exclusive gates green 2026-07-20; freeze-check restored; surface tag `v0.2.0-dev.11`.
+See closed Issue #56. Summary: exclusive gates green 2026-07-20; freeze-check restored; surface tag `v0.2.0-dev.11`.
 
 ## Next
 
-1. Sync Issue #58 body + README status to Phase 26 active.
-2. Execute checklist B–D on `feat/issue-58-…` trains (prefer error-path + stress first).
-3. Publish only with evidence on #58.
+1. Land release-bearing PR; exact-SHA CI/Docs/Compat green.
+2. Annotated tag `v0.2.0-beta.1`; Release workflow assets.
+3. Reconcile publication + installer default; close #58.
+

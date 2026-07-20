@@ -778,18 +778,39 @@ else
     base_number=$(printf '%s\n' "$base_sequence" | awk -F '\t' '{ print $2 }')
     current_prefix=$(printf '%s\n' "$current_sequence" | awk -F '\t' '{ print $1 }')
     current_number=$(printf '%s\n' "$current_sequence" | awk -F '\t' '{ print $2 }')
-    [ "$current_prefix" = "$base_prefix" ] ||
-      fail "same-core prerelease prefix changed: $base_version -> $current_version"
-    sequence_cmp=$(compare_uint "$current_number" "$base_number")
-    [ "$sequence_cmp" -gt 0 ] ||
-      fail "same-core prerelease must advance: $base_version -> $current_version"
-    expected_number=$(increment_uint "$base_number")
-    if [ "$current_number" != "$expected_number" ]; then
-      # Multi-step advance is allowed only while every skipped intermediate
-      # remains unpublished (no local tag, remote tag, or GitHub release).
-      unpublished_prerelease_gap "$base_prefix" "$base_number" \
-        "$current_number" "$base_core" ||
-        fail "same-core prerelease skips a published intermediate: expected $base_prefix${base_prefix:+.}$expected_number"
+    if [ "$current_prefix" = "$base_prefix" ]; then
+      sequence_cmp=$(compare_uint "$current_number" "$base_number")
+      [ "$sequence_cmp" -gt 0 ] ||
+        fail "same-core prerelease must advance: $base_version -> $current_version"
+      expected_number=$(increment_uint "$base_number")
+      if [ "$current_number" != "$expected_number" ]; then
+        # Multi-step advance is allowed only while every skipped intermediate
+        # remains unpublished (no local tag, remote tag, or GitHub release).
+        unpublished_prerelease_gap "$base_prefix" "$base_number" \
+          "$current_number" "$base_core" ||
+          fail "same-core prerelease skips a published intermediate: expected $base_prefix${base_prefix:+.}$expected_number"
+      fi
+    else
+      # Maturity ladder on the same core: dev → alpha → beta → rc, each new
+      # train starts at .1. Prefix demotion or lateral jumps are rejected.
+      prerelease_maturity() {
+        case $1 in
+          dev) printf '0\n' ;;
+          alpha) printf '1\n' ;;
+          beta) printf '2\n' ;;
+          rc) printf '3\n' ;;
+          *) return 1 ;;
+        esac
+      }
+      base_rank=$(prerelease_maturity "$base_prefix") ||
+        fail "unsupported base prerelease prefix: $base_version"
+      current_rank=$(prerelease_maturity "$current_prefix") ||
+        fail "unsupported current prerelease prefix: $current_version"
+      rank_cmp=$(compare_uint "$current_rank" "$base_rank")
+      [ "$rank_cmp" -gt 0 ] ||
+        fail "same-core prerelease maturity must increase: $base_version -> $current_version"
+      [ "$current_number" = 1 ] ||
+        fail "new prerelease maturity train must start at .1: $current_version"
     fi
     transition='prerelease'
   fi
