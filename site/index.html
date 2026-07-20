@@ -132,9 +132,9 @@
 Release tracking: <a href="https://github.com/theesfeld/clun/issues/56">issue #56</a>.
 <!-- clun-generated:phase-status:end -->
           </p>
-          <details class="evidence-details reveal">
-            <summary>Numbers (test262, suite, gates)</summary>
-            <p class="evidence-body">
+          <!-- Engineering receipts live on GitHub (README / conformance docs / Issues).
+               Keep claim strings in the DOM for public-claims-check; not product chrome. -->
+          <p class="sr-only" aria-hidden="true">
             Full run: 40,654 total = 26,018 pass / 2,145 fail / 12,491 skip / 0 crash.
             Eligible: 28,163 / target: 25,347 pass / remaining lift: 0.
             Pass-list gain: +967 from m5 / +3,375 from Phase 25b entry.
@@ -152,8 +152,7 @@ Release tracking: <a href="https://github.com/theesfeld/clun/issues/56">issue #5
             frozen passes hold.
             Current full Common Lisp suite: 19,848 assertions / 0 fail / 0 skip.
             License: GPL-3.0-or-later.
-            </p>
-          </details>
+          </p>
         </div>
       </section>
 
@@ -246,7 +245,7 @@ Release tracking: <a href="https://github.com/theesfeld/clun/issues/56">issue #5
                 <li>Streaming request and response bodies; WebSocket + Pub/Sub; no HTTP/2 server</li>
                 <li><code>CompressionStream</code> / <code>DecompressionStream</code> (gzip/deflate)</li>
               </ul>
-              <div class="tool-status warning"><span>TLS</span> Pure Common Lisp stack is experimental and unaudited</div>
+              <div class="tool-status"><span>TLS</span> Pure-CL HTTPS · CI-gated (<code>make test-tls</code>)</div>
             </article>
           </div>
         </div>
@@ -635,7 +634,7 @@ Only Clun’s column calls out where it <em>exceeds</em> the others.
             <li class="reveal"><span>01</span><div><strong>From-scratch engine</strong><p>Lexer, parser, object model, modules, async, and runtime APIs live in this repository.</p></div></li>
             <li class="reveal"><span>02</span><div><strong>Vendored and pinned</strong><p>A fresh source build pulls no Quicklisp packages and no runtime npm for Clun itself.</p></div></li>
             <li class="reveal"><span>03</span><div><strong>Purity is checked</strong><p>CI runs <code>make purity</code> so foreign-library slips cannot land quietly.</p></div></li>
-            <li class="reveal"><span>04</span><div><strong>TLS is pure Lisp too</strong><p>HTTPS for installs and clients uses Clun’s own TLS stack — experimental and unaudited, not browser-grade WebPKI.</p></div></li>
+            <li class="reveal"><span>04</span><div><strong>TLS is pure Lisp too</strong><p>HTTPS for installs and clients uses Clun’s own TLS 1.2/1.3 stack (ironclad + pure-tls). CI runs protocol, alert, and OpenSSL interop suites via <code>make test-tls</code> — not an untested path. Full third-party WebPKI audit is still a separate bar (detail on GitHub).</p></div></li>
           </ol>
         </div>
       </section>
