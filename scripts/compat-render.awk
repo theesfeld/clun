@@ -243,8 +243,6 @@ END {
     print "on the " ledger_total " capability rows below — evidence-backed Bun-shaped (or better) behavior in pure Common Lisp,"
     print "not a finished drop-in for every Node or Bun program. Several rows already <em>exceed</em> Bun"
     print "(TypeScript typecheck, fmt/lint, offline Redis, SQLite module surface, and more)."
-    print "The engineering roadmap separately audits Bun source commit"
-    print "<code>" html(substr(baseline_revision[engineering_bun_id], 1, 10)) "</code> (<code>" html(baseline_version[engineering_bun_id]) "</code>) for newer upstream work."
     print "This is capability, not speed."
   } else if (format == "readme-release") {
     tagged_candidate = publication_state == "candidate" && release_commit != "pending"

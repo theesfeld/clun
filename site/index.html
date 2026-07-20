@@ -99,19 +99,20 @@
             <div><dt>Implementation</dt><dd>100% Common Lisp</dd></div>
             <div><dt>Bun matrix</dt><dd>30 Yes · 0 Partial · 0 No</dd></div>
             <div><dt>test262 pass list</dt><dd>26,018 pass</dd></div>
-            <div><dt>Phase 25b progress</dt><dd>92.38% current / 90% target met</dd></div>
+            <div><dt>test262 rate</dt><dd>92.38% current / 90% target met</dd></div>
           </dl>
           <p class="hero-lede">
             Pre-alpha and shipping in the open. Runtime, package manager, TLS, tests, and servers are pure Common Lisp — JavaScript is only what <em>you</em> run.
             The matrix below is evidence-backed Yes / Partial / No, not marketing.
           </p>
-          <p class="hero-status">
+          <!-- Generator anchors + claim strings stay in DOM; not shown as product chrome. -->
+          <p class="sr-only">
 <!-- clun-generated:phase-status:begin -->
 Current release work: <a href="https://github.com/theesfeld/clun/issues/56">issue #56</a>.
 <!-- clun-generated:phase-status:end -->
           </p>
           <details class="evidence-details">
-            <summary>Engineering evidence (test262, suite, gates)</summary>
+            <summary>Numbers (test262, suite, gates)</summary>
             <p class="evidence-body">
             Full run: 40,654 total = 26,018 pass / 2,145 fail / 12,491 skip / 0 crash.
             Eligible: 28,163 / target: 25,347 pass / remaining lift: 0.
@@ -309,8 +310,6 @@ This follows the stable Bun 1.3.14 runtime feature matrix and adds Clun.
 on the 30 capability rows below — evidence-backed Bun-shaped (or better) behavior in pure Common Lisp,
 not a finished drop-in for every Node or Bun program. Several rows already <em>exceed</em> Bun
 (TypeScript typecheck, fmt/lint, offline Redis, SQLite module surface, and more).
-The engineering roadmap separately audits Bun source commit
-<code>c1076ce95e</code> (<code>1.4.0-dev</code>) for newer upstream work.
 This is capability, not speed.
 <!-- clun-generated:compatibility-intro:end -->
             </p>
@@ -571,26 +570,6 @@ This is capability, not speed.
   comparison against these projects.
 </p>
 <!-- clun-generated:compatibility:end -->
-          </div>
-          <div class="beyond-matrix" aria-labelledby="beyond-matrix-title">
-            <div class="beyond-matrix-heading">
-              <p class="eyebrow">Beyond the matrix</p>
-              <h3 id="beyond-matrix-title">Still expanding the surface</h3>
-              <p>
-                Bun exposes public APIs beyond the 30-row homepage matrix. Clun already ships archive/compression,
-                Markdown, HTML rewriting, Cron, and build APIs in-tree; more surface work continues on
-                <a href="https://github.com/theesfeld/clun/issues">GitHub Issues</a>.
-              </p>
-            </div>
-            <ul class="beyond-roadmap" role="list">
-              <li>Archive and compression APIs</li>
-              <li>Data/document formats, Markdown, HTMLRewriter</li>
-              <li>Cron and REPL</li>
-              <li>Transpiler and build APIs</li>
-              <li>Image processing</li>
-              <li>WebView</li>
-              <li>Performance recheck and final release audit</li>
-            </ul>
           </div>
         </div>
       </section>

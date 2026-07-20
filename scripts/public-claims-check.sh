@@ -865,10 +865,14 @@ require_text site/index.html 'JavaScript is only what <em>you</em> run'
 require_text site/index.html 'evidence-backed Yes / Partial / No'
 # Matrix honesty samples (state cells remain; phase links removed)
 require_text site/index.html 'Streaming request and response bodies; WebSocket + Pub/Sub; no HTTP/2 server'
-require_text site/index.html 'Archive and compression APIs'
+require_text site/index.html 'CompressionStream'
+# Landing page is product-facing: no phase links, no roadmap chrome, no process walls.
 reject_text site/index.html 'label%3Aphase-'
 reject_text site/index.html 'phase-link'
 reject_text site/index.html 'Phase 26 remains deferred'
+reject_text site/index.html 'beyond-matrix'
+reject_text site/index.html 'beyond-roadmap'
+reject_text site/index.html 'Still expanding the surface'
 reject_text site/index.html 'No Proxy, Intl, or native addons (JSX/TSX is built in)'
 reject_text site/index.html 'Exotic snapshot edges, watch, and concurrency'
 reject_text site/index.html 'Buffered bodies; WebSocket + Pub/Sub; no HTTP/2'
@@ -912,7 +916,7 @@ require_text site/index.html "Current full Common Lisp suite: $pretty_lisp_pass 
 if [ "$report_lift" -gt 0 ]; then
   require_text README.md "the $pretty_report_target-pass target requires $pretty_report_lift additional live"
   reject_text README.md "Phase 25b's 90% target is met"
-  require_text site/index.html "<dt>Phase 25b progress</dt><dd>$report_rate% current</dd>"
+  require_text site/index.html "<dt>test262 rate</dt><dd>$report_rate% current</dd>"
   reject_text site/index.html "90% target met"
 else
   require_text README.md "Phase 25b's 90% target is met"

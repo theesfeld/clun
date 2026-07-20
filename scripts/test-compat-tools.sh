@@ -742,9 +742,10 @@ grep -F 'Bun 9.8.7, Node.js 99.1.0, and Deno 9.2.0' \
   fail 'baseline refresh did not update the README snapshot'
 grep -F 'stable Bun 9.8.7 runtime feature matrix' "$case_root/site/index.html" >/dev/null 2>&1 ||
   fail 'baseline refresh did not update the landing-page comparison introduction'
-grep -F '2222222222</code> (<code>9.9.0-dev</code>)' \
+# Engineering Bun pin lives in the matrix source-note (not a landing-page roadmap).
+grep -F 'github.com/oven-sh/bun/tree/2222222222222222222222222222222222222222' \
   "$case_root/site/index.html" >/dev/null 2>&1 ||
-  fail 'baseline refresh did not update the engineering introduction'
+  fail 'baseline refresh did not update the engineering Bun source pin'
 if grep -Fq 'stable Bun 1.3.14 runtime feature matrix' "$case_root/site/index.html"; then
   fail 'baseline refresh retained stale landing-page baseline copy'
 fi
