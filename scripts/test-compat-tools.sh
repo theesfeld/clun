@@ -554,11 +554,27 @@ expect_pass pristine-validate "$pristine" validate
 expect_pass pristine-docs-check "$pristine" check
 
 fresh_case tagged-candidate-render
-# A fresh release candidate is pending by definition. Exercise the distinct
-# immutable-tag/no-Release rendering state explicitly instead of depending on
-# whatever state the repository's current candidate happens to have.
-mutate_release_commit "$case_root/compat/release.tsv" \
-  7895ac1263e7b61e57eb310a3546cc083f02034d
+# Exercise the distinct immutable-tag/no-Release rendering state. Force a
+# candidate ledger row first: after publication the repository's pristine
+# release.tsv is `published`, and only mutating release_commit would still
+# render the published announcement. Keep site/install's verified boundary in
+# lockstep with installer_default so generate's installer contract still holds.
+# shellcheck disable=SC2016 # AWK field references must not expand in the shell.
+replace_file "$case_root/compat/release.tsv" awk -F "$TAB" -v OFS="$TAB" \
+  -v commit=7895ac1263e7b61e57eb310a3546cc083f02034d '
+  NR == 2 {
+    $4 = "v" $11
+    $6 = "candidate"
+    $15 = commit
+    changed = 1
+  }
+  { print }
+  END { if (!changed) exit 3 }
+' "$case_root/compat/release.tsv"
+previous_boundary=$(awk -F "$TAB" 'NR == 2 { print "v" $11 }' "$case_root/compat/release.tsv")
+replace_file "$case_root/site/install" sed \
+  "s/^verified_installer_tag=.*/verified_installer_tag=$previous_boundary/" \
+  "$case_root/site/install"
 expect_pass tagged-candidate-generate "$case_root" generate
 grep -F 'Tag only / no Release' "$case_root/site/index.html" >/dev/null 2>&1 ||
   fail 'tagged candidate render did not expose the tag-only publication state'
@@ -571,7 +587,25 @@ grep -F '>Canonical phase record</a>' "$case_root/site/index.html" >/dev/null 2>
   fail 'tagged candidate render lost the canonical evidence link'
 
 fresh_case malformed-candidate-commit
-mutate_release_commit "$case_root/compat/release.tsv" not-a-tagged-commit
+# Force candidate so the commit-shape diagnostic stays specific; when the
+# pristine ledger is already published, an invalid SHA is rejected as a
+# published-commit failure instead. Keep the installer boundary aligned so
+# validation reaches the commit-shape check.
+# shellcheck disable=SC2016 # AWK field references must not expand in the shell.
+replace_file "$case_root/compat/release.tsv" awk -F "$TAB" -v OFS="$TAB" '
+  NR == 2 {
+    $4 = "v" $11
+    $6 = "candidate"
+    $15 = "not-a-tagged-commit"
+    changed = 1
+  }
+  { print }
+  END { if (!changed) exit 3 }
+' "$case_root/compat/release.tsv"
+previous_boundary=$(awk -F "$TAB" 'NR == 2 { print "v" $11 }' "$case_root/compat/release.tsv")
+replace_file "$case_root/site/install" sed \
+  "s/^verified_installer_tag=.*/verified_installer_tag=$previous_boundary/" \
+  "$case_root/site/install"
 expect_failure_matching malformed-candidate-commit "$case_root" validate \
   'candidate release commit must be pending or a full tagged commit SHA'
 
