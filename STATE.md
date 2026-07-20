@@ -7,22 +7,29 @@ Update when work completes; keep consistent with the Issue, README, and site.
 
 ---
 
-## Current phase: **82 - Purity-compatible Bun-surface final audit and release**  (Release ship #216)
+## Current phase: **82 - Purity-compatible Bun-surface final audit and release**
 
 **Canonical issue:** https://github.com/theesfeld/clun/issues/56
 **Parent:** https://github.com/theesfeld/clun/issues/177
-**Current implementation unit:** Issue #216 pre-tag release hardening, layered on the merged
-Issue #234 bounded WebPKI and Issue #235 TLS fatal-alert/close-notify work.
-**SemVer impact:** `major` intent, published as the pre-1.0 minor-core transition to `0.2.0`.
-**Candidate release:** `0.2.0-dev.1` / `v0.2.0-dev.1`
+**Release issue:** https://github.com/theesfeld/clun/issues/216
+**Current implementation unit:** Issue #241 deterministic fresh-hoist materialization recovery.
+**SemVer impact:** `patch` for this recovery unit inside Phase 82's `major`-intent pre-1.0
+minor-core transition to `0.2.0`.
+**Candidate release:** `0.2.0-dev.2` / `v0.2.0-dev.2`
 **Published release:** `0.1.0-dev.21` / `v0.1.0-dev.21`
-**Tagged without a GitHub Release:** `v0.1.0-dev.68`, `v0.1.0-dev.69`, and
-`v0.1.0-dev.70`; dev.70 is immutable at `0f01413c2922121de142ba732866580e9e070a79`.
+**Tagged without a GitHub Release:** `v0.1.0-dev.68`, `v0.1.0-dev.69`,
+`v0.1.0-dev.70`, and `v0.2.0-dev.1`. The latter has tag object
+`a5a15cf0cbbff8187bb12a3ecb7ee8e0a40de5bc`, peels to exact master
+`184dfa13577ae6f24a7e6dde785a824ef46aa373`, and has no Release or assets.
 
-**Current integration tree:** Issue #234 is merged at
-`456467556c394e4e31b26e19747d25e6ce05a873`; Issue #235 is merged via PR #238 at
-`bf96273a28d5c6907c26a887a454a69afdb225b9`; Issue #216 is the current topic unit. No
-`v0.2.0-dev.1` tag or GitHub Release exists, and the final ship SHA is not selected yet.
+**Current integration tree:** `master` is `184dfa13577ae6f24a7e6dde785a824ef46aa373`.
+Issues #234 and #235 are merged and closed; Issue #216's hardening PR #240 is merged, while #216
+remains open for dev.2 publication. The `v0.2.0-dev.1` release run passed Linux x64/arm64 and macOS
+arm64 but failed macOS x64 because concurrent download completion could extract a nested dependency
+before its parent, whose later atomic extraction erased it. The publish job was skipped. Issue #241
+keeps downloads concurrent and serializes materialization in stable
+ancestor-before-descendant order independent of lockfile member order, with completed bodies held in
+the verified cache or a cleaned lazy disk spool.
 
 **Public npm status:** the published `v0.1.0-dev.21` binary reproduces the fatal TLS
 `protocol_version` failure. The #233 implementation is merged and has live receipts
@@ -37,5 +44,8 @@ tag must equal the fetched `origin/master` tip. Staged assets, fresh publication
 rerun must contain exactly the four named native archives plus `checksums.txt`, require four exact
 checksum records, and pass `sha256sum --check --strict` before success.
 
-**Next scope:** land this single #216 commit through its PR, pass all four workflows on that exact
-merged `master` SHA, then and only then create the immutable annotated tag and publish.
+**Next scope:** land Issue #241 through its PR after the deterministic regression and complete local
+gates pass; prove all four workflows on the exact merged `master` SHA; then and only then create the
+new immutable annotated `v0.2.0-dev.2` tag and publish. Never move, delete, or reuse
+`v0.2.0-dev.1`. Issue #239 performs post-publication reconciliation without changing tag or asset
+identity.

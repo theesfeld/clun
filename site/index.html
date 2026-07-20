@@ -22,7 +22,7 @@
 <!-- clun-generated:release:begin -->
 <a href="https://github.com/theesfeld/clun/issues/56">
   <span>In development</span>
-  v0.2.0-dev.1 / Phase 82
+  v0.2.0-dev.2 / Phase 82
   <span aria-hidden="true">-&gt;</span>
 </a>
 <!-- clun-generated:release:end -->
@@ -56,7 +56,7 @@
             <img class="hero-mark" src="assets/clun.jpg" alt="Clun mascot wearing a Lisp helmet" width="250" height="250">
           </div>
 <!-- clun-generated:version:begin -->
-<p class="eyebrow"><span class="status-dot" aria-hidden="true"></span> v0.2.0-dev.1 release candidate / pre-alpha</p>
+<p class="eyebrow"><span class="status-dot" aria-hidden="true"></span> v0.2.0-dev.2 release candidate / pre-alpha</p>
 <!-- clun-generated:version:end -->
           <h1>Clun is JavaScript tooling,<br> rewritten in pure Common Lisp.</h1>
           <p class="hero-copy">
@@ -92,18 +92,23 @@
             <p class="installer-note">
               Existing <code>CLUN_INSTALL=~/.clun</code> layouts remain supported. Because verified
               <code>v0.1.0-dev.21</code> predates the built-in updater, wait until
-              <code>v0.2.0-dev.1</code> is shown as installable below, then upgrade that layout once with
+              <code>v0.2.0-dev.2</code> is shown as installable below, then upgrade that layout once with
               <code>curl -fsSL https://clun.sh/install | CLUN_INSTALL="$HOME/.clun" CLUN_NO_MODIFY_PATH=1 sh</code>.
               Until then, the command only reinstalls <code>v0.1.0-dev.21</code>. The new release supports
               <code>clun --check-update</code> and <code>clun --update</code>; failures retain the prior
               bundle and launcher.
             </p>
             <p class="installer-note">
-              The hosted command still installs verified <code>v0.1.0-dev.21</code>;
-              <code>v0.2.0-dev.1</code> is a source candidate, not an installable Release. Its bounded
+              The hosted command still installs verified <code>v0.1.0-dev.21</code>.
+              Immutable <code>v0.2.0-dev.1</code> has no Release or assets: three native targets passed,
+              macOS x64 exposed an order-dependent fresh-hoist race, and publication was skipped.
+              <code>v0.2.0-dev.2</code> is the recovery source candidate. Its deterministic
+              ancestor-before-descendant materialization fix works independently of lockfile member order,
+              while completed bodies wait in the verified cache or a cleaned lazy disk spool. The bounded
               <a href="https://github.com/theesfeld/clun/issues/234">WebPKI</a> and
               <a href="https://github.com/theesfeld/clun/issues/235">TLS alert/close</a> work are
-              implemented; exact-candidate CI/Compatibility/Documentation, tag, four archives,
+              implemented; Issue <a href="https://github.com/theesfeld/clun/issues/241">#241</a>'s
+              regression plus exact-candidate CI/Compatibility/Documentation, tag, four archives,
               checksums, Pages, and hosted smoke must still pass.
             </p>
             <p class="installer-note">Pre-alpha software: pre-1.0 minor versions may include breaking changes.</p>
@@ -136,7 +141,7 @@
             as ineligible / fell back 0 times / executed 0 interpreter fallbacks.
             Parse gate: 23,713 total / 17,699 pass / 976 fail / 5,038 skip / 0 crash; all 17,512
             frozen passes hold.
-            Common Lisp suite: 3,260 pass / 0 fail / 0 skip.
+            Current full Common Lisp suite: 19,848 assertions / 0 fail / 0 skip.
             <a href="https://github.com/theesfeld/clun/issues/57">Phase 25b milestone 6</a> is published
             as <a href="https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.6">v0.1.0-dev.6</a>.
             CI, Documentation, all four native archives and checksums, the exact-candidate Pages deployment,
@@ -387,7 +392,7 @@ Linked phase labels are planned acceptance gates, not capabilities available tod
   <thead>
     <tr>
       <th scope="col">Capability</th>
-      <th scope="col" class="clun-col"><a href="https://github.com/theesfeld/clun">Clun</a><span>0.2.0-dev.1 candidate / pre-alpha</span></th>
+      <th scope="col" class="clun-col"><a href="https://github.com/theesfeld/clun">Clun</a><span>0.2.0-dev.2 candidate / pre-alpha</span></th>
       <th scope="col"><a href="https://bun.sh/">Bun</a><span>1.3.14 / toolkit</span></th>
       <th scope="col"><a href="https://nodejs.org/">Node.js</a><span>26.5.0 / current</span></th>
       <th scope="col"><a href="https://deno.com/">Deno</a><span>2.9.3 / runtime</span></th>
@@ -521,7 +526,7 @@ Linked phase labels are planned acceptance gates, not capabilities available tod
     </tr>
     <tr data-compat-feature="package-manager.npm">
       <th scope="row"><strong>npm package management</strong><span>Install, manage, and publish npm-compatible dependencies</span></th>
-      <td class="clun-col"><b class="state partial">Partial</b> <code>clun add &lt;pkg&gt;</code> and Bun-compatible <code>clun install &lt;pkg&gt;</code> resolve public npm metadata and tarballs through an experimental bounded pure-CL TLS profile; no-argument install resolves the existing manifest; all paths enforce SRI, write <code>clun.lock</code>, materialize <code>node_modules</code>, and reinstall offline from cache; aliases, local packages, optional dependencies, hoisting, workspaces, and four-target hermetic receipts are covered<span class="phase-links" data-roadmap-phase="61"><span>Phases</span> <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-28">28</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-59">59</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-60">60</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-61">61</a></span></td>
+      <td class="clun-col"><b class="state partial">Partial</b> <code>clun add &lt;pkg&gt;</code> and Bun-compatible <code>clun install &lt;pkg&gt;</code> resolve public npm metadata and tarballs through an experimental bounded pure-CL TLS profile; no-argument install resolves the existing manifest; all paths enforce SRI, write <code>clun.lock</code>, materialize <code>node_modules</code>, and reinstall offline from cache; aliases, local packages, optional dependencies, hoisting, workspaces, and four-target hermetic receipts are covered; npm publishing and full registry-auth compatibility remain unavailable<span class="phase-links" data-roadmap-phase="61"><span>Phases</span> <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-28">28</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-59">59</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-60">60</a>, <a href="https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-61">61</a></span></td>
       <td><b class="state yes">Yes</b> <code>bun install</code></td>
       <td><b class="state separate">Separate</b> npm ships with Node.js installers</td>
       <td><b class="state partial">Partial</b> installs npm projects; publishing is JSR-oriented</td>

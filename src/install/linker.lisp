@@ -43,6 +43,10 @@ the Phase-18 reactor client, https → net:https-request on the worker pool (ver
             :on-response #'handle
             :on-error (lambda (code) (funcall on-err code)))))))
 
+(defparameter *tarball-download-function* #'%download-tarball
+  "Internal tarball downloader indirection. Tests may bind this to exercise callback timing;
+production uses the fail-closed HTTP/TLS downloader above.")
+
 ;;; --- bin symlinks -----------------------------------------------------------
 
 (defun %bin-entries (bin pkg-name)
@@ -180,23 +184,88 @@ symlinks are preserved; device nodes are skipped. Used for file: dependencies."
 
 ;;; --- link a whole plan ------------------------------------------------------
 
+(defun %ordered-materialisation-plan (plan)
+  "Return a fresh PLAN whose shallower physical paths precede deeper paths.
+Every package ancestor therefore commits before a nested dependency even when a hand-edited or
+reformatted lockfile presents object entries in another order. STABLE-SORT preserves the resolver's
+order among placements at the same depth."
+  (stable-sort (copy-list plan) #'<
+               :key (lambda (entry)
+                      (length (%split-path-parts (car entry))))))
+
 (defun link-plan (loop root plan nodes &key on-ok on-err)
   "Materialise PLAN (list of (physical-dir . node-key)) under ROOT: obtain each tarball (cache by
 integrity, else download), verify + extract (Phase-22) into ROOT/physical, copy file: packages, then
-create bin symlinks. Async (downloads in flight on the loop); ON-OK () when everything is extracted +
-linked, ON-ERR (condition)."
-  (let ((pending 0) (err nil) (finished nil))
-    (labels ((fail (e) (unless err
+create bin symlinks. Downloads remain concurrent and may complete in any order; ready entries are
+committed only as a deterministic ancestor-before-descendant prefix, so extracting a parent can
+never erase an already-extracted child even when lockfile entries are reordered. ON-OK () when
+everything is extracted + linked, ON-ERR (condition)."
+  (let* ((ordered-plan (%ordered-materialisation-plan plan))
+         ;; Created lazily only for URL/no-integrity or cache-write fallback. All-cache, file,
+         ;; workspace, and empty installs must not acquire a new TMPDIR dependency.
+         (spool-dir nil)
+         (spool-counter 0)
+         (pending 0) (err nil) (finished nil) (preparation-complete nil)
+         (remaining ordered-plan)
+         (ready (make-hash-table :test 'equal)))
+    (labels ((cleanup-ready ()
+               (clrhash ready)
+               (when spool-dir
+                 (ignore-errors (sys:remove-recursive spool-dir))
+                 (setf spool-dir nil)))
+             (fail (e) (unless err
                          (setf err (if (typep e 'condition) e
-                                       (make-condition 'install-error :message (princ-to-string e))))))
-             (finish ()
-               (when (and (not finished) (zerop pending))
+                                       (make-condition 'install-error :message (princ-to-string e))))
+                         ;; Completed responses must not accumulate after terminal failure. Late
+                         ;; callbacks see ERR and discard their bodies without recreating the spool.
+                         (cleanup-ready)))
+             (finish-if-ready ()
+               ;; A test downloader may invoke its callback synchronously from PREPARE-ONE. Do not
+               ;; report success until every plan entry has at least been prepared/scheduled.
+               (when (and preparation-complete (not finished) (zerop pending)
+                          (or err (null remaining)))
                  (setf finished t)
-                 (if err
-                     (when on-err (funcall on-err err))
-                     (progn (handler-case (%link-bins root plan nodes) (error (e) (fail e)))
-                            (if err (when on-err (funcall on-err err))
-                                (when on-ok (funcall on-ok)))))))
+                 (unless err
+                   ;; Preserve the resolver/lock plan's same-level .bin collision order. Only
+                   ;; package materialisation needs the ancestor-first projection.
+                   (handler-case (%link-bins root plan nodes) (error (e) (fail e))))
+                 (cleanup-ready)
+                 (if err (when on-err (funcall on-err err))
+                     (when on-ok (funcall on-ok)))))
+             (spool-payload (bytes)
+               (handler-case
+                   (let* ((dir (or spool-dir
+                                   (setf spool-dir
+                                         (sys:make-temp-dir
+                                          (sys:path-join (sys:tmpdir)
+                                                         "clun-link-ready-")))))
+                          (path (sys:path-join dir
+                                              (format nil "~d.tgz" (incf spool-counter)))))
+                     (sys:write-file-octets path bytes)
+                     (cons :spool path))
+                 (error (e) (fail e) nil)))
+             (ready-payload (integrity bytes)
+               ;; Queue only disk-backed tokens. Registry tarballs normally enter the verified
+               ;; content-addressed cache; URL/no-integrity or cache-write failures use this
+               ;; link-plan's private spool. A slow parent therefore cannot retain every completed
+               ;; descendant response in the Lisp heap.
+               (let ((cache-path
+                       (and integrity (plusp (length integrity))
+                            (ignore-errors (tb:cache-store integrity bytes)))))
+                 (if cache-path (cons :cache cache-path)
+                     (spool-payload bytes))))
+             (payload-octets (payload)
+               (cond
+                 ((and (consp payload) (member (car payload) '(:cache :spool))
+                       (stringp (cdr payload)))
+                  (handler-case
+                      (let ((bytes (sys:read-file-octets (cdr payload))))
+                        (when (eq (car payload) :spool)
+                          (ignore-errors (sys:remove-recursive (cdr payload))))
+                        bytes)
+                    (error (e) (fail e) nil)))
+                 ((typep payload '(vector (unsigned-byte 8))) payload)
+                 (t nil)))
              (extract (node dest bytes)
                (handler-case
                    (let ((parent (sys:path-dirname dest)))
@@ -211,7 +280,7 @@ linked, ON-ERR (condition)."
                                                           nil)
                                            :strip-components 1)))
                  (error (e) (fail e))))
-             (do-one (physical key)
+             (materialise-one (physical key payload)
                (let* ((node (gethash key nodes))
                       (dest (sys:path-join root physical)))
                  (cond
@@ -225,26 +294,72 @@ linked, ON-ERR (condition)."
                     (handler-case (%materialise-workspace-node node dest)
                       (error (e) (fail e))))
                    (t
+                    (let ((bytes (payload-octets payload)))
+                      (if bytes
+                        (extract node dest bytes)
+                        (fail (make-condition 'install-error
+                                :message (format nil "missing downloaded payload for ~a" key)))))))))
+             (drain-ready-prefix ()
+               ;; Remove each payload immediately after commit so a slow later download does not
+               ;; retain every earlier tarball in memory.
+               (loop while (and remaining (not err))
+                     for physical = (caar remaining)
+                     for key = (cdar remaining)
+                     do (multiple-value-bind (payload presentp) (gethash physical ready)
+                          (unless presentp (return))
+                          (materialise-one physical key payload)
+                          (unless err
+                            (remhash physical ready)
+                            (pop remaining))))
+               (finish-if-ready))
+             (mark-ready (physical payload)
+               (if err
+                   (finish-if-ready)
+                   (progn
+                     (setf (gethash physical ready) payload)
+                     (drain-ready-prefix))))
+             (prepare-one (physical key)
+               (let ((node (gethash key nodes)))
+                 (cond
+                   ((null node)
+                    (fail (make-condition 'install-error
+                            :message (format nil "missing node for ~a" key))))
+                   ((member (in-kind node) '(:file :workspace))
+                    (mark-ready physical (in-kind node)))
+                   (t
                     (let* ((integrity (in-integrity node))
                            (cached (and integrity (plusp (length integrity))
                                         (ignore-errors (tb:cache-fetch integrity)))))
                       (cond
-                        (cached (extract node dest cached))
+                        (cached
+                         ;; CACHE-FETCH verified the bytes; queue the path and release the vector.
+                         ;; EXTRACT-PACKAGE verifies integrity again after the just-in-time read.
+                         (mark-ready physical (cons :cache (tb:cache-path integrity))))
                         ((null (in-tarball node))
                          (fail (make-condition 'install-error
                                  :message (format nil "no tarball for ~a" key))))
                         (t
-                         (incf pending)
-                         (%download-tarball loop (in-tarball node)
-                           :on-ok (lambda (bytes)
-                                    (when (and integrity (plusp (length integrity)))
-                                      (ignore-errors (tb:cache-store integrity bytes)))
-                                    (extract node dest bytes)
-                                    (decf pending) (finish))
-                           :on-err (lambda (code)
-                                     (fail (make-condition 'install-error
-                                             :message (format nil "download failed for ~a: ~a"
-                                                              key code)))
-                                     (decf pending) (finish)))))))))))
-      (dolist (p plan) (unless err (do-one (car p) (cdr p))))
-      (finish))))
+                         (let ((settled nil))
+                           (incf pending)
+                           (funcall *tarball-download-function* loop (in-tarball node)
+                             :on-ok (lambda (bytes)
+                                      (unless settled
+                                        (setf settled t)
+                                        (decf pending)
+                                        (if err
+                                            (finish-if-ready)
+                                            (let ((payload (ready-payload integrity bytes)))
+                                              (if payload
+                                                  (mark-ready physical payload)
+                                                  (finish-if-ready))))))
+                             :on-err (lambda (code)
+                                       (unless settled
+                                         (setf settled t)
+                                         (fail (make-condition 'install-error
+                                                 :message (format nil "download failed for ~a: ~a"
+                                                                  key code)))
+                                         (decf pending)
+                                         (finish-if-ready)))))))))))))
+      (dolist (p ordered-plan) (unless err (prepare-one (car p) (cdr p))))
+      (setf preparation-complete t)
+      (drain-ready-prefix))))

@@ -7,11 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Clun is pre-1.0; minor versions may include breaking changes.
 
 The immutable tags `v0.1.0-dev.2`, `v0.1.0-dev.11`, `v0.1.0-dev.12`,
-`v0.1.0-dev.15`, `v0.1.0-dev.68`, `v0.1.0-dev.69`, and
-`v0.1.0-dev.70` did not produce GitHub Releases or assets and are not
+`v0.1.0-dev.15`, `v0.1.0-dev.68`, `v0.1.0-dev.69`, `v0.1.0-dev.70`, and
+`v0.2.0-dev.1` did not produce GitHub Releases or assets and are not
 installable release checkpoints.
 
 ## [Unreleased]
+
+## [0.2.0-dev.2] - 2026-07-19
+
+### Changed
+
+- Advance the recovery candidate without moving or reusing immutable,
+  tag-only `v0.2.0-dev.1`; the verified installer remains pinned to published
+  `v0.1.0-dev.21` until the new four-platform assets pass every release gate.
+- Correct README and Pages status to the verified current 19,848-assertion
+  Common Lisp suite and make the still-missing npm publish and full registry-auth
+  support visible alongside the working add/install path.
+
+### Fixed
+
+- Commit concurrently downloaded package tarballs to `node_modules` in
+  deterministic ancestor-before-descendant order, independent of lockfile JSON
+  member order, so a later parent extraction cannot erase an already-materialized
+  nested dependency. Queue completed bodies through the verified cache or a
+  cleaned disk spool instead of retaining an unbounded ready set in memory.
+- Regenerate three dependency-bearing registry fixtures with valid package
+  manifests so install-layout tests verify identity from extracted bytes.
 
 ## [0.2.0-dev.1] - 2026-07-19
 
@@ -260,7 +281,8 @@ installable release checkpoints.
 
 - Publish the initial Clun development release.
 
-[Unreleased]: https://github.com/theesfeld/clun/compare/v0.2.0-dev.1...HEAD
+[Unreleased]: https://github.com/theesfeld/clun/compare/v0.2.0-dev.2...HEAD
+[0.2.0-dev.2]: https://github.com/theesfeld/clun/compare/v0.2.0-dev.1...v0.2.0-dev.2
 [0.2.0-dev.1]: https://github.com/theesfeld/clun/compare/v0.1.0-dev.21...v0.2.0-dev.1
 [0.1.0-dev.70]: https://github.com/theesfeld/clun/compare/v0.1.0-dev.21...v0.1.0-dev.70
 [0.1.0-dev.21]: https://github.com/theesfeld/clun/compare/v0.1.0-dev.19...v0.1.0-dev.21

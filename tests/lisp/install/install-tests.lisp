@@ -9,6 +9,14 @@
 (defparameter *install-deps-json*
   "{\"@scope/widget\":\"^1.0.0\",\"conflict-a\":\"1.0.0\",\"conflict-b\":\"1.0.0\"}")
 
+(defparameter *six-node-install-graph*
+  '(("node_modules/@scope/widget" . "@scope/widget@1.0.0")
+    ("node_modules/conflict-a" . "conflict-a@1.0.0")
+    ("node_modules/conflict-b" . "conflict-b@1.0.0")
+    ("node_modules/conflict-b/node_modules/shared" . "shared@2.0.0")
+    ("node_modules/left-pad" . "left-pad@1.3.0")
+    ("node_modules/shared" . "shared@1.0.0")))
+
 (defun %write-package-json (dir deps-json)
   (sys:write-file-octets
    (sys:path-join dir "package.json")
@@ -49,6 +57,55 @@ return (values install-result error)."
 (defun %nm (dir &rest segs) (apply #'clun.sys:path-join dir "node_modules" segs))
 (defun %has-pkg (dir &rest segs) (clun.sys:path-exists-p (apply #'clun.sys:path-join (%nm dir) (append segs (list "package.json")))))
 
+(defun %six-node-layout-snapshot (dir plan)
+  "Return PLAN's exact physical-path/installed-name@version graph for manifests that really exist.
+Parsing the extracted package.json bytes proves the complete layout contains valid package
+manifests and does not merely borrow package identity from the resolver's plan."
+  (sort (loop for placement in plan
+              for physical = (car placement)
+              for manifest = (sys:path-join dir physical "package.json")
+              when (sys:file-p manifest)
+                collect (let* ((pkg (sys:parse-json (sys:read-file-string manifest)))
+                               (name (sys:jget pkg "name"))
+                               (version (sys:jget pkg "version")))
+                          (unless (and (stringp name) (stringp version))
+                            (error "installed package manifest lacks string name/version: ~a"
+                                   manifest))
+                          (cons physical (format nil "~a@~a" name version))))
+        #'string< :key #'car))
+
+(defun %direct-link-one (root bytes integrity &key defer-completion)
+  "Synchronously link one registry-style fixture node and return OK/ERR/error/download counts.
+The downloader hook makes callback timing deterministic while exercising LINK-PLAN's real payload
+cache/spool and extraction paths. When DEFER-COMPLETION is true, invoke the captured success
+callback only after LINK-PLAN has returned so tests cover the asynchronous settled path."
+  (let ((loop (lp:make-event-loop :workers 0))
+        (nodes (make-hash-table :test 'equal))
+        (ok-count 0) (err-count 0) (caught nil) (downloads 0)
+        (deferred-ok nil) (pre-ok-count nil) (pre-err-count nil))
+    (setf (gethash "shared@2.0.0" nodes)
+          (inst::make-inst-node :name "shared" :version "2.0.0" :deps '()
+                                :tarball "https://fixture.invalid/shared-2.0.0.tgz"
+                                :integrity integrity :kind :registry))
+    (unwind-protect
+         (let ((inst::*tarball-download-function*
+                 (lambda (ignored-loop ignored-url &key on-ok on-err)
+                   (declare (ignore ignored-loop ignored-url on-err))
+                   (incf downloads)
+                   (if defer-completion
+                       (setf deferred-ok on-ok)
+                       (funcall on-ok bytes)))))
+           (inst:link-plan loop root
+                           '(("node_modules/shared" . "shared@2.0.0")) nodes
+                           :on-ok (lambda () (incf ok-count))
+                           :on-err (lambda (e) (incf err-count) (setf caught e)))
+           (setf pre-ok-count ok-count pre-err-count err-count)
+           (when defer-completion
+             (unless deferred-ok (error "deferred downloader did not capture ON-OK"))
+             (funcall deferred-ok bytes)))
+      (lp:destroy-event-loop loop))
+    (values ok-count err-count caught downloads pre-ok-count pre-err-count)))
+
 (define-test install/fresh-hoisted-layout
   (with-temp-cache (cache)
     (let ((proj (clun.sys:make-temp-dir "/tmp/clun-proj-")))
@@ -79,6 +136,142 @@ return (values install-result error)."
                ;; the lock was written
                (true (clun.sys:path-exists-p (clun.sys:path-join proj "clun.lock")) "clun.lock written")))
         (ignore-errors (clun.sys:remove-recursive proj))))))
+
+(define-test install/forced-download-order-matches-lockfile-layout
+  ;; Pre-cache ONLY nested shared@2 so it is ready synchronously while its conflict-b parent still
+  ;; requires an async download. Extracting immediately on readiness loses the nested package when
+  ;; the parent extractor later replaces node_modules/conflict-b. Fresh and lockfile paths must
+  ;; instead materialise the same complete graph in plan order.
+  (with-temp-cache (cache)
+    (let* ((proj (sys:make-temp-dir "/tmp/clun-proj-forced-order-"))
+           (fixture (load-fixture-registry "http://127.0.0.1:1"))
+           (child-bytes (gethash "shared-2.0.0.tgz" (fixture-registry-tarballs fixture)))
+           (child-integrity (tarball-integrity child-bytes))
+           (real-downloader inst::*tarball-download-function*)
+           (downloaded '())
+           (fresh-plan nil))
+      (labels ((recording-downloader (loop url &key on-ok on-err)
+                 (push url downloaded)
+                 (funcall real-downloader loop url :on-ok on-ok :on-err on-err)))
+        (unwind-protect
+             (progn
+               (true child-bytes "shared@2 fixture tarball exists")
+               (tb:cache-store child-integrity child-bytes)
+               (true (tb:cache-fetch child-integrity) "only nested shared@2 is pre-cached")
+               (%write-package-json proj *install-deps-json*)
+               (multiple-value-bind (fresh-result fresh-error)
+                   (let ((inst::*tarball-download-function* #'recording-downloader))
+                     (%fresh-install proj))
+                 (false fresh-error)
+                 (is eq :resolved (inst:ir-source fresh-result))
+                 (is = 6 (inst:ir-node-count fresh-result) "fresh path resolved six nodes")
+                 (setf fresh-plan (inst:ir-plan fresh-result))
+                 (is = 6 (length fresh-plan) "fresh path planned six placements"))
+               (false (find-if (lambda (url) (search "/shared-2.0.0.tgz" url)) downloaded)
+                      "nested shared@2 was ready from cache, without a download")
+               (true (find-if (lambda (url) (search "/conflict-b-1.0.0.tgz" url)) downloaded)
+                     "conflict-b parent required an async download")
+               (let ((fresh-layout (%six-node-layout-snapshot proj fresh-plan))
+                     (lock-before (sys:read-file-string (sys:path-join proj "clun.lock"))))
+                 (is equal *six-node-install-graph* fresh-layout
+                     "cache-first child install materialises the complete conflict-preserving graph")
+                 (sys:remove-recursive (sys:path-join proj "node_modules"))
+                 ;; JSON object order is not semantic. Reverse every package member so the nested
+                 ;; child is presented before conflict-b, then prove the linker projects that
+                 ;; arbitrary lock plan to ancestor-before-descendant commit order.
+                 (let* ((lock-path (sys:path-join proj "clun.lock"))
+                        (lock-value (sys:parse-json lock-before))
+                        (packages-pair (assoc "packages" lock-value :test #'string=)))
+                   (true packages-pair "lockfile contains a packages object")
+                   (setf (cdr packages-pair) (reverse (cdr packages-pair)))
+                   (let ((reordered-lock
+                           (concatenate 'string
+                                        (sys:write-json lock-value :indent 2 :sort-keys nil)
+                                        (string #\Newline))))
+                     (isnt equal lock-before reordered-lock
+                           "reversed lockfile is byte-distinct but semantically equivalent")
+                     (sys:write-file-octets
+                      lock-path
+                      (sb-ext:string-to-octets reordered-lock :external-format :utf-8))
+                     (let ((lock-result (inst:install proj)))
+                       (is eq :from-lock (inst:ir-source lock-result))
+                       (is = 6 (inst:ir-node-count lock-result) "lockfile path reconstructs six nodes")
+                       (is = 6 (length (inst:ir-plan lock-result)) "lockfile path plans six placements")
+                       (true (< (position "node_modules/conflict-b/node_modules/shared"
+                                          (inst:ir-plan lock-result) :test #'string= :key #'car)
+                                (position "node_modules/conflict-b"
+                                          (inst:ir-plan lock-result) :test #'string= :key #'car))
+                             "input lock plan really presents the nested child before its parent")
+                       (let ((lock-layout (%six-node-layout-snapshot proj (inst:ir-plan lock-result))))
+                         (is equal *six-node-install-graph* lock-layout
+                             "reverse-order lock replay materialises the exact complete six-node graph")
+                         (is equal fresh-layout lock-layout
+                             "fresh and lockfile paths materialise identical six-node layouts")))
+                     (is equal reordered-lock (sys:read-file-string lock-path)
+                         "lockfile reuse preserves the caller's byte order")))))
+          (ignore-errors (sys:remove-recursive proj)))))))
+
+(define-test install/ready-payload-spool-is-lazy-clean-and-callback-safe
+  (with-temp-cache (cache)
+    (let* ((fixture (load-fixture-registry "http://127.0.0.1:1"))
+           (bytes (gethash "shared-2.0.0.tgz" (fixture-registry-tarballs fixture)))
+           (integrity (tarball-integrity bytes))
+           (scratch (sys:make-temp-dir "/tmp/clun-link-spool-test-"))
+           (spool-root (sys:path-join scratch "spool"))
+           (invalid-tmp (sys:path-join scratch "not-a-directory"))
+           (old-tmpdir (sb-ext:posix-getenv "TMPDIR")))
+      (unwind-protect
+           (progn
+             (sys:make-directory spool-root :recursive t :mode #o755)
+             (sys:write-file-octets invalid-tmp
+                                    (sb-ext:string-to-octets "file" :external-format :utf-8))
+             ;; No integrity means no content-addressed cache path. A synchronous completion must
+             ;; spool, read/extract, clean its private directory, and report success exactly once.
+             (sb-posix:setenv "TMPDIR" spool-root 1)
+             (let ((root (sys:path-join scratch "uncached")))
+               (sys:make-directory root :recursive t :mode #o755)
+               (multiple-value-bind (ok errors caught downloads)
+                   (%direct-link-one root bytes "")
+                 (is = 1 ok)
+                 (is = 0 errors)
+                 (false caught)
+                 (is = 1 downloads)
+                 (is equal "2.0.0"
+                     (sys:jget (sys:parse-json
+                                (sys:read-file-string
+                                 (sys:path-join root "node_modules/shared/package.json")))
+                               "version"))
+                 (is = 0 (length (sys:read-directory spool-root))
+                     "private ready-payload spool is removed after success")))
+             ;; A verified cache-only install must not touch TMPDIR at all.
+             (tb:cache-store integrity bytes)
+             (sb-posix:setenv "TMPDIR" invalid-tmp 1)
+             (let ((root (sys:path-join scratch "cached")))
+               (sys:make-directory root :recursive t :mode #o755)
+               (multiple-value-bind (ok errors caught downloads)
+                   (%direct-link-one root bytes integrity)
+                 (is = 1 ok)
+                 (is = 0 errors)
+                 (false caught)
+                 (is = 0 downloads "cache-only materialisation does not acquire TMPDIR")))
+             ;; If a no-integrity spool cannot be created, a deferred callback after LINK-PLAN
+             ;; returns still settles through ON-ERR exactly once; it must not hang or falsely succeed.
+             (let ((root (sys:path-join scratch "spool-failure")))
+               (sys:make-directory root :recursive t :mode #o755)
+               (multiple-value-bind (ok errors caught downloads pre-ok pre-errors)
+                   (%direct-link-one root bytes "" :defer-completion t)
+                 (is = 0 pre-ok "deferred response does not report early success")
+                 (is = 0 pre-errors "deferred response does not report an error before completion")
+                 (is = 0 ok)
+                 (is = 1 errors)
+                 (true caught)
+                 (is = 1 downloads)
+                 (false (sys:path-exists-p
+                         (sys:path-join root "node_modules/shared/package.json"))))))
+        (if old-tmpdir
+            (sb-posix:setenv "TMPDIR" old-tmpdir 1)
+            (ignore-errors (sb-posix:unsetenv "TMPDIR")))
+        (ignore-errors (sys:remove-recursive scratch))))))
 
 (define-test install/offline-reinstall-byte-identical-lock
   (with-temp-cache (cache)

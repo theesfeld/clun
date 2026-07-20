@@ -3597,3 +3597,26 @@ Refs: #234, #233, #2
 SemVer impact is `patch` inside the pending `0.2.0-dev.1` prerelease.
 
 Refs: #235, #233, #234
+
+## 2026-07-19 — failed immutable dev.1 advances deterministic recovery to dev.2 (#241)
+
+Annotated tag `v0.2.0-dev.1` peels to exact master commit
+`184dfa13577ae6f24a7e6dde785a824ef46aa373`. Its release run passed Linux x64/arm64 and macOS
+arm64 but failed the full test suite on macOS x64 before publication. The publish job was skipped;
+there is no `v0.2.0-dev.1` GitHub Release or asset set, and the tag remains immutable.
+
+The failure was an install-layout ordering race, not a TLS or registry-resolution failure. Uncached
+downloads previously extracted immediately in completion order. A cached nested dependency could
+therefore materialize first and then be erased by the parent's later atomic destination replacement.
+Issue #241 retains concurrent downloads while projecting any resolver or lockfile entry order to a
+stable ancestor-before-descendant materialization order; binary linking still uses the caller's
+same-level plan order and begins only after every entry commits. Completed response bodies are held
+as verified cache paths or a private, lazily created disk spool rather than accumulating behind a
+slow ancestor in the Lisp heap, and every terminal path removes the private spool. The forced timing
+regression reverses the lockfile package entries and derives its full fresh/replay graph from the
+actual extracted manifests. The malformed dependency-bearing registry fixtures that had hidden
+installed package identity were regenerated from a corrected deterministic fixture script. The
+recovery advances to the new immutable candidate `0.2.0-dev.2` / `v0.2.0-dev.2`; it never moves or
+reuses the failed tag.
+
+Refs: #241, #216, #56

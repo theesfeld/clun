@@ -7,7 +7,8 @@
 set -eu
 cd "$(dirname "$0")/../tests/fixtures/registry/tarballs"
 build() { # name version dependencies-json extra-fields
-  name="$1"; ver="$2"; deps="${3:-{}}"; extra="${4:-}"
+  name="$1"; ver="$2"; deps='{}'; extra="${4:-}"
+  if [ "$#" -ge 3 ]; then deps="$3"; fi
   d=$(mktemp -d); mkdir -p "$d/package"
   printf '{"name":"%s","version":"%s","dependencies":%s%s}\n' "$name" "$ver" "$deps" "$extra" > "$d/package/package.json"
   printf 'module.exports = "%s@%s";\n' "$name" "$ver" > "$d/package/index.js"
@@ -56,4 +57,5 @@ build_longname() { # name version
   rm -rf "$d"; echo "  $fn (pax-longname)"
 }
 build_longname "longname-pkg" "1.0.0"
-echo "done: $(ls *.tgz | wc -l) tarballs"
+set -- ./*.tgz
+echo "done: $# tarballs"
