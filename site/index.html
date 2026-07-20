@@ -102,14 +102,16 @@
               The hosted command still installs verified <code>v0.1.0-dev.21</code>.
               Immutable <code>v0.2.0-dev.1</code> has no Release or assets: three native targets passed,
               macOS x64 exposed an order-dependent fresh-hoist race, and publication was skipped.
-              <code>v0.2.0-dev.2</code> is the recovery source candidate. Its deterministic
-              ancestor-before-descendant materialization fix works independently of lockfile member order,
-              while completed bodies wait in the verified cache or a cleaned lazy disk spool. The bounded
+              <code>v0.2.0-dev.2</code> is the recovery source candidate on <code>master</code>.
+              The deterministic ancestor-before-descendant materialization fix from
+              <a href="https://github.com/theesfeld/clun/issues/241">#241</a> /
+              <a href="https://github.com/theesfeld/clun/pull/242">#242</a> is landed; completed
+              bodies wait in the verified cache or a cleaned lazy disk spool. Bounded
               <a href="https://github.com/theesfeld/clun/issues/234">WebPKI</a> and
               <a href="https://github.com/theesfeld/clun/issues/235">TLS alert/close</a> work are
-              implemented; Issue <a href="https://github.com/theesfeld/clun/issues/241">#241</a>'s
-              regression plus exact-candidate CI/Compatibility/Documentation, tag, four archives,
-              checksums, Pages, and hosted smoke must still pass.
+              implemented. Exact-candidate CI/Compatibility/Documentation/Pages, the immutable
+              <code>v0.2.0-dev.2</code> tag from <a href="https://github.com/theesfeld/clun/issues/216">#216</a>,
+              four archives, checksums, and hosted smoke must still pass before the installer boundary moves.
             </p>
             <p class="installer-note">Pre-alpha software: pre-1.0 minor versions may include breaking changes.</p>
           </div>
@@ -287,7 +289,7 @@ Phase 26 remains deferred until after Phase 82 and will be re-baselined for the 
                 <li>Lifecycle scripts are never executed</li>
               </ul>
               <div class="tool-status warning"><span>Published dev.21</span> Public npm fails with fatal <code>protocol_version</code></div>
-              <div class="tool-status warning"><span>Source candidate</span> Public add/install, <a href="https://github.com/theesfeld/clun/issues/234">bounded WebPKI hardening</a>, and <a href="https://github.com/theesfeld/clun/issues/235">TLS alert/close compliance</a> are implemented; newest exact-SHA workflow and strict five-asset publication gates remain</div>
+              <div class="tool-status warning"><span>Source candidate</span> <code>clun add</code> / <code>clun install [pkg…]</code> work against public npm (e.g. <code>picocolors</code>); <a href="https://github.com/theesfeld/clun/issues/234">bounded WebPKI</a>, <a href="https://github.com/theesfeld/clun/issues/235">TLS alert/close</a>, and <a href="https://github.com/theesfeld/clun/issues/241">#241</a> materialization order are on master; exact-SHA workflows and <a href="https://github.com/theesfeld/clun/issues/216">#216</a> five-asset publication remain</div>
             </article>
 
             <article class="tool-card tool-test">
