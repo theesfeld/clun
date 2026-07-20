@@ -640,10 +640,10 @@ fresh_case feature-status
 mutate_feature_status "$case_root/compat/features.tsv"
 expect_failure feature-status-drift "$case_root" check
 
-fresh_case native-addons-qualified-yes
-promote_feature_to_yes "$case_root/compat/features.tsv" runtime.native-addons
-expect_failure_matching native-addons-qualified-yes "$case_root" validate \
-  'audited incomplete capability cannot be Yes before its full gate passes: runtime.native-addons'
+fresh_case native-addons-yes-allowed
+# Issue #265: pure-CL host + allowlisted machine load/call is a full-port Yes.
+# Pristine ledger already carries Yes after promotion.
+expect_pass native-addons-yes-allowed "$case_root" validate
 
 fresh_case encrypted-secrets-yes-allowed
 # Issue #261: pure-CL secrets storage is a full-port Yes (not held at Partial

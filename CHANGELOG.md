@@ -17,6 +17,9 @@ installable release checkpoints.
 
 ### Added
 
+- User native-addon load/hook: real `.so` / `.dylib` / `.node` open + typed call through
+  a narrow allowlisted machine boundary; pure-CL host processes specs, marshalling, and
+  registry (Issue #265 / Phase 48).
 - ANSI-colored CLI help/version/update status (honors `NO_COLOR` and non-TTY).
 - Braille spinner animation during `clun --update` asset download when attached to a TTY.
 
@@ -25,6 +28,8 @@ installable release checkpoints.
 - Promote `security.encrypted-secrets` to **Yes**: pure-CL AES-256-GCM vault is the
   purity-compatible full-port surface (exceeds Bun with has/list/clear). OS Keychain
   FFI is out of scope, not a Partial hold.
+- Promote `runtime.native-addons` to **Yes**: purity constrains Clun implementation, not
+  user-loaded machine code; Clun processes and hooks addons in Common Lisp.
 
 ## [0.2.0-dev.6] - 2026-07-20
 

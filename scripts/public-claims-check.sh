@@ -97,20 +97,24 @@ feature_field() {
   ' compat/features.tsv || fail "expected exactly one feature row for $feature_id"
 }
 
+# Issue #265: pure-CL host processes/hooks user native libs; machine load is Yes.
 native_addons_state=$(feature_field runtime.native-addons 6)
+native_addons_detail=$(feature_field runtime.native-addons 7)
 native_addons_gap=$(feature_field runtime.native-addons 8)
-[ "$native_addons_state" = Partial ] ||
-  fail 'runtime.native-addons must remain Partial until the actual native ABI and complete corpus gate pass'
-case "$native_addons_gap" in
-  *'No machine-code .so/.dylib/.node loading or calls'*) ;;
-  *) fail 'runtime.native-addons is missing its machine-code ABI gap' ;;
+[ "$native_addons_state" = Yes ] ||
+  fail 'runtime.native-addons must be Yes once the machine load/hook boundary ships'
+[ "$native_addons_gap" = "-" ] ||
+  fail 'runtime.native-addons Yes cannot retain a gap'
+case "$native_addons_detail" in
+  *'machine'*|*'shared librar'*|*'load/call'*|*'allowlisted'*) ;;
+  *) fail 'runtime.native-addons Yes detail must describe machine load/hook host' ;;
 esac
 for audited_feature in runtime.native-addons; do
   awk -F "$TAB" -v feature_id="$audited_feature" '
-    NR > 1 && $1 == feature_id { found++; if ($3 != "unverified") bad = 1 }
+    NR > 1 && $1 == feature_id { found++; if ($3 != "supported") bad = 1 }
     END { exit !(found == 4 && !bad) }
   ' compat/platforms.tsv ||
-    fail "$audited_feature must remain unverified on all four full-capability platform rows"
+    fail "$audited_feature must be supported on all four platform rows"
 done
 
 baseline_row() {

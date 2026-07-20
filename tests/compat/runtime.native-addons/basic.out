@@ -1,4 +1,4 @@
-api function object number function function function function string function object pure-cl function function function
+api function object number function function function function string function object cl-host function function function
 call 42 42
 cstring clun-ffi-1.0.0
 mem ok 68
@@ -8,5 +8,6 @@ register 123
 list demo js
 napi hello-from-pure-cl-napi 3 1.0.0
 define pong 3
+machine abs:42
 errors ERR:Error
 done suffix

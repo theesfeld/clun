@@ -81,9 +81,9 @@
 (defpackage :clun.ffi
   (:use :cl)
   (:documentation
-   "Pure-CL FFI / N-API native-addon host (Issue #178). Linear memory, typed
-symbols, pure-CL library registry, .claddon packs, Bun.ffi-compatible ABI —
-no machine-code loading. Purity is language, not exclusion (epic #177).")
+   "FFI / native-addon host (#178/#265). Pure-CL process/hook layer plus a
+narrow allowlisted machine load/call boundary for user .so/.dylib/.node.
+Purity constrains Clun implementation, not user-loaded addons.")
   (:export
    ;; conditions
    #:ffi-error #:ffi-error-kind #:ffi-error-detail #:ffi-error-code
@@ -108,6 +108,11 @@ no machine-code loading. Purity is language, not exclusion (epic #177).")
    #:open-library #:link-symbols #:library-close #:call-symbol
    #:view-source-for-symbol #:compile-cc-source #:shared-library-suffix
    #:register-builtin-libraries
+   ;; machine boundary (#265)
+   #:machine-available-p #:machine-open #:machine-close #:machine-symbol-address
+   #:machine-call #:make-machine-symbol-fn #:machine-probe-path
+   #:open-system-libc #:reset-machine-state #:system-libc-candidates
+   #:machine-handle #:mh-path #:mh-closed
    ;; N-API addons
    #:napi-addon #:na-name #:na-version #:na-init #:na-exports #:na-path #:na-meta
    #:define-addon #:list-addons #:resolve-addon #:load-addon #:load-claddon-file))

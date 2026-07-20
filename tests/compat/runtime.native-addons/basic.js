@@ -1,5 +1,4 @@
-// Issue #178 — runtime.native-addons full port fixture.
-// Pure-CL bun:ffi + Clun.ffi/native/napi: typed libraries, memory, N-API addons.
+// Issues #178 / #265 — runtime.native-addons: pure-CL host + machine load/hook.
 
 function summary(fn) {
   try {
@@ -90,6 +89,29 @@ Clun.napi.defineAddon("user_addon", function (exports) {
 const mod2 = { exports: {} };
 Clun.native.dlopen(mod2, "user_addon");
 console.log("define", mod2.exports.ping(), mod2.exports.n);
+
+// Machine-code path: system C library abs(int) via pure-CL host boundary (#265).
+const libcNames =
+  process.platform === "darwin"
+    ? ["libSystem.B.dylib", "libc.dylib"]
+    : ["libc.so.6", "libm.so.6"];
+let machine = "skip";
+for (let i = 0; i < libcNames.length; i++) {
+  const name = libcNames[i];
+  const r = summary(function () {
+    const mlib = dlopen(name, {
+      abs: { args: ["i32"], returns: "i32" },
+    });
+    const v = mlib.symbols.abs(-42);
+    mlib.close();
+    return v;
+  });
+  if (r.indexOf("OK:") === 0) {
+    machine = "abs:" + r.slice(3);
+    break;
+  }
+}
+console.log("machine", machine);
 
 console.log(
   "errors",
