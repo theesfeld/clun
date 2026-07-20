@@ -500,7 +500,7 @@ parse_pass=17699
 parse_fail=976
 parse_skip=5038
 parse_crash=0
-lisp_pass=3260
+lisp_pass=19848
 lisp_fail=0
 lisp_skip=0
 [ "$parse_total" -eq $((parse_pass + parse_fail + parse_skip + parse_crash)) ] ||
@@ -910,9 +910,9 @@ require_text README.md "fallbacks."
 require_text site/index.html "Off/eager ledgers are byte-identical; eager compiled 1,030,545 forms / classified 56,018"
 require_text site/index.html "as ineligible / fell back 0 times / executed 0 interpreter fallbacks."
 require_text README.md "$pretty_parse_total tests as $pretty_parse_pass pass, $pretty_parse_fail fail, $pretty_parse_skip skip, and zero crash"
-require_text README.md "Common Lisp suite passes $pretty_lisp_pass tests with zero failures and zero skips"
+require_text README.md "current full Common Lisp suite passes $pretty_lisp_pass assertions with zero failures and zero skips"
 require_text site/index.html "Parse gate: $pretty_parse_total total / $pretty_parse_pass pass / $pretty_parse_fail fail / $pretty_parse_skip skip / $parse_crash crash; all $pretty_parse_frozen"
-require_text site/index.html "Common Lisp suite: $pretty_lisp_pass pass / $lisp_fail fail / $lisp_skip skip."
+require_text site/index.html "Current full Common Lisp suite: $pretty_lisp_pass assertions / $lisp_fail fail / $lisp_skip skip."
 if [ "$report_lift" -gt 0 ]; then
   require_text README.md "the $pretty_report_target-pass target requires $pretty_report_lift additional live"
   reject_text README.md "Phase 25b's 90% target is met"

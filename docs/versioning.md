@@ -386,5 +386,9 @@ Release ship #216 staged `0.1.0-dev.69` / `v0.1.0-dev.69` with built-in
 `0.1.0-dev.70` / `v0.1.0-dev.70`. Neither tag produced GitHub Release assets.
 Issue #221 replaces the unsafe single-binary update path with the global CLI distribution contract
 and changes the default install path. Its true impact is `major`; under the pre-1.0 policy Phase 82
-therefore stages `0.2.0-dev.1` / `v0.2.0-dev.1` as the next candidate while retaining published
-`v0.1.0-dev.21` as the verified installer boundary.
+therefore started the `0.2.0` train at `0.2.0-dev.1` / `v0.2.0-dev.1` while retaining published
+`v0.1.0-dev.21` as the verified installer boundary. The dev.1 Release run passed three platform
+builds but exposed an asynchronous parent/child package-materialization race on Darwin x64; its
+publish job was skipped, so the immutable tag has no GitHub Release or assets. Issue #241 fixes the
+race and advances recovery exactly once to `0.2.0-dev.2` / `v0.2.0-dev.2` without moving or reusing
+dev.1. The verified installer stays on dev.21 until dev.2 assets and hosted installation are proven.
