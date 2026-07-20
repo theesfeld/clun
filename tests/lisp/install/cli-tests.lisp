@@ -21,17 +21,16 @@ manifest install path. The dry-run surface makes this dispatch proof hermetic."
         (dry-run '("install" "left-pad@1.3.0" "is-number@7.0.0" "--dry-run"))
       (is equal "install" (cli:cli-get result :subcommand))
       (is equal "left-pad@1.3.0" (cli:cli-get result :file))
-      (is equal (format nil
-                        "clun install (dry-run): left-pad@1.3.0, is-number@7.0.0~%")
-          output))
+      ;; Chromed dry-run: info glyph + dispatch text (Issue #280 CLI surface).
+      (true (search "install (dry-run): left-pad@1.3.0, is-number@7.0.0" output)))
     (multiple-value-bind (output result)
         (dry-run '("add" "left-pad@1.3.0" "--dry-run"))
       (declare (ignore result))
-      (is equal (format nil "clun add (dry-run): left-pad@1.3.0~%") output))
+      (true (search "add (dry-run): left-pad@1.3.0" output)))
     (multiple-value-bind (output result)
         (dry-run '("install" "--dry-run"))
       (declare (ignore result))
-      (is equal (format nil "clun install (dry-run)~%") output))))
+      (true (search "install (dry-run)" output)))))
 
 (define-test cli/add-creates-package-json-when-missing
   "Empty directory: add must create package.json (npm/Bun first-use path)."

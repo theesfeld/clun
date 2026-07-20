@@ -216,7 +216,7 @@
 (defparameter *proc-read-chunk* 65536)
 
 (defstruct (subproc (:conc-name sp-))
-  proc loop handle g jsobj
+  proc loop handle resource g jsobj
   exit-code signal-code exited-resolve on-exit
   (child-exited nil) (open-reads 0) (settled nil)
   (killed nil) (kill-signal 15) timeout-timer
@@ -262,13 +262,37 @@
     (ignore-errors
       (sb-ext:process-kill (sp-proc sp) (or sig (sp-kill-signal sp)) :pid))))
 
+(defun %sp-force-cleanup (sp)
+  "Loop-destruction cleanup for an owned subprocess. Idempotent with normal settle."
+  (unless (sp-settled sp)
+    (setf (sp-settled sp) t)
+    (%sp-clear-timeout sp)
+    (%sp-stdin-close sp)
+    (dolist (s (list (sp-stdout-stream sp) (sp-stderr-stream sp)))
+      (when s (ignore-errors (close s))))
+    (setf (sp-stdout-stream sp) nil (sp-stderr-stream sp) nil (sp-open-reads sp) 0)
+    (unless (sp-child-exited sp)
+      (setf (sp-child-exited sp) t)
+      (ignore-errors (sb-ext:process-kill (sp-proc sp) 9 :pid)))
+    (ignore-errors (sb-ext:process-close (sp-proc sp)))
+    (when (sp-handle sp) (lp:handle-deactivate (sp-handle sp)))
+    ;; close-loop-resources already detaches the token; clear the local root.
+    (setf (sp-resource sp) nil)))
+
+(defun %sp-release-ownership (sp)
+  "Deactivate the liveness handle and drop loop ownership after a normal settle."
+  (when (sp-handle sp) (lp:handle-deactivate (sp-handle sp)))
+  (when (sp-resource sp)
+    (lp:unregister-loop-resource (sp-resource sp))
+    (setf (sp-resource sp) nil)))
+
 (defun %sp-settle-check (sp)
-  "Close the process and deactivate its loop handle after exit and pipe EOF."
+  "Close the process and release loop ownership after exit and pipe EOF."
   (when (and (sp-child-exited sp) (zerop (sp-open-reads sp)) (not (sp-settled sp)))
     (setf (sp-settled sp) t)
     (%sp-clear-timeout sp)
     (ignore-errors (sb-ext:process-close (sp-proc sp)))
-    (when (sp-handle sp) (lp:handle-deactivate (sp-handle sp)))))
+    (%sp-release-ownership sp)))
 
 (defun %sp-resolve-output (sp which)
   (let ((resolve (if (eq which :stdout) (sp-stdout-resolve sp) (sp-stderr-resolve sp)))
@@ -511,7 +535,19 @@ WHICH promise + release one read."
                                         (list (format nil "Clun.spawn ~a: ~a" program e))))))))
       (setf (sp-proc sp) proc
             (sp-handle sp) (lp:make-handle loop :kind :subprocess))
-      (lp:handle-activate (sp-handle sp))
+      ;; Admit the subproc as a loop-owned resource + activate its liveness handle atomically
+      ;; (Issue #61). If admission fails after fork, kill the orphan child rather than leave a
+      ;; process without an owner.
+      (handler-case
+          (setf (sp-resource sp)
+                (lp:register-loop-handle-resource
+                 loop sp (lambda () (%sp-force-cleanup sp)) (sp-handle sp)))
+        (error (e)
+          (ignore-errors (sb-ext:process-kill proc 9 :pid))
+          (ignore-errors (sb-ext:process-close proc))
+          (eng:throw-js-value
+           (eng:js-construct (eng:js-get g "Error")
+                             (list (format nil "Clun.spawn ~a: loop admission failed: ~a" program e))))))
       ;; Create .exited before setup can observe a fast child exit and finalize it.
       (let ((object (%make-subprocess-object sp g out-mode err-mode in-mode)))
         ;; AbortSignal + timeout arm after the JS object exists so kill races still settle .exited.
@@ -552,5 +588,5 @@ WHICH promise + release one read."
                   (ignore-errors (eng:js-call (sp-exited-resolve sp) eng:+undefined+ (list eng:+null+))))
                 (unless (sp-settled sp)
                   (setf (sp-settled sp) t)
-                  (when (sp-handle sp) (lp:handle-deactivate (sp-handle sp))))))))
+                  (%sp-release-ownership sp))))))
         object))))

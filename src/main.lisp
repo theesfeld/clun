@@ -6,70 +6,60 @@
 (in-package :clun)
 
 (defun print-version (&optional (stream *standard-output*))
+  "Machine-stable text: exactly `clun <version>` (CI and scripts pin this).
+Color only — no extra glyphs — so `test out = clun $expected` still holds on non-TTY."
   (format stream "~a ~a~%"
           (cli:style-brand "clun" stream)
-          (cli:style-ok *clun-version* stream)))
+          (cli:style-ok *clun-version* stream))
+  (force-output stream))
 
 (defun print-help (&optional (stream *standard-output*))
-  (format stream "~a ~a — ~a~%~
-                  ~%~
-                  ~a~%~
-                  ~8@T~a <file>              run a .js/.mjs/.cjs/.json file~%~
-                  ~8@T~a run <file>          run a file (package scripts: Phase 24)~%~
-                  ~8@T~a -e '<code>'         evaluate code~%~
-                  ~8@T~a -p '<code>'         evaluate and print the (awaited) result~%~
-                  ~8@T~a exec '<script>'      execute a Clun shell script~%~
-                  ~8@T~a install [pkg…]     install package.json deps, or add package(s) + install~%~
-                  ~8@T~a add <pkg…>         add package(s) (-d dev, -E exact) + install~%~
-                  ~8@T~a remove <pkg>       remove a dependency + reinstall~%~
-                  ~8@T~a publish            pack + publish to npm registry (NPM_TOKEN / .npmrc)~%~
-                  ~8@T~a build <entry…>     production bundle (Clun.build / Bun.build)~%~
-                  ~8@T~a fmt [paths…]       format JS/TS/JSON/YAML/CSS (check/write/stdin)~%~
-                  ~8@T~a lint [paths…]      lint JS/TS with recommended ruleset~%~
-                  ~8@T~a build --compile <entry> --outfile <bin>   single-file executable~%~
-                  ~8@T~a compile <entry> …  alias of build --compile~%~
-                  ~8@T~a tsc <file…>        structural TypeScript typecheck (exceeds Bun strip)~%~
-                  ~8@T~a run [--filter <p>] <script>  run package.json scripts (filtered monorepo)~%~
-                  ~%~
-                  ~a~%~
-                  ~8@T--cwd <dir>   set the working directory~%~
-                  ~8@T--hot            soft-reload modules; preserve server connections~%~
-                  ~8@T--watch          hard-restart on change (stops retained servers)~%~
-                  ~8@T--no-clear-screen  keep terminal output across watch reloads~%~
-                  ~8@T--filter/-F <p>   monorepo package name or ./path filter (repeatable)~%~
-                  ~8@T--workspaces     run a script across every workspace package~%~
-                  ~8@T--parallel       concurrent filtered scripts (topo waves)~%~
-                  ~8@T--sequential     sequential filtered scripts~%~
-                  ~8@T--concurrency N  max concurrent workspace scripts (default 4)~%~
-                  ~8@T--silent          suppress console.log/info/debug~%~
-                  ~8@T--backtrace       show the Lisp backtrace on an internal error~%~
-                  ~8@T-v, --version     print the version~%~
-                  ~8@T--revision        print the build revision~%~
-                  ~8@T--update          verify and activate the latest compatible Release bundle~%~
-                  ~8@T--check-update    report whether a newer Release is available (no mutation)~%~
-                  ~8@Tclun update / check-update  same as --update / --check-update~%~
-                  ~8@T-h, --help        print this help~%"
+  (format stream "~a ~a ~a  ~a~%~%"
+          (cli:style-brand (cli:glyph-brand) stream)
           (cli:style-brand "clun" stream)
           (cli:style-ok *clun-version* stream)
-          (cli:style-info "Bun, rewritten in pure Common Lisp" stream)
-          (cli:style-dim "Usage:" stream)
-          (cli:style-brand "clun" stream)   ; <file>
-          (cli:style-brand "clun" stream)   ; run
-          (cli:style-brand "clun" stream)   ; -e
-          (cli:style-brand "clun" stream)   ; -p
-          (cli:style-brand "clun" stream)   ; exec
-          (cli:style-brand "clun" stream)   ; install
-          (cli:style-brand "clun" stream)   ; add
-          (cli:style-brand "clun" stream)   ; remove
-          (cli:style-brand "clun" stream)   ; publish
-          (cli:style-brand "clun" stream)   ; build
-          (cli:style-brand "clun" stream)   ; fmt
-          (cli:style-brand "clun" stream)   ; lint
-          (cli:style-brand "clun" stream)   ; build --compile
-          (cli:style-brand "clun" stream)   ; compile
-          (cli:style-brand "clun" stream)   ; tsc
-          (cli:style-brand "clun" stream)   ; run script
-          (cli:style-dim "Flags:" stream)))
+          (cli:style-dim "Bun, rewritten in pure Common Lisp" stream))
+  (format stream "~a~%" (cli:style-info "Usage" stream))
+  (flet ((row (cmd desc)
+           (format stream "  ~a  ~a~%"
+                   (cli:style-brand (format nil "~14a" cmd) stream)
+                   (cli:style-dim desc stream))))
+    (row "clun <file>" "run a .js/.mjs/.cjs/.json/.ts file")
+    (row "clun run" "run a file or package.json script")
+    (row "clun -e / -p" "evaluate code (print awaited result)")
+    (row "clun exec" "execute a Clun shell script")
+    (row "clun install" "install deps, or add package(s) + install")
+    (row "clun add" "add package(s) (-d dev, -E exact) + install")
+    (row "clun remove" "remove a dependency + reinstall")
+    (row "clun publish" "pack + publish to npm (NPM_TOKEN / .npmrc)")
+    (row "clun build" "production bundle (Clun.build / Bun.build)")
+    (row "clun fmt / lint" "format or lint JS/TS/JSON/YAML/CSS")
+    (row "clun compile" "single-file executable")
+    (row "clun tsc" "structural TypeScript typecheck")
+    (row "clun test" "run the test runner")
+    (row "clun update" "verify and activate latest Release bundle"))
+  (format stream "~%~a~%" (cli:style-info "Flags" stream))
+  (flet ((flag (name desc)
+           (format stream "  ~a  ~a~%"
+                   (cli:style-accent (format nil "~18a" name) stream)
+                   (cli:style-dim desc stream))))
+    (flag "--cwd <dir>" "set the working directory")
+    (flag "--hot / --watch" "soft-reload or hard-restart on change")
+    (flag "--filter/-F <p>" "monorepo package name or ./path filter")
+    (flag "--workspaces" "run a script across every workspace package")
+    (flag "--parallel" "concurrent filtered scripts (topo waves)")
+    (flag "--concurrency N" "max concurrent workspace scripts")
+    (flag "--silent" "suppress console.log/info/debug")
+    (flag "--backtrace" "Lisp backtrace on internal error")
+    (flag "-v / --version" "print the version")
+    (flag "--update" "same as clun update")
+    (flag "--check-update" "report whether a newer Release is available")
+    (flag "-h / --help" "print this help"))
+  (format stream "~%~a ~a~%"
+          (cli:style-dim "tip" stream)
+          (cli:style-dim "TTY work uses a color spinner; NO_COLOR disables chrome; CLUN_FORCE_COLOR forces it"
+                         stream))
+  (force-output stream))
 
 ;;; --- uncaught-error rendering ----------------------------------------------
 
@@ -77,7 +67,9 @@
   (and (eng:js-object-p v) (eq (eng:js-object-class v) :error)))
 
 (defun render-uncaught (value)
-  "Print an uncaught JS VALUE to stderr, Bun-style."
+  "Print an uncaught JS VALUE to stderr, Bun/Node style (raw stack).
+CLI chrome is reserved for clun command failures — not for program throws,
+which tests and users expect as a plain stack on stderr."
   (if (error-object-p value)
       (let ((stack (eng:js-get value "stack")))
         (if (stringp stack)
@@ -136,7 +128,7 @@ the CLI's trailing args). .ts/.mts/.cts are stripped by *ts-strip-hook*; .jsx/.t
 With --hot / --watch, state-preserving (or hard) reload is armed for the process lifetime."
   (cond
     ((null file)
-     (format *error-output* "clun: no file to run~%") 2)
+     (cli:usage-fail "no file to run"))
     (t
      (let* ((cwd (resolve-cwd r))
             (abs (if (sys:absolute-path-p file) file (sys:path-join cwd file)))
@@ -144,7 +136,7 @@ With --hot / --watch, state-preserving (or hard) reload is armed for the process
             (watch (cli:cli-get r :watch))
             (no-clear (cli:cli-get r :no-clear-screen)))
        (if (not (sys:file-p abs))
-           (progn (format *error-output* "clun: cannot find module '~a'~%" file) 1)
+           (cli:fail (format nil "cannot find module '~a'" file))
            (if (bun-shell-file-p abs)
                (run-shell-file abs rest cwd)
                (let ((realm (make-runtime-realm r cwd :script abs :rest rest)))
@@ -241,7 +233,7 @@ Does not permanently chdir (unlike resolve-cwd); package root is an explicit pat
                       (clun.installer:pr-version res)))
           0)
       (clun.installer:install-error (e)
-        (format *error-output* "clun: ~a~%" (clun.installer:install-error-message e))
+        (cli:emit-err (clun.installer:install-error-message e))
         1))))
 
 ;;; --- install / add / remove -------------------------------------------------
@@ -286,6 +278,7 @@ installs the existing manifest and still requires package.json. Flags:
               ((%flag-p tok) nil)                             ; ignore any other flag
               (t (push tok names))))
     (setf names (nreverse names) filters (nreverse filters))
+    ;; All install UX goes through cli:emit-* / call-with-progress (src/cli/style.lisp).
     (handler-case
         (progn
           (cond
@@ -293,37 +286,54 @@ installs the existing manifest and still requires package.json. Flags:
                  (and (string= sub "install") names))
              (when (null names) (error 'clun.installer:install-error :message "add: no packages given"))
              (if dry-run
-                 (format t "clun ~a (dry-run): ~{~a~^, ~}~%" sub names)
-                 (progn (clun.installer:add-dependencies cwd names :dev dev :exact exact :registry registry)
-                        (clun.installer:install cwd :registry registry :production production
-                                                :filters filters)
-                        (format t "installed ~{~a~^, ~}~%" names))))
+                 (cli:emit-info (format nil "~a (dry-run): ~{~a~^, ~}" sub names))
+                 (cli:call-with-progress
+                  (format nil "resolving ~{~a~^, ~}" names)
+                  (lambda ()
+                    (clun.installer:add-dependencies cwd names :dev dev :exact exact :registry registry)
+                    (clun.installer:install cwd :registry registry :production production
+                                            :filters filters))
+                  :done-message (format nil "installed ~{~a~^, ~}" names))))
             ((string= sub "remove")
              (when (null names) (error 'clun.installer:install-error :message "remove: no packages given"))
              (if dry-run
-                 (format t "clun remove (dry-run): ~{~a~^, ~}~%" names)
-                 (progn (clun.installer:remove-dependencies cwd names)
-                        (clun.installer:install cwd :registry registry :production production
-                                                :filters filters)
-                        (format t "removed ~{~a~^, ~}~%" names))))
+                 (cli:emit-info (format nil "remove (dry-run): ~{~a~^, ~}" names))
+                 (cli:call-with-progress
+                  (format nil "removing ~{~a~^, ~}" names)
+                  (lambda ()
+                    (clun.installer:remove-dependencies cwd names)
+                    (clun.installer:install cwd :registry registry :production production
+                                            :filters filters))
+                  :done-message (format nil "removed ~{~a~^, ~}" names))))
             (t
              (if dry-run
-                 (format t "clun install (dry-run)~%")
-                 (let ((res (clun.installer:install cwd :registry registry :frozen frozen
-                                                        :production production :filters filters)))
-                   (format t "clun install: ~(~a~), ~d package~:p~%"
-                           (clun.installer:ir-source res) (clun.installer:ir-node-count res))
+                 (cli:emit-info "install (dry-run)")
+                 (let ((res
+                         (cli:call-with-progress
+                          "installing dependencies"
+                          (lambda ()
+                            (clun.installer:install cwd :registry registry :frozen frozen
+                                                         :production production :filters filters))
+                          :done-message
+                          (lambda (r)
+                            (format nil "install: ~(~a~), ~d package~:p"
+                                    (clun.installer:ir-source r)
+                                    (clun.installer:ir-node-count r))))))
                    (dolist (s (clun.installer:ir-lifecycle-skipped res))
-                     (format t "  note: lifecycle scripts skipped for ~a (clun never runs them)~%" s))))))
+                     (cli:emit-note
+                      (format nil "lifecycle scripts skipped for ~a (clun never runs them)" s)))))))
           0)
       (clun.installer:install-error (e)
-        (format *error-output* "clun: ~a~%" (clun.installer:install-error-message e)) 1)
+        (cli:fail (clun.installer:install-error-message e) :command sub))
       (clun.registry:registry-error (e)
-        (format *error-output* "clun: ~a~%" (clun.registry:registry-error-message e)) 1)
+        ;; Prefer condition report so package-not-found includes the package name.
+        (cli:fail (princ-to-string e) :command sub))
       (clun.integrity:integrity-error (e)
-        (format *error-output* "clun: integrity error: ~a~%" (clun.integrity:integrity-error-message e)) 1)
+        (cli:fail (format nil "integrity error: ~a" (clun.integrity:integrity-error-message e))
+                  :command sub))
       (clun.tarball:tarball-error (e)
-        (format *error-output* "clun: tarball error: ~a~%" (clun.tarball:tarball-error-message e)) 1))))
+        (cli:fail (format nil "tarball error: ~a" (clun.tarball:tarball-error-message e))
+                  :command sub)))))
 
 ;;; --- clun run <script> (package.json scripts, §3.6) ------------------------
 
@@ -373,7 +383,7 @@ signal). A missing/unexecutable /bin/sh is reported as a clean message + exit 12
                   (sb-ext:run-program "/bin/sh" (list "-c" command)
                                       :wait t :input t :output t :error t :directory cwd :environment env)
                 (error (e)
-                  (format *error-output* "clun: cannot exec /bin/sh: ~a~%" e)
+                  (cli:emit-err (format nil "cannot exec /bin/sh: ~a" e))
                   (return-from %run-sh 127)))))
     (let ((status (sb-ext:process-status proc))
           (code (sb-ext:process-exit-code proc)))
@@ -413,23 +423,20 @@ waves with `--parallel`, sequential with `--sequential`; exceeds Bun with `--con
             ((member tok '("--filter" "-F") :test #'string=)
              (if (and rest (not (%flag-p (car rest))))
                  (push (pop rest) filters)
-                 (progn (format *error-output* "clun run: --filter requires a value~%")
-                        (return-from run-script 2))))
+                 (return-from run-script (cli:usage-fail "--filter requires a value" :command "run"))))
             ((and (> (length tok) 9) (string= "--filter=" tok :end2 9))
              (push (subseq tok 9) filters))
             ((string= tok "--concurrency")
              (if (and rest (not (%flag-p (car rest))))
                  (setf concurrency (max 1 (or (parse-integer (pop rest) :junk-allowed t) 4)))
-                 (progn (format *error-output* "clun run: --concurrency requires a value~%")
-                        (return-from run-script 2))))
+                 (return-from run-script (cli:usage-fail "--concurrency requires a value" :command "run"))))
             ((and (> (length tok) 14) (string= "--concurrency=" tok :end2 14))
              (setf concurrency (max 1 (or (parse-integer (subseq tok 14) :junk-allowed t) 4))))
             ((%flag-p tok) nil)                    ; ignore other leading flags before the name
             (t (setf name tok passthrough rest) (return))))
     (setf filters (nreverse filters))
     (when (null name)
-      (format *error-output* "clun run: no script or file specified~%")
-      (return-from run-script 2))
+      (return-from run-script (cli:usage-fail "no script or file specified" :command "run")))
     ;; Filtered / workspaces monorepo script execution.
     (when (or filters workspaces)
       (return-from run-script
@@ -439,15 +446,14 @@ waves with `--parallel`, sequential with `--sequential`; exceeds Bun with `--con
                              (clun.installer:filter-workspaces graph filters :include-root t)
                              (clun.installer:filter-workspaces graph filters :include-root t))))
               (when (null pkgs)
-                (format *error-output* "clun run: no packages matched filters~%")
-                (return-from run-script 1))
+                (return-from run-script (cli:fail "no packages matched filters" :command "run")))
               (clun.installer:run-workspace-scripts
                graph pkgs name
                :parallel parallel :concurrency concurrency
                :exit-on-error exit-on-error :if-present if-present
                :passthrough passthrough))
           (clun.installer:install-error (e)
-            (format *error-output* "clun: ~a~%" (clun.installer:install-error-message e))
+            (cli:emit-err (clun.installer:install-error-message e))
             1))))
     (multiple-value-bind (pkg pkg-dir pkg-json) (%nearest-package-json cwd)
       (declare (ignore pkg-dir))
@@ -510,20 +516,18 @@ Flags: --check (exit 1 if would change), --write (rewrite files), --stdin,
               ((member tok '("--indent" "-i") :test #'string=)
                (if (and rest (not (%flag-p (car rest))))
                    (setf indent (max 0 (or (parse-integer (pop rest) :junk-allowed t) 2)))
-                   (progn (format *error-output* "clun fmt: --indent needs a value~%")
-                          (return-from run-fmt-command 2))))
+                   (return-from run-fmt-command (cli:usage-fail "--indent needs a value" :command "fmt"))))
               ((string= tok "--print-width")
                (if (and rest (not (%flag-p (car rest))))
                    (setf print-width (max 1 (or (parse-integer (pop rest) :junk-allowed t) 80)))
-                   (progn (format *error-output* "clun fmt: --print-width needs a value~%")
-                          (return-from run-fmt-command 2))))
+                   (return-from run-fmt-command (cli:usage-fail "--print-width needs a value" :command "fmt"))))
               ((string= tok "--no-semi") (setf semicolons nil))
               ((string= tok "--single-quote") (setf single-quote t))
               ((member tok '("-h" "--help") :test #'string=)
                (format t "Usage: clun fmt [paths…] [--check] [--write] [--stdin]~%")
                (return-from run-fmt-command 0))
               ((%flag-p tok)
-               (format *error-output* "clun fmt: unknown flag ~a~%" tok)
+               (cli:emit-err (format nil "unknown flag ~a" tok) :command "fmt")
                (return-from run-fmt-command 2))
               (t (push tok paths))))
     (setf paths (nreverse paths))
@@ -539,10 +543,10 @@ Flags: --check (exit 1 if would change), --write (rewrite files), --stdin,
                     (out (clun.fmt:format-source src :options opts)))
                (if check
                    (if (string= src out) 0
-                       (progn (format *error-output* "clun fmt: stdin would be reformatted~%") 1))
+                       (cli:fail "stdin would be reformatted" :command "fmt"))
                    (progn (write-string out) (finish-output) 0))))
             ((null paths)
-             (format *error-output* "clun fmt: no paths (pass files/dirs or --stdin)~%")
+             (cli:emit-err "no paths (pass files/dirs or --stdin)" :command "fmt")
              2)
             (t
              (let* ((results (clun.fmt:format-paths paths :cwd cwd
@@ -553,15 +557,16 @@ Flags: --check (exit 1 if would change), --write (rewrite files), --stdin,
                  (cond
                    ((clun.fmt:fr-error r)
                     (incf errors)
-                    (format *error-output* "clun fmt: ~a: ~a~%"
-                            (clun.fmt:fr-path r) (clun.fmt:fr-error r)))
+                    (cli:emit-err (format nil "~a: ~a"
+                                          (clun.fmt:fr-path r) (clun.fmt:fr-error r))
+                                  :command "fmt"))
                    ((clun.fmt:fr-changed r)
                     (incf changed)
                     (cond
                       (write
-                       (format t "formatted ~a~%" (clun.fmt:fr-path r)))
+                       (cli:emit-ok (format nil "formatted ~a" (clun.fmt:fr-path r))))
                       (check
-                       (format *error-output* "would reformat ~a~%" (clun.fmt:fr-path r)))
+                       (cli:emit-err (format nil "would reformat ~a" (clun.fmt:fr-path r)) :command "fmt"))
                       (t
                        ;; default: print formatted content for single file, else list
                        (if (= (length results) 1)
@@ -572,10 +577,10 @@ Flags: --check (exit 1 if would change), --write (rewrite files), --stdin,
                      ((and check (plusp changed)) 1)
                      (t 0)))))
         (clun.fmt:fmt-error (e)
-          (format *error-output* "clun fmt: ~a~%" (clun.fmt:fmt-error-message e))
+          (cli:emit-err (clun.fmt:fmt-error-message e) :command "fmt")
           1)
         (error (e)
-          (format *error-output* "clun fmt: ~a~%" e)
+          (cli:emit-err (princ-to-string e) :command "fmt")
           1)))))
 
 ;;; --- lint (tooling.formatter-linter #190) -----------------------------------
@@ -598,13 +603,11 @@ Flags: --format stylish|json, --fix, --config PATH, --rule name=severity."
                      (setf fmt (cond ((string= v "json") :json)
                                      ((string= v "stylish") :stylish)
                                      (t :stylish))))
-                   (progn (format *error-output* "clun lint: --format needs a value~%")
-                          (return-from run-lint-command 2))))
+                   (return-from run-lint-command (cli:usage-fail "--format needs a value" :command "lint"))))
               ((string= tok "--config")
                (if (and rest (not (%flag-p (car rest))))
                    (setf config-path (pop rest))
-                   (progn (format *error-output* "clun lint: --config needs a value~%")
-                          (return-from run-lint-command 2))))
+                   (return-from run-lint-command (cli:usage-fail "--config needs a value" :command "lint"))))
               ((string= tok "--rule")
                (if (and rest (not (%flag-p (car rest))))
                    (let* ((spec (pop rest))
@@ -613,20 +616,18 @@ Flags: --format stylish|json, --fix, --config PATH, --rule name=severity."
                          (push (cons (subseq spec 0 eqpos)
                                      (subseq spec (1+ eqpos)))
                                rule-overrides)
-                         (progn (format *error-output* "clun lint: --rule needs name=severity~%")
-                                (return-from run-lint-command 2))))
-                   (progn (format *error-output* "clun lint: --rule needs a value~%")
-                          (return-from run-lint-command 2))))
+                         (return-from run-lint-command (cli:usage-fail "--rule needs name=severity" :command "lint"))))
+                   (return-from run-lint-command (cli:usage-fail "--rule needs a value" :command "lint"))))
               ((member tok '("-h" "--help") :test #'string=)
                (format t "Usage: clun lint [paths…] [--format stylish|json] [--fix] [--config f]~%")
                (return-from run-lint-command 0))
               ((%flag-p tok)
-               (format *error-output* "clun lint: unknown flag ~a~%" tok)
+               (cli:emit-err (format nil "unknown flag ~a" tok) :command "lint")
                (return-from run-lint-command 2))
               (t (push tok paths))))
     (setf paths (nreverse paths) rule-overrides (nreverse rule-overrides))
     (when (null paths)
-      (format *error-output* "clun lint: no paths~%")
+      (cli:emit-err "no paths" :command "lint")
       (return-from run-lint-command 2))
     (handler-case
         (let ((config (if config-path
@@ -645,10 +646,10 @@ Flags: --format stylish|json, --fix, --config PATH, --rule name=severity."
               (:stylish (when diags (clun.lint:report-stylish diags *error-output*))))
             code))
       (clun.lint:lint-error (e)
-        (format *error-output* "clun lint: ~a~%" (clun.lint:lint-error-message e))
+        (cli:emit-err (clun.lint:lint-error-message e) :command "lint")
         1)
       (error (e)
-        (format *error-output* "clun lint: ~a~%" e)
+        (cli:emit-err (princ-to-string e) :command "lint")
         1))))
 
 ;;; --- build (tooling.bundler #180) -------------------------------------------
@@ -666,7 +667,7 @@ Flags: --format stylish|json, --fix, --config PATH, --rule name=severity."
          (opts (cli:parse-build-args argv))
          (cwd (resolve-cwd r)))
     (when (getf opts :error)
-      (format *error-output* "clun: ~a~%" (getf opts :error))
+      (cli:emit-err (getf opts :error))
       (return-from run-sfe-compile-command 2))
     (when (getf opts :verify)
       (let ((v (clun.sfe:verify-path (getf opts :verify))))
@@ -675,9 +676,8 @@ Flags: --format stylish|json, --fix, --config PATH, --rule name=severity."
                 (getf v :signed) (getf v :error))
         (return-from run-sfe-compile-command (if (getf v :ok) 0 1))))
     (unless (or (getf opts :compile) (equal sub "compile"))
-      (format *error-output*
-              "clun: internal error — SFE path without --compile~%")
-      (return-from run-sfe-compile-command 2))
+      (return-from run-sfe-compile-command
+        (cli:fail "internal error — SFE path without --compile" :command "compile")))
     (handler-case
         (if (getf opts :all-targets)
             (let ((results (clun.sfe:compile-all-targets
@@ -715,7 +715,7 @@ Flags: --format stylish|json, --fix, --config PATH, --rule name=severity."
                       (getf res :build-id) (getf res :signed))
               0))
       (clun.sfe:sfe-error (e)
-        (format *error-output* "clun: ~a~%" e)
+        (cli:emit-err (princ-to-string e))
         1))))
 
 (defun run-sfe-image-if-any (argv)
@@ -759,23 +759,19 @@ Flags: --format stylish|json, --fix, --config PATH, --rule name=severity."
                 ((or (string= tok "--outdir") (string= tok "-d"))
                  (if (and toks (not (%flag-p (car toks))))
                      (setf outdir (pop toks))
-                     (progn (format *error-output* "clun build: ~a needs a value~%" tok)
-                            (return-from run-build-command 2))))
+                     (return-from run-build-command (cli:usage-fail (format nil "~a needs a value" tok) :command "build"))))
                 ((or (string= tok "--outfile") (string= tok "-o"))
                  (if (and toks (not (%flag-p (car toks))))
                      (setf outfile (pop toks))
-                     (progn (format *error-output* "clun build: ~a needs a value~%" tok)
-                            (return-from run-build-command 2))))
+                     (return-from run-build-command (cli:usage-fail (format nil "~a needs a value" tok) :command "build"))))
                 ((string= tok "--format")
                  (if (and toks (not (%flag-p (car toks))))
                      (setf format (pop toks))
-                     (progn (format *error-output* "clun build: --format needs a value~%")
-                            (return-from run-build-command 2))))
+                     (return-from run-build-command (cli:usage-fail "--format needs a value" :command "build"))))
                 ((string= tok "--target")
                  (if (and toks (not (%flag-p (car toks))))
                      (setf target (pop toks))
-                     (progn (format *error-output* "clun build: --target needs a value~%")
-                            (return-from run-build-command 2))))
+                     (return-from run-build-command (cli:usage-fail "--target needs a value" :command "build"))))
                 ((string= tok "--minify") (setf minify t))
                 ((string= tok "--splitting") (setf splitting t))
                 ((string= tok "--sourcemap") (setf sourcemap t))
@@ -783,8 +779,7 @@ Flags: --format stylish|json, --fix, --config PATH, --rule name=severity."
                 ((string= tok "--external")
                  (if (and toks (not (%flag-p (car toks))))
                      (push (pop toks) external)
-                     (progn (format *error-output* "clun build: --external needs a value~%")
-                            (return-from run-build-command 2))))
+                     (return-from run-build-command (cli:usage-fail "--external needs a value" :command "build"))))
                 ((string= tok "--define")
                  (if (and toks (not (%flag-p (car toks))))
                      (let* ((d (pop toks))
@@ -792,10 +787,8 @@ Flags: --format stylish|json, --fix, --config PATH, --rule name=severity."
                        (if eq
                            (push (cons (subseq d 0 eq) (subseq d (1+ eq))) define)
                            (progn
-                             (format *error-output* "clun build: --define needs name=value~%")
-                             (return-from run-build-command 2))))
-                     (progn (format *error-output* "clun build: --define needs a value~%")
-                            (return-from run-build-command 2))))
+                             (return-from run-build-command (cli:usage-fail "--define needs name=value" :command "build")))))
+                     (return-from run-build-command (cli:usage-fail "--define needs a value" :command "build"))))
                 ((string= tok "--banner")
                  (when (and toks (not (%flag-p (car toks)))) (setf banner (pop toks))))
                 ((string= tok "--footer")
@@ -805,14 +798,14 @@ Flags: --format stylish|json, --fix, --config PATH, --rule name=severity."
                 ((string= tok "--public-path")
                  (when (and toks (not (%flag-p (car toks)))) (setf public-path (pop toks))))
                 ((and (> (length tok) 0) (char= (char tok 0) #\-))
-                 (format *error-output* "clun build: unknown flag ~a~%" tok)
+                 (cli:emit-err (format nil "unknown flag ~a" tok) :command "build")
                  (return-from run-build-command 2))
                 (t (push tok entries))))
       (setf entries (nreverse entries)
             external (nreverse external)
             define (nreverse define))
       (unless entries
-        (format *error-output* "clun build: no entrypoints~%")
+        (cli:emit-err "no entrypoints" :command "build")
         (return-from run-build-command 2))
       (handler-case
           (let* ((plist (list :entrypoints entries
@@ -843,13 +836,13 @@ Flags: --format stylish|json, --fix, --config PATH, --rule name=severity."
                   0)
                 (progn
                   (dolist (log (clun.bundler:br-logs result))
-                    (format *error-output* "clun build: ~a~%" (getf log :message)))
+                    (cli:emit-err (getf log :message) :command "build"))
                   1)))
         (clun.bundler:build-error (e)
-          (format *error-output* "clun build: ~a~%" (clun.bundler:build-error-message e))
+          (cli:emit-err (clun.bundler:build-error-message e) :command "build")
           1)
         (error (e)
-          (format *error-output* "clun build: ~a~%" e)
+          (cli:emit-err (princ-to-string e) :command "build")
           1)))))
 
 (defun run-tsc-command (r)
@@ -858,7 +851,7 @@ remaining argv tokens; exit 1 when any diagnostic is reported."
   (resolve-cwd r)
   (let ((paths (cli:cli-get r :args)))
     (unless paths
-      (format *error-output* "clun tsc: missing file path(s)~%")
+      (cli:emit-err "missing file path(s)" :command "tsc")
       (return-from run-tsc-command 2))
     (clun.transpiler:typecheck-paths paths)))
 
@@ -873,9 +866,7 @@ remaining argv tokens; exit 1 when any diagnostic is reported."
       (:help (print-help) 0)
       (:update (cli:perform-update))
       (:check-update (cli:check-update))
-      (:error (format *error-output* "clun: ~a~%note: run `clun --help` for usage~%"
-                      (cli:cli-get r :error-msg))
-              2)
+      (:error (cli:usage-fail (cli:cli-get r :error-msg)))
       (:eval (run-eval r (cli:cli-get r :code) nil))
       (:print (run-eval r (cli:cli-get r :code) t))
       (:run (let ((sub (cli:cli-get r :subcommand)))
@@ -913,14 +904,14 @@ unless --backtrace was passed; JS throws render as the value + stack."
                (ignore-errors (rt:run-exit-handlers 1))
                1)
              (bad-cwd (c)
-               (format *error-output* "clun: cannot change directory to '~a'~%" (bad-cwd-dir c))
+               (cli:emit-err (format nil "cannot change directory to '~a'" (bad-cwd-dir c)))
                2)
              (storage-condition ()
-               (format *error-output* "RangeError: Maximum call stack size exceeded~%")
+               (cli:emit-err "RangeError: Maximum call stack size exceeded")
                (when backtrace (sb-debug:print-backtrace :stream *error-output* :count 30))
                1)
              (error (c)
-               (format *error-output* "clun: ~a~%" c)
+               (cli:emit-err (princ-to-string c))
                (when backtrace (sb-debug:print-backtrace :stream *error-output* :count 30))
                1))))
     (when (eng::compile-tier-report-enabled-p) (eng::write-compile-tier-report))

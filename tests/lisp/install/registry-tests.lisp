@@ -114,7 +114,20 @@ Assertions go AFTER this form, on variables SETUP closed over."
         :on-err (lambda (c) (setf err c) (lp:loop-stop loop))))
     (false md)
     (true (typep err 'reg:package-not-found))
-    (is string= "does-not-exist" (reg:package-not-found-name err))))
+    (is string= "does-not-exist" (reg:package-not-found-name err))
+    ;; CLI handlers read the shared message slot (not only :report) — must not be bare "registry error".
+    (is string= "package not found: does-not-exist" (reg:registry-error-message err))
+    (is string= "package not found: does-not-exist" (princ-to-string err))))
+
+(define-test registry/not-found-condition-message-slot
+  "Construction helpers keep message slot + report honest for CLI formatting (Issue #280)."
+  (let ((c (reg::%package-not-found "hahahdfgdgssssss")))
+    (is string= "hahahdfgdgssssss" (reg:package-not-found-name c))
+    (is string= "package not found: hahahdfgdgssssss" (reg:registry-error-message c))
+    (is string= "package not found: hahahdfgdgssssss" (princ-to-string c)))
+  (let ((c (reg::%registry-status-error 503 "lodash")))
+    (is string= "registry returned HTTP 503 for lodash" (reg:registry-error-message c))
+    (is string= "registry returned HTTP 503 for lodash" (princ-to-string c))))
 
 ;;; --- (6) tarball integrity ---------------------------------------------------
 

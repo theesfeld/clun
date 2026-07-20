@@ -202,3 +202,12 @@ down after (releases the loop + its fds)."
     p.exited.then(c => console.log('refok='+c));")))
     (true (search "same=true,true" o) "ref/unref return the subprocess")
     (true (search "refok=0" o) "child still settles after ref/unref")))
+
+(define-test spawn/async-loop-owned-resource-teardown
+  "Issue #61: async spawn is loop-owned; settlement releases ownership (handle + resource).
+A short-lived child must exit cleanly under the register-loop-handle-resource path."
+  (let ((o (%spawn-run "
+    const p = Clun.spawn(['true'], {stdout:'ignore', stderr:'ignore'});
+    p.exited.then(c => console.log('owned-exit='+c));")))
+    (true (search "owned-exit=0" o)
+          "loop-owned subprocess settles cleanly after register-loop-handle-resource")))

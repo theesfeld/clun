@@ -571,93 +571,81 @@ provides a non-API fallback. A usable redirect is retained if both fail."
   (multiple-value-bind (tag err) (resolve-latest-release-tag)
     (cond
       (err
-       (format error-stream "~a ~a~%"
-               (style-err "clun check-update:" error-stream) err)
-       2)
+       (fail err :command "check-update" :exit 2 :stream error-stream))
       ((null tag)
-       (format error-stream "~a could not resolve latest release~%"
-               (style-err "clun check-update:" error-stream))
-       2)
+       (fail "could not resolve latest release"
+             :command "check-update" :exit 2 :stream error-stream))
       (t
        (let* ((current (%update-current-version))
               (remote (string-left-trim '(#\v #\V) tag)))
          (cond
            ((string= current remote)
-            (format stream "~a ~a is up to date (latest ~a)~%"
-                    (style-ok "✔" stream)
-                    (style-brand "clun" stream)
-                    (style-info tag stream))
+            (emit-ok (format nil "~a is up to date (~a)"
+                             (style-brand *cli-brand* stream) tag)
+                     :stream stream)
             0)
            ((%version< current remote)
-            (format stream "~a update available: ~a → ~a~%"
-                    (style-warn "↑" stream)
+            (format stream "~a update available: ~a ~a ~a~%"
+                    (style-warn (glyph-up) stream)
                     (style-dim current stream)
+                    (style-info (glyph-step) stream)
                     (style-ok tag stream))
+            (force-output stream)
             1)
            (t
-            (format stream "~a ~a is newer than published ~a (no update)~%"
-                    (style-info "·" stream)
-                    (style-brand "clun" stream)
-                    tag)
+            (emit-info (format nil "~a is newer than published ~a (no update)"
+                               (style-brand *cli-brand* stream) tag)
+                       :stream stream)
             0)))))))
 
 (defun perform-update (&key (stream *standard-output*) (error-stream *error-output*))
   "Download latest release, verify it, and atomically activate its full bundle."
   (multiple-value-bind (tag err) (resolve-latest-release-tag)
     (when err
-      (format error-stream "~a ~a~%" (style-err "clun update:" error-stream) err)
-      (return-from perform-update 2))
+      (return-from perform-update
+        (fail err :command "update" :exit 2 :stream error-stream)))
     (unless tag
-      (format error-stream "~a could not resolve latest release~%"
-              (style-err "clun update:" error-stream))
-      (return-from perform-update 2))
+      (return-from perform-update
+        (fail "could not resolve latest release"
+              :command "update" :exit 2 :stream error-stream)))
     (let* ((old (%update-current-version))
            (remote (string-left-trim '(#\v #\V) tag))
            (asset (%release-asset-basename)))
       (when (or (string= old remote) (not (%version< old remote)))
-        (format stream "~a ~a needs no update (published latest ~a)~%"
-                (style-ok "✔" stream)
-                (style-brand "clun" stream)
-                (style-info tag stream))
+        (emit-ok (format nil "~a needs no update (latest ~a)"
+                         (style-brand *cli-brand* stream) tag)
+                 :stream stream)
         (return-from perform-update 0))
-      (format stream "~a updating ~a → ~a …~%"
-              (style-info "↻" stream)
-              (style-dim old stream)
-              (style-ok tag stream))
-      (let ((spin (make-spinner :label (format nil "fetching ~a" asset) :stream stream)))
-        (handler-case
-            (progn
-              (spinner-tick spin)
-              (let* ((context (%managed-install-context))
-                     (sum-text (%fetch-text
-                                (format nil "https://github.com/~a/releases/download/~a/checksums.txt"
-                                        *update-repo* tag)))
-                     (sums (%checksums-map sum-text))
-                     (want (gethash asset sums)))
-                (spinner-tick spin)
-                (let* ((payload (%download-release-bytes tag asset))
-                       (got (%sha256-hex payload)))
-                  (spinner-tick spin)
-                  (unless want
-                    (spinner-stop spin :ok nil :message "missing checksum")
-                    (format error-stream "~a no checksum entry for ~a~%"
-                            (style-err "clun update:" error-stream) asset)
-                    (return-from perform-update 2))
-                  (unless (string= want got)
-                    (spinner-stop spin :ok nil :message "checksum mismatch")
-                    (format error-stream "~a SHA-256 mismatch for ~a~%  expected ~a~%  got      ~a~%"
-                            (style-err "clun update:" error-stream) asset want got)
-                    (return-from perform-update 2))
-                  (let ((final (%install-payload-octets payload remote context)))
-                    (spinner-stop spin :ok t
-                                  :message (format nil "activated ~a" remote))
-                    (format stream "~a ~a → ~a (~a)~%"
-                            (style-ok "✔" stream)
-                            (style-dim old stream)
-                            (style-ok remote stream)
-                            (style-dim final stream))
-                    0))))
-          (error (e)
-            (spinner-stop spin :ok nil :message "update failed")
-            (format error-stream "~a ~a~%" (style-err "clun update:" error-stream) e)
-            2))))))
+      (emit-step (format nil "updating ~a ~a ~a"
+                         (style-dim old stream)
+                         (style-info (glyph-step) stream)
+                         (style-ok tag stream))
+                 :stream stream)
+      (handler-case
+          (progn
+            (call-with-progress
+             (format nil "fetching ~a" asset)
+             (lambda ()
+               (let* ((context (%managed-install-context))
+                      (sum-text (%fetch-text
+                                 (format nil "https://github.com/~a/releases/download/~a/checksums.txt"
+                                         *update-repo* tag)))
+                      (sums (%checksums-map sum-text))
+                      (want (gethash asset sums))
+                      (payload (%download-release-bytes tag asset))
+                      (got (%sha256-hex payload)))
+                 (unless want
+                   (error "no checksum entry for ~a" asset))
+                 (unless (string= want got)
+                   (error "SHA-256 mismatch for ~a (expected ~a got ~a)" asset want got))
+                 (%install-payload-octets payload remote context)))
+             :done-message (lambda (final)
+                             (format nil "activated ~a ~a ~a  ~a"
+                                     (style-dim old stream)
+                                     (style-info (glyph-step) stream)
+                                     (style-ok remote stream)
+                                     (style-dim final stream)))
+             :stream stream)
+            0)
+        (error (e)
+          (fail (princ-to-string e) :command "update" :exit 2 :stream error-stream))))))
