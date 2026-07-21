@@ -18,11 +18,15 @@
     <link rel="stylesheet" href="styles.css">
     <script src="app.js" defer></script>
   </head>
-  <body data-scroll-root>
+  <body data-scroll-root data-cinematic>
     <a class="skip-link" href="#main">Skip to content</a>
     <div class="mesh" aria-hidden="true"></div>
+    <div class="mesh mesh-b" aria-hidden="true"></div>
+    <div class="aurora" aria-hidden="true"></div>
     <div class="noise" aria-hidden="true"></div>
+    <div class="cursor-glow" data-cursor-glow aria-hidden="true"></div>
     <div class="scroll-progress" aria-hidden="true"></div>
+    <div class="scroll-progress-glow" aria-hidden="true"></div>
     <nav class="section-rail" aria-label="On this page">
       <a href="#top" data-rail-link="top" title="Top"><span>Top</span></a>
       <a href="#why" data-rail-link="why" title="Why"><span>Why</span></a>
@@ -66,28 +70,30 @@
     </header>
 
     <main id="main">
-      <section id="top" class="hero" data-section="top">
-        <div class="hero-orb hero-orb-a" data-parallax="0.35" aria-hidden="true"></div>
-        <div class="hero-orb hero-orb-b" data-parallax="-0.25" aria-hidden="true"></div>
+      <section id="top" class="hero" data-section="top" data-cinematic-section>
+        <div class="hero-orb hero-orb-a" data-parallax="0.45" aria-hidden="true"></div>
+        <div class="hero-orb hero-orb-b" data-parallax="-0.32" aria-hidden="true"></div>
+        <div class="hero-orb hero-orb-c" data-parallax="0.18" aria-hidden="true"></div>
+        <div class="hero-grid" aria-hidden="true"></div>
         <div class="shell hero-inner reveal" data-hero-content>
           <div class="hero-badge-row">
-            <div class="hero-mark-wrap">
+            <div class="hero-mark-wrap" data-hero-mark>
               <img class="hero-mark" src="assets/clun.jpg" alt="Clun mascot" width="120" height="120">
             </div>
 <!-- clun-generated:version:begin -->
 <p class="eyebrow"><span class="status-dot" aria-hidden="true"></span> v0.2.0-beta.2 / beta candidate</p>
 <!-- clun-generated:version:end -->
           </div>
-          <h1 class="hero-title">
-            JavaScript tooling.<br>
-            <span class="grad-text">Pure Common Lisp.</span>
+          <h1 class="hero-title" data-split-title>
+            <span class="title-line">JavaScript tooling.</span>
+            <span class="title-line grad-text">Pure Common Lisp.</span>
           </h1>
-          <p class="hero-copy">
+          <p class="hero-copy" data-scroll-fade>
             Run TypeScript, install packages, test, and serve with Bun-shaped commands —
             while the entire implementation is Common Lisp. No Node. No V8. No CFFI.
             JavaScript is only what <em>you</em> run.
           </p>
-          <div class="hero-actions">
+          <div class="hero-actions" data-stagger>
             <a class="btn btn-primary" href="#install">Get Clun</a>
             <a class="btn btn-ghost" href="#compatibility">See the matrix</a>
             <a class="btn btn-ghost star-btn" href="https://github.com/theesfeld/clun" rel="noopener">
@@ -164,7 +170,8 @@ Current release work: <a href="https://github.com/theesfeld/clun/issues/304">iss
         </div>
       </section>
 
-      <section id="why" class="why-section" data-section="why">
+      <section id="why" class="why-section" data-section="why" data-cinematic-section>
+        <div class="section-wash" aria-hidden="true"></div>
         <div class="shell">
           <div class="section-intro reveal" data-scroll-fade>
             <p class="eyebrow">Why Clun</p>
@@ -197,7 +204,7 @@ Current release work: <a href="https://github.com/theesfeld/clun/issues/304">iss
       </section>
 
       <!-- Pinned stage: vertical scroll scrubs through toolkit panels (full page, no nested list box) -->
-      <section id="toolkit" class="toolkit-stage" data-section="toolkit" data-stage>
+      <section id="toolkit" class="toolkit-stage" data-section="toolkit" data-stage data-cinematic-section>
         <div class="stage-track" data-stage-track>
           <div class="stage-sticky" data-stage-sticky>
             <div class="shell stage-shell">
@@ -267,7 +274,8 @@ Current release work: <a href="https://github.com/theesfeld/clun/issues/304">iss
         </div>
       </section>
 
-      <section class="code-section" aria-labelledby="code-title" data-section="code">
+      <section class="code-section" aria-labelledby="code-title" data-section="code" data-cinematic-section>
+        <div class="section-wash" aria-hidden="true"></div>
         <div class="shell code-layout">
           <div class="code-copy reveal" data-scroll-fade>
             <p class="eyebrow">Familiar APIs</p>
@@ -310,7 +318,8 @@ Clun.write(file, <span class="tok-str">"hello from Clun\n"</span>)
         </div>
       </section>
 
-      <section id="compatibility" class="compat-section" data-section="compatibility">
+      <section id="compatibility" class="compat-section" data-section="compatibility" data-cinematic-section>
+        <div class="section-wash" aria-hidden="true"></div>
         <div class="shell">
           <div class="section-heading reveal" data-scroll-fade>
             <div>

@@ -191,11 +191,15 @@
     });
   }
 
-  /* ── Scroll engine: progress, parallax, pinned stage, rail, matrix ── */
+  /* ── Cinematic scroll engine ── */
   const progressEl = document.querySelector(".scroll-progress");
+  const progressGlow = document.querySelector(".scroll-progress-glow");
+  const cursorGlow = document.querySelector("[data-cursor-glow]");
   const heroContent = document.querySelector("[data-hero-content]");
+  const heroMark = document.querySelector("[data-hero-mark]");
   const parallaxEls = [...document.querySelectorAll("[data-parallax]")];
   const fadeEls = [...document.querySelectorAll("[data-scroll-fade]")];
+  const cinematicSections = [...document.querySelectorAll("[data-cinematic-section]")];
   const railLinks = [...document.querySelectorAll("[data-rail-link]")];
   const sections = [...document.querySelectorAll("[data-section]")];
   const navLinks = siteHeader
@@ -208,6 +212,16 @@
   const stageDotsHost = stage && stage.querySelector("[data-stage-dots]");
   let stageIndex = 0;
   let stageDots = [];
+
+  // Hero title lines + action stagger
+  document.querySelectorAll("[data-split-title] .title-line").forEach((line, i) => {
+    line.style.setProperty("--line-delay", `${120 + i * 140}ms`);
+  });
+  document.querySelectorAll("[data-stagger]").forEach((group) => {
+    [...group.children].forEach((child, i) => {
+      child.style.setProperty("--stagger-delay", `${280 + i * 90}ms`);
+    });
+  });
 
   if (stageDotsHost && stagePanels.length && !reduceMotion && window.innerWidth > 900) {
     stageDots = stagePanels.map((_, i) => {
@@ -250,28 +264,39 @@
   const revealEls = [...document.querySelectorAll(".reveal")];
   if (reduceMotion || !("IntersectionObserver" in window)) {
     revealEls.forEach((el) => el.classList.add("is-visible"));
+    document.querySelectorAll("[data-split-title]").forEach((el) => el.classList.add("is-ready"));
   } else if (revealEls.length) {
     revealEls.forEach((el) => {
-      if (el.closest(".hero")) el.classList.add("is-visible");
+      if (el.closest(".hero")) {
+        el.classList.add("is-visible");
+        const title = el.querySelector("[data-split-title]");
+        if (title) title.classList.add("is-ready");
+      }
     });
     const io = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           if (!entry.isIntersecting) return;
           entry.target.classList.add("is-visible");
+          const title = entry.target.querySelector("[data-split-title]");
+          if (title) title.classList.add("is-ready");
+          const stagger = entry.target.matches("[data-stagger]")
+            ? entry.target
+            : entry.target.querySelector("[data-stagger]");
+          if (stagger) stagger.classList.add("is-visible");
           io.unobserve(entry.target);
         });
       },
-      { rootMargin: "0px 0px -8% 0px", threshold: 0.06 }
+      { rootMargin: "0px 0px -10% 0px", threshold: 0.05 }
     );
     revealEls.forEach((el, i) => {
       if (el.classList.contains("is-visible")) return;
-      el.style.setProperty("--reveal-delay", `${Math.min(i % 6, 5) * 40}ms`);
+      el.style.setProperty("--reveal-delay", `${Math.min(i % 6, 5) * 50}ms`);
       io.observe(el);
     });
   }
 
-  // Matrix: fluid page-scroll row reveals + focus + progress rail
+  // Matrix rows
   const matrixFlow = document.querySelector(".matrix-flow");
   const matrixTable = matrixFlow && matrixFlow.querySelector(".compat-table");
   const matrixRail = document.querySelector("[data-matrix-rail]");
@@ -280,7 +305,7 @@
     featureRows = [...matrixTable.querySelectorAll("tbody tr:not(.compare-group)")];
     featureRows.forEach((row, i) => {
       row.classList.add("matrix-row");
-      row.style.setProperty("--row-delay", `${Math.min(i % 8, 7) * 24}ms`);
+      row.style.setProperty("--row-delay", `${Math.min(i % 8, 7) * 22}ms`);
     });
 
     if (reduceMotion || !("IntersectionObserver" in window)) {
@@ -294,7 +319,7 @@
             rowIo.unobserve(entry.target);
           });
         },
-        { root: null, rootMargin: "0px 0px -10% 0px", threshold: 0.1 }
+        { root: null, rootMargin: "0px 0px -12% 0px", threshold: 0.08 }
       );
       featureRows.forEach((row) => rowIo.observe(row));
     }
@@ -307,57 +332,81 @@
     }
   }
 
-  let ticking = false;
   const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
+  const lerp = (a, b, t) => a + (b - a) * t;
 
-  const updateScroll = () => {
-    ticking = false;
+  let targetScroll = 0;
+  let smoothScroll = 0;
+  let lastY = window.scrollY || 0;
+  let velocity = 0;
+  let ptrX = window.innerWidth * 0.5;
+  let ptrY = window.innerHeight * 0.4;
+  let smoothPtrX = ptrX;
+  let smoothPtrY = ptrY;
+  let rafId = 0;
+
+  const sampleScroll = () => {
     const doc = document.documentElement;
     const max = Math.max(1, doc.scrollHeight - doc.clientHeight);
     const y = window.scrollY || doc.scrollTop || 0;
-    const p = clamp(y / max, 0, 1);
-
-    document.body.style.setProperty("--scroll", p.toFixed(4));
-    document.body.style.setProperty("--scroll-px", `${y.toFixed(1)}px`);
-
-    if (progressEl) {
-      progressEl.style.width = `${(p * 100).toFixed(2)}%`;
-    }
+    targetScroll = clamp(y / max, 0, 1);
+    velocity = lerp(velocity, y - lastY, 0.35);
+    lastY = y;
 
     if (siteHeader) {
       siteHeader.classList.toggle("is-scrolled", y > 12);
     }
 
-    // Hero drifts / fades as you leave the top
+    // Hero cinematic drift
     if (heroContent && !reduceMotion) {
-      const fade = clamp(1 - y / (window.innerHeight * 0.85), 0, 1);
-      const lift = y * 0.22;
+      const fade = clamp(1 - y / (window.innerHeight * 0.9), 0, 1);
+      const lift = y * 0.28;
+      const skew = clamp(velocity * 0.04, -2.5, 2.5);
       heroContent.style.opacity = fade.toFixed(3);
-      heroContent.style.transform = `translate3d(0, ${lift.toFixed(1)}px, 0) scale(${(0.96 + fade * 0.04).toFixed(3)})`;
+      heroContent.style.transform =
+        `translate3d(0, ${lift.toFixed(1)}px, 0) scale(${(0.94 + fade * 0.06).toFixed(3)}) skewY(${skew.toFixed(2)}deg)`;
     }
 
-    // Parallax layers (depth)
+    if (heroMark && !reduceMotion) {
+      const rot = y * 0.04;
+      const bob = Math.sin(y * 0.008) * 4;
+      heroMark.style.transform = `translateY(${bob.toFixed(1)}px) rotate(${rot.toFixed(2)}deg)`;
+    }
+
+    // Parallax depth + slight X from pointer
     if (!reduceMotion) {
       parallaxEls.forEach((el) => {
         const depth = parseFloat(el.dataset.parallax || "0.2") || 0.2;
-        const shift = y * depth;
-        el.style.transform = `translate3d(0, ${shift.toFixed(1)}px, 0)`;
+        const shiftY = y * depth;
+        const shiftX = (ptrX / window.innerWidth - 0.5) * depth * 28;
+        el.style.transform = `translate3d(${shiftX.toFixed(1)}px, ${shiftY.toFixed(1)}px, 0)`;
       });
     }
 
-    // Section-based fade intensity while in view
+    // Fade + section visibility for washes
     if (!reduceMotion) {
       fadeEls.forEach((el) => {
         const r = el.getBoundingClientRect();
         const vh = window.innerHeight || 1;
         const mid = r.top + r.height * 0.35;
-        const dist = Math.abs(mid - vh * 0.42) / (vh * 0.7);
-        const fade = clamp(1 - dist, 0.35, 1);
+        const dist = Math.abs(mid - vh * 0.4) / (vh * 0.75);
+        const fade = clamp(1 - dist, 0.25, 1);
         el.style.setProperty("--fade", fade.toFixed(3));
+      });
+
+      cinematicSections.forEach((sec) => {
+        const r = sec.getBoundingClientRect();
+        const vh = window.innerHeight || 1;
+        const visible = clamp(
+          1 - Math.abs((r.top + r.height * 0.4) - vh * 0.45) / (vh * 0.85),
+          0,
+          1
+        );
+        sec.style.setProperty("--sec-vis", visible.toFixed(3));
       });
     }
 
-    // Pinned toolkit stage scrub
+    // Toolkit stage scrub
     if (stage && stageTrack && stagePanels.length && !reduceMotion && window.innerWidth > 900) {
       const rect = stageTrack.getBoundingClientRect();
       const trackH = stageTrack.offsetHeight;
@@ -373,19 +422,19 @@
       setStageIndex(idx);
     }
 
-    // Matrix progress rail + focus row nearest viewport center
+    // Matrix rail + focus
     if (matrixFlow && matrixRail && !reduceMotion) {
       const rect = matrixFlow.getBoundingClientRect();
       const vh = window.innerHeight || 1;
-      const start = vh * 0.15;
-      const end = rect.height + vh * 0.3;
+      const start = vh * 0.12;
+      const end = rect.height + vh * 0.28;
       const traveled = start - rect.top;
       const pct = clamp((traveled / end) * 100, 0, 100);
       matrixRail.style.height = `${pct}%`;
     }
 
     if (featureRows.length && !reduceMotion) {
-      const mid = window.innerHeight * 0.45;
+      const mid = window.innerHeight * 0.42;
       let best = null;
       let bestDist = Infinity;
       featureRows.forEach((row) => {
@@ -401,7 +450,7 @@
       featureRows.forEach((row) => row.classList.toggle("is-focus", row === best));
     }
 
-    // Active section for rail + primary nav
+    // Active section rail + nav
     if (sections.length) {
       const probe = window.innerHeight * 0.28;
       let activeId = sections[0].id || sections[0].dataset.section;
@@ -422,15 +471,67 @@
     }
   };
 
-  const requestScrollUpdate = () => {
-    if (ticking) return;
-    ticking = true;
-    window.requestAnimationFrame(updateScroll);
+  const tick = () => {
+    rafId = 0;
+    sampleScroll();
+
+    if (!reduceMotion) {
+      smoothScroll = lerp(smoothScroll, targetScroll, 0.12);
+      smoothPtrX = lerp(smoothPtrX, ptrX, 0.12);
+      smoothPtrY = lerp(smoothPtrY, ptrY, 0.12);
+
+      const y = lastY;
+      document.body.style.setProperty("--scroll", targetScroll.toFixed(4));
+      document.body.style.setProperty("--scroll-s", smoothScroll.toFixed(4));
+      document.body.style.setProperty("--scroll-px", `${y.toFixed(1)}px`);
+      document.body.style.setProperty("--vx", clamp(velocity / 40, -1, 1).toFixed(3));
+      document.body.style.setProperty("--glow", (0.45 + smoothScroll * 0.4).toFixed(3));
+      document.body.style.setProperty("--ptr-x", `${((smoothPtrX / window.innerWidth) * 100).toFixed(2)}%`);
+      document.body.style.setProperty("--ptr-y", `${((smoothPtrY / window.innerHeight) * 100).toFixed(2)}%`);
+
+      if (progressEl) {
+        progressEl.style.width = `${(smoothScroll * 100).toFixed(2)}%`;
+      }
+      if (progressGlow) {
+        progressGlow.style.width = `${(smoothScroll * 100).toFixed(2)}%`;
+      }
+      if (cursorGlow) {
+        cursorGlow.style.transform =
+          `translate3d(${(smoothPtrX - window.innerWidth * 0.21).toFixed(1)}px, ${(smoothPtrY - window.innerHeight * 0.21).toFixed(1)}px, 0)`;
+      }
+
+      // Keep animating while smoothing catches up
+      if (
+        Math.abs(smoothScroll - targetScroll) > 0.0008 ||
+        Math.abs(smoothPtrX - ptrX) > 0.5 ||
+        Math.abs(smoothPtrY - ptrY) > 0.5 ||
+        Math.abs(velocity) > 0.2
+      ) {
+        rafId = window.requestAnimationFrame(tick);
+      }
+    } else {
+      document.body.style.setProperty("--scroll", targetScroll.toFixed(4));
+      document.body.style.setProperty("--scroll-s", targetScroll.toFixed(4));
+      if (progressEl) progressEl.style.width = `${(targetScroll * 100).toFixed(2)}%`;
+    }
   };
 
-  updateScroll();
-  window.addEventListener("scroll", requestScrollUpdate, { passive: true });
-  window.addEventListener("resize", requestScrollUpdate, { passive: true });
+  const requestTick = () => {
+    if (rafId) return;
+    rafId = window.requestAnimationFrame(tick);
+  };
+
+  requestTick();
+  window.addEventListener("scroll", requestTick, { passive: true });
+  window.addEventListener("resize", requestTick, { passive: true });
+
+  if (!reduceMotion) {
+    window.addEventListener("pointermove", (e) => {
+      ptrX = e.clientX;
+      ptrY = e.clientY;
+      requestTick();
+    }, { passive: true });
+  }
 
   // Magnetic buttons
   const magnetic = document.querySelectorAll(".btn-primary, .star-btn, .copy-button");
@@ -438,9 +539,9 @@
     magnetic.forEach((el) => {
       el.addEventListener("pointermove", (e) => {
         const r = el.getBoundingClientRect();
-        const x = ((e.clientX - r.left) / r.width - 0.5) * 6;
-        const y = ((e.clientY - r.top) / r.height - 0.5) * 6;
-        el.style.transform = `translate(${x}px, ${y}px)`;
+        const x = ((e.clientX - r.left) / r.width - 0.5) * 10;
+        const y = ((e.clientY - r.top) / r.height - 0.5) * 10;
+        el.style.transform = `translate(${x}px, ${y}px) scale(1.03)`;
       });
       el.addEventListener("pointerleave", () => {
         el.style.transform = "";
@@ -448,7 +549,7 @@
     });
   }
 
-  // 3D tilt cards
+  // 3D tilt cards — deeper
   if (!reduceMotion) {
     document.querySelectorAll("[data-tilt]").forEach((el) => {
       el.addEventListener("pointermove", (e) => {
@@ -456,7 +557,8 @@
         const px = (e.clientX - r.left) / r.width - 0.5;
         const py = (e.clientY - r.top) / r.height - 0.5;
         el.classList.add("is-tilting");
-        el.style.transform = `perspective(900px) rotateX(${(-py * 6).toFixed(2)}deg) rotateY(${(px * 8).toFixed(2)}deg) translateY(-2px)`;
+        el.style.transform =
+          `perspective(900px) rotateX(${(-py * 9).toFixed(2)}deg) rotateY(${(px * 11).toFixed(2)}deg) translateY(-4px) scale(1.02)`;
       });
       el.addEventListener("pointerleave", () => {
         el.classList.remove("is-tilting");
