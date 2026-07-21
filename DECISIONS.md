@@ -3675,3 +3675,7 @@ User-facing README, site, and man page prose use Simplified Technical English
 principles from ASD-STE100: short active sentences, one idea per sentence,
 consistent terms, no marketing fluff. Facts match live state: installable
 `v0.2.0`, source candidate `0.2.1` unpublished. Man page remains catalog-generated.
+
+### 2026-07-21 - Publish train for v0.2.1
+
+Exact-master CI + Documentation + Compatibility required before annotated tag `v0.2.1` (Issue #58).
