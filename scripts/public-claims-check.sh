@@ -771,8 +771,11 @@ fi
 capability_rows=$(wc -l <"$site_matrix" | tr -d ' ')
 
 active_issue_url="https://github.com/theesfeld/clun/issues/$active_issue"
-require_text README.md "Latest release:"
-require_text site/index.html "href=\"https://github.com/theesfeld/clun/releases\""
+# Published ledgers claim "Latest release:"; candidates use release-target prose instead.
+if [ "$release_state" = published ]; then
+  require_text README.md "Latest release:"
+  require_text site/index.html "href=\"https://github.com/theesfeld/clun/releases\""
+fi
 
 for tag in html head title body header nav main section article div p pre code table \
            thead tbody tr th td a span b strong button i footer dl dt dd ol ul li; do
@@ -877,8 +880,14 @@ if [ "$release_state" = candidate ]; then
   else
     require_text README.md "immutable tag and assets are not published yet"
   fi
-  require_text README.md "The last published prerelease remains"
-  require_text README.md "[Phase $active_phase]($active_issue_url) is in progress."
+  # Post-stable patches use "last published release"; prerelease trains keep "prerelease".
+  if [ "$maturity" = stable ]; then
+    require_text README.md "The last published release remains"
+    require_text README.md "issue #$active_issue"
+  else
+    require_text README.md "The last published prerelease remains"
+    require_text README.md "[Phase $active_phase]($active_issue_url) is in progress."
+  fi
   require_text README.md "[\`v$previous_version\`]($previous_release_url)"
   reject_unreleased_tag_url README.md "$release_url"
 
@@ -892,7 +901,12 @@ if [ "$release_state" = candidate ]; then
     require_text site/index.html "Current release work:"
   fi
   require_text site/index.html "issue #$active_issue"
-  require_text site/index.html ">Releases</a>"
+  # Candidate footer links Current status / Release issue; published keeps Releases.
+  if [ "$maturity" = stable ]; then
+    require_text site/index.html ">Current status</a>"
+  else
+    require_text site/index.html ">Releases</a>"
+  fi
   require_text site/index.html "v$version"
   reject_text site/index.html "v$version / Phase $active_phase"
   reject_text site/index.html "Phase $active_phase is active:"

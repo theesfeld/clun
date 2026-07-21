@@ -1,9 +1,9 @@
 <!-- clun-generated:release-notes:begin -->
 # Clun 0.2.1
 
-Man page install and hard CLI sync rule (Issue #320).
+Phase 26: Final hardening, docs, and release.
 
-- SemVer impact: `patch` on the stable `0.2.0` train (man packaging + catalog-synced docs).
+- SemVer impact: `patch` within the selected `0.2.1` prerelease train.
 - Compatibility snapshot: 30 Yes / 0 Partial / 0 No across 30 generated rows.
 - Public baseline: Bun 1.3.14; engineering baseline: Bun `c1076ce95e`.
 - Target release platforms: Linux and macOS, x64 and arm64.

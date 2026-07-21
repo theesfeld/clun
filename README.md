@@ -9,13 +9,18 @@ targets are workload-specific and published;
 Clun does not claim blanket speed parity with Bun.
 
 <!-- clun-generated:release:begin -->
-> **Status: stable release train.** Latest release: [`v0.2.0`](https://github.com/theesfeld/clun/releases/tag/v0.2.0).
-> Installable boundary: four native archives, checksums, Pages installer, and `clun --update`.
-> Capability matrix: 30 Yes / 0 Partial / 0 No (evidence-backed).
-> Implementation: pure Common Lisp. Source: [theesfeld/clun](https://github.com/theesfeld/clun).
+> **Status: stable release train.** Release target: `0.2.1` / `v0.2.1` (SemVer impact: `patch`).
+> Tracking: [issue #320](https://github.com/theesfeld/clun/issues/320).
+> The verified release boundary is `v0.2.0` until this candidate publishes.
+> Capability matrix: 30 Yes / 0 Partial / 0 No.
 <!-- clun-generated:release:end -->
 
-Published [`v0.2.0`](https://github.com/theesfeld/clun/releases/tag/v0.2.0) is the verified installable boundary (four native archives, `checksums.txt`, `~/.local/bin`, built-in updater, human registry errors, install progress chrome). Phase 82 ([#56](https://github.com/theesfeld/clun/issues/56)) closed the purity-compatible surface audit; Phase 26 ([#58](https://github.com/theesfeld/clun/issues/58)) is the final hardening record closing with first stable `0.2.0`.
+The current source is the `0.2.1` stable candidate; immutable tag and assets are not published yet.
+The last published release remains [`v0.2.0`](https://github.com/theesfeld/clun/releases/tag/v0.2.0)
+(four native archives, `checksums.txt`, `~/.local/bin`, built-in updater). Tracking:
+[issue #320](https://github.com/theesfeld/clun/issues/320) (man page install + hard CLI sync rule).
+Phase 82 ([#56](https://github.com/theesfeld/clun/issues/56)) closed the purity-compatible surface audit;
+Phase 26 ([#58](https://github.com/theesfeld/clun/issues/58)) closed first stable `0.2.0`.
 
 ## Install
 Tagged releases are installed by the same POSIX shell command on Linux and macOS:
@@ -48,7 +53,10 @@ curl -fsSL https://clun.sh/install | ADD_PATH=1 sh   # ensure the managed rc blo
 
 Existing `~/.clun` installations remain supported: `CLUN_INSTALL="$HOME/.clun"` retains the legacy
 release-root layout, while `CLUN_VERSION` and `CLUN_NO_MODIFY_PATH=1` remain compatibility aliases.
-The published `v0.2.0` boundary includes the built-in updater (`clun --update` / `clun check-update`), maturity-aware channel selection, and TLS multi-asset recovery messaging.
+While the hosted boundary remains `v0.2.0`, that command only reinstalls `v0.2.0` and does not
+activate the `0.2.1` candidate until `v0.2.1` assets publish. The published `v0.2.0` boundary includes
+the built-in updater (`clun --update` / `clun check-update`), maturity-aware channel selection, and TLS
+multi-asset recovery messaging.
 
 Existing users can reinstall through the checksum-verifying installer or `clun --update`:
 ```sh
@@ -203,10 +211,8 @@ sets between this README and the landing page; descriptive prose still requires 
 workflows are read-only and fail closed if the canonical issues, README, or site have drifted.
 
 <!-- clun-generated:release-summary:begin -->
-Latest release: [`0.2.0`](https://github.com/theesfeld/clun/releases/tag/v0.2.0).
-Install: `curl -fsSL https://clun.sh/install | sh` · update: `clun --update`.
-Capability matrix: 30 Yes / 0 Partial / 0 No.
-[Versioning](docs/versioning.md) · [compatibility matrix](compat/README.md).
+Candidate `0.2.1` is unpublished; installable boundary remains `v0.2.0`.
+Tracking: [issue #320](https://github.com/theesfeld/clun/issues/320).
 <!-- clun-generated:release-summary:end -->
 
 ## The purity contract
@@ -274,7 +280,7 @@ vendored under `vendor/` and located via `scripts/registry.lisp`.
 make build     # compile everything, save build/clun (save-lisp-and-die)
 make test      # run the CL suites and JS/TS fixture harnesses
 make purity    # fail on any CFFI/foreign-code token
-./build/clun --version   # => clun 0.2.0
+./build/clun --version   # => clun 0.2.1
 ```
 
 A fresh clone builds with `make build` alone: ASDF compiles the vendored closure and `src/` into

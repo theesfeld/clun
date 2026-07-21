@@ -6,13 +6,13 @@ Ship path: topic branch → PR → squash-merge into `master` (not direct push).
 
 ---
 
-## Current unit: **man page install + hard CLI sync rule**
+## Current phase: **26 - COMPLETE (first stable 0.2.0); patch candidate 0.2.1**
 
 **Canonical issue:** https://github.com/theesfeld/clun/issues/320
 **Source candidate:** `0.2.1` / `v0.2.1` (not yet tagged)
 **Installer default:** `verified_installer_tag=v0.2.0` (last published until `v0.2.1` assets land)
 **SemVer impact:** `patch`
-**Program context:** Phase 26 complete (first stable `0.2.0`); this unit ships `man clun` packaging.
+**Program context:** Phase 26 complete; this unit ships catalog-synced `man clun` packaging.
 
 ### Scope
 - Catalog-driven `docs/man/clun.1` (`src/cli/catalog.lisp` + `clun --emit-man`)
