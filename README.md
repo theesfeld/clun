@@ -16,10 +16,11 @@ Clun is pre-1.0. Do not claim speed parity with Bun. Publish only measured perfo
 > Capability matrix: 30 Yes / 0 Partial / 0 No.
 <!-- clun-generated:release:end -->
 
-Published [`v0.2.1`](https://github.com/theesfeld/clun/releases/tag/v0.2.1) is the verified installable boundary (four native archives, `checksums.txt`, install to `~/.local/bin`, built-in updater, packaged `man clun` matching live CLI).
+The current source is the `0.2.2` stable candidate; immutable tag and assets are not published yet.
+The last published release remains [`v0.2.1`](https://github.com/theesfeld/clun/releases/tag/v0.2.1).
+That release includes four native archives, checksums, install to `~/.local/bin`, the built-in updater, and packaged `man clun`.
 Tracking: [issue #331](https://github.com/theesfeld/clun/issues/331) (patch `0.2.2`: man install on `clun --update`).
 Phase 82 ([#56](https://github.com/theesfeld/clun/issues/56)) closed the purity-compatible surface audit.
-Published boundary remains `v0.2.1` until `v0.2.2` assets land.
 
 ## Install
 
@@ -32,7 +33,8 @@ The installer verifies SHA-256. The installer installs `clun` to `~/.local/bin/c
 Optional variables: `INSTALL_DIR`, `INSTALL_VERSION` / `CLUN_VERSION`, `ADD_PATH=0|1`.
 After install, use `man clun`. The man page must match live CLI help.
 
-The published `v0.2.1` boundary includes the built-in updater (`clun --update` / `clun --check-update`) and packaged man page.
+While the hosted boundary remains `v0.2.1`, that command only reinstalls `v0.2.1` and does not
+activate the `0.2.2` candidate until `v0.2.2` assets publish. The candidate fixes man install on `clun --update`.
 
 ### Update
 
