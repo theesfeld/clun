@@ -9,10 +9,10 @@ targets are workload-specific and published;
 Clun does not claim blanket speed parity with Bun.
 
 <!-- clun-generated:release:begin -->
-> **Status: pre-alpha, under active construction.** [Phase 26](https://github.com/theesfeld/clun/issues/58) is in progress.
-> Its release-bearing target is `0.2.0-beta.1` / `v0.2.0-beta.1` (SemVer impact: `minor`).
-> The verified release boundary is `v0.2.0-dev.11`, with four native archives, checksums, Pages,
-> and hosted-installer evidence.
+> **Status: pre-alpha, under active construction.** [Phase 26](https://github.com/theesfeld/clun/issues/58) tracks the published prerelease and remaining phase work.
+> Published release: `0.2.0-beta.1` / `v0.2.0-beta.1` (SemVer impact: `minor`).
+> The verified release boundary is `v0.2.0-beta.1`, with four native archives and checksums.
+> Release-gated Pages and hosted-installer results are recorded in the canonical issue.
 > Phase 26 (final hardening) is the active program phase after Phase 82 closed.
 > Checklist and SemVer disposition live on the canonical issue; stable `0.2.0` is not assumed until gates pass.
 > Clun's full-port target requires every ledger Yes to survive executable and public-claim audit. The current snapshot is 30 Yes / 0 Partial / 0 No; qualified evidence is not treated as complete.
@@ -20,7 +20,7 @@ Clun does not claim blanket speed parity with Bun.
 > the local resume checklist.
 <!-- clun-generated:release:end -->
 
-Published [`v0.2.0-dev.11`](https://github.com/theesfeld/clun/releases/tag/v0.2.0-dev.11) remains the verified installable boundary until `v0.2.0-beta.1` assets publish (four native archives, `checksums.txt`, `~/.local/bin`, built-in updater, human registry errors, install progress chrome). Source is staged at **`0.2.0-beta.1`** for Phase 26 close-out. Phase 82 ([#56](https://github.com/theesfeld/clun/issues/56)) closed the purity-compatible surface audit; [Phase 26 issue #58](https://github.com/theesfeld/clun/issues/58) is the live release record.
+Published [`v0.2.0-beta.1`](https://github.com/theesfeld/clun/releases/tag/v0.2.0-beta.1) is the verified installable boundary (four native archives, `checksums.txt`, `~/.local/bin`, built-in updater, human registry errors, install progress chrome). Phase 82 ([#56](https://github.com/theesfeld/clun/issues/56)) closed the purity-compatible surface audit; Phase 26 ([#58](https://github.com/theesfeld/clun/issues/58)) is the hardening/beta release record.
 
 ## Install
 Tagged releases are installed by the same POSIX shell command on Linux and macOS:
@@ -53,10 +53,7 @@ curl -fsSL https://clun.sh/install | ADD_PATH=1 sh   # ensure the managed rc blo
 
 Existing `~/.clun` installations remain supported: `CLUN_INSTALL="$HOME/.clun"` retains the legacy
 release-root layout, while `CLUN_VERSION` and `CLUN_NO_MODIFY_PATH=1` remain compatibility aliases.
-While the hosted boundary remains `v0.2.0-dev.11`, that command only reinstalls `v0.2.0-dev.11` and does not
-yet deliver the `0.2.0-beta.1` candidate. After beta.1 assets publish, the same installer and updater
-target `v0.2.0-beta.1`. Existing users can reinstall through the checksum-verifying installer or
-`clun --update` once assets land:
+The published `v0.2.0-beta.1` boundary includes the built-in updater and CLI product chrome. Existing users on `v0.2.0-dev.11` or earlier can upgrade through the checksum-verifying installer or `clun --update`:
 
 ```sh
 curl -fsSL https://clun.sh/install | sh
@@ -207,8 +204,7 @@ workflows are read-only and fail closed if the canonical issues, README, or site
 
 <!-- clun-generated:release-summary:begin -->
 Release versions follow the actual SemVer impact recorded in the canonical issue, not the number of pushes.
-The current source is the `0.2.0-beta.1` release candidate; the immutable tag and assets are not published yet.
-The last published prerelease remains [`v0.2.0-dev.11`](https://github.com/theesfeld/clun/releases/tag/v0.2.0-dev.11).
+The current source version and latest published prerelease are [`0.2.0-beta.1`](https://github.com/theesfeld/clun/releases/tag/v0.2.0-beta.1).
 [The versioning contract](docs/versioning.md) defines prerelease sequencing, synchronized surfaces, immutable tags, assets, and installer evidence.
 [Phase 26 issue #58](https://github.com/theesfeld/clun/issues/58) is the canonical live release record.
 <!-- clun-generated:release-summary:end -->
