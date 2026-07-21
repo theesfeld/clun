@@ -10,10 +10,10 @@ JavaScript is only what **you** run.
 Clun is pre-1.0. Do not claim speed parity with Bun. Publish only measured performance data.
 
 <!-- clun-generated:release:begin -->
-> **Status: stable release train.** Published release: `0.2.1` / `v0.2.1` (SemVer impact: `patch`).
-> Tracking: [issue #58](https://github.com/theesfeld/clun/issues/58).
-> The verified release boundary is `v0.2.1`, with four native archives and checksums.
-> Capability matrix: 30 Yes / 0 Partial / 0 No.
+> **Status: stable release train.** Latest release: [`v0.2.1`](https://github.com/theesfeld/clun/releases/tag/v0.2.1).
+> Installable boundary: four native archives, checksums, Pages installer, and `clun --update`.
+> Capability matrix: 30 Yes / 0 Partial / 0 No (evidence-backed).
+> Implementation: pure Common Lisp. Source: [theesfeld/clun](https://github.com/theesfeld/clun).
 <!-- clun-generated:release:end -->
 
 Published [`v0.2.1`](https://github.com/theesfeld/clun/releases/tag/v0.2.1) is the verified installable boundary (four native archives, `checksums.txt`, install to `~/.local/bin`, built-in updater, packaged `man clun` matching live CLI).
@@ -129,8 +129,10 @@ sets between this README and the landing page; descriptive prose still requires 
 workflows are read-only and fail closed if the canonical issues, README, or site have drifted.
 
 <!-- clun-generated:release-summary:begin -->
-Current source version and latest published release are [`0.2.1`](https://github.com/theesfeld/clun/releases/tag/v0.2.1).
-Tracking: [issue #58](https://github.com/theesfeld/clun/issues/58).
+Latest release: [`0.2.1`](https://github.com/theesfeld/clun/releases/tag/v0.2.1).
+Install: `curl -fsSL https://clun.sh/install | sh` · update: `clun --update`.
+Capability matrix: 30 Yes / 0 Partial / 0 No.
+[Versioning](docs/versioning.md) · [compatibility matrix](compat/README.md).
 <!-- clun-generated:release-summary:end -->
 
 ## The purity contract
