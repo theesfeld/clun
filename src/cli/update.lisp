@@ -78,17 +78,21 @@ payload has been checksum-verified.")
 (defun %fetch-response (url &key (headers '()) (timeout-ms 120000) (binary nil)
                                   (metadata-only nil))
   "GET URL with the direct pure-CL TLS client and follow bounded HTTPS redirects.
-Returns BODY and the final URL; authorization is never forwarded cross-origin."
+Returns BODY and the final URL; authorization is never forwarded cross-origin.
+Clears the pure-tls session-ticket cache for each host so multi-asset update
+downloads always full-handshake (avoids PSK resume Certificate-missing failures
+on older pure-tls verify paths)."
   (loop with current = url
         with request-headers = (acons "User-Agent" *update-user-agent* headers)
         for redirects from 0 to 5
         do (multiple-value-bind (host port path) (%split-https-url current)
+             ;; Full handshake every request — safer for sequential asset downloads.
+             (ignore-errors (ptls:session-ticket-cache-clear host))
              (let* ((response (net:https-request :host host :port port :method "GET"
                                                 :path path :headers request-headers
                                                 :connect-timeout-ms
                                                 (min timeout-ms 30000)))
-                    (status (net:hres-status response)))
-               (cond
+                    (status (net:hres-status response)))               (cond
                  ((and (>= status 200) (< status 300))
                   (let ((octets (net:hres-body response)))
                     (return
@@ -147,10 +151,51 @@ Returns BODY and the final URL; authorization is never forwarded cross-origin."
              (tag (subseq raw 0 (or end (length raw)))))
         (and (%release-tag-p tag) tag)))))
 
+(defun %prerelease-maturity-rank (version)
+  "Clun maturity order for same-core prereleases (higher = newer channel).
+Strict SemVer compares prerelease *identifiers* lexicographically, so
+`dev` would rank above `beta` — wrong for our train (dev → alpha → beta → rc).
+Return: 0=dev, 1=alpha, 2=beta, 3=rc, 4=stable/unknown-prefix, NIL=unparseable."
+  (handler-case
+      (let* ((v (clun.install:parse-version version))
+             (pre (clun.install:semver-prerelease v)))
+        (if (null pre)
+            4
+            (let ((head (first pre)))
+              (cond
+                ((or (equal head "dev") (equal head "DEV")) 0)
+                ((or (equal head "alpha") (equal head "ALPHA")) 1)
+                ((or (equal head "beta") (equal head "BETA")) 2)
+                ((or (equal head "rc") (equal head "RC")) 3)
+                (t 4)))))
+    (clun.install:invalid-version () nil)))
+
+(defun %version-prefer (a b)
+  "Return T when A is a better update target than B for Clun channel policy.
+Compare SemVer core first, then maturity rank (dev < alpha < beta < rc < stable),
+then full SemVer (numeric sequence within the same prefix)."
+  (handler-case
+      (let* ((va (clun.install:parse-version a))
+             (vb (clun.install:parse-version b))
+             (core (clun.install::compare-main va vb)))
+        (cond
+          ((plusp core) t)
+          ((minusp core) nil)
+          (t
+           (let ((ra (%prerelease-maturity-rank a))
+                 (rb (%prerelease-maturity-rank b)))
+             (cond
+               ((and ra rb (> ra rb)) t)
+               ((and ra rb (< ra rb)) nil)
+               (t (plusp (clun.install:version-compare a b))))))))
+    (clun.install:invalid-version ()
+      (plusp (clun.install:version-compare a b)))))
+
 (defun %api-release-tag (text current-version)
   "Select the highest suitable non-draft tag from a Releases API payload.
 Stable installs stay on the stable channel; prerelease installs may advance to
-a newer prerelease or a stable release."
+a newer prerelease or a stable release. Preference uses Clun maturity rank so
+`0.2.0-beta.1` wins over a higher-looking `0.2.0-dev.N` on the same core."
   (let* ((parsed (sys:parse-json text))
          (entries (cond ((vectorp parsed) (coerce parsed 'list))
                         ((listp parsed) parsed)
@@ -163,8 +208,7 @@ a newer prerelease or a stable release."
         (when (and (%release-tag-p tag)
                    (not (eq draft sys:json-true))
                    (or current-prerelease (not (%prerelease-version-p tag)))
-                   (or (null best)
-                       (plusp (clun.install:version-compare tag best))))
+                   (or (null best) (%version-prefer tag best)))
           (setf best tag))))))
 
 (defun %highest-suitable-release-tag (tags current-version)
@@ -174,10 +218,8 @@ a newer prerelease or a stable release."
     (dolist (tag tags best)
       (when (and (%release-tag-p tag)
                  (or current-prerelease (not (%prerelease-version-p tag)))
-                 (or (null best)
-                     (plusp (clun.install:version-compare tag best))))
+                 (or (null best) (%version-prefer tag best)))
         (setf best tag)))))
-
 (defun %atom-release-tags (text)
   "Extract published release tags from GitHub's Releases Atom feed."
   (let ((prefix (format nil "https://github.com/~a/releases/tag/" *update-repo*))
@@ -244,8 +286,7 @@ provides a non-API fallback. A usable redirect is retained if both fail."
       (error (e) (setf redirect-error (format nil "~a" e))))
     (when (and redirect-tag
                (or (not (%prerelease-version-p current-version))
-                   (not (minusp (clun.install:version-compare
-                                 redirect-tag current-version)))))
+                   (not (%version< redirect-tag current-version))))
       (return-from resolve-latest-release-tag (values redirect-tag nil)))
     (handler-case
         (return-from resolve-latest-release-tag
@@ -562,9 +603,109 @@ provides a non-API fallback. A usable redirect is retained if both fail."
     final))
 
 (defun %version< (a b)
-  "True when strict SemVer A is older than B."
-  (minusp (clun.install:version-compare a b)))
+  "True when A is older than B under Clun channel policy (maturity-aware)."
+  (%version-prefer b a))
 
+(defun %tls-update-failure-p (message)
+  "True when MESSAGE looks like the known pure-tls Certificate-missing / decode class."
+  (let ((s (string-downcase (princ-to-string message))))
+    (or (search "decode_error" s)
+        (search "decode error" s)
+        (search "certificate was missing" s)
+        (search "no-peer-certificate" s)
+        (search "no peer certificate" s)
+        (search "tls" s))))
+
+(defun %update-recovery-hint ()
+  "curl|sh reinstall — works when the running binary's TLS cannot fetch assets."
+  "If update fails repeatedly (especially TLS errors on older builds), reinstall with:
+  curl -fsSL https://clun.sh/install | sh")
+
+(defun %format-update-error (condition)
+  (let ((msg (princ-to-string condition)))
+    (if (%tls-update-failure-p msg)
+        (format nil "~a~%~a" msg (%update-recovery-hint))
+        msg)))
+
+(defparameter *update-notice-ttl-seconds* (* 12 60 60)
+  "How long to cache a silent update-availability probe (12 hours).")
+
+(defun %update-notice-cache-path ()
+  (let* ((xdg (sys:getenv "XDG_CACHE_HOME"))
+         (home (sys:homedir))
+         (base (if (and xdg (plusp (length xdg)))
+                   xdg
+                   (sys:path-join home ".cache"))))
+    (sys:path-join base "clun" "update-notice.cache")))
+
+(defun %read-update-notice-cache ()
+  "Return (values remote-tag checked-universal-time) or NIL."
+  (let ((path (%update-notice-cache-path)))
+    (when (sys:file-p path)
+      (handler-case
+          (with-open-file (in path :direction :input :if-does-not-exist nil)
+            (when in
+              (let* ((line (read-line in nil nil))
+                     (sp (and line (position #\Space line))))
+                (when (and line sp)
+                  (values (subseq line 0 sp)
+                          (parse-integer line :start (1+ sp) :junk-allowed t))))))
+        (error () nil)))))
+
+(defun %write-update-notice-cache (tag)
+  (let* ((path (%update-notice-cache-path))
+         (dir (sys:path-dirname path)))
+    (ignore-errors
+      (sys:make-directory dir :recursive t :mode #o755)
+      (with-open-file (out path :direction :output :if-exists :supersede
+                           :if-does-not-exist :create)
+        (format out "~a ~d~%" tag (get-universal-time))))))
+
+(defun %tty-stream-p (stream)
+  "True when STREAM is attached to a terminal (best-effort)."
+  (and (streamp stream)
+       (ignore-errors
+         (and (sb-sys:fd-stream-p stream)
+              (= 1 (sb-unix:unix-isatty (sb-sys:fd-stream-fd stream)))))))
+
+(defun maybe-emit-update-notice (&key (stream *error-output*) force)
+  "If a newer release is available, print a one-line TTY hint (cached probe).
+Never fails the calling command — network/TLS errors are silent here."
+  (unless (or force (%tty-stream-p stream))
+    (return-from maybe-emit-update-notice nil))
+  (let ((now (get-universal-time)))
+    (multiple-value-bind (cached-tag cached-at) (%read-update-notice-cache)
+      (when (and (not force) cached-at
+                 (< (- now cached-at) *update-notice-ttl-seconds*))
+        (when (and cached-tag (plusp (length cached-tag)))
+          (let* ((current (%update-current-version))
+                 (remote (string-left-trim '(#\v #\V) cached-tag)))
+            (when (and (not (string= current remote))
+                       (%version< current remote))
+              (format stream "~a update available: ~a ~a ~a  (clun --update)~%"
+                      (style-warn (glyph-up) stream)
+                      (style-dim current stream)
+                      (style-info (glyph-step) stream)
+                      (style-ok cached-tag stream))
+              (force-output stream)
+              (return-from maybe-emit-update-notice t))))
+        (return-from maybe-emit-update-notice nil)))
+    (handler-case
+        (multiple-value-bind (tag err) (resolve-latest-release-tag)
+          (when (and (null err) tag)
+            (%write-update-notice-cache tag)
+            (let* ((current (%update-current-version))
+                   (remote (string-left-trim '(#\v #\V) tag)))
+              (when (and (not (string= current remote))
+                         (%version< current remote))
+                (format stream "~a update available: ~a ~a ~a  (clun --update)~%"
+                        (style-warn (glyph-up) stream)
+                        (style-dim current stream)
+                        (style-info (glyph-step) stream)
+                        (style-ok tag stream))
+                (force-output stream)
+                t))))
+      (error () nil))))
 (defun check-update (&key (stream *standard-output*) (error-stream *error-output*))
   "Print update availability. 0 = up to date (or local ahead of published);
    1 = newer published release available; 2 = error."
@@ -578,6 +719,7 @@ provides a non-API fallback. A usable redirect is retained if both fail."
       (t
        (let* ((current (%update-current-version))
               (remote (string-left-trim '(#\v #\V) tag)))
+         (ignore-errors (%write-update-notice-cache tag))
          (cond
            ((string= current remote)
             (emit-ok (format nil "~a is up to date (~a)"
@@ -590,6 +732,8 @@ provides a non-API fallback. A usable redirect is retained if both fail."
                     (style-dim current stream)
                     (style-info (glyph-step) stream)
                     (style-ok tag stream))
+            (format stream "  run: ~a --update~%"
+                    (style-brand *cli-brand* stream))
             (force-output stream)
             1)
            (t
@@ -648,4 +792,5 @@ provides a non-API fallback. A usable redirect is retained if both fail."
              :stream stream)
             0)
         (error (e)
-          (fail (princ-to-string e) :command "update" :exit 2 :stream error-stream))))))
+          (fail (%format-update-error e)
+                :command "update" :exit 2 :stream error-stream))))))

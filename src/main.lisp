@@ -7,11 +7,14 @@
 
 (defun print-version (&optional (stream *standard-output*))
   "Machine-stable text: exactly `clun <version>` (CI and scripts pin this).
-Color only — no extra glyphs — so `test out = clun $expected` still holds on non-TTY."
+Color only — no extra glyphs — so `test out = clun $expected` still holds on non-TTY.
+On a TTY, may append a one-line update-available hint to stderr (cached probe)."
   (format stream "~a ~a~%"
           (cli:style-brand "clun" stream)
           (cli:style-ok *clun-version* stream))
-  (force-output stream))
+  (force-output stream)
+  ;; Machine-stable stdout: notice goes to stderr so scripts still pin line 1.
+  (ignore-errors (cli:maybe-emit-update-notice :stream *error-output*)))
 
 (defun print-help (&optional (stream *standard-output*))
   (format stream "~a ~a ~a  ~a~%~%"
@@ -59,8 +62,8 @@ Color only — no extra glyphs — so `test out = clun $expected` still holds on
           (cli:style-dim "tip" stream)
           (cli:style-dim "TTY work uses a color spinner; NO_COLOR disables chrome; CLUN_FORCE_COLOR forces it"
                          stream))
-  (force-output stream))
-
+  (force-output stream)
+  (ignore-errors (cli:maybe-emit-update-notice :stream stream)))
 ;;; --- uncaught-error rendering ----------------------------------------------
 
 (defun error-object-p (v)

@@ -13,6 +13,20 @@ or assets and are not installable release checkpoints.
 
 ## [Unreleased]
 
+## [0.2.0-beta.2] - 2026-07-21
+
+### Fixed
+
+- Updater channel ranking: on the same core, prefer `beta`/`rc` over higher-looking `dev` tags (SemVer lexical prerelease order alone preferred `0.2.0-dev.11` over published `0.2.0-beta.1`).
+- Multi-asset `clun --update` clears pure-tls session tickets per host so each download full-handshakes (avoids Certificate-missing PSK resume failures).
+- TLS update failures print a curl reinstall recovery hint for stuck older binaries.
+
+### Added
+
+- TTY update-available notice on `clun --version` / `clun --help` (12-hour cached probe; stderr for version so machine-stable stdout remains one line).
+- `clun --check-update` prints `run: clun --update` when behind.
+
+
 ## [0.2.0-beta.1] - 2026-07-20
 
 ### Added

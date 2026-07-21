@@ -556,11 +556,12 @@ Purity constrains Clun implementation, not user-loaded addons.")
 
 (defpackage :clun.cli
   (:use :cl)
-  (:local-nicknames (:eng :clun.engine) (:sys :clun.sys) (:net :clun.net))
+  (:local-nicknames (:eng :clun.engine) (:sys :clun.sys) (:net :clun.net)
+                    (:ptls :pure-tls))
   (:documentation "Per-command argument parsing, help/version, .env loader, self-update, style.")
   (:export #:parse-cli-args #:cli-action #:cli-get #:load-dotenv
            #:parse-build-args
-           #:check-update #:perform-update
+           #:check-update #:perform-update #:maybe-emit-update-notice
            #:resolve-latest-release-tag
            #:cli-color-enabled-p #:style #:style-ok #:style-warn #:style-err
            #:style-info #:style-dim #:style-brand #:style-accent
