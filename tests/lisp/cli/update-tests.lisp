@@ -115,7 +115,7 @@
 (defun %update-text-octets (text)
   (sb-ext:string-to-octets text :external-format :utf-8))
 
-(defun %update-fixture-payload (remote-version &key omit-sidecar reported-version)
+(defun %update-fixture-payload (remote-version &key omit-sidecar omit-man reported-version)
   (let ((base (clun.cli::%release-package-basename))
         (entries '())
         (reported (or reported-version remote-version)))
@@ -125,6 +125,11 @@
     (push (cons (format nil "~a/bin/clun" base)
                 (format nil "#!/bin/sh~%printf 'clun ~a\\n'~%" reported))
           entries)
+    (unless omit-man
+      (push (cons (format nil "~a/share/man/man1/clun.1" base)
+                  (format nil ".TH CLUN 1~%.SH NAME~%clun \\- fixture man for ~a~%"
+                          remote-version))
+            entries))
     (when (string= (sys:platform-name) "linux")
       (push (cons (format nil "~a/lib/LOADER" base) (format nil "fixture-loader~%")) entries)
       (push (cons (format nil "~a/lib/fixture-loader" base)
@@ -200,12 +205,13 @@
              (with-update-test-env ("PATH" (format nil "~a:/usr/bin:/bin"
                                                     (sys:path-dirname launcher)))
                (with-update-test-env ("CLUN_UPDATE_LAUNCHER" "")
-                 (let ((clun.cli::*update-current-executable-override* actual)
-                       (clun.cli::*update-argv0-override* "clun")
-                       (clun.cli::*update-fetch-function*
-                         (%update-fetch-fixture remote-tag payload checksums)))
-                   (is = 0 (cli:perform-update :stream (make-broadcast-stream)
-                                              :error-stream (make-broadcast-stream))))))
+                 (with-update-test-env ("XDG_DATA_HOME" (sys:path-join root "xdg"))
+                   (let ((clun.cli::*update-current-executable-override* actual)
+                         (clun.cli::*update-argv0-override* "clun")
+                         (clun.cli::*update-fetch-function*
+                           (%update-fetch-fixture remote-tag payload checksums)))
+                     (is = 0 (cli:perform-update :stream (make-broadcast-stream)
+                                                :error-stream (make-broadcast-stream)))))))
              (let* ((new-bundle (sys:path-join root "releases" remote-version
                                                (clun.cli::%release-target-name)))
                     (new-package-launcher (sys:path-join new-bundle "bin" "clun")))
@@ -218,7 +224,10 @@
                (when (string= (sys:platform-name) "linux")
                  (true (sys:file-p (sys:path-join new-bundle "lib" "LOADER")))
                  (true (sys:file-p (sys:path-join new-bundle "lib" "fixture-loader")))
-                 (true (sys:file-p (sys:path-join new-bundle "libexec" "clun")))))))
+                 (true (sys:file-p (sys:path-join new-bundle "libexec" "clun"))))
+               ;; Man page lands in the user man path (site/install parity; issue #331).
+               (true (sys:file-p (sys:path-join new-bundle "share" "man" "man1" "clun.1")))
+               (true (sys:file-p (sys:path-join root "xdg" "man" "man1" "clun.1"))))))
       (ignore-errors (sys:change-directory old-cwd))
       (ignore-errors (sys:remove-recursive root)))))
 
@@ -267,3 +276,33 @@
       (run-failure valid (clun.cli::%sha256-hex valid)
                    :activation-verifier (lambda (launcher target)
                                            (declare (ignore launcher target)) nil)))))
+
+(define-test update/man-missing-archive-still-activates
+  "Archives without share/man (pre-0.2.1) must still activate; no hard fail (#331)."
+  (let* ((current (clun.cli::%update-current-version))
+         (remote-version "9.0.1")
+         (remote-tag (format nil "v~a" remote-version))
+         (payload (%update-fixture-payload remote-version :omit-man t))
+         (asset (clun.cli::%release-asset-basename))
+         (checksums (format nil "~a  ~a~%" (clun.cli::%sha256-hex payload) asset))
+         (root (sys:make-temp-dir "/tmp/clun-update-noman-"))
+         (old-cwd (sys:current-directory)))
+    (unwind-protect
+         (multiple-value-bind (launcher actual old-bundle)
+             (%make-managed-update-fixture root current)
+           (declare (ignore old-bundle))
+           (with-update-test-env ("PATH" (format nil "~a:/usr/bin:/bin"
+                                                  (sys:path-dirname launcher)))
+             (with-update-test-env ("CLUN_UPDATE_LAUNCHER" "")
+               (with-update-test-env ("XDG_DATA_HOME" (sys:path-join root "xdg"))
+                 (let ((clun.cli::*update-current-executable-override* actual)
+                       (clun.cli::*update-argv0-override* "clun")
+                       (clun.cli::*update-fetch-function*
+                         (%update-fetch-fixture remote-tag payload checksums)))
+                   (is = 0 (cli:perform-update :stream (make-broadcast-stream)
+                                              :error-stream (make-broadcast-stream)))))))
+           (true (clun.cli::%symlink-p launcher))
+           (false (sys:file-p (sys:path-join root "xdg" "man" "man1" "clun.1"))))
+      (ignore-errors (sys:change-directory old-cwd))
+      (ignore-errors (sys:remove-recursive root)))))
+

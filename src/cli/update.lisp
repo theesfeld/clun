@@ -571,6 +571,29 @@ provides a non-API fallback. A usable redirect is retained if both fail."
              (error condition)))
       (when staged (ignore-errors (sys:remove-recursive staged))))))
 
+
+(defun %user-man1-dir ()
+  "User man1 directory matching site/install (XDG data home)."
+  (let* ((xdg (sys:getenv "XDG_DATA_HOME"))
+         (base (if (and xdg (plusp (length xdg)))
+                   xdg
+                   (sys:path-join (sys:homedir) ".local" "share"))))
+    (sys:path-join base "man" "man1")))
+
+(defun %install-man-page (bundle)
+  "Install packaged share/man/man1/clun.1 next to the live CLI (hard rule).
+Returns T when installed, NIL when the archive predates man packaging.
+Never fails the update for a missing man page (same policy as site/install)."
+  (let* ((source (sys:path-join bundle "share" "man" "man1" "clun.1"))
+         (dest-dir (%user-man1-dir))
+         (dest (sys:path-join dest-dir "clun.1")))
+    (cond
+      ((not (sys:file-p source)) nil)
+      (t
+       (sys:make-directory dest-dir :recursive t :mode #o755)
+       (sys:copy-file* source dest)
+       t))))
+
 (defun %install-payload-octets (payload remote-version context)
   "Stage and validate a full release archive, then atomically activate its launcher."
   (let* ((releases-root (update-install-context-releases-root context))
@@ -600,6 +623,9 @@ provides a non-API fallback. A usable redirect is retained if both fail."
            (setf stage-root nil)))))
     (%validate-release-bundle final remote-version)
     (%activate-launcher (update-install-context-launcher context) new-launcher)
+    ;; Hard rule: man page always matches live CLI. site/install does this;
+    ;; --update must too (man lives under the versioned bundle, not on PATH).
+    (%install-man-page final)
     final))
 
 (defun %version< (a b)
