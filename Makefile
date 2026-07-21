@@ -1,5 +1,6 @@
 # Makefile — build | test | purity | clean for clun (PLAN.md §3.7).
 # Hermetic SBCL: no user/system init files are read.
+# exact-master gate fire: v0.2.2 (compat path filters exclude release.tsv alone)
 
 SBCL       ?= sbcl
 SBCL_FLAGS := --non-interactive --no-userinit --no-sysinit
