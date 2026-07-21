@@ -3679,3 +3679,7 @@ consistent terms, no marketing fluff. Facts match live state: installable
 ### 2026-07-21 - Publish train for v0.2.1
 
 Exact-master CI + Documentation + Compatibility required before annotated tag `v0.2.1` (Issue #58).
+
+## 2026-07-21 — exact-master gates for v0.2.2
+
+Touch path filters so CI + Documentation + Compatibility all run on one master SHA before tagging `v0.2.2` (compat excludes `compat/release.tsv` alone). Refs #58 / #331.
