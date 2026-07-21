@@ -3,7 +3,7 @@
 set -eu
 
 repo=${CLUN_GITHUB_REPO:-theesfeld/clun}
-verified_installer_tag=v0.2.0
+verified_installer_tag=v0.2.1
 [ "$#" -le 1 ] || {
   printf 'clun: error: usage: install [VERSION]\n' >&2
   exit 1
