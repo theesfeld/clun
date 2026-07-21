@@ -4,13 +4,13 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#0b0c0e">
-    <meta name="description" content="Clun is a Bun-shaped JavaScript/TypeScript runtime, package manager, and toolkit written entirely in pure Common Lisp — no C, Rust, Zig, or V8 in the implementation.">
-    <meta property="og:title" content="Clun — pure Common Lisp JavaScript tooling">
-    <meta property="og:description" content="Run JS/TS, manage packages, test, serve, and build with Bun-compatible commands. The whole stack is Common Lisp.">
+    <meta name="description" content="Clun is a JavaScript and TypeScript toolkit. Implementation is pure Common Lisp. Commands follow Bun shape. Installable release: verify the release ledger.">
+    <meta property="og:title" content="Clun — JavaScript toolkit in Common Lisp">
+    <meta property="og:description" content="Run JS and TS. Install packages. Run tests. Serve HTTP. Build bundles. Commands follow Bun shape. Implementation is Common Lisp.">
     <meta property="og:image" content="https://clun.sh/assets/clun.jpg">
     <meta property="og:url" content="https://clun.sh/">
     <meta property="og:type" content="website">
-    <title>Clun — pure Common Lisp JavaScript tooling</title>
+    <title>Clun — JavaScript toolkit in Common Lisp</title>
     <link rel="icon" href="assets/clun.jpg">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -59,16 +59,16 @@
 <!-- clun-generated:version:begin -->
 <p class="eyebrow"><span class="status-dot" aria-hidden="true"></span> v0.2.1 candidate</p>
 <!-- clun-generated:version:end -->
-              <h1>A full JS/TS toolkit.<br>The engine is <em>Common Lisp</em>.</h1>
+              <h1>JavaScript toolkit.<br>Implementation is <em>Common Lisp</em>.</h1>
               <p class="hero-copy">
-                Clun runs TypeScript, installs npm packages, tests, serves HTTP, and bundles —
-                with Bun-compatible commands and APIs you already know.
-                Under the hood there is no Node, no V8, no libuv, no Rust, no Zig, and no C in Clun’s own implementation.
+                Clun runs TypeScript. Clun installs npm packages. Clun runs tests. Clun serves HTTP. Clun builds bundles.
+                Commands and APIs follow Bun shape.
+                The Clun implementation is not Node, V8, libuv, Rust, Zig, or C.
                 JavaScript is only what <em>you</em> run.
               </p>
               <p class="hero-copy hero-emphasis">
-                Across the public capability matrix, Clun is Yes on every row against Bun, Node.js, and Deno —
-                and exceeds Bun where the matrix notes it (evidence-backed Yes / Partial / No).
+                The capability matrix shows Yes for every public row versus Bun, Node.js, and Deno
+                (evidence-backed Yes / Partial / No). The matrix notes where Clun exceeds Bun.
               </p>
               <div class="hero-actions">
                 <a class="btn btn-primary" href="#install">Install</a>
@@ -103,10 +103,10 @@
               <span><code>INSTALL_VERSION</code> pin</span>
             </div>
             <p class="installer-note" role="status" aria-live="polite" data-copy-status>
-              Verifies SHA-256 and installs to <code>~/.local/bin/clun</code>.
-              Update with <code>clun --update</code>. After install, <code>man clun</code> matches
-              live CLI help. Pin with <code>INSTALL_VERSION</code>;
-              override bin dir with <code>INSTALL_DIR</code>; PATH edits with
+              The installer verifies SHA-256. The installer installs to <code>~/.local/bin/clun</code>.
+              Use <code>clun --update</code> to update. After install, <code>man clun</code> matches
+              live CLI help. The default install is the verified release boundary (now <code>v0.2.0</code>).
+              Optional: <code>INSTALL_VERSION</code>, <code>INSTALL_DIR</code>,
               <code>ADD_PATH=0</code> / <code>ADD_PATH=1</code>.
             </p>
           </div>
@@ -149,8 +149,9 @@ Current release work: <a href="https://github.com/theesfeld/clun/issues/320">iss
           <header class="section-intro">
             <h2>What Clun is</h2>
             <p>
-              One binary. Bun-shaped CLI and APIs for day-to-day JavaScript work.
-              The implementation is a pure Common Lisp system on SBCL — not a foreign bridge to another engine.
+              Clun is one binary. The CLI and APIs follow Bun shape.
+              The implementation is pure Common Lisp on SBCL.
+              Clun is not a bridge to another engine.
             </p>
           </header>
 
@@ -159,7 +160,7 @@ Current release work: <a href="https://github.com/theesfeld/clun/issues/320">iss
               <h3>Runtime &amp; language</h3>
               <ul>
                 <li>Execute <code>.js</code>, <code>.mjs</code>, <code>.cjs</code>, TypeScript, JSX, and TSX</li>
-                <li>TypeScript with erasable strip plus structural typecheck (<code>clun tsc</code>) — Bun has no built-in typecheck</li>
+                <li>TypeScript with erasable strip and structural typecheck (<code>clun tsc</code>). Bun has no built-in typecheck.</li>
                 <li>Node-compatible builtins surface (buffer, fs, path, crypto, child_process, and the rest of the pure-CL matrix)</li>
                 <li>Web APIs: <code>fetch</code>, URL, streams, AbortController, cookies, and related surfaces</li>
               </ul>
@@ -178,7 +179,7 @@ Current release work: <a href="https://github.com/theesfeld/clun/issues/320">iss
                 <li>Jest-compatible <code>clun test</code> (matchers, snapshots, async, concurrent files)</li>
                 <li>Production bundler: ESM/CJS/IIFE, code splitting, minification, loaders</li>
                 <li><code>--hot</code> state-preserving reload; frontend dev server with HMR</li>
-                <li>First-party <code>clun fmt</code> / <code>clun lint</code> (Bun has no first-party formatter or linter)</li>
+                <li>Built-in <code>clun fmt</code> and <code>clun lint</code>. Bun has no built-in formatter or linter.</li>
                 <li>Single-file executables with optional signing</li>
               </ul>
             </article>
@@ -195,8 +196,8 @@ Current release work: <a href="https://github.com/theesfeld/clun/issues/320">iss
               <h3>Plugins &amp; native code you bring</h3>
               <ul>
                 <li>Bun-compatible <code>Clun.plugin</code> loaders (<code>onResolve</code> / <code>onLoad</code> / namespaces / virtual modules)</li>
-                <li>Optional host boundary for <em>your</em> <code>.so</code> / <code>.dylib</code> / <code>.node</code> libraries when you need them</li>
-                <li>Clun itself stays pure Lisp: <code>make purity</code> rejects CFFI in Clun’s implementation</li>
+                <li>Optional host boundary for your <code>.so</code>, <code>.dylib</code>, or <code>.node</code> libraries.</li>
+                <li>Clun stays pure Lisp. <code>make purity</code> rejects CFFI in the Clun implementation.</li>
               </ul>
             </article>
             <article class="feature">
@@ -216,11 +217,11 @@ Current release work: <a href="https://github.com/theesfeld/clun/issues/320">iss
       <section class="section section-muted" aria-labelledby="code-title">
         <div class="shell code-layout">
           <div class="code-copy">
-            <h2 id="code-title">Same muscle memory</h2>
+            <h2 id="code-title">Commands follow Bun shape</h2>
             <p>
-              Commands and APIs are Bun-shaped on purpose: <code>clun install</code>, <code>clun test</code>,
-              <code>Clun.serve</code>, <code>bun:test</code>-style tests. Bring the JS packages and plugins you already use;
-              the process underneath is Common Lisp.
+              Use <code>clun install</code>, <code>clun test</code>, <code>Clun.serve</code>, and <code>bun:test</code>-style tests.
+              Use the JavaScript packages and plugins you need.
+              The process is Common Lisp.
             </p>
             <div class="code-tabs" role="tablist" aria-label="Code examples">
               <button type="button" role="tab" aria-selected="true" aria-controls="code-runtime" id="tab-runtime" data-code-tab="runtime">TypeScript</button>
@@ -264,7 +265,7 @@ test(<span class="tok-str">"adds"</span>, () => {
 Same public toolkit matrix as Bun 1.3.14 — Clun last.
 <strong>30 full</strong> · <strong>0 partial</strong> · <strong>0 none</strong>.
 A green check means that runtime has the capability (evidence-backed Yes / Partial / No).
-Only Clun’s column calls out where it <em>exceeds</em> the others.
+Only Clun’s column marks where Clun <em>exceeds</em> the others.
 <!-- clun-generated:compatibility-intro:end -->
             </p>
           </header>
@@ -521,7 +522,7 @@ Only Clun’s column calls out where it <em>exceeds</em> the others.
   <a href="https://github.com/nodejs/node/tree/bebd1b8d92bf4cc917844d6335ed1ecf9c2a75fb">Node.js 26.5.0</a>,
   <a href="https://github.com/denoland/deno/tree/f39575ecd50602a5b42b1ba8e93849460de9fcf4">Deno 2.9.3</a>.
   <a href="https://github.com/theesfeld/clun/blob/master/compat/README.md">Ledger on GitHub</a>.
-  Capability, not speed.
+  Capability status only. No speed claim.
 </p>
 <!-- clun-generated:compatibility:end -->
           </div>
@@ -600,7 +601,7 @@ Only Clun’s column calls out where it <em>exceeds</em> the others.
               <span data-copy-label>Copy</span>
             </button>
           </div>
-          <p class="closing-caveat">Stable <code>v0.2.0</code>. Pre-1.0: minor versions may still include breaking changes.</p>
+          <p class="closing-caveat">Installable release: <code>v0.2.0</code>. Source candidate: <code>0.2.1</code> (not published). Pre-1.0: a minor release may include breaking changes.</p>
         </div>
       </section>
     </main>

@@ -2,7 +2,7 @@
 .\" Regenerate: make man
 .TH CLUN 1 "0.2.1" "Clun 0.2.1" "User Commands"
 .SH NAME
-clun \- JavaScript/TypeScript runtime and toolkit in pure Common Lisp
+clun \- JavaScript and TypeScript toolkit in pure Common Lisp
 .SH SYNOPSIS
 .B clun
 [\fIglobal-flags\fR] \fIcommand\fR [\fIargs\fR]
@@ -10,94 +10,101 @@ clun \- JavaScript/TypeScript runtime and toolkit in pure Common Lisp
 .B clun
 [\fIglobal-flags\fR] \fIfile\fR [\fIargs\fR]
 .SH DESCRIPTION
-Clun is a Bun-shaped JavaScript and TypeScript toolkit implemented entirely
-in pure Common Lisp: runtime, package manager, test runner, bundler, HTTP
-server, and related tooling. JavaScript is only what the user runs; Clun's
-implementation is not Node, V8, libuv, Rust, Zig, or C.
+Clun is a JavaScript and TypeScript toolkit.
+The implementation is pure Common Lisp.
+Clun provides a runtime, package manager, test runner, bundler, HTTP server,
+and related tools.
+Command names and APIs follow Bun shape.
+JavaScript is only what the user runs.
+The Clun implementation is not Node, V8, libuv, Rust, Zig, or C.
 .PP
-This page is generated from the same command catalog as
+This page uses the same command catalog as
 .BR "clun --help"
-and must stay synchronized with live CLI behavior.
+.
+The man page must match live CLI behavior.
+Regenerate with
+.B make man
+after you change the catalog.
 .SH COMMANDS
 .TP
 .B clun <file>
-run a .js/.mjs/.cjs/.json/.ts file
+Run a .js, .mjs, .cjs, .json, or .ts file.
 .TP
 .B clun run
-run a file or package.json script
+Run a file or a package.json script.
 .TP
 .B clun -e / -p
-evaluate code (print awaited result)
+Evaluate code. -p prints the result.
 .TP
 .B clun exec
-execute a Clun shell script
+Run a Clun shell script.
 .TP
 .B clun install
-install deps, or add package(s) + install
+Install dependencies, or add packages and install.
 .TP
 .B clun add
-add package(s) (-d dev, -E exact) + install
+Add packages (-d for dev, -E for exact) and install.
 .TP
 .B clun remove
-remove a dependency + reinstall
+Remove a dependency and install again.
 .TP
 .B clun publish
-pack + publish to npm (NPM_TOKEN / .npmrc)
+Pack and publish to npm (NPM_TOKEN or .npmrc).
 .TP
 .B clun build
-production bundle (Clun.build / Bun.build)
+Build a production bundle (Clun.build / Bun.build).
 .TP
 .B clun fmt / lint
-format or lint JS/TS/JSON/YAML/CSS
+Format or lint JS, TS, JSON, YAML, or CSS.
 .TP
 .B clun compile
-single-file executable
+Build a single-file executable.
 .TP
 .B clun tsc
-structural TypeScript typecheck
+Run structural TypeScript typecheck.
 .TP
 .B clun test
-run the test runner
+Run the test runner.
 .TP
 .B clun update
-verify and activate latest Release bundle
+Verify and activate the latest Release bundle.
 .SH OPTIONS
 .TP
 .B --cwd <dir>
-set the working directory
+Set the working directory.
 .TP
 .B --hot / --watch
-soft-reload or hard-restart on change
+Reload on change (--hot soft, --watch hard restart).
 .TP
 .B --filter/-F <p>
-monorepo package name or ./path filter
+Filter monorepo packages by name or ./path.
 .TP
 .B --workspaces
-run a script across every workspace package
+Run a script in every workspace package.
 .TP
 .B --parallel
-concurrent filtered scripts (topo waves)
+Run filtered scripts in concurrent topo waves.
 .TP
 .B --concurrency N
-max concurrent workspace scripts
+Set max concurrent workspace scripts.
 .TP
 .B --silent
-suppress console.log/info/debug
+Suppress console.log, info, and debug.
 .TP
 .B --backtrace
-Lisp backtrace on internal error
+Show a Lisp backtrace on internal error.
 .TP
 .B -v / --version
-print the version
+Print the version.
 .TP
 .B --update
-same as clun update
+Same as clun update.
 .TP
 .B --check-update
-report whether a newer Release is available
+Report if a newer Release is available.
 .TP
 .B -h / --help
-print this help
+Print this help.
 .SH EXIT STATUS
 .TP
 .B 0
@@ -111,26 +118,29 @@ Usage error.
 .SH ENVIRONMENT
 .TP
 .B NO_COLOR
-Disable CLI color chrome when set.
+If set, disable CLI color.
 .TP
 .B CLUN_FORCE_COLOR
-Force CLI color chrome when set.
+If set, force CLI color.
 .TP
 .B INSTALL_VERSION / CLUN_VERSION
-Used by the shell installer to pin a release tag.
+Pin the install release tag for the shell installer.
 .SH FILES
 .TP
 .I ~/.local/bin/clun
-Default launcher symlink after install.
+Default launcher after install.
 .TP
 .I ${XDG_DATA_HOME:-~/.local/share}/clun/releases/
 Versioned release trees.
 .TP
 .I ${XDG_DATA_HOME:-~/.local/share}/man/man1/clun.1
-Installed man page (when using the standard installer).
+Installed man page (standard installer).
+.SH NOTES
+Installable default release is the verified boundary in the release ledger.
+Source may be a later candidate. Do not assume a source version is installable
+until a matching GitHub Release with assets exists.
 .SH SEE ALSO
-.BR clun (1)
-is the primary documentation entry. Online:
+Online documentation:
 https://clun.sh/ and https://github.com/theesfeld/clun
 .SH BUGS
 Report issues at https://github.com/theesfeld/clun/issues
