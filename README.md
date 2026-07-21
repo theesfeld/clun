@@ -9,7 +9,7 @@ targets are workload-specific and published;
 Clun does not claim blanket speed parity with Bun.
 
 <!-- clun-generated:release:begin -->
-> **Status: beta.** [Phase 26](https://github.com/theesfeld/clun/issues/304) is in progress.
+> **Status: beta.** [Phase 26](https://github.com/theesfeld/clun/issues/58) is in progress.
 > Its release-bearing target is `0.2.0-beta.2` / `v0.2.0-beta.2` (SemVer impact: `patch`).
 > The verified release boundary is `v0.2.0-beta.1`, with four native archives, checksums, Pages,
 > and hosted-installer evidence.
@@ -210,7 +210,7 @@ Release versions follow the actual SemVer impact recorded in the canonical issue
 The current source is the `0.2.0-beta.2` beta candidate; the immutable tag and assets are not published yet.
 The last published prerelease remains [`v0.2.0-beta.1`](https://github.com/theesfeld/clun/releases/tag/v0.2.0-beta.1).
 [The versioning contract](docs/versioning.md) defines prerelease sequencing, synchronized surfaces, immutable tags, assets, and installer evidence.
-[Phase 26 issue #304](https://github.com/theesfeld/clun/issues/304) is the canonical live release record.
+[Phase 26 issue #58](https://github.com/theesfeld/clun/issues/58) is the canonical live release record.
 <!-- clun-generated:release-summary:end -->
 
 ## The purity contract
