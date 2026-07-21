@@ -10,16 +10,16 @@ JavaScript is only what **you** run.
 Clun is pre-1.0. Do not claim speed parity with Bun. Publish only measured performance data.
 
 <!-- clun-generated:release:begin -->
-> **Status: stable release train.** Latest release: [`v0.2.1`](https://github.com/theesfeld/clun/releases/tag/v0.2.1).
-> Installable boundary: four native archives, checksums, Pages installer, and `clun --update`.
-> Capability matrix: 30 Yes / 0 Partial / 0 No (evidence-backed).
-> Implementation: pure Common Lisp. Source: [theesfeld/clun](https://github.com/theesfeld/clun).
+> **Status: stable release train.** Release target: `0.2.2` / `v0.2.2` (SemVer impact: `patch`).
+> Tracking: [issue #331](https://github.com/theesfeld/clun/issues/331).
+> The verified release boundary is `v0.2.1` until this candidate publishes.
+> Capability matrix: 30 Yes / 0 Partial / 0 No.
 <!-- clun-generated:release:end -->
 
 Published [`v0.2.1`](https://github.com/theesfeld/clun/releases/tag/v0.2.1) is the verified installable boundary (four native archives, `checksums.txt`, install to `~/.local/bin`, built-in updater, packaged `man clun` matching live CLI).
-Tracking: [issue #58](https://github.com/theesfeld/clun/issues/58) (Phase 26 patch `0.2.1`: man page packaging, ElonOptimizer surfaces, STE100 product copy).
+Tracking: [issue #331](https://github.com/theesfeld/clun/issues/331) (patch `0.2.2`: man install on `clun --update`).
 Phase 82 ([#56](https://github.com/theesfeld/clun/issues/56)) closed the purity-compatible surface audit.
-First stable `0.2.0` remains available; this unit published patch `0.2.1`.
+Published boundary remains `v0.2.1` until `v0.2.2` assets land.
 
 ## Install
 
@@ -129,10 +129,8 @@ sets between this README and the landing page; descriptive prose still requires 
 workflows are read-only and fail closed if the canonical issues, README, or site have drifted.
 
 <!-- clun-generated:release-summary:begin -->
-Latest release: [`0.2.1`](https://github.com/theesfeld/clun/releases/tag/v0.2.1).
-Install: `curl -fsSL https://clun.sh/install | sh` · update: `clun --update`.
-Capability matrix: 30 Yes / 0 Partial / 0 No.
-[Versioning](docs/versioning.md) · [compatibility matrix](compat/README.md).
+Candidate `0.2.2` is unpublished; installable boundary remains `v0.2.1`.
+Tracking: [issue #331](https://github.com/theesfeld/clun/issues/331).
 <!-- clun-generated:release-summary:end -->
 
 ## The purity contract
@@ -200,7 +198,7 @@ vendored under `vendor/` and located via `scripts/registry.lisp`.
 make build     # compile everything, save build/clun (save-lisp-and-die)
 make test      # run the CL suites and JS/TS fixture harnesses
 make purity    # fail on any CFFI/foreign-code token
-./build/clun --version   # => clun 0.2.1
+./build/clun --version   # => clun 0.2.2
 ```
 
 A fresh clone builds with `make build` alone: ASDF compiles the vendored closure and `src/` into

@@ -13,6 +13,11 @@ or assets and are not installable release checkpoints.
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-07-21
+
+### Fixed
+- `clun --update` now installs packaged `share/man/man1/clun.1` into the user man path (same as `site/install`). Archives without man still activate successfully.
+
 ## [0.2.1] - 2026-07-21
 
 ### Added
