@@ -8,7 +8,7 @@ Ship path: topic branch → PR → squash-merge into `master` (not direct push).
 
 ## Current phase: **26 - patch candidate 0.2.2 (man install on --update)**
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/331
+**Canonical issue:** https://github.com/theesfeld/clun/issues/58
 **Source candidate:** `0.2.2` / `v0.2.2` (not yet tagged)
 **Installer default:** `verified_installer_tag=v0.2.1`
 **SemVer impact:** `patch`
