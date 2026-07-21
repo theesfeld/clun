@@ -140,6 +140,59 @@ function group_summary(group) {
   return "Convenience APIs exposed without installing another package"
 }
 
+# Maturity channel from SemVer prerelease id (Clun train: dev → alpha → beta → rc → stable).
+# Never say "pre-alpha" on a beta tag or "release candidate" on a published beta.
+function maturity_channel(ver,    rest, id, dot) {
+  if (ver == "" || ver == "-") return "pre-alpha"
+  rest = ver
+  if (substr(rest, 1, 1) == "v" || substr(rest, 1, 1) == "V") rest = substr(rest, 2)
+  if (index(rest, "-") == 0) return "stable"
+  rest = substr(rest, index(rest, "-") + 1)
+  dot = index(rest, ".")
+  id = (dot > 0) ? substr(rest, 1, dot - 1) : rest
+  id = tolower(id)
+  if (id == "dev") return "pre-alpha"
+  if (id == "alpha") return "alpha"
+  if (id == "beta") return "beta"
+  if (id == "rc") return "rc"
+  return "pre-alpha"
+}
+
+function maturity_label(channel) {
+  if (channel == "stable") return "stable"
+  if (channel == "rc") return "release candidate"
+  if (channel == "beta") return "beta"
+  if (channel == "alpha") return "alpha"
+  return "pre-alpha"
+}
+
+function site_version_suffix(channel, published) {
+  if (published) {
+    if (channel == "stable") return ""
+    return " / " maturity_label(channel)
+  }
+  if (channel == "rc") return " release candidate"
+  if (channel == "beta") return " / beta candidate"
+  if (channel == "alpha") return " / alpha candidate"
+  return " / pre-alpha candidate"
+}
+
+function status_headline(channel) {
+  if (channel == "stable") return "stable release train"
+  if (channel == "rc") return "release candidate"
+  if (channel == "beta") return "beta"
+  if (channel == "alpha") return "alpha"
+  return "pre-alpha, under active construction"
+}
+
+function announcement_label(channel, published) {
+  if (published) return "Available now"
+  if (channel == "rc") return "RC candidate"
+  if (channel == "beta") return "Beta candidate"
+  if (channel == "alpha") return "Alpha candidate"
+  return "In development"
+}
+
 FNR == 1 { next }
 
 FILENAME ~ /docs\/roadmap\.tsv$/ {
@@ -204,15 +257,17 @@ END {
     else ledger_no++
   }
   ledger_total = 30
+  channel = maturity_channel(release_version)
+  channel_label = maturity_label(channel)
   if (format == "readme-compat") {
-    print "The current column describes pre-alpha behavior as tested today. A linked phase is a planned acceptance"
+    print "The current column describes " channel_label " behavior as tested today. A linked phase is a planned acceptance"
     print "gate, not a claim that the capability already exists. Every row below is generated from the canonical"
     print "compatibility ledger; `make docs-check` rejects hand-edited status, evidence, owner, or baseline drift."
     print ""
     print "The public comparison snapshot uses Bun " baseline_version[public_bun_id] ", Node.js " baseline_version[node_id] ", and Deno " baseline_version[deno_id] ", checked"
     print human_date(baseline_checked[public_bun_id]) ". Engineering references are separately pinned to Bun commit `" substr(baseline_revision[engineering_bun_id], 1, 10) "` (`" baseline_version[engineering_bun_id] "`)."
     print ""
-    print "| Capability | Current pre-alpha state | Evidence-backed target |"
+    print "| Capability | Current " channel_label " state | Evidence-backed target |"
     print "|---|---|---|"
     for (i = 1; i <= 30; i++) {
       current = clun_state[i]
@@ -270,10 +325,10 @@ END {
   } else if (format == "readme-release") {
     tagged_candidate = publication_state == "candidate" && release_commit != "pending"
     if (publication_state == "published") {
-      print "> **Status: pre-alpha, under active construction.** [Phase " active_phase "](https://github.com/theesfeld/clun/issues/" active_issue ") tracks the published prerelease and remaining phase work."
+      print "> **Status: " status_headline(channel) ".** [Phase " active_phase "](https://github.com/theesfeld/clun/issues/" active_issue ") tracks the published prerelease and remaining phase work."
       print "> Published release: `" release_version "` / `" release_tag "` (SemVer impact: `" semver_impact "`)."
     } else {
-      print "> **Status: pre-alpha, under active construction.** [Phase " active_phase "](https://github.com/theesfeld/clun/issues/" active_issue ") is in progress."
+      print "> **Status: " status_headline(channel) ".** [Phase " active_phase "](https://github.com/theesfeld/clun/issues/" active_issue ") is in progress."
       print "> Its release-bearing target is `" release_version "` / `" release_tag "` (SemVer impact: `" semver_impact "`)."
     }
     if (publication_state == "published") {
@@ -300,19 +355,19 @@ END {
   } else if (format == "site-release") {
     if (publication_state == "published") {
       print "<a href=\"https://github.com/theesfeld/clun/releases/tag/" release_tag "\">"
-      print "  <span>Available now</span>"
+      print "  <span>" announcement_label(channel, 1) "</span>"
     } else if (release_commit != "pending") {
       print "<a href=\"https://github.com/theesfeld/clun/issues/" active_issue "\">"
       print "  <span>Tag only / no Release</span>"
     } else {
       print "<a href=\"https://github.com/theesfeld/clun/issues/" active_issue "\">"
-      print "  <span>In development</span>"
+      print "  <span>" announcement_label(channel, 0) "</span>"
     }
     print "  " html(release_tag)
     print "  <span aria-hidden=\"true\">-&gt;</span>"
     print "</a>"
   } else if (format == "site-version") {
-    print "<p class=\"eyebrow\"><span class=\"status-dot\" aria-hidden=\"true\"></span> v" release_version (publication_state == "published" ? " / pre-alpha" : " release candidate / pre-alpha") "</p>"
+    print "<p class=\"eyebrow\"><span class=\"status-dot\" aria-hidden=\"true\"></span> v" release_version site_version_suffix(channel, publication_state == "published") "</p>"
   } else if (format == "site-phase-status") {
     if (publication_state == "published")
       print "Release tracking: <a href=\"https://github.com/theesfeld/clun/issues/" active_issue "\">issue #" active_issue "</a>."
@@ -325,10 +380,10 @@ END {
     if (publication_state == "published") {
       print "The current source version and latest published prerelease are [`" release_version "`](https://github.com/theesfeld/clun/releases/tag/" release_tag ")."
     } else if (release_commit != "pending") {
-      print "The current source is the `" release_version "` release candidate. Its annotated [`" release_tag "`](https://github.com/theesfeld/clun/tree/" release_tag ") points to commit `" release_commit "`, but no GitHub Release or release assets were published."
+      print "The current source is the `" release_version "` " channel_label " candidate. Its annotated [`" release_tag "`](https://github.com/theesfeld/clun/tree/" release_tag ") points to commit `" release_commit "`, but no GitHub Release or release assets were published."
       print "The last published prerelease remains [`v" previous_version "`](https://github.com/theesfeld/clun/releases/tag/v" previous_version ")."
     } else {
-      print "The current source is the `" release_version "` release candidate; the immutable tag and assets are not published yet."
+      print "The current source is the `" release_version "` " channel_label " candidate; the immutable tag and assets are not published yet."
       print "The last published prerelease remains [`v" previous_version "`](https://github.com/theesfeld/clun/releases/tag/v" previous_version ")."
     }
     print "[The versioning contract](docs/versioning.md) defines prerelease sequencing, synchronized surfaces, immutable tags, assets, and installer evidence."

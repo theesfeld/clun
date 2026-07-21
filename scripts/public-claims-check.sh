@@ -617,7 +617,7 @@ awk -F '[|]' '
     exit 2
   }
   $0 == "## Compatibility roadmap" { section = 1; next }
-  section && $0 == "| Capability | Current pre-alpha state | Evidence-backed target |" {
+  section && $0 ~ /^\| Capability \| Current [a-z -]+ state \| Evidence-backed target \|$/ {
     table = 1
     next
   }
@@ -789,18 +789,72 @@ require_text README.md "($report_rate%), with $pretty_report_skip skips and zero
 
 release_url="https://github.com/theesfeld/clun/releases/tag/v$version"
 previous_release_url="https://github.com/theesfeld/clun/releases/tag/v$previous_version"
-readme_candidate_marker="\`$version\` release candidate"
-site_candidate_marker="v$version release candidate / pre-alpha"
+# Maturity channel from version prerelease id (must match scripts/compat-render.awk).
+maturity_channel() {
+  ver=${1#v}
+  ver=${ver#V}
+  case $ver in
+    *-dev.*|*-dev) printf 'pre-alpha\n' ;;
+    *-alpha.*) printf 'alpha\n' ;;
+    *-beta.*) printf 'beta\n' ;;
+    *-rc.*) printf 'rc\n' ;;
+    *) printf 'stable\n' ;;
+  esac
+}
+
+maturity_label() {
+  case $1 in
+    stable) printf 'stable\n' ;;
+    rc) printf 'release candidate\n' ;;
+    beta) printf 'beta\n' ;;
+    alpha) printf 'alpha\n' ;;
+    *) printf 'pre-alpha\n' ;;
+  esac
+}
+
+maturity=$(maturity_channel "$version")
+maturity_lbl=$(maturity_label "$maturity")
+case $maturity in
+  pre-alpha) status_headline="pre-alpha, under active construction" ;;
+  alpha) status_headline="alpha" ;;
+  beta) status_headline="beta" ;;
+  rc) status_headline="release candidate" ;;
+  *) status_headline="stable release train" ;;
+esac
+
+if [ "$release_state" = candidate ]; then
+  case $maturity in
+    pre-alpha) site_version_marker="v$version / pre-alpha candidate" ; announce_span="In development" ;;
+    alpha) site_version_marker="v$version / alpha candidate" ; announce_span="Alpha candidate" ;;
+    beta) site_version_marker="v$version / beta candidate" ; announce_span="Beta candidate" ;;
+    rc) site_version_marker="v$version release candidate" ; announce_span="RC candidate" ;;
+    *) site_version_marker="v$version candidate" ; announce_span="In development" ;;
+  esac
+  readme_candidate_marker="\`$version\` $maturity_lbl candidate"
+else
+  case $maturity in
+    pre-alpha) site_version_marker="v$version / pre-alpha" ;;
+    alpha) site_version_marker="v$version / alpha" ;;
+    beta) site_version_marker="v$version / beta" ;;
+    rc) site_version_marker="v$version / release candidate" ;;
+    *) site_version_marker="v$version" ;;
+  esac
+  announce_span="Available now"
+  readme_candidate_marker=""
+fi
+
 readme_candidate=0
 site_candidate=0
-grep -Fq -- "$readme_candidate_marker" README.md && readme_candidate=1
-grep -Fq -- "$site_candidate_marker" site/index.html && site_candidate=1
-[ "$readme_candidate" -eq "$site_candidate" ] ||
-  fail "README and site disagree about whether v$version is a release candidate"
+if [ "$release_state" = candidate ]; then
+  grep -Fq -- "$readme_candidate_marker" README.md && readme_candidate=1
+  grep -Fq -- "$site_version_marker" site/index.html && site_candidate=1
+  [ "$readme_candidate" -eq 1 ] && [ "$site_candidate" -eq 1 ] ||
+    fail "README and site disagree about candidate maturity labeling for $version"
+fi
 
 if [ "$release_state" = candidate ]; then
   [ "$readme_candidate" -eq 1 ] || fail "release ledger says candidate but generated documents do not"
-  require_text README.md "The current source is the \`$version\` release candidate"
+  require_text README.md "The current source is the \`$version\` $maturity_lbl candidate"
   if [ "$candidate_tagged" -eq 1 ]; then
     require_text README.md "Its annotated [\`v$version\`](https://github.com/theesfeld/clun/tree/v$version) points to commit \`$release_commit\`, but no GitHub Release or release assets were published."
     reject_text README.md "immutable tag and assets are not published yet"
@@ -818,7 +872,7 @@ if [ "$release_state" = candidate ]; then
     require_text site/index.html "Candidate tag only (no GitHub Release yet)."
   else
     require_text site/index.html "<a href=\"$active_issue_url\">"
-    require_text site/index.html "<span>In development</span>"
+    require_text site/index.html "<span>$announce_span</span>"
     require_text site/index.html "Current release work:"
   fi
   require_text site/index.html "issue #$active_issue"
@@ -828,19 +882,25 @@ if [ "$release_state" = candidate ]; then
   reject_text site/index.html "v$version / Phase $active_phase"
   reject_text site/index.html "Phase $active_phase is active:"
   require_text site/index.html "<a href=\"$previous_release_url\">v$previous_version release</a>"
-  require_text site/index.html "v$version release candidate / pre-alpha</p>"
+  require_text site/index.html "$site_version_marker</p>"
   require_text site/index.html "class=\"clun-col\"><a href=\"https://github.com/theesfeld/clun\">Clun</a><span>$version</span>"
   reject_text site/index.html "$release_url"
+  # Beta must not be mislabeled pre-alpha or RC.
+  if [ "$maturity" = beta ]; then
+    reject_text site/index.html "pre-alpha"
+    reject_text site/index.html "release candidate / pre-alpha"
+  fi
 else
-  [ "$readme_candidate" -eq 0 ] || fail "release ledger says published but generated documents say candidate"
+  grep -Fq -- "release candidate" README.md &&
+    fail "release ledger says published but README still says release candidate" || true
   require_text README.md "$release_url"
   require_text README.md "[Phase $active_phase]($active_issue_url) tracks the published prerelease and remaining phase work."
-  reject_text README.md "release candidate"
   reject_text README.md "[Phase $active_phase]($active_issue_url) is in progress."
   reject_text README.md "[Phase $active_phase]($active_issue_url) is complete."
+  require_text README.md "**Status: $status_headline.**"
 
   require_text site/index.html "href=\"$release_url\""
-  require_text site/index.html "<span>Available now</span>"
+  require_text site/index.html "<span>$announce_span</span>"
   require_text site/index.html "Release tracking:"
   require_text site/index.html "issue #$active_issue"
   require_text site/index.html ">Release record</a>"
@@ -850,9 +910,17 @@ else
   reject_text site/index.html "Phase $active_phase has a published prerelease:"
   reject_text site/index.html "v$version / Phase $active_phase"
   require_text site/index.html "<a href=\"$release_url\">v$version release</a>"
-  require_text site/index.html "v$version / pre-alpha</p>"
+  if [ "$maturity" = stable ]; then
+    require_text site/index.html "v$version</p>"
+  else
+    require_text site/index.html "$site_version_marker</p>"
+  fi
   require_text site/index.html "class=\"clun-col\"><a href=\"https://github.com/theesfeld/clun\">Clun</a><span>$version</span>"
-  reject_text site/index.html "release candidate"
+  if [ "$maturity" = beta ]; then
+    reject_text site/index.html "pre-alpha"
+    reject_text site/index.html "release candidate / pre-alpha"
+    reject_text README.md "pre-alpha, under active construction"
+  fi
 fi
 require_text site/index.html 'clun --update'
 # Installer copy is intentionally short (elonoptimizer): no "until then / reinstalls same" wall.
