@@ -6,23 +6,24 @@ Ship path: topic branch → PR → squash-merge into `master` (not direct push).
 
 ---
 
-## Current phase: **26 - First stable 0.2.0**
+## Current phase: **26 - COMPLETE (first stable 0.2.0)**
 
 **Canonical issue:** https://github.com/theesfeld/clun/issues/58
-**Program phase:** 26
-**Published surface tip (until tag):** `0.2.0-beta.2` / `v0.2.0-beta.2`
-**Candidate release:** `0.2.0` / `v0.2.0`
-**Installer default (until assets):** `verified_installer_tag=v0.2.0-beta.2`
-**SemVer impact:** `minor` (first stable / maturity promotion)
-**Base:** published `0.2.0-beta.2`
+**Program phase:** 26 (complete)
+**Published surface tip:** `0.2.0` / `v0.2.0`
+**Installer default:** `verified_installer_tag=v0.2.0`
+**SemVer impact:** `minor` (shipped)
+**Release commit:** `6bcb8eb88d0770f9e4d94e5a42a539386199109f`
+**Release run:** https://github.com/theesfeld/clun/actions/runs/29796246200
 
-### Scope
-- Stage and publish first stable `0.2.0` (non-prerelease GitHub Release, `latest`)
-- Do **not** delete or move historical `v0.2.0-beta.*` tags
-- Close Phase 26 when tag + assets + installer reconcile + issue complete
+### Shipped
+- First stable release of the `0.2.0` train
+- Historical beta tags `v0.2.0-beta.1` / `v0.2.0-beta.2` retained (immutable; not deleted)
 
 ### Gates
-`make phase-26-gate` · `make build` · `make test` · `make purity` · public-claims · exact-master CI/Docs/Compat/Pages · Release matrix
+Tag + four-arch assets + checksums + publication reconcile.
+
+---
 
 ---
 

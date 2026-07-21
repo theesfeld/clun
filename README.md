@@ -9,10 +9,10 @@ targets are workload-specific and published;
 Clun does not claim blanket speed parity with Bun.
 
 <!-- clun-generated:release:begin -->
-> **Status: stable release train.** [Phase 26](https://github.com/theesfeld/clun/issues/58) is in progress.
-> Its release-bearing target is `0.2.0` / `v0.2.0` (SemVer impact: `minor`).
-> The verified release boundary is `v0.2.0-beta.2`, with four native archives, checksums, Pages,
-> and hosted-installer evidence.
+> **Status: stable release train.** [Phase 26](https://github.com/theesfeld/clun/issues/58) tracks the published prerelease and remaining phase work.
+> Published release: `0.2.0` / `v0.2.0` (SemVer impact: `minor`).
+> The verified release boundary is `v0.2.0`, with four native archives and checksums.
+> Release-gated Pages and hosted-installer results are recorded in the canonical issue.
 > Phase 26 (final hardening) is the active program phase after Phase 82 closed.
 > Checklist and SemVer disposition live on the canonical issue; stable `0.2.0` is not assumed until gates pass.
 > Clun's full-port target requires every ledger Yes to survive executable and public-claim audit. The current snapshot is 30 Yes / 0 Partial / 0 No; qualified evidence is not treated as complete.
@@ -20,7 +20,7 @@ Clun does not claim blanket speed parity with Bun.
 > the local resume checklist.
 <!-- clun-generated:release:end -->
 
-Published [`v0.2.0-beta.2`](https://github.com/theesfeld/clun/releases/tag/v0.2.0-beta.2) is the verified installable boundary (four native archives, `checksums.txt`, `~/.local/bin`, built-in updater, human registry errors, install progress chrome). Phase 82 ([#56](https://github.com/theesfeld/clun/issues/56)) closed the purity-compatible surface audit; Phase 26 ([#58](https://github.com/theesfeld/clun/issues/58)) is the final hardening record closing with first stable `0.2.0`.
+Published [`v0.2.0`](https://github.com/theesfeld/clun/releases/tag/v0.2.0) is the verified installable boundary (four native archives, `checksums.txt`, `~/.local/bin`, built-in updater, human registry errors, install progress chrome). Phase 82 ([#56](https://github.com/theesfeld/clun/issues/56)) closed the purity-compatible surface audit; Phase 26 ([#58](https://github.com/theesfeld/clun/issues/58)) is the final hardening record closing with first stable `0.2.0`.
 
 ## Install
 Tagged releases are installed by the same POSIX shell command on Linux and macOS:
@@ -53,11 +53,9 @@ curl -fsSL https://clun.sh/install | ADD_PATH=1 sh   # ensure the managed rc blo
 
 Existing `~/.clun` installations remain supported: `CLUN_INSTALL="$HOME/.clun"` retains the legacy
 release-root layout, while `CLUN_VERSION` and `CLUN_NO_MODIFY_PATH=1` remain compatibility aliases.
-While the hosted boundary remains `v0.2.0-beta.2`, that command only reinstalls `v0.2.0-beta.2` and does not
-yet deliver the `0.2.0` stable candidate. After `v0.2.0` assets publish, the same installer and updater
-target stable `v0.2.0`. Existing users can reinstall through the checksum-verifying installer or
-`clun --update` once assets land:
+The published `v0.2.0` boundary includes the built-in updater (`clun --update` / `clun check-update`), maturity-aware channel selection, and TLS multi-asset recovery messaging.
 
+Existing users can reinstall through the checksum-verifying installer or `clun --update`:
 ```sh
 curl -fsSL https://clun.sh/install | sh
 # legacy ~/.clun layout:
@@ -81,7 +79,7 @@ clun --update         # verify and activate the complete release bundle
 # or: clun check-update / clun update
 ```
 
-Clun is pre-1.0 on the `0.2.0` train (stable `0.2.0` is the candidate tip; pre-1.0 minors may still include breaking changes). The published `v0.2.0-beta.2` binary has live `registry.npmjs.org` receipts for both `clun add <pkg>` and Bun-compatible `clun install <pkg>`, including a transitive dependency graph, SRI-verified tarballs, installed-package execution, and byte-identical frozen cache-only reinstalls while both registry metadata and public HTTPS tarball fallback are denied. Empty directories get an auto-created `package.json` on first add/install. Packages commit in deterministic ancestor-before-descendant order. The live, non-hermetic gate uses Clun's experimental bounded pure-CL TLS profile (not browser-grade WebPKI). Prior `v0.1.0-dev.21` / early `0.2.0-dev.*` binaries predate parts of that path. Publication evidence for the installable boundary remains on the Release for `v0.2.0-beta.2` until stable `v0.2.0` assets publish.
+Clun is pre-1.0 on the stable `0.2.0` train (pre-1.0 minors may still include breaking changes). The published `v0.2.0` binary has live `registry.npmjs.org` receipts for both `clun add <pkg>` and Bun-compatible `clun install <pkg>`, including a transitive dependency graph, SRI-verified tarballs, installed-package execution, and byte-identical frozen cache-only reinstalls while both registry metadata and public HTTPS tarball fallback are denied. Empty directories get an auto-created `package.json` on first add/install. Packages commit in deterministic ancestor-before-descendant order. The live, non-hermetic gate uses Clun's experimental bounded pure-CL TLS profile (not browser-grade WebPKI). Prior `v0.1.0-dev.21` / early `0.2.0-dev.*` binaries predate parts of that path. Publication evidence for the installable boundary is on the Release for `v0.2.0`.
 
 ## What works
 
@@ -207,8 +205,7 @@ workflows are read-only and fail closed if the canonical issues, README, or site
 
 <!-- clun-generated:release-summary:begin -->
 Release versions follow the actual SemVer impact recorded in the canonical issue, not the number of pushes.
-The current source is the `0.2.0` stable candidate; the immutable tag and assets are not published yet.
-The last published prerelease remains [`v0.2.0-beta.2`](https://github.com/theesfeld/clun/releases/tag/v0.2.0-beta.2).
+The current source version and latest published prerelease are [`0.2.0`](https://github.com/theesfeld/clun/releases/tag/v0.2.0).
 [The versioning contract](docs/versioning.md) defines prerelease sequencing, synchronized surfaces, immutable tags, assets, and installer evidence.
 [Phase 26 issue #58](https://github.com/theesfeld/clun/issues/58) is the canonical live release record.
 <!-- clun-generated:release-summary:end -->
