@@ -1170,28 +1170,31 @@ verify_phase26_issue() (
 
   issue_state=$(cached_issue_state "$issue_cache" "$issue_number") ||
     fail "could not read state for Phase 26 issue #$issue_number"
-  [ "$issue_state" = open ] || fail "Phase 26 issue #$issue_number must remain open while planned"
-
   body="$scratch/phase-26-body.md"
   fetch_issue_body "$repo" "$issue_number" "$body"
 
   active_phase=$(awk -F "$TAB" 'NR == 2 { print $8 }' "$RELEASE_LEDGER")
+  publication_state=$(awk -F "$TAB" 'NR == 2 { print $6 }' "$RELEASE_LEDGER")
   phase_status=$(sed -n 's/^\*\*Phase status:\*\* `\([^`]*\)`$/\1/p' "$body")
 
   # After Phase 82 closes, Phase 26 is the active program phase and is already
   # verified by the main roadmap loop (generated contract + release disposition).
   # Only enforce the deferred-phase blocked contract while it is not yet active.
+  # First stable publication may close the phase (published:closed:complete).
   if [ "$active_phase" = 26 ]; then
-    case "$phase_status" in
-      in-progress|blocked) ;;
+    case "$publication_state:$issue_state:$phase_status" in
+      candidate:open:in-progress|candidate:open:blocked|published:open:in-progress|published:closed:complete)
+        ;;
       *)
-        fail "active Phase 26 issue #$issue_number must record Phase status in-progress or blocked"
+        fail "active Phase 26 issue #$issue_number state $issue_state/$phase_status disagrees with publication $publication_state"
         ;;
     esac
     printf 'roadmap: verified active Phase 26 issue #%s (standard roadmap loop owns the contract)\n' \
       "$issue_number"
     return 0
   fi
+
+  [ "$issue_state" = open ] || fail "Phase 26 issue #$issue_number must remain open while planned"
 
   [ "$(grep -F -x -c '**Phase status:** `blocked`' "$body" 2>/dev/null || :)" -eq 1 ] ||
     fail "Phase 26 issue #$issue_number must record Phase status blocked while its dependency is open"
