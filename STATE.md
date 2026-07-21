@@ -8,14 +8,14 @@ Ship path: topic branch → PR → squash-merge into `master` (not direct push).
 
 ## Current phase: **26 - Final hardening residual / updater fix**
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/304
+**Canonical issue:** https://github.com/theesfeld/clun/issues/58
 **Program phase:** 26 (closed for hardening beta.1; residual updater bugs)
 **Published surface tip:** `0.2.0-beta.1` / `v0.2.0-beta.1`
 **Candidate release:** `0.2.0-beta.2` / `v0.2.0-beta.2`
 **Installer default (until beta.2 assets):** `verified_installer_tag=v0.2.0-beta.1`
 **SemVer impact:** `patch`
 
-### Scope (Issue #304)
+### Scope (Issue #58)
 - Prefer Clun maturity rank (`dev` < `alpha` < `beta` < `rc` < stable) when selecting update targets
 - Clear TLS session tickets between multi-asset update fetches
 - Human recovery text for TLS update failures (curl reinstall)
