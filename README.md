@@ -1,10 +1,13 @@
 # Clun
 
-**A full JS/TS toolkit. The engine is Common Lisp.**
+**JavaScript and TypeScript toolkit. Implementation is Common Lisp.**
 
-Clun runs TypeScript, installs npm packages, tests, serves HTTP, and bundles — with Bun-compatible
-commands and APIs. There is no Node, V8, libuv, Rust, Zig, or C in Clun’s own implementation.
-JavaScript is only what **you** run. Pre-1.0; measured performance claims only; no blanket speed parity.
+Clun runs TypeScript. Clun installs npm packages. Clun runs tests. Clun serves HTTP. Clun builds bundles.
+Commands and APIs follow Bun shape.
+The Clun implementation is pure Common Lisp.
+The Clun implementation is not Node, V8, libuv, Rust, Zig, or C.
+JavaScript is only what **you** run.
+Clun is pre-1.0. Do not claim speed parity with Bun. Publish only measured performance data.
 
 <!-- clun-generated:release:begin -->
 > **Status: stable release train.** Release target: `0.2.1` / `v0.2.1` (SemVer impact: `patch`).
@@ -14,10 +17,10 @@ JavaScript is only what **you** run. Pre-1.0; measured performance claims only; 
 <!-- clun-generated:release:end -->
 
 The current source is the `0.2.1` stable candidate; immutable tag and assets are not published yet.
-The last published release remains [`v0.2.0`](https://github.com/theesfeld/clun/releases/tag/v0.2.0)
-(four native archives, `checksums.txt`, `~/.local/bin`, built-in updater). Tracking:
-[issue #320](https://github.com/theesfeld/clun/issues/320) (man page install + hard CLI sync rule).
-Phase 82 ([#56](https://github.com/theesfeld/clun/issues/56)) closed the purity-compatible surface audit;
+The last published release remains [`v0.2.0`](https://github.com/theesfeld/clun/releases/tag/v0.2.0).
+That release includes four native archives, checksums, install to `~/.local/bin`, and the built-in updater.
+Tracking: [issue #320](https://github.com/theesfeld/clun/issues/320) (man page install; man page must match the CLI).
+Phase 82 ([#56](https://github.com/theesfeld/clun/issues/56)) closed the purity-compatible surface audit.
 Phase 26 ([#58](https://github.com/theesfeld/clun/issues/58)) closed first stable `0.2.0`.
 
 ## Install
@@ -26,9 +29,10 @@ Phase 26 ([#58](https://github.com/theesfeld/clun/issues/58)) closed first stabl
 curl -fsSL https://clun.sh/install | sh
 ```
 
-Linux and macOS (x64 / arm64). SHA-256 verified → `~/.local/bin/clun`. Optional:
-`INSTALL_DIR`, `INSTALL_VERSION` / `CLUN_VERSION`, `ADD_PATH=0|1`. After install: `man clun`
-(must match live CLI — hard rule).
+Supported platforms: Linux and macOS on x64 and arm64.
+The installer verifies SHA-256. The installer installs `clun` to `~/.local/bin/clun`.
+Optional variables: `INSTALL_DIR`, `INSTALL_VERSION` / `CLUN_VERSION`, `ADD_PATH=0|1`.
+After install, use `man clun`. The man page must match live CLI help.
 
 While the hosted boundary remains `v0.2.0`, that command only reinstalls `v0.2.0` and does not
 activate the `0.2.1` candidate until `v0.2.1` assets publish.
@@ -40,37 +44,20 @@ clun --check-update   # non-mutating; exit 1 if behind
 clun --update         # verify and activate the complete release bundle
 ```
 
-Built-in pure-CL HTTPS updater; same assets as the installer. Pre-1.0: minors may include breaking changes.
+The updater uses pure Common Lisp HTTPS. The updater uses the same assets as the installer.
+Clun is pre-1.0. A minor release may include breaking changes.
 
 ## What works
 
-- JavaScript, JSON, ESM, CommonJS, TypeScript (erasable strip, enums/namespaces/param-props,
-  experimental decorators, import=/export=, angle-bracket casts, `.tsx`, and `clun tsc`
-  structural typecheck — Phase 39 / #192), and JSX/TSX execution via pure Common Lisp transform
-  (classic and automatic runtimes; Phase 40 / #186).
-- Object integrity and legacy accessor operations including `Object.seal`, `Object.isSealed`,
-  `__defineGetter__`, `__defineSetter__`, `__lookupGetter__`, and `__lookupSetter__`. Proxy traps and
-  invariants are implemented for the covered paths; this is not a blanket modern-ECMAScript claim.
-- Shared iterator operations now drive lazy `for...of`, destructuring, `Array.from`, collection
-  constructors, and Promise combinators, including iterator close on abrupt completion.
-- Parameter defaults, catch patterns, and the covered destructuring paths enforce temporal dead
-  zones; `const` bindings reject assignment, and anonymous parameter defaults receive inferred names.
-- Functions and classes now distinguish calls from construction, implement derived `this` and
-  `super`, separate parameter/body/name environments, expose mapped and unmapped arguments objects,
-  delegate bound construction, and preserve source text for the covered callable forms.
-- Same-realm synchronous generators support dynamic `GeneratorFunction` construction, per-function
-  prototypes, and `yield*` delegation with iterator-result identity and close/error precedence.
-  Cross-realm generator semantics remain outside the current milestone.
-- Async generators serialize `next`, `return`, and `throw` requests, await yielded and returned
-  values, reject incompatible receivers, and support async `yield*`. Async iteration includes
-  AsyncFromSync fallback and completion-correct `for await...of` close behavior.
-- Timers, promises, files, streaming HTTP request/response bodies, `fetch`, URL APIs, and process spawning.
-- `clun test` with hooks, filters, async tests, timeouts, 62 core and extended matchers, function
-  mocks/spies, expected-failure modifiers, snapshots, cooperative concurrency, parallel files,
-  array-parameterized tests and suites, retries, and repeats.
-- `clun install [pkg…]`, `add`, `remove`, and package scripts with a deterministic lockfile and cache.
-  First `add` / `install <pkg>` in a directory without `package.json` creates a minimal manifest
-  (npm/Bun empty-dir behavior). Bare `clun install` still requires an existing project manifest.
+- Run `.js`, `.mjs`, `.cjs`, JSON, TypeScript, JSX, and TSX.
+- TypeScript: erasable strip, enums, namespaces, decorators, and `clun tsc` typecheck.
+- Node-compatible builtins on the pure Common Lisp matrix (buffer, fs, path, crypto, and more).
+- Web APIs: `fetch`, URL, streams, AbortController, cookies, and related surfaces.
+- HTTP server (`Clun.serve`), WebSocket, bundler, hot reload, monorepo workspaces.
+- `clun test` with matchers, snapshots, async tests, and concurrent files.
+- `clun install`, `add`, `remove`, and `publish` against the public npm registry.
+- First `add` or `install <pkg>` creates a minimal `package.json` if the directory has none.
+- Bare `clun install` requires an existing project manifest.
 
 **test262:** 26,018 frozen passes / 28,163 eligible (92.38%); Phase 25b's 90% target is met.
 Engineering detail: [`docs/conformance/test262-execution.md`](docs/conformance/test262-execution.md).
@@ -79,8 +66,8 @@ Clun-vs-Clun microbenchmarks only: [`docs/benchmarks.md`](docs/benchmarks.md).
 ## Compatibility roadmap
 
 <!-- clun-generated:compatibility:begin -->
-Every row is generated from the canonical capability matrix; `make docs-check` rejects hand-edited
-status, evidence, or baseline drift. Status is evidence-backed Yes / Partial / No as tested today.
+Each row comes from the capability matrix. `make docs-check` rejects hand-edited status,
+evidence, or baseline drift. Status is evidence-backed Yes / Partial / No as tested today.
 
 Snapshot: Bun 1.3.14, Node.js 26.5.0, and Deno 2.9.3 (
 July 16, 2026). Engineering pin: Bun `c1076ce95e` (`1.4.0-dev`).

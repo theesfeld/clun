@@ -3668,3 +3668,10 @@ relaxed absolute public-claims digest pins, and Compat path coverage for
 phase-link column, shorter install, test262 one-liner, capability-matrix wording.
 P3 engineering first cuts: `src/runtime/shell/{parse,exec}.lisp`, packages thinning
 plan + `csrf`/`color` extracts, stale worktree prune.
+
+### 2026-07-21 - Product surfaces use ASD-STE100 principles (Issue #323)
+
+User-facing README, site, and man page prose use Simplified Technical English
+principles from ASD-STE100: short active sentences, one idea per sentence,
+consistent terms, no marketing fluff. Facts match live state: installable
+`v0.2.0`, source candidate `0.2.1` unpublished. Man page remains catalog-generated.

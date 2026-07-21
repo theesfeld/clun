@@ -262,9 +262,9 @@ END {
   channel = maturity_channel(release_version)
   channel_label = maturity_label(channel)
   if (format == "readme-compat") {
-    # ElonOptimizer P2: product-facing matrix — no phase-link column (phases stay on Issues).
-    print "Every row is generated from the canonical capability matrix; `make docs-check` rejects hand-edited"
-    print "status, evidence, or baseline drift. Status is evidence-backed Yes / Partial / No as tested today."
+    # Product matrix (STE100-style short lines). No phase-link column.
+    print "Each row comes from the capability matrix. `make docs-check` rejects hand-edited status,"
+    print "evidence, or baseline drift. Status is evidence-backed Yes / Partial / No as tested today."
     print ""
     print "Snapshot: Bun " baseline_version[public_bun_id] ", Node.js " baseline_version[node_id] ", and Deno " baseline_version[deno_id] " ("
     print human_date(baseline_checked[public_bun_id]) "). Engineering pin: Bun `" substr(baseline_revision[engineering_bun_id], 1, 10) "` (`" baseline_version[engineering_bun_id] "`)."
@@ -317,13 +317,13 @@ END {
     print "  <a href=\"" html(baseline_source[node_id]) "\">Node.js " html(baseline_version[node_id]) "</a>,"
     print "  <a href=\"" html(baseline_source[deno_id]) "\">Deno " html(baseline_version[deno_id]) "</a>."
     print "  <a href=\"https://github.com/theesfeld/clun/blob/master/compat/README.md\">Ledger on GitHub</a>."
-    print "  Capability, not speed."
+    print "  Capability status only. No speed claim."
     print "</p>"
   } else if (format == "site-compat-intro") {
     print "Same public toolkit matrix as Bun " html(baseline_version[public_bun_id]) " — Clun last."
     print "<strong>" ledger_yes " full</strong> · <strong>" ledger_partial " partial</strong> · <strong>" ledger_no " none</strong>."
     print "A green check means that runtime has the capability (evidence-backed Yes / Partial / No)."
-    print "Only Clun’s column calls out where it <em>exceeds</em> the others."
+    print "Only Clun’s column marks where Clun <em>exceeds</em> the others."
   } else if (format == "readme-release") {
     tagged_candidate = publication_state == "candidate" && release_commit != "pending"
     if (publication_state == "published") {
