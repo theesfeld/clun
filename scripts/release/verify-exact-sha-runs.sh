@@ -2,6 +2,8 @@
 
 set -eu
 
+# Release tags require exact-master Compatibility (path-filtered) plus CI/Docs/Pages.
+
 if [ "$#" -ne 2 ]; then
   printf 'usage: %s <workflow-runs.tsv> <full-commit-sha>\n' "$0" >&2
   exit 2
