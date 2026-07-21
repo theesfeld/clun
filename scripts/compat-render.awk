@@ -327,33 +327,21 @@ END {
   } else if (format == "readme-release") {
     tagged_candidate = publication_state == "candidate" && release_commit != "pending"
     if (publication_state == "published") {
-      print "> **Status: " status_headline(channel) ".** [Phase " active_phase "](https://github.com/theesfeld/clun/issues/" active_issue ") tracks the published prerelease and remaining phase work."
-      print "> Published release: `" release_version "` / `" release_tag "` (SemVer impact: `" semver_impact "`)."
+      print "> **Status: " status_headline(channel) ".** Latest release: [`" release_tag "`](https://github.com/theesfeld/clun/releases/tag/" release_tag ")."
+      print "> Installable boundary: four native archives, checksums, Pages installer, and `clun --update`."
+      print "> Capability matrix: " ledger_yes " Yes / " ledger_partial " Partial / " ledger_no " No (evidence-backed)."
+      print "> Implementation: pure Common Lisp. Source: [theesfeld/clun](https://github.com/theesfeld/clun)."
     } else {
-      print "> **Status: " status_headline(channel) ".** [Phase " active_phase "](https://github.com/theesfeld/clun/issues/" active_issue ") is in progress."
-      print "> Its release-bearing target is `" release_version "` / `" release_tag "` (SemVer impact: `" semver_impact "`)."
+      print "> **Status: " status_headline(channel) ".** Release target: `" release_version "` / `" release_tag "` (SemVer impact: `" semver_impact "`)."
+      print "> Tracking: [issue #" active_issue "](https://github.com/theesfeld/clun/issues/" active_issue ")."
+      if (tagged_candidate) {
+        print "> The annotated tag `" release_tag "` points to candidate commit `" release_commit "`, but no GitHub Release or release assets were published."
+        print "> The latest verified installable boundary remains `v" previous_version "`."
+      } else {
+        print "> The verified release boundary is `v" previous_version "` until this candidate publishes."
+      }
+      print "> Capability matrix: " ledger_yes " Yes / " ledger_partial " Partial / " ledger_no " No."
     }
-    if (publication_state == "published") {
-      print "> The verified release boundary is `" release_tag "`, with four native archives and checksums."
-      print "> Release-gated Pages and hosted-installer results are recorded in the canonical issue."
-    } else if (tagged_candidate) {
-      print "> The annotated tag `" release_tag "` points to candidate commit `" release_commit "`, but no GitHub Release or release assets were published."
-      print "> The latest verified installable boundary remains `v" previous_version "`, with four native archives, checksums, Pages, and hosted-installer evidence."
-      print "> Tag-only recovery remains tracked in [Phase " active_phase " issue #" active_issue "](https://github.com/theesfeld/clun/issues/" active_issue "); the failed tag is immutable and recovery must use a new prerelease slot."
-    } else {
-      print "> The verified release boundary is `v" previous_version "`, with four native archives, checksums, Pages,"
-      print "> and hosted-installer evidence."
-    }
-    if (active_phase == 26) {
-      print "> Phase 26 (final hardening) is the active program phase after Phase 82 closed."
-      print "> Checklist and SemVer disposition live on the canonical issue; stable `0.2.0` is not assumed until gates pass."
-    } else {
-      print "> Phase 26 remains deferred until after Phase 82 and will"
-      print "> be rewritten for the repository state that exists then."
-    }
-    print "> Clun's full-port target requires every ledger Yes to survive executable and public-claim audit. The current snapshot is " ledger_yes " Yes / " ledger_partial " Partial / " ledger_no " No; qualified evidence is not treated as complete."
-    print "> The canonical issue is the live source of truth; `PLAN.md` is the technical contract and `STATE.md` is"
-    print "> the local resume checklist."
   } else if (format == "site-release") {
     if (publication_state == "published") {
       print "<a href=\"https://github.com/theesfeld/clun/releases/tag/" release_tag "\">"
@@ -372,33 +360,34 @@ END {
     print "<p class=\"eyebrow\"><span class=\"status-dot\" aria-hidden=\"true\"></span> v" release_version site_version_suffix(channel, publication_state == "published") "</p>"
   } else if (format == "site-phase-status") {
     if (publication_state == "published")
-      print "Release tracking: <a href=\"https://github.com/theesfeld/clun/issues/" active_issue "\">issue #" active_issue "</a>."
+      print ""
     else if (publication_state == "candidate" && release_commit != "pending")
-      print "Candidate tag only (no GitHub Release yet). Tracking: <a href=\"https://github.com/theesfeld/clun/issues/" active_issue "\">issue #" active_issue "</a>."
+      print "Candidate tag only (no GitHub Release yet)."
     else
       print "Current release work: <a href=\"https://github.com/theesfeld/clun/issues/" active_issue "\">issue #" active_issue "</a>."
   } else if (format == "readme-release-summary") {
-    print "Release versions follow the actual SemVer impact recorded in the canonical issue, not the number of pushes."
     if (publication_state == "published") {
-      print "The current source version and latest published prerelease are [`" release_version "`](https://github.com/theesfeld/clun/releases/tag/" release_tag ")."
+      print "Latest release: [`" release_version "`](https://github.com/theesfeld/clun/releases/tag/" release_tag ")."
+      print "Install: `curl -fsSL https://clun.sh/install | sh` · update: `clun --update`."
+      print "Capability matrix: " ledger_yes " Yes / " ledger_partial " Partial / " ledger_no " No."
+      print "[Versioning](docs/versioning.md) · [compatibility matrix](compat/README.md)."
     } else if (release_commit != "pending") {
-      print "The current source is the `" release_version "` " channel_label " candidate. Its annotated [`" release_tag "`](https://github.com/theesfeld/clun/tree/" release_tag ") points to commit `" release_commit "`, but no GitHub Release or release assets were published."
-      print "The last published prerelease remains [`v" previous_version "`](https://github.com/theesfeld/clun/releases/tag/v" previous_version ")."
+      print "Candidate `" release_version "` is tagged but not published; installable boundary remains `v" previous_version "`."
+      print "Tracking: [issue #" active_issue "](https://github.com/theesfeld/clun/issues/" active_issue ")."
     } else {
-      print "The current source is the `" release_version "` " channel_label " candidate; the immutable tag and assets are not published yet."
-      print "The last published prerelease remains [`v" previous_version "`](https://github.com/theesfeld/clun/releases/tag/v" previous_version ")."
+      print "Candidate `" release_version "` is unpublished; installable boundary remains `v" previous_version "`."
+      print "Tracking: [issue #" active_issue "](https://github.com/theesfeld/clun/issues/" active_issue ")."
     }
-    print "[The versioning contract](docs/versioning.md) defines prerelease sequencing, synchronized surfaces, immutable tags, assets, and installer evidence."
-    print "[Phase " active_phase " issue #" active_issue "](https://github.com/theesfeld/clun/issues/" active_issue ") is the canonical live release record."
-    if (publication_state == "candidate" && release_commit != "pending")
-      print "Tag-only recovery remains tracked in [Phase " active_phase " issue #" active_issue "](https://github.com/theesfeld/clun/issues/" active_issue "); the failed tag is immutable and recovery must use a new prerelease slot."
   } else if (format == "site-release-links") {
-    print "<div><h2>Project</h2><a href=\"https://github.com/theesfeld/clun\">Source</a><a href=\"https://github.com/theesfeld/clun/blob/master/README.md\">README</a><a href=\"https://github.com/theesfeld/clun/issues/" active_issue "\">" (publication_state == "published" ? "Release record" : "Current status") "</a></div>"
-    print "<div><h2>Evidence</h2><a href=\"https://github.com/theesfeld/clun/blob/master/compat/README.md\">Compatibility ledger</a><a href=\"https://github.com/theesfeld/clun/actions/workflows/compat.yml\">Compatibility CI</a><a href=\"https://github.com/theesfeld/clun/issues/" active_issue "\">Release issue</a><a href=\"https://github.com/theesfeld/clun/blob/master/LICENSE\">License</a></div>"
-    if (publication_state == "published")
+    if (publication_state == "published") {
+      print "<div><h2>Project</h2><a href=\"https://github.com/theesfeld/clun\">Source</a><a href=\"https://github.com/theesfeld/clun/blob/master/README.md\">README</a><a href=\"https://github.com/theesfeld/clun/releases\">Releases</a></div>"
+      print "<div><h2>Evidence</h2><a href=\"https://github.com/theesfeld/clun/blob/master/compat/README.md\">Capability matrix</a><a href=\"https://github.com/theesfeld/clun/actions/workflows/compat.yml\">Compatibility CI</a><a href=\"https://github.com/theesfeld/clun/blob/master/LICENSE\">License</a></div>"
       print "<div><h2>Install</h2><a href=\"install\">Shell installer</a><a href=\"https://github.com/theesfeld/clun/releases/tag/" release_tag "\">" release_tag " release</a><a href=\"https://github.com/theesfeld/clun#building-from-source\">Build from source</a></div>"
-    else
+    } else {
+      print "<div><h2>Project</h2><a href=\"https://github.com/theesfeld/clun\">Source</a><a href=\"https://github.com/theesfeld/clun/blob/master/README.md\">README</a><a href=\"https://github.com/theesfeld/clun/issues/" active_issue "\">Current status</a></div>"
+      print "<div><h2>Evidence</h2><a href=\"https://github.com/theesfeld/clun/blob/master/compat/README.md\">Capability matrix</a><a href=\"https://github.com/theesfeld/clun/actions/workflows/compat.yml\">Compatibility CI</a><a href=\"https://github.com/theesfeld/clun/issues/" active_issue "\">Release issue</a><a href=\"https://github.com/theesfeld/clun/blob/master/LICENSE\">License</a></div>"
       print "<div><h2>Install</h2><a href=\"install\">Shell installer</a><a href=\"https://github.com/theesfeld/clun/releases/tag/v" previous_version "\">v" previous_version " release</a><a href=\"https://github.com/theesfeld/clun#building-from-source\">Build from source</a></div>"
+    }
   } else if (format == "release-notes") {
     print "# Clun " release_version
     print ""

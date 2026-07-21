@@ -688,25 +688,22 @@ publish_release "$case_root/compat/release.tsv"
 expect_pass published-generate "$case_root" generate
 grep -F 'Available now' "$case_root/site/index.html" >/dev/null 2>&1 ||
   fail 'published render did not expose the published release'
-grep -F 'latest published prerelease' "$case_root/README.md" >/dev/null 2>&1 ||
+grep -F 'Latest release:' "$case_root/README.md" >/dev/null 2>&1 ||
   fail 'published render did not expose the published release summary'
-grep -F 'Release tracking:' "$case_root/site/index.html" >/dev/null 2>&1 ||
-  fail 'published render did not expose the published landing-page status line'
-grep -F "issue #$current_issue" "$case_root/site/index.html" >/dev/null 2>&1 ||
-  fail 'published render lost the published issue number on the landing page'
-grep -F "[Phase $current_phase]" "$case_root/README.md" >/dev/null 2>&1 ||
-  fail 'published render lost the README phase link'
-grep -F 'tracks the published prerelease and remaining phase work' "$case_root/README.md" >/dev/null 2>&1 ||
-  fail 'published render did not separate publication from README phase completion'
-grep -F '>Release record</a>' "$case_root/site/index.html" >/dev/null 2>&1 ||
-  fail 'published render did not label the canonical issue as the release record'
-grep -F 'Release-gated Pages and hosted-installer results are recorded in the canonical issue.' \
-  "$case_root/README.md" >/dev/null 2>&1 ||
-  fail 'published render did not describe the completed deployment record'
-if grep -Fq "Phase $current_phase is complete:" "$case_root/site/index.html" ||
-   grep -Fq "](https://github.com/theesfeld/clun/issues/$current_issue) is complete." \
-     "$case_root/README.md"; then
-  fail 'published render inferred phase completion from release publication'
+grep -F 'Capability matrix:' "$case_root/README.md" >/dev/null 2>&1 ||
+  fail 'published render lost the capability matrix status line'
+grep -F '>Releases</a>' "$case_root/site/index.html" >/dev/null 2>&1 ||
+  fail 'published render did not link Releases in the footer'
+grep -F '>Capability matrix</a>' "$case_root/site/index.html" >/dev/null 2>&1 ||
+  fail 'published render did not link Capability matrix in the footer'
+if grep -Fq 'Release tracking:' "$case_root/site/index.html"; then
+  fail 'published render retained process Release tracking chrome'
+fi
+if grep -Fq 'tracks the published prerelease' "$case_root/README.md"; then
+  fail 'published render retained stale prerelease status wording'
+fi
+if grep -Fq 'not assumed until gates pass' "$case_root/README.md"; then
+  fail 'published render retained stale stable-not-assumed wording'
 fi
 
 fresh_case refreshed-baselines

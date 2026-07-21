@@ -9,15 +9,10 @@ targets are workload-specific and published;
 Clun does not claim blanket speed parity with Bun.
 
 <!-- clun-generated:release:begin -->
-> **Status: stable release train.** [Phase 26](https://github.com/theesfeld/clun/issues/58) tracks the published prerelease and remaining phase work.
-> Published release: `0.2.0` / `v0.2.0` (SemVer impact: `minor`).
-> The verified release boundary is `v0.2.0`, with four native archives and checksums.
-> Release-gated Pages and hosted-installer results are recorded in the canonical issue.
-> Phase 26 (final hardening) is the active program phase after Phase 82 closed.
-> Checklist and SemVer disposition live on the canonical issue; stable `0.2.0` is not assumed until gates pass.
-> Clun's full-port target requires every ledger Yes to survive executable and public-claim audit. The current snapshot is 30 Yes / 0 Partial / 0 No; qualified evidence is not treated as complete.
-> The canonical issue is the live source of truth; `PLAN.md` is the technical contract and `STATE.md` is
-> the local resume checklist.
+> **Status: stable release train.** Latest release: [`v0.2.0`](https://github.com/theesfeld/clun/releases/tag/v0.2.0).
+> Installable boundary: four native archives, checksums, Pages installer, and `clun --update`.
+> Capability matrix: 30 Yes / 0 Partial / 0 No (evidence-backed).
+> Implementation: pure Common Lisp. Source: [theesfeld/clun](https://github.com/theesfeld/clun).
 <!-- clun-generated:release:end -->
 
 Published [`v0.2.0`](https://github.com/theesfeld/clun/releases/tag/v0.2.0) is the verified installable boundary (four native archives, `checksums.txt`, `~/.local/bin`, built-in updater, human registry errors, install progress chrome). Phase 82 ([#56](https://github.com/theesfeld/clun/issues/56)) closed the purity-compatible surface audit; Phase 26 ([#58](https://github.com/theesfeld/clun/issues/58)) is the final hardening record closing with first stable `0.2.0`.
@@ -204,10 +199,10 @@ sets between this README and the landing page; descriptive prose still requires 
 workflows are read-only and fail closed if the canonical issues, README, or site have drifted.
 
 <!-- clun-generated:release-summary:begin -->
-Release versions follow the actual SemVer impact recorded in the canonical issue, not the number of pushes.
-The current source version and latest published prerelease are [`0.2.0`](https://github.com/theesfeld/clun/releases/tag/v0.2.0).
-[The versioning contract](docs/versioning.md) defines prerelease sequencing, synchronized surfaces, immutable tags, assets, and installer evidence.
-[Phase 26 issue #58](https://github.com/theesfeld/clun/issues/58) is the canonical live release record.
+Latest release: [`0.2.0`](https://github.com/theesfeld/clun/releases/tag/v0.2.0).
+Install: `curl -fsSL https://clun.sh/install | sh` · update: `clun --update`.
+Capability matrix: 30 Yes / 0 Partial / 0 No.
+[Versioning](docs/versioning.md) · [compatibility matrix](compat/README.md).
 <!-- clun-generated:release-summary:end -->
 
 ## The purity contract
