@@ -771,8 +771,8 @@ fi
 capability_rows=$(wc -l <"$site_matrix" | tr -d ' ')
 
 active_issue_url="https://github.com/theesfeld/clun/issues/$active_issue"
-require_text README.md "[Phase $active_phase issue #$active_issue]($active_issue_url)"
-require_text site/index.html "href=\"$active_issue_url\""
+require_text README.md "Latest release:"
+require_text site/index.html "href=\"https://github.com/theesfeld/clun/releases\""
 
 for tag in html head title body header nav main section article div p pre code table \
            thead tbody tr th td a span b strong button i footer dl dt dd ol ul li; do
@@ -892,8 +892,7 @@ if [ "$release_state" = candidate ]; then
     require_text site/index.html "Current release work:"
   fi
   require_text site/index.html "issue #$active_issue"
-  require_text site/index.html ">Current status</a>"
-  require_text site/index.html ">Release issue</a>"
+  require_text site/index.html ">Releases</a>"
   require_text site/index.html "v$version"
   reject_text site/index.html "v$version / Phase $active_phase"
   reject_text site/index.html "Phase $active_phase is active:"
@@ -910,17 +909,20 @@ else
   grep -Fq -- "release candidate" README.md &&
     fail "release ledger says published but README still says release candidate" || true
   require_text README.md "$release_url"
-  require_text README.md "[Phase $active_phase]($active_issue_url) tracks the published prerelease and remaining phase work."
+  require_text README.md "Latest release:"
+  require_text README.md "Capability matrix:"
+  reject_text README.md "tracks the published prerelease"
+  reject_text README.md "not assumed until gates pass"
   reject_text README.md "[Phase $active_phase]($active_issue_url) is in progress."
   reject_text README.md "[Phase $active_phase]($active_issue_url) is complete."
   require_text README.md "**Status: $status_headline.**"
 
   require_text site/index.html "href=\"$release_url\""
   require_text site/index.html "<span>$announce_span</span>"
-  require_text site/index.html "Release tracking:"
-  require_text site/index.html "issue #$active_issue"
-  require_text site/index.html ">Release record</a>"
-  require_text site/index.html ">Release issue</a>"
+  reject_text site/index.html "Release tracking:"
+  reject_text site/index.html "issue #$active_issue"
+  require_text site/index.html ">Releases</a>"
+  require_text site/index.html ">Capability matrix</a>"
   reject_text site/index.html "Phase $active_phase is active:"
   reject_text site/index.html "Phase $active_phase is complete:"
   reject_text site/index.html "Phase $active_phase has a published prerelease:"
