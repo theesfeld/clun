@@ -82,7 +82,7 @@ Clun-vs-Clun microbenchmarks only: [`docs/benchmarks.md`](docs/benchmarks.md).
 Every row is generated from the canonical capability matrix; `make docs-check` rejects hand-edited
 status, evidence, or baseline drift. Status is evidence-backed Yes / Partial / No as tested today.
 
-Snapshot: Bun 1.3.14, Node.js 26.5.0, Deno 2.9.3 (
+Snapshot: Bun 1.3.14, Node.js 26.5.0, and Deno 2.9.3 (
 July 16, 2026). Engineering pin: Bun `c1076ce95e` (`1.4.0-dev`).
 
 | Capability | Current stable state |

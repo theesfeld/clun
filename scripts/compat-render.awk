@@ -266,7 +266,7 @@ END {
     print "Every row is generated from the canonical capability matrix; `make docs-check` rejects hand-edited"
     print "status, evidence, or baseline drift. Status is evidence-backed Yes / Partial / No as tested today."
     print ""
-    print "Snapshot: Bun " baseline_version[public_bun_id] ", Node.js " baseline_version[node_id] ", Deno " baseline_version[deno_id] " ("
+    print "Snapshot: Bun " baseline_version[public_bun_id] ", Node.js " baseline_version[node_id] ", and Deno " baseline_version[deno_id] " ("
     print human_date(baseline_checked[public_bun_id]) "). Engineering pin: Bun `" substr(baseline_revision[engineering_bun_id], 1, 10) "` (`" baseline_version[engineering_bun_id] "`)."
     print ""
     print "| Capability | Current " channel_label " state |"
