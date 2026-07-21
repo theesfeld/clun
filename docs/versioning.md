@@ -409,6 +409,8 @@ Issue #280 (human CLI registry errors + install progress spinner) and Issue #61 
 
 Phase 26 closes the post–Phase-82 hardening program as immutable prerelease `0.2.0-beta.1` / `v0.2.0-beta.1` (Issue #58). Same `0.2.0` core; prerelease maturity advances from published `0.2.0-dev.11` via the version-transition maturity ladder (`dev` → `beta` at `.1`). Stable `0.2.0` is not implied.
 
+Issue #320 stages free stable patch `0.2.1` / `v0.2.1` after published `v0.2.0`: catalog-generated man page, `make man-check`, package `share/man/man1/clun.1`, and installer man install. SemVer impact is `patch`. Installer default remains `v0.2.0` until `v0.2.1` assets publish.
+
 Issue #304 (updater maturity rank + TLS recovery + TTY update notice) advances the beta train to `0.2.0-beta.2` / `v0.2.0-beta.2` after published `v0.2.0-beta.1`. SemVer impact is `patch`.
 
 Issue #58 finishes Phase 26 with the first stable release `0.2.0` / `v0.2.0` after published `v0.2.0-beta.2`. SemVer impact is `minor` (maturity promotion off the beta train; no intentional matrix expansion). Historical beta tags remain immutable and are not deleted. The verified installer advances to `v0.2.0` only after assets publish.
