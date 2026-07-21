@@ -1,7 +1,7 @@
 # Phase 26 — Final hardening, docs, and release
 
 **Canonical issue:** [#58](https://github.com/theesfeld/clun/issues/58)  
-**Status:** active → `0.2.0-beta.1`  
+**Status:** active → first stable `0.2.0`  
 **Deps:** Phase 82 (#56) complete
 
 ## Goal

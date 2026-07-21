@@ -30,6 +30,22 @@ reject_text() {
   fi
 }
 
+# Reject exact GitHub Release URL for an unreleased tag, without matching longer
+# tags that share the same prefix (v0.2.0 vs v0.2.0-beta.2).
+reject_unreleased_tag_url() {
+  file=$1
+  url=$2
+  matched=0
+  while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in
+      *"$url"-*) ;;
+      *"$url"*) matched=1 ;;
+    esac
+  done < "$file"
+  [ "$matched" -eq 0 ] || fail "$file contains stale text: $url"
+}
+
+
 versions=$(sed -n 's/^(defparameter \*clun-version\* "\([^"]*\)".*/\1/p' src/version.lisp)
 version_count=$(printf '%s\n' "$versions" | awk 'NF { count++ } END { print count + 0 }')
 [ "$version_count" -eq 1 ] ||
@@ -828,7 +844,7 @@ if [ "$release_state" = candidate ]; then
     alpha) site_version_marker="v$version / alpha candidate" ; announce_span="Alpha candidate" ;;
     beta) site_version_marker="v$version / beta candidate" ; announce_span="Beta candidate" ;;
     rc) site_version_marker="v$version release candidate" ; announce_span="RC candidate" ;;
-    *) site_version_marker="v$version candidate" ; announce_span="In development" ;;
+    *) site_version_marker="v$version candidate" ; announce_span="Stable candidate" ;;
   esac
   readme_candidate_marker="\`$version\` $maturity_lbl candidate"
 else
@@ -864,7 +880,7 @@ if [ "$release_state" = candidate ]; then
   require_text README.md "The last published prerelease remains"
   require_text README.md "[Phase $active_phase]($active_issue_url) is in progress."
   require_text README.md "[\`v$previous_version\`]($previous_release_url)"
-  reject_text README.md "$release_url"
+  reject_unreleased_tag_url README.md "$release_url"
 
   if [ "$candidate_tagged" -eq 1 ]; then
     require_text site/index.html "<a href=\"$active_issue_url\">"
@@ -884,7 +900,7 @@ if [ "$release_state" = candidate ]; then
   require_text site/index.html "<a href=\"$previous_release_url\">v$previous_version release</a>"
   require_text site/index.html "$site_version_marker</p>"
   require_text site/index.html "class=\"clun-col\"><a href=\"https://github.com/theesfeld/clun\">Clun</a><span>$version</span>"
-  reject_text site/index.html "$release_url"
+  reject_unreleased_tag_url site/index.html "$release_url"
   # Beta must not be mislabeled pre-alpha or RC.
   if [ "$maturity" = beta ]; then
     reject_text site/index.html "pre-alpha"
