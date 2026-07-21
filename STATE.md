@@ -10,8 +10,10 @@ Ship path: topic branch → PR → squash-merge into `master` (not direct push).
 
 **Canonical issue:** https://github.com/theesfeld/clun/issues/58
 **Prior phase:** Phase 82 (#56) **closed** — purity-compatible surface audit complete
-**Candidate release:** `0.2.0-beta.1` / `v0.2.0-beta.1`
-**Published surface tip (installer default):** `0.2.0-dev.11` / `v0.2.0-dev.11`
+******Published surface tip:** `0.2.0-beta.1` / `v0.2.0-beta.1`
+**Tag peel:** `d8bd2a090bee1012ab59e60101d42a079c857a7f`
+**Release run:** https://github.com/theesfeld/clun/actions/runs/29787884879
+**Installer default:** `verified_installer_tag=v0.2.0-beta.1`
 **Installer default:** `verified_installer_tag=v0.2.0-dev.11` until beta.1 assets publish
 **SemVer impact:** `minor` (maturity promotion dev→beta + hardening; no intentional matrix expansion)
 
@@ -85,7 +87,9 @@ Ship path: topic branch → PR → squash-merge into `master` (not direct push).
 ### D. Release
 
 - [x] Version surfaces staged `0.2.0-beta.1` / `v0.2.0-beta.1` (candidate; installer remains dev.11)
-- [ ] Tag immutable; four native assets + checksums
+- [x] Tag immutable; four native assets + checksums
+- [x] Installer + update path target published assets
+- [ ] Close Issue #58 with evidence comment
 - [ ] Installer + `clun --update` smoke on published assets
 - [ ] Evidence on Issue #58; close when checklist complete
 
