@@ -604,9 +604,10 @@ pre {
 .tok-num { color: #f78c6c; }
 .tok-type { color: #82aaff; }
 
-/* Matrix table */
+/* Matrix table — fit viewport; wrap cells; no horizontal scroll */
 .table-wrap {
-  overflow-x: auto;
+  overflow-x: hidden;
+  max-width: 100%;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: #0e1014;
@@ -614,9 +615,10 @@ pre {
 
 .compare-table {
   width: 100%;
+  max-width: 100%;
   border-collapse: collapse;
+  table-layout: fixed;
   font-size: 0.9rem;
-  min-width: 720px;
 }
 
 .compare-table th,
@@ -625,6 +627,10 @@ pre {
   border-bottom: 1px solid var(--border);
   text-align: left;
   vertical-align: top;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
+  hyphens: auto;
 }
 
 .compare-table thead th {
@@ -926,17 +932,34 @@ pre {
 /* Generated matrix class names */
 .compat-table {
   width: 100%;
+  max-width: 100%;
   border-collapse: collapse;
-  font-size: 0.9rem;
-  min-width: 720px;
+  table-layout: fixed;
+  font-size: 0.88rem;
 }
 
 .compat-table th,
 .compat-table td {
-  padding: 0.7rem 0.85rem;
+  padding: 0.65rem 0.55rem;
   border-bottom: 1px solid var(--border);
   text-align: left;
   vertical-align: top;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
+  hyphens: auto;
+}
+
+/* Capability | Bun | Node | Deno | Clun */
+.compat-table th:first-child,
+.compat-table td:first-child,
+.compat-table tbody th {
+  width: 28%;
+}
+
+.compat-table thead th:not(:first-child),
+.compat-table tbody td {
+  width: 18%;
 }
 
 .compat-table thead th {
@@ -951,6 +974,8 @@ pre {
   color: var(--text-dim);
   font-size: 0.8rem;
   margin-top: 0.15rem;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .compat-table .clun-col {
@@ -963,5 +988,28 @@ pre {
 }
 
 .mark-cell {
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.mark-cell .mark,
+.mark-cell .exceed-note {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
+}
+
+.exceed-note {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* Intro line under Capability matrix — wrap, do not force wide line */
+#compatibility .section-intro p {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  max-width: 100%;
 }
