@@ -21,6 +21,13 @@
   :components ((:module "src"
                 :serial t
                 :components ((:file "packages")
+                             ;; ElonOptimizer P3 / #318: thin packages.lisp over time (first cuts).
+                             ;; Module name must not collide with (:file "packages").
+                             (:module "package-splits"
+                              :pathname "packages"
+                              :serial t
+                              :components ((:file "csrf")
+                                           (:file "color")))
                              (:file "version")
                              (:module "sys"
                               :serial t
@@ -257,7 +264,11 @@
                                            (:file "console")
                                            (:file "process")
                                            (:file "spawn")     ; Clun.spawnSync (Phase 24) — before clun-global
-                                           (:file "shell")     ; Clun.$ cross-platform shell — before clun-global
+                                           ;; Clun.$ shell (ElonOptimizer P3 / #318): split parse vs exec.
+                                           (:module "shell"
+                                            :serial t
+                                            :components ((:file "parse")
+                                                         (:file "exec")))
                                            (:file "clun-semver"); Clun.semver (Phase 29) — before clun-global
                                            (:file "clun-csrf")  ; Clun.CSRF (Phase 35) — before clun-global
                                            (:file "clun-password-hash") ; Clun.password/hash (Phase 36)

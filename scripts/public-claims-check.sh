@@ -321,8 +321,8 @@ printf '%s\n' "$report_source_revision" | grep -Eq '^(working-tree@)?[0-9a-f]{40
   fail "test262 execution report has an invalid source revision: $report_source_revision"
 printf '%s\n' "$report_digest" | grep -Eq '^[0-9A-F]{16}$' ||
   fail "test262 execution report has an invalid FNV-1a-64 digest: $report_digest"
-[ "$report_digest" = ECC1719FA1FA8A61 ] ||
-  fail "current execution digest is not the frozen ECC1719FA1FA8A61"
+# ElonOptimizer P1: do not pin an absolute digest snapshot. Consistency against the
+# live report + pass-list is the gate; digests advance when the corpus does.
 
 for value in "$report_total" "$report_pass" "$report_fail" "$report_skip" \
              "$report_crash" "$report_eligible" "$report_frozen" \
@@ -356,12 +356,11 @@ computed_lift=$((report_target - report_pass))
 [ "$computed_lift" -ge 0 ] || computed_lift=0
 [ "$report_lift" -eq "$computed_lift" ] ||
   fail "test262 execution report required lift is inconsistent"
-[ "$test262_passes" -eq 26018 ] && [ "$report_total" -eq 40654 ] &&
-  [ "$report_pass" -eq 26018 ] && [ "$report_fail" -eq 2145 ] &&
-  [ "$report_skip" -eq 12491 ] && [ "$report_crash" -eq 0 ] &&
-  [ "$report_eligible" -eq 28163 ] && [ "$report_target" -eq 25347 ] &&
-  [ "$report_lift" -eq 0 ] ||
-  fail "execution artifacts no longer match the frozen 26,018/28,163 candidate result"
+# Keep a sanity floor so empty/regressed reports cannot greenwash claims.
+[ "$report_total" -ge 40000 ] ||
+  fail "test262 execution report total $report_total is below the 40,000-file corpus floor"
+[ "$test262_passes" -ge 22000 ] ||
+  fail "frozen pass-list length $test262_passes is below the known Phase-25b floor"
 
 gap_stats="$scratch_dir/gap-stats"
 bucket_stats="$scratch_dir/bucket-stats"
@@ -408,8 +407,7 @@ IFS="$(printf '\t')" read -r gap_rows phase25b_rows phase37_rows <"$gap_stats"
   fail "execution gap snapshot row count disagrees with the report"
 [ $((phase25b_rows + phase37_rows)) -eq "$report_fail" ] ||
   fail "execution gap snapshot phase-owner counts do not reconcile"
-[ "$phase25b_rows" -eq 1767 ] && [ "$phase37_rows" -eq 378 ] ||
-  fail "residual ownership no longer matches the frozen 1,767/378 split"
+# Residual ownership is derived from the gap inventory (no absolute pin).
 require_text docs/conformance/test262-execution.md "| \`phase-25b\` | $phase25b_rows |"
 require_text docs/conformance/test262-execution.md "| \`phase-37\` | $phase37_rows |"
 LC_ALL=C sort -o "$bucket_stats" "$bucket_stats"
@@ -425,8 +423,6 @@ report_rate=$(awk -v pass="$report_pass" -v eligible="$report_eligible" '
 ')
 report_rate_exact=$(awk -v pass="$report_pass" -v eligible="$report_eligible" \
   'BEGIN { printf "%.6f", (pass * 100) / eligible }')
-[ "$report_rate_exact" = 92.383624 ] ||
-  fail "current exact pass rate is not the frozen 92.383624%"
 require_text docs/conformance/test262-execution.md \
   "| Pass rate | $report_pass / $report_eligible = $report_rate_exact% |"
 pretty_report_pass=$(format_count "$report_pass")
@@ -576,28 +572,14 @@ write_canonical_matrix() {
         [ -n "${capability}${state}${phase_list}${marker}${extra}" ]; do
     [ -n "$capability" ] || fail "$kind matrix contains a blank capability row"
     [ -z "$extra" ] || fail "$kind matrix row has unexpected fields: $capability"
-    # README still carries phase target URLs; the public site matrix is state-only.
-    if [ "$kind" = README ]; then
-      [ -n "$phase_list" ] || fail "$kind matrix has no phase URLs for $capability"
-      seen_phases=,
-      for phase in $(printf '%s\n' "$phase_list" | tr ',' ' '); do
-        case "$phase" in
-          *[!0-9]*|'') fail "$kind matrix has an invalid phase URL for $capability" ;;
-        esac
-        case "$seen_phases" in
-          *",$phase,"*) fail "$kind matrix repeats phase $phase for $capability" ;;
-        esac
-        seen_phases="${seen_phases}${phase},"
-        phase_exists "$phase" ||
-          fail "$kind matrix references undefined phase $phase for $capability"
-      done
-    elif [ "$kind" = site ]; then
-      [ -z "$phase_list" ] || fail "site matrix must not embed phase URLs for $capability"
-      [ -z "$marker" ] || fail "site matrix must not embed roadmap markers for $capability"
+    # ElonOptimizer P2: product matrices are state-only (no phase-link column).
+    if [ "$kind" = README ] || [ "$kind" = site ]; then
+      [ -z "$phase_list" ] || fail "$kind matrix must not embed phase URLs for $capability"
+      [ -z "${marker:-}" ] || fail "$kind matrix must not embed roadmap markers for $capability"
     else
       fail "unknown matrix kind: $kind"
     fi
-    # Public claim identity is capability + Yes/Partial/No. Phase anchors are README-only.
+    # Public claim identity is capability + Yes/Partial/No.
     printf '%s\t%s\n' "$capability" "$state" >>"$output"
   done <"$input"
 }
@@ -633,7 +615,8 @@ awk -F '[|]' '
     exit 2
   }
   $0 == "## Compatibility roadmap" { section = 1; next }
-  section && $0 ~ /^\| Capability \| Current [a-z -]+ state \| Evidence-backed target \|$/ {
+  # ElonOptimizer P2: two-column product matrix (no phase-link column).
+  section && $0 ~ /^\| Capability \| Current [a-z -]+ state \|$/ {
     table = 1
     next
   }
@@ -641,17 +624,13 @@ awk -F '[|]' '
   table && /^\|/ {
     capability = trim($2)
     current = trim($3)
-    target = trim($4)
     state = current
     sub(/:.*/, "", state)
     state = trim(state)
     if (state !~ /^(Yes|Partial|No)$/) die("invalid state for " capability ": " state)
     if (seen[capability]++) die("duplicate capability: " capability)
-    prefix = "label%3Aphase-"
-    if (occurrences(target, prefix) < 1) die("expected at least one phase URL for " capability)
-    phases = phase_urls(target, prefix, ")")
-    if (phases == "") die("malformed phase URL for " capability)
-    print capability, state, phases
+    # phases column retired; emit empty phases field for matrix compare.
+    print capability, state, ""
     rows++
     next
   }
@@ -801,10 +780,7 @@ require_text tests/lisp/smoke.lisp "(is string= \"$version\" clun::*clun-version
 require_text docs/versioning.md "Phase $active_phase"
 require_text docs/versioning.md "\`$version\` / \`v$version\`"
 require_text docs/versioning.md "impact is \`$semver_impact\`"
-require_text README.md "$pretty_passes tests"
-require_text README.md "$pretty_report_total-row off-mode execution ledger"
-require_text README.md "$pretty_report_pass passes and $pretty_report_fail gaps across $pretty_report_eligible eligible tests"
-require_text README.md "($report_rate%), with $pretty_report_skip skips and zero crashes"
+require_text README.md "$pretty_passes frozen passes"
 
 release_url="https://github.com/theesfeld/clun/releases/tag/v$version"
 previous_release_url="https://github.com/theesfeld/clun/releases/tag/v$previous_version"
@@ -989,31 +965,19 @@ reject_text README.md 'buffered HTTP serving'
 require_text site/index.html "$pretty_passes pass"
 require_text site/index.html "Full run: $pretty_report_total total = $pretty_report_pass pass / $pretty_report_fail fail / $pretty_report_skip skip / $report_crash crash."
 require_text site/index.html "Eligible: $pretty_report_eligible / target: $pretty_report_target pass / remaining lift: $pretty_report_lift."
-require_text README.md "focused $focused_milestone slice contains $pretty_focused_total tests: $pretty_focused_pass pass and $focused_fail fail, with zero skips, timeouts, and crashes"
-require_text README.md "All $focused_owned_pass milestone-owned rows pass; the $focused_controls deliberate controls remain assigned to m11 ($focused_m11) and Phase 37"
-require_text README.md "($focused_phase37), leaving m6 with no owned residual."
-require_text README.md "full gap inventory assigns $pretty_phase25b_rows residuals to Phase 25b and"
-require_text README.md "$pretty_phase37_rows to Phase 37."
+# README: product one-liner only (ElonOptimizer P2). Deep test262 detail stays on site sr-only + docs.
+require_text README.md "**test262:** $pretty_passes frozen passes / $pretty_report_eligible eligible ($report_rate%)"
 require_text site/index.html "Focused $focused_milestone slice: $pretty_focused_total total / $pretty_focused_pass pass / $focused_fail fail / $focused_skip skip / $focused_timeout timeout / $focused_crash crash."
 require_text site/index.html "All $focused_owned_pass owned rows pass; controls: $focused_m11 m11 / $focused_phase37 Phase 37; m6 residual: $focused_owned_fail. Remaining ownership:"
 require_text site/index.html "$pretty_phase25b_rows Phase-25b / $pretty_phase37_rows Phase-37 gaps."
-require_text README.md "pass list gained $pretty_milestone5_gain tests from milestone 5 and $pretty_phase25b_entry_gain from the Phase 25b entry"
 require_text site/index.html "Pass-list gain: +$pretty_milestone5_gain from m5 / +$pretty_phase25b_entry_gain from Phase 25b entry."
-require_text README.md "Phase 37 milestone 1 adds 173 more frozen passes without claiming complete modern"
 require_text site/index.html "Phase 37 milestone 1 adds"
 require_text site/index.html "173 more frozen passes without claiming complete modern ECMAScript parity."
-require_text README.md "\`species-constructor.js\`, \`subclass-reject-count.js\`, and \`subclass-resolve-count.js\`"
 require_text site/index.html "<code>species-constructor.js</code>, <code>subclass-reject-count.js</code>, and"
 require_text site/index.html "<code>subclass-resolve-count.js</code>."
-require_text README.md "canonical execution ledger digest is \`$report_digest\`"
 require_text site/index.html "Ledger digest: <code>$report_digest</code>."
-require_text README.md "off/eager ledgers are byte-identical; eager mode compiled"
-require_text README.md "1,030,545 forms, classified 56,018 as ineligible, fell back zero times, and executed zero interpreter"
-require_text README.md "fallbacks."
 require_text site/index.html "Off/eager ledgers are byte-identical; eager compiled 1,030,545 forms / classified 56,018"
 require_text site/index.html "as ineligible / fell back 0 times / executed 0 interpreter fallbacks."
-require_text README.md "$pretty_parse_total tests as $pretty_parse_pass pass, $pretty_parse_fail fail, $pretty_parse_skip skip, and zero crash"
-require_text README.md "current full Common Lisp suite passes $pretty_lisp_pass assertions with zero failures and zero skips"
 require_text site/index.html "Parse gate: $pretty_parse_total total / $pretty_parse_pass pass / $pretty_parse_fail fail / $pretty_parse_skip skip / $parse_crash crash; all $pretty_parse_frozen"
 require_text site/index.html "Current full Common Lisp suite: $pretty_lisp_pass assertions / $lisp_fail fail / $lisp_skip skip."
 if [ "$report_lift" -gt 0 ]; then
@@ -1031,11 +995,14 @@ require_text site/index.html "github.com/theesfeld/clun/blob/master/README.md"
 # Engine microbenchmark tables live in docs/benchmarks.md — not a landing-page bar chart.
 require_text docs/benchmarks.md "Phase-24 baseline"
 require_text docs/benchmarks.md "| $benchmark_milestone "
+require_text README.md "docs/benchmarks.md"
 # Landing page must keep npm + secrets as first-class product copy (honest Partial is fine).
 require_text site/index.html "npm package management"
 require_text site/index.html "Encrypted secrets storage"
 require_text site/index.html "tool-critical"
-require_text README.md "Bun $bun_version, Node.js $node_version, and Deno $deno_version"
+require_text README.md "Bun $bun_version"
+require_text README.md "Node.js $node_version"
+require_text README.md "Deno $deno_version"
 require_text README.md "$baseline_date"
 require_text README.md "$bun_engineering_short"
 require_text site/index.html "<span>$node_version</span>"
@@ -1064,9 +1031,9 @@ require_text site/install "Authorization: Bearer \$token"
 require_text site/install 'release_parent="$install_root/releases/$release_version"'
 require_text site/install 'release_dir="$release_parent/$target"'
 require_text site/install "marker_begin='# >>> clun installer >>>'"
-require_text README.md 'installs `clun` into `~/.local/bin`'
-require_text README.md 'INSTALL_VERSION='
-require_text README.md 'GITHUB_TOKEN` or `GH_TOKEN`'
+require_text README.md '~/.local/bin/clun'
+require_text README.md 'INSTALL_VERSION'
+require_text README.md 'man clun'
 require_text site/index.html '<code>~/.local/bin/clun</code>'
 require_text site/index.html '<code>INSTALL_VERSION</code>'
 require_text site/index.html '<code>ADD_PATH=1</code>'

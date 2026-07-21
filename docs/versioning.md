@@ -244,7 +244,9 @@ Do not land release-bearing work by pushing a feature commit straight to `origin
    prerequisite. Squash-merge only when gates are green.
 3. Create a new immutable annotated `v<version>` tag on the **merge commit** on `master` and push it.
    Never move or reuse a tag. The release workflow independently requires those three successful
-   exact-SHA master runs. Repository-level GitHub release immutability is enabled; `gh release create`
+   exact-SHA master runs for **CI, Documentation, and Compatibility** (Pages deploys after assets exist
+and is not a pre-tag gate — ElonOptimizer P1 / Issue #318). Repository-level GitHub release
+immutability is enabled; `gh release create`
    creates a draft, attaches every asset, and publishes only after upload. Publication locks the
    release assets and associated tag. Active no-bypass ruleset `19048471` separately permits initial
    `refs/tags/v*` creation but rejects every update, non-fast-forward move, and deletion, including
