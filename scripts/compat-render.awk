@@ -171,6 +171,7 @@ function site_version_suffix(channel, published) {
     if (channel == "stable") return ""
     return " / " maturity_label(channel)
   }
+  if (channel == "stable") return " candidate"
   if (channel == "rc") return " release candidate"
   if (channel == "beta") return " / beta candidate"
   if (channel == "alpha") return " / alpha candidate"
@@ -187,6 +188,7 @@ function status_headline(channel) {
 
 function announcement_label(channel, published) {
   if (published) return "Available now"
+  if (channel == "stable") return "Stable candidate"
   if (channel == "rc") return "RC candidate"
   if (channel == "beta") return "Beta candidate"
   if (channel == "alpha") return "Alpha candidate"

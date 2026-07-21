@@ -6,22 +6,24 @@ Ship path: topic branch → PR → squash-merge into `master` (not direct push).
 
 ---
 
-## Current phase: **26 - Final hardening (published beta.2)**
+## Current phase: **26 - First stable 0.2.0**
 
 **Canonical issue:** https://github.com/theesfeld/clun/issues/58
 **Program phase:** 26
-**Published surface tip:** `0.2.0-beta.2` / `v0.2.0-beta.2`
-**Installer default:** `verified_installer_tag=v0.2.0-beta.2`
-**SemVer impact:** `patch` (shipped)
-**Release commit:** `d995e3150346421d668931f8efc483e38eaeffc7`
-**Release run:** https://github.com/theesfeld/clun/actions/runs/29793525055
+**Published surface tip (until tag):** `0.2.0-beta.2` / `v0.2.0-beta.2`
+**Candidate release:** `0.2.0` / `v0.2.0`
+**Installer default (until assets):** `verified_installer_tag=v0.2.0-beta.2`
+**SemVer impact:** `minor` (first stable / maturity promotion)
+**Base:** published `0.2.0-beta.2`
 
-### Shipped in beta.2 (#58 residual / #304)
-- Maturity-aware update channel rank (dev < alpha < beta < rc)
-- TLS session-ticket clear between multi-asset fetches + curl recovery
-- TTY update-available notice on --version / --help
+### Scope
+- Stage and publish first stable `0.2.0` (non-prerelease GitHub Release, `latest`)
+- Do **not** delete or move historical `v0.2.0-beta.*` tags
+- Close Phase 26 when tag + assets + installer reconcile + issue complete
 
 ### Gates
-Publication: tag + four-arch assets + checksums green. Installer/default reconcile in this unit.
+`make phase-26-gate` · `make build` · `make test` · `make purity` · public-claims · exact-master CI/Docs/Compat/Pages · Release matrix
+
+---
 
 ---

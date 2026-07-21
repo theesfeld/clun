@@ -9,10 +9,10 @@ targets are workload-specific and published;
 Clun does not claim blanket speed parity with Bun.
 
 <!-- clun-generated:release:begin -->
-> **Status: beta.** [Phase 26](https://github.com/theesfeld/clun/issues/58) tracks the published prerelease and remaining phase work.
-> Published release: `0.2.0-beta.2` / `v0.2.0-beta.2` (SemVer impact: `patch`).
-> The verified release boundary is `v0.2.0-beta.2`, with four native archives and checksums.
-> Release-gated Pages and hosted-installer results are recorded in the canonical issue.
+> **Status: stable release train.** [Phase 26](https://github.com/theesfeld/clun/issues/58) is in progress.
+> Its release-bearing target is `0.2.0` / `v0.2.0` (SemVer impact: `minor`).
+> The verified release boundary is `v0.2.0-beta.2`, with four native archives, checksums, Pages,
+> and hosted-installer evidence.
 > Phase 26 (final hardening) is the active program phase after Phase 82 closed.
 > Checklist and SemVer disposition live on the canonical issue; stable `0.2.0` is not assumed until gates pass.
 > Clun's full-port target requires every ledger Yes to survive executable and public-claim audit. The current snapshot is 30 Yes / 0 Partial / 0 No; qualified evidence is not treated as complete.
@@ -20,7 +20,7 @@ Clun does not claim blanket speed parity with Bun.
 > the local resume checklist.
 <!-- clun-generated:release:end -->
 
-Published [`v0.2.0-beta.2`](https://github.com/theesfeld/clun/releases/tag/v0.2.0-beta.2) is the verified installable boundary (four native archives, `checksums.txt`, `~/.local/bin`, built-in updater, human registry errors, install progress chrome). Phase 82 ([#56](https://github.com/theesfeld/clun/issues/56)) closed the purity-compatible surface audit; Phase 26 ([#58](https://github.com/theesfeld/clun/issues/58)) is the hardening/beta release record.
+Published [`v0.2.0-beta.2`](https://github.com/theesfeld/clun/releases/tag/v0.2.0-beta.2) is the verified installable boundary (four native archives, `checksums.txt`, `~/.local/bin`, built-in updater, human registry errors, install progress chrome). Phase 82 ([#56](https://github.com/theesfeld/clun/issues/56)) closed the purity-compatible surface audit; Phase 26 ([#58](https://github.com/theesfeld/clun/issues/58)) is the final hardening record closing with first stable `0.2.0`.
 
 ## Install
 Tagged releases are installed by the same POSIX shell command on Linux and macOS:
@@ -53,9 +53,10 @@ curl -fsSL https://clun.sh/install | ADD_PATH=1 sh   # ensure the managed rc blo
 
 Existing `~/.clun` installations remain supported: `CLUN_INSTALL="$HOME/.clun"` retains the legacy
 release-root layout, while `CLUN_VERSION` and `CLUN_NO_MODIFY_PATH=1` remain compatibility aliases.
-The published `v0.2.0-beta.2` boundary includes the built-in updater (`clun --update` / `clun check-update`), maturity-aware channel selection, and TLS multi-asset recovery messaging.
-
-The hosted installer and built-in updater target published `v0.2.0-beta.2`. Existing users can reinstall through the checksum-verifying installer or `clun --update`:
+While the hosted boundary remains `v0.2.0-beta.2`, that command only reinstalls `v0.2.0-beta.2` and does not
+yet deliver the `0.2.0` stable candidate. After `v0.2.0` assets publish, the same installer and updater
+target stable `v0.2.0`. Existing users can reinstall through the checksum-verifying installer or
+`clun --update` once assets land:
 
 ```sh
 curl -fsSL https://clun.sh/install | sh
@@ -80,7 +81,7 @@ clun --update         # verify and activate the complete release bundle
 # or: clun check-update / clun update
 ```
 
-Clun is in **beta** on the `0.2.0` train (not stable `1.0.0` yet — pre-1.0 minors may still include breaking changes). The published `v0.2.0-beta.2` binary has live `registry.npmjs.org` receipts for both `clun add <pkg>` and Bun-compatible `clun install <pkg>`, including a transitive dependency graph, SRI-verified tarballs, installed-package execution, and byte-identical frozen cache-only reinstalls while both registry metadata and public HTTPS tarball fallback are denied. Empty directories get an auto-created `package.json` on first add/install. Packages commit in deterministic ancestor-before-descendant order. The live, non-hermetic gate uses Clun's experimental bounded pure-CL TLS profile (not browser-grade WebPKI). Prior `v0.1.0-dev.21` / early `0.2.0-dev.*` binaries predate parts of that path. Publication evidence for the installable boundary is on the Release for `v0.2.0-beta.2`.
+Clun is pre-1.0 on the `0.2.0` train (stable `0.2.0` is the candidate tip; pre-1.0 minors may still include breaking changes). The published `v0.2.0-beta.2` binary has live `registry.npmjs.org` receipts for both `clun add <pkg>` and Bun-compatible `clun install <pkg>`, including a transitive dependency graph, SRI-verified tarballs, installed-package execution, and byte-identical frozen cache-only reinstalls while both registry metadata and public HTTPS tarball fallback are denied. Empty directories get an auto-created `package.json` on first add/install. Packages commit in deterministic ancestor-before-descendant order. The live, non-hermetic gate uses Clun's experimental bounded pure-CL TLS profile (not browser-grade WebPKI). Prior `v0.1.0-dev.21` / early `0.2.0-dev.*` binaries predate parts of that path. Publication evidence for the installable boundary remains on the Release for `v0.2.0-beta.2` until stable `v0.2.0` assets publish.
 
 ## What works
 
@@ -138,14 +139,14 @@ Bun or Node.js; `docs/benchmarks.md` reports only reproducible Clun-versus-Clun 
 ## Compatibility roadmap
 
 <!-- clun-generated:compatibility:begin -->
-The current column describes beta behavior as tested today. A linked phase is a planned acceptance
+The current column describes stable behavior as tested today. A linked phase is a planned acceptance
 gate, not a claim that the capability already exists. Every row below is generated from the canonical
 compatibility ledger; `make docs-check` rejects hand-edited status, evidence, owner, or baseline drift.
 
 The public comparison snapshot uses Bun 1.3.14, Node.js 26.5.0, and Deno 2.9.3, checked
 July 16, 2026. Engineering references are separately pinned to Bun commit `c1076ce95e` (`1.4.0-dev`).
 
-| Capability | Current beta state | Evidence-backed target |
+| Capability | Current stable state | Evidence-backed target |
 |---|---|---|
 | Node.js compatibility | Yes: pure-CL Bun-comparable node: matrix (54 builtins: assert async_hooks buffer child_process cluster console constants crypto dgram diagnostics_channel dns domain events fs http http2 https inspector module net os path perf_hooks process punycode querystring readline repl sqlite stream string_decoder sys timers tls trace_events tty url util v8 vm wasi worker_threads zlib test); exceeds Bun on sqlite module.register registerHooks createSecurePair repl | Phases [42](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-42), [43](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-43), [44](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-44), [45](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-45), [46](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-46), [47](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-47) |
 | Web Standard APIs | Yes: `fetch` with streaming clone/tee, operation-wide timeouts, HTTP proxy and HTTPS CONNECT including proxy object `{url,headers}`, plain HTTP and origin-keyed pure-tls HTTPS idle pooling; URL/URLSearchParams; Headers/Request/Response/Blob/File/FormData; AbortController/AbortSignal; Event/EventTarget/CustomEvent/DOMException; TextEncoder/TextDecoder; atob/btoa; performance.now; MessageChannel/MessagePort; crypto.randomUUID/getRandomValues and crypto.subtle.digest; ReadableStream default and BYOB readers, WritableStream, TransformStream with pipeTo/pipeThrough, CountQueuingStrategy/ByteLengthQueuingStrategy; CompressionStream/DecompressionStream (gzip/deflate/deflate-raw); structuredClone; WebSocket client; hermetic large-transfer and network-stress receipts (exceeds Bun pure-CL surface) | [Phase 38](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-38) |
@@ -206,7 +207,8 @@ workflows are read-only and fail closed if the canonical issues, README, or site
 
 <!-- clun-generated:release-summary:begin -->
 Release versions follow the actual SemVer impact recorded in the canonical issue, not the number of pushes.
-The current source version and latest published prerelease are [`0.2.0-beta.2`](https://github.com/theesfeld/clun/releases/tag/v0.2.0-beta.2).
+The current source is the `0.2.0` stable candidate; the immutable tag and assets are not published yet.
+The last published prerelease remains [`v0.2.0-beta.2`](https://github.com/theesfeld/clun/releases/tag/v0.2.0-beta.2).
 [The versioning contract](docs/versioning.md) defines prerelease sequencing, synchronized surfaces, immutable tags, assets, and installer evidence.
 [Phase 26 issue #58](https://github.com/theesfeld/clun/issues/58) is the canonical live release record.
 <!-- clun-generated:release-summary:end -->
@@ -276,7 +278,7 @@ vendored under `vendor/` and located via `scripts/registry.lisp`.
 make build     # compile everything, save build/clun (save-lisp-and-die)
 make test      # run the CL suites and JS/TS fixture harnesses
 make purity    # fail on any CFFI/foreign-code token
-./build/clun --version   # => clun 0.2.0-beta.2
+./build/clun --version   # => clun 0.2.0
 ```
 
 A fresh clone builds with `make build` alone: ASDF compiles the vendored closure and `src/` into

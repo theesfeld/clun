@@ -13,6 +13,19 @@ or assets and are not installable release checkpoints.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-07-21
+
+### Added
+- First **stable** release of the `0.2.0` train after the beta prerelease series.
+
+### Changed
+- Maturity: leave the `beta` prerelease train. Historical immutable tags `v0.2.0-beta.1` / `v0.2.0-beta.2` remain published for recovery pins; new default installs and `--update` target stable `v0.2.0`.
+- Phase 26 final hardening program closes with this release (Issue #58).
+
+### Notes
+- Pre-1.0: minor versions on the `0.x` train may still include breaking changes per SemVer 0.x convention.
+- Built-in updater prefers higher maturity on the same core (stable > rc > beta > alpha > dev).
+
 ## [0.2.0-beta.2] - 2026-07-21
 
 ### Fixed
