@@ -340,3 +340,5 @@ clean:
 	rm -rf build
 	find . -name '*.fasl' -not -path './vendor/*' -delete 2>/dev/null || true
 	@echo "cleaned"
+
+# Release-bearing: ensure Compatibility runs on exact-master before v0.2.1 tag (Refs #58).
