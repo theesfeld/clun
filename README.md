@@ -11,7 +11,7 @@ Clun is pre-1.0. Do not claim speed parity with Bun. Publish only measured perfo
 
 <!-- clun-generated:release:begin -->
 > **Status: stable release train.** Release target: `0.2.1` / `v0.2.1` (SemVer impact: `patch`).
-> Tracking: [issue #320](https://github.com/theesfeld/clun/issues/320).
+> Tracking: [issue #58](https://github.com/theesfeld/clun/issues/58).
 > The verified release boundary is `v0.2.0` until this candidate publishes.
 > Capability matrix: 30 Yes / 0 Partial / 0 No.
 <!-- clun-generated:release:end -->
@@ -19,9 +19,9 @@ Clun is pre-1.0. Do not claim speed parity with Bun. Publish only measured perfo
 The current source is the `0.2.1` stable candidate; immutable tag and assets are not published yet.
 The last published release remains [`v0.2.0`](https://github.com/theesfeld/clun/releases/tag/v0.2.0).
 That release includes four native archives, checksums, install to `~/.local/bin`, and the built-in updater.
-Tracking: [issue #320](https://github.com/theesfeld/clun/issues/320) (man page install; man page must match the CLI).
+Tracking: [issue #58](https://github.com/theesfeld/clun/issues/58) (Phase 26 patch `0.2.1`: man page packaging and product surfaces).
 Phase 82 ([#56](https://github.com/theesfeld/clun/issues/56)) closed the purity-compatible surface audit.
-Phase 26 ([#58](https://github.com/theesfeld/clun/issues/58)) closed first stable `0.2.0`.
+First stable `0.2.0` already published; this unit advances the patch candidate only.
 
 ## Install
 
@@ -133,7 +133,7 @@ workflows are read-only and fail closed if the canonical issues, README, or site
 
 <!-- clun-generated:release-summary:begin -->
 Candidate `0.2.1` is unpublished; installable boundary remains `v0.2.0`.
-Tracking: [issue #320](https://github.com/theesfeld/clun/issues/320).
+Tracking: [issue #58](https://github.com/theesfeld/clun/issues/58).
 <!-- clun-generated:release-summary:end -->
 
 ## The purity contract
