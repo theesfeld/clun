@@ -408,3 +408,5 @@ Issue #272 (`clun --update` TLS PSK resume) merged on master as candidate `0.2.0
 Issue #280 (human CLI registry errors + install progress spinner) and Issue #61 (async spawn loop ownership) advance the prerelease train to free `0.2.0-dev.11` / `v0.2.0-dev.11` after published `v0.2.0-dev.10`. SemVer impact is `patch`. The verified installer remains `v0.2.0-dev.10` until `v0.2.0-dev.11` assets publish.
 
 Phase 26 closes the post–Phase-82 hardening program as immutable prerelease `0.2.0-beta.1` / `v0.2.0-beta.1` (Issue #58). Same `0.2.0` core; prerelease maturity advances from published `0.2.0-dev.11` via the version-transition maturity ladder (`dev` → `beta` at `.1`). Stable `0.2.0` is not implied.
+
+Issue #304 (updater maturity rank + TLS recovery + TTY update notice) advances the beta train to `0.2.0-beta.2` / `v0.2.0-beta.2` after published `v0.2.0-beta.1`. SemVer impact is `patch`.

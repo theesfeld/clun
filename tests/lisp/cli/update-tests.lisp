@@ -55,8 +55,15 @@
       (with-update-test-env ("GH_TOKEN" "issue-221-gh-token")
         (is equal '("Authorization" . "Bearer issue-221-gh-token")
             (assoc "Authorization" (clun.cli::%github-api-headers) :test #'string=))))
-    (true (clun.cli::%version< "1.0.0-dev.9" "1.0.0-dev.10"))))
-
+    (true (clun.cli::%version< "1.0.0-dev.9" "1.0.0-dev.10"))
+    ;; Clun maturity: beta outranks dev on the same core (SemVer alone is wrong here).
+    (true (clun.cli::%version-prefer "v0.2.0-beta.1" "v0.2.0-dev.11"))
+    (true (clun.cli::%version< "0.2.0-dev.11" "0.2.0-beta.1"))
+    (true (clun.cli::%version-prefer "v0.2.0-rc.1" "v0.2.0-beta.9"))
+    (true (clun.cli::%version-prefer "v0.2.0" "v0.2.0-beta.1"))
+    (is string= "v0.2.0-beta.1"
+        (clun.cli::%highest-suitable-release-tag
+         '("v0.2.0-dev.11" "v0.2.0-beta.1" "v0.2.0-dev.10") "0.2.0-dev.8"))))
 (define-test update/redirect-survives-api-403
   (let* ((calls 0)
          (clun.cli::*update-fetch-function*
