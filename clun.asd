@@ -355,6 +355,7 @@
                               :components ((:file "dotenv")
                                            (:file "args")
                                            (:file "style")
+                                           (:file "catalog")
                                            (:file "update")))
                              (:file "main")))))
 

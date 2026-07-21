@@ -42,6 +42,13 @@ trap 'rm -rf "$work_dir"' EXIT
 package_dir="$work_dir/clun-$target"
 mkdir -p "$package_dir/bin" "$output_dir"
 printf '%s\n' "$binary_version" >"$package_dir/VERSION"
+mkdir -p "$package_dir/share/man/man1"
+if [[ -f "$repo_root/docs/man/clun.1" ]]; then
+  cp "$repo_root/docs/man/clun.1" "$package_dir/share/man/man1/clun.1"
+else
+  echo "package: missing docs/man/clun.1 (run make man)" >&2
+  exit 1
+fi
 cp "$repo_root/LICENSE" "$package_dir/LICENSE"
 cp "$repo_root/COPYING" "$package_dir/COPYING"
 cp "$repo_root/THIRD_PARTY_NOTICES.md" "$package_dir/THIRD_PARTY_NOTICES.md"

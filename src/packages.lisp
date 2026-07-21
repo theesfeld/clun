@@ -573,7 +573,9 @@ Purity constrains Clun implementation, not user-loaded addons.")
            #:glyph-ok #:glyph-err #:glyph-warn #:glyph-info #:glyph-step #:glyph-brand
            #:glyph-up #:glyph-spin
            #:*cli-force-color* #:*cli-no-color* #:*cli-brand* #:*cli-ascii-glyphs*
-           #:*glyph-ok* #:*glyph-err* #:*glyph-warn* #:*glyph-info*))
+           #:*glyph-ok* #:*glyph-err* #:*glyph-warn* #:*glyph-info*
+           #:*cli-usage-catalog* #:*cli-flag-catalog* #:*cli-subcommand-tokens*
+           #:write-manpage))
 
 (defpackage :clun.runtime
   (:use :cl)

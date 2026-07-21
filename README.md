@@ -60,6 +60,10 @@ curl -fsSL https://clun.sh/install | CLUN_INSTALL="$HOME/.clun" CLUN_NO_MODIFY_P
 The release workflow exercises the modern installer on Ubuntu and macOS 15 runners for x64 and arm64.
 macOS archives target macOS 13.0 or newer, but are runtime-tested on macOS 15. Windows is not supported.
 
+After install, `man clun` documents the same commands and flags as `clun --help`. The man page is
+generated from `src/cli/catalog.lisp` and must always match live CLI functionality (`make man` /
+`make man-check`).
+
 ### Update
 
 The built-in updater uses direct pure-Common-Lisp HTTPS/TLS and the same redirect, authenticated API,
