@@ -88,11 +88,6 @@ jobs:
           echo "commit=$commit" >> "$GITHUB_OUTPUT"
       - name: Verify published claims and roadmap links
         run: sh scripts/public-claims-check.sh
-      - name: Verify canonical live roadmap issues
-        env:
-          GH_TOKEN: ${{ github.token }}
-          ROADMAP_REPO: ${{ github.repository }}
-        run: make roadmap-verify-live
       - name: Test release publication gate
         run: |
           make test-release-live-check
@@ -107,8 +102,9 @@ jobs:
           CLUN_RELEASE_WAIT_SECONDS: "7200"
           CLUN_RELEASE_POLL_SECONDS: "30"
         run: sh scripts/release-live-check.sh
-      - name: Reverify canonical issues immediately before deployment
-        if: steps.release.outputs.state == 'published'
+      # Single live roadmap verify per Pages deploy (ElonOptimizer P1) — after assets when
+      # published, otherwise once for candidate deploys.
+      - name: Verify canonical live roadmap issues
         env:
           GH_TOKEN: ${{ github.token }}
           ROADMAP_REPO: ${{ github.repository }}

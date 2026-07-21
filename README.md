@@ -1,12 +1,10 @@
 # Clun
 
-**Bun, rewritten in pure Common Lisp.** Clun is a JavaScript/TypeScript runtime and toolkit —
-including a from-scratch ECMAScript engine — implemented in **pure Common Lisp** with zero CFFI
-and zero foreign libraries. The pre-1.0 series prioritizes correctness and purity while the full-port program targets complete capability over
-breadth. The active prerelease roadmap targets evidence-backed parity with Bun's purity-compatible
-surface, one gated capability at a time, before a final re-baselined hardening phase. Performance
-targets are workload-specific and published;
-Clun does not claim blanket speed parity with Bun.
+**A full JS/TS toolkit. The engine is Common Lisp.**
+
+Clun runs TypeScript, installs npm packages, tests, serves HTTP, and bundles — with Bun-compatible
+commands and APIs. There is no Node, V8, libuv, Rust, Zig, or C in Clun’s own implementation.
+JavaScript is only what **you** run. Pre-1.0; measured performance claims only; no blanket speed parity.
 
 <!-- clun-generated:release:begin -->
 > **Status: stable release train.** Release target: `0.2.1` / `v0.2.1` (SemVer impact: `patch`).
@@ -23,70 +21,26 @@ Phase 82 ([#56](https://github.com/theesfeld/clun/issues/56)) closed the purity-
 Phase 26 ([#58](https://github.com/theesfeld/clun/issues/58)) closed first stable `0.2.0`.
 
 ## Install
-Tagged releases are installed by the same POSIX shell command on Linux and macOS:
 
 ```sh
 curl -fsSL https://clun.sh/install | sh
 ```
 
-The no-argument installer defaults to the release ledger's verified installable boundary, so a newly
-published GitHub Release cannot outrun its claims and hosted smoke test. Explicit
-`INSTALL_VERSION=latest` resolves `github.com/theesfeld/clun/releases/latest` first, then falls back
-to the Releases API and the public Releases Atom feed. The API honors `GITHUB_TOKEN` or `GH_TOKEN`;
-the feed keeps prerelease-only resolution working after an unauthenticated API 403. Fallback
-candidates are compared as SemVer rather than accepted in chronological response order. The installer
-detects x86-64 or arm64, verifies the published SHA-256 checksum, stages the complete versioned bundle under
-`${XDG_DATA_HOME:-$HOME/.local/share}/clun/releases`, and installs `clun` into `~/.local/bin` as an
-atomically switched stable launcher.
-If that directory is missing from `PATH`, the installer prints the current-shell export and adds one
-idempotent marked block to `.bashrc`, `.zshrc`, or Fish's `config.fish`. Validation failure leaves the
-prior launcher and bundle intact.
+Linux and macOS (x64 / arm64). SHA-256 verified → `~/.local/bin/clun`. Optional:
+`INSTALL_DIR`, `INSTALL_VERSION` / `CLUN_VERSION`, `ADD_PATH=0|1`. After install: `man clun`
+(must match live CLI — hard rule).
 
-```sh
-# Exact destination, pinned release, or PATH-control overrides
-curl -fsSL https://clun.sh/install | INSTALL_DIR="$HOME/bin" sh
-curl -fsSL https://clun.sh/install | INSTALL_VERSION=latest sh
-curl -fsSL https://clun.sh/install | INSTALL_VERSION=0.2.0-dev.6 sh
-curl -fsSL https://clun.sh/install | ADD_PATH=0 sh   # print export; do not edit an rc file
-curl -fsSL https://clun.sh/install | ADD_PATH=1 sh   # ensure the managed rc block exists
-```
-
-Existing `~/.clun` installations remain supported: `CLUN_INSTALL="$HOME/.clun"` retains the legacy
-release-root layout, while `CLUN_VERSION` and `CLUN_NO_MODIFY_PATH=1` remain compatibility aliases.
 While the hosted boundary remains `v0.2.0`, that command only reinstalls `v0.2.0` and does not
-activate the `0.2.1` candidate until `v0.2.1` assets publish. The published `v0.2.0` boundary includes
-the built-in updater (`clun --update` / `clun check-update`), maturity-aware channel selection, and TLS
-multi-asset recovery messaging.
-
-Existing users can reinstall through the checksum-verifying installer or `clun --update`:
-```sh
-curl -fsSL https://clun.sh/install | sh
-# legacy ~/.clun layout:
-curl -fsSL https://clun.sh/install | CLUN_INSTALL="$HOME/.clun" CLUN_NO_MODIFY_PATH=1 sh
-```
-
-The release workflow exercises the modern installer on Ubuntu and macOS 15 runners for x64 and arm64.
-macOS archives target macOS 13.0 or newer, but are runtime-tested on macOS 15. Windows is not supported.
-
-After install, `man clun` documents the same commands and flags as `clun --help`. The man page is
-generated from `src/cli/catalog.lisp` and must always match live CLI functionality (`make man` /
-`make man-check`).
+activate the `0.2.1` candidate until `v0.2.1` assets publish.
 
 ### Update
-
-The built-in updater uses direct pure-Common-Lisp HTTPS/TLS and the same redirect, authenticated API,
-and public Atom-feed resolution. It selects the highest suitable SemVer while keeping stable installs
-off prereleases, verifies `checksums.txt` and the package's exact `VERSION`, stages the complete
-versioned bundle, and atomically switches the installer-managed stable launcher only after the new
-bundle runs successfully. Any failure retains the prior bundle and launcher.
 
 ```sh
 clun --check-update   # non-mutating; exit 1 if behind
 clun --update         # verify and activate the complete release bundle
-# or: clun check-update / clun update
 ```
 
-Clun is pre-1.0 on the stable `0.2.0` train (pre-1.0 minors may still include breaking changes). The published `v0.2.0` binary has live `registry.npmjs.org` receipts for both `clun add <pkg>` and Bun-compatible `clun install <pkg>`, including a transitive dependency graph, SRI-verified tarballs, installed-package execution, and byte-identical frozen cache-only reinstalls while both registry metadata and public HTTPS tarball fallback are denied. Empty directories get an auto-created `package.json` on first add/install. Packages commit in deterministic ancestor-before-descendant order. The live, non-hermetic gate uses Clun's experimental bounded pure-CL TLS profile (not browser-grade WebPKI). Prior `v0.1.0-dev.21` / early `0.2.0-dev.*` binaries predate parts of that path. Publication evidence for the installable boundary is on the Release for `v0.2.0`.
+Built-in pure-CL HTTPS updater; same assets as the installer. Pre-1.0: minors may include breaking changes.
 
 ## What works
 
@@ -118,71 +72,51 @@ Clun is pre-1.0 on the stable `0.2.0` train (pre-1.0 minors may still include br
   First `add` / `install <pkg>` in a directory without `package.json` creates a minimal manifest
   (npm/Bun empty-dir behavior). Bare `clun install` still requires an existing project manifest.
 
-The checked-in curated test262 pass list contains 26,018 tests. The current
-40,654-row off-mode execution ledger measures 26,018 passes and 2,145 gaps across 28,163 eligible tests
-(92.38%), with 12,491 skips and zero crashes. Phase 25b's 90% target is met: the 25,347-pass target has
-zero remaining lift. The pass list gained 967 tests from milestone 5 and 3,375 from the Phase 25b entry.
-Its focused m6 slice contains 509 tests: 407 pass and 102 fail, with zero skips, timeouts, and crashes.
-All 407 milestone-owned rows pass; the 102 deliberate controls remain assigned to m11 (7) and Phase 37
-(95), leaving m6 with no owned residual. Three additional `Promise.prototype.finally` rows passed
-incidentally: `species-constructor.js`, `subclass-reject-count.js`, and `subclass-resolve-count.js`.
-Phase 32's supporting Proxy infrastructure adds 13 newly frozen passes without making a blanket Proxy
-compatibility claim. Phase 37 milestone 1 adds 173 more frozen passes without claiming complete modern
-ECMAScript parity. The full gap inventory assigns 1,767 residuals to Phase 25b and 378 to Phase 37.
-The canonical execution ledger digest is `ECC1719FA1FA8A61`.
-The off/eager ledgers are byte-identical; eager mode compiled
-1,030,545 forms, classified 56,018 as ineligible, fell back zero times, and executed zero interpreter
-fallbacks. The parse gate classifies
-23,713 tests as 17,699 pass, 976 fail, 5,038 skip, and zero crash
-while retaining all 17,512 frozen passes.
-The current full Common Lisp suite passes 19,848 assertions with zero failures and zero skips.
-Phase 25's final
-default-tier measurements are 6.68x Richards, 3.85x DeltaBlue, and 5.36x Splay against the frozen
-Phase-24 Clun baseline, a 5.16x suite geomean. Clun has no measured cross-runtime benchmark against
-Bun or Node.js; `docs/benchmarks.md` reports only reproducible Clun-versus-Clun measurements.
+**test262:** 26,018 frozen passes / 28,163 eligible (92.38%); Phase 25b's 90% target is met.
+Engineering detail: [`docs/conformance/test262-execution.md`](docs/conformance/test262-execution.md).
+Clun-vs-Clun microbenchmarks only: [`docs/benchmarks.md`](docs/benchmarks.md).
 
 ## Compatibility roadmap
 
 <!-- clun-generated:compatibility:begin -->
-The current column describes stable behavior as tested today. A linked phase is a planned acceptance
-gate, not a claim that the capability already exists. Every row below is generated from the canonical
-compatibility ledger; `make docs-check` rejects hand-edited status, evidence, owner, or baseline drift.
+Every row is generated from the canonical capability matrix; `make docs-check` rejects hand-edited
+status, evidence, or baseline drift. Status is evidence-backed Yes / Partial / No as tested today.
 
-The public comparison snapshot uses Bun 1.3.14, Node.js 26.5.0, and Deno 2.9.3, checked
-July 16, 2026. Engineering references are separately pinned to Bun commit `c1076ce95e` (`1.4.0-dev`).
+Snapshot: Bun 1.3.14, Node.js 26.5.0, Deno 2.9.3 (
+July 16, 2026). Engineering pin: Bun `c1076ce95e` (`1.4.0-dev`).
 
-| Capability | Current stable state | Evidence-backed target |
-|---|---|---|
-| Node.js compatibility | Yes: pure-CL Bun-comparable node: matrix (54 builtins: assert async_hooks buffer child_process cluster console constants crypto dgram diagnostics_channel dns domain events fs http http2 https inspector module net os path perf_hooks process punycode querystring readline repl sqlite stream string_decoder sys timers tls trace_events tty url util v8 vm wasi worker_threads zlib test); exceeds Bun on sqlite module.register registerHooks createSecurePair repl | Phases [42](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-42), [43](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-43), [44](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-44), [45](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-45), [46](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-46), [47](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-47) |
-| Web Standard APIs | Yes: `fetch` with streaming clone/tee, operation-wide timeouts, HTTP proxy and HTTPS CONNECT including proxy object `{url,headers}`, plain HTTP and origin-keyed pure-tls HTTPS idle pooling; URL/URLSearchParams; Headers/Request/Response/Blob/File/FormData; AbortController/AbortSignal; Event/EventTarget/CustomEvent/DOMException; TextEncoder/TextDecoder; atob/btoa; performance.now; MessageChannel/MessagePort; crypto.randomUUID/getRandomValues and crypto.subtle.digest; ReadableStream default and BYOB readers, WritableStream, TransformStream with pipeTo/pipeThrough, CountQueuingStrategy/ByteLengthQueuingStrategy; CompressionStream/DecompressionStream (gzip/deflate/deflate-raw); structuredClone; WebSocket client; hermetic large-transfer and network-stress receipts (exceeds Bun pure-CL surface) | [Phase 38](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-38) |
-| Native addons | Yes: pure-CL host processes and hooks user native shared libraries (.so/.dylib/.node) via a narrow allowlisted load/call boundary; Bun.ffi-shaped dlopen/linkSymbols/typed call; registered CL libraries, bounds-checked virtual memory, N-API-style registry, and .claddon packs | [Phase 48](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-48) |
-| TypeScript | Yes: pure Common Lisp TypeScript execution: erasable strip, enums, namespaces, parameter properties, experimental decorators, import=/export=, angle-bracket casts, .tsx via JSX lower+strip, and structural typecheck CLI (clun tsc) exceeding Bun (Bun has no typecheck) | [Phase 39](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-39) |
-| JSX | Yes: pure Common Lisp JSX and TSX parse, transform, and execute with classic React.createElement and automatic jsx/jsxs/Fragment runtimes, file pragmas, tsconfig/jsconfig compilerOptions, fragments, spreads, nested expressions, member tags, HTML entity decoding, and built-in offline helpers that run without a react package (exceeds Bun) | [Phase 40](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-40) |
-| Module loader plugins | Yes: pure Common Lisp Bun.plugin-compatible Clun.plugin with ordered onResolve/onLoad/onStart/onEnd, namespaces, virtual builder.module, object/js/json/yaml/text/file loaders, clearAll plus exceed list/clear/priority/registerHooks and pure-CL register-cl-plugin (exceeds Bun.plugin and node:module hooks) | [Phase 41](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-41) |
-| SQL database drivers | Yes: `Clun.SQL` pure-CL PostgreSQL+MySQL wire + embedded SQLite engine; Bun.SQL-compatible unified API plus inspect/stats/export/queryLog | Phases [55](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-55), [56](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-56), [57](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-57) |
-| S3 cloud storage | Yes: `Clun.s3` pure-CL AWS SigV4 S3-compatible client (list/get/put/delete/exists/stat/presign/multipart; credentials; path-style and virtual-hosted) | [Phase 53](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-53) |
-| Redis client | Yes: `Clun.redis` pure-CL RESP client with embedded offline Redis store (get/set/del/exists/incr/publish/subscribe); Bun.redis-compatible Promise API; offline Yes without external Redis (exceeds Bun) | [Phase 54](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-54) |
-| WebSocket server | Yes: `Clun.serve` WebSocket upgrade, RFC 6455 framing, fragmentation reassembly, Pub/Sub (`publish`/`subscriberCount`/`subscribe`), permessage-deflate (chipz inflate + stored compress), and browser-shaped `WebSocket` client (`ws:`) | [Phase 51](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-51) |
-| HTTP server | Yes: HTTP/1.1 Clun.serve with streaming request/response bodies (chunked Transfer-Encoding), keep-alive, idleTimeout, maxRequestBodySize, stop(force) | [Phase 49](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-49) |
-| HTTP router | Yes: `Clun.serve({ routes })` and `Clun.FileSystemRouter` | [Phase 50](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-50) |
-| Single-file executables | Yes: `clun build --compile` / `Clun.build({compile})` pure-CL single-file executables with cross-target offline templates, embedded assets, Ed25519/HMAC sign+verify on every platform, GPL source notice, reproducible build-id, and CLUN_BE_CLUN CLI mode (exceeds Bun compile) | Phases [52](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-52), [77](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-77) |
-| YAML | Yes: `Clun.YAML` parser/stringifier and `.yaml`/`.yml` module loading | [Phase 31](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-31) |
-| Cookies API | Yes: `Clun.Cookie` and `Clun.CookieMap` with request/response integration | [Phase 32](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-32) |
-| Encrypted secrets storage | Yes: `Clun.secrets` Bun-shaped get/set/delete plus has/list/clear on pure-CL AES-256-GCM encrypted storage (exceeds Bun.secrets API; no Keychain/libsecret FFI) | [Phase 58](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-58) |
-| npm package management | Yes: `clun add <pkg>` and Bun-compatible `clun install <pkg>` resolve public npm metadata and tarballs through pure-CL TLS; no-argument install resolves the existing manifest with SRI, clun.lock, node_modules, offline cache, aliases, local packages, optional deps, hoisting, and workspaces; `clun publish` packs a package/ tarball and PUTs an authenticated npm attach-document (NPM_TOKEN / .npmrc _authToken) | Phases [28](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-28), [59](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-59), [60](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-60), [61](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-61) |
-| Bundler | Yes: Clun.build and clun build pure-CL production bundler: entrypoints, dependency graph, ESM/CJS/IIFE formats, code splitting, minification, loaders (js/ts/tsx/jsx/json/text/file/dataurl/css/html), define, external, packages external or bundle, naming templates, banner/footer, metafile, sourcemaps, target, publicPath, env inlining, drop, features, virtual files, tree shaking, asset hashing, Clun.build.analyze and Clun.buildSync exceed surface, four-target receipts | Phases [62](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-62), [63](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-63), [64](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-64), [77](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-77) |
-| Cross-platform shell API | Yes: `Clun.$`, `clun exec`, standalone `.bun.sh` files with positional parameters, dollar and backtick command substitution, background jobs and wait, merged stdout/stderr pipelines, grouped subshells and brace groups nested across `if` control flow, Blob/Response I/O, positive extended-glob conditions, compound-word field splitting, 100-level arrays, Unicode, tilde and continuation expansion, builtins, and 1,598/1,630 pinned shell sites (32 upstream-inactive) | [Phase 65](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-65) |
-| Jest-compatible test runner | Yes: 62 core and extended matchers, snapshot lifecycles with stable property tokens and Bun-formatted core values including own-accessor Getter tokens and control-byte escapes, source-aligned ESM/CommonJS/TypeScript statement and function coverage with Bun-shaped text and LCOV reporters, filters, config, and thresholds, custom and Promise-settlement asymmetric matchers, per-realm ESM/CJS module mocks, CLI and bunfig setup preloads, realm-local Jest and vi fake timers with Date and performance clock control, seeded Bun-pinned randomization, deterministic file sharding, dots and JUnit reporters, function mocks/spies, callbacks, cleanup, parameterization, retries, repeats, cooperative test.concurrent / describe.concurrent / test.serial scheduling with --concurrent and --max-concurrency, pure-CL --parallel multi-file process pools with serial/parallel count agreement, expect.unreachable, and runtime expectTypeOf | [Phase 66](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-66) |
-| Hot reloading | Yes: clun --hot state-preserving server reload with connection retention, pure-CL stat-poll watcher, module-graph soft re-evaluation, import.meta.hot dispose/accept/data, Clun.hot introspection, --watch hard restart, failed-reload recovery, and four-target receipts | [Phase 67](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-67) |
-| Monorepo support | Yes: workspaces with globs and exclusions, workspace: and catalog: protocols, live symlink workspace packages, filtered install and topological concurrent script waves with --concurrency, and four-target monorepo receipts | [Phase 60](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-60) |
-| Frontend development server | Yes: HTML entry imports, on-demand JS/TS/JSX/CSS transforms, pure-CL browser HMR WebSocket client, development mode object, path isolation, Clun.devServer introspection, and four-target receipts | [Phase 68](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-68) |
-| Formatter and linter | Yes: pure-CL `clun fmt`/`clun lint` and `Clun.format`/`Clun.lint`: JS/TS/JSX/JSON/YAML/CSS formatting with check/write/stdin/ignore; versioned recommended lint ruleset with stylish+JSON reporters and safe fixes; exceeds Bun which has no first-party fmt/lint | Phases [69](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-69), [70](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-70) |
-| Password and hashing APIs | Yes: `Clun.password` and `Clun.hash` sync/async APIs | [Phase 36](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-36) |
-| String width API | Yes: `Clun.stringWidth` with Unicode 17 and ANSI handling | [Phase 33](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-33) |
-| Glob API | Yes: `Clun.Glob` matcher with sync and async scans | [Phase 30](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-30) |
-| Semver API | Yes: `Clun.semver` satisfies and order | [Phase 29](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-29) |
-| CSS color conversion | Yes: `Clun.color` with CSS Color and ANSI output | [Phase 34](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-34) |
-| CSRF API | Yes: `Clun.CSRF` generate and verify | [Phase 35](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-35) |
+| Capability | Current stable state |
+|---|---|
+| Node.js compatibility | Yes: pure-CL Bun-comparable node: matrix (54 builtins: assert async_hooks buffer child_process cluster console constants crypto dgram diagnostics_channel dns domain events fs http http2 https inspector module net os path perf_hooks process punycode querystring readline repl sqlite stream string_decoder sys timers tls trace_events tty url util v8 vm wasi worker_threads zlib test); exceeds Bun on sqlite module.register registerHooks createSecurePair repl |
+| Web Standard APIs | Yes: `fetch` with streaming clone/tee, operation-wide timeouts, HTTP proxy and HTTPS CONNECT including proxy object `{url,headers}`, plain HTTP and origin-keyed pure-tls HTTPS idle pooling; URL/URLSearchParams; Headers/Request/Response/Blob/File/FormData; AbortController/AbortSignal; Event/EventTarget/CustomEvent/DOMException; TextEncoder/TextDecoder; atob/btoa; performance.now; MessageChannel/MessagePort; crypto.randomUUID/getRandomValues and crypto.subtle.digest; ReadableStream default and BYOB readers, WritableStream, TransformStream with pipeTo/pipeThrough, CountQueuingStrategy/ByteLengthQueuingStrategy; CompressionStream/DecompressionStream (gzip/deflate/deflate-raw); structuredClone; WebSocket client; hermetic large-transfer and network-stress receipts (exceeds Bun pure-CL surface) |
+| Native addons | Yes: pure-CL host processes and hooks user native shared libraries (.so/.dylib/.node) via a narrow allowlisted load/call boundary; Bun.ffi-shaped dlopen/linkSymbols/typed call; registered CL libraries, bounds-checked virtual memory, N-API-style registry, and .claddon packs |
+| TypeScript | Yes: pure Common Lisp TypeScript execution: erasable strip, enums, namespaces, parameter properties, experimental decorators, import=/export=, angle-bracket casts, .tsx via JSX lower+strip, and structural typecheck CLI (clun tsc) exceeding Bun (Bun has no typecheck) |
+| JSX | Yes: pure Common Lisp JSX and TSX parse, transform, and execute with classic React.createElement and automatic jsx/jsxs/Fragment runtimes, file pragmas, tsconfig/jsconfig compilerOptions, fragments, spreads, nested expressions, member tags, HTML entity decoding, and built-in offline helpers that run without a react package (exceeds Bun) |
+| Module loader plugins | Yes: pure Common Lisp Bun.plugin-compatible Clun.plugin with ordered onResolve/onLoad/onStart/onEnd, namespaces, virtual builder.module, object/js/json/yaml/text/file loaders, clearAll plus exceed list/clear/priority/registerHooks and pure-CL register-cl-plugin (exceeds Bun.plugin and node:module hooks) |
+| SQL database drivers | Yes: `Clun.SQL` pure-CL PostgreSQL+MySQL wire + embedded SQLite engine; Bun.SQL-compatible unified API plus inspect/stats/export/queryLog |
+| S3 cloud storage | Yes: `Clun.s3` pure-CL AWS SigV4 S3-compatible client (list/get/put/delete/exists/stat/presign/multipart; credentials; path-style and virtual-hosted) |
+| Redis client | Yes: `Clun.redis` pure-CL RESP client with embedded offline Redis store (get/set/del/exists/incr/publish/subscribe); Bun.redis-compatible Promise API; offline Yes without external Redis (exceeds Bun) |
+| WebSocket server | Yes: `Clun.serve` WebSocket upgrade, RFC 6455 framing, fragmentation reassembly, Pub/Sub (`publish`/`subscriberCount`/`subscribe`), permessage-deflate (chipz inflate + stored compress), and browser-shaped `WebSocket` client (`ws:`) |
+| HTTP server | Yes: HTTP/1.1 Clun.serve with streaming request/response bodies (chunked Transfer-Encoding), keep-alive, idleTimeout, maxRequestBodySize, stop(force) |
+| HTTP router | Yes: `Clun.serve({ routes })` and `Clun.FileSystemRouter` |
+| Single-file executables | Yes: `clun build --compile` / `Clun.build({compile})` pure-CL single-file executables with cross-target offline templates, embedded assets, Ed25519/HMAC sign+verify on every platform, GPL source notice, reproducible build-id, and CLUN_BE_CLUN CLI mode (exceeds Bun compile) |
+| YAML | Yes: `Clun.YAML` parser/stringifier and `.yaml`/`.yml` module loading |
+| Cookies API | Yes: `Clun.Cookie` and `Clun.CookieMap` with request/response integration |
+| Encrypted secrets storage | Yes: `Clun.secrets` Bun-shaped get/set/delete plus has/list/clear on pure-CL AES-256-GCM encrypted storage (exceeds Bun.secrets API; no Keychain/libsecret FFI) |
+| npm package management | Yes: `clun add <pkg>` and Bun-compatible `clun install <pkg>` resolve public npm metadata and tarballs through pure-CL TLS; no-argument install resolves the existing manifest with SRI, clun.lock, node_modules, offline cache, aliases, local packages, optional deps, hoisting, and workspaces; `clun publish` packs a package/ tarball and PUTs an authenticated npm attach-document (NPM_TOKEN / .npmrc _authToken) |
+| Bundler | Yes: Clun.build and clun build pure-CL production bundler: entrypoints, dependency graph, ESM/CJS/IIFE formats, code splitting, minification, loaders (js/ts/tsx/jsx/json/text/file/dataurl/css/html), define, external, packages external or bundle, naming templates, banner/footer, metafile, sourcemaps, target, publicPath, env inlining, drop, features, virtual files, tree shaking, asset hashing, Clun.build.analyze and Clun.buildSync exceed surface, four-target receipts |
+| Cross-platform shell API | Yes: `Clun.$`, `clun exec`, standalone `.bun.sh` files with positional parameters, dollar and backtick command substitution, background jobs and wait, merged stdout/stderr pipelines, grouped subshells and brace groups nested across `if` control flow, Blob/Response I/O, positive extended-glob conditions, compound-word field splitting, 100-level arrays, Unicode, tilde and continuation expansion, builtins, and 1,598/1,630 pinned shell sites (32 upstream-inactive) |
+| Jest-compatible test runner | Yes: 62 core and extended matchers, snapshot lifecycles with stable property tokens and Bun-formatted core values including own-accessor Getter tokens and control-byte escapes, source-aligned ESM/CommonJS/TypeScript statement and function coverage with Bun-shaped text and LCOV reporters, filters, config, and thresholds, custom and Promise-settlement asymmetric matchers, per-realm ESM/CJS module mocks, CLI and bunfig setup preloads, realm-local Jest and vi fake timers with Date and performance clock control, seeded Bun-pinned randomization, deterministic file sharding, dots and JUnit reporters, function mocks/spies, callbacks, cleanup, parameterization, retries, repeats, cooperative test.concurrent / describe.concurrent / test.serial scheduling with --concurrent and --max-concurrency, pure-CL --parallel multi-file process pools with serial/parallel count agreement, expect.unreachable, and runtime expectTypeOf |
+| Hot reloading | Yes: clun --hot state-preserving server reload with connection retention, pure-CL stat-poll watcher, module-graph soft re-evaluation, import.meta.hot dispose/accept/data, Clun.hot introspection, --watch hard restart, failed-reload recovery, and four-target receipts |
+| Monorepo support | Yes: workspaces with globs and exclusions, workspace: and catalog: protocols, live symlink workspace packages, filtered install and topological concurrent script waves with --concurrency, and four-target monorepo receipts |
+| Frontend development server | Yes: HTML entry imports, on-demand JS/TS/JSX/CSS transforms, pure-CL browser HMR WebSocket client, development mode object, path isolation, Clun.devServer introspection, and four-target receipts |
+| Formatter and linter | Yes: pure-CL `clun fmt`/`clun lint` and `Clun.format`/`Clun.lint`: JS/TS/JSX/JSON/YAML/CSS formatting with check/write/stdin/ignore; versioned recommended lint ruleset with stylish+JSON reporters and safe fixes; exceeds Bun which has no first-party fmt/lint |
+| Password and hashing APIs | Yes: `Clun.password` and `Clun.hash` sync/async APIs |
+| String width API | Yes: `Clun.stringWidth` with Unicode 17 and ANSI handling |
+| Glob API | Yes: `Clun.Glob` matcher with sync and async scans |
+| Semver API | Yes: `Clun.semver` satisfies and order |
+| CSS color conversion | Yes: `Clun.color` with CSS Color and ANSI output |
+| CSRF API | Yes: `Clun.CSRF` generate and verify |
 <!-- clun-generated:compatibility:end -->
 
 ### Beyond the 30-row matrix

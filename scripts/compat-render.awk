@@ -262,19 +262,19 @@ END {
   channel = maturity_channel(release_version)
   channel_label = maturity_label(channel)
   if (format == "readme-compat") {
-    print "The current column describes " channel_label " behavior as tested today. A linked phase is a planned acceptance"
-    print "gate, not a claim that the capability already exists. Every row below is generated from the canonical"
-    print "compatibility ledger; `make docs-check` rejects hand-edited status, evidence, owner, or baseline drift."
+    # ElonOptimizer P2: product-facing matrix — no phase-link column (phases stay on Issues).
+    print "Every row is generated from the canonical capability matrix; `make docs-check` rejects hand-edited"
+    print "status, evidence, or baseline drift. Status is evidence-backed Yes / Partial / No as tested today."
     print ""
-    print "The public comparison snapshot uses Bun " baseline_version[public_bun_id] ", Node.js " baseline_version[node_id] ", and Deno " baseline_version[deno_id] ", checked"
-    print human_date(baseline_checked[public_bun_id]) ". Engineering references are separately pinned to Bun commit `" substr(baseline_revision[engineering_bun_id], 1, 10) "` (`" baseline_version[engineering_bun_id] "`)."
+    print "Snapshot: Bun " baseline_version[public_bun_id] ", Node.js " baseline_version[node_id] ", Deno " baseline_version[deno_id] " ("
+    print human_date(baseline_checked[public_bun_id]) "). Engineering pin: Bun `" substr(baseline_revision[engineering_bun_id], 1, 10) "` (`" baseline_version[engineering_bun_id] "`)."
     print ""
-    print "| Capability | Current " channel_label " state | Evidence-backed target |"
-    print "|---|---|---|"
+    print "| Capability | Current " channel_label " state |"
+    print "|---|---|"
     for (i = 1; i <= 30; i++) {
       current = clun_state[i]
       if (clun_detail[i] != "-") current = current ": " clun_detail[i]
-      print "| " markdown(capability[i]) " | " markdown(current) " | " markdown_phases(primary_phase[i], integration_phases[i]) " |"
+      print "| " markdown(capability[i]) " | " markdown(current) " |"
     }
   } else if (format == "site-compat") {
     print "<table class=\"compat-table compat-table-icons\">"

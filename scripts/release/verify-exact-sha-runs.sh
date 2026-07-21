@@ -2,7 +2,9 @@
 
 set -eu
 
-# Release tags require exact-master Compatibility (path-filtered) plus CI/Docs/Pages.
+# Pre-tag gates: exact-master success for CI, Documentation, and Compatibility.
+# Pages is release-gated *after* assets exist (deploy verifies install boundary), so
+# it is intentionally not required for tag creation (ElonOptimizer P1 / Issue #318).
 
 if [ "$#" -ne 2 ]; then
   printf 'usage: %s <workflow-runs.tsv> <full-commit-sha>\n' "$0" >&2
@@ -28,12 +30,11 @@ LC_ALL=C awk -F '\t' '
 ' "$runs_tsv" ||
   fail 'workflow-runs input must contain unique positive run ids and exactly eight fields per row'
 
-for workflow in CI Documentation Compatibility Pages; do
+for workflow in CI Documentation Compatibility; do
   case $workflow in
     CI) workflow_path=.github/workflows/ci.yml ;;
     Documentation) workflow_path=.github/workflows/docs.yml ;;
     Compatibility) workflow_path=.github/workflows/compat.yml ;;
-    Pages) workflow_path=.github/workflows/pages.yml ;;
   esac
 
   newest_id=$(LC_ALL=C awk -F '\t' -v path="$workflow_path" '
@@ -52,5 +53,5 @@ for workflow in CI Documentation Compatibility Pages; do
     fail "$workflow newest run $newest_id is not the exact-path, exact-SHA successful master push"
 done
 
-printf 'release-exact-sha-check: CI, Documentation, Compatibility, and Pages passed for %s\n' \
+printf 'release-exact-sha-check: CI, Documentation, and Compatibility passed for %s\n' \
   "$expected_sha"

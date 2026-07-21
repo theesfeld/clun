@@ -3658,3 +3658,13 @@ Fix: allow null peer certificate only when psk-accepted and verified-hostname
 matches the connection host.
 
 Refs: #272
+
+### 2026-07-21 - ElonOptimizer P0–P3 execution (Issue #318)
+
+P0 published-complete status narrative (PR #319). P1 reduces pre-tag exact-SHA to
+CI+Docs+Compat (Pages after assets), single `roadmap-verify-live` per Pages deploy,
+relaxed absolute public-claims digest pins, and Compat path coverage for
+`site/install` / `docs/man`. P2 product surfaces: README pitch match, matrix without
+phase-link column, shorter install, test262 one-liner, capability-matrix wording.
+P3 engineering first cuts: `src/runtime/shell/{parse,exec}.lisp`, packages thinning
+plan + `csrf`/`color` extracts, stale worktree prune.

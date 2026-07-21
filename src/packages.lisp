@@ -46,12 +46,6 @@
            #:touch-file #:remove-recursive #:read-file-octets #:write-file-octets
            #:write-fd-octets #:copy-file* #:copy-file-stream))
 
-(defpackage :clun.csrf
-  (:use :cl)
-  (:local-nicknames (:crypto :ironclad))
-  (:documentation "Engine-free bounded CSRF token encoding, authentication, and expiry.")
-  (:export #:core-generate #:core-verify))
-
 (defpackage :clun.password
   (:use :cl)
   (:local-nicknames (:crypto :ironclad))
@@ -216,14 +210,6 @@ Purity constrains Clun implementation, not user-loaded addons.")
            #:glob-scan-token #:make-glob-scan-token #:cancel-glob-scan
            #:glob-scan-cancelled #:glob-scan-cancelled-p #:glob-js-path-to-native
            #:glob-native-path-to-js #:scan-glob))
-
-(defpackage :clun.color
-  (:use :cl)
-  (:documentation "Engine-independent CSS color parsing, conversion, and terminal palettes.")
-  (:export #:color #:color-p #:color-space #:color-c1 #:color-c2 #:color-c3 #:color-alpha
-           #:make-rgba-color #:parse-color #:color->srgb #:color->rgba-bytes
-           #:color->hsl #:color->lab #:format-css-color #:format-color-number
-           #:ansi256-index #:ansi16-index))
 
 (defpackage :clun.yaml
   (:use :cl)
