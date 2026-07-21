@@ -6,21 +6,17 @@ Ship path: topic branch → PR → squash-merge into `master` (not direct push).
 
 ---
 
-## Current phase: **26 - COMPLETE (first stable 0.2.0); patch candidate 0.2.1**
+## Current phase: **26 - patch candidate 0.2.1 (man page + optimizer surfaces)**
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/320
+**Canonical issue:** https://github.com/theesfeld/clun/issues/58
 **Source candidate:** `0.2.1` / `v0.2.1` (not yet tagged)
-**Installer default:** `verified_installer_tag=v0.2.0` (last published until `v0.2.1` assets land)
+**Installer default:** `verified_installer_tag=v0.2.0`
 **SemVer impact:** `patch`
-**Program context:** Phase 26 complete; this unit ships catalog-synced `man clun` packaging.
+**Program context:** Phase 26 first stable `0.2.0` published; this unit ships man page packaging and product-surface follow-through.
 
-### Scope
-- Catalog-driven `docs/man/clun.1` (`src/cli/catalog.lisp` + `clun --emit-man`)
-- Hard rule: man always matches live CLI (`make man-check` in CI + release)
-- Package `share/man/man1/clun.1`; installer stages XDG man path
-
-### Next after merge
-- Tag `v0.2.1` on master merge SHA when four-target release gates green
-- Publication reconcile: ledger `published`, installer default → `v0.2.1`
+### Next
+- Exact-SHA CI + Documentation + Compatibility green on master tip
+- Annotated tag `v0.2.1` → Release assets
+- Publication reconcile: ledger `published`, installer default `v0.2.1`, close Phase 26 complete again if no further train work
 
 ---
