@@ -195,6 +195,10 @@ jobs:
       - name: Verify purity
         run: make purity
 
+      # Hard rule: man page must match live CLI before packaging share/man (Issue #320).
+      - name: make man-check
+        run: make man-check
+
       - name: Package native release
         shell: bash
         run: |

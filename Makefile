@@ -13,7 +13,7 @@ PHASE_25B_M5_MANIFEST      ?= tests/conformance/phase-25b-m5.tsv
 PHASE_25B_M6_MANIFEST      ?= tests/conformance/phase-25b-m6.tsv
 FEATURE                    ?= all
 
-.PHONY: all build test test-lisp test-net test-cookie-resources test-glob test-router test-js test-tls test-tls12 test-tls-alerts test-proxy test-dns test-crypto registry-fixture smoke-npm purity bench phase-26-gate phase-26-hardening-smokes \
+.PHONY: all build man man-check test test-lisp test-net test-cookie-resources test-glob test-router test-js test-tls test-tls12 test-tls-alerts test-proxy test-dns test-crypto registry-fixture smoke-npm purity bench phase-26-gate phase-26-hardening-smokes \
 		bench-check compile-tier-ceiling test-installer test-release-live-check test-release-workflow \
 		public-claims-check version-transition-check test-version-transition-check \
 		compat compat-validate docs-generate docs-check test-compat-tools \
@@ -38,6 +38,14 @@ build:
 	# 4 GiB default dynamic space is required for the pinned static-route stress
 	# matrix (48 concurrent 4 MiB responses with body API copies) without OOM.
 	$(SBCL) --dynamic-space-size 4096 $(SBCL_FLAGS) --load scripts/build.lisp
+
+## man — regenerate docs/man/clun.1 from the live CLI catalog (hard rule: matches functionality).
+man: build
+	sh scripts/gen-manpage.sh
+
+## man-check — fail if checked-in man page drifts from the live CLI catalog.
+man-check: build
+	sh scripts/man-check.sh
 
 ## test — parachute CL suites + the tests/js + tests/ts harnesses (need the binary).
 test: test-lisp test-ts test-js

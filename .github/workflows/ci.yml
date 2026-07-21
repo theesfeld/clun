@@ -82,6 +82,11 @@ jobs:
           echo "$out"
           test "$out" = "clun $expected"
 
+      # Hard rule: man page must always match live CLI catalog (Issue #320).
+      - name: make man-check
+        if: steps.scope.outputs.runtime == 'true'
+        run: make man-check
+
       - name: make test (shared-runner performance gates excluded)
         if: steps.scope.outputs.runtime == 'true'
         env:

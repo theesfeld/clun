@@ -9,7 +9,7 @@
 
 (defun parse-cli-args (argv)
   "Parse ARGV (executable name already dropped) into a plist:
-  :action  — :run :eval :print :version :revision :help :error (build/compile via :run subcommand)
+  :action  — :run :eval :print :version :revision :help :emit-man :error (build/compile via :run subcommand)
   :file :code :subcommand :args :cwd :silent :backtrace :error-msg
   :hot :watch :no-clear-screen"
   (let ((action nil) (code nil) (file nil) (subcommand nil)
@@ -29,6 +29,8 @@
             ((member tok '("--update") :test #'string=) (next) (setf action :update))
             ((member tok '("--check-update") :test #'string=) (next) (setf action :check-update))
             ((member tok '("-h" "--help" "help") :test #'string=) (next) (setf action :help))
+            ;; Internal: regenerate docs/man/clun.1 from the live catalog (`make man`).
+            ((string= tok "--emit-man") (next) (setf action :emit-man))
             ((member tok '("-e" "--eval") :test #'string=)
              (next) (setf action :eval code (need tok) args toks toks nil))
             ((member tok '("-p" "--print") :test #'string=)

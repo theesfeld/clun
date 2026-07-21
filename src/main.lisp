@@ -17,6 +17,7 @@ On a TTY, may append a one-line update-available hint to stderr (cached probe)."
   (ignore-errors (cli:maybe-emit-update-notice :stream *error-output*)))
 
 (defun print-help (&optional (stream *standard-output*))
+  "Print user help from `cli:*cli-usage-catalog*` / `cli:*cli-flag-catalog*`."
   (format stream "~a ~a ~a  ~a~%~%"
           (cli:style-brand (cli:glyph-brand) stream)
           (cli:style-brand "clun" stream)
@@ -27,43 +28,26 @@ On a TTY, may append a one-line update-available hint to stderr (cached probe)."
            (format stream "  ~a  ~a~%"
                    (cli:style-brand (format nil "~14a" cmd) stream)
                    (cli:style-dim desc stream))))
-    (row "clun <file>" "run a .js/.mjs/.cjs/.json/.ts file")
-    (row "clun run" "run a file or package.json script")
-    (row "clun -e / -p" "evaluate code (print awaited result)")
-    (row "clun exec" "execute a Clun shell script")
-    (row "clun install" "install deps, or add package(s) + install")
-    (row "clun add" "add package(s) (-d dev, -E exact) + install")
-    (row "clun remove" "remove a dependency + reinstall")
-    (row "clun publish" "pack + publish to npm (NPM_TOKEN / .npmrc)")
-    (row "clun build" "production bundle (Clun.build / Bun.build)")
-    (row "clun fmt / lint" "format or lint JS/TS/JSON/YAML/CSS")
-    (row "clun compile" "single-file executable")
-    (row "clun tsc" "structural TypeScript typecheck")
-    (row "clun test" "run the test runner")
-    (row "clun update" "verify and activate latest Release bundle"))
+    (dolist (entry cli:*cli-usage-catalog*)
+      (row (car entry) (cdr entry))))
   (format stream "~%~a~%" (cli:style-info "Flags" stream))
   (flet ((flag (name desc)
            (format stream "  ~a  ~a~%"
                    (cli:style-accent (format nil "~18a" name) stream)
                    (cli:style-dim desc stream))))
-    (flag "--cwd <dir>" "set the working directory")
-    (flag "--hot / --watch" "soft-reload or hard-restart on change")
-    (flag "--filter/-F <p>" "monorepo package name or ./path filter")
-    (flag "--workspaces" "run a script across every workspace package")
-    (flag "--parallel" "concurrent filtered scripts (topo waves)")
-    (flag "--concurrency N" "max concurrent workspace scripts")
-    (flag "--silent" "suppress console.log/info/debug")
-    (flag "--backtrace" "Lisp backtrace on internal error")
-    (flag "-v / --version" "print the version")
-    (flag "--update" "same as clun update")
-    (flag "--check-update" "report whether a newer Release is available")
-    (flag "-h / --help" "print this help"))
+    (dolist (entry cli:*cli-flag-catalog*)
+      (flag (car entry) (cdr entry))))
   (format stream "~%~a ~a~%"
           (cli:style-dim "tip" stream)
           (cli:style-dim "TTY work uses a color spinner; NO_COLOR disables chrome; CLUN_FORCE_COLOR forces it"
                          stream))
   (force-output stream)
   (ignore-errors (cli:maybe-emit-update-notice :stream stream)))
+
+(defun emit-manpage (&optional (stream *standard-output*))
+  "Write the section-1 man page (plain roff) derived from the CLI catalog."
+  (cli:write-manpage stream *clun-version*)
+  (force-output stream))
 ;;; --- uncaught-error rendering ----------------------------------------------
 
 (defun error-object-p (v)
@@ -867,6 +851,7 @@ remaining argv tokens; exit 1 when any diagnostic is reported."
       (:version (print-version) 0)
       (:revision (format t "~a~%" *clun-revision*) 0)
       (:help (print-help) 0)
+      (:emit-man (emit-manpage) 0)
       (:update (cli:perform-update))
       (:check-update (cli:check-update))
       (:error (cli:usage-fail (cli:cli-get r :error-msg)))

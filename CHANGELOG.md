@@ -13,6 +13,16 @@ or assets and are not installable release checkpoints.
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-07-21
+
+### Added
+- Installed section-1 man page (`man clun`) generated from the same CLI catalog as `clun --help`.
+- `make man` / `make man-check` gate so the man page cannot drift from live CLI functionality.
+- Release archives include `share/man/man1/clun.1`; the installer stages it under the XDG man path.
+
+### Notes
+- Hard project rule: man page content must always match actual current CLI behavior.
+
 ## [0.2.0] - 2026-07-21
 
 ### Added

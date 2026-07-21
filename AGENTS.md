@@ -62,6 +62,11 @@ Do not ask the user to paste a long phase prompt. Execute with maximum effort; k
 
 ## Implementation constraints
 
+- **Man page (hard rule):** `man clun` content must always match actual current CLI functionality.
+  Source of truth is `src/cli/catalog.lisp` (shared with `clun --help`). Regenerate with `make man`;
+  `make man-check` (CI + release packaging) fails on drift. Never hand-edit `docs/man/clun.1` except via `make man`.
+
+
 - Pure Common Lisp only: no CFFI, native libraries, implementation JS/TS, or shell-outs as implementation shortcuts.
 - **Exceed Bun** (and npm/Node/Deno matrix peers) for every shipped surface. Do not invent parity exceptions or purity exclusions.
 - Performance claims need reproducible same-host measurements; prefer measured exceedance, never silent under-delivery.
@@ -76,6 +81,7 @@ Before merge of a phase/unit:
 
 - Phase acceptance commands exactly as written in `PLAN.md` / Issue
 - `make build`, `make test`, `make purity`
+- **`make man-check`** whenever CLI surface or man generation changes (hard rule: man matches live CLI)
 - Required conformance / portability / security / stress / benchmark gates for that unit
 - When public docs/roadmap change: `make public-claims-check` and `make roadmap-check` (or live roadmap verify)
 - Release-bearing:

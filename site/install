@@ -512,6 +512,18 @@ fi
 launcher_backup=
 installed_location=$release_dir_abs
 
+# Man page (hard rule: packaged man must match CLI; installer places it for `man clun`).
+man_source="$release_dir_abs/share/man/man1/clun.1"
+man_dir="${XDG_DATA_HOME:-$HOME/.local/share}/man/man1"
+if [ -f "$man_source" ]; then
+  mkdir -p "$man_dir" || fail "could not create man page directory $man_dir"
+  cp -f "$man_source" "$man_dir/clun.1" || fail "could not install man page"
+  say "Installed man page to $man_dir/clun.1"
+else
+  # Older archives predate man packaging; keep install successful.
+  say "No man page in this release archive (upgrade to a release that includes share/man/man1/clun.1)"
+fi
+
 profile_changed=0
 profile_path=
 shell_name=$(basename "${SHELL:-sh}")
