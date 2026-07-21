@@ -342,3 +342,5 @@ clean:
 	@echo "cleaned"
 
 # Release-bearing: ensure Compatibility runs on exact-master before v0.2.1 tag (Refs #58).
+
+# exact-SHA gate: Documentation path companion for v0.2.1 (Refs #58)
