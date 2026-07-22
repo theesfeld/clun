@@ -1,0 +1,20 @@
+# GitHub Linguist — Clun is pure Common Lisp.
+# Non-Lisp files below are tests, benches, examples, site chrome, or vendor
+# fixtures only. They must not appear on the repository language bar.
+
+# Runtime/test fixture languages (not implementation)
+*.js   linguist-detectable=false
+*.cjs  linguist-detectable=false
+*.mjs  linguist-detectable=false
+*.jsx  linguist-detectable=false
+*.ts   linguist-detectable=false
+*.tsx  linguist-detectable=false
+*.zig  linguist-detectable=false
+*.rs   linguist-detectable=false
+
+# Fixture / reference trees (extra belt for nested exotic extensions)
+tests/**        linguist-vendored
+bench/**        linguist-vendored
+vendor-data/**  linguist-vendored
+examples/**     linguist-vendored
+site/**         linguist-documentation
