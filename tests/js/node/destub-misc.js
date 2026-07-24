@@ -13,8 +13,9 @@ const {
 } = require("worker_threads");
 
 // --- tty ---
+// Use fd 2 (stderr) so clearLine/cursorTo ANSI does not pollute stdout fixture compare.
 if (typeof tty.isatty !== "function") throw new Error("tty.isatty");
-const ws = new tty.WriteStream(1);
+const ws = new tty.WriteStream(2);
 if (typeof ws.getColorDepth !== "function") throw new Error("getColorDepth");
 const depth = ws.getColorDepth();
 if (![1, 4, 8, 24].includes(depth)) throw new Error("color depth " + depth);
