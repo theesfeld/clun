@@ -2,6 +2,7 @@
 ;;;; node:timers re-exports the realm's timer globals (installed by the engine
 ;;;; bootstrap for every realm). node:timers/promises builds Promise/async-iterator
 ;;;; wrappers over those globals, honouring { signal (AbortSignal), ref } options.
+;;;; Legacy enroll/unenroll/active track items and schedule real heap timers.
 
 (in-package :clun.runtime)
 
@@ -28,6 +29,51 @@
     (eng:data-prop o "done" (eng:js-boolean done))
     o))
 
+;;; --- legacy enroll/unenroll/active ------------------------------------------
+;;; Node's pre-setTimeout idle API: enroll(item, msecs) stores the delay and
+;;; arms a real timeout that invokes item._onTimeout; active refreshes it;
+;;; unenroll clears it. Items are tracked so unenroll always cancels.
+
+(defun %timers-clear-enrolled (item)
+  "Clear any scheduled timeout for ITEM (hidden %enrollTimeout%)."
+  (when (eng:js-object-p item)
+    (let* ((g (eng:realm-global eng:*realm*))
+           (id (eng:js-get item "%enrollTimeout%"))
+           (clear (eng:js-get g "clearTimeout")))
+      (unless (or (undef-p id) (null id))
+        (when (eng:callable-p clear)
+          (eng:js-call clear eng:+undefined+ (list id))))
+      (eng:hidden-prop item "%enrollTimeout%" eng:+undefined+)
+      (eng:hidden-prop item "%enrolled%" eng:+false+)))
+  (undef))
+
+(defun %timers-arm-enrolled (item)
+  "Schedule item._onTimeout after item's enrolled delay via real setTimeout."
+  (when (eng:js-object-p item)
+    (let* ((g (eng:realm-global eng:*realm*))
+           (delay (eng:js-get item "%enrollDelay%"))
+           (set-to (eng:js-get g "setTimeout")))
+      (when (or (undef-p delay) (null delay))
+        (return-from %timers-arm-enrolled (undef)))
+      (%timers-clear-enrolled item)
+      (let* ((ms (max 0d0 (if (numberp delay) (coerce delay 'double-float)
+                              (let ((n (->num delay)))
+                                (if (or (eng:js-nan-p n) (eng:js-infinite-p n) (< n 0))
+                                    0d0 n)))))
+             (cb (eng:make-native-function "" 0
+                    (lambda (tt aa) (declare (ignore tt aa))
+                      (eng:hidden-prop item "%enrollTimeout%" eng:+undefined+)
+                      (let ((on (eng:js-get item "_onTimeout")))
+                        (when (eng:callable-p on)
+                          (eng:js-call on item '())))
+                      (undef))))
+             (id (when (eng:callable-p set-to)
+                   (eng:js-call set-to eng:+undefined+ (list cb ms)))))
+        (eng:hidden-prop item "%enrollTimeout%" (or id eng:+undefined+))
+        (eng:hidden-prop item "%enrolled%" eng:+true+)
+        (eng:data-prop item "_idleTimeout" ms)
+        item))))
+
 ;;; --- node:timers ------------------------------------------------------------
 
 (defun build-node-timers ()
@@ -35,10 +81,43 @@
     (dolist (n '("setTimeout" "setInterval" "setImmediate"
                  "clearTimeout" "clearInterval" "clearImmediate" "queueMicrotask"))
       (eng:data-prop o n (eng:js-get g n)))
-    ;; legacy enroll/unenroll/active — no-ops (documented); present so code doesn't crash.
-    (eng:install-method o "active" 1 (lambda (this args) (declare (ignore this)) (a args 0)))
-    (eng:install-method o "unenroll" 1 (lambda (this args) (declare (ignore this args)) (undef)))
-    (eng:install-method o "enroll" 2 (lambda (this args) (declare (ignore this args)) (undef)))
+    ;; Legacy enroll/unenroll/active — real timer-heap tracking (not no-ops).
+    (eng:install-method o "enroll" 2
+      (lambda (this args) (declare (ignore this))
+        (let ((item (a args 0)) (msecs (a args 1)))
+          (when (eng:js-object-p item)
+            (let ((ms (max 0d0
+                           (let ((n (->num msecs)))
+                             (if (or (eng:js-nan-p n) (eng:js-infinite-p n) (< n 0))
+                                 0d0 n)))))
+              (eng:hidden-prop item "%enrollDelay%" ms)
+              (eng:data-prop item "_idleTimeout" ms)
+              (%timers-arm-enrolled item)))
+          (undef))))
+    (eng:install-method o "unenroll" 1
+      (lambda (this args) (declare (ignore this))
+        (let ((item (a args 0)))
+          (when (eng:js-object-p item)
+            (%timers-clear-enrolled item)
+            (eng:hidden-prop item "%enrollDelay%" eng:+undefined+)
+            (eng:data-prop item "_idleTimeout" -1d0))
+          (undef))))
+    (eng:install-method o "active" 1
+      (lambda (this args) (declare (ignore this))
+        (let ((item (a args 0)))
+          (when (eng:js-object-p item)
+            (let ((delay (eng:js-get item "%enrollDelay%")))
+              (when (or (undef-p delay) (null delay))
+                ;; Fall back to item._idleTimeout if present (Node-compat).
+                (let ((idle (eng:js-get item "_idleTimeout")))
+                  (unless (or (undef-p idle) (null idle)
+                              (and (numberp idle) (< idle 0)))
+                    (eng:hidden-prop item "%enrollDelay%"
+                                     (coerce (if (numberp idle) idle (->num idle))
+                                             'double-float))))))
+            (%timers-arm-enrolled item)
+            item)
+          item)))
     o))
 
 ;;; --- node:timers/promises ---------------------------------------------------
