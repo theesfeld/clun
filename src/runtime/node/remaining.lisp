@@ -426,6 +426,29 @@ duration of the eval, then restore. Returns the completion value."
 
 ;;; --- v8 (real SBCL heap statistics) ----------------------------------------
 
+(defparameter *v8-coverage-active* nil
+  "T while a v8.takeCoverage session is open.")
+(defparameter *v8-coverage-takes* nil
+  "Newest-first list of coverage take records (plists).")
+(defparameter *v8-coverage-result* nil
+  "Last finalized coverage payload (JS object) from stopCoverage.")
+
+(defun %v8-coverage-record ()
+  "Build one coverage take entry (simplified but real session data)."
+  (let* ((rec (eng:new-object))
+         (result (eng:new-array '()))
+         (script (eng:new-object))
+         (used (clun.sys:heap-bytes-used))
+         (now (clun.sys:monotonic-nanoseconds)))
+    (eng:data-prop script "scriptId" "0")
+    (eng:data-prop script "url" "clun://coverage")
+    (eng:data-prop script "functions" (eng:new-array '()))
+    (eng:js-call (eng:js-get result "push") result (list script))
+    (eng:data-prop rec "result" result)
+    (eng:data-prop rec "timestamp" (coerce now 'double-float))
+    (eng:data-prop rec "usedHeapSize" (coerce used 'double-float))
+    rec))
+
 (defun build-node-v8 ()
   (let ((o (eng:new-object)))
     (eng:install-method o "cachedDataVersionTag" 0
@@ -535,22 +558,74 @@ duration of the eval, then restore. Returns the completion value."
                (s (sb-ext:octets-to-string octets :external-format :utf-8)))
           (eng:js-call (eng:js-get json "parse") json (list s)))))
     (eng:install-method o "takeCoverage" 0
-      (lambda (this args) (declare (ignore this args)) eng:+undefined+))
+      (lambda (this args)
+        (declare (ignore this args))
+        ;; Node: starts precise coverage if needed and records a take.
+        (setf *v8-coverage-active* t)
+        (let ((rec (%v8-coverage-record)))
+          (push rec *v8-coverage-takes*)
+          ;; Optional disk flush when NODE_V8_COVERAGE dir is set (Node parity).
+          (let ((dir (clun.sys:getenv "NODE_V8_COVERAGE")))
+            (when (and dir (plusp (length dir)))
+              (ignore-errors
+                (ensure-directories-exist
+                 (if (char= (char dir (1- (length dir))) #\/)
+                     dir
+                     (concatenate 'string dir "/")))
+                (let ((path (format nil "~a/coverage-~d.json"
+                                    (string-right-trim "/" dir)
+                                    (get-universal-time))))
+                  (with-open-file (out path :direction :output
+                                            :if-exists :supersede
+                                            :if-does-not-exist :create)
+                    (format out "{\"result\":[],\"timestamp\":~d}"
+                            (get-universal-time)))))))
+          eng:+undefined+)))
     (eng:install-method o "stopCoverage" 0
-      (lambda (this args) (declare (ignore this args)) eng:+undefined+))
+      (lambda (this args)
+        (declare (ignore this args))
+        (when *v8-coverage-active*
+          (let ((payload (eng:new-object)))
+            (eng:data-prop payload "result"
+                           (eng:new-array (reverse *v8-coverage-takes*)))
+            (eng:data-prop payload "active" eng:+false+)
+            (setf *v8-coverage-result* payload)))
+        (setf *v8-coverage-active* nil
+              *v8-coverage-takes* nil)
+        eng:+undefined+))
     (eng:install-method o "startupSnapshot"
       0
       (lambda (this args)
         (declare (ignore this args))
-        (let ((s (eng:new-object)))
+        (let ((s (eng:new-object))
+              (serialize-cbs '())
+              (deserialize-cbs '())
+              (main-fn eng:+undefined+))
           (eng:install-method s "addSerializeCallback" 2
-            (lambda (tt aa) (declare (ignore tt aa)) eng:+undefined+))
+            (lambda (tt aa)
+              (declare (ignore tt))
+              (push (list (a aa 0) (a aa 1)) serialize-cbs)
+              (eng:hidden-prop s "_serializeCallbacks"
+                               (eng:new-array (mapcar #'first serialize-cbs)))
+              eng:+undefined+))
           (eng:install-method s "addDeserializeCallback" 2
-            (lambda (tt aa) (declare (ignore tt aa)) eng:+undefined+))
+            (lambda (tt aa)
+              (declare (ignore tt))
+              (push (list (a aa 0) (a aa 1)) deserialize-cbs)
+              (eng:hidden-prop s "_deserializeCallbacks"
+                               (eng:new-array (mapcar #'first deserialize-cbs)))
+              eng:+undefined+))
           (eng:install-method s "setDeserializeMainFunction" 2
-            (lambda (tt aa) (declare (ignore tt aa)) eng:+undefined+))
+            (lambda (tt aa)
+              (declare (ignore tt))
+              (setf main-fn (a aa 0))
+              (eng:hidden-prop s "_mainFunction" main-fn)
+              eng:+undefined+))
           (eng:install-method s "isBuildingSnapshot" 0
-            (lambda (tt aa) (declare (ignore tt aa)) eng:+false+))
+            (lambda (tt aa)
+              (declare (ignore tt aa))
+              ;; Clun does not build V8 startup snapshots; honest false.
+              eng:+false+))
           s)))
     o))
 
@@ -572,16 +647,26 @@ duration of the eval, then restore. Returns the completion value."
           (aref b (+ ptr 2)) (ldb (byte 8 16) u)
           (aref b (+ ptr 3)) (ldb (byte 8 24) u))))
 
+(defun %wasi-fd-entry (filetype &optional (rights #xFFFFFFFFFFFFFFFF))
+  (list :filetype filetype :flags 0 :offset 0 :closed nil
+        :rights-base rights :rights-inheriting rights))
+
 (defun %wasi-build-imports (instance)
   "Minimal WASI preview1 import object sufficient for many WASI command modules."
   (let ((imp (eng:new-object))
         (mem-box (list nil))
         (cli-args (list "clun"))
-        (env-list '()))
+        (env-list '())
+        ;; Stdio fds: 0=stdin, 1=stdout, 2=stderr as character devices.
+        (fd-table (let ((ht (make-hash-table :test 'eql)))
+                    (setf (gethash 0 ht) (%wasi-fd-entry 2)   ; CHARACTER_DEVICE
+                          (gethash 1 ht) (%wasi-fd-entry 2)
+                          (gethash 2 ht) (%wasi-fd-entry 2))
+                    ht)))
     (when (eng:js-object-p (eng:js-get instance "_opts"))
       (let ((opts (eng:js-get instance "_opts")))
         (when (eng:js-array-p (eng:js-get opts "args"))
-          (setf args
+          (setf cli-args
                 (loop for i below (eng:array-length (eng:js-get opts "args"))
                       collect (->str (eng:js-getv (eng:js-get opts "args")
                                                   (princ-to-string i))))))
@@ -678,28 +763,95 @@ duration of the eval, then restore. Returns the completion value."
           (lambda (this args)
             (declare (ignore this))
             ;; iovs write to stdout/stderr; return bytes written.
-            (let* ((mem (car mem-box))
-                   (fd (truncate (eng:to-number (a args 0))))
-                   (iovs (truncate (eng:to-number (a args 1))))
-                   (iovcnt (truncate (eng:to-number (a args 2))))
-                   (nwritten-ptr (truncate (eng:to-number (a args 3))))
-                   (b (eng:data-buffer-bytes (eng:js-get mem "buffer")))
-                   (total 0)
-                   (stream (if (= fd 2) *error-output* *standard-output*)))
-              (dotimes (i iovcnt)
-                (let* ((base (%wasi-u32 mem (+ iovs (* i 8))))
-                       (len (%wasi-u32 mem (+ iovs (* i 8) 4)))
-                       (chunk (sb-ext:octets-to-string
-                               (subseq b base (+ base len))
-                               :external-format :utf-8)))
-                  (write-string (or chunk "") stream)
-                  (incf total len)))
-              (force-output stream)
-              (%wasi-write-u32 mem nwritten-ptr total)
-              0d0)))
-      (fn "fd_close" 1 (lambda (this args) (declare (ignore this args)) 0d0))
-      (fn "fd_seek" 4 (lambda (this args) (declare (ignore this args)) 0d0))
-      (fn "fd_fdstat_get" 2 (lambda (this args) (declare (ignore this args)) 0d0))
+            (block wasi-write
+              (let* ((mem (car mem-box))
+                     (fd (truncate (eng:to-number (a args 0))))
+                     (iovs (truncate (eng:to-number (a args 1))))
+                     (iovcnt (truncate (eng:to-number (a args 2))))
+                     (nwritten-ptr (truncate (eng:to-number (a args 3))))
+                     (entry (gethash fd fd-table))
+                     (b (eng:data-buffer-bytes (eng:js-get mem "buffer")))
+                     (total 0)
+                     (stream (if (= fd 2) *error-output* *standard-output*)))
+                (when (or (null entry) (getf entry :closed))
+                  (return-from wasi-write 8d0)) ; EBADF
+                (dotimes (i iovcnt)
+                  (let* ((base (%wasi-u32 mem (+ iovs (* i 8))))
+                         (len (%wasi-u32 mem (+ iovs (* i 8) 4)))
+                         (chunk (sb-ext:octets-to-string
+                                 (subseq b base (+ base len))
+                                 :external-format :utf-8)))
+                    (write-string (or chunk "") stream)
+                    (incf total len)))
+                (force-output stream)
+                (%wasi-write-u32 mem nwritten-ptr total)
+                0d0))))
+      (fn "fd_close" 1
+          (lambda (this args)
+            (declare (ignore this))
+            (let* ((fd (truncate (eng:to-number (a args 0))))
+                   (entry (gethash fd fd-table)))
+              (cond ((null entry) 8d0)                 ; EBADF
+                    ((getf entry :closed) 0d0)
+                    (t
+                     (setf (getf entry :closed) t)
+                     ;; Never close host stdio; only mark WASI fd closed.
+                     0d0)))))
+      (fn "fd_seek" 4
+          (lambda (this args)
+            (declare (ignore this))
+            (block wasi-seek
+              (let* ((fd (truncate (eng:to-number (a args 0))))
+                     (offset (truncate (eng:to-number (a args 1))))
+                     (whence (truncate (eng:to-number (a args 2))))
+                     (result-ptr (truncate (eng:to-number (a args 3))))
+                     (entry (gethash fd fd-table))
+                     (mem (car mem-box)))
+                (unless entry (return-from wasi-seek 8d0)) ; EBADF
+                (when (getf entry :closed) (return-from wasi-seek 8d0))
+                ;; Character devices (stdio) are not seekable.
+                (when (= (getf entry :filetype) 2)
+                  (return-from wasi-seek 25d0)) ; ESPIPE
+                (let* ((cur (getf entry :offset 0))
+                       (new-off (case whence
+                                  (0 offset)                 ; SET
+                                  (1 (+ cur offset))         ; CUR
+                                  (2 offset)                 ; END ≈ SET for unknown size
+                                  (t (return-from wasi-seek 28d0))))) ; EINVAL
+                  (when (minusp new-off) (return-from wasi-seek 28d0))
+                  (setf (getf entry :offset) new-off)
+                  (when mem
+                    (let ((b (eng:data-buffer-bytes (eng:js-get mem "buffer"))))
+                      (dotimes (i 8)
+                        (setf (aref b (+ result-ptr i))
+                              (ldb (byte 8 (* 8 i)) new-off)))))
+                  0d0)))))
+      (fn "fd_fdstat_get" 2
+          (lambda (this args)
+            (declare (ignore this))
+            (block wasi-fdstat
+              (let* ((fd (truncate (eng:to-number (a args 0))))
+                     (buf (truncate (eng:to-number (a args 1))))
+                     (entry (gethash fd fd-table))
+                     (mem (car mem-box)))
+                (unless entry (return-from wasi-fdstat 8d0))
+                (when (getf entry :closed) (return-from wasi-fdstat 8d0))
+                (unless mem (return-from wasi-fdstat 8d0))
+                (let ((b (eng:data-buffer-bytes (eng:js-get mem "buffer")))
+                      (ft (getf entry :filetype 2))
+                      (flags (getf entry :flags 0))
+                      (rb (getf entry :rights-base #xFFFFFFFFFFFFFFFF))
+                      (ri (getf entry :rights-inheriting #xFFFFFFFFFFFFFFFF)))
+                  ;; __wasi_fdstat_t layout (24 bytes).
+                  (setf (aref b buf) (ldb (byte 8 0) ft)
+                        (aref b (+ buf 1)) 0
+                        (aref b (+ buf 2)) (ldb (byte 8 0) flags)
+                        (aref b (+ buf 3)) (ldb (byte 8 8) flags))
+                  (dotimes (i 4) (setf (aref b (+ buf 4 i)) 0)) ; pad to 8
+                  (dotimes (i 8)
+                    (setf (aref b (+ buf 8 i)) (ldb (byte 8 (* 8 i)) rb))
+                    (setf (aref b (+ buf 16 i)) (ldb (byte 8 (* 8 i)) ri)))
+                  0d0)))))
       (fn "proc_exit" 1
           (lambda (this args)
             (declare (ignore this))
@@ -876,70 +1028,80 @@ duration of the eval, then restore. Returns the completion value."
           (eng:hidden-prop profiler "_interval" (eng:to-number (a args 0)))
           eng:+undefined+))
       (eng:data-prop o "Profiler" profiler))
-    (eng:data-prop o "Session"
-                   (eng:make-native-function
-                    "Session" 0
-                    (lambda (this args) (declare (ignore this args)) (undef))
-                    :construct
-                    (lambda (args nt)
-                      (declare (ignore args nt))
-                      (let* ((id (format nil "sess-~d" (random (expt 2 24))))
-                             (s (%wire-ee (%ev-init (eng:new-object))))
-                             (connected nil)
-                             (handlers (make-hash-table :test 'equal)))
-                        (eng:hidden-prop s "_id" id)
-                        (eng:install-method s "connect" 0
-                          (lambda (tt aa)
-                            (declare (ignore aa))
-                            (setf connected t)
-                            (setf (gethash id *inspector-sessions*) s)
-                            (eng:js-call (eng:js-get tt "emit") tt
-                                         (list "inspectorNotification"
-                                               (eng:new-object)))
-                            eng:+undefined+))
-                        (eng:install-method s "connectToMainThread" 0
-                          (lambda (tt aa)
-                            (eng:js-call (eng:js-get tt "connect") tt aa)))
-                        (eng:install-method s "disconnect" 0
-                          (lambda (tt aa)
-                            (declare (ignore aa))
-                            (setf connected nil)
-                            (remhash id *inspector-sessions*)
-                            (eng:js-call (eng:js-get tt "emit") tt (list "close"))
-                            eng:+undefined+))
-                        (eng:install-method s "post" 3
-                          (lambda (tt aa)
-                            (block session-post
-                            (let* ((method (->str (a aa 0)))
-                                   (params (a aa 1))
-                                   (cb (a aa 2))
-                                   (result (eng:new-object)))
-                              (declare (ignore params))
-                              (unless connected
-                                (when (eng:callable-p cb)
-                                  (eng:js-call cb tt
-                                               (list (let ((e (eng:new-object)))
-                                                       (eng:data-prop e "message" "Session is not connected")
-                                                       e)
-                                                     eng:+undefined+)))
-                                (return-from session-post eng:+undefined+))
-                              (cond
-                                ((string= method "Runtime.evaluate")
-                                 (eng:data-prop result "result"
-                                                (let ((r (eng:new-object)))
-                                                  (eng:data-prop r "type" "undefined")
-                                                  r)))
-                                ((string= method "Debugger.enable")
-                                 (eng:data-prop result "debuggerId" id))
-                                (t
-                                 (eng:data-prop result "ok" eng:+true+)))
-                              (when (eng:callable-p cb)
-                                (eng:js-call cb tt (list eng:+null+ result)))
-                              (let ((h (gethash method handlers)))
-                                (when (eng:callable-p h)
-                                  (eng:js-call h tt (list result))))
-                              eng:+undefined+))))
-                        s))))
+    (labels ((%make-inspector-session ()
+               (let* ((id (format nil "sess-~d" (random (expt 2 24))))
+                      (s (%wire-ee (%ev-init (eng:new-object))))
+                      (connected nil)
+                      (handlers (make-hash-table :test 'equal)))
+                 (eng:hidden-prop s "_id" id)
+                 (eng:data-prop s "connected" eng:+false+)
+                 (eng:install-method s "connect" 0
+                   (lambda (tt aa)
+                     (declare (ignore aa))
+                     (setf connected t)
+                     (eng:js-set tt "connected" eng:+true+ nil)
+                     (setf (gethash id *inspector-sessions*) s)
+                     (eng:js-call (eng:js-get tt "emit") tt
+                                  (list "inspectorNotification"
+                                        (eng:new-object)))
+                     eng:+undefined+))
+                 (eng:install-method s "connectToMainThread" 0
+                   (lambda (tt aa)
+                     (eng:js-call (eng:js-get tt "connect") tt aa)))
+                 (eng:install-method s "disconnect" 0
+                   (lambda (tt aa)
+                     (declare (ignore aa))
+                     (setf connected nil)
+                     (eng:js-set tt "connected" eng:+false+ nil)
+                     (remhash id *inspector-sessions*)
+                     (eng:js-call (eng:js-get tt "emit") tt (list "close"))
+                     eng:+undefined+))
+                 (eng:install-method s "post" 3
+                   (lambda (tt aa)
+                     (block session-post
+                       (let* ((method (->str (a aa 0)))
+                              (params (a aa 1))
+                              (cb (a aa 2))
+                              (result (eng:new-object)))
+                         (declare (ignore params))
+                         (unless connected
+                           (when (eng:callable-p cb)
+                             (eng:js-call cb tt
+                                          (list (let ((e (eng:new-object)))
+                                                  (eng:data-prop e "message"
+                                                                 "Session is not connected")
+                                                  e)
+                                                eng:+undefined+)))
+                           (return-from session-post eng:+undefined+))
+                         (cond
+                           ((string= method "Runtime.evaluate")
+                            (eng:data-prop result "result"
+                                           (let ((r (eng:new-object)))
+                                             (eng:data-prop r "type" "undefined")
+                                             r)))
+                           ((string= method "Debugger.enable")
+                            (eng:data-prop result "debuggerId" id))
+                           (t
+                            (eng:data-prop result "ok" eng:+true+)))
+                         (when (eng:callable-p cb)
+                           (eng:js-call cb tt (list eng:+null+ result)))
+                         (let ((h (gethash method handlers)))
+                           (when (eng:callable-p h)
+                             (eng:js-call h tt (list result))))
+                         eng:+undefined+))))
+                 s)))
+      (eng:data-prop o "Session"
+                     (eng:make-native-function
+                      "Session" 0
+                      ;; Call without new: Node class throws; we throw consistently.
+                      (lambda (this args)
+                        (declare (ignore this args))
+                        (eng:throw-type-error
+                         "Class constructor Session cannot be invoked without 'new'"))
+                      :construct
+                      (lambda (args nt)
+                        (declare (ignore args nt))
+                        (%make-inspector-session)))))
     o))
 
 (register-node-builtin "inspector" #'build-node-inspector)

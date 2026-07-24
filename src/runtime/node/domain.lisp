@@ -93,7 +93,25 @@
               (eng:js-call (eng:js-get this "run") this (cons fn aa)))))))
     (eng:install-method proto "intercept" 1
       (lambda (this args)
-        (eng:js-call (eng:js-get this "bind") this (list (a args 0)))))
+        ;; Node: like bind, but if the first arg is an Error it is emitted on
+        ;; the domain instead of being passed through to the callback.
+        (let ((fn (a args 0)))
+          (eng:make-native-function "" 0
+            (lambda (tt aa)
+              (declare (ignore tt))
+              (let ((first (a aa 0)))
+                (if (and (eng:js-object-p first)
+                         (not (eng:js-null-p first))
+                         (or (eng:js-truthy (eng:js-get first "message"))
+                             (let ((name (eng:js-get first "name")))
+                               (and (not (undef-p name))
+                                    (search "Error" (->str name))))))
+                    (progn
+                      (eng:js-call (eng:js-get this "emit") this
+                                   (list "error" first))
+                      (undef))
+                    (eng:js-call (eng:js-get this "run") this
+                                 (cons fn (coerce aa 'list))))))))))
     (eng:install-method proto "enter" 0
       (lambda (this args)
         (declare (ignore args))

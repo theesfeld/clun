@@ -29,22 +29,48 @@
     (eng:data-prop o "homedir" (clun.sys:homedir))
     o))
 
-(defun %os-priority ()
-  "Nice value from /proc/self/stat field 19 on Linux; else 0."
-  (or
-   #+linux
-   (ignore-errors
-     (with-open-file (in "/proc/self/stat" :if-does-not-exist nil)
-       (when in
-         (let ((line (read-line in nil nil)))
-           (when line
-             (let* ((rparen (position #\) line :from-end t))
-                    (fields (when rparen
-                              (with-input-from-string (s (subseq line (1+ rparen)))
-                                (loop repeat 17 collect (read s nil nil)))))
-                    (nice (nth 16 fields)))
-               (and (integerp nice) nice)))))))
-   0))
+(defparameter *os-priority-overrides* (make-hash-table :test 'eql)
+  "Process-local nice overrides from os.setPriority (pid → integer).
+sb-posix has no setpriority; pure path tracks self so get/set stay consistent.")
+
+(defun %os-priority (&optional pid)
+  "Nice value from /proc/<pid>/stat field 19 on Linux; else 0.
+Uses process-local override when set via os.setPriority."
+  (let* ((self (or (clun.sys:getpid) 0))
+         (target (cond ((null pid) self)
+                       ((zerop pid) self)
+                       (t pid)))
+         (override (gethash target *os-priority-overrides*)))
+    (or override
+        (and (= target self)
+             (gethash self *os-priority-overrides*))
+        #+linux
+        (ignore-errors
+          (with-open-file (in (if (and pid (not (zerop pid)) (/= pid self))
+                                  (format nil "/proc/~d/stat" pid)
+                                  "/proc/self/stat")
+                              :if-does-not-exist nil)
+            (when in
+              (let ((line (read-line in nil nil)))
+                (when line
+                  (let* ((rparen (position #\) line :from-end t))
+                         (fields (when rparen
+                                   (with-input-from-string (s (subseq line (1+ rparen)))
+                                     (loop repeat 17 collect (read s nil nil)))))
+                         (nice (nth 16 fields)))
+                    (and (integerp nice) nice)))))))
+        0)))
+
+(defun %os-system-error (syscall errno code message)
+  "Build and throw a Node-shaped SystemError."
+  (let ((err (eng:js-construct
+              (eng:js-get (eng:realm-global eng:*realm*) "Error")
+              (list message))))
+    (eng:js-set err "name" "SystemError" nil)
+    (eng:js-set err "code" code nil)
+    (eng:js-set err "errno" (coerce errno 'double-float) nil)
+    (eng:js-set err "syscall" syscall nil)
+    (eng:throw-js-value err)))
 
 (defun %os-network-interfaces ()
   (let ((out (eng:new-object))
@@ -141,12 +167,49 @@
            (%os-network-interfaces)))
       (m "getPriority" 1
          (lambda (this args)
-           (declare (ignore this args))
-           (coerce (%os-priority) 'double-float)))
+           (declare (ignore this))
+           (let ((pid (if (undef-p (a args 0))
+                          nil
+                          (truncate (eng:to-number (a args 0))))))
+             (coerce (%os-priority pid) 'double-float))))
       (m "setPriority" 2
          (lambda (this args)
-           (declare (ignore this args))
-           eng:+undefined+))
+           (declare (ignore this))
+           ;; Node: setPriority([pid], priority). No sb-posix setpriority;
+           ;; track self in-process so getPriority reflects setPriority.
+           ;; Other pids → honest SystemError (cannot change foreign niceness).
+           (let* ((n (length (coerce args 'list)))
+                  (self (or (clun.sys:getpid) 0))
+                  (pid self)
+                  (priority 0))
+             (cond
+               ((>= n 2)
+                (setf pid (truncate (eng:to-number (a args 0)))
+                      priority (truncate (eng:to-number (a args 1)))))
+               ((>= n 1)
+                (setf priority (truncate (eng:to-number (a args 0)))))
+               (t
+                (eng:throw-type-error
+                 "The \"priority\" argument must be of type number.")))
+             (unless (<= -20 priority 19)
+               (let ((err (eng:js-construct
+                           (eng:js-get (eng:realm-global eng:*realm*) "RangeError")
+                           (list (format nil
+                                         "The value of \"priority\" is out of range. It must be >= -20 && <= 19. Received ~d"
+                                         priority)))))
+                 (eng:js-set err "code" "ERR_OUT_OF_RANGE" nil)
+                 (eng:throw-js-value err)))
+             (let ((target (if (zerop pid) self pid)))
+               (cond
+                 ((= target self)
+                  (setf (gethash self *os-priority-overrides*) priority)
+                  eng:+undefined+)
+                 (t
+                  (%os-system-error
+                   "uv_os_setpriority" -1 "ERR_SYSTEM_ERROR"
+                   (format nil
+                           "A system error occurred: uv_os_setpriority returned EPERM (cannot set priority of pid ~d without host setpriority)"
+                           target))))))))
       (m "availableParallelism" 0
          (lambda (this args)
            (declare (ignore this args))

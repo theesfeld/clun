@@ -1,14 +1,14 @@
 # Zero-stubs residuals (#339)
 
-Honest inventory of **hollow** Node/runtime method sites after the misc destub
-pass (tty / zlib / stream pause-resume / net sockopts / worker_threads helpers).
+Honest inventory of **hollow** Node/runtime method sites after residual destub
+passes (misc + remaining2).
 
 **Hollow** here means: `declare (ignore this args)` (or ignore-args only) and
 return a constant / `this` without doing real work for that API’s purpose.
 
 Generated for tracking on Issue #339. Other agents own many of these files.
 
-## Owned surfaces — status after this unit
+## Owned surfaces — status after remaining2 unit
 
 | File | Status |
 |------|--------|
@@ -18,57 +18,51 @@ Generated for tracking on Issue #339. Other agents own many of these files.
 | `src/runtime/node/net.lisp` | Destubbed: setTimeout timer, setNoDelay/setKeepAlive (sockopts + flags), ref/unref via loop handles |
 | `src/runtime/node/worker_threads.lisp` | Destubbed: get/setEnvironmentData, markAsUntransferable, receiveMessageOnPort, BroadcastChannel, MessagePort ctor errors |
 | `src/runtime/process.lisp` / `node/process.lisp` | No hollow product stubs remaining (module re-exports global process) |
+| `src/runtime/node/remaining.lisp` | Destubbed: v8.takeCoverage/stopCoverage session; inspector Session requires `new` + connected flag; WASI fd_close/fd_seek/fd_fdstat_get + fd table; cli-args opts fix |
+| `src/runtime/node/os.lisp` | Destubbed: setPriority/getPriority process-local store + range check + SystemError for foreign pid (no sb-posix setpriority) |
+| `src/runtime/node/domain.lisp` | Destubbed: intercept Error-first routing (not alias of bind) |
+| `src/runtime/node/diagnostics_channel.lisp` | Already non-hollow (subscribe/publish/stores) |
 
 ### Intentional / non-hollow notes (owned)
 
 - `worker_threads` MessagePort `start` — no-op by design (auto-start delivery)
 - `worker_threads` BroadcastChannel/Worker `ref`/`unref` — loop-handle based where a handle exists
 - `zlib` create* ignore options arg for now (still builds a working Transform)
+- `v8.startupSnapshot.isBuildingSnapshot` — honest `false` (Clun does not build V8 snapshots); callbacks are registered, not ignored
+- `os.setPriority` — cannot change kernel niceness without setpriority syscall; self pid is tracked so getPriority matches setPriority; other pids throw SystemError
+- WASI stdio fds are not seekable (ESPIPE); close marks table entry only (does not close host stdio)
 
 ## Remaining hollow sites (repo-wide, node builtins focus)
 
-### http.lisp (http-family agent)
+### http.lisp (http-family agent) — re-scan after #340 peers
 
-- `IncomingMessage#setEncoding`
-- `ServerResponse#write` (returns true, no body buffer)
-- `ClientRequest#write`
-- `ClientRequest#setHeader`
-- `ClientRequest#abort`
-- constructors used as empty stubs: `Agent`, `IncomingMessage`, `ServerResponse`, `ClientRequest`, `Server` (call-without-new paths)
+- Residual ignore patterns may remain; verify live file before claiming Yes
+- constructors used as empty stubs: check Agent/IncomingMessage/ServerResponse/ClientRequest/Server call-without-new paths
 
 ### http2.lisp (http-family agent)
 
-- session `request` stream `#write` → true
-- session `#close` → undefined
-- session `#ping` → undefined
+- session/stream methods may still soft-return; re-scan after peer land
 
 ### https.lisp / tls.lisp (http-family agent)
 
-- `tls.checkServerIdentity` → undefined
-- `TLSSocket` / `Server` / `SecureContext` call-without-new empty bodies
-- (connect/createServer partially re-use net)
+- `tls.checkServerIdentity` and call-without-new empty bodies if still present
 
 ### timers.lisp (timers agent)
 
-- legacy `timers.enroll` / `timers.unenroll` (if still present as no-ops — verify when editing)
-- iterator helpers may ignore args while still performing real settle work (not listed as hollow)
+- legacy `timers.enroll` / `timers.unenroll` if still no-ops
 
 ### module.lisp (module agent)
 
-- `module.syncBuiltinESMExports` → undefined
+- `module.syncBuiltinESMExports` → undefined if still present
 
 ### perf_hooks.lisp (timers/module agent)
 
-- `performance.clearMarks` / `clearMeasures` → undefined (if timeline not stored)
-- `performance.getEntries` / `getEntriesByName` / `getEntriesByType` → empty array (no timeline store)
-- `PerformanceObserver#observe` / `#disconnect` (when still no-op forms)
-- `PerformanceObserver#takeRecords` → empty when pending not wired
+- timeline store: clearMarks/clearMeasures/getEntries* may still be empty if not wired
 
 ### async_hooks.lisp
 
-- `executionAsyncResource` → null (no resource tracking)
-- `AsyncLocalStorage#disable` may be no-op depending on branch state
-- `AsyncResource#emitDestroy` → undefined (no destroy hooks fired)
+- `executionAsyncResource` → null (no resource tracking) if still present
+- `AsyncResource#emitDestroy` may not fire destroy hooks
 
 ### readline.lisp
 
@@ -77,15 +71,12 @@ Generated for tracking on Issue #339. Other agents own many of these files.
 - `readline.emitKeypressEvents` → undefined
 - `Interface` constructor empty call path
 
-### remaining.lisp (cluster/v8/wasi/inspector/… surface)
+### remaining.lisp (residual after this unit)
 
-- `v8.takeCoverage` / `v8.stopCoverage` → undefined
-- inspector `Session` constructor empty path (partial real open/close elsewhere)
-- assorted profiler enable/disable no-ops if present
-
-### os.lisp
-
-- `os.setPriority` → undefined (cannot change process niceness in pure portable path)
+- `v8` coverage takes are simplified records (not full V8 precise coverage maps)
+- WASI: no real host file open/path_open yet — only stdio fd table + args/env/clock/random/write
+- inspector Session `post` does not implement full CDP; connected session returns structured acks
+- cluster worker IPC is line-oriented best-effort (not full Node cluster channel)
 
 ### worker_threads.lisp (residual intentional)
 
@@ -96,9 +87,10 @@ Generated for tracking on Issue #339. Other agents own many of these files.
 - `src/runtime/web-platform.lisp` MessagePort `#start` auto-start no-op
 - Some EventTarget helpers return true without full DOM propagation (by design subset)
 
-## Test fixtures added this unit
+## Test fixtures
 
-- `tests/js/node/destub-misc.js` + `.out` — tty, zlib constants/create*, stream pause/resume, net flags, worker env + BroadcastChannel surface
+- `tests/js/node/destub-misc.js` + `.out` — tty, zlib, stream pause/resume, net flags, worker env + BroadcastChannel
+- `tests/js/node/destub-remaining2.js` + `.out` — v8 coverage, inspector Session, os.setPriority, domain.intercept, wasi fd_*
 
 ## Notes for #339
 
