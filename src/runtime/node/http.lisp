@@ -85,21 +85,44 @@
              (funcall thunk))))
         (funcall thunk))))
 
+(defun %http-encoding-name (encoding)
+  "Return a JS encoding name string, or NIL when unset/null/undefined."
+  (cond
+    ((or (undef-p encoding) (eng:js-null-p encoding)) nil)
+    ((and (stringp encoding) (plusp (length encoding))) encoding)
+    ((eng:js-string-p encoding)
+     (let ((s (->str encoding)))
+       (if (plusp (length s)) s nil)))
+    (t (let ((s (->str encoding)))
+         (if (and (plusp (length s)) (not (string-equal s "null")))
+             s nil)))))
+
 (defun %http-emit-body (msg octets)
-  "Emit data/end for an IncomingMessage once body octets are ready."
-  (let ((encoding (eng:js-get msg "_encoding"))
-        (body (or octets (make-array 0 :element-type '(unsigned-byte 8)))))
+  "Emit data/end for an IncomingMessage once body octets are ready.
+Respects setEncoding: string chunks when an encoding is set, Buffer otherwise.
+Honors pause: if paused, body is held until resume."
+  (let ((body (or octets (make-array 0 :element-type '(unsigned-byte 8)))))
     (eng:hidden-prop msg "_rawBody" body)
-    (%http-schedule
-     (lambda ()
-       (when (plusp (length body))
-         (eng:js-call (eng:js-get msg "emit") msg
-                      (list "data" (%http-octets->js body
-                                                     (if (undef-p encoding)
-                                                         nil
-                                                         (->str encoding))))))
-       (eng:js-call (eng:js-get msg "emit") msg (list "end"))
-       (eng:js-call (eng:js-get msg "emit") msg (list "close"))))))
+    (eng:hidden-prop msg "_pendingBody" body)
+    (labels ((flush ()
+               (when (eng:js-truthy (eng:js-get msg "_paused"))
+                 (return-from flush nil))
+               (let* ((pending (eng:js-get msg "_pendingBody"))
+                      (enc (%http-encoding-name (eng:js-get msg "_encoding")))
+                      (bytes (if (and pending (vectorp pending))
+                                 pending
+                                 (make-array 0 :element-type '(unsigned-byte 8)))))
+                 (eng:hidden-prop msg "_pendingBody" eng:+null+)
+                 (when (plusp (length bytes))
+                   (eng:js-call (eng:js-get msg "emit") msg
+                                (list "data" (%http-octets->js bytes enc))))
+                 (eng:js-set msg "complete" eng:+true+ nil)
+                 (eng:js-set msg "readableEnded" eng:+true+ nil)
+                 (eng:js-call (eng:js-get msg "emit") msg (list "end"))
+                 (eng:js-call (eng:js-get msg "emit") msg (list "close"))
+                 t)))
+      (eng:hidden-prop msg "_flushBody" #'flush)
+      (%http-schedule #'flush))))
 
 (defun %http-incoming (&key method url status-code status-message headers body
                             http-version socket)
@@ -117,19 +140,55 @@
     (eng:data-prop msg "statusMessage" (or status-message "OK"))
     (eng:data-prop msg "complete" eng:+false+)
     (eng:data-prop msg "readable" eng:+true+)
+    (eng:data-prop msg "readableEnded" eng:+false+)
+    (eng:data-prop msg "aborted" eng:+false+)
     (when socket (eng:data-prop msg "socket" socket))
     (eng:hidden-prop msg "_encoding" eng:+null+)
+    (eng:hidden-prop msg "_paused" eng:+false+)
+    (eng:hidden-prop msg "_timeout" eng:+undefined+)
     (eng:hidden-prop msg "_rawBody"
                      (or body (make-array 0 :element-type '(unsigned-byte 8))))
     (eng:install-method msg "setEncoding" 1
       (lambda (this args)
-        (let ((enc (if (undef-p (a args 0)) "utf8" (->str (a args 0)))))
+        ;; Node: setEncoding(enc) stores the encoding for subsequent 'data' events.
+        (let* ((arg0 (a args 0))
+               (enc (cond
+                      ((or (undef-p arg0) (eng:js-null-p arg0)) eng:+null+)
+                      (t (->str arg0)))))
           (eng:hidden-prop this "_encoding" enc)
           this)))
+    (eng:install-method msg "pause" 0
+      (lambda (this args)
+        (declare (ignore args))
+        (eng:hidden-prop this "_paused" eng:+true+)
+        (eng:js-set this "readable" eng:+false+ nil)
+        this))
+    (eng:install-method msg "resume" 0
+      (lambda (this args)
+        (declare (ignore args))
+        (eng:hidden-prop this "_paused" eng:+false+)
+        (eng:js-set this "readable" eng:+true+ nil)
+        (let ((flush (eng:js-get this "_flushBody")))
+          (when (functionp flush) (funcall flush)))
+        this))
+    (eng:install-method msg "isPaused" 0
+      (lambda (this args)
+        (declare (ignore args))
+        (if (eng:js-truthy (eng:js-get this "_paused")) eng:+true+ eng:+false+)))
+    (eng:install-method msg "setTimeout" 2
+      (lambda (this args)
+        (unless (undef-p (a args 0))
+          (eng:hidden-prop this "_timeout" (->num (a args 0))))
+        (when (eng:callable-p (a args 1))
+          (eng:js-call (eng:js-get this "once") this
+                       (list "timeout" (a args 1))))
+        this))
     (eng:install-method msg "destroy" 1
       (lambda (this args)
         (unless (undef-p (a args 0))
           (eng:js-call (eng:js-get this "emit") this (list "error" (a args 0))))
+        (eng:js-set this "aborted" eng:+true+ nil)
+        (eng:js-set this "readable" eng:+false+ nil)
         (eng:js-call (eng:js-get this "emit") this (list "close"))
         this))
     msg))
@@ -212,13 +271,21 @@
     (eng:hidden-prop res "_ended" eng:+false+)
     (eng:install-method res "setHeader" 2
       (lambda (this args)
-        (eng:js-set (eng:js-get this "_headers")
-                    (string-downcase (->str (a args 0))) (a args 1) nil)
-        (undef)))
+        (let ((name (string-downcase (->str (a args 0))))
+              (value (a args 1)))
+          (when (eng:js-truthy (eng:js-get this "headersSent"))
+            (eng:throw-type-error "Cannot set headers after they are sent to the client"))
+          (eng:js-set (eng:js-get this "_headers") name value nil)
+          this)))
     (eng:install-method res "getHeader" 1
       (lambda (this args)
         (eng:js-get (eng:js-get this "_headers")
                     (string-downcase (->str (a args 0))))))
+    (eng:install-method res "hasHeader" 1
+      (lambda (this args)
+        (let ((v (eng:js-get (eng:js-get this "_headers")
+                             (string-downcase (->str (a args 0))))))
+          (if (or (undef-p v) (eng:js-null-p v)) eng:+false+ eng:+true+))))
     (eng:install-method res "removeHeader" 1
       (lambda (this args)
         (eng:js-set (eng:js-get this "_headers")
@@ -228,6 +295,46 @@
       (lambda (this args)
         (declare (ignore args))
         (eng:js-get this "_headers")))
+    (eng:install-method res "getHeaderNames" 0
+      (lambda (this args)
+        (declare (ignore args))
+        (let ((h (eng:js-get this "_headers"))
+              (names '()))
+          (when (eng:js-object-p h)
+            (dolist (k (eng:jm-own-property-keys h))
+              (when (stringp k)
+                (let ((v (eng:js-get h k)))
+                  (unless (or (undef-p v) (eng:js-null-p v))
+                    (push k names))))))
+          (eng:new-array (nreverse names)))))
+    (eng:install-method res "flushHeaders" 0
+      (lambda (this args)
+        (declare (ignore args))
+        ;; Mark headers as sent without writing a body yet (Node flushes the
+        ;; status line + headers). Wire write still happens on end for simplicity.
+        (eng:js-set this "headersSent" eng:+true+ nil)
+        (undef)))
+    (eng:install-method res "writeContinue" 0
+      (lambda (this args)
+        (declare (ignore args))
+        (let ((tcp (eng:js-get this "_tcp")))
+          (when tcp
+            (ignore-errors
+              (net:tcp-write
+               tcp
+               (sb-ext:string-to-octets
+                (format nil "HTTP/1.1 100 Continue~c~c~c~c"
+                        #\Return #\Newline #\Return #\Newline)
+                :external-format :latin-1)))))
+        (undef)))
+    (eng:install-method res "setTimeout" 2
+      (lambda (this args)
+        (unless (undef-p (a args 0))
+          (eng:hidden-prop this "_timeout" (->num (a args 0))))
+        (when (eng:callable-p (a args 1))
+          (eng:js-call (eng:js-get this "once") this
+                       (list "timeout" (a args 1))))
+        this))
     (eng:install-method res "writeHead" 3
       (lambda (this args)
         (let ((status (a args 0))
@@ -249,9 +356,16 @@
     (eng:install-method res "write" 2
       (lambda (this args)
         (let ((chunk (a args 0))
-              (cb (a args 1)))
+              (encoding-or-cb (a args 1))
+              (cb (a args 2)))
+          ;; write(chunk[, encoding][, callback]) — encoding is accepted and
+          ;; ignored when chunk is already octets/string (UTF-8 default).
           (when (eng:callable-p chunk)
-            (setf cb chunk chunk eng:+undefined+))
+            (setf cb chunk chunk eng:+undefined+ encoding-or-cb eng:+undefined+))
+          (when (eng:callable-p encoding-or-cb)
+            (setf cb encoding-or-cb encoding-or-cb eng:+undefined+))
+          (when (eng:js-truthy (eng:js-get this "_ended"))
+            (eng:throw-type-error "write after end"))
           (unless (or (undef-p chunk) (eng:js-null-p chunk))
             (eng:hidden-prop this "_chunks"
                              (append (eng:js-get this "_chunks")
@@ -428,26 +542,74 @@
                          (eng:data-prop o (car pair) (cdr pair)))))
     (eng:hidden-prop req "_chunks" '())
     (eng:hidden-prop req "_cancel" eng:+null+)
+    (eng:hidden-prop req "_headersSent" eng:+false+)
     (eng:hidden-prop req "_timeout" (if timeout
                                         (coerce timeout 'double-float)
                                         eng:+undefined+))
     (eng:hidden-prop req "_agent" agent)
     (eng:hidden-prop req "_secure" (if secure eng:+true+ eng:+false+))
     (eng:hidden-prop req "_defaultPort" (coerce default-port 'double-float))
+    (eng:hidden-prop req "_noDelay" eng:+true+)
+    (eng:hidden-prop req "_keepAlive" eng:+false+)
     (eng:install-method req "setHeader" 2
       (lambda (this args)
-        (eng:js-set (eng:js-get this "_headers")
-                    (string-downcase (->str (a args 0))) (a args 1) nil)
-        (undef)))
+        (let ((name (string-downcase (->str (a args 0))))
+              (value (a args 1)))
+          (when (eng:js-truthy (eng:js-get this "_headersSent"))
+            (eng:throw-type-error "Cannot set headers after they are sent to the server"))
+          (eng:js-set (eng:js-get this "_headers") name value nil)
+          this)))
     (eng:install-method req "getHeader" 1
       (lambda (this args)
         (eng:js-get (eng:js-get this "_headers")
                     (string-downcase (->str (a args 0))))))
+    (eng:install-method req "hasHeader" 1
+      (lambda (this args)
+        (let ((v (eng:js-get (eng:js-get this "_headers")
+                             (string-downcase (->str (a args 0))))))
+          (if (or (undef-p v) (eng:js-null-p v)) eng:+false+ eng:+true+))))
     (eng:install-method req "removeHeader" 1
       (lambda (this args)
         (eng:js-set (eng:js-get this "_headers")
                     (string-downcase (->str (a args 0))) eng:+undefined+ nil)
         (undef)))
+    (eng:install-method req "getHeaderNames" 0
+      (lambda (this args)
+        (declare (ignore args))
+        (let ((h (eng:js-get this "_headers"))
+              (names '()))
+          (when (eng:js-object-p h)
+            (dolist (k (eng:jm-own-property-keys h))
+              (when (stringp k)
+                (let ((v (eng:js-get h k)))
+                  (unless (or (undef-p v) (eng:js-null-p v))
+                    (push k names))))))
+          (eng:new-array (nreverse names)))))
+    (eng:install-method req "getHeaders" 0
+      (lambda (this args)
+        (declare (ignore args))
+        (eng:js-get this "_headers")))
+    (eng:install-method req "flushHeaders" 0
+      (lambda (this args)
+        (declare (ignore args))
+        ;; Node flushes pending headers early; we mark headersSent so later
+        ;; setHeader throws, matching Node's post-flush semantics.
+        (eng:hidden-prop this "_headersSent" eng:+true+)
+        (undef)))
+    (eng:install-method req "setNoDelay" 1
+      (lambda (this args)
+        (eng:hidden-prop this "_noDelay"
+                         (if (or (undef-p (a args 0)) (eng:js-truthy (a args 0)))
+                             eng:+true+ eng:+false+))
+        this))
+    (eng:install-method req "setSocketKeepAlive" 2
+      (lambda (this args)
+        (eng:hidden-prop this "_keepAlive"
+                         (if (or (undef-p (a args 0)) (eng:js-truthy (a args 0)))
+                             eng:+true+ eng:+false+))
+        (unless (undef-p (a args 1))
+          (eng:hidden-prop this "_keepAliveInitialDelay" (->num (a args 1))))
+        this))
     (eng:install-method req "setTimeout" 2
       (lambda (this args)
         (unless (undef-p (a args 0))
@@ -459,24 +621,32 @@
     (eng:install-method req "write" 2
       (lambda (this args)
         (let ((chunk (a args 0))
-              (cb (a args 1)))
+              (encoding-or-cb (a args 1))
+              (cb (a args 2)))
           (when (eng:callable-p chunk)
-            (setf cb chunk chunk eng:+undefined+))
+            (setf cb chunk chunk eng:+undefined+ encoding-or-cb eng:+undefined+))
+          (when (eng:callable-p encoding-or-cb)
+            (setf cb encoding-or-cb encoding-or-cb eng:+undefined+))
+          (when (eng:js-truthy (eng:js-get this "destroyed"))
+            (eng:throw-type-error "Cannot write after destroy/abort"))
           (unless (or (undef-p chunk) (eng:js-null-p chunk))
             (eng:hidden-prop this "_chunks"
                              (append (eng:js-get this "_chunks")
-                                     (list (%http-chunk->octets chunk)))))
+                                     (list (%http-chunk->octets chunk))))
+            ;; Buffering body is real work: Content-Length can be derived on end.
+            (eng:hidden-prop this "_headersSent" eng:+true+))
           (when (eng:callable-p cb) (eng:js-call cb (undef) '()))
           eng:+true+)))
     (eng:install-method req "abort" 0
       (lambda (this args)
         (declare (ignore args))
-        (eng:js-set this "aborted" eng:+true+ nil)
-        (eng:js-set this "destroyed" eng:+true+ nil)
-        (let ((cancel (eng:js-get this "_cancel")))
-          (when (functionp cancel) (ignore-errors (funcall cancel))))
-        (eng:js-call (eng:js-get this "emit") this (list "abort"))
-        (eng:js-call (eng:js-get this "emit") this (list "close"))
+        (unless (eng:js-truthy (eng:js-get this "aborted"))
+          (eng:js-set this "aborted" eng:+true+ nil)
+          (eng:js-set this "destroyed" eng:+true+ nil)
+          (let ((cancel (eng:js-get this "_cancel")))
+            (when (functionp cancel) (ignore-errors (funcall cancel))))
+          (eng:js-call (eng:js-get this "emit") this (list "abort"))
+          (eng:js-call (eng:js-get this "emit") this (list "close")))
         (undef)))
     (eng:install-method req "destroy" 1
       (lambda (this args)
@@ -686,13 +856,10 @@
     (eng:data-prop o "Agent"
                    (eng:make-native-function
                     "Agent" 1
+                    ;; Call-without-new returns a real Agent (Node util.inherits style).
                     (lambda (this args)
-                      (when (eng:js-object-p this)
-                        (let ((built (%http-make-agent (a args 0))))
-                          (dolist (k (eng:jm-own-property-keys built))
-                            (when (stringp k)
-                              (eng:data-prop this k (eng:js-get built k))))))
-                      (undef))
+                      (declare (ignore this))
+                      (%http-make-agent (a args 0)))
                     :construct
                     (lambda (args nt)
                       (declare (ignore nt))

@@ -132,13 +132,21 @@ subject/subjectaltname fields, or null/undefined (then hostname shape is checked
                  (member (string-downcase host) names :test #'string=)
                  (member host names :test #'string=)
                  (some (lambda (n)
-                         (and (plusp (length n))
+                         ;; Wildcard: *.example.com matches a.example.com only
+                         ;; (single left-most label), matching Node/OpenSSL.
+                         (and (>= (length n) 2)
                               (char= (char n 0) #\*)
-                              (let ((suffix (subseq n 1)))
-                                (and (>= (length host) (length suffix))
-                                     (string= host suffix
-                                              :start1 (- (length host)
-                                                         (length suffix)))))))
+                              (char= (char n 1) #\.)
+                              (let* ((suffix (subseq n 1)) ; ".example.com"
+                                     (h (string-downcase host))
+                                     (dot (position #\. h)))
+                                (and dot
+                                     (>= (length h) (length suffix))
+                                     (string= h suffix
+                                              :start1 (- (length h)
+                                                         (length suffix)))
+                                     ;; Reject multi-label left side (a.b.example.com).
+                                     (= dot (- (length h) (length suffix)))))))
                        names))
              eng:+undefined+
              (eng:js-construct
@@ -378,10 +386,21 @@ subject/subjectaltname fields, or null/undefined (then hostname shape is checked
     (eng:data-prop o "CLIENT_RENEG_WINDOW" 600d0)
     (eng:data-prop o "TLSSocket"
                    (eng:make-native-function "TLSSocket" 2
+                     ;; Call-without-new still returns a wired TLSSocket (Node
+                     ;; legacy function-constructor pattern).
                      (lambda (this args)
-                       (when (eng:js-object-p this)
-                         (%tls-wire-socket this (a args 1)))
-                       (undef))
+                       (declare (ignore this))
+                       (let* ((existing (a args 0))
+                              (opts (if (eng:js-object-p (a args 1))
+                                        (a args 1)
+                                        (eng:new-object)))
+                              (sock (if (eng:js-object-p existing)
+                                        existing
+                                        (eng:js-construct
+                                         (eng:js-get (build-node-net) "Socket")
+                                         '()))))
+                         (%tls-wire-socket sock opts)
+                         sock))
                      :construct
                      (lambda (args nt)
                        (declare (ignore nt))

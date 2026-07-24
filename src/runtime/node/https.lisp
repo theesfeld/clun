@@ -17,13 +17,10 @@
     (eng:data-prop o "Agent"
                    (eng:make-native-function
                     "Agent" 1
+                    ;; Call-without-new returns a real Agent object.
                     (lambda (this args)
-                      (when (eng:js-object-p this)
-                        (let ((built (%https-make-agent (a args 0))))
-                          (dolist (k (eng:jm-own-property-keys built))
-                            (when (stringp k)
-                              (eng:data-prop this k (eng:js-get built k))))))
-                      (undef))
+                      (declare (ignore this))
+                      (%https-make-agent (a args 0)))
                     :construct
                     (lambda (args nt)
                       (declare (ignore nt))

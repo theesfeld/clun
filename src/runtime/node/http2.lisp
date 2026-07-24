@@ -129,6 +129,49 @@
                   0
                   buf)))
 
+(defun %http2-data-frame (stream-id payload &optional end-stream)
+  "RFC 7540 DATA frame (type 0). END_STREAM flag = 0x1."
+  (%http2-frame 0
+                (if end-stream 1 0)
+                (logand stream-id #x7fffffff)
+                (or payload (make-array 0 :element-type '(unsigned-byte 8)))))
+
+(defun %http2-rst-stream-frame (stream-id error-code)
+  "RFC 7540 RST_STREAM (type 3): 4-byte error code."
+  (let ((code (max 0 (truncate error-code)))
+        (buf (make-array 4 :element-type '(unsigned-byte 8) :initial-element 0)))
+    (setf (aref buf 0) (ldb (byte 8 24) code)
+          (aref buf 1) (ldb (byte 8 16) code)
+          (aref buf 2) (ldb (byte 8 8) code)
+          (aref buf 3) (ldb (byte 8 0) code))
+    (%http2-frame 3 0 (logand stream-id #x7fffffff) buf)))
+
+(defun %http2-goaway-frame (last-stream-id error-code &optional debug-data)
+  "RFC 7540 GOAWAY (type 7)."
+  (let* ((last (logand (max 0 (truncate last-stream-id)) #x7fffffff))
+         (code (max 0 (truncate error-code)))
+         (debug (or debug-data (make-array 0 :element-type '(unsigned-byte 8))))
+         (buf (make-array (+ 8 (length debug)) :element-type '(unsigned-byte 8)
+                          :initial-element 0)))
+    (setf (aref buf 0) (ldb (byte 8 24) last)
+          (aref buf 1) (ldb (byte 8 16) last)
+          (aref buf 2) (ldb (byte 8 8) last)
+          (aref buf 3) (ldb (byte 8 0) last)
+          (aref buf 4) (ldb (byte 8 24) code)
+          (aref buf 5) (ldb (byte 8 16) code)
+          (aref buf 6) (ldb (byte 8 8) code)
+          (aref buf 7) (ldb (byte 8 0) code))
+    (replace buf debug :start1 8)
+    (%http2-frame 7 0 0 buf)))
+
+(defun %http2-session-tcp (session)
+  (when (eng:js-object-p session)
+    (eng:js-get session "_tcp")))
+
+(defun %http2-stream-id-num (stream)
+  (let ((id (eng:js-get stream "id")))
+    (if (numberp id) (truncate id) (truncate (->num id)))))
+
 (defun %http2-headers-alist (headers)
   (when (eng:js-object-p headers)
     (loop for k in (eng:jm-own-property-keys headers)
@@ -170,13 +213,25 @@
     (eng:install-method stream "write" 2
       (lambda (this args)
         (let ((chunk (a args 0))
-              (cb (a args 1)))
+              (encoding-or-cb (a args 1))
+              (cb (a args 2)))
           (when (eng:callable-p chunk)
-            (setf cb chunk chunk eng:+undefined+))
+            (setf cb chunk chunk eng:+undefined+ encoding-or-cb eng:+undefined+))
+          (when (eng:callable-p encoding-or-cb)
+            (setf cb encoding-or-cb encoding-or-cb eng:+undefined+))
+          (when (eng:js-truthy (eng:js-get this "closed"))
+            (eng:throw-type-error "http2 stream write after close"))
           (unless (or (undef-p chunk) (eng:js-null-p chunk))
-            (eng:hidden-prop this "_chunks"
-                             (append (eng:js-get this "_chunks")
-                                     (list (%http-chunk->octets chunk)))))
+            (let* ((octets (%http-chunk->octets chunk))
+                   (sid (%http2-stream-id-num this))
+                   (tcp (%http2-session-tcp (eng:js-get this "session"))))
+              (eng:hidden-prop this "_chunks"
+                               (append (eng:js-get this "_chunks")
+                                       (list octets)))
+              ;; Real wire write: DATA frame when the session has a TCP handle.
+              (when tcp
+                (ignore-errors
+                  (net:tcp-write tcp (%http2-data-frame sid octets nil))))))
           (eng:js-set this "headersSent" eng:+true+ nil)
           (when (eng:callable-p cb) (eng:js-call cb (undef) '()))
           eng:+true+)))
@@ -186,36 +241,87 @@
               (cb (a args 1)))
           (when (eng:callable-p chunk)
             (setf cb chunk chunk eng:+undefined+))
-          (unless (undef-p chunk)
-            (eng:js-call (eng:js-get this "write") this (list chunk)))
-          (eng:hidden-prop this "_ended" eng:+true+)
-          (eng:js-set this "closed" eng:+true+ nil)
-          (eng:js-set this "headersSent" eng:+true+ nil)
-          ;; Emit a local response cycle for hermetic clients when no remote peer
-          ;; has answered (session may still be preface-only).
-          (let ((resp-headers (eng:new-object)))
-            (eng:data-prop resp-headers ":status" "200")
-            (eng:js-call (eng:js-get this "emit") this
-                         (list "response" resp-headers 0d0))
-            (let ((body-chunks (eng:js-get this "_chunks"))
-                  (payload (make-array 0 :element-type '(unsigned-byte 8))))
-              (when body-chunks
-                (setf payload
-                      (apply #'concatenate '(vector (unsigned-byte 8))
-                             body-chunks)))
-              (when (plusp (length payload))
-                (eng:js-call (eng:js-get this "emit") this
-                             (list "data" (%buffer-from-octets payload)))))
-            (eng:js-call (eng:js-get this "emit") this (list "end"))
-            (eng:js-call (eng:js-get this "emit") this (list "close")))
-          (when (eng:callable-p cb) (eng:js-call cb (undef) '()))
-          this)))
+          (cond
+            ((eng:js-truthy (eng:js-get this "_ended"))
+             (when (eng:callable-p cb) (eng:js-call cb (undef) '()))
+             this)
+            (t
+             (let* ((final-octets
+                      (if (or (undef-p chunk) (eng:js-null-p chunk))
+                          (make-array 0 :element-type '(unsigned-byte 8))
+                          (%http-chunk->octets chunk)))
+                    (sid (%http2-stream-id-num this))
+                    (tcp (%http2-session-tcp (eng:js-get this "session"))))
+               (unless (zerop (length final-octets))
+                 (eng:hidden-prop this "_chunks"
+                                  (append (eng:js-get this "_chunks")
+                                          (list final-octets))))
+               ;; END_STREAM DATA frame (empty or with final chunk).
+               (when tcp
+                 (ignore-errors
+                   (net:tcp-write tcp
+                                  (%http2-data-frame sid final-octets t))))
+               (eng:hidden-prop this "_ended" eng:+true+)
+               (eng:js-set this "closed" eng:+true+ nil)
+               (eng:js-set this "headersSent" eng:+true+ nil)
+               ;; Hermetic local response cycle when no remote peer answers
+               ;; (session may still be preface-only against an h1 peer).
+               (let ((resp-headers (eng:new-object)))
+                 (eng:data-prop resp-headers ":status" "200")
+                 (eng:js-call (eng:js-get this "emit") this
+                              (list "response" resp-headers 0d0))
+                 (let ((body-chunks (eng:js-get this "_chunks"))
+                       (payload (make-array 0 :element-type '(unsigned-byte 8))))
+                   (when body-chunks
+                     (setf payload
+                           (apply #'concatenate '(vector (unsigned-byte 8))
+                                  body-chunks)))
+                   (when (plusp (length payload))
+                     (eng:js-call (eng:js-get this "emit") this
+                                  (list "data" (%buffer-from-octets payload)))))
+                 (eng:js-call (eng:js-get this "emit") this (list "end"))
+                 (eng:js-call (eng:js-get this "emit") this (list "close")))
+               (when (eng:callable-p cb) (eng:js-call cb (undef) '()))
+               this))))))
     (eng:install-method stream "close" 1
       (lambda (this args)
-        (declare (ignore args))
-        (eng:js-set this "closed" eng:+true+ nil)
-        (eng:js-call (eng:js-get this "emit") this (list "close"))
-        this))
+        (let ((code (if (undef-p (a args 0)) 0 (truncate (->num (a args 0)))))
+              (tcp (%http2-session-tcp (eng:js-get this "session")))
+              (sid (%http2-stream-id-num this)))
+          (unless (eng:js-truthy (eng:js-get this "closed"))
+            (when tcp
+              (ignore-errors
+                (net:tcp-write tcp (%http2-rst-stream-frame sid code))))
+            (eng:js-set this "closed" eng:+true+ nil)
+            (eng:js-set this "destroyed" eng:+true+ nil)
+            (eng:js-call (eng:js-get this "emit") this (list "close")))
+          this)))
+    (eng:install-method stream "respond" 2
+      (lambda (this args)
+        (let ((headers (if (eng:js-object-p (a args 0))
+                           (a args 0)
+                           (eng:new-object)))
+              (options (a args 1)))
+          (eng:hidden-prop this "_responseHeaders" headers)
+          (eng:js-set this "headersSent" eng:+true+ nil)
+          (when (and (eng:js-object-p options)
+                     (eng:js-truthy (eng:js-get options "endStream")))
+            (eng:js-call (eng:js-get this "end") this '()))
+          this)))
+    (eng:install-method stream "setHeader" 2
+      (lambda (this args)
+        (let ((h (eng:js-get this "_headers")))
+          (unless (eng:js-object-p h)
+            (setf h (eng:new-object))
+            (eng:hidden-prop this "_headers" h))
+          (eng:js-set h (string-downcase (->str (a args 0))) (a args 1) nil)
+          (undef))))
+    (eng:install-method stream "getHeader" 1
+      (lambda (this args)
+        (let ((h (eng:js-get this "_headers")))
+          (if (eng:js-object-p h)
+              (eng:js-get h (string-downcase (->str (a args 0))))
+              eng:+undefined+))))
     (eng:install-method stream "priority" 1
       (lambda (this args)
         (when (eng:js-object-p (a args 0))
@@ -265,46 +371,91 @@
           stream)))
     (eng:install-method session "close" 1
       (lambda (this args)
-        (eng:js-set this "closed" eng:+true+ nil)
-        (let ((tcp (eng:js-get this "_tcp")))
-          (when tcp (ignore-errors (net:tcp-close tcp))))
-        (eng:js-call (eng:js-get this "emit") this (list "close"))
+        (unless (eng:js-truthy (eng:js-get this "closed"))
+          (eng:js-set this "closed" eng:+true+ nil)
+          ;; Close open streams and send GOAWAY before tearing down TCP.
+          (dolist (s (eng:js-get this "_streams"))
+            (when (eng:js-object-p s)
+              (unless (eng:js-truthy (eng:js-get s "closed"))
+                (eng:js-set s "closed" eng:+true+ nil)
+                (eng:js-call (eng:js-get s "emit") s (list "close")))))
+          (let ((tcp (eng:js-get this "_tcp"))
+                (last-id (let ((n (eng:js-get this "_nextStreamId")))
+                           (max 0 (- (if (numberp n) n
+                                         (truncate (->num n)))
+                                     2)))))
+            (when tcp
+              (ignore-errors
+                (net:tcp-write tcp (%http2-goaway-frame last-id 0)))
+              (ignore-errors (net:tcp-close tcp))))
+          (eng:js-call (eng:js-get this "emit") this (list "close")))
         (when (eng:callable-p (a args 0)) (eng:js-call (a args 0) (undef) '()))
         (undef)))
     (eng:install-method session "destroy" 1
       (lambda (this args)
         (eng:js-set this "destroyed" eng:+true+ nil)
-        (eng:js-call (eng:js-get this "close") this args)
+        (eng:js-call (eng:js-get this "close") this
+                     (if (eng:callable-p (a args 0)) (list (a args 0)) '()))
         this))
+    (eng:install-method session "goaway" 3
+      (lambda (this args)
+        (let* ((code (if (undef-p (a args 0)) 0 (truncate (->num (a args 0)))))
+               (last (if (undef-p (a args 1))
+                         (let ((n (eng:js-get this "_nextStreamId")))
+                           (max 0 (- (if (numberp n) n
+                                         (truncate (->num n)))
+                                     2)))
+                         (truncate (->num (a args 1)))))
+               (opaque (a args 2))
+               (debug (cond
+                        ((eng:js-typed-array-p opaque)
+                         (multiple-value-bind (b o l) (eng:ta-octets opaque)
+                           (subseq b o (+ o l))))
+                        ((eng:js-string-p opaque)
+                         (sb-ext:string-to-octets (->str opaque)
+                                                  :external-format :utf-8))
+                        (t (make-array 0 :element-type '(unsigned-byte 8)))))
+               (tcp (eng:js-get this "_tcp")))
+          (when tcp
+            (ignore-errors
+              (net:tcp-write tcp (%http2-goaway-frame last code debug))))
+          (eng:js-call (eng:js-get this "emit") this
+                       (list "goaway" (coerce code 'double-float)
+                             (coerce last 'double-float)
+                             (%buffer-from-octets debug)))
+          (undef))))
     (eng:install-method session "ping" 2
       (lambda (this args)
-        (let* ((payload (a args 0))
-               (cb (a args 1))
-               (octets (cond
-                         ((eng:callable-p payload)
-                          (setf cb payload)
-                          (make-array 8 :element-type '(unsigned-byte 8)
-                                      :initial-element 0))
-                         ((eng:js-typed-array-p payload)
-                          (multiple-value-bind (b o l) (eng:ta-octets payload)
-                            (let ((buf (make-array 8 :element-type '(unsigned-byte 8)
-                                                    :initial-element 0)))
-                              (replace buf b :start2 o :end2 (+ o (min 8 l)))
-                              buf)))
-                         (t (make-array 8 :element-type '(unsigned-byte 8)
-                                        :initial-element 0))))
-               (frame (%http2-ping-frame octets nil))
-               (tcp (eng:js-get this "_tcp")))
-          (when tcp (ignore-errors (net:tcp-write tcp frame)))
-          ;; Local ACK: schedule callback with duration 0 and echoed payload.
-          (%http-schedule
-           (lambda ()
-             (when (eng:callable-p cb)
-               (eng:js-call cb (undef)
-                            (list eng:+null+
-                                  0d0
-                                  (%buffer-from-octets octets))))))
-          eng:+true+)))
+        (if (eng:js-truthy (eng:js-get this "closed"))
+            eng:+false+
+            (let* ((payload (a args 0))
+                   (cb (a args 1))
+                   (octets (cond
+                             ((eng:callable-p payload)
+                              (setf cb payload)
+                              (make-array 8 :element-type '(unsigned-byte 8)
+                                          :initial-element 0))
+                             ((eng:js-typed-array-p payload)
+                              (multiple-value-bind (b o l) (eng:ta-octets payload)
+                                (let ((buf (make-array 8 :element-type '(unsigned-byte 8)
+                                                        :initial-element 0)))
+                                  (replace buf b :start2 o :end2 (+ o (min 8 l)))
+                                  buf)))
+                             (t (make-array 8 :element-type '(unsigned-byte 8)
+                                            :initial-element 0))))
+                   (frame (%http2-ping-frame octets nil))
+                   (tcp (eng:js-get this "_tcp")))
+              (when tcp (ignore-errors (net:tcp-write tcp frame)))
+              ;; Local ACK: schedule callback with duration 0 and echoed payload.
+              ;; Real peer ACK would replace this when frame parser lands.
+              (%http-schedule
+               (lambda ()
+                 (when (eng:callable-p cb)
+                   (eng:js-call cb (undef)
+                                (list eng:+null+
+                                      0d0
+                                      (%buffer-from-octets octets))))))
+              eng:+true+))))
     (eng:install-method session "settings" 2
       (lambda (this args)
         (let ((settings (a args 0))
@@ -597,20 +748,123 @@
              (%http2-unpack-settings (eng:js-array-buffer-bytes buf)))
             (t (%http2-default-settings-object))))))
     (eng:data-prop o "Http2ServerRequest"
-                   (eng:make-native-function "Http2ServerRequest" 0
+                   (eng:make-native-function "Http2ServerRequest" 1
                      (lambda (this args)
-                       (declare (ignore this args))
-                       (undef))))
+                       (declare (ignore this))
+                       ;; Node constructs these from (stream, headers[, options]).
+                       (let* ((stream (a args 0))
+                              (headers (if (eng:js-object-p (a args 1))
+                                           (a args 1)
+                                           (eng:new-object)))
+                              (req (%http2-wire-ee (eng:new-object))))
+                         (eng:data-prop req "stream" stream)
+                         (eng:data-prop req "headers" headers)
+                         (eng:data-prop req "httpVersion" "2.0")
+                         (eng:data-prop req "httpVersionMajor" 2d0)
+                         (eng:data-prop req "httpVersionMinor" 0d0)
+                         (eng:data-prop req "method"
+                                        (let ((m (eng:js-get headers ":method")))
+                                          (if (undef-p m) "GET" (->str m))))
+                         (eng:data-prop req "url"
+                                        (let ((p (eng:js-get headers ":path")))
+                                          (if (undef-p p) "/" (->str p))))
+                         (eng:data-prop req "authority"
+                                        (let ((a (eng:js-get headers ":authority")))
+                                          (if (undef-p a) eng:+undefined+ (->str a))))
+                         (eng:data-prop req "scheme"
+                                        (let ((s (eng:js-get headers ":scheme")))
+                                          (if (undef-p s) "https" (->str s))))
+                         (eng:hidden-prop req "_encoding" eng:+null+)
+                         (eng:install-method req "setEncoding" 1
+                           (lambda (this args)
+                             (let ((enc (if (or (undef-p (a args 0))
+                                                (eng:js-null-p (a args 0)))
+                                            eng:+null+
+                                            (->str (a args 0)))))
+                               (eng:hidden-prop this "_encoding" enc)
+                               this)))
+                         req))
+                     :construct
+                     (lambda (args nt)
+                       (declare (ignore nt))
+                       (eng:js-call (eng:js-get o "Http2ServerRequest") o args))))
     (eng:data-prop o "Http2ServerResponse"
-                   (eng:make-native-function "Http2ServerResponse" 0
+                   (eng:make-native-function "Http2ServerResponse" 1
                      (lambda (this args)
-                       (declare (ignore this args))
-                       (undef))))
+                       (declare (ignore this))
+                       (let* ((stream (a args 0))
+                              (res (%http2-wire-ee (eng:new-object))))
+                         (eng:data-prop res "stream" stream)
+                         (eng:data-prop res "statusCode" 200d0)
+                         (eng:data-prop res "headersSent" eng:+false+)
+                         (eng:hidden-prop res "_headers" (eng:new-object))
+                         (eng:hidden-prop res "_chunks" '())
+                         (eng:install-method res "setHeader" 2
+                           (lambda (this args)
+                             (eng:js-set (eng:js-get this "_headers")
+                                         (string-downcase (->str (a args 0)))
+                                         (a args 1) nil)
+                             (undef)))
+                         (eng:install-method res "getHeader" 1
+                           (lambda (this args)
+                             (eng:js-get (eng:js-get this "_headers")
+                                         (string-downcase (->str (a args 0))))))
+                         (eng:install-method res "writeHead" 2
+                           (lambda (this args)
+                             (unless (undef-p (a args 0))
+                               (eng:js-set this "statusCode" (->num (a args 0)) nil))
+                             (when (eng:js-object-p (a args 1))
+                               (%http-merge-header-object
+                                (eng:js-get this "_headers") (a args 1)))
+                             (eng:js-set this "headersSent" eng:+true+ nil)
+                             this))
+                         (eng:install-method res "write" 2
+                           (lambda (this args)
+                             (let ((chunk (a args 0))
+                                   (cb (a args 1)))
+                               (when (eng:callable-p chunk)
+                                 (setf cb chunk chunk eng:+undefined+))
+                               (unless (or (undef-p chunk) (eng:js-null-p chunk))
+                                 (eng:hidden-prop this "_chunks"
+                                                  (append (eng:js-get this "_chunks")
+                                                          (list (%http-chunk->octets chunk))))
+                                 (when (eng:js-object-p stream)
+                                   (eng:js-call (eng:js-get stream "write") stream
+                                                (list chunk))))
+                               (eng:js-set this "headersSent" eng:+true+ nil)
+                               (when (eng:callable-p cb) (eng:js-call cb (undef) '()))
+                               eng:+true+)))
+                         (eng:install-method res "end" 2
+                           (lambda (this args)
+                             (let ((chunk (a args 0))
+                                   (cb (a args 1)))
+                               (when (eng:callable-p chunk)
+                                 (setf cb chunk chunk eng:+undefined+))
+                               (unless (or (undef-p chunk) (eng:js-null-p chunk))
+                                 (eng:js-call (eng:js-get this "write") this
+                                              (list chunk)))
+                               (when (eng:js-object-p stream)
+                                 (eng:js-call (eng:js-get stream "end") stream '()))
+                               (eng:js-call (eng:js-get this "emit") this
+                                            (list "finish"))
+                               (when (eng:callable-p cb) (eng:js-call cb (undef) '()))
+                               this)))
+                         res))
+                     :construct
+                     (lambda (args nt)
+                       (declare (ignore nt))
+                       (eng:js-call (eng:js-get o "Http2ServerResponse") o args))))
     (eng:data-prop o "Http2Session"
                    (eng:make-native-function "Http2Session" 0
                      (lambda (this args)
                        (declare (ignore this args))
-                       (undef))))
+                       (eng:throw-type-error
+                        "Http2Session constructor cannot be invoked without 'new' / is not directly constructable"))
+                     :construct
+                     (lambda (args nt)
+                       (declare (ignore args nt))
+                       (eng:throw-type-error
+                        "Illegal constructor: Http2Session is not directly constructable"))))
     o))
 
 (register-node-builtin "http2" #'build-node-http2)
