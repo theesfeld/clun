@@ -6,7 +6,7 @@ Ship path: topic branch → PR → squash-merge into `master` (not direct push).
 
 ---
 
-## Current unit: **Shared-memory MT + zero-stubs residuals**
+## Current phase: **46 - Processes, VM, workers, shared-memory multithreading**
 
 **Canonical issue:** https://github.com/theesfeld/clun/issues/338
 **Related:** https://github.com/theesfeld/clun/issues/339 · PR https://github.com/theesfeld/clun/pull/340
