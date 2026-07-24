@@ -41,6 +41,11 @@
   (cond
     ((not (eng:js-object-p v)) v)                     ; primitives are immutable
     ((eng:callable-p v) (%clone-data-error "A function"))
+    ((eng:js-shared-array-buffer-p v)                 ; share the data block
+     (or (gethash v seen)
+         (let ((out (eng:wrap-shared-array-buffer (eng:js-shared-array-buffer-block v))))
+           (setf (gethash v seen) out)
+           out)))
     ((eq (eng:js-object-class v) :date)               ; Date -> a fresh Date of the same instant
      (eng:js-construct (eng:js-get (eng:realm-global eng:*realm*) "Date")
                        (list (eng:js-call (eng:js-get v "getTime") v '()))))
