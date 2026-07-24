@@ -15,15 +15,31 @@
 
 (defun %writable-stream (stream fd)
   "A minimal Writable: .write(chunk)->bool, .isTTY, .fd, .end()."
-  (let ((w (eng:new-object)))
+  (let ((w (eng:new-object))
+        (ended nil))
+    (eng:data-prop w "writableEnded" eng:+false+)
     (eng:install-method w "write" 1
       (lambda (this args) (declare (ignore this))
-        (write-string (eng:to-string (eng:arg args 0)) stream)
-        (finish-output stream)
-        eng:+true+))
+        (if ended
+            eng:+false+
+            (progn
+              (write-string (eng:to-string (eng:arg args 0)) stream)
+              (finish-output stream)
+              eng:+true+))))
     (when (sys:tty-p stream) (eng:data-prop w "isTTY" eng:+true+))
     (eng:data-prop w "fd" (coerce fd 'double-float))
-    (eng:install-method w "end" 0 (lambda (this args) (declare (ignore this args)) eng:+undefined+))
+    (eng:install-method w "end" 1
+      (lambda (this args)
+        (declare (ignore this))
+        ;; Optional final chunk, then mark ended (Node Writable#end).
+        (unless ended
+          (let ((chunk (eng:arg args 0)))
+            (unless (or (eng:js-undefined-p chunk) (eng:js-null-p chunk))
+              (write-string (eng:to-string chunk) stream)
+              (finish-output stream)))
+          (setf ended t)
+          (eng:js-set w "writableEnded" eng:+true+ nil))
+        eng:+undefined+))
     w))
 
 (defun %exec-path ()
