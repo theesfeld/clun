@@ -3683,3 +3683,49 @@ Exact-master CI + Documentation + Compatibility required before annotated tag `v
 ## 2026-07-21 — exact-master gates for v0.2.2
 
 Touch path filters so CI + Documentation + Compatibility all run on one master SHA before tagging `v0.2.2` (compat excludes `compat/release.tsv` alone). Refs #58 / #331.
+
+## 2026-07-21 — Shared-memory multithreading (Issue #338)
+
+Implemented proper shared-memory multithreading in pure Common Lisp:
+
+1. **SharedArrayBuffer** — per-realm wrappers around a process-shared `shared-data-block`
+   (byte vector + data mutex + waiter table). TypedArray/DataView accept SAB.
+2. **Atomics** — load/store/RMW/`wait`/`notify`/`isLockFree`/`pause` with mutex-serialized
+   multi-byte ops and condition-variable waiters on the data block (cross-thread proven).
+3. **worker_threads** — real `sb-thread` workers with isolated realms/heaps; MessagePort via
+   mailboxes + `loop-post`; SAB shared by data-block identity on `workerData`/`postMessage`.
+
+Architecture constraint preserved: ordinary JS heaps stay single-owner-per-thread; the only
+shared mutable state is SAB data blocks. No CFFI.
+
+Design: `docs/design/shared-memory-multithreading.md`.
+
+## 2026-07-24 — Zero stubs mandate (Issue #339)
+
+Exported runtime surfaces must perform real work; hollow `ignore-args → undefined`
+shells are forbidden.
+
+Implemented / repaired in this unit:
+
+- `node:os` — real `/proc` loadavg, cpuinfo, nice, network interface names, uid/gid
+- `node:v8` — real SBCL heap statistics and space stats
+- `node:vm` — sandbox context install/eval/restore; SourceTextModule evaluate
+- `node:cluster` — real worker processes via `sb-ext:run-program` + IPC write
+- `node:wasi` — pure-CL `wasi_snapshot_preview1` host imports (args/env/clock/fd_write/random)
+- `node:inspector` — TCP bind + Session connect/post state machine
+- `node:trace_events` — category enable/disable tracking
+- `node:test` / `node:repl` — real registration/eval surfaces (no empty methods)
+- `WebSocket` `wss:` — pure-tls client stream on worker thread + frame pump
+- Shared-memory multithreading (#338) remains on this branch
+
+Mechanical follow-ups still tracked under #339: residual no-ops in http/dns/dgram
+method tails, full CDP protocol, full WASI filesystem rights, cluster shared
+handles.
+
+## 2026-07-24 — Version stays 0.2.2 on #340 feature train
+
+Shared-memory + destub work is capability-complete on PR #340, but source
+version remains the published tip `0.2.2` until a dedicated release unit updates
+STATE/canonical Issue SemVer disposition, `compat/release.tsv`, README, site,
+and installer boundary together. SemVer impact of this capability is still
+`minor` for that future release disposition.

@@ -169,3 +169,88 @@ read from /dev/urandom via a plain CL binary stream (pure — no foreign code)."
                         count (and (>= (length line) 9) (string= "processor" line :end2 9))))))
              1))
   #-linux 1)
+
+(defun loadavg ()
+  "Three load averages as a list of double-floats (1/5/15 min). Reads /proc/loadavg
+on Linux; zeros only when the platform provides no pure-CL source."
+  #+linux
+  (or (ignore-errors
+        (let ((line (%first-line "/proc/loadavg")))
+          (when line
+            (with-input-from-string (in line)
+              (list (float (read in) 1d0)
+                    (float (read in) 1d0)
+                    (float (read in) 1d0))))))
+      (list 0d0 0d0 0d0))
+  #-linux (list 0d0 0d0 0d0))
+
+(defun %cpuinfo-blocks ()
+  "Parse /proc/cpuinfo into a list of alists ((key . value) ...), one per processor."
+  #+linux
+  (ignore-errors
+    (with-open-file (in "/proc/cpuinfo" :if-does-not-exist nil)
+      (when in
+        (let ((blocks '()) (cur '()))
+          (loop for line = (read-line in nil nil)
+                while line
+                do (cond
+                     ((zerop (length line))
+                      (when cur (push (nreverse cur) blocks) (setf cur '())))
+                     (t (let ((colon (position #\: line)))
+                          (when colon
+                            (push (cons (string-trim '(#\Space #\Tab)
+                                                     (subseq line 0 colon))
+                                        (string-trim '(#\Space #\Tab)
+                                                     (subseq line (1+ colon))))
+                                  cur))))))
+          (when cur (push (nreverse cur) blocks))
+          (nreverse blocks)))))
+  #-linux nil)
+
+(defun %cpu-times-jiffies ()
+  "Per-cpu times from /proc/stat as lists of (user nice system idle iowait irq softirq).
+Values are jiffies converted to milliseconds assuming USER_HZ=100."
+  #+linux
+  (ignore-errors
+    (with-open-file (in "/proc/stat" :if-does-not-exist nil)
+      (when in
+        (let ((hz 100d0) (out '()))
+          (loop for line = (read-line in nil nil) while line
+                when (and (>= (length line) 4)
+                          (char= (char line 0) #\c)
+                          (char= (char line 1) #\p)
+                          (char= (char line 2) #\u)
+                          (digit-char-p (char line 3)))
+                  do (with-input-from-string (s (subseq line (position #\Space line)))
+                       (flet ((ms () (* (float (or (read s nil 0) 0) 1d0) (/ 1000d0 hz))))
+                         (push (list (ms) (ms) (ms) (ms) (ms) (ms) (ms)) out))))
+          (nreverse out)))))
+  #-linux nil)
+
+(defun cpu-infos ()
+  "List of plists describing each logical CPU: :model :speed :user :nice :sys :idle :irq
+(milliseconds). Pure /proc reads on Linux."
+  (let* ((blocks (%cpuinfo-blocks))
+         (times (%cpu-times-jiffies))
+         (n (max 1 (or (and blocks (length blocks)) (cpu-count)))))
+    (loop for i below n
+          for block = (nth i blocks)
+          for tms = (nth i times)
+          collect (list :model (or (cdr (assoc "model name" block :test #'string-equal))
+                                   (cdr (assoc "Hardware" block :test #'string-equal))
+                                   "unknown")
+                        :speed (let ((mhz (or (cdr (assoc "cpu MHz" block :test #'string-equal))
+                                              (cdr (assoc "BogoMIPS" block :test #'string-equal)))))
+                                  (if mhz
+                                      (or (ignore-errors (truncate (read-from-string mhz))) 0)
+                                      0))
+                        :user (or (first tms) 0d0)
+                        :nice (or (second tms) 0d0)
+                        :sys (or (third tms) 0d0)
+                        :idle (or (fourth tms) 0d0)
+                        :irq (or (sixth tms) 0d0)))))
+
+(defun getuid () (ignore-errors (sb-posix:getuid)))
+(defun getgid () (ignore-errors (sb-posix:getgid)))
+(defun geteuid () (ignore-errors (sb-posix:geteuid)))
+(defun getegid () (ignore-errors (sb-posix:getegid)))

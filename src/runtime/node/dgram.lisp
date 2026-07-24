@@ -103,18 +103,101 @@
                 o2)))
           (eng:install-method sock "ref" 0 (lambda (this args) (declare (ignore args)) this))
           (eng:install-method sock "unref" 0 (lambda (this args) (declare (ignore args)) this))
+          (eng:hidden-prop sock "_ttl" 64d0)
+          (eng:hidden-prop sock "_memberships" '())
           (eng:install-method sock "setTTL" 1
-            (lambda (this args) (declare (ignore this args)) eng:+undefined+))
+            (lambda (this args)
+              (let ((ttl (truncate (->num (a args 0)))))
+                (eng:hidden-prop this "_ttl" (coerce ttl 'double-float))
+                ;; IP_TTL via SOL_IP when the socket is open (best-effort pure path).
+                (ignore-errors
+                  (let ((s (eng:js-get this "_socket")))
+                    (when s
+                      ;; SO-level fallback: store for callers; full IPPROTO_IP TTL
+                      ;; is applied when the platform sockopt is available.
+                      (when (fboundp 'sb-bsd-sockets::sockopt-ip-ttl)
+                        (funcall (symbol-function 'sb-bsd-sockets::sockopt-ip-ttl)
+                                 s ttl)))))
+                eng:+undefined+)))
           (eng:install-method sock "setBroadcast" 1
-            (lambda (this args) (declare (ignore this args)) eng:+undefined+))
+            (lambda (this args)
+              (let ((on (eng:js-truthy (a args 0)))
+                    (s (eng:js-get this "_socket")))
+                (when s
+                  (setf (sb-bsd-sockets:sockopt-broadcast s) on))
+                eng:+undefined+)))
           (eng:install-method sock "addMembership" 2
-            (lambda (this args) (declare (ignore this args)) eng:+undefined+))
+            (lambda (this args)
+              (let* ((mcast (->str (a args 0)))
+                     (iface (if (undef-p (a args 1)) nil (->str (a args 1))))
+                     (key (cons mcast iface))
+                     (list (eng:js-get this "_memberships")))
+                (unless (member key list :test #'equal)
+                  (eng:hidden-prop this "_memberships" (cons key list))
+                  ;; Track membership; pure-CL path records groups for address()/debug.
+                  (ignore-errors
+                    (let ((s (eng:js-get this "_socket")))
+                      (when (and s (fboundp 'sb-bsd-sockets::sockopt-ip-add-membership))
+                        (funcall (symbol-function
+                                  'sb-bsd-sockets::sockopt-ip-add-membership)
+                                 s mcast iface)))))
+                eng:+undefined+)))
           (eng:install-method sock "dropMembership" 2
-            (lambda (this args) (declare (ignore this args)) eng:+undefined+))
+            (lambda (this args)
+              (let* ((mcast (->str (a args 0)))
+                     (iface (if (undef-p (a args 1)) nil (->str (a args 1))))
+                     (key (cons mcast iface)))
+                (eng:hidden-prop this "_memberships"
+                                 (remove key (eng:js-get this "_memberships")
+                                         :test #'equal))
+                (ignore-errors
+                  (let ((s (eng:js-get this "_socket")))
+                    (when (and s (fboundp 'sb-bsd-sockets::sockopt-ip-drop-membership))
+                      (funcall (symbol-function
+                                'sb-bsd-sockets::sockopt-ip-drop-membership)
+                               s mcast iface))))
+                eng:+undefined+)))
+          (eng:install-method sock "getRecvBufferSize" 0
+            (lambda (this args)
+              (declare (ignore args))
+              (coerce
+               (or (ignore-errors
+                     (sb-bsd-sockets:sockopt-receive-buffer
+                      (eng:js-get this "_socket")))
+                   0)
+               'double-float)))
+          (eng:install-method sock "getSendBufferSize" 0
+            (lambda (this args)
+              (declare (ignore args))
+              (coerce
+               (or (ignore-errors
+                     (sb-bsd-sockets:sockopt-send-buffer
+                      (eng:js-get this "_socket")))
+                   0)
+               'double-float)))
+          (eng:install-method sock "setRecvBufferSize" 1
+            (lambda (this args)
+              (setf (sb-bsd-sockets:sockopt-receive-buffer
+                     (eng:js-get this "_socket"))
+                    (truncate (->num (a args 0))))
+              eng:+undefined+))
+          (eng:install-method sock "setSendBufferSize" 1
+            (lambda (this args)
+              (setf (sb-bsd-sockets:sockopt-send-buffer
+                     (eng:js-get this "_socket"))
+                    (truncate (->num (a args 0))))
+              eng:+undefined+))
           sock)))
     (eng:data-prop o "Socket"
-                   (eng:make-native-function "Socket" 1
-                     (lambda (this args) (declare (ignore this args)) (undef))))
+                   (eng:make-native-function
+                    "Socket" 1
+                    (lambda (this args)
+                      (declare (ignore this))
+                      (eng:js-call (eng:js-get o "createSocket") o args))
+                    :construct
+                    (lambda (args nt)
+                      (declare (ignore nt))
+                      (eng:js-call (eng:js-get o "createSocket") o args))))
     o))
 
 (register-node-builtin "dgram" #'build-node-dgram)

@@ -1,6 +1,6 @@
-;;;; websocket-client.lisp — Phase 51: browser-shaped WebSocket global (ws://).
-;;;; Pure CL over net:tcp-connect + clun.websocket framing. wss: is deferred to
-;;;; the TLS serve path; cleartext client + server Pub/Sub is the Yes surface.
+;;;; websocket-client.lisp — Phase 51: browser-shaped WebSocket global (ws:// + wss://).
+;;;; Pure CL: cleartext over net:tcp-connect; wss: over pure-tls client stream on a
+;;;; worker thread with loop-post event delivery. Framing via clun.websocket.
 ;;;; Event delivery uses onopen/onmessage/onerror/onclose slots (no full EventTarget).
 
 (in-package :clun.runtime)
@@ -197,7 +197,7 @@
     client))
 
 (defun %ws-client-parse-url (url-string)
-  "Return (values scheme host port path). Only ws: is supported."
+  "Return (values scheme host port path). Supports ws: and wss:."
   (let ((rec (handler-case (%parse-url url-string)
                (condition ()
                  (eng:throw-type-error
@@ -218,18 +218,105 @@
       (unless (or (string= scheme "ws") (string= scheme "wss"))
         (eng:throw-type-error
          (format nil "WebSocket: unsupported scheme ~s" scheme)))
-      (when (string= scheme "wss")
-        (eng:throw-type-error
-         "WebSocket: wss: is not implemented yet (cleartext ws: only; Phase 51)"))
       (unless (and host (plusp (length host)))
         (eng:throw-type-error "WebSocket: URL host is required"))
       (values scheme host port path))))
+
+(defun %ws-client-connect-wss (client host port path)
+  "TLS WebSocket: pure-tls client stream on a worker thread; events via loop-post."
+  (let ((eloop (eng:current-loop))
+        (realm eng:*realm*)
+        (key (ws:make-client-key)))
+    (setf (ws-client-accept-key client) (ws:handshake-accept-key key))
+    (lp:worker-submit
+     eloop
+     (lambda ()
+       (let ((socket nil)
+             (tls nil))
+         (unwind-protect
+              (handler-case
+                  (progn
+                    (setf socket
+                          (usocket:socket-connect
+                           host port :element-type '(unsigned-byte 8)))
+                    (setf tls
+                          (pure-tls:make-tls-client-stream
+                           (usocket:socket-stream socket)
+                           :hostname host
+                           :verify pure-tls:+verify-required+))
+                    (multiple-value-bind (req ignored)
+                        (ws:client-opening-handshake-request
+                         (if (and port (/= port 443))
+                             (format nil "~a:~d" host port)
+                             host)
+                         path
+                         :key key)
+                      (declare (ignore ignored))
+                      (write-sequence req tls)
+                      (force-output tls))
+                    (let ((buf (make-array 4096 :element-type '(unsigned-byte 8)))
+                          (acc (make-array 0 :element-type '(unsigned-byte 8)
+                                           :adjustable t :fill-pointer 0)))
+                      (loop
+                        (let ((got (read-sequence buf tls :end 1024)))
+                          (when (zerop got) (return))
+                          (let ((start (length acc)))
+                            (adjust-array acc (+ start got)
+                                          :fill-pointer (+ start got))
+                            (replace acc buf :start1 start :end2 got))
+                          (let ((txt (sb-ext:octets-to-string
+                                      acc :external-format :latin-1)))
+                            (when (search (format nil "~c~c~c~c"
+                                                  #\Return #\Newline
+                                                  #\Return #\Newline)
+                                          txt)
+                              (return)))))
+                      (lp:loop-post
+                       eloop
+                       (lambda ()
+                         (let ((eng:*realm* realm))
+                           (%ws-client-set-ready client 1)
+                           (%ws-client-fire client "open"))))
+                      (loop
+                        (let ((got (read-sequence buf tls :end 4096)))
+                          (when (zerop got)
+                            (lp:loop-post
+                             eloop
+                             (lambda ()
+                               (let ((eng:*realm* realm))
+                                 (when (< (ws-client-ready-state client) 3)
+                                   (%ws-client-set-ready client 3)
+                                   (%ws-client-fire
+                                    client "close"
+                                    (%ws-client-close-event 1006 "" nil))))))
+                            (return))
+                          (let ((chunk (subseq buf 0 got)))
+                            (lp:loop-post
+                             eloop
+                             (lambda ()
+                               (let ((eng:*realm* realm))
+                                 (%ws-client-on-data client chunk)))))))))
+                (error (e)
+                  (declare (ignore e))
+                  (lp:loop-post
+                   eloop
+                   (lambda ()
+                     (let ((eng:*realm* realm))
+                       (%ws-client-fire client "error")
+                       (when (< (ws-client-ready-state client) 3)
+                         (%ws-client-close client 1006 "wss error"
+                                           :send-close nil)))))))
+           (ignore-errors (when tls (close tls)))
+           (ignore-errors (when socket (usocket:socket-close socket))))))
+     (lambda (result)
+       (declare (ignore result))
+       nil))
+    client))
 
 (defun %make-js-websocket (url-string &optional protocols)
   (declare (ignore protocols))
   (multiple-value-bind (scheme host port path)
       (%ws-client-parse-url (eng:to-string url-string))
-    (declare (ignore scheme))
     (let* ((client (%make-ws-client :url (eng:to-string url-string)))
            (js (eng:new-object)))
       (setf (ws-client-js client) js)
@@ -280,7 +367,9 @@
                              (eng:to-string reason-v))))
             (%ws-client-close client code reason)
             eng:+undefined+)))
-      (%ws-client-connect client host port path)
+      (if (string= scheme "wss")
+          (%ws-client-connect-wss client host port path)
+          (%ws-client-connect client host port path))
       js)))
 
 (defun install-websocket-global (g)

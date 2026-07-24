@@ -33,6 +33,7 @@
            ;; Phase 12 — OS info + CSPRNG bytes for node:os / crypto
            #:os-random-bytes #:hostname #:os-release #:os-type #:tmpdir #:homedir
            #:total-memory #:free-memory #:uptime-seconds #:cpu-count
+           #:loadavg #:cpu-infos #:getuid #:getgid #:geteuid #:getegid
            ;; Phase 13 — filesystem primitives + errno-carrying condition for node:fs
            #:fs-error #:fs-error-code #:fs-error-errno #:fs-error-syscall #:fs-error-path
            #:fs-code-message
@@ -340,8 +341,8 @@ Purity constrains Clun implementation, not user-loaded addons.")
    ;; runtime hooks (Phase 08): completion capture for -p, error introspection,
    ;; realm accessors the runtime/CLI need
    #:run-module-file #:run-module-source #:eval-source #:realm-global #:realm-clock-now-ms
-   #:realm-coverage-session
-   #:register-module-mock #:register-bun-builtin
+   #:realm-coverage-session #:realm-loop
+   #:register-module-mock #:register-bun-builtin #:sync-builtin-esm-exports
    #:plugin-clear-all #:plugin-clear #:plugin-list-names
    #:register-cl-plugin #:register-node-module-hooks #:clear-node-module-hooks
    #:teardown-realm #:run-callback-to-settlement #:drive-jobs #:current-loop
@@ -364,6 +365,8 @@ Purity constrains Clun implementation, not user-loaded addons.")
    #:pd-get #:pd-set #:accessor-descriptor-p #:crypto-fill-random
    #:js-loose-eq #:js-instanceof #:throw-js-value #:js-object-class
    #:js-typed-array-p #:make-u8-array #:u8-from-octets #:ta-octets #:u8-over-arraybuffer #:js-array-buffer-bytes #:js-array-buffer-p
+   #:js-shared-array-buffer-p #:js-shared-array-buffer-block #:wrap-shared-array-buffer
+   #:data-buffer-p #:data-buffer-bytes #:data-buffer-byte-length #:data-buffer-shared-p
    #:buffer-source-octets
    #:code-units->utf8 #:utf8->code-units #:ta-subview
    ;; TS strip hook (Phase 09): the loader applies this to .ts/.mts/.cts source
@@ -396,7 +399,7 @@ Purity constrains Clun implementation, not user-loaded addons.")
   (:documentation "Sockets, HTTP parser/server/client, fetch, TLS integration.")
   (:export ;; Phase 16 — TCP handle layer on the reactor
    #:tcp-listen #:tcp-connect #:tcp-connect-happy #:tcp-write #:tcp-close #:tcp-shutdown
-   #:tcp-pause #:tcp-resume
+   #:tcp-pause #:tcp-resume #:tcp-set-nodelay #:tcp-set-keepalive
    #:tcp #:tcp-p #:tcp-state #:tcp-queued-bytes #:tcp-peer #:tcp-local
    #:tcp-on-data #:tcp-on-close #:tcp-on-error #:tcp-on-drain
    #:listener #:listener-p #:listener-port #:listener-close #:listener-address

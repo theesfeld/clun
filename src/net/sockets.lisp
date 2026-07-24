@@ -276,6 +276,24 @@ soon as it drains (the response's bytes are guaranteed to go out first)."
         (if tcp (%finish-close tcp nil :notify nil) (%safe-close-socket socket))
         (error e)))))
 
+(defun tcp-set-nodelay (tcp enabled)
+  "Set TCP_NODELAY on the underlying socket. ENABLED is a generalized boolean."
+  (when (and (tcp-p tcp) (tcp-socket tcp) (eq (tcp-state tcp) :open))
+    (ignore-errors
+      (setf (sb-bsd-sockets:sockopt-tcp-nodelay (tcp-socket tcp)) (and enabled t))))
+  (values))
+
+(defun tcp-set-keepalive (tcp enabled &optional (initial-delay-sec 0))
+  "Set SO_KEEPALIVE (and TCP_KEEPIDLE when INITIAL-DELAY-SEC > 0)."
+  (when (and (tcp-p tcp) (tcp-socket tcp) (eq (tcp-state tcp) :open))
+    (ignore-errors
+      (setf (sb-bsd-sockets:sockopt-keep-alive (tcp-socket tcp)) (and enabled t)))
+    (when (and enabled (numberp initial-delay-sec) (plusp initial-delay-sec))
+      (ignore-errors
+        (setf (sb-bsd-sockets:sockopt-tcp-keepidle (tcp-socket tcp))
+              (truncate initial-delay-sec)))))
+  (values))
+
 (defun tcp-peer (tcp)
   "(values address-vector port) of the peer, or NIL."
   (ignore-errors (sb-bsd-sockets:socket-peername (tcp-socket tcp))))

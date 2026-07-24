@@ -13,6 +13,11 @@ or assets and are not installable release checkpoints.
 
 ## [Unreleased]
 
+### Added
+- SharedArrayBuffer, Atomics, and real `worker_threads` (Issue #338).
+- Node surface destubs and residual zero-stub work (Issue #339).
+- WebSocket `wss:` via pure-tls worker path.
+
 ## [0.2.2] - 2026-07-21
 
 ### Fixed

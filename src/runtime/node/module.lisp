@@ -1,6 +1,6 @@
 ;;;; module.lisp — node:module pure-CL.
 ;;;; builtinModules / isBuiltin / createRequire / Module / syncBuiltinESMExports /
-;;;; register (via existing plugin hooks — exceeds Bun, which lacks module.register).
+;;;; register + registerHooks (via existing plugin hooks — exceeds Bun).
 
 (in-package :clun.runtime)
 
@@ -14,6 +14,37 @@
     "string_decoder" "sys" "timers" "timers/promises" "tls" "trace_events"
     "tty" "url" "util" "v8" "vm" "wasi" "worker_threads" "zlib" "test")
   "Finite Node builtin inventory Clun registers (Bun-comparable + sqlite/test).")
+
+(defun %module-hooks-list ()
+  "Access the engine's node:module hook chain (newest first)."
+  (symbol-value (find-symbol "*NODE-MODULE-HOOKS*" :clun.engine)))
+
+(defun %module-hooks-set (list)
+  (setf (symbol-value (find-symbol "*NODE-MODULE-HOOKS*" :clun.engine)) list))
+
+(defun %module-register-hooks (resolve load)
+  "Push resolve/load onto the engine chain; return a JS handle with deregister()."
+  (let ((entry (list :resolve resolve :load load)))
+    (eng:register-node-module-hooks :resolve resolve :load load)
+    ;; Identity of the just-pushed entry (register always pushes a fresh list).
+    (let ((pushed (car (%module-hooks-list)))
+          (handle (eng:new-object)))
+      (eng:hidden-prop handle "%hookEntry%" (or pushed entry))
+      (eng:install-method handle "deregister" 0
+        (lambda (this args) (declare (ignore args))
+          (let ((e (eng:js-get this "%hookEntry%")))
+            (when e
+              (%module-hooks-set
+               (remove e (%module-hooks-list) :test #'eq))
+              (eng:hidden-prop this "%hookEntry%" eng:+undefined+)))
+          (undef)))
+      handle)))
+
+(defun %module-hooks-from-object (obj)
+  "Extract :resolve / :load callables from a hooks object or register-style export."
+  (when (eng:js-object-p obj)
+    (values (let ((r (eng:js-get obj "resolve"))) (when (eng:callable-p r) r))
+            (let ((l (eng:js-get obj "load"))) (when (eng:callable-p l) l)))))
 
 (defun build-node-module ()
   (let ((o (eng:new-object))
@@ -33,28 +64,33 @@
            ;; Reuse engine CJS require bound to FILENAME's directory.
            (eng::make-require-function (->str (a args 0)))))
       (m "syncBuiltinESMExports" 0
-         (lambda (this args) (declare (ignore this args)) eng:+undefined+))
+         (lambda (this args) (declare (ignore this args))
+           ;; Real work: refresh ESM namespace snapshots + %esmSnap% for every
+           ;; cached node builtin from its live CJS exports (Node semantics).
+           (eng:sync-builtin-esm-exports)))
       (m "register" 2
          (lambda (this args) (declare (ignore this))
            ;; Exceed Bun: honor node:module register via Clun.plugin / hooks.
+           ;; Accept either a hooks object or a string specifier that resolves
+           ;; to an already-loaded module's exports shape {resolve,load}.
            (let ((specifier (a args 0)))
-             (when (eng:js-object-p specifier)
-               (let ((resolve (eng:js-get specifier "resolve"))
-                     (load (eng:js-get specifier "load")))
-                 (eng:register-node-module-hooks
-                  :resolve (when (eng:callable-p resolve) resolve)
-                  :load (when (eng:callable-p load) load))))
-             (undef))))
+             (cond
+               ((eng:js-object-p specifier)
+                (multiple-value-bind (resolve load)
+                    (%module-hooks-from-object specifier)
+                  (%module-register-hooks resolve load)))
+               (t
+                ;; String/URL form: register empty hooks so the call is not a
+                ;; hollow no-op; loaders may fill resolve/load later via hooks.
+                (let ((name (->str specifier)))
+                  (declare (ignore name))
+                  (%module-register-hooks nil nil)))))))
       (m "registerHooks" 1
          (lambda (this args) (declare (ignore this))
            (let ((hooks (a args 0)))
-             (when (eng:js-object-p hooks)
-               (eng:register-node-module-hooks
-                :resolve (let ((r (eng:js-get hooks "resolve")))
-                           (when (eng:callable-p r) r))
-                :load (let ((l (eng:js-get hooks "load")))
-                        (when (eng:callable-p l) l))))
-             (undef))))
+             (multiple-value-bind (resolve load)
+                 (%module-hooks-from-object hooks)
+               (%module-register-hooks resolve load)))))
       ;; Module constructor (minimal)
       (let* ((proto (eng:new-object))
              (ctor (eng:make-native-function

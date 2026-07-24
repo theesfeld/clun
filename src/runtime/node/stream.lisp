@@ -25,13 +25,26 @@
   (eng:data-prop obj "readable" (eng:js-boolean readable))
   (eng:data-prop obj "writable" (eng:js-boolean writable))
   (eng:data-prop obj "destroyed" eng:+false+)
+  (when readable
+    (let ((state (eng:js-get obj "_readableState")))
+      (eng:data-prop state "flowing" eng:+null+)
+      (eng:data-prop state "paused" eng:+false+)))
   obj)
 
 (defun %stream-push (this chunk)
   (let* ((state (eng:js-get this "_readableState"))
-         (buf (eng:js-get state "buffer")))
-    (eng:hidden-prop state "buffer" (append (if (listp buf) buf '()) (list chunk)))
-    (eng:js-call (eng:js-get this "emit") this (list "data" chunk))
+         (buf (eng:js-get state "buffer"))
+         (flowing (eng:js-get state "flowing"))
+         (paused (eng:js-truthy (eng:js-get state "paused")))
+         (auto-flow (or (eng:js-null-p flowing)
+                        (eng:js-undefined-p flowing)
+                        (eng:js-truthy flowing))))
+    (if (and (not paused) auto-flow)
+        (progn
+          (eng:js-set state "flowing" eng:+true+ nil)
+          (eng:js-call (eng:js-get this "emit") this (list "data" chunk)))
+        (eng:hidden-prop state "buffer"
+                         (append (if (listp buf) buf '()) (list chunk))))
     eng:+true+))
 
 (defun %stream-read (this)
@@ -120,9 +133,31 @@
       (eng:install-method proto "read" 1
         (lambda (this args) (declare (ignore args)) (%stream-read this)))
       (eng:install-method proto "resume" 0
-        (lambda (this args) (declare (ignore args)) this))
+        (lambda (this args)
+          (declare (ignore args))
+          (let ((state (eng:js-get this "_readableState")))
+            (eng:js-set state "paused" eng:+false+ nil)
+            (eng:js-set state "flowing" eng:+true+ nil)
+            ;; Drain buffered chunks as 'data' events (Node-ish flowing mode).
+            (loop for chunk = (%stream-read this)
+                  until (eng:js-null-p chunk)
+                  do (eng:js-call (eng:js-get this "emit") this
+                                  (list "data" chunk)))
+            (eng:js-call (eng:js-get this "emit") this (list "resume")))
+          this))
       (eng:install-method proto "pause" 0
-        (lambda (this args) (declare (ignore args)) this))
+        (lambda (this args)
+          (declare (ignore args))
+          (let ((state (eng:js-get this "_readableState")))
+            (eng:js-set state "paused" eng:+true+ nil)
+            (eng:js-set state "flowing" eng:+false+ nil)
+            (eng:js-call (eng:js-get this "emit") this (list "pause")))
+          this))
+      (eng:install-method proto "isPaused" 0
+        (lambda (this args)
+          (declare (ignore args))
+          (let ((state (eng:js-get this "_readableState")))
+            (eng:js-boolean (eng:js-truthy (eng:js-get state "paused"))))))
       (eng:install-method proto "pipe" 2
         (lambda (this args)
           (let ((dest (a args 0)))

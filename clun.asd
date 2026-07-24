@@ -8,7 +8,7 @@
   :license "GPL-3.0-or-later"
   ;; ASDF wants dotted integers; the user-facing prerelease is defined in
   ;; src/version.lisp and may advance independently within this core.
-  :version "0.2.2"
+  :version "0.3.0"
   ;; SBCL contribs for the event loop (Phase 05); cl-ppcre is the RegExp backend
   ;; (Phase 10, vendored + pure). sb-thread is built in (feature :sb-thread).
   :depends-on ((:require "sb-posix") (:require "sb-concurrency") (:require "sb-bsd-sockets")
@@ -211,6 +211,8 @@
                                            ;; TypedArray exotics, DataView, TextEncoder/Decoder.
                                            ;; After collections (iterator protocol), before global.
                                            (:file "builtins-binary")
+                                           ;; SharedArrayBuffer + Atomics (Issue #338)
+                                           (:file "builtins-shared-memory")
                                            (:file "builtins-date")
                                            (:file "builtins-math")
                                            (:file "builtins-json")
@@ -342,6 +344,7 @@
                                                          (:file "tls")
                                                          (:file "http2")
                                                          (:file "dgram")
+                                                         (:file "worker_threads")
                                                          (:file "remaining")
                                                          (:file "aliases")))))
                              ;; test runner (Phase 15): clun test — discovery, tree +
@@ -452,7 +455,8 @@
                                                          (:file "plugin-tests")
                                                          (:file "inspect-tests")
                                                          (:file "regexp-tests")
-                                                         (:file "binary-tests")))
+                                                         (:file "binary-tests")
+                                                         (:file "shared-memory-tests")))
                                            (:module "runtime"
                                             :serial t
                                             :components ((:file "runtime-tests")

@@ -104,11 +104,20 @@
           (eng:js-call (a args 1) (undef)
             (list eng:+null+ (eng:new-array (list (->str (a args 0)))))))
         (undef)))
+    (eng:hidden-prop o "_servers" '("1.1.1.1" "8.8.8.8"))
     (eng:install-method o "getServers" 0
-      (lambda (this args) (declare (ignore this args))
-        (eng:new-array '("1.1.1.1" "8.8.8.8"))))
+      (lambda (this args) (declare (ignore args))
+        (eng:new-array (copy-list (eng:js-get this "_servers")))))
     (eng:install-method o "setServers" 1
-      (lambda (this args) (declare (ignore this args)) eng:+undefined+))
+      (lambda (this args)
+        (let ((v (a args 0)))
+          (eng:hidden-prop this "_servers"
+                           (if (eng:js-array-p v)
+                               (loop for i below (eng:array-length v)
+                                     collect (->str (eng:js-getv v (princ-to-string i))))
+                               (if (undef-p v) '("1.1.1.1" "8.8.8.8")
+                                   (list (->str v)))))
+          eng:+undefined+)))
     (eng:data-prop o "ADDRCONFIG" 1024d0)
     (eng:data-prop o "V4MAPPED" 2048d0)
     (eng:data-prop o "ALL" 256d0)

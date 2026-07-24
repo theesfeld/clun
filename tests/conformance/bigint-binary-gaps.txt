@@ -19,7 +19,8 @@
 # ============================================================================
 #   resizable-arraybuffer      maxByteLength / resize / grow, length-tracking views.
 #       Not modeled; the ctor `maxByteLength` option is simply ignored (fixed-length).
-#   SharedArrayBuffer, Atomics  (Phase 12 / non-goal) — constructors absent.
+#   SharedArrayBuffer, Atomics  — implemented (Issue #338); still feature-skipped in
+#       test262 runner until pass-list curation; own fixtures + Lisp suite gate surface.
 #
 # ============================================================================
 # B. RUN-AND-FAIL (documented gaps; counted against the rates)

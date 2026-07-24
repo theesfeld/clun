@@ -6,21 +6,19 @@ Ship path: topic branch → PR → squash-merge into `master` (not direct push).
 
 ---
 
-## Current phase: **26 - COMPLETE (patch 0.2.2 published)**
+## Current phase: **46 - Processes, VM, workers, shared-memory multithreading**
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/58
-**Program phase:** 26 (complete)
-**Published surface tip:** `0.2.2` / `v0.2.2`
+**Canonical issue:** https://github.com/theesfeld/clun/issues/338
+**Related:** https://github.com/theesfeld/clun/issues/339 · PR https://github.com/theesfeld/clun/pull/340
+**Program note:** Phase 26 patch `0.2.2` remains the last **published** installable boundary.
+**Source candidate:** `0.3.0` / `v0.3.0` (candidate; not published)
 **Installer default:** `verified_installer_tag=v0.2.2`
-**SemVer impact:** `patch` (shipped)
-**Release commit:** `8a1e1a93e441e02b8b0af28c8b3cfa06567263f7`
-**Release run:** https://github.com/theesfeld/clun/actions/runs/29855624052
+**SemVer impact:** `minor` (shared-memory multithreading + destub capability)
 
-### Shipped
-- Patch after `0.2.1`: `clun --update` installs packaged man page into XDG man path (parity with site/install)
-- Four native archives + `checksums.txt` on GitHub Release `v0.2.2`
+### Shipped on branch (unpublished)
+- SharedArrayBuffer + Atomics + real worker_threads (#338)
+- Hollow node surface destubs (#339) — ongoing residuals
+- Source version staged `0.3.0` candidate; installer stays on published `v0.2.2`
 
 ### Gates
-Tag + four-arch assets + checksums + publication reconcile.
-
----
+`make build`, `make test`, `make purity`, `make public-claims-check`, version-transition for this unit.

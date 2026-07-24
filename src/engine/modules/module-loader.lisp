@@ -242,6 +242,59 @@ builtin throws (as Node does for `node:`)."
                   (make-module-record :resolved-path key :format :cjs :status :evaluated
                                       :cjs-exports exports)))))))
 
+(defun %node-builtin-registry-key-p (key)
+  "True when KEY is the realm registry key for a node: builtin (NUL + \"node:\"…)."
+  (and (stringp key)
+       (plusp (length key))
+       (char= (char key 0) (code-char 0))
+       (>= (length key) 6)
+       (string= key "node:" :start1 1 :end1 6)))
+
+(defun %own-string-keys (o)
+  "Own string property keys of O (enumerable or not). Used for builtin ESM sync
+because install-method defines non-enumerable methods that are still exports."
+  (when (js-object-p o)
+    (loop for k in (jm-own-property-keys o)
+          when (stringp k)
+          collect k)))
+
+(defun sync-builtin-esm-exports ()
+  "Node `module.syncBuiltinESMExports`: refresh ESM namespace snapshots for every
+cached node builtin so named export values match the live CommonJS exports object.
+Does not add or remove exported names (Node semantics). Also refreshes a hidden
+`%esmSnap%` object on each CJS exports object so the sync is observable even when
+no module-namespace object has been materialised yet."
+  (let ((tbl (and *realm* (realm-modules *realm*))))
+    (when tbl
+      (maphash
+       (lambda (key mr)
+         (when (and (%node-builtin-registry-key-p key)
+                    mr
+                    (eq (mr-format mr) :cjs)
+                    (js-object-p (mr-cjs-exports mr)))
+           (let* ((exports (or (mr-mock-exports mr) (mr-cjs-exports mr)))
+                  (ns (mr-namespace mr))
+                  (snap (js-get exports "%esmSnap%")))
+             ;; Honest export snapshot: first sync seeds names from current own
+             ;; string keys (incl. non-enumerable methods); later syncs only
+             ;; update those existing names (never add/remove).
+             (unless (js-object-p snap)
+               (setf snap (new-object))
+               (hidden-prop exports "%esmSnap%" snap)
+               (dolist (k (%own-string-keys exports))
+                 (unless (string= k "%esmSnap%")
+                   (data-prop snap k (js-get exports k)))))
+             (dolist (k (copy-list (%own-string-keys snap)))
+               (data-prop snap k (js-get exports k)))
+             ;; Materialised module namespace (from prior ESM import / namespace build).
+             (when (js-object-p ns)
+               (dolist (k (%own-string-keys ns))
+                 (if (string= k "default")
+                     (data-prop ns "default" exports)
+                     (data-prop ns k (js-get exports k))))))))
+       tbl)))
+  +undefined+)
+
 ;;; --- resolver boundary: map clun.resolver errors to JS errors ---------------
 
 (defun resolve-specifier (specifier referrer-dir conditions)
