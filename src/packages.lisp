@@ -399,7 +399,7 @@ Purity constrains Clun implementation, not user-loaded addons.")
   (:documentation "Sockets, HTTP parser/server/client, fetch, TLS integration.")
   (:export ;; Phase 16 — TCP handle layer on the reactor
    #:tcp-listen #:tcp-connect #:tcp-connect-happy #:tcp-write #:tcp-close #:tcp-shutdown
-   #:tcp-pause #:tcp-resume
+   #:tcp-pause #:tcp-resume #:tcp-set-nodelay #:tcp-set-keepalive
    #:tcp #:tcp-p #:tcp-state #:tcp-queued-bytes #:tcp-peer #:tcp-local
    #:tcp-on-data #:tcp-on-close #:tcp-on-error #:tcp-on-drain
    #:listener #:listener-p #:listener-port #:listener-close #:listener-address

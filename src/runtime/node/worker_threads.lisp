@@ -16,6 +16,15 @@
 (defparameter *wt-next-id* 1)
 (defparameter *wt-id-lock* (sb-thread:make-mutex :name "clun-wt-id"))
 
+;;; worker_threads.get/setEnvironmentData — process-wide shared map (Node parity).
+(defparameter *wt-env-data* (make-hash-table :test 'equal))
+(defparameter *wt-env-data-lock* (sb-thread:make-mutex :name "clun-wt-env"))
+;;; markAsUntransferable — objects marked must not be transferred (we only clone).
+(defparameter *wt-untransferable* (make-hash-table :test 'eq :weakness :key))
+;;; BroadcastChannel name → list of channel hosts (same-process).
+(defparameter *wt-broadcast* (make-hash-table :test 'equal))
+(defparameter *wt-broadcast-lock* (sb-thread:make-mutex :name "clun-wt-bc"))
+
 (defun %wt-alloc-thread-id ()
   (sb-thread:with-mutex (*wt-id-lock*)
     (prog1 (coerce *wt-next-id* 'double-float)
@@ -116,8 +125,81 @@ data block; ArrayBuffer is copied; functions reject."
       ;; Clone in the *sender* realm first so SAB blocks are captured, then
       ;; deliver the clone structure; receiver re-wraps SAB in its realm.
       (let ((payload (%wt-clone value)))
+        ;; Sync queue for receiveMessageOnPort (Node: does not fire 'message').
+        (sb-concurrency:send-message (wph-mailbox peer) payload)
         (%wt-port-deliver peer payload))))
   eng:+undefined+)
+
+(defun %wt-receive-on-port (port-js)
+  "Node receiveMessageOnPort(port) → {message} | undefined."
+  (let ((host (eng:js-get port-js "_wtPort")))
+    (unless host
+      ;; Same-thread MessagePort from web MessageChannel: no wt host.
+      (return-from %wt-receive-on-port eng:+undefined+))
+    (multiple-value-bind (msg ok)
+        (sb-concurrency:receive-message-no-hang (wph-mailbox host))
+      (if ok
+          (let ((o (eng:new-object)))
+            (eng:data-prop o "message" msg)
+            o)
+          eng:+undefined+))))
+
+(defun %wt-env-key (v)
+  (cond
+    ((eng:js-symbol-p v) (format nil "@@~a" (eng:to-string v)))
+    (t (eng:to-string v))))
+
+(defun %wt-get-environment-data (key)
+  (sb-thread:with-mutex (*wt-env-data-lock*)
+    (multiple-value-bind (val found) (gethash (%wt-env-key key) *wt-env-data*)
+      (if found val eng:+undefined+))))
+
+(defun %wt-set-environment-data (key value)
+  (sb-thread:with-mutex (*wt-env-data-lock*)
+    (if (eng:js-undefined-p value)
+        (remhash (%wt-env-key key) *wt-env-data*)
+        (setf (gethash (%wt-env-key key) *wt-env-data*) (%wt-clone value))))
+  eng:+undefined+)
+
+(defun %wt-make-broadcast-channel (name)
+  (let* ((nm (->str name))
+         (ch (%ev-init (eng:new-object)))
+         (closed nil))
+    (eng:data-prop ch "name" nm)
+    (eng:hidden-prop ch "_bcName" nm)
+    (sb-thread:with-mutex (*wt-broadcast-lock*)
+      (push ch (gethash nm *wt-broadcast* '())))
+    (eng:install-method ch "postMessage" 1
+      (lambda (this args)
+        (declare (ignore this))
+        (unless closed
+          (let ((payload (%wt-clone (eng:arg args 0)))
+                (peers (sb-thread:with-mutex (*wt-broadcast-lock*)
+                         (copy-list (gethash nm *wt-broadcast* '())))))
+            (dolist (peer peers)
+              (unless (eq peer ch)
+                (let ((loop (ignore-errors (eng:current-loop)))
+                      (deliver
+                       (let ((p peer) (msg payload))
+                         (lambda ()
+                           (%ev-emit p "message" (list msg))))))
+                  (if loop
+                      (lp:loop-post loop deliver)
+                      (funcall deliver)))))))
+        eng:+undefined+))
+    (eng:install-method ch "close" 0
+      (lambda (this args)
+        (declare (ignore this args))
+        (unless closed
+          (setf closed t)
+          (sb-thread:with-mutex (*wt-broadcast-lock*)
+            (setf (gethash nm *wt-broadcast*)
+                  (remove ch (gethash nm *wt-broadcast* '()) :test #'eq))))
+        eng:+undefined+))
+    (eng:install-method ch "ref" 0 (lambda (this args) (declare (ignore args)) this))
+    (eng:install-method ch "unref" 0 (lambda (this args) (declare (ignore args)) this))
+    (%wire-ee ch)
+    ch))
 
 (defun %wt-port-close (host)
   (sb-thread:with-mutex ((wph-lock host))
@@ -284,9 +366,17 @@ data block; ArrayBuffer is copied; functions reject."
         (declare (ignore this args))
         (%wt-terminate host)))
     (eng:install-method js-worker "ref" 0
-      (lambda (this args) (declare (ignore args)) this))
+      (lambda (this args)
+        (declare (ignore args))
+        (when (wph-loop-handle main-port)
+          (lp:handle-ref (wph-loop-handle main-port)))
+        this))
     (eng:install-method js-worker "unref" 0
-      (lambda (this args) (declare (ignore args)) this))
+      (lambda (this args)
+        (declare (ignore args))
+        (when (wph-loop-handle main-port)
+          (lp:handle-unref (wph-loop-handle main-port)))
+        this))
     ;; Deliver messages arriving on main-port to worker 'message' events.
     (setf (wph-js-object main-port) js-worker)
     (let ((h (lp:make-handle main-loop)))
@@ -335,15 +425,25 @@ data block; ArrayBuffer is copied; functions reject."
     (eng:data-prop o "resourceLimits" (or *wt-resource-limits* (eng:new-object)))
     (eng:data-prop o "SHARE_ENV" (eng:new-object))
     (eng:install-method o "getEnvironmentData" 1
-      (lambda (this args) (declare (ignore this args)) eng:+undefined+))
+      (lambda (this args) (declare (ignore this))
+        (%wt-get-environment-data (eng:arg args 0))))
     (eng:install-method o "setEnvironmentData" 2
-      (lambda (this args) (declare (ignore this args)) eng:+undefined+))
+      (lambda (this args) (declare (ignore this))
+        (%wt-set-environment-data (eng:arg args 0) (eng:arg args 1))))
     (eng:install-method o "markAsUntransferable" 1
-      (lambda (this args) (declare (ignore this args)) eng:+undefined+))
+      (lambda (this args) (declare (ignore this))
+        (let ((v (eng:arg args 0)))
+          (when (eng:js-object-p v)
+            (setf (gethash v *wt-untransferable*) t)
+            (eng:hidden-prop v "_untransferable" eng:+true+)))
+        eng:+undefined+))
     (eng:install-method o "moveMessagePortToContext" 2
-      (lambda (this args) (declare (ignore this args)) eng:+undefined+))
+      (lambda (this args) (declare (ignore this))
+        ;; Clun has no multi-context isolate; return the port (identity move).
+        (eng:arg args 0)))
     (eng:install-method o "receiveMessageOnPort" 1
-      (lambda (this args) (declare (ignore this args)) eng:+undefined+))
+      (lambda (this args) (declare (ignore this))
+        (%wt-receive-on-port (eng:arg args 0))))
     (let* ((proto (eng:new-object))
            (ctor (eng:make-native-function
                   "Worker" 2
@@ -366,11 +466,35 @@ data block; ArrayBuffer is copied; functions reject."
     (eng:data-prop o "MessagePort"
                    (eng:make-native-function
                     "MessagePort" 0
-                    (lambda (this args) (declare (ignore this args)) eng:+undefined+)))
-    (eng:data-prop o "BroadcastChannel"
-                   (eng:make-native-function
-                    "BroadcastChannel" 1
-                    (lambda (this args) (declare (ignore this args)) eng:+undefined+)))
+                    (lambda (this args)
+                      (declare (ignore this args))
+                      (eng:throw-type-error
+                       "MessagePort constructor cannot be invoked without 'new' / is not constructable from JS"))
+                    :construct
+                    (lambda (args nt)
+                      (declare (ignore args nt))
+                      (eng:throw-type-error
+                       "MessagePort constructor is not directly constructable"))))
+    (let* ((bc-proto (eng:new-object))
+           (bc-ctor
+            (eng:make-native-function
+             "BroadcastChannel" 1
+             (lambda (this args)
+               (when (eng:js-object-p this)
+                 (let ((real (%wt-make-broadcast-channel (eng:arg args 0))))
+                   ;; Copy essential surface onto `this` when called as function+this.
+                   (eng:data-prop this "name" (eng:js-get real "name"))
+                   (dolist (m '("postMessage" "close" "ref" "unref" "on" "once" "emit"
+                                "addListener" "removeListener" "off"))
+                     (eng:data-prop this m (eng:js-get real m)))
+                   (eng:hidden-prop this "_bcReal" real)))
+               eng:+undefined+)
+             :construct
+             (lambda (args nt)
+               (declare (ignore nt))
+               (%wt-make-broadcast-channel (eng:arg args 0))))))
+      (eng:data-prop bc-ctor "prototype" bc-proto)
+      (eng:data-prop o "BroadcastChannel" bc-ctor))
     o))
 
 (register-node-builtin "worker_threads" #'build-node-worker-threads)
