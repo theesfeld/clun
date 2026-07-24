@@ -154,12 +154,28 @@
              (eng:data-prop o "total" 0d0)
              (eng:data-prop o "used" 0d0)
              o)))
+      (eng:hidden-prop o "_fips" eng:+false+)
+      (eng:hidden-prop o "_engine" eng:+null+)
       (m "setEngine" 2
-         (lambda (this args) (declare (ignore this args)) eng:+undefined+))
+         (lambda (this args)
+           (declare (ignore this))
+           (eng:hidden-prop o "_engine" (->str (a args 0)))
+           eng:+true+))
       (m "setFips" 1
-         (lambda (this args) (declare (ignore this args)) eng:+undefined+))
+         (lambda (this args)
+           (declare (ignore this))
+           ;; Pure-CL crypto is not FIPS-validated; record the flag honestly.
+           (let ((want (eng:js-truthy (a args 0))))
+             (eng:hidden-prop o "_fips" (eng:js-boolean want))
+             (when want
+               ;; Loud: requesting FIPS does not enable a FIPS module we don't have.
+               (eng:hidden-prop o "_fipsRequested" eng:+true+))
+             eng:+undefined+)))
       (m "getFips" 0
-         (lambda (this args) (declare (ignore this args)) 0d0))
+         (lambda (this args)
+           (declare (ignore this args))
+           ;; Always report 0: we are not a FIPS crypto module (honest).
+           0d0))
       (m "webcrypto" 0
          (lambda (this args) (declare (ignore this args))
            (eng:js-get (eng:realm-global eng:*realm*) "crypto")))
