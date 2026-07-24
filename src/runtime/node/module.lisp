@@ -64,7 +64,10 @@
            ;; Reuse engine CJS require bound to FILENAME's directory.
            (eng::make-require-function (->str (a args 0)))))
       (m "syncBuiltinESMExports" 0
-         (lambda (this args) (declare (ignore this args)) eng:+undefined+))
+         (lambda (this args) (declare (ignore this args))
+           ;; Real work: refresh ESM namespace snapshots + %esmSnap% for every
+           ;; cached node builtin from its live CJS exports (Node semantics).
+           (eng:sync-builtin-esm-exports)))
       (m "register" 2
          (lambda (this args) (declare (ignore this))
            ;; Exceed Bun: honor node:module register via Clun.plugin / hooks.

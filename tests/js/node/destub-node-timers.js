@@ -1,11 +1,23 @@
-// #339 residual destubs: timers enroll/unenroll/active, module.registerHooks,
-// perf_hooks timeline/histogram, async_hooks ALS/disable/createHook, readline lines.
+// #339 residual destubs: timers enroll/unenroll/active, module.syncBuiltinESMExports,
+// perf_hooks timeline/observer, async_hooks resource/destroy/ALS, readline lines.
 const timers = require("node:timers");
 const mod = require("node:module");
-const { performance, monitorEventLoopDelay, createHistogram } = require("node:perf_hooks");
-const { AsyncLocalStorage, AsyncResource, createHook, executionAsyncId } = require("node:async_hooks");
+const {
+  performance,
+  PerformanceObserver,
+  monitorEventLoopDelay,
+  createHistogram,
+} = require("node:perf_hooks");
+const {
+  AsyncLocalStorage,
+  AsyncResource,
+  createHook,
+  executionAsyncId,
+  executionAsyncResource,
+} = require("node:async_hooks");
 const readline = require("node:readline");
 const { Readable, PassThrough } = require("node:stream");
+const fs = require("node:fs");
 
 // --- timers.enroll / unenroll / active ---
 let fired = 0;
@@ -42,7 +54,36 @@ setTimeout(() => {
     handle.deregister();
     if (typeof mod.register !== "function") throw new Error("register missing");
 
-    // --- perf_hooks ---
+    // --- module.syncBuiltinESMExports: real snapshot refresh ---
+    if (typeof mod.syncBuiltinESMExports !== "function") {
+      throw new Error("syncBuiltinESMExports missing");
+    }
+    const syncRet = mod.syncBuiltinESMExports();
+    if (syncRet !== undefined) throw new Error("syncBuiltinESMExports return");
+    const snap = fs["%esmSnap%"];
+    if (!snap || typeof snap !== "object") {
+      throw new Error("sync must create %esmSnap% on cached builtins");
+    }
+    if (typeof snap.readFile !== "function") {
+      throw new Error("snap missing readFile after seed");
+    }
+    const fakeRead = function fakeReadFile() { return "synced"; };
+    const prevRead = fs.readFile;
+    fs.readFile = fakeRead;
+    mod.syncBuiltinESMExports();
+    if (snap.readFile !== fakeRead) {
+      throw new Error("sync did not refresh existing snap binding");
+    }
+    fs.readFile = prevRead;
+    mod.syncBuiltinESMExports();
+    fs.__brandNewForSyncTest = 1;
+    mod.syncBuiltinESMExports();
+    if (snap.__brandNewForSyncTest === 1) {
+      throw new Error("sync must not add new export names");
+    }
+    delete fs.__brandNewForSyncTest;
+
+    // --- perf_hooks timeline + PerformanceObserver ---
     const t0 = performance.now();
     if (typeof t0 !== "number" || t0 < 0) throw new Error("performance.now");
     performance.mark("a");
@@ -53,6 +94,28 @@ setTimeout(() => {
     if (marks.length < 2) throw new Error("marks not stored: " + marks.length);
     if (measures.length < 1) throw new Error("measures not stored");
     if (typeof measures[0].duration !== "number") throw new Error("measure duration");
+    const byName = performance.getEntriesByName("a");
+    if (byName.length < 1) throw new Error("getEntriesByName");
+    const all = performance.getEntries();
+    if (all.length < 3) throw new Error("getEntries");
+
+    let obsHits = 0;
+    const obs = new PerformanceObserver((list) => {
+      obsHits += list.getEntries().length;
+    });
+    obs.observe({ entryTypes: ["mark"] });
+    performance.mark("obs-mark");
+    if (obsHits < 1) throw new Error("PerformanceObserver callback not fired");
+    const pending = obs.takeRecords();
+    // pending may include the mark (also delivered via callback); length is finite
+    if (!Array.isArray(pending) && typeof pending.length !== "number") {
+      throw new Error("takeRecords shape");
+    }
+    obs.disconnect();
+    const hitsAfter = obsHits;
+    performance.mark("after-disconnect");
+    if (obsHits !== hitsAfter) throw new Error("observer should ignore after disconnect");
+
     performance.clearMarks();
     if (performance.getEntriesByType("mark").length !== 0) throw new Error("clearMarks");
     performance.clearMeasures();
@@ -84,19 +147,34 @@ setTimeout(() => {
     als.disable();
     if (als.getStore() !== undefined) throw new Error("ALS disable");
 
+    const topRes = executionAsyncResource();
+    if (topRes === null || typeof topRes !== "object") {
+      throw new Error("executionAsyncResource top-level must be object");
+    }
+
     let inits = 0;
+    let destroys = 0;
     const hook = createHook({
-      init() { inits++; }
+      init() { inits++; },
+      destroy() { destroys++; }
     });
     hook.enable();
     const ar = new AsyncResource("Test");
-    const scoped = ar.runInAsyncScope(() => 9);
+    if (inits < 1) throw new Error("createHook init not fired");
+    const scoped = ar.runInAsyncScope(() => {
+      const res = executionAsyncResource();
+      if (res !== ar) throw new Error("executionAsyncResource in scope");
+      return 9;
+    });
     if (scoped !== 9) throw new Error("runInAsyncScope");
     ar.emitDestroy();
+    if (destroys < 1) throw new Error("emitDestroy must fire destroy hooks");
+    ar.emitDestroy(); // second call must not re-fire
+    if (destroys !== 1) throw new Error("emitDestroy must be once-only: " + destroys);
     hook.disable();
     if (typeof executionAsyncId() !== "number") throw new Error("executionAsyncId");
 
-    // --- readline line buffering ---
+    // --- readline line buffering (no ANSI writes to stdout) ---
     const input = new Readable({ read() {} });
     const output = new PassThrough();
     const rl = readline.createInterface({ input, output });
@@ -110,6 +188,17 @@ setTimeout(() => {
     rl.write("world\n");
     if (lineGot !== "world") throw new Error("readline write feed: " + lineGot);
     rl.close();
+
+    // ANSI helpers write to a sink stream only (never process.stdout)
+    const sinkChunks = [];
+    const sink = new PassThrough();
+    sink.on("data", (c) => sinkChunks.push(String(c)));
+    readline.cursorTo(sink, 2, 3);
+    readline.moveCursor(sink, 1, -1);
+    readline.clearLine(sink, 0);
+    readline.clearScreenDown(sink);
+    if (sinkChunks.length < 1) throw new Error("readline ANSI helpers wrote nothing");
+    readline.emitKeypressEvents(sink);
 
     console.log("destub-node-timers-ok");
   }, 30);

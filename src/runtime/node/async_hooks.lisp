@@ -14,11 +14,23 @@
 
 (defvar *trigger-async-id* 0d0)
 
+(defvar *execution-async-resource* nil
+  "Current execution async resource object (AsyncResource or top-level handle).")
+
+(defvar *top-level-async-resource* nil
+  "Empty object returned by executionAsyncResource() at top-level (Node-compat).")
+
 (defvar *enabled-async-hooks* nil
   "List of enabled hook objects (JS objects with _hooks).")
 
 (defvar *disabled-als* nil
   "List of AsyncLocalStorage instances that have been disable()'d.")
+
+(defun %execution-async-resource ()
+  "Resource for the current execution context. Top-level → stable empty object."
+  (or *execution-async-resource*
+      *top-level-async-resource*
+      (setf *top-level-async-resource* (eng:new-object))))
 
 (defun %next-async-id ()
   (incf *async-id-counter*)
@@ -129,9 +141,11 @@
                (rest (nthcdr 2 args))
                (aid (eng:js-get this "_asyncId"))
                (prev *execution-async-id*)
-               (prev-trig *trigger-async-id*))
+               (prev-trig *trigger-async-id*)
+               (prev-res *execution-async-resource*))
           (setf *execution-async-id* (if (numberp aid) (coerce aid 'double-float) aid)
-                *trigger-async-id* (or (eng:js-get this "_triggerAsyncId") 0d0))
+                *trigger-async-id* (or (eng:js-get this "_triggerAsyncId") 0d0)
+                *execution-async-resource* this)
           (%fire-async-hook "before" *execution-async-id* *trigger-async-id*
                             (->str (eng:js-get this "type")) this)
           (unwind-protect
@@ -141,7 +155,8 @@
             (%fire-async-hook "after" *execution-async-id* *trigger-async-id*
                               (->str (eng:js-get this "type")) this)
             (setf *execution-async-id* prev
-                  *trigger-async-id* prev-trig)))))
+                  *trigger-async-id* prev-trig
+                  *execution-async-resource* prev-res)))))
     (eng:install-method ar-proto "asyncId" 0
       (lambda (this args) (declare (ignore args))
         (eng:js-get this "_asyncId")))
@@ -150,11 +165,14 @@
         (eng:js-get this "_triggerAsyncId")))
     (eng:install-method ar-proto "emitDestroy" 0
       (lambda (this args) (declare (ignore args))
-        (let ((aid (eng:js-get this "_asyncId")))
-          (%fire-async-hook "destroy" (if (numberp aid) aid 0d0)
-                            *trigger-async-id*
-                            (->str (eng:js-get this "type")) this))
-        (undef)))
+        (let ((aid (eng:js-get this "_asyncId"))
+              (destroyed (eng:js-get this "%destroyed%")))
+          (unless (eng:js-truthy destroyed)
+            (eng:hidden-prop this "%destroyed%" eng:+true+)
+            (%fire-async-hook "destroy" (if (numberp aid) aid 0d0)
+                              (or (eng:js-get this "_triggerAsyncId") *trigger-async-id*)
+                              (->str (eng:js-get this "type")) this)))
+        this))
     (eng:data-prop o "AsyncLocalStorage" als-ctor)
     (eng:data-prop o "AsyncResource" ar-ctor)
     (eng:install-method o "executionAsyncId" 0
@@ -162,7 +180,8 @@
     (eng:install-method o "triggerAsyncId" 0
       (lambda (this args) (declare (ignore this args)) *trigger-async-id*))
     (eng:install-method o "executionAsyncResource" 0
-      (lambda (this args) (declare (ignore this args)) eng:+null+))
+      (lambda (this args) (declare (ignore this args))
+        (%execution-async-resource)))
     (eng:install-method o "createHook" 1
       (lambda (this args) (declare (ignore this))
         (let ((hooks (a args 0))

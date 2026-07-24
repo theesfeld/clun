@@ -342,7 +342,7 @@ Purity constrains Clun implementation, not user-loaded addons.")
    ;; realm accessors the runtime/CLI need
    #:run-module-file #:run-module-source #:eval-source #:realm-global #:realm-clock-now-ms
    #:realm-coverage-session #:realm-loop
-   #:register-module-mock #:register-bun-builtin
+   #:register-module-mock #:register-bun-builtin #:sync-builtin-esm-exports
    #:plugin-clear-all #:plugin-clear #:plugin-list-names
    #:register-cl-plugin #:register-node-module-hooks #:clear-node-module-hooks
    #:teardown-realm #:run-callback-to-settlement #:drive-jobs #:current-loop
