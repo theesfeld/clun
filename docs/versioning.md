@@ -419,3 +419,7 @@ Issue #304 (updater maturity rank + TLS recovery + TTY update notice) advances t
 
 Issue #58 finishes Phase 26 with the first stable release `0.2.0` / `v0.2.0` after published `v0.2.0-beta.2`. SemVer impact is `minor` (maturity promotion off the beta train; no intentional matrix expansion). Historical beta tags remain immutable and are not deleted. The verified installer advances to `v0.2.0` only after assets publish.
 
+
+Issue #338 / #339 (shared-memory multithreading + zero-stubs residuals, PR #340) stages free stable
+candidate `0.3.0` / `v0.3.0` after published `v0.2.2`. SemVer impact is `minor`. The verified
+installer boundary remains `v0.2.2` until `v0.3.0` assets and hosted installation are proven.

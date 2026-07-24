@@ -10,15 +10,15 @@ JavaScript is only what **you** run.
 Clun is pre-1.0. Do not claim speed parity with Bun. Publish only measured performance data.
 
 <!-- clun-generated:release:begin -->
-> **Status: stable release train.** Latest release: [`v0.2.2`](https://github.com/theesfeld/clun/releases/tag/v0.2.2).
-> Installable boundary: four native archives, checksums, Pages installer, and `clun --update`.
+> **Status: stable release train.** Source is the `0.3.0` stable candidate.
+> Installable boundary remains published [`v0.2.2`](https://github.com/theesfeld/clun/releases/tag/v0.2.2).
 > Capability matrix: 30 Yes / 0 Partial / 0 No (evidence-backed).
 > Implementation: pure Common Lisp. Source: [theesfeld/clun](https://github.com/theesfeld/clun).
 <!-- clun-generated:release:end -->
 
-Published [`v0.2.2`](https://github.com/theesfeld/clun/releases/tag/v0.2.2) is the verified installable boundary (four native archives, `checksums.txt`, install to `~/.local/bin`, built-in updater, packaged `man clun` matching live CLI; `--update` also installs the man page).
-Tracking: [issue #58](https://github.com/theesfeld/clun/issues/58) (Phase 26 patch `0.2.2`: man install on `clun --update`).
-Phase 82 ([#56](https://github.com/theesfeld/clun/issues/56)) closed the purity-compatible surface audit.
+The current source is the `0.3.0` stable candidate (shared-memory multithreading and node destub work; immutable tag and assets are not published yet).
+The last published release remains [`v0.2.2`](https://github.com/theesfeld/clun/releases/tag/v0.2.2) (four native archives, `checksums.txt`, install to `~/.local/bin`, built-in updater, packaged `man clun` matching live CLI).
+Tracking: [issue #338](https://github.com/theesfeld/clun/issues/338) (SemVer impact: `minor`). Related: [#339](https://github.com/theesfeld/clun/issues/339), [PR #340](https://github.com/theesfeld/clun/pull/340).
 
 ## Install
 
