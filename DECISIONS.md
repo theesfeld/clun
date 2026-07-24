@@ -3721,3 +3721,11 @@ Implemented / repaired in this unit:
 Mechanical follow-ups still tracked under #339: residual no-ops in http/dns/dgram
 method tails, full CDP protocol, full WASI filesystem rights, cluster shared
 handles.
+
+## 2026-07-24 — Version stays 0.2.2 on #340 feature train
+
+Shared-memory + destub work is capability-complete on PR #340, but source
+version remains the published tip `0.2.2` until a dedicated release unit updates
+STATE/canonical Issue SemVer disposition, `compat/release.tsv`, README, site,
+and installer boundary together. SemVer impact of this capability is still
+`minor` for that future release disposition.
