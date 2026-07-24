@@ -11,7 +11,7 @@ Clun is pre-1.0. Do not claim speed parity with Bun. Publish only measured perfo
 
 <!-- clun-generated:release:begin -->
 > **Status: stable release train.** Release target: `0.3.0` / `v0.3.0` (SemVer impact: `minor`).
-> Tracking: [issue #338](https://github.com/theesfeld/clun/issues/338).
+> Tracking: [issue #339](https://github.com/theesfeld/clun/issues/339).
 > The verified release boundary is `v0.2.2` until this candidate publishes.
 > Capability matrix: 30 Yes / 0 Partial / 0 No.
 <!-- clun-generated:release:end -->
@@ -129,7 +129,7 @@ workflows are read-only and fail closed if the canonical issues, README, or site
 
 <!-- clun-generated:release-summary:begin -->
 Candidate `0.3.0` is unpublished; installable boundary remains `v0.2.2`.
-Tracking: [issue #338](https://github.com/theesfeld/clun/issues/338).
+Tracking: [issue #339](https://github.com/theesfeld/clun/issues/339).
 <!-- clun-generated:release-summary:end -->
 
 ## The purity contract
