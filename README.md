@@ -10,15 +10,14 @@ JavaScript is only what **you** run.
 Clun is pre-1.0. Do not claim speed parity with Bun. Publish only measured performance data.
 
 <!-- clun-generated:release:begin -->
-> **Status: stable release train.** Release target: `0.3.0` / `v0.3.0` (SemVer impact: `minor`).
-> Tracking: [issue #58](https://github.com/theesfeld/clun/issues/58).
-> The verified release boundary is `v0.2.2` until this candidate publishes.
-> Capability matrix: 30 Yes / 0 Partial / 0 No.
+> **Status: stable release train.** Latest release: [`v0.3.0`](https://github.com/theesfeld/clun/releases/tag/v0.3.0).
+> Installable boundary: four native archives, checksums, Pages installer, and `clun --update`.
+> Capability matrix: 30 Yes / 0 Partial / 0 No (evidence-backed).
+> Implementation: pure Common Lisp. Source: [theesfeld/clun](https://github.com/theesfeld/clun).
 <!-- clun-generated:release:end -->
 
-The current source is the `0.3.0` stable candidate (shared-memory multithreading and node destub work; immutable tag and assets are not published yet).
-The last published release remains [`v0.2.2`](https://github.com/theesfeld/clun/releases/tag/v0.2.2) (four native archives, `checksums.txt`, install to `~/.local/bin`, built-in updater, packaged `man clun` matching live CLI).
-Tracking: [issue #58](https://github.com/theesfeld/clun/issues/58) (Phase 26 release track; SemVer impact: `minor`). Related feature units: [#338](https://github.com/theesfeld/clun/issues/338), [#339](https://github.com/theesfeld/clun/issues/339), [PR #340](https://github.com/theesfeld/clun/pull/340), [PR #341](https://github.com/theesfeld/clun/pull/341).
+Published [`v0.3.0`](https://github.com/theesfeld/clun/releases/tag/v0.3.0) is the verified installable boundary (four native archives, `checksums.txt`, install to `~/.local/bin`, built-in updater, packaged `man clun` matching live CLI).
+Tracking: [issue #58](https://github.com/theesfeld/clun/issues/58) (Phase 26 minor `0.3.0`: shared-memory workers + zero-stubs). Related: [#338](https://github.com/theesfeld/clun/issues/338), [#339](https://github.com/theesfeld/clun/issues/339), [PR #340](https://github.com/theesfeld/clun/pull/340), [PR #341](https://github.com/theesfeld/clun/pull/341).
 
 ### Documents
 
@@ -63,7 +62,7 @@ The installer verifies SHA-256. The installer installs `clun` to `~/.local/bin/c
 Optional variables: `INSTALL_DIR`, `INSTALL_VERSION` / `CLUN_VERSION`, `ADD_PATH=0|1`.
 After install, use `man clun`. The man page must match live CLI help.
 
-While the hosted boundary remains `v0.2.2`, that command only reinstalls `v0.2.2` and does not install this unpublished `0.3.0` candidate. The published `v0.2.2` boundary includes the built-in updater (`clun --update` / `clun --check-update`) and packaged man page.
+The published `v0.3.0` boundary includes the built-in updater (`clun --update` / `clun --check-update`) and packaged man page.
 
 ### Update
 
@@ -160,8 +159,10 @@ sets between this README and the landing page; descriptive prose still requires 
 workflows are read-only and fail closed if the canonical issues, README, or site have drifted.
 
 <!-- clun-generated:release-summary:begin -->
-Candidate `0.3.0` is unpublished; installable boundary remains `v0.2.2`.
-Tracking: [issue #58](https://github.com/theesfeld/clun/issues/58).
+Latest release: [`0.3.0`](https://github.com/theesfeld/clun/releases/tag/v0.3.0).
+Install: `curl -fsSL https://clun.sh/install | sh` · update: `clun --update`.
+Capability matrix: 30 Yes / 0 Partial / 0 No.
+[Versioning](docs/versioning.md) · [compatibility matrix](compat/README.md).
 <!-- clun-generated:release-summary:end -->
 
 ## The purity contract
