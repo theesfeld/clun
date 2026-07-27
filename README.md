@@ -18,7 +18,17 @@ Clun is pre-1.0. Do not claim speed parity with Bun. Publish only measured perfo
 
 The current source is the `0.3.0` stable candidate (shared-memory multithreading and node destub work; immutable tag and assets are not published yet).
 The last published release remains [`v0.2.2`](https://github.com/theesfeld/clun/releases/tag/v0.2.2) (four native archives, `checksums.txt`, install to `~/.local/bin`, built-in updater, packaged `man clun` matching live CLI).
-Tracking: [issue #338](https://github.com/theesfeld/clun/issues/338) (SemVer impact: `minor`). Related: [#339](https://github.com/theesfeld/clun/issues/339), [PR #340](https://github.com/theesfeld/clun/pull/340).
+Tracking: [issue #339](https://github.com/theesfeld/clun/issues/339) (SemVer impact: `minor`). Related: [#338](https://github.com/theesfeld/clun/issues/338), [PR #340](https://github.com/theesfeld/clun/pull/340), [PR #341](https://github.com/theesfeld/clun/pull/341).
+
+### Documents
+
+| Doc | Path |
+|-----|------|
+| Operator SOP (NASA) | [`docs/sop-clun-ops.pdf`](docs/sop-clun-ops.pdf) · [JSON source](docs/sop-clun-ops.json) |
+| Release memo 0.3.0 | [`docs/memo-release-0.3.0.pdf`](docs/memo-release-0.3.0.pdf) · [JSON source](docs/memo-release-0.3.0.json) |
+| Changelog | [`CHANGELOG.md`](CHANGELOG.md) |
+| Site | [https://clun.sh](https://clun.sh) |
+| Man page | `man clun` (generated; must match live `clun --help`) |
 
 ## Install
 

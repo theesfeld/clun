@@ -1,0 +1,151 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Times-Roman >>
+endobj
+2 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Times-Bold >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Times-Italic >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+6 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>
+endobj
+7 0 obj
+<< /Length 3885 >>
+stream
+0 g BT /F2 16.00 Tf 1 0 0 1 72.00 704.00 Tm (Clun) Tj ET
+0 g BT /F3 10.00 Tf 1 0 0 1 72.00 689.00 Tm (JavaScript and TypeScript toolkit * pure Common Lisp * https://clun.sh) Tj ET
+0.000 G 1.00 w
+72.00 682.00 m 540.00 682.00 l S
+0 g BT /F2 12.00 Tf 1 0 0 1 72.00 659.80 Tm (Reply to Attn of:) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 180.00 659.80 Tm (REL/CLUN) Tj ET
+0 g BT /F2 12.00 Tf 1 0 0 1 72.00 635.80 Tm (TO:) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 144.00 635.80 Tm (Maintainers and Users) Tj ET
+0 g BT /F2 12.00 Tf 1 0 0 1 72.00 615.80 Tm (FROM:) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 144.00 615.80 Tm (Project Engineering) Tj ET
+0 g BT /F2 12.00 Tf 1 0 0 1 72.00 595.80 Tm (SUBJECT:) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 144.00 595.80 Tm (Release memo - Clun 0.3.0 \(shared-memory workers and zero-stubs close\)) Tj ET
+0 g BT /F2 12.00 Tf 1 0 0 1 72.00 575.80 Tm (REF:) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 144.00 575.80 Tm (Issue #338, Issue #339, PR #340, PR #341, Epic #177) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 537.80 Tm (Bottom line: Clun 0.3.0 is the minor train that lands shared-memory multithreading) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 523.80 Tm (\(SharedArrayBuffer, Atomics, real worker_threads\) and closes the zero-stubs inventory so) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 509.80 Tm (exported Node and runtime surfaces are not hollow no-ops. Capability matrix remains 30 Yes / 0) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 495.80 Tm (Partial / 0 No. Until this candidate publishes, the installable boundary stays v0.2.2.) Tj ET
+0 g BT /F2 12.00 Tf 1 0 0 1 72.00 474.80 Tm (1. Why) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 454.80 Tm (Full-port law forbids soft Yes and hollow exports. Workers without real shared memory, and) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 440.80 Tm (Node surfaces that ignore arguments and return undefined, break the exceed-Bun contract. Issues) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 426.80 Tm (#338 and #339 complete that unit for the 0.3.0 minor release.) Tj ET
+0 g BT /F2 12.00 Tf 1 0 0 1 72.00 399.80 Tm (2. What changed) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 379.80 Tm (- SharedArrayBuffer, Atomics, and real worker_threads \(Issue #338 / PR #340\)) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 361.80 Tm (- WASI path_open, fd_read, and path_filestat_get against host files \(pure CL\)) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 343.80 Tm (- process.stdout and process.stderr end plus writableEnded stream semantics) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 325.80 Tm (- MessagePort start records _started; Node-compatible auto-start retained) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 307.80 Tm (- module.register\(string\) records _registeredSpecifiers) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 289.80 Tm (- Final destub fixture tests/js/node/destub-zero-final.js) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 271.80 Tm (- Residuals inventory closed: ZERO_PRODUCT_HOLLOWS) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 86.00 257.80 Tm (\(docs/design/zero-stubs-residuals.md\)) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 239.80 Tm (- WebSocket wss: via pure-tls worker path \(related surface train\)) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 221.80 Tm (- Source version staged 0.3.0; release ledger candidate tracks Issue #339) Tj ET
+0 g BT /F2 12.00 Tf 1 0 0 1 72.00 197.80 Tm (3. SemVer disposition) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 177.80 Tm (Impact: minor. Rationale: backward-compatible capability completion \(shared-memory) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 163.80 Tm (multithreading and residual destubs\). Version: 0.3.0. Tag: v0.3.0. Previous published boundary:) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 149.80 Tm (0.2.2 / v0.2.2. Pre-1.0 note: minor versions on the 0.x train may still include breaking changes) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 135.80 Tm (per project SemVer policy.) Tj ET
+0 g BT /F1 10.00 Tf 1 0 0 1 303.50 40.00 Tm (1) Tj ET
+endstream
+endobj
+8 0 obj
+<< /Type /Page /Parent 13 0 R /MediaBox [0 0 612 792] /Contents 7 0 R /Resources << /Font << /F1 1 0 R /F2 2 0 R /F3 3 0 R /F4 4 0 R /F5 5 0 R /F6 6 0 R >> >> >>
+endobj
+9 0 obj
+<< /Length 3051 >>
+stream
+0 g BT /F2 12.00 Tf 1 0 0 1 72.00 709.80 Tm (4. Intentional design no-ops \(not hollows\)) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 689.80 Tm (- MessagePort start: records _started; ports auto-start as in Node) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 671.80 Tm (- crypto FIPS: always reports 0; pure-CL crypto is not FIPS-validated) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 653.80 Tm (- v8.startupSnapshot.isBuildingSnapshot: honest false) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 635.80 Tm (- os.setPriority for foreign pids: SystemError \(no forbidden kernel niceness API\)) Tj ET
+0 g BT /F2 12.00 Tf 1 0 0 1 72.00 611.80 Tm (5. Gates completed on the close unit) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 591.80 Tm (5.1 make build) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 570.80 Tm (5.2 make purity \(0 violations\)) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 549.80 Tm (5.3 make test \(JS and TS fixtures green; parachute Failed: 0\)) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 528.80 Tm (5.4 Mechanical ignore-args hollow scan: zero product hollows) Tj ET
+0 g BT /F2 12.00 Tf 1 0 0 1 72.00 501.80 Tm (6. Install note \(publication state\)) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 481.80 Tm (While the candidate remains unpublished, curl -fsSL https://clun.sh/install | sh reinstalls the) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 467.80 Tm (verified boundary v0.2.2. After v0.3.0 assets publish and the ledger advances, the same) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 453.80 Tm (command and clun --update target 0.3.0. Always use man clun after install; man content must) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 439.80 Tm (match live CLI help.) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 418.80 Tm (6.1 Current verified install) Tj ET
+0 g BT /F6 9.00 Tf 1 0 0 1 72.00 400.35 Tm (curl -fsSL https://clun.sh/install | sh) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 378.80 Tm (6.2 After 0.3.0 publishes, update in place) Tj ET
+0 g BT /F6 9.00 Tf 1 0 0 1 72.00 360.35 Tm (clun --update) Tj ET
+0 g BT /F2 12.00 Tf 1 0 0 1 72.00 332.80 Tm (7. Documents for this ship) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 312.80 Tm (- Operator SOP: docs/sop-clun-ops.pdf) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 294.80 Tm (- This release memo: docs/memo-release-0.3.0.pdf) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 276.80 Tm (- CHANGELOG.md Unreleased / 0.3.0 section) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 258.80 Tm (- README.md and https://clun.sh Documents links) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 240.80 Tm (- Capability matrix: compat/ \(30 Yes\)) Tj ET
+0 g BT /F2 12.00 Tf 1 0 0 1 72.00 216.80 Tm (8. Progressive depth \(not soft Yes\)) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 196.80 Tm (Depth limits such as full HPACK peer interop, full CDP, and V8-precise coverage maps remain) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 182.80 Tm (progressive quality work. They do not justify hollow exports. Exported APIs perform real work) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 168.80 Tm (rather than ignore to undefined.) Tj ET
+0 g BT /F1 10.00 Tf 1 0 0 1 303.50 40.00 Tm (2) Tj ET
+endstream
+endobj
+10 0 obj
+<< /Type /Page /Parent 13 0 R /MediaBox [0 0 612 792] /Contents 9 0 R /Resources << /Font << /F1 1 0 R /F2 2 0 R /F3 3 0 R /F4 4 0 R /F5 5 0 R /F6 6 0 R >> >> >>
+endobj
+11 0 obj
+<< /Length 397 >>
+stream
+72.00 718.00 m 252.00 718.00 l S
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 693.00 Tm (Project Engineering) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 679.00 Tm (Clun release) Tj ET
+0 g BT /F1 11.00 Tf 1 0 0 1 72.00 655.00 Tm (Date: 2026-07-27) Tj ET
+0 g BT /F1 11.00 Tf 1 0 0 1 72.00 639.00 Tm (cc: ['https://clun.sh', 'github.com/theesfeld/clun']) Tj ET
+0 g BT /F1 10.00 Tf 1 0 0 1 303.50 40.00 Tm (3) Tj ET
+endstream
+endobj
+12 0 obj
+<< /Type /Page /Parent 13 0 R /MediaBox [0 0 612 792] /Contents 11 0 R /Resources << /Font << /F1 1 0 R /F2 2 0 R /F3 3 0 R /F4 4 0 R /F5 5 0 R /F6 6 0 R >> >> >>
+endobj
+13 0 obj
+<< /Type /Pages /Kids [8 0 R 10 0 R 12 0 R] /Count 3 >>
+endobj
+14 0 obj
+<< /Type /Catalog /Pages 13 0 R >>
+endobj
+15 0 obj
+<< /Title (Release memo - Clun 0.3.0 \(shared-memory workers and zero-stubs close\)) /Author (Project Engineering) /Subject (NASA NAII 1450.3 formal memorandum) /Producer (memo-pdf skill) /Creator (memo-pdf) >>
+endobj
+xref
+0 16
+0000000000 65535 f 
+0000000015 00000 n 
+0000000087 00000 n 
+0000000158 00000 n 
+0000000231 00000 n 
+0000000301 00000 n 
+0000000376 00000 n 
+0000000444 00000 n 
+0000004381 00000 n 
+0000004558 00000 n 
+0000007661 00000 n 
+0000007839 00000 n 
+0000008288 00000 n 
+0000008467 00000 n 
+0000008539 00000 n 
+0000008590 00000 n 
+trailer
+<< /Size 16 /Root 14 0 R /Info 15 0 R >>
+startxref
+8817
+%%EOF

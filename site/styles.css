@@ -509,6 +509,28 @@ pre {
   color: var(--text-muted);
 }
 
+.doc-list {
+  margin: 0;
+  padding-left: 1.25rem;
+  max-width: 40rem;
+  color: var(--text);
+  line-height: 1.7;
+}
+
+.doc-list a {
+  color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.doc-list a:hover {
+  color: var(--accent, #8ab4f8);
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
 .card-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
