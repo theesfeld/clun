@@ -1,0 +1,394 @@
+{
+  "org": "Clun",
+  "org_sub": "JavaScript and TypeScript toolkit · pure Common Lisp · https://clun.sh",
+  "reply_to": "OPS/CLUN",
+  "to": "Maintainers and Release Operators",
+  "from": "Project Engineering",
+  "subject": "Clun operator standard operating procedure (clone, build, gates, install, release)",
+  "ref": "AGENTS.md, docs/versioning.md, Epic #177, Issue #339, candidate 0.3.0",
+  "date": "2026-07-27",
+  "doc_id": "SOP-CLUN-OPS-001",
+  "doc_title": "STANDARD OPERATING PROCEDURE",
+  "version": "v0.3.0 candidate (boundary v0.2.2)",
+  "opening": "Bottom line: Clun is a Bun-shaped JavaScript and TypeScript toolkit implemented only in pure Common Lisp. Operators clone, build with SBCL, run purity and test gates, ship through Issue to PR to master, and publish installable tags only after assets and the release ledger agree. Published install boundary remains v0.2.2 until candidate 0.3.0 ships.",
+  "sections": [
+    {
+      "heading": "1. Purpose",
+      "body": "This memorandum is the living operator handbook for Clun. It states how to clone the repository, build the runtime image, run quality gates, install for end users, and ship a versioned release without publication gaps."
+    },
+    {
+      "heading": "2. Scope",
+      "body": "This SOP covers full project operations. It does not replace the man page, README narrative, capability matrix, or https://clun.sh. Those remain the public ship surfaces.",
+      "items": [
+        "product identity and purity law",
+        "repository layout and live sources of truth",
+        "host prerequisites",
+        "clone, build, and local binary checks",
+        "quality gates (build, test, purity, claims, man)",
+        "end-user install and update paths",
+        "release ship flow and Pages deploy",
+        "documentation triad and NASA document cadence",
+        "failure responses"
+      ]
+    },
+    {
+      "heading": "3. Product identity",
+      "table": {
+        "headers": ["Item", "Value"],
+        "rows": [
+          ["Product name", "Clun"],
+          ["Binary", "clun"],
+          ["Site", "https://clun.sh"],
+          ["Installer", "https://clun.sh/install"],
+          ["Repository", "github.com/theesfeld/clun"],
+          ["License", "GPL-3.0-or-later"],
+          ["Implementation", "Pure Common Lisp (SBCL); no CFFI product path"],
+          ["Command shape", "Bun-compatible CLI and APIs"],
+          ["Platforms", "Linux and macOS, x64 and arm64"],
+          ["Default branch", "master"],
+          ["Published install boundary", "v0.2.2 (until 0.3.0 publishes)"],
+          ["Source candidate", "0.3.0 / v0.3.0"],
+          ["Man page", "man clun (must match live clun --help)"]
+        ]
+      }
+    },
+    {
+      "heading": "4. Product laws (non-negotiable)",
+      "body": "Permanent product law (Epic #177 FULL PORT): every matrix row is a full-port target until Yes. Qualified Yes is a No. Soft ledger detail is forbidden while status is Yes.",
+      "steps": [
+        {
+          "n": "4.1",
+          "text": "Prime directive: exceed Bun, npm, and matrix peers for every shipped surface. Implementation language is pure Common Lisp."
+        },
+        {
+          "n": "4.2",
+          "text": "Purity: no CFFI, native libraries, implementation JS/TS, or shell-outs as product implementation shortcuts. Enforce with make purity."
+        },
+        {
+          "n": "4.3",
+          "text": "No hollow exports: every exported API must perform real work or must not be exported. Zero product hollows (Issue #339 closed inventory)."
+        },
+        {
+          "n": "4.4",
+          "text": "Man page hard rule: man clun content must always match actual current CLI functionality. Source of truth is src/cli/catalog.lisp. Regenerate with make man. make man-check fails on drift."
+        },
+        {
+          "n": "4.5",
+          "text": "Ship path: Issue then branch feat/issue-N-... then PR then squash-merge into master. Do not use direct push to master as the ship path."
+        },
+        {
+          "n": "4.6",
+          "text": "Publication order after merge when release-bearing: tag merge SHA, release assets and checksums, ledger/README/site, Pages, install smoke, Issue evidence. Never move or reuse tags."
+        }
+      ],
+      "flowchart": {
+        "title": "Day-to-day quality gates",
+        "nodes": [
+          {"id": "start", "label": "Start work unit", "shape": "terminator"},
+          {"id": "issue", "label": "Canonical Issue scope", "shape": "process"},
+          {"id": "branch", "label": "Branch off master", "shape": "process"},
+          {"id": "impl", "label": "Implement pure CL", "shape": "process"},
+          {"id": "gates", "label": "make build/test/purity", "shape": "process"},
+          {"id": "ok", "label": "Gates green?", "shape": "decision"},
+          {"id": "fix", "label": "Fix failures", "shape": "process"},
+          {"id": "docs", "label": "Sync docs if claims change", "shape": "process"},
+          {"id": "pr", "label": "Open PR; squash-merge", "shape": "process"},
+          {"id": "end", "label": "Unit on master", "shape": "terminator"}
+        ],
+        "edges": [
+          {"from": "start", "to": "issue"},
+          {"from": "issue", "to": "branch"},
+          {"from": "branch", "to": "impl"},
+          {"from": "impl", "to": "gates"},
+          {"from": "gates", "to": "ok"},
+          {"from": "ok", "to": "docs", "label": "yes"},
+          {"from": "ok", "to": "fix", "label": "no"},
+          {"from": "fix", "to": "gates"},
+          {"from": "docs", "to": "pr"},
+          {"from": "pr", "to": "end"}
+        ]
+      }
+    },
+    {
+      "heading": "5. Sources of truth",
+      "table": {
+        "headers": ["Surface", "Role"],
+        "rows": [
+          ["GitHub Issues", "Live source of truth for status and scope"],
+          ["PLAN.md", "Technical notebook; derived; repair if it disagrees with Issues"],
+          ["STATE.md", "Resume checklist; derived"],
+          ["DECISIONS.md", "Decision log; mirror material decisions on the Issue"],
+          ["README.md + site/", "Public claims; no publication gap vs Issue"],
+          ["compat/", "Capability matrix evidence; make docs-check / public-claims-check"],
+          ["docs/versioning.md", "SemVer and publication rules"],
+          ["compat/release.tsv", "Release ledger (version, tag, installer boundary, state)"]
+        ]
+      }
+    },
+    {
+      "heading": "6. Repository layout",
+      "table": {
+        "headers": ["Path", "Contents"],
+        "rows": [
+          ["src/", "Runtime, CLI, engine, Node and Web surfaces"],
+          ["vendor/", "Pinned pure-CL dependencies"],
+          ["tests/", "Parachute suites, JS/TS fixtures, conformance"],
+          ["scripts/", "Build, release, claims, and check tooling"],
+          ["docs/", "Design notes, man source, versioning, NASA SOP/memo"],
+          ["site/", "GitHub Pages source (clun.sh)"],
+          ["compat/", "Matrix and release ledger"],
+          ["build/clun", "Local image from make build"]
+        ]
+      }
+    },
+    {
+      "heading": "7. Prerequisites",
+      "body": "Host toolchain for operators and CI: SBCL 2.6.4 on PATH with thread support, and GNU Make. No Quicklisp. All CL dependencies are vendored under vendor/ and located via scripts/registry.lisp. Supported release platforms for end-user binaries are Linux and macOS on x64 and arm64."
+    },
+    {
+      "heading": "8. Procedure — clone and build",
+      "body": "A fresh clone builds with make build alone. ASDF compiles the vendored closure and src/ into the per-user fasl cache. Nothing else is fetched.",
+      "steps": [
+        {"n": "8.1", "text": "Clone the repository and enter the tree.", "code": "git clone https://github.com/theesfeld/clun.git && cd clun"},
+        {"n": "8.2", "text": "Confirm SBCL version on PATH.", "code": "sbcl --version"},
+        {"n": "8.3", "text": "Build the runtime image.", "code": "make build"},
+        {"n": "8.4", "text": "Confirm the binary version string.", "code": "./build/clun --version"}
+      ],
+      "flowchart": {
+        "title": "Clone and build path",
+        "nodes": [
+          {"id": "cstart", "label": "Clone repo", "shape": "terminator"},
+          {"id": "prereq", "label": "SBCL + Make present?", "shape": "decision"},
+          {"id": "install", "label": "Install toolchain", "shape": "process"},
+          {"id": "build", "label": "make build", "shape": "process"},
+          {"id": "ver", "label": "clun --version", "shape": "process"},
+          {"id": "cend", "label": "Local binary ready", "shape": "terminator"}
+        ],
+        "edges": [
+          {"from": "cstart", "to": "prereq"},
+          {"from": "prereq", "to": "build", "label": "yes"},
+          {"from": "prereq", "to": "install", "label": "no"},
+          {"from": "install", "to": "build"},
+          {"from": "build", "to": "ver"},
+          {"from": "ver", "to": "cend"}
+        ]
+      }
+    },
+    {
+      "heading": "9. Procedure — quality gates",
+      "body": "Run the unit gates before merge. Release-bearing units add version-transition and publication checks per docs/versioning.md and the Issue SemVer disposition.",
+      "steps": [
+        {"n": "9.1", "text": "Build.", "code": "make build"},
+        {"n": "9.2", "text": "Run the full test harness.", "code": "make test"},
+        {"n": "9.3", "text": "Fail closed on foreign-code tokens.", "code": "make purity"},
+        {"n": "9.4", "text": "When CLI surface changes, regenerate and check man.", "code": "make man && make man-check"},
+        {"n": "9.5", "text": "When public docs or roadmap change, run claims and roadmap checks.", "code": "make public-claims-check"},
+        {"n": "9.6", "text": "For release-bearing units, bound the version transition.", "code": "BASE_SHA=<base> HEAD_SHA=<head> make version-transition-check"}
+      ],
+      "table": {
+        "headers": ["Gate", "When"],
+        "rows": [
+          ["make build / test / purity", "Every phase/unit merge"],
+          ["make man-check", "CLI surface or man generation changes"],
+          ["make public-claims-check", "README, site, ledger, or public claims change"],
+          ["make version-transition-check", "Release-bearing version movement"],
+          ["Compatibility / Release workflows", "Exact-master and tag gates per CI"]
+        ]
+      },
+      "flowchart": {
+        "title": "Gate decision path",
+        "nodes": [
+          {"id": "gstart", "label": "Change ready", "shape": "terminator"},
+          {"id": "btp", "label": "build test purity", "shape": "process"},
+          {"id": "gok", "label": "Pass?", "shape": "decision"},
+          {"id": "gfix", "label": "Fix and re-run", "shape": "process"},
+          {"id": "claims", "label": "Claims/docs changed?", "shape": "decision"},
+          {"id": "pcc", "label": "public-claims-check", "shape": "process"},
+          {"id": "rel", "label": "Release-bearing?", "shape": "decision"},
+          {"id": "vtc", "label": "version-transition-check", "shape": "process"},
+          {"id": "merge", "label": "PR merge allowed", "shape": "terminator"}
+        ],
+        "edges": [
+          {"from": "gstart", "to": "btp"},
+          {"from": "btp", "to": "gok"},
+          {"from": "gok", "to": "claims", "label": "yes"},
+          {"from": "gok", "to": "gfix", "label": "no"},
+          {"from": "gfix", "to": "btp"},
+          {"from": "claims", "to": "pcc", "label": "yes"},
+          {"from": "claims", "to": "rel", "label": "no"},
+          {"from": "pcc", "to": "rel"},
+          {"from": "rel", "to": "vtc", "label": "yes"},
+          {"from": "rel", "to": "merge", "label": "no"},
+          {"from": "vtc", "to": "merge"}
+        ]
+      }
+    },
+    {
+      "heading": "10. Procedure — end-user install and update",
+      "body": "The curl installer is the primary install path. It verifies SHA-256 and installs to ~/.local/bin/clun. The man page installs with the package. The built-in updater uses pure Common Lisp HTTPS against the same release assets.",
+      "steps": [
+        {
+          "n": "10.1",
+          "text": "Install the verified published boundary (currently v0.2.2 until 0.3.0 publishes).",
+          "code": "curl -fsSL https://clun.sh/install | sh"
+        },
+        {
+          "n": "10.2",
+          "text": "Optional: pin a version.",
+          "code": "INSTALL_VERSION=0.2.2 curl -fsSL https://clun.sh/install | sh"
+        },
+        {
+          "n": "10.3",
+          "text": "Check for updates without mutating.",
+          "code": "clun --check-update"
+        },
+        {
+          "n": "10.4",
+          "text": "Activate the complete release bundle when behind.",
+          "code": "clun --update"
+        },
+        {
+          "n": "10.5",
+          "text": "Confirm man page matches the installed CLI.",
+          "code": "man clun"
+        }
+      ]
+    },
+    {
+      "heading": "11. Procedure — release and ship",
+      "body": "Classify SemVer impact on the canonical Issue before merge. Source version, ASDF core, installer default, README, and site must agree for the unit. Candidate work may advance src/version.lisp while verified_installer_tag stays on the last published tag.",
+      "steps": [
+        {
+          "n": "11.1",
+          "text": "Record SemVer impact, version, and tag on the Issue (and release ledger)."
+        },
+        {
+          "n": "11.2",
+          "text": "Land the unit on master via squash-merge when gates are green."
+        },
+        {
+          "n": "11.3",
+          "text": "Update NASA SOP source and PDF. Write the NASA release memo for this version. Update CHANGELOG.md, README Documents links, and site Documents links."
+        },
+        {
+          "n": "11.4",
+          "text": "Tag the merge SHA as vX.Y.Z. Do not move or reuse tags."
+        },
+        {
+          "n": "11.5",
+          "text": "Publish GitHub Release assets: four native archives, checksums.txt, install script, man page bundle, SOP PDF, release memo PDF."
+        },
+        {
+          "n": "11.6",
+          "text": "Advance the release ledger and verified installer boundary only after assets exist."
+        },
+        {
+          "n": "11.7",
+          "text": "Confirm Pages deploy and smoke https://clun.sh/install."
+        },
+        {
+          "n": "11.8",
+          "text": "Post publication evidence on the Issue."
+        }
+      ],
+      "flowchart": {
+        "title": "Release ship flow",
+        "nodes": [
+          {"id": "rstart", "label": "Release unit ready", "shape": "terminator"},
+          {"id": "merge", "label": "Squash-merge to master", "shape": "process"},
+          {"id": "docs", "label": "SOP + memo + triad", "shape": "process"},
+          {"id": "tag", "label": "Tag merge SHA", "shape": "process"},
+          {"id": "assets", "label": "Assets + checksums", "shape": "process"},
+          {"id": "ledger", "label": "Ledger + installer boundary", "shape": "process"},
+          {"id": "pages", "label": "Pages + install smoke", "shape": "process"},
+          {"id": "evidence", "label": "Issue evidence", "shape": "process"},
+          {"id": "rend", "label": "Published", "shape": "terminator"}
+        ],
+        "edges": [
+          {"from": "rstart", "to": "merge"},
+          {"from": "merge", "to": "docs"},
+          {"from": "docs", "to": "tag"},
+          {"from": "tag", "to": "assets"},
+          {"from": "assets", "to": "ledger"},
+          {"from": "ledger", "to": "pages"},
+          {"from": "pages", "to": "evidence"},
+          {"from": "evidence", "to": "rend"}
+        ]
+      }
+    },
+    {
+      "heading": "12. Procedure — documentation and NASA cadence",
+      "body": "House prime directive: every release or deploy updates README, NASA SOP, website (site/), and NASA changelog memo. Any ops or docs commit mid-cycle updates the NASA SOP source and PDF in the same change set. Man, README, and Pages facts stay in sync.",
+      "items": [
+        "Operator SOP: docs/sop-clun-ops.json and docs/sop-clun-ops.pdf",
+        "Release memo: docs/memo-release-<version>.json and .pdf",
+        "CHANGELOG.md Keep a Changelog entries",
+        "README Documents section links SOP and memo directly",
+        "site/ Documents section carries the same links",
+        "Graphical flowcharts required in the SOP for real processes; no ASCII diagrams in PDFs"
+      ]
+    },
+    {
+      "heading": "13. Zero-stubs and hollow export rule",
+      "body": "Issue #339 closed the residual zero-stubs inventory. Mechanical scan plus review reports ZERO_PRODUCT_HOLLOWS. Only documented intentional design no-ops remain (for example MessagePort auto-start recording, honest non-FIPS). Depth quality such as full HPACK peer interop remains progressive, but exported APIs must not ignore arguments and return undefined as a hollow shell.",
+      "items": [
+        "Inventory design note: docs/design/zero-stubs-residuals.md",
+        "Final fixture: tests/js/node/destub-zero-final.js",
+        "Shared-memory workers foundation: Issue #338 / PR #340"
+      ]
+    },
+    {
+      "heading": "14. Daily operator checklist",
+      "items": [
+        "Work from a canonical Issue with clear SemVer disposition",
+        "Branch naming: feat/issue-N-slug off master",
+        "Run make build, make test, make purity before PR",
+        "Regenerate man when CLI changes; never hand-edit docs/man/clun.1",
+        "Sync README, site, STATE, and Issue when public claims move",
+        "Update SOP PDF when operator process changes",
+        "Never soft-Yes an incomplete matrix row"
+      ]
+    },
+    {
+      "heading": "15. Failure responses",
+      "table": {
+        "headers": ["Symptom", "Response"],
+        "rows": [
+          ["make purity fails", "Remove CFFI/foreign or shell-out shortcut; restore pure CL path"],
+          ["make man-check fails", "Run make man from catalog; do not hand-patch man source"],
+          ["public-claims-check fails", "Reconcile README, site, compat ledger, and Issue facts"],
+          ["Installer still on old tag after ship", "Do not advance verified_installer_tag until assets exist"],
+          ["Pages deploy blocked", "Resolve candidate vs published state in release.tsv; fix installer boundary"],
+          ["Hollow export discovered", "Destub or un-export; update inventory; never leave soft Yes"]
+        ]
+      }
+    },
+    {
+      "heading": "16. References",
+      "items": [
+        "https://clun.sh",
+        "https://github.com/theesfeld/clun",
+        "AGENTS.md",
+        "README.md",
+        "CHANGELOG.md",
+        "docs/versioning.md",
+        "docs/sop-clun-ops.pdf",
+        "compat/release.tsv",
+        "Epic #177 FULL PORT",
+        "Issue #339 zero stubs",
+        "Issue #338 shared-memory multithreading"
+      ]
+    },
+    {
+      "heading": "17. Approval and control",
+      "body": "Document control: SOP-CLUN-OPS-001. Version string tracks the operator surface for the current candidate train. Update this SOP on every ops or docs process change and on every release. Render with the house memo-pdf nasa-sop template. Maintainers approve content by merging the documenting commit to master."
+    }
+  ],
+  "signature": {
+    "name": "Project Engineering",
+    "title": "Clun / OPS",
+    "office": ""
+  },
+  "cc": "Maintainers, Release Operators",
+  "enclosure": "docs/memo-release-0.3.0.pdf when shipping 0.3.0"
+}

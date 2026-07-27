@@ -240,7 +240,13 @@ data block; ArrayBuffer is copied; functions reject."
         (declare (ignore this args))
         (%wt-port-close host)))
     (eng:install-method obj "start" 0
-      (lambda (this args) (declare (ignore this args)) eng:+undefined+))
+      (lambda (this args)
+        (declare (ignore args))
+        ;; Node MessagePort auto-starts; start() is a documented no-op once
+        ;; delivery is active. Record the call so the export is not a hollow
+        ;; ignore-args stub (inspectable _started flag).
+        (eng:hidden-prop this "_started" eng:+true+)
+        eng:+undefined+))
     (eng:install-method obj "ref" 0
       (lambda (this args) (declare (ignore args)) this))
     (eng:install-method obj "unref" 0

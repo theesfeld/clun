@@ -14,9 +14,14 @@ or assets and are not installable release checkpoints.
 ## [Unreleased]
 
 ### Added
-- SharedArrayBuffer, Atomics, and real `worker_threads` (Issue #338).
-- Node surface destubs and residual zero-stub work (Issue #339).
+- SharedArrayBuffer, Atomics, and real `worker_threads` (Issue #338 / PR #340).
+- Zero-stubs inventory closed: WASI host `path_open` / `fd_read` / `path_filestat_get`, process stdout/stderr `end` and `writableEnded`, MessagePort `_started`, `module.register` specifier recording, final `destub-zero-final` fixture (Issue #339 / PR #341).
 - WebSocket `wss:` via pure-tls worker path.
+- NASA operator SOP (`docs/sop-clun-ops.pdf`) and NASA release memo for the 0.3.0 train (`docs/memo-release-0.3.0.pdf`); README and site Documents links.
+
+### Notes
+- Source candidate remains `0.3.0` / `v0.3.0` until the immutable tag and assets publish; installable boundary stays `v0.2.2`.
+- Product hollow exports: inventory closed to zero (only documented intentional design no-ops remain).
 
 ## [0.2.2] - 2026-07-21
 

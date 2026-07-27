@@ -1,0 +1,88 @@
+{
+  "org": "Clun",
+  "org_sub": "JavaScript and TypeScript toolkit · pure Common Lisp · https://clun.sh",
+  "reply_to": "REL/CLUN",
+  "to": "Maintainers and Users",
+  "from": "Project Engineering",
+  "subject": "Release memo — Clun 0.3.0 (shared-memory workers and zero-stubs close)",
+  "ref": "Issue #338, Issue #339, PR #340, PR #341, Epic #177",
+  "date": "2026-07-27",
+  "opening": "Bottom line: Clun 0.3.0 is the minor train that lands shared-memory multithreading (SharedArrayBuffer, Atomics, real worker_threads) and closes the zero-stubs inventory so exported Node and runtime surfaces are not hollow no-ops. Capability matrix remains 30 Yes / 0 Partial / 0 No. Until this candidate publishes, the installable boundary stays v0.2.2.",
+  "sections": [
+    {
+      "heading": "1. Why",
+      "body": "Full-port law forbids soft Yes and hollow exports. Workers without real shared memory, and Node surfaces that ignore arguments and return undefined, break the exceed-Bun contract. Issues #338 and #339 complete that unit for the 0.3.0 minor release."
+    },
+    {
+      "heading": "2. What changed",
+      "items": [
+        "SharedArrayBuffer, Atomics, and real worker_threads (Issue #338 / PR #340)",
+        "WASI path_open, fd_read, and path_filestat_get against host files (pure CL)",
+        "process.stdout and process.stderr end plus writableEnded stream semantics",
+        "MessagePort start records _started; Node-compatible auto-start retained",
+        "module.register(string) records _registeredSpecifiers",
+        "Final destub fixture tests/js/node/destub-zero-final.js",
+        "Residuals inventory closed: ZERO_PRODUCT_HOLLOWS (docs/design/zero-stubs-residuals.md)",
+        "WebSocket wss: via pure-tls worker path (related surface train)",
+        "Source version staged 0.3.0; release ledger candidate tracks Issue #339"
+      ]
+    },
+    {
+      "heading": "3. SemVer disposition",
+      "body": "Impact: minor. Rationale: backward-compatible capability completion (shared-memory multithreading and residual destubs). Version: 0.3.0. Tag: v0.3.0. Previous published boundary: 0.2.2 / v0.2.2. Pre-1.0 note: minor versions on the 0.x train may still include breaking changes per project SemVer policy."
+    },
+    {
+      "heading": "4. Intentional design no-ops (not hollows)",
+      "items": [
+        "MessagePort start: records _started; ports auto-start as in Node",
+        "crypto FIPS: always reports 0; pure-CL crypto is not FIPS-validated",
+        "v8.startupSnapshot.isBuildingSnapshot: honest false",
+        "os.setPriority for foreign pids: SystemError (no forbidden kernel niceness API)"
+      ]
+    },
+    {
+      "heading": "5. Gates completed on the close unit",
+      "steps": [
+        {"n": "5.1", "text": "make build"},
+        {"n": "5.2", "text": "make purity (0 violations)"},
+        {"n": "5.3", "text": "make test (JS and TS fixtures green; parachute Failed: 0)"},
+        {"n": "5.4", "text": "Mechanical ignore-args hollow scan: zero product hollows"}
+      ]
+    },
+    {
+      "heading": "6. Install note (publication state)",
+      "body": "While the candidate remains unpublished, curl -fsSL https://clun.sh/install | sh reinstalls the verified boundary v0.2.2. After v0.3.0 assets publish and the ledger advances, the same command and clun --update target 0.3.0. Always use man clun after install; man content must match live CLI help.",
+      "steps": [
+        {
+          "n": "6.1",
+          "text": "Current verified install",
+          "code": "curl -fsSL https://clun.sh/install | sh"
+        },
+        {
+          "n": "6.2",
+          "text": "After 0.3.0 publishes, update in place",
+          "code": "clun --update"
+        }
+      ]
+    },
+    {
+      "heading": "7. Documents for this ship",
+      "items": [
+        "Operator SOP: docs/sop-clun-ops.pdf",
+        "This release memo: docs/memo-release-0.3.0.pdf",
+        "CHANGELOG.md Unreleased / 0.3.0 section",
+        "README.md and https://clun.sh Documents links",
+        "Capability matrix: compat/ (30 Yes)"
+      ]
+    },
+    {
+      "heading": "8. Progressive depth (not soft Yes)",
+      "body": "Depth limits such as full HPACK peer interop, full CDP, and V8-precise coverage maps remain progressive quality work. They do not justify hollow exports. Exported APIs perform real work rather than ignore to undefined."
+    }
+  ],
+  "signature": {
+    "name": "Project Engineering",
+    "title": "Clun release"
+  },
+  "cc": ["https://clun.sh", "github.com/theesfeld/clun"]
+}

@@ -1,0 +1,1575 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Times-Roman >>
+endobj
+2 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Times-Bold >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Times-Italic >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+6 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>
+endobj
+7 0 obj
+<< /Length 3799 >>
+stream
+0 g BT /F2 16.00 Tf 1 0 0 1 72.00 704.00 Tm (Clun) Tj ET
+0 g BT /F3 10.00 Tf 1 0 0 1 72.00 689.00 Tm (JavaScript and TypeScript toolkit * pure Common Lisp * https://clun.sh) Tj ET
+0.000 G 1.00 w
+72.00 682.00 m 540.00 682.00 l S
+0 g BT /F2 12.00 Tf 1 0 0 1 72.00 657.00 Tm (STANDARD OPERATING PROCEDURE) Tj ET
+0 g BT /F2 11.00 Tf 1 0 0 1 72.00 642.65 Tm (Document:) Tj ET
+0 g BT /F1 11.00 Tf 1 0 0 1 150.00 642.65 Tm (SOP-CLUN-OPS-001) Tj ET
+0 g BT /F2 11.00 Tf 1 0 0 1 72.00 625.65 Tm (Date:) Tj ET
+0 g BT /F1 11.00 Tf 1 0 0 1 150.00 625.65 Tm (2026-07-27) Tj ET
+0 g BT /F2 11.00 Tf 1 0 0 1 72.00 608.65 Tm (Version:) Tj ET
+0 g BT /F1 11.00 Tf 1 0 0 1 150.00 608.65 Tm (v0.3.0 candidate \(boundary v0.2.2\)) Tj ET
+0 g BT /F2 11.00 Tf 1 0 0 1 72.00 591.65 Tm (Standard:) Tj ET
+0 g BT /F1 11.00 Tf 1 0 0 1 150.00 591.65 Tm (NASA NAII 1450.3 memorandum layout) Tj ET
+72.00 578.00 m 540.00 578.00 l S
+0 g BT /F2 12.00 Tf 1 0 0 1 72.00 553.80 Tm (Reply to Attn of:) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 180.00 553.80 Tm (OPS/CLUN) Tj ET
+0 g BT /F2 12.00 Tf 1 0 0 1 72.00 529.80 Tm (TO:) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 144.00 529.80 Tm (Maintainers and Release Operators) Tj ET
+0 g BT /F2 12.00 Tf 1 0 0 1 72.00 509.80 Tm (FROM:) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 144.00 509.80 Tm (Project Engineering) Tj ET
+0 g BT /F2 12.00 Tf 1 0 0 1 72.00 489.80 Tm (SUBJECT:) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 144.00 489.80 Tm (Clun operator standard operating procedure \(clone, build, gates, install, release\)) Tj ET
+0 g BT /F2 12.00 Tf 1 0 0 1 72.00 469.80 Tm (REF:) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 144.00 469.80 Tm (AGENTS.md, docs/versioning.md, Epic #177, Issue #339, candidate 0.3.0) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 431.80 Tm (Bottom line: Clun is a Bun-shaped JavaScript and TypeScript toolkit implemented only in pure) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 417.80 Tm (Common Lisp. Operators clone, build with SBCL, run purity and test gates, ship through Issue to) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 403.80 Tm (PR to master, and publish installable tags only after assets and the release ledger agree.) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 389.80 Tm (Published install boundary remains v0.2.2 until candidate 0.3.0 ships.) Tj ET
+0 g BT /F2 12.00 Tf 1 0 0 1 72.00 368.80 Tm (1. Purpose) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 348.80 Tm (This memorandum is the living operator handbook for Clun. It states how to clone the repository,) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 334.80 Tm (build the runtime image, run quality gates, install for end users, and ship a versioned release) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 320.80 Tm (without publication gaps.) Tj ET
+0 g BT /F2 12.00 Tf 1 0 0 1 72.00 293.80 Tm (2. Scope) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 273.80 Tm (This SOP covers full project operations. It does not replace the man page, README narrative,) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 259.80 Tm (capability matrix, or https://clun.sh. Those remain the public ship surfaces.) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 238.80 Tm (- product identity and purity law) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 220.80 Tm (- repository layout and live sources of truth) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 202.80 Tm (- host prerequisites) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 184.80 Tm (- clone, build, and local binary checks) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 166.80 Tm (- quality gates \(build, test, purity, claims, man\)) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 148.80 Tm (- end-user install and update paths) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 130.80 Tm (- release ship flow and Pages deploy) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 112.80 Tm (- documentation triad and NASA document cadence) Tj ET
+0 g BT /F1 10.00 Tf 1 0 0 1 303.50 40.00 Tm (1) Tj ET
+endstream
+endobj
+8 0 obj
+<< /Type /Page /Parent 29 0 R /MediaBox [0 0 612 792] /Contents 7 0 R /Resources << /Font << /F1 1 0 R /F2 2 0 R /F3 3 0 R /F4 4 0 R /F5 5 0 R /F6 6 0 R >> >> >>
+endobj
+9 0 obj
+<< /Length 6606 >>
+stream
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 709.80 Tm (- failure responses) Tj ET
+0 g BT /F2 12.00 Tf 1 0 0 1 72.00 685.80 Tm (3. Product identity) Tj ET
+0.300 G 0.60 w
+72.00 676.00 m 540.00 676.00 l S
+72.00 676.00 m 72.00 656.50 l S
+0 g BT /F2 9.50 Tf 1 0 0 1 76.00 663.92 Tm (Item) Tj ET
+221.76 676.00 m 221.76 656.50 l S
+0 g BT /F2 9.50 Tf 1 0 0 1 225.76 663.92 Tm (Value) Tj ET
+540.00 676.00 m 540.00 656.50 l S
+72.00 656.50 m 540.00 656.50 l S
+0.300 G 0.60 w
+72.00 656.50 m 540.00 656.50 l S
+72.00 656.50 m 72.00 637.00 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 76.00 644.42 Tm (Product name) Tj ET
+221.76 656.50 m 221.76 637.00 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 225.76 644.42 Tm (Clun) Tj ET
+540.00 656.50 m 540.00 637.00 l S
+72.00 637.00 m 540.00 637.00 l S
+0.300 G 0.60 w
+72.00 637.00 m 540.00 637.00 l S
+72.00 637.00 m 72.00 617.50 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 76.00 624.92 Tm (Binary) Tj ET
+221.76 637.00 m 221.76 617.50 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 225.76 624.92 Tm (clun) Tj ET
+540.00 637.00 m 540.00 617.50 l S
+72.00 617.50 m 540.00 617.50 l S
+0.300 G 0.60 w
+72.00 617.50 m 540.00 617.50 l S
+72.00 617.50 m 72.00 598.00 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 76.00 605.42 Tm (Site) Tj ET
+221.76 617.50 m 221.76 598.00 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 225.76 605.42 Tm (https://clun.sh) Tj ET
+540.00 617.50 m 540.00 598.00 l S
+72.00 598.00 m 540.00 598.00 l S
+0.300 G 0.60 w
+72.00 598.00 m 540.00 598.00 l S
+72.00 598.00 m 72.00 578.50 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 76.00 585.92 Tm (Installer) Tj ET
+221.76 598.00 m 221.76 578.50 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 225.76 585.92 Tm (https://clun.sh/install) Tj ET
+540.00 598.00 m 540.00 578.50 l S
+72.00 578.50 m 540.00 578.50 l S
+0.300 G 0.60 w
+72.00 578.50 m 540.00 578.50 l S
+72.00 578.50 m 72.00 559.00 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 76.00 566.42 Tm (Repository) Tj ET
+221.76 578.50 m 221.76 559.00 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 225.76 566.42 Tm (github.com/theesfeld/clun) Tj ET
+540.00 578.50 m 540.00 559.00 l S
+72.00 559.00 m 540.00 559.00 l S
+0.300 G 0.60 w
+72.00 559.00 m 540.00 559.00 l S
+72.00 559.00 m 72.00 539.50 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 76.00 546.92 Tm (License) Tj ET
+221.76 559.00 m 221.76 539.50 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 225.76 546.92 Tm (GPL-3.0-or-later) Tj ET
+540.00 559.00 m 540.00 539.50 l S
+72.00 539.50 m 540.00 539.50 l S
+0.300 G 0.60 w
+72.00 539.50 m 540.00 539.50 l S
+72.00 539.50 m 72.00 520.00 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 76.00 527.42 Tm (Implementation) Tj ET
+221.76 539.50 m 221.76 520.00 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 225.76 527.42 Tm (Pure Common Lisp \(SBCL\); no CFFI product path) Tj ET
+540.00 539.50 m 540.00 520.00 l S
+72.00 520.00 m 540.00 520.00 l S
+0.300 G 0.60 w
+72.00 520.00 m 540.00 520.00 l S
+72.00 520.00 m 72.00 500.50 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 76.00 507.93 Tm (Command shape) Tj ET
+221.76 520.00 m 221.76 500.50 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 225.76 507.93 Tm (Bun-compatible CLI and APIs) Tj ET
+540.00 520.00 m 540.00 500.50 l S
+72.00 500.50 m 540.00 500.50 l S
+0.300 G 0.60 w
+72.00 500.50 m 540.00 500.50 l S
+72.00 500.50 m 72.00 481.00 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 76.00 488.43 Tm (Platforms) Tj ET
+221.76 500.50 m 221.76 481.00 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 225.76 488.43 Tm (Linux and macOS, x64 and arm64) Tj ET
+540.00 500.50 m 540.00 481.00 l S
+72.00 481.00 m 540.00 481.00 l S
+0.300 G 0.60 w
+72.00 481.00 m 540.00 481.00 l S
+72.00 481.00 m 72.00 461.50 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 76.00 468.93 Tm (Default branch) Tj ET
+221.76 481.00 m 221.76 461.50 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 225.76 468.93 Tm (master) Tj ET
+540.00 481.00 m 540.00 461.50 l S
+72.00 461.50 m 540.00 461.50 l S
+0.300 G 0.60 w
+72.00 461.50 m 540.00 461.50 l S
+72.00 461.50 m 72.00 442.00 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 76.00 449.43 Tm (Published install boundary) Tj ET
+221.76 461.50 m 221.76 442.00 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 225.76 449.43 Tm (v0.2.2 \(until 0.3.0 publishes\)) Tj ET
+540.00 461.50 m 540.00 442.00 l S
+72.00 442.00 m 540.00 442.00 l S
+0.300 G 0.60 w
+72.00 442.00 m 540.00 442.00 l S
+72.00 442.00 m 72.00 422.50 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 76.00 429.93 Tm (Source candidate) Tj ET
+221.76 442.00 m 221.76 422.50 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 225.76 429.93 Tm (0.3.0 / v0.3.0) Tj ET
+540.00 442.00 m 540.00 422.50 l S
+72.00 422.50 m 540.00 422.50 l S
+0.300 G 0.60 w
+72.00 422.50 m 540.00 422.50 l S
+72.00 422.50 m 72.00 403.00 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 76.00 410.43 Tm (Man page) Tj ET
+221.76 422.50 m 221.76 403.00 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 225.76 410.43 Tm (man clun \(must match live clun --help\)) Tj ET
+540.00 422.50 m 540.00 403.00 l S
+72.00 403.00 m 540.00 403.00 l S
+0 g BT /F2 12.00 Tf 1 0 0 1 72.00 376.80 Tm (4. Product laws \(non-negotiable\)) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 356.80 Tm (Permanent product law \(Epic #177 FULL PORT\): every matrix row is a full-port target until) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 342.80 Tm (Yes. Qualified Yes is a No. Soft ledger detail is forbidden while status is Yes.) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 321.80 Tm (4.1 Prime directive: exceed Bun, npm, and matrix peers for every shipped surface.) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 307.80 Tm (Implementation language is pure Common Lisp.) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 286.80 Tm (4.2 Purity: no CFFI, native libraries, implementation JS/TS, or shell-outs as product) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 272.80 Tm (implementation shortcuts. Enforce with make purity.) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 251.80 Tm (4.3 No hollow exports: every exported API must perform real work or must not be exported.) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 237.80 Tm (Zero product hollows \(Issue #339 closed inventory\).) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 216.80 Tm (4.4 Man page hard rule: man clun content must always match actual current CLI functionality.) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 202.80 Tm (Source of truth is src/cli/catalog.lisp. Regenerate with make man. make man-check fails on drift.) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 181.80 Tm (4.5 Ship path: Issue then branch feat/issue-N-... then PR then squash-merge into master. Do not) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 167.80 Tm (use direct push to master as the ship path.) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 146.80 Tm (4.6 Publication order after merge when release-bearing: tag merge SHA, release assets and) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 132.80 Tm (checksums, ledger/README/site, Pages, install smoke, Issue evidence. Never move or reuse) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 118.80 Tm (tags.) Tj ET
+0 g BT /F1 10.00 Tf 1 0 0 1 303.50 40.00 Tm (2) Tj ET
+endstream
+endobj
+10 0 obj
+<< /Type /Page /Parent 29 0 R /MediaBox [0 0 612 792] /Contents 9 0 R /Resources << /Font << /F1 1 0 R /F2 2 0 R /F3 3 0 R /F4 4 0 R /F5 5 0 R /F6 6 0 R >> >> >>
+endobj
+11 0 obj
+<< /Length 5354 >>
+stream
+0 g BT /F3 12.00 Tf 1 0 0 1 72.00 709.80 Tm (Figure. Day-to-day quality gates) Tj ET
+0.220 G 1.05 w
+306.00 670.00 m
+S
+0.220 G 1.05 w
+306.00 670.00 m 306.00 642.00 l S
+0.220 g
+306.00 642.00 m
+303.07 648.50 l
+308.93 648.50 l
+h
+f
+0.220 G 1.05 w
+306.00 606.00 m
+S
+0.220 G 1.05 w
+306.00 606.00 m 306.00 578.00 l S
+0.220 g
+306.00 578.00 m
+303.07 584.50 l
+308.93 584.50 l
+h
+f
+0.220 G 1.05 w
+306.00 542.00 m
+S
+0.220 G 1.05 w
+306.00 542.00 m 306.00 514.00 l S
+0.220 g
+306.00 514.00 m
+303.07 520.50 l
+308.93 520.50 l
+h
+f
+0.220 G 1.05 w
+306.00 478.00 m
+S
+0.220 G 1.05 w
+306.00 478.00 m 306.00 450.00 l S
+0.220 g
+306.00 450.00 m
+303.07 456.50 l
+308.93 456.50 l
+h
+f
+0.220 G 1.05 w
+306.00 414.00 m
+S
+0.220 G 1.05 w
+306.00 414.00 m 306.00 386.00 l S
+0.220 g
+306.00 386.00 m
+303.07 392.50 l
+308.93 392.50 l
+h
+f
+0.220 G 1.05 w
+306.00 338.00 m
+306.00 326.80 l
+359.00 326.80 l
+306.00 338.00 m
+306.00 326.80 l
+359.00 326.80 l
+S
+0.220 G 1.05 w
+359.00 326.80 m 359.00 310.00 l S
+0.220 g
+359.00 310.00 m
+356.07 316.50 l
+361.93 316.50 l
+h
+f
+1.000 g 1.000 G 0.10 w 307.78 327.00 16.45 11.00 re B
+0 g BT /F4 8.00 Tf 1 0 0 1 309.78 330.00 Tm (yes) Tj ET
+0.220 G 1.05 w
+356.00 362.00 m
+230.73 362.00 l
+356.00 362.00 m
+230.73 362.00 l
+S
+0.220 G 1.05 w
+230.73 362.00 m 230.73 310.00 l S
+0.220 g
+230.73 310.00 m
+227.80 316.50 l
+233.66 316.50 l
+h
+f
+1.000 g 1.000 G 0.10 w 286.92 361.00 12.90 11.00 re B
+0 g BT /F4 8.00 Tf 1 0 0 1 288.92 364.00 Tm (no) Tj ET
+0.220 G 1.05 w
+230.73 310.00 m
+230.73 367.20 l
+306.00 367.20 l
+230.73 310.00 m
+230.73 367.20 l
+306.00 367.20 l
+S
+0.220 G 1.05 w
+306.00 367.20 m 306.00 414.00 l S
+0.220 g
+306.00 414.00 m
+308.93 407.50 l
+303.07 407.50 l
+h
+f
+0.220 G 1.05 w
+359.00 274.00 m
+359.00 261.40 l
+306.00 261.40 l
+359.00 274.00 m
+359.00 261.40 l
+306.00 261.40 l
+S
+0.220 G 1.05 w
+306.00 261.40 m 306.00 246.00 l S
+0.220 g
+306.00 246.00 m
+303.07 252.50 l
+308.93 252.50 l
+h
+f
+0.220 G 1.05 w
+306.00 210.00 m
+S
+0.220 G 1.05 w
+306.00 210.00 m 306.00 182.00 l S
+0.220 g
+306.00 182.00 m
+303.07 188.50 l
+308.93 188.50 l
+h
+f
+0.900 g
+0.180 G 1.15 w
+346.76 685.00 m
+346.76 693.28 328.51 700.00 306.00 700.00 c
+283.49 700.00 265.24 693.28 265.24 685.00 c
+265.24 676.72 283.49 670.00 306.00 670.00 c
+328.51 670.00 346.76 676.72 346.76 685.00 c
+h
+B
+0 g BT /F4 9.00 Tf 1 0 0 1 277.24 682.85 Tm (Start work unit) Tj ET
+0.960 g
+0.180 G 1.15 w
+255.73 642.00 m
+356.27 642.00 l
+360.14 642.00 363.27 638.87 363.27 635.00 c
+363.27 613.00 l
+363.27 609.13 360.14 606.00 356.27 606.00 c
+255.73 606.00 l
+251.86 606.00 248.73 609.13 248.73 613.00 c
+248.73 635.00 l
+248.73 638.87 251.86 642.00 255.73 642.00 c
+h
+B
+0 g BT /F4 9.00 Tf 1 0 0 1 260.73 621.85 Tm (Canonical Issue scope) Tj ET
+0.960 g
+0.180 G 1.15 w
+265.49 578.00 m
+346.51 578.00 l
+350.38 578.00 353.51 574.87 353.51 571.00 c
+353.51 549.00 l
+353.51 545.13 350.38 542.00 346.51 542.00 c
+265.49 542.00 l
+261.62 542.00 258.49 545.13 258.49 549.00 c
+258.49 571.00 l
+258.49 574.87 261.62 578.00 265.49 578.00 c
+h
+B
+0 g BT /F4 9.00 Tf 1 0 0 1 270.49 557.85 Tm (Branch off master) Tj ET
+0.960 g
+0.180 G 1.15 w
+262.74 514.00 m
+349.26 514.00 l
+353.13 514.00 356.26 510.87 356.26 507.00 c
+356.26 485.00 l
+356.26 481.13 353.13 478.00 349.26 478.00 c
+262.74 478.00 l
+258.87 478.00 255.74 481.13 255.74 485.00 c
+255.74 507.00 l
+255.74 510.87 258.87 514.00 262.74 514.00 c
+h
+B
+0 g BT /F4 9.00 Tf 1 0 0 1 267.74 493.85 Tm (Implement pure CL) Tj ET
+0.960 g
+0.180 G 1.15 w
+258.48 450.00 m
+353.52 450.00 l
+357.38 450.00 360.52 446.87 360.52 443.00 c
+360.52 421.00 l
+360.52 417.13 357.38 414.00 353.52 414.00 c
+258.48 414.00 l
+254.62 414.00 251.48 417.13 251.48 421.00 c
+251.48 443.00 l
+251.48 446.87 254.62 450.00 258.48 450.00 c
+h
+B
+0 g BT /F4 9.00 Tf 1 0 0 1 263.48 429.85 Tm (make build/test/purity) Tj ET
+0.930 g
+0.180 G 1.15 w
+306.00 386.00 m
+356.00 362.00 l
+306.00 338.00 l
+256.00 362.00 l
+h
+B
+0 g BT /F4 9.00 Tf 1 0 0 1 278.73 359.85 Tm (Gates green?) Tj ET
+0.960 g
+0.180 G 1.15 w
+193.73 310.00 m
+267.73 310.00 l
+271.60 310.00 274.73 306.87 274.73 303.00 c
+274.73 281.00 l
+274.73 277.13 271.60 274.00 267.73 274.00 c
+193.73 274.00 l
+189.86 274.00 186.73 277.13 186.73 281.00 c
+186.73 303.00 l
+186.73 306.87 189.86 310.00 193.73 310.00 c
+h
+B
+0 g BT /F4 9.00 Tf 1 0 0 1 208.98 289.85 Tm (Fix failures) Tj ET
+0.960 g
+0.180 G 1.15 w
+299.73 310.00 m
+418.27 310.00 l
+422.14 310.00 425.27 306.87 425.27 303.00 c
+425.27 281.00 l
+425.27 277.13 422.14 274.00 418.27 274.00 c
+299.73 274.00 l
+295.86 274.00 292.73 277.13 292.73 281.00 c
+292.73 303.00 l
+292.73 306.87 295.86 310.00 299.73 310.00 c
+h
+B
+0 g BT /F4 9.00 Tf 1 0 0 1 304.73 289.85 Tm (Sync docs if claims change) Tj ET
+0.960 g
+0.180 G 1.15 w
+251.23 246.00 m
+360.77 246.00 l
+364.64 246.00 367.77 242.87 367.77 239.00 c
+367.77 217.00 l
+367.77 213.13 364.64 210.00 360.77 210.00 c
+251.23 210.00 l
+247.36 210.00 244.23 213.13 244.23 217.00 c
+244.23 239.00 l
+244.23 242.87 247.36 246.00 251.23 246.00 c
+h
+B
+0 g BT /F4 9.00 Tf 1 0 0 1 256.23 225.85 Tm (Open PR; squash-merge) Tj ET
+0.900 g
+0.180 G 1.15 w
+347.26 167.00 m
+347.26 175.28 328.79 182.00 306.00 182.00 c
+283.21 182.00 264.74 175.28 264.74 167.00 c
+264.74 158.72 283.21 152.00 306.00 152.00 c
+328.79 152.00 347.26 158.72 347.26 167.00 c
+h
+B
+0 g BT /F4 9.00 Tf 1 0 0 1 276.74 164.85 Tm (Unit on master) Tj ET
+0 g BT /F2 12.00 Tf 1 0 0 1 72.00 119.80 Tm (5. Sources of truth) Tj ET
+0 g BT /F1 10.00 Tf 1 0 0 1 303.50 40.00 Tm (3) Tj ET
+endstream
+endobj
+12 0 obj
+<< /Type /Page /Parent 29 0 R /MediaBox [0 0 612 792] /Contents 11 0 R /Resources << /Font << /F1 1 0 R /F2 2 0 R /F3 3 0 R /F4 4 0 R /F5 5 0 R /F6 6 0 R >> >> >>
+endobj
+13 0 obj
+<< /Length 7292 >>
+stream
+0.300 G 0.60 w
+72.00 720.00 m 540.00 720.00 l S
+72.00 720.00 m 72.00 700.50 l S
+0 g BT /F2 9.50 Tf 1 0 0 1 76.00 707.92 Tm (Surface) Tj ET
+221.76 720.00 m 221.76 700.50 l S
+0 g BT /F2 9.50 Tf 1 0 0 1 225.76 707.92 Tm (Role) Tj ET
+540.00 720.00 m 540.00 700.50 l S
+72.00 700.50 m 540.00 700.50 l S
+0.300 G 0.60 w
+72.00 700.50 m 540.00 700.50 l S
+72.00 700.50 m 72.00 681.00 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 76.00 688.42 Tm (GitHub Issues) Tj ET
+221.76 700.50 m 221.76 681.00 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 225.76 688.42 Tm (Live source of truth for status and scope) Tj ET
+540.00 700.50 m 540.00 681.00 l S
+72.00 681.00 m 540.00 681.00 l S
+0.300 G 0.60 w
+72.00 681.00 m 540.00 681.00 l S
+72.00 681.00 m 72.00 661.50 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 76.00 668.92 Tm (PLAN.md) Tj ET
+221.76 681.00 m 221.76 661.50 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 225.76 668.92 Tm (Technical notebook; derived; repair if it disagrees with Issues) Tj ET
+540.00 681.00 m 540.00 661.50 l S
+72.00 661.50 m 540.00 661.50 l S
+0.300 G 0.60 w
+72.00 661.50 m 540.00 661.50 l S
+72.00 661.50 m 72.00 642.00 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 76.00 649.42 Tm (STATE.md) Tj ET
+221.76 661.50 m 221.76 642.00 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 225.76 649.42 Tm (Resume checklist; derived) Tj ET
+540.00 661.50 m 540.00 642.00 l S
+72.00 642.00 m 540.00 642.00 l S
+0.300 G 0.60 w
+72.00 642.00 m 540.00 642.00 l S
+72.00 642.00 m 72.00 622.50 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 76.00 629.92 Tm (DECISIONS.md) Tj ET
+221.76 642.00 m 221.76 622.50 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 225.76 629.92 Tm (Decision log; mirror material decisions on the Issue) Tj ET
+540.00 642.00 m 540.00 622.50 l S
+72.00 622.50 m 540.00 622.50 l S
+0.300 G 0.60 w
+72.00 622.50 m 540.00 622.50 l S
+72.00 622.50 m 72.00 603.00 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 76.00 610.42 Tm (README.md + site/) Tj ET
+221.76 622.50 m 221.76 603.00 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 225.76 610.42 Tm (Public claims; no publication gap vs Issue) Tj ET
+540.00 622.50 m 540.00 603.00 l S
+72.00 603.00 m 540.00 603.00 l S
+0.300 G 0.60 w
+72.00 603.00 m 540.00 603.00 l S
+72.00 603.00 m 72.00 583.50 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 76.00 590.92 Tm (compat/) Tj ET
+221.76 603.00 m 221.76 583.50 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 225.76 590.92 Tm (Capability matrix evidence; make docs-check / public-claims-check) Tj ET
+540.00 603.00 m 540.00 583.50 l S
+72.00 583.50 m 540.00 583.50 l S
+0.300 G 0.60 w
+72.00 583.50 m 540.00 583.50 l S
+72.00 583.50 m 72.00 564.00 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 76.00 571.42 Tm (docs/versioning.md) Tj ET
+221.76 583.50 m 221.76 564.00 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 225.76 571.42 Tm (SemVer and publication rules) Tj ET
+540.00 583.50 m 540.00 564.00 l S
+72.00 564.00 m 540.00 564.00 l S
+0.300 G 0.60 w
+72.00 564.00 m 540.00 564.00 l S
+72.00 564.00 m 72.00 544.50 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 76.00 551.92 Tm (compat/release.tsv) Tj ET
+221.76 564.00 m 221.76 544.50 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 225.76 551.92 Tm (Release ledger \(version, tag, installer boundary, state\)) Tj ET
+540.00 564.00 m 540.00 544.50 l S
+72.00 544.50 m 540.00 544.50 l S
+0 g BT /F2 12.00 Tf 1 0 0 1 72.00 518.30 Tm (6. Repository layout) Tj ET
+0.300 G 0.60 w
+72.00 508.50 m 540.00 508.50 l S
+72.00 508.50 m 72.00 489.00 l S
+0 g BT /F2 9.50 Tf 1 0 0 1 76.00 496.43 Tm (Path) Tj ET
+221.76 508.50 m 221.76 489.00 l S
+0 g BT /F2 9.50 Tf 1 0 0 1 225.76 496.43 Tm (Contents) Tj ET
+540.00 508.50 m 540.00 489.00 l S
+72.00 489.00 m 540.00 489.00 l S
+0.300 G 0.60 w
+72.00 489.00 m 540.00 489.00 l S
+72.00 489.00 m 72.00 469.50 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 76.00 476.93 Tm (src/) Tj ET
+221.76 489.00 m 221.76 469.50 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 225.76 476.93 Tm (Runtime, CLI, engine, Node and Web surfaces) Tj ET
+540.00 489.00 m 540.00 469.50 l S
+72.00 469.50 m 540.00 469.50 l S
+0.300 G 0.60 w
+72.00 469.50 m 540.00 469.50 l S
+72.00 469.50 m 72.00 450.00 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 76.00 457.43 Tm (vendor/) Tj ET
+221.76 469.50 m 221.76 450.00 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 225.76 457.43 Tm (Pinned pure-CL dependencies) Tj ET
+540.00 469.50 m 540.00 450.00 l S
+72.00 450.00 m 540.00 450.00 l S
+0.300 G 0.60 w
+72.00 450.00 m 540.00 450.00 l S
+72.00 450.00 m 72.00 430.50 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 76.00 437.93 Tm (tests/) Tj ET
+221.76 450.00 m 221.76 430.50 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 225.76 437.93 Tm (Parachute suites, JS/TS fixtures, conformance) Tj ET
+540.00 450.00 m 540.00 430.50 l S
+72.00 430.50 m 540.00 430.50 l S
+0.300 G 0.60 w
+72.00 430.50 m 540.00 430.50 l S
+72.00 430.50 m 72.00 411.00 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 76.00 418.43 Tm (scripts/) Tj ET
+221.76 430.50 m 221.76 411.00 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 225.76 418.43 Tm (Build, release, claims, and check tooling) Tj ET
+540.00 430.50 m 540.00 411.00 l S
+72.00 411.00 m 540.00 411.00 l S
+0.300 G 0.60 w
+72.00 411.00 m 540.00 411.00 l S
+72.00 411.00 m 72.00 391.50 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 76.00 398.93 Tm (docs/) Tj ET
+221.76 411.00 m 221.76 391.50 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 225.76 398.93 Tm (Design notes, man source, versioning, NASA SOP/memo) Tj ET
+540.00 411.00 m 540.00 391.50 l S
+72.00 391.50 m 540.00 391.50 l S
+0.300 G 0.60 w
+72.00 391.50 m 540.00 391.50 l S
+72.00 391.50 m 72.00 372.00 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 76.00 379.43 Tm (site/) Tj ET
+221.76 391.50 m 221.76 372.00 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 225.76 379.43 Tm (GitHub Pages source \(clun.sh\)) Tj ET
+540.00 391.50 m 540.00 372.00 l S
+72.00 372.00 m 540.00 372.00 l S
+0.300 G 0.60 w
+72.00 372.00 m 540.00 372.00 l S
+72.00 372.00 m 72.00 352.50 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 76.00 359.93 Tm (compat/) Tj ET
+221.76 372.00 m 221.76 352.50 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 225.76 359.93 Tm (Matrix and release ledger) Tj ET
+540.00 372.00 m 540.00 352.50 l S
+72.00 352.50 m 540.00 352.50 l S
+0.300 G 0.60 w
+72.00 352.50 m 540.00 352.50 l S
+72.00 352.50 m 72.00 333.00 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 76.00 340.43 Tm (build/clun) Tj ET
+221.76 352.50 m 221.76 333.00 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 225.76 340.43 Tm (Local image from make build) Tj ET
+540.00 352.50 m 540.00 333.00 l S
+72.00 333.00 m 540.00 333.00 l S
+0 g BT /F2 12.00 Tf 1 0 0 1 72.00 306.80 Tm (7. Prerequisites) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 286.80 Tm (Host toolchain for operators and CI: SBCL 2.6.4 on PATH with thread support, and GNU Make.) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 272.80 Tm (No Quicklisp. All CL dependencies are vendored under vendor/ and located via) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 258.80 Tm (scripts/registry.lisp. Supported release platforms for end-user binaries are Linux and macOS on) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 244.80 Tm (x64 and arm64.) Tj ET
+0 g BT /F2 12.00 Tf 1 0 0 1 72.00 217.80 Tm (8. Procedure - clone and build) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 197.80 Tm (A fresh clone builds with make build alone. ASDF compiles the vendored closure and src/ into) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 183.80 Tm (the per-user fasl cache. Nothing else is fetched.) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 162.80 Tm (8.1 Clone the repository and enter the tree.) Tj ET
+0 g BT /F6 9.00 Tf 1 0 0 1 72.00 144.35 Tm (git clone https://github.com/theesfeld/clun.git && cd clun) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 122.80 Tm (8.2 Confirm SBCL version on PATH.) Tj ET
+0 g BT /F1 10.00 Tf 1 0 0 1 303.50 40.00 Tm (4) Tj ET
+endstream
+endobj
+14 0 obj
+<< /Type /Page /Parent 29 0 R /MediaBox [0 0 612 792] /Contents 13 0 R /Resources << /Font << /F1 1 0 R /F2 2 0 R /F3 3 0 R /F4 4 0 R /F5 5 0 R /F6 6 0 R >> >> >>
+endobj
+15 0 obj
+<< /Length 4015 >>
+stream
+0 g BT /F6 9.00 Tf 1 0 0 1 72.00 712.35 Tm (sbcl --version) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 690.80 Tm (8.3 Build the runtime image.) Tj ET
+0 g BT /F6 9.00 Tf 1 0 0 1 72.00 672.35 Tm (make build) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 650.80 Tm (8.4 Confirm the binary version string.) Tj ET
+0 g BT /F6 9.00 Tf 1 0 0 1 72.00 632.35 Tm (./build/clun --version) Tj ET
+0 g BT /F3 12.00 Tf 1 0 0 1 72.00 610.80 Tm (Figure. Clone and build path) Tj ET
+0.220 G 1.05 w
+306.00 571.00 m
+S
+0.220 G 1.05 w
+306.00 571.00 m 306.00 543.00 l S
+0.220 g
+306.00 543.00 m
+303.07 549.50 l
+308.93 549.50 l
+h
+f
+0.220 G 1.05 w
+306.00 495.00 m
+S
+0.220 G 1.05 w
+306.00 495.00 m 306.00 403.00 l S
+0.220 g
+306.00 403.00 m
+303.07 409.50 l
+308.93 409.50 l
+h
+f
+1.000 g 1.000 G 0.10 w 307.78 484.00 16.45 11.00 re B
+0 g BT /F4 8.00 Tf 1 0 0 1 309.78 487.00 Tm (yes) Tj ET
+0.220 G 1.05 w
+366.65 519.00 m
+306.00 519.00 l
+366.65 519.00 m
+306.00 519.00 l
+S
+0.220 G 1.05 w
+306.00 519.00 m 306.00 467.00 l S
+0.220 g
+306.00 467.00 m
+303.07 473.50 l
+308.93 473.50 l
+h
+f
+1.000 g 1.000 G 0.10 w 329.88 518.00 12.90 11.00 re B
+0 g BT /F4 8.00 Tf 1 0 0 1 331.88 521.00 Tm (no) Tj ET
+0.220 G 1.05 w
+306.00 431.00 m
+S
+0.220 G 1.05 w
+306.00 431.00 m 306.00 403.00 l S
+0.220 g
+306.00 403.00 m
+303.07 409.50 l
+308.93 409.50 l
+h
+f
+0.220 G 1.05 w
+306.00 367.00 m
+S
+0.220 G 1.05 w
+306.00 367.00 m 306.00 339.00 l S
+0.220 g
+306.00 339.00 m
+303.07 345.50 l
+308.93 345.50 l
+h
+f
+0.220 G 1.05 w
+306.00 303.00 m
+S
+0.220 G 1.05 w
+306.00 303.00 m 306.00 275.00 l S
+0.220 g
+306.00 275.00 m
+303.07 281.50 l
+308.93 281.50 l
+h
+f
+0.900 g
+0.180 G 1.15 w
+346.00 586.00 m
+346.00 594.28 328.09 601.00 306.00 601.00 c
+283.91 601.00 266.00 594.28 266.00 586.00 c
+266.00 577.72 283.91 571.00 306.00 571.00 c
+328.09 571.00 346.00 577.72 346.00 586.00 c
+h
+B
+0 g BT /F4 9.00 Tf 1 0 0 1 283.99 583.85 Tm (Clone repo) Tj ET
+0.930 g
+0.180 G 1.15 w
+306.00 543.00 m
+366.65 519.00 l
+306.00 495.00 l
+245.35 519.00 l
+h
+B
+0 g BT /F4 9.00 Tf 1 0 0 1 278.11 522.35 Tm (SBCL + Make) Tj ET
+0 g BT /F4 9.00 Tf 1 0 0 1 288.49 511.35 Tm (present?) Tj ET
+0.960 g
+0.180 G 1.15 w
+269.00 467.00 m
+343.00 467.00 l
+346.87 467.00 350.00 463.87 350.00 460.00 c
+350.00 438.00 l
+350.00 434.13 346.87 431.00 343.00 431.00 c
+269.00 431.00 l
+265.13 431.00 262.00 434.13 262.00 438.00 c
+262.00 460.00 l
+262.00 463.87 265.13 467.00 269.00 467.00 c
+h
+B
+0 g BT /F4 9.00 Tf 1 0 0 1 274.99 446.85 Tm (Install toolchain) Tj ET
+0.960 g
+0.180 G 1.15 w
+269.00 403.00 m
+343.00 403.00 l
+346.87 403.00 350.00 399.87 350.00 396.00 c
+350.00 374.00 l
+350.00 370.13 346.87 367.00 343.00 367.00 c
+269.00 367.00 l
+265.13 367.00 262.00 370.13 262.00 374.00 c
+262.00 396.00 l
+262.00 399.87 265.13 403.00 269.00 403.00 c
+h
+B
+0 g BT /F4 9.00 Tf 1 0 0 1 284.24 382.85 Tm (make build) Tj ET
+0.960 g
+0.180 G 1.15 w
+269.00 339.00 m
+343.00 339.00 l
+346.87 339.00 350.00 335.87 350.00 332.00 c
+350.00 310.00 l
+350.00 306.13 346.87 303.00 343.00 303.00 c
+269.00 303.00 l
+265.13 303.00 262.00 306.13 262.00 310.00 c
+262.00 332.00 l
+262.00 335.87 265.13 339.00 269.00 339.00 c
+h
+B
+0 g BT /F4 9.00 Tf 1 0 0 1 279.00 318.85 Tm (clun --version) Tj ET
+0.900 g
+0.180 G 1.15 w
+354.76 260.00 m
+354.76 268.28 332.93 275.00 306.00 275.00 c
+279.07 275.00 257.24 268.28 257.24 260.00 c
+257.24 251.72 279.07 245.00 306.00 245.00 c
+332.93 245.00 354.76 251.72 354.76 260.00 c
+h
+B
+0 g BT /F4 9.00 Tf 1 0 0 1 269.24 257.85 Tm (Local binary ready) Tj ET
+0 g BT /F2 12.00 Tf 1 0 0 1 72.00 212.80 Tm (9. Procedure - quality gates) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 192.80 Tm (Run the unit gates before merge. Release-bearing units add version-transition and publication) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 178.80 Tm (checks per docs/versioning.md and the Issue SemVer disposition.) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 157.80 Tm (9.1 Build.) Tj ET
+0 g BT /F6 9.00 Tf 1 0 0 1 72.00 139.35 Tm (make build) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 117.80 Tm (9.2 Run the full test harness.) Tj ET
+0 g BT /F1 10.00 Tf 1 0 0 1 303.50 40.00 Tm (5) Tj ET
+endstream
+endobj
+16 0 obj
+<< /Type /Page /Parent 29 0 R /MediaBox [0 0 612 792] /Contents 15 0 R /Resources << /Font << /F1 1 0 R /F2 2 0 R /F3 3 0 R /F4 4 0 R /F5 5 0 R /F6 6 0 R >> >> >>
+endobj
+17 0 obj
+<< /Length 880 >>
+stream
+0 g BT /F6 9.00 Tf 1 0 0 1 72.00 712.35 Tm (make test) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 690.80 Tm (9.3 Fail closed on foreign-code tokens.) Tj ET
+0 g BT /F6 9.00 Tf 1 0 0 1 72.00 672.35 Tm (make purity) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 650.80 Tm (9.4 When CLI surface changes, regenerate and check man.) Tj ET
+0 g BT /F6 9.00 Tf 1 0 0 1 72.00 632.35 Tm (make man && make man-check) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 610.80 Tm (9.5 When public docs or roadmap change, run claims and roadmap checks.) Tj ET
+0 g BT /F6 9.00 Tf 1 0 0 1 72.00 592.35 Tm (make public-claims-check) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 570.80 Tm (9.6 For release-bearing units, bound the version transition.) Tj ET
+0 g BT /F6 9.00 Tf 1 0 0 1 72.00 552.35 Tm (BASE_SHA=<base> HEAD_SHA=<head> make version-transition-check) Tj ET
+0 g BT /F1 10.00 Tf 1 0 0 1 303.50 40.00 Tm (6) Tj ET
+endstream
+endobj
+18 0 obj
+<< /Type /Page /Parent 29 0 R /MediaBox [0 0 612 792] /Contents 17 0 R /Resources << /Font << /F1 1 0 R /F2 2 0 R /F3 3 0 R /F4 4 0 R /F5 5 0 R /F6 6 0 R >> >> >>
+endobj
+19 0 obj
+<< /Length 6215 >>
+stream
+0 g BT /F3 12.00 Tf 1 0 0 1 72.00 709.80 Tm (Figure. Gate decision path) Tj ET
+0.220 G 1.05 w
+306.00 670.00 m
+S
+0.220 G 1.05 w
+306.00 670.00 m 306.00 642.00 l S
+0.220 g
+306.00 642.00 m
+303.07 648.50 l
+308.93 648.50 l
+h
+f
+0.220 G 1.05 w
+306.00 606.00 m
+S
+0.220 G 1.05 w
+306.00 606.00 m 306.00 578.00 l S
+0.220 g
+306.00 578.00 m
+303.07 584.50 l
+308.93 584.50 l
+h
+f
+0.220 G 1.05 w
+306.00 530.00 m
+306.00 518.80 l
+359.00 518.80 l
+306.00 530.00 m
+306.00 518.80 l
+359.00 518.80 l
+S
+0.220 G 1.05 w
+359.00 518.80 m 359.00 502.00 l S
+0.220 g
+359.00 502.00 m
+356.07 508.50 l
+361.93 508.50 l
+h
+f
+1.000 g 1.000 G 0.10 w 307.78 519.00 16.45 11.00 re B
+0 g BT /F4 8.00 Tf 1 0 0 1 309.78 522.00 Tm (yes) Tj ET
+0.220 G 1.05 w
+356.00 554.00 m
+237.48 554.00 l
+356.00 554.00 m
+237.48 554.00 l
+S
+0.220 G 1.05 w
+237.48 554.00 m 237.48 496.00 l S
+0.220 g
+237.48 496.00 m
+234.56 502.50 l
+240.41 502.50 l
+h
+f
+1.000 g 1.000 G 0.10 w 290.29 553.00 12.90 11.00 re B
+0 g BT /F4 8.00 Tf 1 0 0 1 292.29 556.00 Tm (no) Tj ET
+0.220 G 1.05 w
+237.48 496.00 m
+237.48 556.50 l
+306.00 556.50 l
+237.48 496.00 m
+237.48 556.50 l
+306.00 556.50 l
+S
+0.220 G 1.05 w
+306.00 556.50 m 306.00 606.00 l S
+0.220 g
+306.00 606.00 m
+308.93 599.50 l
+303.07 599.50 l
+h
+f
+0.220 G 1.05 w
+359.00 454.00 m
+359.00 442.80 l
+306.00 442.80 l
+359.00 454.00 m
+359.00 442.80 l
+306.00 442.80 l
+S
+0.220 G 1.05 w
+306.00 442.80 m 306.00 426.00 l S
+0.220 g
+306.00 426.00 m
+303.07 432.50 l
+308.93 432.50 l
+h
+f
+1.000 g 1.000 G 0.10 w 360.78 443.00 16.45 11.00 re B
+0 g BT /F4 8.00 Tf 1 0 0 1 362.78 446.00 Tm (yes) Tj ET
+0.220 G 1.05 w
+418.52 478.00 m
+306.00 478.00 l
+418.52 478.00 m
+306.00 478.00 l
+S
+0.220 G 1.05 w
+306.00 478.00 m 306.00 362.00 l S
+0.220 g
+306.00 362.00 m
+303.07 368.50 l
+308.93 368.50 l
+h
+f
+1.000 g 1.000 G 0.10 w 355.81 477.00 12.90 11.00 re B
+0 g BT /F4 8.00 Tf 1 0 0 1 357.81 480.00 Tm (no) Tj ET
+0.220 G 1.05 w
+306.00 390.00 m
+S
+0.220 G 1.05 w
+306.00 390.00 m 306.00 362.00 l S
+0.220 g
+306.00 362.00 m
+303.07 368.50 l
+308.93 368.50 l
+h
+f
+0.220 G 1.05 w
+306.00 314.00 m
+S
+0.220 G 1.05 w
+306.00 314.00 m 306.00 286.00 l S
+0.220 g
+306.00 286.00 m
+303.07 292.50 l
+308.93 292.50 l
+h
+f
+1.000 g 1.000 G 0.10 w 307.78 303.00 16.45 11.00 re B
+0 g BT /F4 8.00 Tf 1 0 0 1 309.78 306.00 Tm (yes) Tj ET
+0.220 G 1.05 w
+356.00 338.00 m
+306.00 338.00 l
+356.00 338.00 m
+306.00 338.00 l
+S
+0.220 G 1.05 w
+306.00 338.00 m 306.00 222.00 l S
+0.220 g
+306.00 222.00 m
+303.07 228.50 l
+308.93 228.50 l
+h
+f
+1.000 g 1.000 G 0.10 w 324.55 337.00 12.90 11.00 re B
+0 g BT /F4 8.00 Tf 1 0 0 1 326.55 340.00 Tm (no) Tj ET
+0.220 G 1.05 w
+306.00 250.00 m
+S
+0.220 G 1.05 w
+306.00 250.00 m 306.00 222.00 l S
+0.220 g
+306.00 222.00 m
+303.07 228.50 l
+308.93 228.50 l
+h
+f
+0.900 g
+0.180 G 1.15 w
+346.26 685.00 m
+346.26 693.28 328.24 700.00 306.00 700.00 c
+283.76 700.00 265.74 693.28 265.74 685.00 c
+265.74 676.72 283.76 670.00 306.00 670.00 c
+328.24 670.00 346.26 676.72 346.26 685.00 c
+h
+B
+0 g BT /F4 9.00 Tf 1 0 0 1 277.74 682.85 Tm (Change ready) Tj ET
+0.960 g
+0.180 G 1.15 w
+269.00 642.00 m
+343.00 642.00 l
+346.87 642.00 350.00 638.87 350.00 635.00 c
+350.00 613.00 l
+350.00 609.13 346.87 606.00 343.00 606.00 c
+269.00 606.00 l
+265.13 606.00 262.00 609.13 262.00 613.00 c
+262.00 635.00 l
+262.00 638.87 265.13 642.00 269.00 642.00 c
+h
+B
+0 g BT /F4 9.00 Tf 1 0 0 1 275.74 621.85 Tm (build test purity) Tj ET
+0.930 g
+0.180 G 1.15 w
+306.00 578.00 m
+356.00 554.00 l
+306.00 530.00 l
+256.00 554.00 l
+h
+B
+0 g BT /F4 9.00 Tf 1 0 0 1 293.49 551.85 Tm (Pass?) Tj ET
+0.960 g
+0.180 G 1.15 w
+200.48 496.00 m
+274.48 496.00 l
+278.35 496.00 281.48 492.87 281.48 489.00 c
+281.48 467.00 l
+281.48 463.13 278.35 460.00 274.48 460.00 c
+200.48 460.00 l
+196.62 460.00 193.48 463.13 193.48 467.00 c
+193.48 489.00 l
+193.48 492.87 196.62 496.00 200.48 496.00 c
+h
+B
+0 g BT /F4 9.00 Tf 1 0 0 1 209.47 475.85 Tm (Fix and re-run) Tj ET
+0.930 g
+0.180 G 1.15 w
+359.00 502.00 m
+418.52 478.00 l
+359.00 454.00 l
+299.48 478.00 l
+h
+B
+0 g BT /F4 9.00 Tf 1 0 0 1 334.50 481.35 Tm (Claims/docs) Tj ET
+0 g BT /F4 9.00 Tf 1 0 0 1 339.24 470.35 Tm (changed?) Tj ET
+0.960 g
+0.180 G 1.15 w
+261.75 426.00 m
+350.25 426.00 l
+354.12 426.00 357.25 422.87 357.25 419.00 c
+357.25 397.00 l
+357.25 393.13 354.12 390.00 350.25 390.00 c
+261.75 390.00 l
+257.88 390.00 254.75 393.13 254.75 397.00 c
+254.75 419.00 l
+254.75 422.87 257.88 426.00 261.75 426.00 c
+h
+B
+0 g BT /F4 9.00 Tf 1 0 0 1 266.75 405.85 Tm (public-claims-check) Tj ET
+0.930 g
+0.180 G 1.15 w
+306.00 362.00 m
+356.00 338.00 l
+306.00 314.00 l
+256.00 338.00 l
+h
+B
+0 g BT /F4 9.00 Tf 1 0 0 1 270.49 335.85 Tm (Release-bearing?) Tj ET
+0.960 g
+0.180 G 1.15 w
+253.49 286.00 m
+358.51 286.00 l
+362.38 286.00 365.51 282.87 365.51 279.00 c
+365.51 257.00 l
+365.51 253.13 362.38 250.00 358.51 250.00 c
+253.49 250.00 l
+249.62 250.00 246.49 253.13 246.49 257.00 c
+246.49 279.00 l
+246.49 282.87 249.62 286.00 253.49 286.00 c
+h
+B
+0 g BT /F4 9.00 Tf 1 0 0 1 258.49 265.85 Tm (version-transition-check) Tj ET
+0.900 g
+0.180 G 1.15 w
+354.76 207.00 m
+354.76 215.28 332.93 222.00 306.00 222.00 c
+279.07 222.00 257.24 215.28 257.24 207.00 c
+257.24 198.72 279.07 192.00 306.00 192.00 c
+332.93 192.00 354.76 198.72 354.76 207.00 c
+h
+B
+0 g BT /F4 9.00 Tf 1 0 0 1 269.24 204.85 Tm (PR merge allowed) Tj ET
+0.300 G 0.60 w
+72.00 176.00 m 540.00 176.00 l S
+72.00 176.00 m 72.00 156.50 l S
+0 g BT /F2 9.50 Tf 1 0 0 1 76.00 163.92 Tm (Gate) Tj ET
+221.76 176.00 m 221.76 156.50 l S
+0 g BT /F2 9.50 Tf 1 0 0 1 225.76 163.92 Tm (When) Tj ET
+540.00 176.00 m 540.00 156.50 l S
+72.00 156.50 m 540.00 156.50 l S
+0.300 G 0.60 w
+72.00 156.50 m 540.00 156.50 l S
+72.00 156.50 m 72.00 137.00 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 76.00 144.42 Tm (make build / test / purity) Tj ET
+221.76 156.50 m 221.76 137.00 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 225.76 144.42 Tm (Every phase/unit merge) Tj ET
+540.00 156.50 m 540.00 137.00 l S
+72.00 137.00 m 540.00 137.00 l S
+0.300 G 0.60 w
+72.00 137.00 m 540.00 137.00 l S
+72.00 137.00 m 72.00 117.50 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 76.00 124.92 Tm (make man-check) Tj ET
+221.76 137.00 m 221.76 117.50 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 225.76 124.92 Tm (CLI surface or man generation changes) Tj ET
+540.00 137.00 m 540.00 117.50 l S
+72.00 117.50 m 540.00 117.50 l S
+0 g BT /F1 10.00 Tf 1 0 0 1 303.50 40.00 Tm (7) Tj ET
+endstream
+endobj
+20 0 obj
+<< /Type /Page /Parent 29 0 R /MediaBox [0 0 612 792] /Contents 19 0 R /Resources << /Font << /F1 1 0 R /F2 2 0 R /F3 3 0 R /F4 4 0 R /F5 5 0 R /F6 6 0 R >> >> >>
+endobj
+21 0 obj
+<< /Length 4118 >>
+stream
+0.300 G 0.60 w
+72.00 720.00 m 540.00 720.00 l S
+72.00 720.00 m 72.00 700.50 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 76.00 707.92 Tm (make public-claims-check) Tj ET
+221.76 720.00 m 221.76 700.50 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 225.76 707.92 Tm (README, site, ledger, or public claims change) Tj ET
+540.00 720.00 m 540.00 700.50 l S
+72.00 700.50 m 540.00 700.50 l S
+0.300 G 0.60 w
+72.00 700.50 m 540.00 700.50 l S
+72.00 700.50 m 72.00 681.00 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 76.00 688.42 Tm (make version-transition-check) Tj ET
+221.76 700.50 m 221.76 681.00 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 225.76 688.42 Tm (Release-bearing version movement) Tj ET
+540.00 700.50 m 540.00 681.00 l S
+72.00 681.00 m 540.00 681.00 l S
+0.300 G 0.60 w
+72.00 681.00 m 540.00 681.00 l S
+72.00 681.00 m 72.00 661.50 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 76.00 668.92 Tm (Compatibility / Release workflows) Tj ET
+221.76 681.00 m 221.76 661.50 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 225.76 668.92 Tm (Exact-master and tag gates per CI) Tj ET
+540.00 681.00 m 540.00 661.50 l S
+72.00 661.50 m 540.00 661.50 l S
+0 g BT /F2 12.00 Tf 1 0 0 1 72.00 635.30 Tm (10. Procedure - end-user install and update) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 615.30 Tm (The curl installer is the primary install path. It verifies SHA-256 and installs to ~/.local/bin/clun.) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 601.30 Tm (The man page installs with the package. The built-in updater uses pure Common Lisp HTTPS) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 587.30 Tm (against the same release assets.) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 566.30 Tm (10.1 Install the verified published boundary \(currently v0.2.2 until 0.3.0 publishes\).) Tj ET
+0 g BT /F6 9.00 Tf 1 0 0 1 72.00 547.85 Tm (curl -fsSL https://clun.sh/install | sh) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 526.30 Tm (10.2 Optional: pin a version.) Tj ET
+0 g BT /F6 9.00 Tf 1 0 0 1 72.00 507.85 Tm (INSTALL_VERSION=0.2.2 curl -fsSL https://clun.sh/install | sh) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 486.30 Tm (10.3 Check for updates without mutating.) Tj ET
+0 g BT /F6 9.00 Tf 1 0 0 1 72.00 467.85 Tm (clun --check-update) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 446.30 Tm (10.4 Activate the complete release bundle when behind.) Tj ET
+0 g BT /F6 9.00 Tf 1 0 0 1 72.00 427.85 Tm (clun --update) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 406.30 Tm (10.5 Confirm man page matches the installed CLI.) Tj ET
+0 g BT /F6 9.00 Tf 1 0 0 1 72.00 387.85 Tm (man clun) Tj ET
+0 g BT /F2 12.00 Tf 1 0 0 1 72.00 360.30 Tm (11. Procedure - release and ship) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 340.30 Tm (Classify SemVer impact on the canonical Issue before merge. Source version, ASDF core,) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 326.30 Tm (installer default, README, and site must agree for the unit. Candidate work may advance) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 312.30 Tm (src/version.lisp while verified_installer_tag stays on the last published tag.) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 291.30 Tm (11.1 Record SemVer impact, version, and tag on the Issue \(and release ledger\).) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 270.30 Tm (11.2 Land the unit on master via squash-merge when gates are green.) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 249.30 Tm (11.3 Update NASA SOP source and PDF. Write the NASA release memo for this version.) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 235.30 Tm (Update CHANGELOG.md, README Documents links, and site Documents links.) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 214.30 Tm (11.4 Tag the merge SHA as vX.Y.Z. Do not move or reuse tags.) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 193.30 Tm (11.5 Publish GitHub Release assets: four native archives, checksums.txt, install script, man page) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 179.30 Tm (bundle, SOP PDF, release memo PDF.) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 158.30 Tm (11.6 Advance the release ledger and verified installer boundary only after assets exist.) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 137.30 Tm (11.7 Confirm Pages deploy and smoke https://clun.sh/install.) Tj ET
+0 g BT /F1 10.00 Tf 1 0 0 1 303.50 40.00 Tm (8) Tj ET
+endstream
+endobj
+22 0 obj
+<< /Type /Page /Parent 29 0 R /MediaBox [0 0 612 792] /Contents 21 0 R /Resources << /Font << /F1 1 0 R /F2 2 0 R /F3 3 0 R /F4 4 0 R /F5 5 0 R /F6 6 0 R >> >> >>
+endobj
+23 0 obj
+<< /Length 4420 >>
+stream
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 709.80 Tm (11.8 Post publication evidence on the Issue.) Tj ET
+0 g BT /F3 12.00 Tf 1 0 0 1 72.00 688.80 Tm (Figure. Release ship flow) Tj ET
+0.220 G 1.05 w
+306.00 649.00 m
+S
+0.220 G 1.05 w
+306.00 649.00 m 306.00 621.00 l S
+0.220 g
+306.00 621.00 m
+303.07 627.50 l
+308.93 627.50 l
+h
+f
+0.220 G 1.05 w
+306.00 585.00 m
+S
+0.220 G 1.05 w
+306.00 585.00 m 306.00 557.00 l S
+0.220 g
+306.00 557.00 m
+303.07 563.50 l
+308.93 563.50 l
+h
+f
+0.220 G 1.05 w
+306.00 521.00 m
+S
+0.220 G 1.05 w
+306.00 521.00 m 306.00 493.00 l S
+0.220 g
+306.00 493.00 m
+303.07 499.50 l
+308.93 499.50 l
+h
+f
+0.220 G 1.05 w
+306.00 457.00 m
+S
+0.220 G 1.05 w
+306.00 457.00 m 306.00 429.00 l S
+0.220 g
+306.00 429.00 m
+303.07 435.50 l
+308.93 435.50 l
+h
+f
+0.220 G 1.05 w
+306.00 393.00 m
+S
+0.220 G 1.05 w
+306.00 393.00 m 306.00 365.00 l S
+0.220 g
+306.00 365.00 m
+303.07 371.50 l
+308.93 371.50 l
+h
+f
+0.220 G 1.05 w
+306.00 329.00 m
+S
+0.220 G 1.05 w
+306.00 329.00 m 306.00 301.00 l S
+0.220 g
+306.00 301.00 m
+303.07 307.50 l
+308.93 307.50 l
+h
+f
+0.220 G 1.05 w
+306.00 265.00 m
+S
+0.220 G 1.05 w
+306.00 265.00 m 306.00 237.00 l S
+0.220 g
+306.00 237.00 m
+303.07 243.50 l
+308.93 243.50 l
+h
+f
+0.220 G 1.05 w
+306.00 201.00 m
+S
+0.220 G 1.05 w
+306.00 201.00 m 306.00 173.00 l S
+0.220 g
+306.00 173.00 m
+303.07 179.50 l
+308.93 179.50 l
+h
+f
+0.900 g
+0.180 G 1.15 w
+355.52 664.00 m
+355.52 672.28 333.35 679.00 306.00 679.00 c
+278.65 679.00 256.48 672.28 256.48 664.00 c
+256.48 655.72 278.65 649.00 306.00 649.00 c
+333.35 649.00 355.52 655.72 355.52 664.00 c
+h
+B
+0 g BT /F4 9.00 Tf 1 0 0 1 268.48 661.85 Tm (Release unit ready) Tj ET
+0.960 g
+0.180 G 1.15 w
+251.48 621.00 m
+360.52 621.00 l
+364.38 621.00 367.52 617.87 367.52 614.00 c
+367.52 592.00 l
+367.52 588.13 364.38 585.00 360.52 585.00 c
+251.48 585.00 l
+247.62 585.00 244.48 588.13 244.48 592.00 c
+244.48 614.00 l
+244.48 617.87 247.62 621.00 251.48 621.00 c
+h
+B
+0 g BT /F4 9.00 Tf 1 0 0 1 256.48 600.85 Tm (Squash-merge to master) Tj ET
+0.960 g
+0.180 G 1.15 w
+259.98 557.00 m
+352.02 557.00 l
+355.88 557.00 359.02 553.87 359.02 550.00 c
+359.02 528.00 l
+359.02 524.13 355.88 521.00 352.02 521.00 c
+259.98 521.00 l
+256.12 521.00 252.98 524.13 252.98 528.00 c
+252.98 550.00 l
+252.98 553.87 256.12 557.00 259.98 557.00 c
+h
+B
+0 g BT /F4 9.00 Tf 1 0 0 1 264.98 536.85 Tm (SOP + memo + triad) Tj ET
+0.960 g
+0.180 G 1.15 w
+268.74 493.00 m
+343.26 493.00 l
+347.13 493.00 350.26 489.87 350.26 486.00 c
+350.26 464.00 l
+350.26 460.13 347.13 457.00 343.26 457.00 c
+268.74 457.00 l
+264.87 457.00 261.74 460.13 261.74 464.00 c
+261.74 486.00 l
+261.74 489.87 264.87 493.00 268.74 493.00 c
+h
+B
+0 g BT /F4 9.00 Tf 1 0 0 1 273.74 472.85 Tm (Tag merge SHA) Tj ET
+0.960 g
+0.180 G 1.15 w
+259.86 429.00 m
+352.14 429.00 l
+356.00 429.00 359.14 425.87 359.14 422.00 c
+359.14 400.00 l
+359.14 396.13 356.00 393.00 352.14 393.00 c
+259.86 393.00 l
+256.00 393.00 252.86 396.13 252.86 400.00 c
+252.86 422.00 l
+252.86 425.87 256.00 429.00 259.86 429.00 c
+h
+B
+0 g BT /F4 9.00 Tf 1 0 0 1 264.86 408.85 Tm (Assets + checksums) Tj ET
+0.960 g
+0.180 G 1.15 w
+246.35 365.00 m
+365.65 365.00 l
+369.52 365.00 372.65 361.87 372.65 358.00 c
+372.65 336.00 l
+372.65 332.13 369.52 329.00 365.65 329.00 c
+246.35 329.00 l
+242.48 329.00 239.35 332.13 239.35 336.00 c
+239.35 358.00 l
+239.35 361.87 242.48 365.00 246.35 365.00 c
+h
+B
+0 g BT /F4 9.00 Tf 1 0 0 1 251.35 344.85 Tm (Ledger + installer boundary) Tj ET
+0.960 g
+0.180 G 1.15 w
+257.11 301.00 m
+354.89 301.00 l
+358.76 301.00 361.89 297.87 361.89 294.00 c
+361.89 272.00 l
+361.89 268.13 358.76 265.00 354.89 265.00 c
+257.11 265.00 l
+253.24 265.00 250.11 268.13 250.11 272.00 c
+250.11 294.00 l
+250.11 297.87 253.24 301.00 257.11 301.00 c
+h
+B
+0 g BT /F4 9.00 Tf 1 0 0 1 262.11 280.85 Tm (Pages + install smoke) Tj ET
+0.960 g
+0.180 G 1.15 w
+269.00 237.00 m
+343.00 237.00 l
+346.87 237.00 350.00 233.87 350.00 230.00 c
+350.00 208.00 l
+350.00 204.13 346.87 201.00 343.00 201.00 c
+269.00 201.00 l
+265.13 201.00 262.00 204.13 262.00 208.00 c
+262.00 230.00 l
+262.00 233.87 265.13 237.00 269.00 237.00 c
+h
+B
+0 g BT /F4 9.00 Tf 1 0 0 1 275.99 216.85 Tm (Issue evidence) Tj ET
+0.900 g
+0.180 G 1.15 w
+346.00 158.00 m
+346.00 166.28 328.09 173.00 306.00 173.00 c
+283.91 173.00 266.00 166.28 266.00 158.00 c
+266.00 149.72 283.91 143.00 306.00 143.00 c
+328.09 143.00 346.00 149.72 346.00 158.00 c
+h
+B
+0 g BT /F4 9.00 Tf 1 0 0 1 286.24 155.85 Tm (Published) Tj ET
+0 g BT /F1 10.00 Tf 1 0 0 1 303.50 40.00 Tm (9) Tj ET
+endstream
+endobj
+24 0 obj
+<< /Type /Page /Parent 29 0 R /MediaBox [0 0 612 792] /Contents 23 0 R /Resources << /Font << /F1 1 0 R /F2 2 0 R /F3 3 0 R /F4 4 0 R /F5 5 0 R /F6 6 0 R >> >> >>
+endobj
+25 0 obj
+<< /Length 4950 >>
+stream
+0 g BT /F2 12.00 Tf 1 0 0 1 72.00 709.80 Tm (12. Procedure - documentation and NASA cadence) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 689.80 Tm (House prime directive: every release or deploy updates README, NASA SOP, website \(site/\),) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 675.80 Tm (and NASA changelog memo. Any ops or docs commit mid-cycle updates the NASA SOP source) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 661.80 Tm (and PDF in the same change set. Man, README, and Pages facts stay in sync.) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 640.80 Tm (- Operator SOP: docs/sop-clun-ops.json and docs/sop-clun-ops.pdf) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 622.80 Tm (- Release memo: docs/memo-release-<version>.json and .pdf) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 604.80 Tm (- CHANGELOG.md Keep a Changelog entries) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 586.80 Tm (- README Documents section links SOP and memo directly) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 568.80 Tm (- site/ Documents section carries the same links) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 550.80 Tm (- Graphical flowcharts required in the SOP for real processes; no ASCII diagrams in PDFs) Tj ET
+0 g BT /F2 12.00 Tf 1 0 0 1 72.00 526.80 Tm (13. Zero-stubs and hollow export rule) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 506.80 Tm (Issue #339 closed the residual zero-stubs inventory. Mechanical scan plus review reports) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 492.80 Tm (ZERO_PRODUCT_HOLLOWS. Only documented intentional design no-ops remain \(for) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 478.80 Tm (example MessagePort auto-start recording, honest non-FIPS\). Depth quality such as full HPACK) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 464.80 Tm (peer interop remains progressive, but exported APIs must not ignore arguments and return) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 450.80 Tm (undefined as a hollow shell.) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 429.80 Tm (- Inventory design note: docs/design/zero-stubs-residuals.md) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 411.80 Tm (- Final fixture: tests/js/node/destub-zero-final.js) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 393.80 Tm (- Shared-memory workers foundation: Issue #338 / PR #340) Tj ET
+0 g BT /F2 12.00 Tf 1 0 0 1 72.00 369.80 Tm (14. Daily operator checklist) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 349.80 Tm (- Work from a canonical Issue with clear SemVer disposition) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 331.80 Tm (- Branch naming: feat/issue-N-slug off master) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 313.80 Tm (- Run make build, make test, make purity before PR) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 295.80 Tm (- Regenerate man when CLI changes; never hand-edit docs/man/clun.1) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 277.80 Tm (- Sync README, site, STATE, and Issue when public claims move) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 259.80 Tm (- Update SOP PDF when operator process changes) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 241.80 Tm (- Never soft-Yes an incomplete matrix row) Tj ET
+0 g BT /F2 12.00 Tf 1 0 0 1 72.00 217.80 Tm (15. Failure responses) Tj ET
+0.300 G 0.60 w
+72.00 208.00 m 540.00 208.00 l S
+72.00 208.00 m 72.00 188.50 l S
+0 g BT /F2 9.50 Tf 1 0 0 1 76.00 195.92 Tm (Symptom) Tj ET
+221.76 208.00 m 221.76 188.50 l S
+0 g BT /F2 9.50 Tf 1 0 0 1 225.76 195.92 Tm (Response) Tj ET
+540.00 208.00 m 540.00 188.50 l S
+72.00 188.50 m 540.00 188.50 l S
+0.300 G 0.60 w
+72.00 188.50 m 540.00 188.50 l S
+72.00 188.50 m 72.00 169.00 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 76.00 176.42 Tm (make purity fails) Tj ET
+221.76 188.50 m 221.76 169.00 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 225.76 176.42 Tm (Remove CFFI/foreign or shell-out shortcut; restore pure CL path) Tj ET
+540.00 188.50 m 540.00 169.00 l S
+72.00 169.00 m 540.00 169.00 l S
+0.300 G 0.60 w
+72.00 169.00 m 540.00 169.00 l S
+72.00 169.00 m 72.00 149.50 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 76.00 156.92 Tm (make man-check fails) Tj ET
+221.76 169.00 m 221.76 149.50 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 225.76 156.92 Tm (Run make man from catalog; do not hand-patch man source) Tj ET
+540.00 169.00 m 540.00 149.50 l S
+72.00 149.50 m 540.00 149.50 l S
+0.300 G 0.60 w
+72.00 149.50 m 540.00 149.50 l S
+72.00 149.50 m 72.00 130.00 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 76.00 137.42 Tm (public-claims-check fails) Tj ET
+221.76 149.50 m 221.76 130.00 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 225.76 137.42 Tm (Reconcile README, site, compat ledger, and Issue facts) Tj ET
+540.00 149.50 m 540.00 130.00 l S
+72.00 130.00 m 540.00 130.00 l S
+0.300 G 0.60 w
+72.00 130.00 m 540.00 130.00 l S
+72.00 130.00 m 72.00 110.50 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 76.00 117.92 Tm (Installer still on old tag after ship) Tj ET
+221.76 130.00 m 221.76 110.50 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 225.76 117.92 Tm (Do not advance verified_installer_tag until assets exist) Tj ET
+540.00 130.00 m 540.00 110.50 l S
+72.00 110.50 m 540.00 110.50 l S
+0 g BT /F1 10.00 Tf 1 0 0 1 301.00 40.00 Tm (10) Tj ET
+endstream
+endobj
+26 0 obj
+<< /Type /Page /Parent 29 0 R /MediaBox [0 0 612 792] /Contents 25 0 R /Resources << /Font << /F1 1 0 R /F2 2 0 R /F3 3 0 R /F4 4 0 R /F5 5 0 R /F6 6 0 R >> >> >>
+endobj
+27 0 obj
+<< /Length 2719 >>
+stream
+0.300 G 0.60 w
+72.00 720.00 m 540.00 720.00 l S
+72.00 720.00 m 72.00 700.50 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 76.00 707.92 Tm (Pages deploy blocked) Tj ET
+221.76 720.00 m 221.76 700.50 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 225.76 707.92 Tm (Resolve candidate vs published state in release.tsv; fix installer boundary) Tj ET
+540.00 720.00 m 540.00 700.50 l S
+72.00 700.50 m 540.00 700.50 l S
+0.300 G 0.60 w
+72.00 700.50 m 540.00 700.50 l S
+72.00 700.50 m 72.00 681.00 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 76.00 688.42 Tm (Hollow export discovered) Tj ET
+221.76 700.50 m 221.76 681.00 l S
+0 g BT /F1 9.50 Tf 1 0 0 1 225.76 688.42 Tm (Destub or un-export; update inventory; never leave soft Yes) Tj ET
+540.00 700.50 m 540.00 681.00 l S
+72.00 681.00 m 540.00 681.00 l S
+0 g BT /F2 12.00 Tf 1 0 0 1 72.00 654.80 Tm (16. References) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 634.80 Tm (- https://clun.sh) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 616.80 Tm (- https://github.com/theesfeld/clun) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 598.80 Tm (- AGENTS.md) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 580.80 Tm (- README.md) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 562.80 Tm (- CHANGELOG.md) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 544.80 Tm (- docs/versioning.md) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 526.80 Tm (- docs/sop-clun-ops.pdf) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 508.80 Tm (- compat/release.tsv) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 490.80 Tm (- Epic #177 FULL PORT) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 472.80 Tm (- Issue #339 zero stubs) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 454.80 Tm (- Issue #338 shared-memory multithreading) Tj ET
+0 g BT /F2 12.00 Tf 1 0 0 1 72.00 430.80 Tm (17. Approval and control) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 410.80 Tm (Document control: SOP-CLUN-OPS-001. Version string tracks the operator surface for the) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 396.80 Tm (current candidate train. Update this SOP on every ops or docs process change and on every) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 382.80 Tm (release. Render with the house memo-pdf nasa-sop template. Maintainers approve content by) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 368.80 Tm (merging the documenting commit to master.) Tj ET
+72.00 334.00 m 252.00 334.00 l S
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 309.00 Tm (Project Engineering) Tj ET
+0 g BT /F1 12.00 Tf 1 0 0 1 72.00 295.00 Tm (Clun / OPS) Tj ET
+0 g BT /F1 11.00 Tf 1 0 0 1 72.00 271.00 Tm (Date: 2026-07-27) Tj ET
+0 g BT /F1 11.00 Tf 1 0 0 1 72.00 255.00 Tm (Enclosure: docs/memo-release-0.3.0.pdf when shipping 0.3.0) Tj ET
+0 g BT /F1 11.00 Tf 1 0 0 1 72.00 241.00 Tm (cc: Maintainers, Release Operators) Tj ET
+0 g BT /F1 10.00 Tf 1 0 0 1 301.00 40.00 Tm (11) Tj ET
+endstream
+endobj
+28 0 obj
+<< /Type /Page /Parent 29 0 R /MediaBox [0 0 612 792] /Contents 27 0 R /Resources << /Font << /F1 1 0 R /F2 2 0 R /F3 3 0 R /F4 4 0 R /F5 5 0 R /F6 6 0 R >> >> >>
+endobj
+29 0 obj
+<< /Type /Pages /Kids [8 0 R 10 0 R 12 0 R 14 0 R 16 0 R 18 0 R 20 0 R 22 0 R 24 0 R 26 0 R 28 0 R] /Count 11 >>
+endobj
+30 0 obj
+<< /Type /Catalog /Pages 29 0 R >>
+endobj
+31 0 obj
+<< /Title (STANDARD OPERATING PROCEDURE) /Author (Project Engineering) /Subject (NASA NAII 1450.3 SOP memorandum) /Producer (memo-pdf skill) /Creator (memo-pdf) >>
+endobj
+xref
+0 32
+0000000000 65535 f 
+0000000015 00000 n 
+0000000087 00000 n 
+0000000158 00000 n 
+0000000231 00000 n 
+0000000301 00000 n 
+0000000376 00000 n 
+0000000444 00000 n 
+0000004295 00000 n 
+0000004472 00000 n 
+0000011130 00000 n 
+0000011308 00000 n 
+0000016715 00000 n 
+0000016894 00000 n 
+0000024239 00000 n 
+0000024418 00000 n 
+0000028486 00000 n 
+0000028665 00000 n 
+0000029597 00000 n 
+0000029776 00000 n 
+0000036044 00000 n 
+0000036223 00000 n 
+0000040394 00000 n 
+0000040573 00000 n 
+0000045046 00000 n 
+0000045225 00000 n 
+0000050228 00000 n 
+0000050407 00000 n 
+0000053179 00000 n 
+0000053358 00000 n 
+0000053487 00000 n 
+0000053538 00000 n 
+trailer
+<< /Size 32 /Root 30 0 R /Info 31 0 R >>
+startxref
+53718
+%%EOF

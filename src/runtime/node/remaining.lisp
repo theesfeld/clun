@@ -647,12 +647,27 @@ duration of the eval, then restore. Returns the completion value."
           (aref b (+ ptr 2)) (ldb (byte 8 16) u)
           (aref b (+ ptr 3)) (ldb (byte 8 24) u))))
 
-(defun %wasi-fd-entry (filetype &optional (rights #xFFFFFFFFFFFFFFFF))
+(defun %wasi-fd-entry (filetype &key (rights #xFFFFFFFFFFFFFFFF) bytes path)
   (list :filetype filetype :flags 0 :offset 0 :closed nil
-        :rights-base rights :rights-inheriting rights))
+        :rights-base rights :rights-inheriting rights
+        :bytes bytes :path path))
+
+(defun %wasi-read-path (mem path-ptr path-len)
+  "Read a UTF-8 path of PATH-LEN bytes from WASM MEM at PATH-PTR."
+  (let* ((b (eng:data-buffer-bytes (eng:js-get mem "buffer")))
+         (end (min (+ path-ptr path-len) (length b)))
+         (oct (subseq b path-ptr end)))
+    (sb-ext:octets-to-string oct :external-format :utf-8)))
+
+(defun %wasi-alloc-fd (fd-table entry)
+  "Allocate the next free fd >= 3 in FD-TABLE for ENTRY; return the fd number."
+  (loop for fd from 3
+        unless (gethash fd fd-table)
+          do (setf (gethash fd fd-table) entry)
+             (return fd)))
 
 (defun %wasi-build-imports (instance)
-  "Minimal WASI preview1 import object sufficient for many WASI command modules."
+  "WASI preview1 imports: args/env/clock/random/stdio + host path_open/fd_read."
   (let ((imp (eng:new-object))
         (mem-box (list nil))
         (cli-args (list "clun"))
@@ -661,7 +676,9 @@ duration of the eval, then restore. Returns the completion value."
         (fd-table (let ((ht (make-hash-table :test 'eql)))
                     (setf (gethash 0 ht) (%wasi-fd-entry 2)   ; CHARACTER_DEVICE
                           (gethash 1 ht) (%wasi-fd-entry 2)
-                          (gethash 2 ht) (%wasi-fd-entry 2))
+                          (gethash 2 ht) (%wasi-fd-entry 2)
+                          ;; Preopen directory handle (filetype DIRECTORY=3).
+                          (gethash 3 ht) (%wasi-fd-entry 3 :path "."))
                     ht)))
     (when (eng:js-object-p (eng:js-get instance "_opts"))
       (let ((opts (eng:js-get instance "_opts")))
@@ -861,7 +878,123 @@ duration of the eval, then restore. Returns the completion value."
           (lambda (this args)
             (declare (ignore this args))
             (sb-thread:thread-yield)
-            0d0)))
+            0d0))
+      ;; path_open(dirfd, dirflags, path, path_len, oflags, rights_base,
+      ;;           rights_inheriting, fdflags, opened_fd) -> errno
+      (fn "path_open" 9
+          (lambda (this args)
+            (declare (ignore this))
+            (block wasi-open
+              (let* ((mem (car mem-box))
+                     (dirfd (truncate (eng:to-number (a args 0))))
+                     (path-ptr (truncate (eng:to-number (a args 2))))
+                     (path-len (truncate (eng:to-number (a args 3))))
+                     (oflags (truncate (eng:to-number (a args 4))))
+                     (opened-ptr (truncate (eng:to-number (a args 8))))
+                     (dir-entry (gethash dirfd fd-table)))
+                (unless mem (return-from wasi-open 8d0))
+                (unless dir-entry (return-from wasi-open 8d0)) ; EBADF
+                (when (getf dir-entry :closed) (return-from wasi-open 8d0))
+                (let* ((rel (%wasi-read-path mem path-ptr path-len))
+                       (base (or (getf dir-entry :path) "."))
+                       (full (if (and (plusp (length rel)) (char= (char rel 0) #\/))
+                                 rel
+                                 (sys:path-join base rel)))
+                       (create-p (plusp (logand oflags #x0001))) ; O_CREAT
+                       (trunc-p (plusp (logand oflags #x0008)))) ; O_TRUNC
+                  (cond
+                    ((and (not (sys:path-exists-p full)) (not create-p))
+                     44d0) ; ENOENT
+                    ((sys:directory-p full)
+                     31d0) ; EISDIR
+                    (t
+                     (handler-case
+                         (let* ((bytes
+                                 (cond
+                                   ((and (sys:file-p full) (not trunc-p))
+                                    (sys:read-file-octets full))
+                                   (create-p
+                                    (when (or trunc-p (not (sys:path-exists-p full)))
+                                      (sys:write-file-octets full
+                                                             (make-array 0 :element-type '(unsigned-byte 8))))
+                                    (if (sys:file-p full)
+                                        (sys:read-file-octets full)
+                                        (make-array 0 :element-type '(unsigned-byte 8))))
+                                   (t (sys:read-file-octets full))))
+                                (entry (%wasi-fd-entry 4 ; REGULAR_FILE
+                                                       :bytes bytes :path full))
+                                (new-fd (%wasi-alloc-fd fd-table entry)))
+                           (%wasi-write-u32 mem opened-ptr new-fd)
+                           0d0)
+                       (sys:fs-error () 44d0) ; ENOENT-ish
+                       (error () 29d0))))))))) ; EIO
+      ;; fd_read(fd, iovs, iovcnt, nread) -> errno
+      (fn "fd_read" 4
+          (lambda (this args)
+            (declare (ignore this))
+            (block wasi-read
+              (let* ((mem (car mem-box))
+                     (fd (truncate (eng:to-number (a args 0))))
+                     (iovs (truncate (eng:to-number (a args 1))))
+                     (iovcnt (truncate (eng:to-number (a args 2))))
+                     (nread-ptr (truncate (eng:to-number (a args 3))))
+                     (entry (gethash fd fd-table))
+                     (b (and mem (eng:data-buffer-bytes (eng:js-get mem "buffer"))))
+                     (total 0))
+                (unless (and mem entry) (return-from wasi-read 8d0))
+                (when (getf entry :closed) (return-from wasi-read 8d0))
+                (let ((src (getf entry :bytes)))
+                  (unless (vectorp src)
+                    ;; stdin / non-file: EOF
+                    (%wasi-write-u32 mem nread-ptr 0)
+                    (return-from wasi-read 0d0))
+                  (let ((off (getf entry :offset 0))
+                        (len (length src)))
+                    (dotimes (i iovcnt)
+                      (when (>= off len) (return))
+                      (let* ((base (%wasi-u32 mem (+ iovs (* i 8))))
+                             (cap (%wasi-u32 mem (+ iovs (* i 8) 4)))
+                             (n (min cap (- len off))))
+                        (replace b src :start1 base :end1 (+ base n)
+                                 :start2 off :end2 (+ off n))
+                        (incf off n)
+                        (incf total n)))
+                    (setf (getf entry :offset) off)
+                    (%wasi-write-u32 mem nread-ptr total)
+                    0d0))))))
+      ;; path_filestat_get(fd, flags, path, path_len, buf) -> errno
+      (fn "path_filestat_get" 5
+          (lambda (this args)
+            (declare (ignore this))
+            (block wasi-stat
+              (let* ((mem (car mem-box))
+                     (dirfd (truncate (eng:to-number (a args 0))))
+                     (path-ptr (truncate (eng:to-number (a args 2))))
+                     (path-len (truncate (eng:to-number (a args 3))))
+                     (buf (truncate (eng:to-number (a args 4))))
+                     (dir-entry (gethash dirfd fd-table)))
+                (unless mem (return-from wasi-stat 8d0))
+                (unless dir-entry (return-from wasi-stat 8d0))
+                (let* ((rel (%wasi-read-path mem path-ptr path-len))
+                       (base (or (getf dir-entry :path) "."))
+                       (full (if (and (plusp (length rel)) (char= (char rel 0) #\/))
+                                 rel
+                                 (sys:path-join base rel))))
+                  (unless (sys:path-exists-p full)
+                    (return-from wasi-stat 44d0))
+                  (let* ((b (eng:data-buffer-bytes (eng:js-get mem "buffer")))
+                         (ft (cond ((sys:directory-p full) 3)
+                                   ((sys:file-p full) 4)
+                                   (t 0)))
+                         (size (if (sys:file-p full)
+                                   (length (sys:read-file-octets full))
+                                   0)))
+                    ;; Minimal __wasi_filestat_t: zero then filetype @ offset 16, size @ 32.
+                    (dotimes (i 64) (setf (aref b (+ buf i)) 0))
+                    (setf (aref b (+ buf 16)) (ldb (byte 8 0) ft))
+                    (dotimes (i 8)
+                      (setf (aref b (+ buf 32 i)) (ldb (byte 8 (* 8 i)) size)))
+                    0d0)))))))
     (values imp mem-box)))
 
 (defun build-node-wasi ()

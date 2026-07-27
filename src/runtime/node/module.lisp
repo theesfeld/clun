@@ -80,10 +80,18 @@
                     (%module-hooks-from-object specifier)
                   (%module-register-hooks resolve load)))
                (t
-                ;; String/URL form: register empty hooks so the call is not a
-                ;; hollow no-op; loaders may fill resolve/load later via hooks.
-                (let ((name (->str specifier)))
-                  (declare (ignore name))
+                ;; String/URL form: record the registered specifier and install
+                ;; empty hooks so the call is not a hollow no-op.
+                (let* ((name (->str specifier))
+                       (reg (let ((existing (eng:js-get o "_registeredSpecifiers")))
+                              (if (eng:js-array-p existing)
+                                  existing
+                                  (let ((a (eng:new-array '())))
+                                    (eng:data-prop o "_registeredSpecifiers" a)
+                                    a))))
+                       (len (eng:array-length reg)))
+                  (eng:js-set reg (princ-to-string len) name nil)
+                  (eng:js-set reg "length" (coerce (1+ len) 'double-float) nil)
                   (%module-register-hooks nil nil)))))))
       (m "registerHooks" 1
          (lambda (this args) (declare (ignore this))
