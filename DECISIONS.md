@@ -3729,3 +3729,7 @@ version remains the published tip `0.2.2` until a dedicated release unit updates
 STATE/canonical Issue SemVer disposition, `compat/release.tsv`, README, site,
 and installer boundary together. SemVer impact of this capability is still
 `minor` for that future release disposition.
+
+## 2026-07-27 — exact-master gates for v0.3.0
+
+Touch path filters so CI + Documentation + Compatibility all run on one master SHA before tagging `v0.3.0` (compat excludes `compat/release.tsv` alone). Refs #58 / #338 / #339.

@@ -135,6 +135,10 @@ Versioned release trees.
 .TP
 .I ${XDG_DATA_HOME:-~/.local/share}/man/man1/clun.1
 Installed man page (standard installer).
+.TP
+.I file_id.diz
+Release scene card (archive description). Committed at the repository root
+and attached as a GitHub Release asset.
 .SH NOTES
 Installable default release is the verified boundary in the release ledger.
 Source may be a later candidate. Do not assume a source version is installable
@@ -142,5 +146,9 @@ until a matching GitHub Release with assets exists.
 .SH SEE ALSO
 Online documentation:
 https://clun.sh/ and https://github.com/theesfeld/clun
+.PP
+Operator SOP and release memo PDFs ship with the GitHub Release for each version.
+Scene card:
+.I file_id.diz
 .SH BUGS
 Report issues at https://github.com/theesfeld/clun/issues
