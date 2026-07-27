@@ -1,7 +1,7 @@
 <!-- clun-generated:release-notes:begin -->
 # Clun 0.3.0
 
-Phase 46: Processes, VM, workers, and async hooks.
+Phase 26: Final hardening, docs, and release.
 
 - SemVer impact: `minor` within the selected `0.3.0` prerelease train.
 - Compatibility snapshot: 30 Yes / 0 Partial / 0 No across 30 generated rows.
