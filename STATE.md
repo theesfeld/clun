@@ -6,11 +6,11 @@ Ship path: topic branch → PR → squash-merge into `master` (not direct push).
 
 ---
 
-## Current phase: **46 - Processes, VM, workers, zero-stubs closed**
+## Current phase: **26 - Final hardening, docs, and release (0.3.0 candidate)**
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/339
-**Related:** https://github.com/theesfeld/clun/issues/338 · PR https://github.com/theesfeld/clun/pull/340 · PR https://github.com/theesfeld/clun/pull/341
-**Program note:** Phase 26 patch `0.2.2` remains the last **published** installable boundary.
+**Canonical issue:** https://github.com/theesfeld/clun/issues/58
+**Related:** https://github.com/theesfeld/clun/issues/338 · https://github.com/theesfeld/clun/issues/339 · PR https://github.com/theesfeld/clun/pull/340 · PR https://github.com/theesfeld/clun/pull/341
+**Program note:** Phase 26 is the active release track for candidate `0.3.0`. Feature units #338/#339 closed. Last **published** installable boundary remains `v0.2.2`.
 **Source candidate:** `0.3.0` / `v0.3.0` (candidate; not published)
 **Installer default:** `verified_installer_tag=v0.2.2`
 **SemVer impact:** `minor` (shared-memory multithreading + zero-stubs completion)
