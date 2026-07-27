@@ -13,15 +13,19 @@ or assets and are not installable release checkpoints.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-07-27
+
 ### Added
 - SharedArrayBuffer, Atomics, and real `worker_threads` (Issue #338 / PR #340).
 - Zero-stubs inventory closed: WASI host `path_open` / `fd_read` / `path_filestat_get`, process stdout/stderr `end` and `writableEnded`, MessagePort `_started`, `module.register` specifier recording, final `destub-zero-final` fixture (Issue #339 / PR #341).
 - WebSocket `wss:` via pure-tls worker path.
-- NASA operator SOP (`docs/sop-clun-ops.pdf`) and NASA release memo for the 0.3.0 train (`docs/memo-release-0.3.0.pdf`); README and site Documents links.
+- NASA operator SOP (`docs/sop-clun-ops.pdf`) and NASA release memo (`docs/memo-release-0.3.0.pdf`); README and site Documents links.
+- Release scene card `file_id.diz` for the 0.3.0 train.
 
 ### Notes
-- Source candidate remains `0.3.0` / `v0.3.0` until the immutable tag and assets publish; installable boundary stays `v0.2.2`.
+- SemVer impact: `minor` (Phase 26 / Issue #58). Pre-1.0: minor versions may include breaking changes.
 - Product hollow exports: inventory closed to zero (only documented intentional design no-ops remain).
+- Capability matrix: 30 Yes / 0 Partial / 0 No.
 
 ## [0.2.2] - 2026-07-21
 

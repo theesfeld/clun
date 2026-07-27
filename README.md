@@ -29,6 +29,28 @@ Tracking: [issue #58](https://github.com/theesfeld/clun/issues/58) (Phase 26 rel
 | Changelog | [`CHANGELOG.md`](CHANGELOG.md) |
 | Site | [https://clun.sh](https://clun.sh) |
 | Man page | `man clun` (generated; must match live `clun --help`) |
+| Scene card | [`file_id.diz`](file_id.diz) (also a GitHub Release asset) |
+
+### Scene card
+
+```
+░▒▓████████████████████████████████████████████▓▒░
+█▓▒░  C L U N  ·  scene card  ·  v0.3.0        ░▒▓█
+████████████████████████████████████████████████████
+█  ██████╗██╗     ██╗   ██╗███╗   ██╗           █
+█ ██╔════╝██║     ██║   ██║████╗  ██║  JS/TS    █
+█ ██║     ██║     ██║   ██║██╔██╗ ██║  pure CL  █
+█ ██║     ██║     ██║   ██║██║╚██╗██║  Bun shape█
+█ ╚██████╗███████╗╚██████╔╝██║ ╚████║           █
+█  ╚═════╝╚══════╝ ╚═════╝ ╚═╝  ╚═══╝           █
+████████████████████████████████████████████████████
+█  GPL-3.0-or-later · 2026-07-27 · Linux+macOS  █
+█  shared-memory workers · zero hollow stubs    █
+█  NASA SOP + release memo on the GitHub Release█
+█  https://clun.sh · github:theesfeld/clun      █
+████████████████████████████████████████████████████
+  ░▒▓  curl -fsSL https://clun.sh/install | sh  ▓▒░
+```
 
 ## Install
 

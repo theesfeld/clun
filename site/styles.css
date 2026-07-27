@@ -531,6 +531,21 @@ pre {
   color: var(--text-muted);
 }
 
+.scene-card {
+  margin: 1.25rem 0 0;
+  padding: 1rem 1.1rem;
+  max-width: 52rem;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #0a0b0d;
+  color: var(--text-muted);
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  white-space: pre;
+}
+
 .card-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
