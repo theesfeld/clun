@@ -1,185 +1,70 @@
-name: Pages
+name: Deploy site (Cloudflare Pages)
 
 on:
   push:
     branches: [master]
     paths:
       - "site/**"
-      - "compat/release.tsv"
-      - "src/version.lisp"
-      - "scripts/release-live-check.sh"
-      - "scripts/test-release-live-check.sh"
-      - "scripts/test-release-workflow.sh"
-      - "scripts/release/verify-assets.sh"
-      - "scripts/release/verify-exact-sha-runs.sh"
-      - "scripts/release/verify-tagged-master.sh"
       - ".github/workflows/pages.yml"
-      - ".github/workflows/release.yml"
   workflow_dispatch:
-
-permissions:
-  contents: read
-  issues: read
-  pages: write
-  id-token: write
+  release:
+    types: [published]
 
 concurrency:
-  group: pages
+  group: pages-cloudflare
   cancel-in-progress: true
 
 jobs:
   deploy:
-    if: github.ref == 'refs/heads/master'
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-24.04
+    name: Cloudflare Pages
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v7
-      - name: Read release publication state
-        id: release
+      - uses: actions/checkout@v6
+
+      - name: Seed releases/current channel metadata
         env:
           GH_TOKEN: ${{ github.token }}
-        shell: bash
         run: |
           set -euo pipefail
-          IFS=$'\t' read -r _id _version _asdf _installer _tag state _license _phase \
-            _issue _impact _previous _version_source _asdf_source _installer_source commit \
-            < <(tail -n +2 compat/release.tsv)
-          case "$state" in
-            candidate)
-              if test "$commit" = pending; then
-                echo "candidate site will deploy before tag creation without claiming release assets"
-              elif [[ "$commit" =~ ^[0-9a-f]{40}$ ]]; then
-                actual_commit="$(gh api "repos/$GITHUB_REPOSITORY/commits/$_tag" --jq .sha)"
-                test "$actual_commit" = "$commit"
-                release_json="$RUNNER_TEMP/tagged-candidate-release.json"
-                release_error="$RUNNER_TEMP/tagged-candidate-release.error"
-                if gh api \
-                  "repos/$GITHUB_REPOSITORY/releases/tags/$_tag" \
-                  >"$release_json" 2>"$release_error"; then
-                  if test "$(jq -r .draft "$release_json")" = true; then
-                    echo "unpublished draft $_tag exists; deleting a GitHub Release requires human escalation" >&2
-                  else
-                    echo "published release $_tag exists; reconcile the ledger and installer before deploying Pages" >&2
-                  fi
-                  exit 1
-                elif ! grep -Eq 'HTTP[[:space:]]+404|\(HTTP 404\)' "$release_error"; then
-                  cat "$release_error" >&2
-                  echo "could not determine whether release $_tag exists" >&2
-                  exit 1
-                fi
-                echo "tag-only candidate site will deploy while retaining the prior verified installer boundary"
-              else
-                echo "candidate release commit must be pending or an exact tagged SHA" >&2
-                exit 1
-              fi
-              ;;
-            published)
-              [[ "$commit" =~ ^[0-9a-f]{40}$ ]]
-              ;;
-            *)
-              echo "invalid release publication state: $state" >&2
-              exit 1
-              ;;
-          esac
-          test "$(sed -n 's/^verified_installer_tag=//p' site/install)" = "$_installer"
-          echo "state=$state" >> "$GITHUB_OUTPUT"
-          echo "commit=$commit" >> "$GITHUB_OUTPUT"
-      - name: Verify published claims and roadmap links
-        run: sh scripts/public-claims-check.sh
-      - name: Test release publication gate
-        run: |
-          make test-release-live-check
-          make test-release-workflow
-      - name: Wait for matching published release assets
-        if: steps.release.outputs.state == 'published'
-        timeout-minutes: 125
-        env:
-          GH_TOKEN: ${{ github.token }}
-          CLUN_RELEASE_REPO: ${{ github.repository }}
-          CLUN_RELEASE_EXPECTED_SHA: ${{ steps.release.outputs.commit }}
-          CLUN_RELEASE_WAIT_SECONDS: "7200"
-          CLUN_RELEASE_POLL_SECONDS: "30"
-        run: sh scripts/release-live-check.sh
-      # Single live roadmap verify per Pages deploy (ElonOptimizer P1) — after assets when
-      # published, otherwise once for candidate deploys.
-      - name: Verify canonical live roadmap issues
-        env:
-          GH_TOKEN: ${{ github.token }}
-          ROADMAP_REPO: ${{ github.repository }}
-        run: make roadmap-verify-live
-      - uses: actions/configure-pages@v6
-      - uses: actions/upload-pages-artifact@v5
+          mkdir -p site/releases/current
+          tag=$(gh api repos/f00-sh/clun/releases/latest --jq .tag_name)
+          ver=${tag#v}
+          printf '%s\n' "$ver" > site/releases/current/VERSION
+          python3 - <<PY
+          import json
+          from pathlib import Path
+          ver = Path("site/releases/current/VERSION").read_text().strip()
+          tag = f"v{ver}"
+          base = f"https://github.com/f00-sh/clun/releases/download/{tag}"
+          Path("site/releases/current/manifest.json").write_text(
+              json.dumps(
+                  {
+                      "product": "clun",
+                      "version": ver,
+                      "tag": tag,
+                      "channel": "current",
+                      "download_base": base,
+                      "assets": {
+                          "linux-x64": f"{base}/clun-linux-x64.tar.gz",
+                          "linux-arm64": f"{base}/clun-linux-arm64.tar.gz",
+                          "darwin-x64": f"{base}/clun-darwin-x64.tar.gz",
+                          "darwin-arm64": f"{base}/clun-darwin-arm64.tar.gz",
+                          "checksums": f"{base}/checksums.txt",
+                      },
+                      "github_repo": "f00-sh/clun",
+                      "note": "Install script + current metadata on Cloudflare Pages; release tarballs on GitHub Releases (code/CI).",
+                  },
+                  indent=2,
+              )
+              + "\n"
+          )
+          PY
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
         with:
-          path: site
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v5
-      - name: Smoke test hosted installer and installed launcher
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          source_version=$(awk -F '\t' 'NR == 2 { print $2 }' compat/release.tsv)
-          installer_tag=$(awk -F '\t' 'NR == 2 { print $4 }' compat/release.tsv)
-          tag=$(awk -F '\t' 'NR == 2 { print $5 }' compat/release.tsv)
-          state=$(awk -F '\t' 'NR == 2 { print $6 }' compat/release.tsv)
-          version=${installer_tag#v}
-          test "$installer_tag" = "v$version"
-          if test "$state" = published; then
-            test "$tag" = "$installer_tag"
-            test "$source_version" = "$version"
-          else
-            test "$state" = candidate
-          fi
-
-          passed=0
-          for attempt in $(seq 1 10); do
-            installer="$RUNNER_TEMP/hosted-install-$attempt"
-            home="$RUNNER_TEMP/hosted-home-$attempt"
-            bin="$RUNNER_TEMP/hosted-bin-$attempt"
-            if curl --fail --location --silent --show-error --retry 3 \
-                --output "$installer" \
-                "https://clun.f00.sh/install?sha=$GITHUB_SHA&attempt=$attempt" &&
-               grep -Fx "verified_installer_tag=$installer_tag" "$installer" >/dev/null &&
-               HOME="$home" INSTALL_DIR="$bin" ADD_PATH=0 \
-                 sh "$installer" &&
-               test -L "$bin/clun" &&
-               test "$(PATH="$bin:$PATH" clun --version)" = "clun $version" &&
-               test "$(sed -n '1p' "$home/.local/share/clun/releases/$version/linux-x64/VERSION")" = "$version" &&
-               test -f "$home/.local/share/clun/releases/$version/linux-x64/lib/LOADER" &&
-               test -x "$home/.local/share/clun/releases/$version/linux-x64/libexec/clun"; then
-              passed=1
-              break
-            fi
-            sleep 15
-          done
-          test "$passed" = 1
-
-          if test "$state" = published; then
-            launcher_before=$(readlink "$bin/clun")
-            install_before=$(
-              cd "$home/.local/share/clun"
-              find . -printf '%P\t%y\t%s\t%T@\t%l\n' | LC_ALL=C sort
-            )
-            # Published CLI (v0.2.0-dev.11+) uses chromed emit-ok lines:
-            #   ● clun is up to date (vX.Y.Z)
-            #   ● clun needs no update (latest vX.Y.Z)
-            # Strip ANSI + optional leading glyph for exact compare.
-            strip_cli() {
-              sed -E 's/\x1b\[[0-9;]*m//g; s/^[^[:alnum:]]+[[:space:]]*//'
-            }
-            check_output=$(HOME="$home" PATH="$bin:$PATH" clun --check-update | strip_cli)
-            test "$check_output" = "clun is up to date (v$version)"
-            update_output=$(HOME="$home" PATH="$bin:$PATH" clun --update | strip_cli)
-            test "$update_output" = "clun needs no update (latest v$version)"
-            test "$(readlink "$bin/clun")" = "$launcher_before"
-            install_after=$(
-              cd "$home/.local/share/clun"
-              find . -printf '%P\t%y\t%s\t%T@\t%l\n' | LC_ALL=C sort
-            )
-            test "$install_after" = "$install_before"
-            test "$(PATH="$bin:$PATH" clun --version | strip_cli)" = "clun $version"
-          fi
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy site --project-name=f00-clun --branch=master

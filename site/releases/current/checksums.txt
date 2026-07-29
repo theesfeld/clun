@@ -1,0 +1,4 @@
+d9a11ba1723a22c49e97f9901af860d0b30390eccaaab729c7cac61dc83fe6ae  clun-darwin-arm64.tar.gz
+aac1c931b74c94eaf0c0812d63d77a23cd16f034aedeaff28cdffe68159b3817  clun-darwin-x64.tar.gz
+8fe6b11a76f9eac2123d66015eca2ab825df14ee7131204005d1beabf18027b6  clun-linux-arm64.tar.gz
+15cb45ac5d7ee163f571100f5b1dbdf9ed971dc912618596e8b5bb16dc1fcd83  clun-linux-x64.tar.gz

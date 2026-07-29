@@ -1,0 +1,16 @@
+{
+  "product": "clun",
+  "version": "0.3.0",
+  "tag": "v0.3.0",
+  "channel": "current",
+  "download_base": "https://github.com/f00-sh/clun/releases/download/v0.3.0",
+  "assets": {
+    "linux-x64": "https://github.com/f00-sh/clun/releases/download/v0.3.0/clun-linux-x64.tar.gz",
+    "linux-arm64": "https://github.com/f00-sh/clun/releases/download/v0.3.0/clun-linux-arm64.tar.gz",
+    "darwin-x64": "https://github.com/f00-sh/clun/releases/download/v0.3.0/clun-darwin-x64.tar.gz",
+    "darwin-arm64": "https://github.com/f00-sh/clun/releases/download/v0.3.0/clun-darwin-arm64.tar.gz",
+    "checksums": "https://github.com/f00-sh/clun/releases/download/v0.3.0/checksums.txt"
+  },
+  "github_repo": "f00-sh/clun",
+  "note": "Binaries ship from GitHub Releases; install script + VERSION/manifest live on Cloudflare edge. current = latest published tag."
+}

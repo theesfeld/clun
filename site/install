@@ -3,12 +3,21 @@
 set -eu
 
 repo=${CLUN_GITHUB_REPO:-f00-sh/clun}
+CLUN_EDGE_BASE=${CLUN_EDGE_BASE:-https://clun.f00.sh}
 verified_installer_tag=v0.3.0
 [ "$#" -le 1 ] || {
   printf 'clun: error: usage: install [VERSION]\n' >&2
   exit 1
 }
-requested_version=${1:-${INSTALL_VERSION:-${CLUN_VERSION:-$verified_installer_tag}}}
+requested_version=${1:-${INSTALL_VERSION:-${CLUN_VERSION:-}}}
+if [ -z "$requested_version" ]; then
+  # current channel from Cloudflare edge
+  if edge_ver=$(curl -fsSL "$CLUN_EDGE_BASE/releases/current/VERSION" 2>/dev/null | tr -d ' \t\r\n'); then
+    requested_version="v${edge_ver#v}"
+  else
+    requested_version=$verified_installer_tag
+  fi
+fi
 
 legacy_layout=0
 if [ -n "${INSTALL_DIR:-}" ]; then
@@ -343,6 +352,9 @@ is_release_tag "$requested_version" ||
 
 if [ -n "${CLUN_DOWNLOAD_BASE:-}" ]; then
   download_base=${CLUN_DOWNLOAD_BASE%/}
+elif manifest=$(curl -fsSL "$CLUN_EDGE_BASE/releases/current/manifest.json" 2>/dev/null); then
+  # Edge points packages; binaries still from GH release assets until R2
+  download_base="https://github.com/$repo/releases/download/$requested_version"
 else
   download_base="https://github.com/$repo/releases/download/$requested_version"
 fi
