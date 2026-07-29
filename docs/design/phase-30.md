@@ -18,7 +18,7 @@ The namespace is deliberately `Clun`, not `Bun`. This phase does not add a `Bun`
 Those APIs are not part of the `Bun.Glob` compatibility row.
 
 The canonical live source of truth is
-[issue #4](https://github.com/theesfeld/clun/issues/4). The issue owns live status, SemVer
+[issue #4](https://github.com/f00-sh/clun/issues/4). The issue owns live status, SemVer
 disposition, review findings, exact-commit receipts, release evidence, and closeout. This document
 freezes the implementation contract. `PLAN.md` and `STATE.md` remain derived surfaces.
 

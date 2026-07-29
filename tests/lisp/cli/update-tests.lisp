@@ -17,12 +17,12 @@
          (clun.cli::*update-fetch-function*
            (lambda (url &key &allow-other-keys)
              (push url calls)
-             (values "" "https://github.com/theesfeld/clun/releases/tag/v9.0.0"))))
+             (values "" "https://github.com/f00-sh/clun/releases/tag/v9.0.0"))))
     (multiple-value-bind (tag error)
         (cli:resolve-latest-release-tag :current-version "0.1.0-dev.69")
       (false error)
       (is string= "v9.0.0" tag)
-      (is equal (list "https://github.com/theesfeld/clun/releases/latest")
+      (is equal (list "https://github.com/f00-sh/clun/releases/latest")
           (nreverse calls)))))
 
 (define-test update/api-fallback-honors-token-and-channel
@@ -45,8 +45,8 @@
         (is string= "v1.5.0-dev.2" tag)))
     (is equal '(("Authorization" . "Bearer issue-221-token"))
         (remove-if-not (lambda (header) (string= (car header) "Authorization")) api-headers))
-    (is equal (list "https://github.com/theesfeld/clun/releases/latest"
-                    "https://api.github.com/repos/theesfeld/clun/releases?per_page=10")
+    (is equal (list "https://github.com/f00-sh/clun/releases/latest"
+                    "https://api.github.com/repos/f00-sh/clun/releases?per_page=10")
         (nreverse calls))
     ;; Stable installs never opt into a prerelease from the fallback list.
     (is string= "v1.4.0"
@@ -70,7 +70,7 @@
            (lambda (url &key &allow-other-keys)
              (incf calls)
              (if (search "/releases/latest" url)
-                 (values "" "https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.21")
+                 (values "" "https://github.com/f00-sh/clun/releases/tag/v0.1.0-dev.21")
                  (if (search "api.github.com" url)
                      (error "HTTP 403 for unauthenticated Releases API")
                      (error "Releases feed unavailable"))))))
@@ -84,17 +84,17 @@
   (let* ((calls '())
          (feed
            "<?xml version=\"1.0\"?><feed>
-              <entry><link href=\"https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.8\"/></entry>
-              <entry><link href=\"https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.70\"/></entry>
-              <entry><link href=\"https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.69\"/></entry>
-              <entry><link href=\"https://github.com/theesfeld/clun/releases/tag/not-semver\"/></entry>
+              <entry><link href=\"https://github.com/f00-sh/clun/releases/tag/v0.1.0-dev.8\"/></entry>
+              <entry><link href=\"https://github.com/f00-sh/clun/releases/tag/v0.1.0-dev.70\"/></entry>
+              <entry><link href=\"https://github.com/f00-sh/clun/releases/tag/v0.1.0-dev.69\"/></entry>
+              <entry><link href=\"https://github.com/f00-sh/clun/releases/tag/not-semver\"/></entry>
             </feed>")
          (clun.cli::*update-fetch-function*
            (lambda (url &key &allow-other-keys)
              (push url calls)
              (cond
                ((search "/releases/latest" url)
-                (values "" "https://github.com/theesfeld/clun/releases/tag/v0.0.9"))
+                (values "" "https://github.com/f00-sh/clun/releases/tag/v0.0.9"))
                ((search "api.github.com" url)
                 (error "HTTP 403 for unauthenticated Releases API"))
                ((search "/releases.atom" url) (values feed url))
@@ -103,9 +103,9 @@
         (cli:resolve-latest-release-tag :current-version "0.1.0-dev.69")
       (false error)
       (is string= "v0.1.0-dev.70" tag))
-    (is equal (list "https://github.com/theesfeld/clun/releases/latest"
-                    "https://api.github.com/repos/theesfeld/clun/releases?per_page=10"
-                    "https://github.com/theesfeld/clun/releases.atom")
+    (is equal (list "https://github.com/f00-sh/clun/releases/latest"
+                    "https://api.github.com/repos/f00-sh/clun/releases?per_page=10"
+                    "https://github.com/f00-sh/clun/releases.atom")
         (nreverse calls))
     ;; Stable installs do not opt into a prerelease even when it is numerically newer.
     (is string= "v0.0.9"
@@ -178,7 +178,7 @@
   (lambda (url &key binary &allow-other-keys)
     (cond
       ((search "/releases/latest" url)
-       (values "" (format nil "https://github.com/theesfeld/clun/releases/tag/~a"
+       (values "" (format nil "https://github.com/f00-sh/clun/releases/tag/~a"
                           remote-tag)))
       ((search "checksums.txt" url) (values checksums url))
       (binary (values payload url))

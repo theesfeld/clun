@@ -141,7 +141,7 @@ validate_active_state() {
   release_phase=$(awk -F "$TAB" 'NR == 2 { print $8 }' "$repo_root/compat/release.tsv")
   release_issue=$(awk -F "$TAB" 'NR == 2 { print $9 }' "$repo_root/compat/release.tsv")
   state_phases=$(sed -n 's/^## Current phase: \*\*\([0-9][0-9]*\) .*/\1/p' "$repo_root/STATE.md")
-  state_issues=$(sed -n 's|^\*\*Canonical issue:\*\* https://github.com/theesfeld/clun/issues/\([0-9][0-9]*\)$|\1|p' \
+  state_issues=$(sed -n 's|^\*\*Canonical issue:\*\* https://github.com/f00-sh/clun/issues/\([0-9][0-9]*\)$|\1|p' \
     "$repo_root/STATE.md")
   [ "$(printf '%s\n' "$state_phases" | awk 'NF { n++ } END { print n + 0 }')" -eq 1 ] ||
     fail 'STATE.md must contain exactly one parseable current phase'

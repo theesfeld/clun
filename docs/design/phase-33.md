@@ -13,7 +13,7 @@ The behavioral reference is `Bun.stringWidth`, but the namespace remains `Clun`.
 not add a `Bun` global, a `bun` module alias, or any other ANSI utility API. ANSI parsing exists only
 inside the width implementation.
 
-The canonical live source of truth is [issue #7](https://github.com/theesfeld/clun/issues/7). It
+The canonical live source of truth is [issue #7](https://github.com/f00-sh/clun/issues/7). It
 owns live status, decisions, findings, four-target receipts, release evidence, and closeout. This
 document freezes the technical contract before the current core/runtime prototypes are integrated.
 Prototype behavior is not accepted merely because it exists in a worktree.

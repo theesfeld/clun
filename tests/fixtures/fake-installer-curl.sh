@@ -32,7 +32,7 @@ case "$url" in
     [ -n "${CLUN_TEST_REDIRECT_TAG:-}" ] || exit 22
     case "$write_out" in
       *url_effective*)
-        printf 'https://github.com/theesfeld/clun/releases/tag/%s' "$CLUN_TEST_REDIRECT_TAG"
+        printf 'https://github.com/f00-sh/clun/releases/tag/%s' "$CLUN_TEST_REDIRECT_TAG"
         ;;
       *) exit 2 ;;
     esac

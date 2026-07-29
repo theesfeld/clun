@@ -1080,23 +1080,23 @@ EOF
   else
     for expected_text in \
       'Milestone-6 publication evidence:' \
-      'Candidate commit: `4d2b714c1a459264ca9e77f5f25979bb41b50c76`; [CI run 29488866153](https://github.com/theesfeld/clun/actions/runs/29488866153) and [Documentation run 29488866083](https://github.com/theesfeld/clun/actions/runs/29488866083) passed.' \
+      'Candidate commit: `4d2b714c1a459264ca9e77f5f25979bb41b50c76`; [CI run 29488866153](https://github.com/f00-sh/clun/actions/runs/29488866153) and [Documentation run 29488866083](https://github.com/f00-sh/clun/actions/runs/29488866083) passed.' \
       'Annotated tag `v0.1.0-dev.6` peels to exact candidate `4d2b714c1a459264ca9e77f5f25979bb41b50c76`.' \
-      '[Release run 29489277258](https://github.com/theesfeld/clun/actions/runs/29489277258) passed all four native builders and published [`v0.1.0-dev.6`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.6) as a prerelease.' \
-      'published [`v0.1.0-dev.6`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.6) as a prerelease.' \
+      '[Release run 29489277258](https://github.com/f00-sh/clun/actions/runs/29489277258) passed all four native builders and published [`v0.1.0-dev.6`](https://github.com/f00-sh/clun/releases/tag/v0.1.0-dev.6) as a prerelease.' \
+      'published [`v0.1.0-dev.6`](https://github.com/f00-sh/clun/releases/tag/v0.1.0-dev.6) as a prerelease.' \
       'Assets: `clun-linux-x64.tar.gz`, `clun-linux-arm64.tar.gz`, `clun-darwin-x64.tar.gz`, `clun-darwin-arm64.tar.gz`, and `checksums.txt`;' \
       'darwin-arm64 SHA-256: `1df087c75a9b335172371196a3553ab568cd85ff0b89921e35c98b467e137f1d`.' \
       'darwin-x64 SHA-256: `8588ee870948ad1de7fd3c3a86e66de58a3e00945897a90a4ad06e83fa978ffc`.' \
       'linux-arm64 SHA-256: `4eaa6c94f1364f7a07318d52e80e01dc538cbdc489e993353049c195401f5a31`.' \
       'linux-x64 SHA-256: `243dfc96bd5a163707c982bfe61d6054a784fe9bbd52bb72b6436d4ba9774935`.' \
-      '[Pages run 29488866091](https://github.com/theesfeld/clun/actions/runs/29488866091) succeeded for exact candidate `4d2b714c1a459264ca9e77f5f25979bb41b50c76` after release assets existed.' \
+      '[Pages run 29488866091](https://github.com/f00-sh/clun/actions/runs/29488866091) succeeded for exact candidate `4d2b714c1a459264ca9e77f5f25979bb41b50c76` after release assets existed.' \
       'installed binary reported `clun 0.1.0-dev.6`.'; do
       grep -Fq "$expected_text" "$body" ||
         fail "Phase 25b issue #$issue_number is missing m6 publication evidence: $expected_text"
     done
   fi
 
-  handoff_marker='Post-publication handoff verified. Commit `b638e5f515892c351caf9763f8d358d1757b92fd` passed [Documentation 29494344246](https://github.com/theesfeld/clun/actions/runs/29494344246) and [Pages 29494344301](https://github.com/theesfeld/clun/actions/runs/29494344301).'
+  handoff_marker='Post-publication handoff verified. Commit `b638e5f515892c351caf9763f8d358d1757b92fd` passed [Documentation 29494344246](https://github.com/f00-sh/clun/actions/runs/29494344246) and [Pages 29494344301](https://github.com/f00-sh/clun/actions/runs/29494344301).'
   handoff_complete=0
   if grep -Fq "$handoff_marker" "$comments"; then
     handoff_complete=1
@@ -1130,7 +1130,7 @@ EOF
   else
     for expected_text in \
       'Milestone-5 publication evidence:' \
-      'published [`v0.1.0-dev.5`](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.5) as a prerelease.' \
+      'published [`v0.1.0-dev.5`](https://github.com/f00-sh/clun/releases/tag/v0.1.0-dev.5) as a prerelease.' \
       'Assets: `clun-linux-x64.tar.gz`, `clun-linux-arm64.tar.gz`, `clun-darwin-x64.tar.gz`, `clun-darwin-arm64.tar.gz`, and `checksums.txt`;' \
       'deployed the dev.5 candidate-status page plus the release-gated installer after release assets existed.' \
       'installed binary reported `clun 0.1.0-dev.5`.' \

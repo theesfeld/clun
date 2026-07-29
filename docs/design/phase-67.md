@@ -1,7 +1,7 @@
 # Phase 67 — Watch mode and state-preserving hot reload
 
-**Issue:** [#188](https://github.com/theesfeld/clun/issues/188)  
-**Parent epic:** [#177](https://github.com/theesfeld/clun/issues/177)  
+**Issue:** [#188](https://github.com/f00-sh/clun/issues/188)  
+**Parent epic:** [#177](https://github.com/f00-sh/clun/issues/177)  
 **Ledger:** `tooling.hot-reload` → **Yes**  
 **SemVer:** `0.1.0-dev.50` / minor
 

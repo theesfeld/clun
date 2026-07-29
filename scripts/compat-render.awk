@@ -73,7 +73,7 @@ function phase_count(primary, integrations,    count, phase) {
 }
 
 function issue_query(phase) {
-  return "https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-" phase
+  return "https://github.com/f00-sh/clun/issues?q=is%3Aissue%20label%3Aphase-" phase
 }
 
 function markdown_phases(primary, integrations,    count, phase, result, first) {
@@ -284,7 +284,7 @@ END {
     print "      <th scope=\"col\"><a href=\"https://bun.sh/\">Bun</a><span>" html(baseline_version[public_bun_id]) "</span></th>"
     print "      <th scope=\"col\"><a href=\"https://nodejs.org/\">Node.js</a><span>" html(baseline_version[node_id]) "</span></th>"
     print "      <th scope=\"col\"><a href=\"https://deno.com/\">Deno</a><span>" html(baseline_version[deno_id]) "</span></th>"
-    print "      <th scope=\"col\" class=\"clun-col\"><a href=\"https://github.com/theesfeld/clun\">Clun</a><span>" html(release_version) "</span></th>"
+    print "      <th scope=\"col\" class=\"clun-col\"><a href=\"https://github.com/f00-sh/clun\">Clun</a><span>" html(release_version) "</span></th>"
     print "    </tr>"
     print "  </thead>"
     last_group = ""
@@ -311,12 +311,12 @@ END {
     print "  ✓ full support · ∼ partial · ✗ none."
     print "  Snapshot checked " human_date(baseline_checked[public_bun_id]) "."
     print "  Sources:"
-    print "  <a href=\"https://github.com/theesfeld/clun/blob/master/README.md\">Clun README</a>,"
+    print "  <a href=\"https://github.com/f00-sh/clun/blob/master/README.md\">Clun README</a>,"
     print "  <a href=\"" html(baseline_source[public_bun_id]) "\">Bun " html(baseline_version[public_bun_id]) "</a>,"
     print "  <a href=\"" html(baseline_source[engineering_bun_id]) "\">Bun source audit</a>,"
     print "  <a href=\"" html(baseline_source[node_id]) "\">Node.js " html(baseline_version[node_id]) "</a>,"
     print "  <a href=\"" html(baseline_source[deno_id]) "\">Deno " html(baseline_version[deno_id]) "</a>."
-    print "  <a href=\"https://github.com/theesfeld/clun/blob/master/compat/README.md\">Ledger on GitHub</a>."
+    print "  <a href=\"https://github.com/f00-sh/clun/blob/master/compat/README.md\">Ledger on GitHub</a>."
     print "  Capability status only. No speed claim."
     print "</p>"
   } else if (format == "site-compat-intro") {
@@ -327,13 +327,13 @@ END {
   } else if (format == "readme-release") {
     tagged_candidate = publication_state == "candidate" && release_commit != "pending"
     if (publication_state == "published") {
-      print "> **Status: " status_headline(channel) ".** Latest release: [`" release_tag "`](https://github.com/theesfeld/clun/releases/tag/" release_tag ")."
+      print "> **Status: " status_headline(channel) ".** Latest release: [`" release_tag "`](https://github.com/f00-sh/clun/releases/tag/" release_tag ")."
       print "> Installable boundary: four native archives, checksums, Pages installer, and `clun --update`."
       print "> Capability matrix: " ledger_yes " Yes / " ledger_partial " Partial / " ledger_no " No (evidence-backed)."
-      print "> Implementation: pure Common Lisp. Source: [theesfeld/clun](https://github.com/theesfeld/clun)."
+      print "> Implementation: pure Common Lisp. Source: [f00-sh/clun](https://github.com/f00-sh/clun)."
     } else {
       print "> **Status: " status_headline(channel) ".** Release target: `" release_version "` / `" release_tag "` (SemVer impact: `" semver_impact "`)."
-      print "> Tracking: [issue #" active_issue "](https://github.com/theesfeld/clun/issues/" active_issue ")."
+      print "> Tracking: [issue #" active_issue "](https://github.com/f00-sh/clun/issues/" active_issue ")."
       if (tagged_candidate) {
         print "> The annotated tag `" release_tag "` points to candidate commit `" release_commit "`, but no GitHub Release or release assets were published."
         print "> The latest verified installable boundary remains `v" previous_version "`."
@@ -344,13 +344,13 @@ END {
     }
   } else if (format == "site-release") {
     if (publication_state == "published") {
-      print "<a href=\"https://github.com/theesfeld/clun/releases/tag/" release_tag "\">"
+      print "<a href=\"https://github.com/f00-sh/clun/releases/tag/" release_tag "\">"
       print "  <span>" announcement_label(channel, 1) "</span>"
     } else if (release_commit != "pending") {
-      print "<a href=\"https://github.com/theesfeld/clun/issues/" active_issue "\">"
+      print "<a href=\"https://github.com/f00-sh/clun/issues/" active_issue "\">"
       print "  <span>Tag only / no Release</span>"
     } else {
-      print "<a href=\"https://github.com/theesfeld/clun/issues/" active_issue "\">"
+      print "<a href=\"https://github.com/f00-sh/clun/issues/" active_issue "\">"
       print "  <span>" announcement_label(channel, 0) "</span>"
     }
     print "  " html(release_tag)
@@ -364,29 +364,29 @@ END {
     else if (publication_state == "candidate" && release_commit != "pending")
       print "Candidate tag only (no GitHub Release yet)."
     else
-      print "Current release work: <a href=\"https://github.com/theesfeld/clun/issues/" active_issue "\">issue #" active_issue "</a>."
+      print "Current release work: <a href=\"https://github.com/f00-sh/clun/issues/" active_issue "\">issue #" active_issue "</a>."
   } else if (format == "readme-release-summary") {
     if (publication_state == "published") {
-      print "Latest release: [`" release_version "`](https://github.com/theesfeld/clun/releases/tag/" release_tag ")."
+      print "Latest release: [`" release_version "`](https://github.com/f00-sh/clun/releases/tag/" release_tag ")."
       print "Install: `curl -fsSL https://clun.sh/install | sh` · update: `clun --update`."
       print "Capability matrix: " ledger_yes " Yes / " ledger_partial " Partial / " ledger_no " No."
       print "[Versioning](docs/versioning.md) · [compatibility matrix](compat/README.md)."
     } else if (release_commit != "pending") {
       print "Candidate `" release_version "` is tagged but not published; installable boundary remains `v" previous_version "`."
-      print "Tracking: [issue #" active_issue "](https://github.com/theesfeld/clun/issues/" active_issue ")."
+      print "Tracking: [issue #" active_issue "](https://github.com/f00-sh/clun/issues/" active_issue ")."
     } else {
       print "Candidate `" release_version "` is unpublished; installable boundary remains `v" previous_version "`."
-      print "Tracking: [issue #" active_issue "](https://github.com/theesfeld/clun/issues/" active_issue ")."
+      print "Tracking: [issue #" active_issue "](https://github.com/f00-sh/clun/issues/" active_issue ")."
     }
   } else if (format == "site-release-links") {
     if (publication_state == "published") {
-      print "<div><h2>Project</h2><a href=\"https://github.com/theesfeld/clun\">Source</a><a href=\"https://github.com/theesfeld/clun/blob/master/README.md\">README</a><a href=\"https://github.com/theesfeld/clun/releases\">Releases</a></div>"
-      print "<div><h2>Evidence</h2><a href=\"https://github.com/theesfeld/clun/blob/master/compat/README.md\">Capability matrix</a><a href=\"https://github.com/theesfeld/clun/actions/workflows/compat.yml\">Compatibility CI</a><a href=\"https://github.com/theesfeld/clun/blob/master/LICENSE\">License</a></div>"
-      print "<div><h2>Install</h2><a href=\"install\">Shell installer</a><a href=\"https://github.com/theesfeld/clun/releases/tag/" release_tag "\">" release_tag " release</a><a href=\"https://github.com/theesfeld/clun#building-from-source\">Build from source</a></div>"
+      print "<div><h2>Project</h2><a href=\"https://github.com/f00-sh/clun\">Source</a><a href=\"https://github.com/f00-sh/clun/blob/master/README.md\">README</a><a href=\"https://github.com/f00-sh/clun/releases\">Releases</a></div>"
+      print "<div><h2>Evidence</h2><a href=\"https://github.com/f00-sh/clun/blob/master/compat/README.md\">Capability matrix</a><a href=\"https://github.com/f00-sh/clun/actions/workflows/compat.yml\">Compatibility CI</a><a href=\"https://github.com/f00-sh/clun/blob/master/LICENSE\">License</a></div>"
+      print "<div><h2>Install</h2><a href=\"install\">Shell installer</a><a href=\"https://github.com/f00-sh/clun/releases/tag/" release_tag "\">" release_tag " release</a><a href=\"https://github.com/f00-sh/clun#building-from-source\">Build from source</a></div>"
     } else {
-      print "<div><h2>Project</h2><a href=\"https://github.com/theesfeld/clun\">Source</a><a href=\"https://github.com/theesfeld/clun/blob/master/README.md\">README</a><a href=\"https://github.com/theesfeld/clun/issues/" active_issue "\">Current status</a></div>"
-      print "<div><h2>Evidence</h2><a href=\"https://github.com/theesfeld/clun/blob/master/compat/README.md\">Capability matrix</a><a href=\"https://github.com/theesfeld/clun/actions/workflows/compat.yml\">Compatibility CI</a><a href=\"https://github.com/theesfeld/clun/issues/" active_issue "\">Release issue</a><a href=\"https://github.com/theesfeld/clun/blob/master/LICENSE\">License</a></div>"
-      print "<div><h2>Install</h2><a href=\"install\">Shell installer</a><a href=\"https://github.com/theesfeld/clun/releases/tag/v" previous_version "\">v" previous_version " release</a><a href=\"https://github.com/theesfeld/clun#building-from-source\">Build from source</a></div>"
+      print "<div><h2>Project</h2><a href=\"https://github.com/f00-sh/clun\">Source</a><a href=\"https://github.com/f00-sh/clun/blob/master/README.md\">README</a><a href=\"https://github.com/f00-sh/clun/issues/" active_issue "\">Current status</a></div>"
+      print "<div><h2>Evidence</h2><a href=\"https://github.com/f00-sh/clun/blob/master/compat/README.md\">Capability matrix</a><a href=\"https://github.com/f00-sh/clun/actions/workflows/compat.yml\">Compatibility CI</a><a href=\"https://github.com/f00-sh/clun/issues/" active_issue "\">Release issue</a><a href=\"https://github.com/f00-sh/clun/blob/master/LICENSE\">License</a></div>"
+      print "<div><h2>Install</h2><a href=\"install\">Shell installer</a><a href=\"https://github.com/f00-sh/clun/releases/tag/v" previous_version "\">v" previous_version " release</a><a href=\"https://github.com/f00-sh/clun#building-from-source\">Build from source</a></div>"
     }
   } else if (format == "release-notes") {
     print "# Clun " release_version

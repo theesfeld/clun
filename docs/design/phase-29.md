@@ -20,7 +20,7 @@ global; this phase does not introduce a `Bun` global or a `bun` module alias. Do
 compatibility claims must say that `Clun.semver` implements the Bun SemVer contract, not that every
 unrelated Bun global or module import exists.
 
-The canonical GitHub issue is [#3](https://github.com/theesfeld/clun/issues/3). It owns live status,
+The canonical GitHub issue is [#3](https://github.com/f00-sh/clun/issues/3). It owns live status,
 decisions, review findings, target receipts, publication, and closeout evidence. `PLAN.md` is the
 derived technical contract, `STATE.md` is the derived resume cache, and `compat/` is the canonical
 machine-readable public-claim input.

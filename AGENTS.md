@@ -19,7 +19,7 @@ Ship path: user standard **§5.0** (Issue → branch `…/issue-N-…` → PR �
 
 ## Permanent product law (NEVER FORGET — user 2026-07-19)
 
-**Epic:** [#177](https://github.com/theesfeld/clun/issues/177) FULL PORT.
+**Epic:** [#177](https://github.com/f00-sh/clun/issues/177) FULL PORT.
 
 1. **Prime directive:** Exceed Bun. Exceed npm. Exceed every comparison cell. Pure Common Lisp.
 2. **There is no ledger `No` as a destination.** Every matrix row is a full-port target until **Yes**.

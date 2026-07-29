@@ -433,10 +433,10 @@ move_state_to_test_phase() {
   file=$1
   replace_file "$file" sed \
     -e "s/^## Current phase: \*\*$current_phase /## Current phase: **$test_phase /" \
-    -e "s|^\*\*Canonical issue:\*\* https://github.com/theesfeld/clun/issues/$current_issue$|**Canonical issue:** https://github.com/theesfeld/clun/issues/$test_issue|" \
+    -e "s|^\*\*Canonical issue:\*\* https://github.com/f00-sh/clun/issues/$current_issue$|**Canonical issue:** https://github.com/f00-sh/clun/issues/$test_issue|" \
     "$file"
   if ! grep -F "## Current phase: **$test_phase " "$file" >/dev/null 2>&1 ||
-     ! grep -F "**Canonical issue:** https://github.com/theesfeld/clun/issues/$test_issue" \
+     ! grep -F "**Canonical issue:** https://github.com/f00-sh/clun/issues/$test_issue" \
        "$file" >/dev/null 2>&1; then
     fail 'could not move STATE.md to the test phase'
   fi
@@ -672,7 +672,7 @@ grep -F "Current release work:" "$case_root/site/index.html" >/dev/null 2>&1 ||
   fail 'next-phase render did not update the landing-page status line'
 grep -F "issue #$test_issue" "$case_root/site/index.html" >/dev/null 2>&1 ||
   fail 'next-phase render did not update the landing-page canonical issue'
-grep -F "github.com/theesfeld/clun/issues/$test_issue" "$case_root/site/index.html" >/dev/null 2>&1 ||
+grep -F "github.com/f00-sh/clun/issues/$test_issue" "$case_root/site/index.html" >/dev/null 2>&1 ||
   fail 'next-phase render did not update the landing-page issue URL'
 if grep -Fq "issue #$current_issue" "$case_root/site/index.html"; then
   fail 'next-phase render retained the prior landing-page issue number'

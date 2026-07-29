@@ -100,7 +100,7 @@
     });
   };
 
-  fetch("https://api.github.com/repos/theesfeld/clun")
+  fetch("https://api.github.com/repos/f00-sh/clun")
     .then((r) => (r.ok ? r.json() : null))
     .then((data) => {
       if (!data) return;

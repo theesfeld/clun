@@ -1,6 +1,6 @@
 # Phase 76 — Cron, scheduling, and interactive REPL
 
-**Issue:** [#50](https://github.com/theesfeld/clun/issues/50)  
+**Issue:** [#50](https://github.com/f00-sh/clun/issues/50)  
 **Status:** Partial checkpoint — pure-CL `Clun.cron` parse + in-process jobs shipped; REPL and OS-level scheduler open.
 
 ## Scope of this unit (`0.1.0-dev.34`)

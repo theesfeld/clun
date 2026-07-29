@@ -3469,7 +3469,7 @@ Refs: #215, #178, #179, #22, #32, #177
 - Missing-PATH installs print a current-shell export and manage one marked Bash,
   Zsh, or Fish rc block by default; `ADD_PATH=0/1` controls that behavior.
 - Installer and pure-CL updater resolve the browser-equivalent
-  `github.com/theesfeld/clun/releases/latest` redirect first. The Releases API
+  `github.com/f00-sh/clun/releases/latest` redirect first. The Releases API
   honors `GITHUB_TOKEN` / `GH_TOKEN`, and a public Releases Atom feed provides a
   non-API fallback for prerelease-only discovery after API 403. Listing fallbacks
   select the highest suitable SemVer rather than trusting response order.

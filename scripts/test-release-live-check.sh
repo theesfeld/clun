@@ -22,7 +22,7 @@ cat >"$fake_gh" <<'EOF'
 set -eu
 
 if [ "${1:-}" = api ]; then
-  [ "${2:-}" = "repos/theesfeld/clun/commits/$FAKE_EXPECTED_TAG" ] || {
+  [ "${2:-}" = "repos/f00-sh/clun/commits/$FAKE_EXPECTED_TAG" ] || {
     printf 'unexpected commit query: %s\n' "${2:-}" >&2
     exit 2
   }
@@ -102,7 +102,7 @@ run_check() {
   FAKE_EXPECTED_TAG=${3:-v1.2.3-rc.4} \
   FAKE_EXPECTED_SHA=0123456789abcdef0123456789abcdef01234567 \
   CLUN_GH_BIN=$fake_gh \
-  CLUN_RELEASE_REPO=theesfeld/clun \
+  CLUN_RELEASE_REPO=f00-sh/clun \
   CLUN_RELEASE_VERSION_FILE=$version_file \
   CLUN_RELEASE_EXPECTED_SHA=0123456789abcdef0123456789abcdef01234567 \
   CLUN_RELEASE_WAIT_SECONDS=${2:-0} \
@@ -146,7 +146,7 @@ if FAKE_GH_MODE=auth-failure \
    FAKE_GH_COUNT=$work_dir/count \
    FAKE_EXPECTED_TAG=v1.2.3-rc.4 \
    CLUN_GH_BIN=$fake_gh \
-   CLUN_RELEASE_REPO=theesfeld/clun \
+   CLUN_RELEASE_REPO=f00-sh/clun \
    CLUN_RELEASE_VERSION_FILE=$version_file \
      sh "$repo_root/scripts/release-live-check.sh" >/dev/null 2>&1; then
   printf 'release-live-check test: unauthenticated GitHub CLI unexpectedly passed\n' >&2

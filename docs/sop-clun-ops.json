@@ -40,7 +40,7 @@
           ["Binary", "clun"],
           ["Site", "https://clun.sh · https://clun.f00.sh"],
           ["Installer", "https://clun.sh/install"],
-          ["Repository", "github.com/theesfeld/clun"],
+          ["Repository", "github.com/f00-sh/clun"],
           ["License", "GPL-3.0-or-later"],
           ["Implementation", "Pure Common Lisp (SBCL); no CFFI product path"],
           ["Command shape", "Bun-compatible CLI and APIs"],
@@ -149,7 +149,7 @@
       "heading": "8. Procedure — clone and build",
       "body": "A fresh clone builds with make build alone. ASDF compiles the vendored closure and src/ into the per-user fasl cache. Nothing else is fetched.",
       "steps": [
-        {"n": "8.1", "text": "Clone the repository and enter the tree.", "code": "git clone https://github.com/theesfeld/clun.git && cd clun"},
+        {"n": "8.1", "text": "Clone the repository and enter the tree.", "code": "git clone https://github.com/f00-sh/clun.git && cd clun"},
         {"n": "8.2", "text": "Confirm SBCL version on PATH.", "code": "sbcl --version"},
         {"n": "8.3", "text": "Build the runtime image.", "code": "make build"},
         {"n": "8.4", "text": "Confirm the binary version string.", "code": "./build/clun --version"}
@@ -367,7 +367,7 @@
       "heading": "16. References",
       "items": [
         "https://clun.sh",
-        "https://github.com/theesfeld/clun",
+        "https://github.com/f00-sh/clun",
         "AGENTS.md",
         "README.md",
         "CHANGELOG.md",

@@ -308,7 +308,7 @@ or assets and are not installable release checkpoints.
 
 ## [0.1.0-dev.21] - 2026-07-17
 
-[GitHub Release](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.21)
+[GitHub Release](https://github.com/f00-sh/clun/releases/tag/v0.1.0-dev.21)
 
 ### Added
 
@@ -316,7 +316,7 @@ or assets and are not installable release checkpoints.
 
 ## [0.1.0-dev.19] - 2026-07-17
 
-[GitHub Release](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.19)
+[GitHub Release](https://github.com/f00-sh/clun/releases/tag/v0.1.0-dev.19)
 
 ### Added
 
@@ -324,7 +324,7 @@ or assets and are not installable release checkpoints.
 
 ## [0.1.0-dev.18] - 2026-07-17
 
-[GitHub Release](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.18)
+[GitHub Release](https://github.com/f00-sh/clun/releases/tag/v0.1.0-dev.18)
 
 ### Added
 
@@ -332,7 +332,7 @@ or assets and are not installable release checkpoints.
 
 ## [0.1.0-dev.17] - 2026-07-17
 
-[GitHub Release](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.17)
+[GitHub Release](https://github.com/f00-sh/clun/releases/tag/v0.1.0-dev.17)
 
 ### Added
 
@@ -340,7 +340,7 @@ or assets and are not installable release checkpoints.
 
 ## [0.1.0-dev.16] - 2026-07-17
 
-[GitHub Release](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.16)
+[GitHub Release](https://github.com/f00-sh/clun/releases/tag/v0.1.0-dev.16)
 
 ### Fixed
 
@@ -349,7 +349,7 @@ or assets and are not installable release checkpoints.
 
 ## [0.1.0-dev.14] - 2026-07-17
 
-[GitHub Release](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.14)
+[GitHub Release](https://github.com/f00-sh/clun/releases/tag/v0.1.0-dev.14)
 
 ### Added
 
@@ -357,7 +357,7 @@ or assets and are not installable release checkpoints.
 
 ## [0.1.0-dev.13] - 2026-07-17
 
-[GitHub Release](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.13)
+[GitHub Release](https://github.com/f00-sh/clun/releases/tag/v0.1.0-dev.13)
 
 ### Added
 
@@ -369,7 +369,7 @@ or assets and are not installable release checkpoints.
 
 ## [0.1.0-dev.10] - 2026-07-16
 
-[GitHub Release](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.10)
+[GitHub Release](https://github.com/f00-sh/clun/releases/tag/v0.1.0-dev.10)
 
 ### Added
 
@@ -377,7 +377,7 @@ or assets and are not installable release checkpoints.
 
 ## [0.1.0-dev.9] - 2026-07-16
 
-[GitHub Release](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.9)
+[GitHub Release](https://github.com/f00-sh/clun/releases/tag/v0.1.0-dev.9)
 
 ### Added
 
@@ -385,7 +385,7 @@ or assets and are not installable release checkpoints.
 
 ## [0.1.0-dev.8] - 2026-07-16
 
-[GitHub Release](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.8)
+[GitHub Release](https://github.com/f00-sh/clun/releases/tag/v0.1.0-dev.8)
 
 ### Added
 
@@ -393,7 +393,7 @@ or assets and are not installable release checkpoints.
 
 ## [0.1.0-dev.7] - 2026-07-16
 
-[GitHub Release](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.7)
+[GitHub Release](https://github.com/f00-sh/clun/releases/tag/v0.1.0-dev.7)
 
 ### Added
 
@@ -401,7 +401,7 @@ or assets and are not installable release checkpoints.
 
 ## [0.1.0-dev.6] - 2026-07-16
 
-[GitHub Release](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.6)
+[GitHub Release](https://github.com/f00-sh/clun/releases/tag/v0.1.0-dev.6)
 
 ### Added
 
@@ -409,7 +409,7 @@ or assets and are not installable release checkpoints.
 
 ## [0.1.0-dev.5] - 2026-07-16
 
-[GitHub Release](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.5)
+[GitHub Release](https://github.com/f00-sh/clun/releases/tag/v0.1.0-dev.5)
 
 ### Added
 
@@ -417,7 +417,7 @@ or assets and are not installable release checkpoints.
 
 ## [0.1.0-dev.4] - 2026-07-16
 
-[GitHub Release](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.4)
+[GitHub Release](https://github.com/f00-sh/clun/releases/tag/v0.1.0-dev.4)
 
 ### Added
 
@@ -425,7 +425,7 @@ or assets and are not installable release checkpoints.
 
 ## [0.1.0-dev.3] - 2026-07-15
 
-[GitHub Release](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.3)
+[GitHub Release](https://github.com/f00-sh/clun/releases/tag/v0.1.0-dev.3)
 
 ### Added
 
@@ -437,7 +437,7 @@ or assets and are not installable release checkpoints.
 
 ## [0.1.0-dev.1] - 2026-07-15
 
-[GitHub Release](https://github.com/theesfeld/clun/releases/tag/v0.1.0-dev.1)
+[GitHub Release](https://github.com/f00-sh/clun/releases/tag/v0.1.0-dev.1)
 
 ### Added
 
@@ -445,33 +445,33 @@ or assets and are not installable release checkpoints.
 
 ## [0.0.1-dev] - 2026-07-14
 
-[GitHub Release](https://github.com/theesfeld/clun/releases/tag/v0.0.1-dev)
+[GitHub Release](https://github.com/f00-sh/clun/releases/tag/v0.0.1-dev)
 
 ### Added
 
 - Publish the initial Clun development release.
 
-[Unreleased]: https://github.com/theesfeld/clun/compare/v0.2.0-dev.6...HEAD
-[0.2.0-dev.6]: https://github.com/theesfeld/clun/compare/v0.2.0-dev.5...v0.2.0-dev.6
-[0.2.0-dev.5]: https://github.com/theesfeld/clun/compare/v0.2.0-dev.4...v0.2.0-dev.5
-[0.2.0-dev.4]: https://github.com/theesfeld/clun/compare/v0.2.0-dev.2...v0.2.0-dev.4
-[0.2.0-dev.2]: https://github.com/theesfeld/clun/compare/v0.2.0-dev.1...v0.2.0-dev.2
-[0.2.0-dev.1]: https://github.com/theesfeld/clun/compare/v0.1.0-dev.21...v0.2.0-dev.1
-[0.1.0-dev.70]: https://github.com/theesfeld/clun/compare/v0.1.0-dev.21...v0.1.0-dev.70
-[0.1.0-dev.21]: https://github.com/theesfeld/clun/compare/v0.1.0-dev.19...v0.1.0-dev.21
-[0.1.0-dev.19]: https://github.com/theesfeld/clun/compare/v0.1.0-dev.18...v0.1.0-dev.19
-[0.1.0-dev.18]: https://github.com/theesfeld/clun/compare/v0.1.0-dev.17...v0.1.0-dev.18
-[0.1.0-dev.17]: https://github.com/theesfeld/clun/compare/v0.1.0-dev.16...v0.1.0-dev.17
-[0.1.0-dev.16]: https://github.com/theesfeld/clun/compare/v0.1.0-dev.14...v0.1.0-dev.16
-[0.1.0-dev.14]: https://github.com/theesfeld/clun/compare/v0.1.0-dev.13...v0.1.0-dev.14
-[0.1.0-dev.13]: https://github.com/theesfeld/clun/compare/v0.1.0-dev.10...v0.1.0-dev.13
-[0.1.0-dev.10]: https://github.com/theesfeld/clun/compare/v0.1.0-dev.9...v0.1.0-dev.10
-[0.1.0-dev.9]: https://github.com/theesfeld/clun/compare/v0.1.0-dev.8...v0.1.0-dev.9
-[0.1.0-dev.8]: https://github.com/theesfeld/clun/compare/v0.1.0-dev.7...v0.1.0-dev.8
-[0.1.0-dev.7]: https://github.com/theesfeld/clun/compare/v0.1.0-dev.6...v0.1.0-dev.7
-[0.1.0-dev.6]: https://github.com/theesfeld/clun/compare/v0.1.0-dev.5...v0.1.0-dev.6
-[0.1.0-dev.5]: https://github.com/theesfeld/clun/compare/v0.1.0-dev.4...v0.1.0-dev.5
-[0.1.0-dev.4]: https://github.com/theesfeld/clun/compare/v0.1.0-dev.3...v0.1.0-dev.4
-[0.1.0-dev.3]: https://github.com/theesfeld/clun/compare/v0.1.0-dev.1...v0.1.0-dev.3
-[0.1.0-dev.1]: https://github.com/theesfeld/clun/compare/v0.0.1-dev...v0.1.0-dev.1
-[0.0.1-dev]: https://github.com/theesfeld/clun/releases/tag/v0.0.1-dev
+[Unreleased]: https://github.com/f00-sh/clun/compare/v0.2.0-dev.6...HEAD
+[0.2.0-dev.6]: https://github.com/f00-sh/clun/compare/v0.2.0-dev.5...v0.2.0-dev.6
+[0.2.0-dev.5]: https://github.com/f00-sh/clun/compare/v0.2.0-dev.4...v0.2.0-dev.5
+[0.2.0-dev.4]: https://github.com/f00-sh/clun/compare/v0.2.0-dev.2...v0.2.0-dev.4
+[0.2.0-dev.2]: https://github.com/f00-sh/clun/compare/v0.2.0-dev.1...v0.2.0-dev.2
+[0.2.0-dev.1]: https://github.com/f00-sh/clun/compare/v0.1.0-dev.21...v0.2.0-dev.1
+[0.1.0-dev.70]: https://github.com/f00-sh/clun/compare/v0.1.0-dev.21...v0.1.0-dev.70
+[0.1.0-dev.21]: https://github.com/f00-sh/clun/compare/v0.1.0-dev.19...v0.1.0-dev.21
+[0.1.0-dev.19]: https://github.com/f00-sh/clun/compare/v0.1.0-dev.18...v0.1.0-dev.19
+[0.1.0-dev.18]: https://github.com/f00-sh/clun/compare/v0.1.0-dev.17...v0.1.0-dev.18
+[0.1.0-dev.17]: https://github.com/f00-sh/clun/compare/v0.1.0-dev.16...v0.1.0-dev.17
+[0.1.0-dev.16]: https://github.com/f00-sh/clun/compare/v0.1.0-dev.14...v0.1.0-dev.16
+[0.1.0-dev.14]: https://github.com/f00-sh/clun/compare/v0.1.0-dev.13...v0.1.0-dev.14
+[0.1.0-dev.13]: https://github.com/f00-sh/clun/compare/v0.1.0-dev.10...v0.1.0-dev.13
+[0.1.0-dev.10]: https://github.com/f00-sh/clun/compare/v0.1.0-dev.9...v0.1.0-dev.10
+[0.1.0-dev.9]: https://github.com/f00-sh/clun/compare/v0.1.0-dev.8...v0.1.0-dev.9
+[0.1.0-dev.8]: https://github.com/f00-sh/clun/compare/v0.1.0-dev.7...v0.1.0-dev.8
+[0.1.0-dev.7]: https://github.com/f00-sh/clun/compare/v0.1.0-dev.6...v0.1.0-dev.7
+[0.1.0-dev.6]: https://github.com/f00-sh/clun/compare/v0.1.0-dev.5...v0.1.0-dev.6
+[0.1.0-dev.5]: https://github.com/f00-sh/clun/compare/v0.1.0-dev.4...v0.1.0-dev.5
+[0.1.0-dev.4]: https://github.com/f00-sh/clun/compare/v0.1.0-dev.3...v0.1.0-dev.4
+[0.1.0-dev.3]: https://github.com/f00-sh/clun/compare/v0.1.0-dev.1...v0.1.0-dev.3
+[0.1.0-dev.1]: https://github.com/f00-sh/clun/compare/v0.0.1-dev...v0.1.0-dev.1
+[0.0.1-dev]: https://github.com/f00-sh/clun/releases/tag/v0.0.1-dev

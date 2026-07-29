@@ -6,7 +6,7 @@ compress), and browser-shaped `WebSocket` client (`ws:`). Four-target suite evid
 ledger row. Residual quality stretch under parent #25: full Autobahn corpus, 10k connect/subscriber
 stress, and `wss:` client.
 
-Canonical live SoT: [issue #25](https://github.com/theesfeld/clun/issues/25) · Yes unit [#129](https://github.com/theesfeld/clun/issues/129).
+Canonical live SoT: [issue #25](https://github.com/f00-sh/clun/issues/25) · Yes unit [#129](https://github.com/f00-sh/clun/issues/129).
 
 ## 1. Objective of this checkpoint
 

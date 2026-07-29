@@ -8,13 +8,13 @@ Ship path: topic branch → PR → squash-merge into `master` (not direct push).
 
 ## Current phase: **26 - COMPLETE (minor 0.3.0 published)**
 
-**Canonical issue:** https://github.com/theesfeld/clun/issues/58
+**Canonical issue:** https://github.com/f00-sh/clun/issues/58
 **Program phase:** 26 (complete)
 **Published surface tip:** `0.3.0` / `v0.3.0`
 **Installer default:** `verified_installer_tag=v0.3.0`
 **SemVer impact:** `minor` (shipped)
 **Release commit:** `ef20681c87864f554d8224f69743cc8488e38176`
-**Release run:** https://github.com/theesfeld/clun/actions/runs/30307908392
+**Release run:** https://github.com/f00-sh/clun/actions/runs/30307908392
 
 ### Shipped
 - SharedArrayBuffer + Atomics + real worker_threads (#338 / PR #340)

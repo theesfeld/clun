@@ -8,7 +8,7 @@
 
 (in-package :clun.cli)
 
-(defparameter *update-repo* "theesfeld/clun"
+(defparameter *update-repo* "f00-sh/clun"
   "owner/repo for GitHub Releases.")
 
 (defparameter *update-user-agent* "clun-update/0.1"

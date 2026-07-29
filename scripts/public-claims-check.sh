@@ -749,11 +749,11 @@ if ! cmp -s "$readme_matrix" "$site_matrix"; then
 fi
 capability_rows=$(wc -l <"$site_matrix" | tr -d ' ')
 
-active_issue_url="https://github.com/theesfeld/clun/issues/$active_issue"
+active_issue_url="https://github.com/f00-sh/clun/issues/$active_issue"
 # Published ledgers claim "Latest release:"; candidates use release-target prose instead.
 if [ "$release_state" = published ]; then
   require_text README.md "Latest release:"
-  require_text site/index.html "href=\"https://github.com/theesfeld/clun/releases\""
+  require_text site/index.html "href=\"https://github.com/f00-sh/clun/releases\""
 fi
 
 for tag in html head title body header nav main section article div p pre code table \
@@ -782,8 +782,8 @@ require_text docs/versioning.md "\`$version\` / \`v$version\`"
 require_text docs/versioning.md "impact is \`$semver_impact\`"
 require_text README.md "$pretty_passes frozen passes"
 
-release_url="https://github.com/theesfeld/clun/releases/tag/v$version"
-previous_release_url="https://github.com/theesfeld/clun/releases/tag/v$previous_version"
+release_url="https://github.com/f00-sh/clun/releases/tag/v$version"
+previous_release_url="https://github.com/f00-sh/clun/releases/tag/v$previous_version"
 # Maturity channel from version prerelease id (must match scripts/compat-render.awk).
 maturity_channel() {
   ver=${1#v}
@@ -851,7 +851,7 @@ if [ "$release_state" = candidate ]; then
   [ "$readme_candidate" -eq 1 ] || fail "release ledger says candidate but generated documents do not"
   require_text README.md "The current source is the \`$version\` $maturity_lbl candidate"
   if [ "$candidate_tagged" -eq 1 ]; then
-    require_text README.md "Its annotated [\`v$version\`](https://github.com/theesfeld/clun/tree/v$version) points to commit \`$release_commit\`, but no GitHub Release or release assets were published."
+    require_text README.md "Its annotated [\`v$version\`](https://github.com/f00-sh/clun/tree/v$version) points to commit \`$release_commit\`, but no GitHub Release or release assets were published."
     reject_text README.md "immutable tag and assets are not published yet"
   else
     require_text README.md "immutable tag and assets are not published yet"
@@ -888,7 +888,7 @@ if [ "$release_state" = candidate ]; then
   reject_text site/index.html "Phase $active_phase is active:"
   require_text site/index.html "<a href=\"$previous_release_url\">v$previous_version release</a>"
   require_text site/index.html "$site_version_marker</p>"
-  require_text site/index.html "class=\"clun-col\"><a href=\"https://github.com/theesfeld/clun\">Clun</a><span>$version</span>"
+  require_text site/index.html "class=\"clun-col\"><a href=\"https://github.com/f00-sh/clun\">Clun</a><span>$version</span>"
   reject_unreleased_tag_url site/index.html "$release_url"
   # Beta must not be mislabeled pre-alpha or RC.
   if [ "$maturity" = beta ]; then
@@ -923,7 +923,7 @@ else
   else
     require_text site/index.html "$site_version_marker</p>"
   fi
-  require_text site/index.html "class=\"clun-col\"><a href=\"https://github.com/theesfeld/clun\">Clun</a><span>$version</span>"
+  require_text site/index.html "class=\"clun-col\"><a href=\"https://github.com/f00-sh/clun\">Clun</a><span>$version</span>"
   if [ "$maturity" = beta ]; then
     reject_text site/index.html "pre-alpha"
     reject_text site/index.html "release candidate / pre-alpha"
@@ -991,7 +991,7 @@ else
   require_text site/index.html "$report_rate% current"
   require_text site/index.html "90% target met"
 fi
-require_text site/index.html "github.com/theesfeld/clun/blob/master/README.md"
+require_text site/index.html "github.com/f00-sh/clun/blob/master/README.md"
 # Engine microbenchmark tables live in docs/benchmarks.md — not a landing-page bar chart.
 require_text docs/benchmarks.md "Phase-24 baseline"
 require_text docs/benchmarks.md "| $benchmark_milestone "

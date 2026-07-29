@@ -10,14 +10,14 @@ JavaScript is only what **you** run.
 Clun is pre-1.0. Do not claim speed parity with Bun. Publish only measured performance data.
 
 <!-- clun-generated:release:begin -->
-> **Status: stable release train.** Latest release: [`v0.3.0`](https://github.com/theesfeld/clun/releases/tag/v0.3.0).
+> **Status: stable release train.** Latest release: [`v0.3.0`](https://github.com/f00-sh/clun/releases/tag/v0.3.0).
 > Installable boundary: four native archives, checksums, Pages installer, and `clun --update`.
 > Capability matrix: 30 Yes / 0 Partial / 0 No (evidence-backed).
-> Implementation: pure Common Lisp. Source: [theesfeld/clun](https://github.com/theesfeld/clun).
+> Implementation: pure Common Lisp. Source: [f00-sh/clun](https://github.com/f00-sh/clun).
 <!-- clun-generated:release:end -->
 
-Published [`v0.3.0`](https://github.com/theesfeld/clun/releases/tag/v0.3.0) is the verified installable boundary (four native archives, `checksums.txt`, install to `~/.local/bin`, built-in updater, packaged `man clun` matching live CLI).
-Tracking: [issue #58](https://github.com/theesfeld/clun/issues/58) (Phase 26 minor `0.3.0`: shared-memory workers + zero-stubs). Related: [#338](https://github.com/theesfeld/clun/issues/338), [#339](https://github.com/theesfeld/clun/issues/339), [PR #340](https://github.com/theesfeld/clun/pull/340), [PR #341](https://github.com/theesfeld/clun/pull/341).
+Published [`v0.3.0`](https://github.com/f00-sh/clun/releases/tag/v0.3.0) is the verified installable boundary (four native archives, `checksums.txt`, install to `~/.local/bin`, built-in updater, packaged `man clun` matching live CLI).
+Tracking: [issue #58](https://github.com/f00-sh/clun/issues/58) (Phase 26 minor `0.3.0`: shared-memory workers + zero-stubs). Related: [#338](https://github.com/f00-sh/clun/issues/338), [#339](https://github.com/f00-sh/clun/issues/339), [PR #340](https://github.com/f00-sh/clun/pull/340), [PR #341](https://github.com/f00-sh/clun/pull/341).
 
 ### Documents
 
@@ -46,7 +46,7 @@ Tracking: [issue #58](https://github.com/theesfeld/clun/issues/58) (Phase 26 min
 █  GPL-3.0-or-later · 2026-07-27 · Linux+macOS  █
 █  shared-memory workers · zero hollow stubs    █
 █  NASA SOP + release memo on the GitHub Release█
-█  https://clun.sh · github:theesfeld/clun      █
+█  https://clun.sh · github:f00-sh/clun      █
 ████████████████████████████████████████████████████
   ░▒▓  curl -fsSL https://clun.sh/install | sh  ▓▒░
 ```
@@ -138,19 +138,19 @@ July 16, 2026). Engineering pin: Bun `c1076ce95e` (`1.4.0-dev`).
 Bun exposes additional public APIs outside its homepage matrix. Clun may ship pure-CL implementations
 here **without** inventing a 31st `features.tsv` row or forging a matrix Yes:
 
-- **Shipped (Issue [#135](https://github.com/theesfeld/clun/issues/135), Phase 75 slice):**
+- **Shipped (Issue [#135](https://github.com/f00-sh/clun/issues/135), Phase 75 slice):**
   `Clun.markdown.html` / `render` / `ansi` (GFM-oriented; `react` fail-closed) and global
   `HTMLRewriter` (`on` / `onDocument` / `transform`). Not a ledger Yes — no feature ID exists.
-- **Still planned gates (not claims):** [73 inventory freeze](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-73),
-[74 archive/compression](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-74),
-[75 remaining formats (TOML/JSON5/JSONL) and full streaming rewriter](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-75),
-[76 Cron and REPL](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-76),
-[77 transpiler/build APIs](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-77),
-[78 image processing](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-78),
-[79 WebView checkpoint](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-79),
-[80 zero-unowned surface closure](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-80),
-[81 performance recheck](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-81), and
-[82 final audit/release](https://github.com/theesfeld/clun/issues?q=is%3Aissue%20label%3Aphase-82).
+- **Still planned gates (not claims):** [73 inventory freeze](https://github.com/f00-sh/clun/issues?q=is%3Aissue%20label%3Aphase-73),
+[74 archive/compression](https://github.com/f00-sh/clun/issues?q=is%3Aissue%20label%3Aphase-74),
+[75 remaining formats (TOML/JSON5/JSONL) and full streaming rewriter](https://github.com/f00-sh/clun/issues?q=is%3Aissue%20label%3Aphase-75),
+[76 Cron and REPL](https://github.com/f00-sh/clun/issues?q=is%3Aissue%20label%3Aphase-76),
+[77 transpiler/build APIs](https://github.com/f00-sh/clun/issues?q=is%3Aissue%20label%3Aphase-77),
+[78 image processing](https://github.com/f00-sh/clun/issues?q=is%3Aissue%20label%3Aphase-78),
+[79 WebView checkpoint](https://github.com/f00-sh/clun/issues?q=is%3Aissue%20label%3Aphase-79),
+[80 zero-unowned surface closure](https://github.com/f00-sh/clun/issues?q=is%3Aissue%20label%3Aphase-80),
+[81 performance recheck](https://github.com/f00-sh/clun/issues?q=is%3Aissue%20label%3Aphase-81), and
+[82 final audit/release](https://github.com/f00-sh/clun/issues?q=is%3Aissue%20label%3Aphase-82).
 
 `scripts/roadmap.sh check` validates the phase ledger and public phase references.
 `scripts/public-claims-check.sh` also compares capability names, status values, and complete phase-link
@@ -159,7 +159,7 @@ sets between this README and the landing page; descriptive prose still requires 
 workflows are read-only and fail closed if the canonical issues, README, or site have drifted.
 
 <!-- clun-generated:release-summary:begin -->
-Latest release: [`0.3.0`](https://github.com/theesfeld/clun/releases/tag/v0.3.0).
+Latest release: [`0.3.0`](https://github.com/f00-sh/clun/releases/tag/v0.3.0).
 Install: `curl -fsSL https://clun.sh/install | sh` · update: `clun --update`.
 Capability matrix: 30 Yes / 0 Partial / 0 No.
 [Versioning](docs/versioning.md) · [compatibility matrix](compat/README.md).

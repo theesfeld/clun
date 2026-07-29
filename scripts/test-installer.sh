@@ -357,7 +357,7 @@ CLUN_TEST_REDIRECT_TAG="v$version" INSTALL_VERSION=latest \
 INSTALL_DIR="$redirect_bin" ADD_PATH=0 \
   sh "$repo_root/site/install" >/dev/null
 [ "$(sed -n '1p' "$redirect_log")" = \
-  'url:https://github.com/theesfeld/clun/releases/latest' ] || {
+  'url:https://github.com/f00-sh/clun/releases/latest' ] || {
   printf 'installer-test: latest redirect was not the first network request\n' >&2
   exit 1
 }
@@ -378,11 +378,11 @@ CLUN_TEST_API_JSON="[{\"tag_name\":\"v0.0.0-0\",\"draft\":false},{\"tag_name\":\
 INSTALL_VERSION=latest INSTALL_DIR="$api_bin" ADD_PATH=0 \
   sh "$repo_root/site/install" >/dev/null
 sed -n '1p' "$api_log" | grep -F \
-  'url:https://github.com/theesfeld/clun/releases/latest' >/dev/null || {
+  'url:https://github.com/f00-sh/clun/releases/latest' >/dev/null || {
   printf 'installer-test: API fallback did not try the redirect first\n' >&2
   exit 1
 }
-grep -F 'url:https://api.github.com/repos/theesfeld/clun/releases?per_page=10' \
+grep -F 'url:https://api.github.com/repos/f00-sh/clun/releases?per_page=10' \
   "$api_log" >/dev/null || {
   printf 'installer-test: redirect failure did not use the Releases API fallback\n' >&2
   exit 1
@@ -402,22 +402,22 @@ grep -F 'header:Authorization: Bearer installer-test-token' "$api_log" >/dev/nul
 atom_log="$work_dir/atom-curl.log"
 : >"$atom_log"
 atom_bin="$work_dir/atom-bin"
-atom_xml="<feed><entry><link href=\"https://github.com/theesfeld/clun/releases/tag/v0.0.0-0\"/></entry><entry><link href=\"https://github.com/theesfeld/clun/releases/tag/v$version\"/></entry><entry><link href=\"https://github.com/theesfeld/clun/releases/tag/v0.0.0-1\"/></entry></feed>"
+atom_xml="<feed><entry><link href=\"https://github.com/f00-sh/clun/releases/tag/v0.0.0-0\"/></entry><entry><link href=\"https://github.com/f00-sh/clun/releases/tag/v$version\"/></entry><entry><link href=\"https://github.com/f00-sh/clun/releases/tag/v0.0.0-1\"/></entry></feed>"
 HOME="$work_dir/atom-home" SHELL=/bin/bash PATH="$fake_bin:$PATH" \
 CLUN_TEST_CURL_LOG="$atom_log" CLUN_TEST_DIST_DIR="$dist_dir" \
 CLUN_TEST_API_STATUS=403 CLUN_TEST_ATOM_XML="$atom_xml" \
 INSTALL_VERSION=latest INSTALL_DIR="$atom_bin" ADD_PATH=0 \
   sh "$repo_root/site/install" >/dev/null
-grep -F 'url:https://api.github.com/repos/theesfeld/clun/releases?per_page=10' \
+grep -F 'url:https://api.github.com/repos/f00-sh/clun/releases?per_page=10' \
   "$atom_log" >/dev/null || {
   printf 'installer-test: prerelease fallback did not try the Releases API\n' >&2
   exit 1
 }
-grep -F 'url:https://github.com/theesfeld/clun/releases.atom' "$atom_log" >/dev/null || {
+grep -F 'url:https://github.com/f00-sh/clun/releases.atom' "$atom_log" >/dev/null || {
   printf 'installer-test: API 403 did not use the public Releases feed fallback\n' >&2
   exit 1
 }
-grep -F "url:https://github.com/theesfeld/clun/releases/download/v$version/" \
+grep -F "url:https://github.com/f00-sh/clun/releases/download/v$version/" \
   "$atom_log" >/dev/null || {
   printf 'installer-test: Releases feed fallback did not select the highest SemVer tag\n' >&2
   exit 1

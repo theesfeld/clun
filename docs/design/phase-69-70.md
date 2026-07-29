@@ -1,7 +1,7 @@
 # Phases 69–70 — Formatter and Linter
 
-**Issue:** [#190](https://github.com/theesfeld/clun/issues/190)  
-**Parent epic:** [#177](https://github.com/theesfeld/clun/issues/177)  
+**Issue:** [#190](https://github.com/f00-sh/clun/issues/190)  
+**Parent epic:** [#177](https://github.com/f00-sh/clun/issues/177)  
 **Ledger:** `tooling.formatter-linter` → **Yes**  
 **SemVer:** `0.1.0-dev.57` / minor
 

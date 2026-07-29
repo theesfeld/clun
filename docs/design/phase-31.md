@@ -22,7 +22,7 @@ default imports, named imports, namespace imports, and `require`.
 does not introduce a general `Bun` global or a `bun` module alias. A future public claim must name
 the implemented YAML contract and module formats rather than implying unrelated Bun surfaces.
 
-The canonical live source of truth is [issue #5](https://github.com/theesfeld/clun/issues/5).
+The canonical live source of truth is [issue #5](https://github.com/f00-sh/clun/issues/5).
 `PLAN.md` is its derived technical contract, `STATE.md` is the derived resume cache, and the
 compatibility ledger may change only after every gate in this document is green.
 
