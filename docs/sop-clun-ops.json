@@ -1,6 +1,6 @@
 {
   "org": "Clun",
-  "org_sub": "JavaScript and TypeScript toolkit · pure Common Lisp · https://clun.sh",
+  "org_sub": "JavaScript and TypeScript toolkit · pure Common Lisp · https://clun.f00.sh",
   "reply_to": "OPS/CLUN",
   "to": "Maintainers and Release Operators",
   "from": "Project Engineering",
@@ -18,7 +18,7 @@
     },
     {
       "heading": "2. Scope",
-      "body": "This SOP covers full project operations. It does not replace the man page, README narrative, capability matrix, or https://clun.sh. Those remain the public ship surfaces.",
+      "body": "This SOP covers full project operations. It does not replace the man page, README narrative, capability matrix, or https://clun.f00.sh. Those remain the public ship surfaces.",
       "items": [
         "product identity and purity law",
         "repository layout and live sources of truth",
@@ -38,8 +38,8 @@
         "rows": [
           ["Product name", "Clun"],
           ["Binary", "clun"],
-          ["Site", "https://clun.sh · https://clun.f00.sh"],
-          ["Installer", "https://clun.sh/install"],
+          ["Site", "https://clun.f00.sh"],
+          ["Installer", "https://clun.f00.sh/install"],
           ["Repository", "github.com/f00-sh/clun"],
           ["License", "MIT"],
           ["Implementation", "Pure Common Lisp (SBCL); no CFFI product path"],
@@ -135,7 +135,7 @@
           ["tests/", "Parachute suites, JS/TS fixtures, conformance"],
           ["scripts/", "Build, release, claims, and check tooling"],
           ["docs/", "Design notes, man source, versioning, NASA SOP/memo"],
-          ["site/", "GitHub Pages source (clun.sh)"],
+          ["site/", "GitHub Pages source (clun.f00.sh)"],
           ["compat/", "Matrix and release ledger"],
           ["build/clun", "Local image from make build"]
         ]
@@ -230,12 +230,12 @@
         {
           "n": "10.1",
           "text": "Install the verified published boundary (currently v0.2.2 until 0.3.0 publishes).",
-          "code": "curl -fsSL https://clun.sh/install | sh"
+          "code": "curl -fsSL https://clun.f00.sh/install | sh"
         },
         {
           "n": "10.2",
           "text": "Optional: pin a version.",
-          "code": "INSTALL_VERSION=0.2.2 curl -fsSL https://clun.sh/install | sh"
+          "code": "INSTALL_VERSION=0.2.2 curl -fsSL https://clun.f00.sh/install | sh"
         },
         {
           "n": "10.3",
@@ -284,7 +284,7 @@
         },
         {
           "n": "11.7",
-          "text": "Confirm Pages deploy and smoke https://clun.sh/install."
+          "text": "Confirm Pages deploy and smoke https://clun.f00.sh/install."
         },
         {
           "n": "11.8",
@@ -366,7 +366,7 @@
     {
       "heading": "16. References",
       "items": [
-        "https://clun.sh",
+        "https://clun.f00.sh",
         "https://github.com/f00-sh/clun",
         "AGENTS.md",
         "README.md",

@@ -142,7 +142,7 @@ jobs:
             bin="$RUNNER_TEMP/hosted-bin-$attempt"
             if curl --fail --location --silent --show-error --retry 3 \
                 --output "$installer" \
-                "https://clun.sh/install?sha=$GITHUB_SHA&attempt=$attempt" &&
+                "https://clun.f00.sh/install?sha=$GITHUB_SHA&attempt=$attempt" &&
                grep -Fx "verified_installer_tag=$installer_tag" "$installer" >/dev/null &&
                HOME="$home" INSTALL_DIR="$bin" ADD_PATH=0 \
                  sh "$installer" &&

@@ -26,7 +26,7 @@ Tracking: [issue #58](https://github.com/f00-sh/clun/issues/58) (Phase 26 minor 
 | Operator SOP (NASA) | [`docs/sop-clun-ops.pdf`](docs/sop-clun-ops.pdf) · [JSON source](docs/sop-clun-ops.json) |
 | Release memo 0.3.0 | [`docs/memo-release-0.3.0.pdf`](docs/memo-release-0.3.0.pdf) · [JSON source](docs/memo-release-0.3.0.json) |
 | Changelog | [`CHANGELOG.md`](CHANGELOG.md) |
-| Site | [https://clun.sh](https://clun.sh) |
+| Site | [https://clun.f00.sh](https://clun.f00.sh) |
 | Man page | `man clun` (generated; must match live `clun --help`) |
 | Scene card | [`file_id.diz`](file_id.diz) (also a GitHub Release asset) |
 
@@ -46,15 +46,15 @@ Tracking: [issue #58](https://github.com/f00-sh/clun/issues/58) (Phase 26 minor 
 █ MIT · 2026-07-27 · Linux+macOS █
 █ shared-memory workers · zero hollow stubs █
 █ NASA SOP + release memo on the GitHub Release█
-█ https://clun.sh · github:f00-sh/clun █
+█ https://clun.f00.sh · github:f00-sh/clun █
 ████████████████████████████████████████████████████
- ░▒▓ curl -fsSL https://clun.sh/install | sh ▓▒░
+ ░▒▓ curl -fsSL https://clun.f00.sh/install | sh ▓▒░
 ```
 
 ## Install
 
 ```sh
-curl -fsSL https://clun.sh/install | sh
+curl -fsSL https://clun.f00.sh/install | sh
 ```
 
 Supported platforms: Linux and macOS on x64 and arm64.
@@ -160,7 +160,7 @@ workflows are read-only and fail closed if the canonical issues, README, or site
 
 <!-- clun-generated:release-summary:begin -->
 Latest release: [`0.3.0`](https://github.com/f00-sh/clun/releases/tag/v0.3.0).
-Install: `curl -fsSL https://clun.sh/install | sh` · update: `clun --update`.
+Install: `curl -fsSL https://clun.f00.sh/install | sh` · update: `clun --update`.
 Capability matrix: 30 Yes / 0 Partial / 0 No.
 [Versioning](docs/versioning.md) · [compatibility matrix](compat/README.md).
 <!-- clun-generated:release-summary:end -->

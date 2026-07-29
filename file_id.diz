@@ -11,6 +11,6 @@
 █  MIT · 2026-07-27 · Linux+macOS  █
 █  shared-memory workers · zero hollow stubs    █
 █  NASA SOP + release memo on the GitHub Release█
-█  https://clun.sh · github:f00-sh/clun      █
+█  https://clun.f00.sh · github:f00-sh/clun      █
 ████████████████████████████████████████████████████
-  ░▒▓  curl -fsSL https://clun.sh/install | sh  ▓▒░
+  ░▒▓  curl -fsSL https://clun.f00.sh/install | sh  ▓▒░

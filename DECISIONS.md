@@ -2131,7 +2131,7 @@ complete; m4 is next and remains unstarted.
 Commit `d93b2fce5282ca1543bcfcbcdffff53f7a37a440` passed CI, Documentation, and all four native
 release builders. The immutable annotated `v0.1.0-dev.3` release contains the four expected native
 archives plus `checksums.txt`; a fresh download verified every archive checksum. The release-gated
-Pages workflow deployed `clun.sh`, and an isolated hosted Linux x64 install reported
+Pages workflow deployed `clun.f00.sh`, and an isolated hosted Linux x64 install reported
 `clun 0.1.0-dev.3`. Issue #60 is therefore complete and closed. Issue #59 remains open only for the
 separate Phase-26 Darwin soak, and issue #61 retains async subprocess lifecycle ownership.
 The legacy `v0.0.1-dev` GitHub release metadata was also corrected from a full release to a
@@ -2234,7 +2234,7 @@ Candidate `486e0d8f15a0dca374b1e42bda7f5431a0cca31f` passed CI `29471177997` and
 `29471177983`. Annotated tag `v0.1.0-dev.4` passed release run `29471399138` on linux-x64, linux-arm64,
 darwin-x64, and darwin-arm64. The release published the four native archives plus `checksums.txt`; a fresh
 download verified all four SHA-256 values. Pages `29471177985` deployed only after the matching assets
-existed, and an isolated `curl -fsSL https://clun.sh/install | sh` install reported
+existed, and an isolated `curl -fsSL https://clun.f00.sh/install | sh` install reported
 `clun 0.1.0-dev.4`.
 
 This handoff changes publication evidence and current-milestone status only. It does not change the source
@@ -2304,7 +2304,7 @@ independent download verified these archive SHA-256 values:
 - linux-x64: `a1dbff991b9a2d9bdaf0be865f12ac96d004f3c029870ab23dd9d7c0330a3705`
 
 Pages run `29476921956` completed after the release and deployed the dev.5 candidate-status page plus the
-release-gated installer. An isolated `curl -fsSL https://clun.sh/install | sh` installation reported
+release-gated installer. An isolated `curl -fsSL https://clun.f00.sh/install | sh` installation reported
 `clun 0.1.0-dev.5`. This handoff changes publication evidence and current-milestone status only; it does not
 change source, installer target, artifacts, behavior, capabilities, or compatibility claims. Its SemVer
 impact is therefore `none`, dev.5 remains current, and no tag is created. The handoff commit's own Pages run
@@ -2389,7 +2389,7 @@ prerelease. Independent downloads matched `checksums.txt` for every native archi
 - linux-x64: `243dfc96bd5a163707c982bfe61d6054a784fe9bbd52bb72b6436d4ba9774935`
 
 Pages run `29488866091` succeeded for the exact candidate after the release assets existed. An isolated
-`curl -fsSL https://clun.sh/install | sh` installation reported `clun 0.1.0-dev.6`. Phase 25b runtime and
+`curl -fsSL https://clun.f00.sh/install | sh` installation reported `clun 0.1.0-dev.6`. Phase 25b runtime and
 release scope is complete at 25,461 / 28,163 = 90.405852% (public 90.40%) with 3,234 Lisp assertions green.
 This post-publication handoff changes evidence and phase status only. Its SemVer impact is `none`; source and
 installer remain `0.1.0-dev.6`, and no new tag is created. The handoff commit's Pages deployment is verified,

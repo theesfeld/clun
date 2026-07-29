@@ -645,7 +645,7 @@ Never fails the update for a missing man page (same policy as site/install)."
 (defun %update-recovery-hint ()
   "curl|sh reinstall — works when the running binary's TLS cannot fetch assets."
   "If update fails repeatedly (especially TLS errors on older builds), reinstall with:
-  curl -fsSL https://clun.sh/install | sh")
+  curl -fsSL https://clun.f00.sh/install | sh")
 
 (defun %format-update-error (condition)
   (let ((msg (princ-to-string condition)))

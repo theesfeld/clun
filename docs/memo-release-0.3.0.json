@@ -1,6 +1,6 @@
 {
   "org": "Clun",
-  "org_sub": "JavaScript and TypeScript toolkit · pure Common Lisp · https://clun.sh",
+  "org_sub": "JavaScript and TypeScript toolkit · pure Common Lisp · https://clun.f00.sh",
   "reply_to": "REL/CLUN",
   "to": "Maintainers and Users",
   "from": "Project Engineering",
@@ -51,12 +51,12 @@
     },
     {
       "heading": "6. Install note (publication state)",
-      "body": "While the candidate remains unpublished, curl -fsSL https://clun.sh/install | sh reinstalls the verified boundary v0.2.2. After v0.3.0 assets publish and the ledger advances, the same command and clun --update target 0.3.0. Always use man clun after install; man content must match live CLI help.",
+      "body": "While the candidate remains unpublished, curl -fsSL https://clun.f00.sh/install | sh reinstalls the verified boundary v0.2.2. After v0.3.0 assets publish and the ledger advances, the same command and clun --update target 0.3.0. Always use man clun after install; man content must match live CLI help.",
       "steps": [
         {
           "n": "6.1",
           "text": "Current verified install",
-          "code": "curl -fsSL https://clun.sh/install | sh"
+          "code": "curl -fsSL https://clun.f00.sh/install | sh"
         },
         {
           "n": "6.2",
@@ -71,7 +71,7 @@
         "Operator SOP: docs/sop-clun-ops.pdf",
         "This release memo: docs/memo-release-0.3.0.pdf",
         "CHANGELOG.md Unreleased / 0.3.0 section",
-        "README.md and https://clun.sh Documents links",
+        "README.md and https://clun.f00.sh Documents links",
         "Capability matrix: compat/ (30 Yes)"
       ]
     },
@@ -84,5 +84,5 @@
     "name": "Project Engineering",
     "title": "Clun release"
   },
-  "cc": ["https://clun.sh", "github.com/f00-sh/clun"]
+  "cc": ["https://clun.f00.sh", "github.com/f00-sh/clun"]
 }

@@ -125,7 +125,7 @@
   (format stream "until a matching GitHub Release with assets exists.~%")
   (format stream ".SH SEE ALSO~%")
   (format stream "Online documentation:~%")
-  (format stream "https://clun.sh/ and https://github.com/f00-sh/clun~%")
+  (format stream "https://clun.f00.sh/ and https://github.com/f00-sh/clun~%")
   (format stream ".PP~%")
   (format stream "Operator SOP and release memo PDFs ship with the GitHub Release for each version.~%")
   (format stream "Scene card:~%")

@@ -616,8 +616,8 @@ the four native archives plus `checksums.txt`. A fresh independent download pass
 all four archives.
 
 Pages run `29471177985` waited for those matching assets and deployed the site and installer. The hosted
-landing page and `https://clun.sh/install` expose dev.4, and an isolated execution of
-`curl -fsSL https://clun.sh/install | sh` installed a binary reporting `clun 0.1.0-dev.4`. This
+landing page and `https://clun.f00.sh/install` expose dev.4, and an isolated execution of
+`curl -fsSL https://clun.f00.sh/install | sh` installed a binary reporting `clun 0.1.0-dev.4`. This
 post-publication synchronization changes only evidence and milestone status, so its SemVer impact is
 `none`; source version, installer target, artifacts, behavior, and compatibility claims remain unchanged.
 Milestone 5 is current. Phase 25b stays open because 88.797358% is below the fixed 90% gate.
@@ -787,7 +787,7 @@ archives independently match `checksums.txt`:
 | `clun-linux-x64.tar.gz` | `a1dbff991b9a2d9bdaf0be865f12ac96d004f3c029870ab23dd9d7c0330a3705` |
 
 Pages run `29476921956` completed after the release and deployed the dev.5 candidate-status page plus the
-release-gated installer. An isolated execution of `curl -fsSL https://clun.sh/install | sh` installed a
+release-gated installer. An isolated execution of `curl -fsSL https://clun.f00.sh/install | sh` installed a
 binary reporting `clun 0.1.0-dev.5`. Evidence-only handoff commit
 `d3e114749655738ecbfbec21419d4dc0e5276614` then passed Pages run `29479561951`; the hosted page reports
 dev.5 published and m6 current without candidate wording. The handoff changes evidence and milestone status
@@ -955,7 +955,7 @@ Documentation `29488866083`. Annotated tag `v0.1.0-dev.6` peels to that exact co
 | `clun-linux-x64.tar.gz` | `243dfc96bd5a163707c982bfe61d6054a784fe9bbd52bb72b6436d4ba9774935` |
 
 Pages run `29488866091` succeeded for the exact candidate after release assets existed. An isolated
-`curl -fsSL https://clun.sh/install | sh` installation reported `clun 0.1.0-dev.6`. Phase 25b runtime and
+`curl -fsSL https://clun.f00.sh/install | sh` installation reported `clun 0.1.0-dev.6`. Phase 25b runtime and
 release scope is complete. This evidence-only handoff has SemVer impact `none`; source and installer remain
 dev.6 and no new tag is created. Only this handoff commit's own Pages deployment must be verified in issue
 #57 before Phase 25b closes and Phase 27 begins. Phase 26 is deferred until after Phase 82 and will be

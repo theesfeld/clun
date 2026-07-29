@@ -1399,7 +1399,7 @@ Issue #6 may close and web.cookies may become Yes only when:
 
 For a release-bearing unit, BASE_SHA=<base> HEAD_SHA=<head> make version-transition-check is also
 mandatory. Publication then verifies release assets and checksums plus
-curl -fsSL https://clun.sh/install | sh before issue closeout.
+curl -fsSL https://clun.f00.sh/install | sh before issue closeout.
 
 ### 6.4 Residual exclusions
 

@@ -467,7 +467,7 @@ The release-bearing implementation unit synchronizes:
 
 Publication follows `docs/versioning.md`: issue-first branch, PR to `master`, exact transition gate,
 squash merge, immutable tag on the merge commit, four native archives and checksums, published
-ledger reconciliation, Pages deployment, `https://clun.sh/install` smoke, and issue evidence. A
+ledger reconciliation, Pages deployment, `https://clun.f00.sh/install` smoke, and issue evidence. A
 candidate `Yes` in a PR is not described as a published release.
 
 ## 10. Acceptance gates

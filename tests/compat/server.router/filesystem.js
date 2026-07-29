@@ -22,11 +22,11 @@ const router = new Clun.FileSystemRouter({
   fileExtensions: [".tsx"],
   style: "nextjs",
   assetPrefix: "/_next/static/",
-  origin: "https://clun.sh",
+  origin: "https://clun.f00.sh",
 });
 
 assert(router.style === "nextjs", "style getter");
-assert(router.origin === "https://clun.sh", "origin getter");
+assert(router.origin === "https://clun.f00.sh", "origin getter");
 assert(router.assetPrefix === "/_next/static/", "assetPrefix getter");
 assert(router.routes === router.routes, "routes getter must be cached between reloads");
 const routeNames = Object.keys(router.routes);
@@ -45,7 +45,7 @@ const stableMatch = router.match("/posts/" + "%61".repeat(64) + "?hello=world&se
 assert(stableMatch.name === "/posts/[id]" && stableMatch.params.id === "a".repeat(64), "dynamic decoding"); // contract:fsr.params
 assert(stableMatch.pathname === "/posts/" + "a".repeat(64), "decoded pathname");
 assert(stableMatch.query.id === "a".repeat(64) && stableMatch.query.hello === "world" && stableMatch.query.second === "2", "query and params");
-assert(stableMatch.src === "https://clun.sh/_next/static/posts/[id].tsx", "public source path");
+assert(stableMatch.src === "https://clun.f00.sh/_next/static/posts/[id].tsx", "public source path");
 
 const laterMatch = router.match("/posts/" + "%62".repeat(64));
 assert(laterMatch.params.id === "b".repeat(64), "later decoded match");
@@ -68,11 +68,11 @@ for (const current of [
 }
 for (const current of [
   new Request({ url: "http://helloooo.com/posts/hello-world" }),
-  new Request({ url: "https://clun.sh/posts/hello-world" }),
+  new Request({ url: "https://clun.f00.sh/posts/hello-world" }),
 ]) {
   match = router.match(current);
   assert(match.name === "/posts/[id]", "object-form Request origin route");
-  assert(match.src === "https://clun.sh/_next/static/posts/[id].tsx", "object-form Request public source");
+  assert(match.src === "https://clun.f00.sh/_next/static/posts/[id].tsx", "object-form Request public source");
   assert(match.filePath === path.join(pagesRoot, "posts/[id].tsx"), "object-form Request origin file");
 }
 

@@ -368,7 +368,7 @@ END {
   } else if (format == "readme-release-summary") {
     if (publication_state == "published") {
       print "Latest release: [`" release_version "`](https://github.com/f00-sh/clun/releases/tag/" release_tag ")."
-      print "Install: `curl -fsSL https://clun.sh/install | sh` · update: `clun --update`."
+      print "Install: `curl -fsSL https://clun.f00.sh/install | sh` · update: `clun --update`."
       print "Capability matrix: " ledger_yes " Yes / " ledger_partial " Partial / " ledger_no " No."
       print "[Versioning](docs/versioning.md) · [compatibility matrix](compat/README.md)."
     } else if (release_commit != "pending") {

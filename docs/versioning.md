@@ -258,7 +258,7 @@ immutability is enabled; `gh release create`
  regenerate README/site/release notes, record this evidence-only transition, and land it via PR (or
  a follow-up PR) without changing the source version or any other installer behavior.
 6. Wait for Pages to verify that exact tag commit and its assets, then deploy the matching site/installer.
-7. Verify checksums and run `https://clun.sh/install` against the published release on a supported
+7. Verify checksums and run `https://clun.f00.sh/install` against the published release on a supported
  system.
 8. Record commit, workflow, tag, assets, checksum, installer, and Pages evidence in the canonical
  issue.

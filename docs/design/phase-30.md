@@ -722,7 +722,7 @@ Phase 30 is complete only when all of these are true:
 9. Independent review confirms the descriptor/coercion contract, complete corpus ownership,
  matcher bounds, path and symlink discipline, async cancellation, pure-CL implementation, and
  absence of public overclaims.
-10. Release assets, checksums, Pages, `https://clun.sh/install`, ledger, README, site, release notes,
+10. Release assets, checksums, Pages, `https://clun.f00.sh/install`, ledger, README, site, release notes,
  `STATE.md`, and issue #4 agree before the issue closes.
 
 ## 14. Explicit nonclaims and pre-implementation blockers
