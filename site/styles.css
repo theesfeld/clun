@@ -1,6 +1,6 @@
-/* Brand: f00-theme-14 — Heart-Shaped Box contrasts · Bleach boxes */
+/* Layout only. Brand: https://f00.sh/theme/f00-theme.css (ONE shared org CSS). */
 
-/* Brand: https://f00.sh/theme/f00-theme-14.css — Heartbox · Onyx brand · zine body · chip headers */
+/* Brand: https://f00.sh/theme/f00-theme.css — Heartbox · Onyx brand · zine body · chip headers */
 :root {
   --radius: 10px;
   --shell: min(1120px, calc(100% - 2.5rem));
