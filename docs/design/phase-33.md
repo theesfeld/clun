@@ -106,7 +106,7 @@ The input algorithm is ordered exactly:
 1. Read argument 0. A missing argument and explicit `undefined` return numeric `0` immediately.
 2. Otherwise perform ordinary JavaScript `ToString(input)` exactly once.
 3. If coercion throws, propagate the original JavaScript exception by identity and do not inspect
-   `options`.
+ `options`.
 4. If the resulting string is empty, return numeric `0` without inspecting `options`.
 5. Read options as specified below, then measure the string.
 
@@ -158,7 +158,7 @@ These ordering requirements are observable and mandatory:
 - an empty coerced input touches no option property;
 - `countAnsiEscapeCodes` is read before `ambiguousIsNarrow`; and
 - inherited `Object.prototype` pollution has no effect while direct own properties and custom inherited
-  getters do.
+ getters do.
 
 ### 3.4 Return and error boundary
 
@@ -203,7 +203,7 @@ The generated source contains sorted, non-overlapping, adjacency-merged flat ran
 
 - East Asian Width `W|F` and `A`;
 - GCB `CR`, `LF`, `Control`, `Extend`, `ZWJ`, `Prepend`, `Regional_Indicator`, `SpacingMark`, `L`,
-  `V`, `T`, `LV`, and `LVT`;
+ `V`, `T`, `LV`, and `LVT`;
 - `Emoji`, `Emoji_Modifier`, `Emoji_Modifier_Base`, and `Extended_Pictographic`; and
 - InCB `Consonant`, `Linker`, and `Extend`.
 
@@ -224,9 +224,9 @@ implementation's character representation:
 
 - a valid high/low surrogate pair is decoded to one scalar and advances two code units;
 - a lone high or low surrogate advances one code unit, contributes width 0, and does not update
-  grapheme state;
+ grapheme state;
 - a high surrogate followed by a non-low surrogate is skipped alone, after which the following
-  unit is processed normally; and
+ unit is processed normally; and
 - a native host scalar above `U+FFFF` and the equivalent UTF-16 pair have identical behavior.
 
 Input is never normalized. Canonically equivalent strings can therefore take different internal
@@ -238,7 +238,7 @@ conversion is permitted at the public boundary.
 Each scalar first receives a base width of 0, 1, or 2:
 
 1. C0 `U+0000..U+001F`, DEL/C1 `U+007F..U+009F`, and the frozen invisible/combining set below have
-   width 0.
+ width 0.
 2. East Asian Width W or F has width 2.
 3. East Asian Width A has width 1 by default and width 2 when `ambiguousIsNarrow` is false.
 4. Every other scalar has width 1.
@@ -287,7 +287,7 @@ Bun behavior. The following overrides apply:
 - VS16 requests emoji presentation and produces width 2 for a non-ASCII eligible base;
 - a bare ASCII digit, `#`, or `*` plus VS16 remains width 1 unless the keycap mark is present; and
 - ANSI sequences stripped by the option are transparent to boundary state, so styling inserted
-  between a base and combining mark or inside a ZWJ/flag sequence cannot split the cluster.
+ between a base and combining mark or inside a ZWJ/flag sequence cannot split the cluster.
 
 The pinned UTF-16 implementation's ASCII bulk path starts a new width component before an ASCII scalar,
 even when UAX #29 keeps it joined after GCB `Prepend`. Clun reproduces that width-only boundary while
@@ -396,9 +396,9 @@ The implementation has three ownership layers:
 
 1. `src/text/unicode-width-tables.lisp` is deterministic generated data only.
 2. `src/text/string-width.lisp` owns UTF-16 decoding, scalar classification, UAX #29 state,
-   cluster width, and ANSI scanning. It has no JavaScript-object dependency.
+ cluster width, and ANSI scanning. It has no JavaScript-object dependency.
 3. `src/runtime/clun-string-width.lisp` owns descriptors, JavaScript coercion, mitigated options
-   lookup, exception propagation, and Number conversion.
+ lookup, exception propagation, and Number conversion.
 
 `clun.asd` and package definitions load the generated data before the core scanner and the core
 scanner before the runtime bridge. `src/runtime/clun-global.lisp` calls the installer once per
@@ -415,18 +415,18 @@ behavioral facts and Unicode data under its own license enter the repository.
 The evidence stack is cumulative:
 
 1. Focused Common Lisp tests cover every scalar class, table boundary, UTF-16 pair/lone-surrogate
-   case, grapheme rule/state transition, emoji override, and ANSI state transition.
+ case, grapheme rule/state transition, emoji override, and ANSI state transition.
 2. Unicode corpus tests validate every Unicode 17 GraphemeBreakTest row and the reviewed Unicode 17
-   emoji sequence expectations.
+ emoji sequence expectations.
 3. Runtime tests execute in a real Clun realm and pin descriptors, detached/non-constructor calls,
-   coercion, getter receiver/order, short circuits, prototype-pollution mitigation, errors, and
-   Number results.
+ coercion, getter receiver/order, short circuits, prototype-pollution mitigation, errors, and
+ Number results.
 4. `tests/compat/text.string-width/basic.js` pins public shape and coercion; `corpus.js` pins stable
-   Bun outcomes plus explicitly labeled engineering/correctness improvements; `stress.js` pins
-   million-unit results and bounded malformed-ANSI behavior. Expected stdout is byte-exact.
+ Bun outcomes plus explicitly labeled engineering/correctness improvements; `stress.js` pins
+ million-unit results and bounded malformed-ANSI behavior. Expected stdout is byte-exact.
 5. Compatibility CI runs the shipped `build/clun`, not an internal Lisp helper, on `linux-x64`,
-   `linux-arm64`, `darwin-x64`, and `darwin-arm64`, producing receipts tied to the exact candidate
-   commit.
+ `linux-arm64`, `darwin-x64`, and `darwin-arm64`, producing receipts tied to the exact candidate
+ commit.
 
 The exact feature selector is:
 
@@ -475,24 +475,24 @@ candidate `Yes` in a PR is not described as a published release.
 Phase 33 is complete only when all of these are true:
 
 1. `make compat FEATURE=text.string-width` passes all public, corpus, malformed-ANSI, and stress
-   fixtures through the shipped binary.
+ fixtures through the shipped binary.
 2. The Unicode input checksum check passes, deterministic table regeneration is byte-identical,
-   every Unicode 17 grapheme-break row passes, and the emoji corpus reconciles with no silent skip.
+ every Unicode 17 grapheme-break row passes, and the emoji corpus reconciles with no silent skip.
 3. The exact stable-versus-engineering divergence matrix in section 2.1 is executable and issue #7
-   records each disposition.
+ records each disposition.
 4. `make build`, `make test`, and `make purity` pass.
 5. `make docs-check`, `make public-claims-check`, and the live roadmap verification pass after the
-   corrected feature ID/reference path and synchronized public claim.
+ corrected feature ID/reference path and synchronized public claim.
 6. `BASE_SHA=<phase-base> HEAD_SHA=<candidate> make version-transition-check` accepts this exact
-   release unit as `minor` and matches issue #7.
+ release unit as `minor` and matches issue #7.
 7. Compatibility CI produces successful exact-commit shipped-binary receipts for `linux-x64`,
-   `linux-arm64`, `darwin-x64`, and `darwin-arm64`.
+ `linux-arm64`, `darwin-x64`, and `darwin-arm64`.
 8. Independent review confirms the JS descriptor/coercion contract, Unicode pin and license,
-   UAX/emoji correctness, malformed-ANSI semantics, linear bounded execution, pure-CL constraint,
-   and absence of public overclaims.
+ UAX/emoji correctness, malformed-ANSI semantics, linear bounded execution, pure-CL constraint,
+ and absence of public overclaims.
 9. The immutable release assets, Pages deployment, hosted installer smoke, ledger, README, site,
-   release notes, `STATE.md`, and issue #7 all identify the same published version and commit before
-   the issue closes.
+ release notes, `STATE.md`, and issue #7 all identify the same published version and commit before
+ the issue closes.
 
 ## 11. Explicit nonclaims
 

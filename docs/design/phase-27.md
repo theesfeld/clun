@@ -97,31 +97,31 @@ The implementation uses these files:
 
 ```text
 compat/
-  README.md
-  baselines.tsv
-  evidence.tsv
-  features.tsv
-  platforms.tsv
-  references.tsv
-  release.tsv
-  upstream-assets.tsv
-  benchmarks/
-    metrics.tsv
-    workloads.tsv
+ README.md
+ baselines.tsv
+ evidence.tsv
+ features.tsv
+ platforms.tsv
+ references.tsv
+ release.tsv
+ upstream-assets.tsv
+ benchmarks/
+ metrics.tsv
+ workloads.tsv
 docs/releases/
-  current.md
+ current.md
 scripts/
-  compat.sh
-  compat-validate.awk
-  compat-render.awk
-  test-compat-tools.sh
+ compat.sh
+ compat-validate.awk
+ compat-render.awk
+ test-compat-tools.sh
 tests/compat/
-  runtime.web-standard-apis/
-    basic.js
-    basic.out
-  server.http/
-    run.sh
-    server.js
+ runtime.web-standard-apis/
+ basic.js
+ basic.out
+ server.http/
+ run.sh
+ server.js
 ```
 
 There is no `owners.tsv`, child-feature manifest, result-envelope schema, release-evidence table, upstream
@@ -174,9 +174,9 @@ evidence_id feature_id kind command executable_path fixture_path expected_path p
 Evidence kinds are `fixture`, `suite`, `report`, `decision`, and `benchmark`. Runner commands are:
 
 - `clun-fixture`: run `build/clun` against a registered JS/TS fixture and compare exact stdout, expected exit,
-  optional stderr, and optional argv sidecars;
+ optional stderr, and optional argv sidecars;
 - `checked-script`: run a repository shell script that performs its own shipped-binary assertions; the runner
-  passes the absolute declared executable as `CLUN_COMPAT_EXECUTABLE`; and
+ passes the absolute declared executable as `CLUN_COMPAT_EXECUTABLE`; and
 - `static`: validate the referenced repository path and print a trace without executing that suite.
 
 `compat/platforms.tsv`:
@@ -227,7 +227,7 @@ release_id version asdf_core installer_default tag publication_state license act
 
 Exactly one active row is allowed. Its version must match `src/version.lisp`, its ASDF core must match
 `clun.asd`, its installer default must match `site/install`, and its tag must be `v<version>`. Publication state
-is `candidate` or `published`; the license is exactly `GPL-3.0-or-later`. An untagged candidate uses
+is `candidate` or `published`; the license is exactly `MIT`. An untagged candidate uses
 `pending` for `release_commit`; after an immutable candidate tag exists, the row may record the exact
 40-character peeled commit while remaining `candidate` until a GitHub Release and its assets exist. A
 published row must record that exact tagged commit.
@@ -265,23 +265,23 @@ repository paths, benchmark hashes, and public superlatives. It enforces:
 
 - exact headers, field counts, sorted unique IDs, allowed values, and safe repository-relative paths;
 - exactly four complete, uniquely selected baseline roles with strict versions, full revisions, coherent
-  tags, revision-pinned source URLs, one semantic snapshot date, nonempty purposes, and upstream licenses;
+ tags, revision-pinned source URLs, one semantic snapshot date, nonempty purposes, and upstream licenses;
 - exactly 30 feature rows with unique display orders from 1 through 30;
 - roadmap-backed primary and integration phases;
 - exactly four platform rows for every feature;
 - exactly one stable Bun, engineering Bun, Node.js, and Deno reference for every feature, with role/kind and
-  Bun stable/Node.js/Deno assertion agreement;
+ Bun stable/Node.js/Deno assertion agreement;
 - at least one evidence record for every `Partial` feature;
 - target-scoped shipped-binary evidence plus `supported` platform evidence on all four targets before a stored
-  `Yes` is accepted;
+ `Yes` is accepted;
 - nonempty platform scope for executable evidence, `-` scope for static evidence, and agreement between every
-  platform evidence reference and the executable evidence's declared targets;
+ platform evidence reference and the executable evidence's declared targets;
 - the Phase 27 seed count of 0 `Yes`, 6 `Partial`, and 24 `No`;
 - release/source/ASDF/installer/tag/license agreement plus exact active phase/issue agreement with `STATE.md`;
 - four Bun stable asset records and valid digest syntax;
 - four benchmark workloads, valid fixture/runner digests, and at least one metric per workload; and
 - rejection of an unqualified `faster`, `better`, or `stronger than Bun`, Node.js, or Deno claim in README,
-  site, or current release notes.
+ site, or current release notes.
 
 The validator does not derive a feature state from its evidence, execute evidence, verify upstream references
 or asset bytes, aggregate child features, or consume CI receipts. A `Partial` row needs some evidence but not
@@ -386,10 +386,10 @@ It currently proves two pristine checks, three positive forward-render cases (pu
 a complete baseline-ID/version/revision refresh), and 30 deliberate-drift cases. Those cases cover:
 
 1. source, prior-release SemVer, active STATE/release disagreement, missing release-note, stale-binary, and
-   generated feature-state drift;
+ generated feature-state drift;
 2. evidence, reference, and platform ownership drift;
 3. missing or misassigned Node/Deno references, wrong reference kind, unsafe path, Bun/Node/Deno assertion
-   mismatch, incomplete baseline metadata, and pinned comparison-revision drift;
+ mismatch, incomplete baseline metadata, and pinned comparison-revision drift;
 4. duplicate, reversed, and missing generated markers;
 5. benchmark-row deletion and fixture digest drift;
 6. an unqualified `faster than Bun` public claim;
@@ -454,16 +454,16 @@ evidence, or publishes receipt artifacts.
 ## 11. Purity, portability, and licensing
 
 - The validator, renderer, and runner are POSIX shell and POSIX AWK. JavaScript and TypeScript appear only as
-  shipped-runtime fixtures, not as implementation code.
+ shipped-runtime fixtures, not as implementation code.
 - Clun does not link, load, or ship Bun, Node, Deno, CFFI, a foreign library, or a hidden JavaScript runtime.
 - Repository paths are relative and validated against traversal. SHA-256 selection supports `sha256sum`,
-  `shasum -a 256`, and `openssl`.
+ `shasum -a 256`, and `openssl`.
 - The registered package and HTTP scripts use local peers and ephemeral ports. Compatibility evidence does not
-  require the public network; workflow setup still uses network access for checkout, package installation, and
-  pinned toolchain archives.
+ require the public network; workflow setup still uses network access for checkout, package installation, and
+ pinned toolchain archives.
 - The Bun archives are metadata-only in Phase 27 and are not downloaded into compatibility scratch space.
 - `references.tsv` copies no upstream code. Any future copied fixture or corpus must record origin, exact
-  commit, path, license, modifications, and notices, with GPL-3.0-or-later compatibility reviewed separately.
+ commit, path, license, modifications, and notices, with MIT compatibility reviewed separately.
 
 ## 12. Current limitations and Phase 73 boundary
 
@@ -496,7 +496,7 @@ The Phase 27 unit is completed in this order:
 5. run deliberate-drift, claims, roadmap, shell portability, and workflow-lint checks;
 6. run the full build, test, purity, and four-target compatibility gates; and
 7. record exact commits, workflow runs, tag, assets, installer, Pages deployment, and remaining limitations in
-   the canonical issue before closing it.
+ the canonical issue before closing it.
 
 No known limitation is converted into a `Yes` claim. A future enhancement that is outside this bounded unit
 stays explicit and receives its owning phase or defect issue.
@@ -527,4 +527,4 @@ Additionally:
 - Pages remains site-only;
 - the `0.1.0-dev.7` tag is created only after required `master` checks pass; and
 - independent review finds no unsupported claim, owner gap, baseline conflation, portability defect, purity
-  violation, or licensing omission.
+ violation, or licensing omission.

@@ -99,10 +99,10 @@ module/raw/…), `features`, `negative:{phase,type}`, `includes`. The Phase 02 r
 phase only:
 - skip `*_FIXTURE.js`; skip tests whose `features` intersect the unsupported-syntax set (above);
 - honor `flags`: `[module]` → parse as Module (goal), `raw`/default → Script, `onlyStrict`/`noStrict`
-  select the mode(s) (default runs both);
+ select the mode(s) (default runs both);
 - for `negative.phase == parse` → expect a SyntaxError; else → expect a successful parse;
 - record: crashes (any non-SyntaxError Lisp condition → gate failure), negative-parse misses, and a
-  checked-in **parse pass-list** (grows monotonically; Phase 03 extends the mechanism to execution).
+ checked-in **parse pass-list** (grows monotonically; Phase 03 extends the mechanism to execution).
 
 **Gate:** parse all non-skipped `language/**` with zero crashes; every `negative:{phase:parse}` (in
 the non-skipped set) → SyntaxError; token-span property holds. Runner exposed as `make conformance`.
@@ -110,8 +110,8 @@ the non-skipped set) → SyntaxError; token-span property holds. Runner exposed 
 ## Risks
 
 - Arrow / cover-grammar reinterpretation and object-literal-vs-destructuring are the classic parser
-  bugs — mitigated by parsing to a cover node then refining, with dense negative-parse coverage.
+ bugs — mitigated by parsing to a cover node then refining, with dense negative-parse coverage.
 - ASI restricted productions (`return`\n) and `[`/`(`/`` ` `` continuation are error-prone — explicit
-  `nl-before` handling + tests.
+ `nl-before` handling + tests.
 - Early errors are numerous; the 4,449 negative-parse tests are the oracle. Reaching 100% is the
-  long pole; milestones grow the negative-parse pass count without regressions.
+ long pole; milestones grow the negative-parse pass count without regressions.

@@ -13,7 +13,7 @@ and `upstream-inventory.tsv` records a disposition for every lexical `test(` and
 
 The source retains its upstream license headers. Bun itself is MIT licensed.
 These files are test evidence only; Clun's implementation is independently
-written in Common Lisp under GPL-3.0-or-later.
+written in Common Lisp under MIT.
 
 `upstream-match.sh` executes both complete `match.test.ts` bodies through the
 shipped Clun binary. It mechanically removes Bun test-runner imports, injects the

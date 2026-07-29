@@ -30,40 +30,40 @@ matrix Yes row.
 1. Always returns a Promise whose prototype is the intrinsic Promise.prototype.
 2. Uses intrinsic `@@asyncIterator` / `@@iterator` (not the global `Symbol` object).
 3. Prefer async iteration; else sync iteration via CreateAsyncFromSyncIterator;
-   else treat `asyncItems` as array-like.
+ else treat `asyncItems` as array-like.
 4. Async-iterable values are **not** awaited unless `mapfn` is present (mapfn
-   result is always awaited). Sync-iterable values are adopted by AsyncFromSync.
-   Array-like element gets are always awaited.
+ result is always awaited). Sync-iterable values are adopted by AsyncFromSync.
+ Array-like element gets are always awaited.
 5. The `this` value is used as the result constructor when `IsConstructor`; else
-   an ordinary Array is created. Iterable path constructs with no arguments;
-   array-like path constructs with the length.
+ an ordinary Array is created. Iterable path constructs with no arguments;
+ array-like path constructs with the length.
 6. Mapping and CreateDataPropertyOrThrow failures close an open async iterator
-   via AsyncIteratorClose.
+ via AsyncIteratorClose.
 7. Non-constructible; length 1; ordinary built-in property attributes.
 
 ## Architecture
 
 - Extend `src/engine/builtins-array.lisp`; reuse existing Promise,
-  coroutine/await, async-iterator, and AsyncFromSync machinery.
+ coroutine/await, async-iterator, and AsyncFromSync machinery.
 - Drive the body with `start-async-function` + `await-value` so Await is the same
-  microtask path as user async functions.
+ microtask path as user async functions.
 - Nine observation-order controls include `temporalHelpers.js`, which requires
-  nullish coalescing (`??`) and numeric separators (`1_000n`) in the harness
-  text. Lexer/parser already had an emitter path for `??`; this milestone
-  admits `??` tokens and NumericLiteralSeparator so the harness parses. The
-  parse-phase skip tags for those features remain (no silent parse pass-list
-  expansion).
+ nullish coalescing (`??`) and numeric separators (`1_000n`) in the harness
+ text. Lexer/parser already had an emitter path for `??`; this milestone
+ admits `??` tokens and NumericLiteralSeparator so the harness parses. The
+ parse-phase skip tags for those features remain (no silent parse pass-list
+ expansion).
 - Pure Common Lisp; no CFFI, fixture-specific dispatch, or skip-list changes.
 
 ## Evidence and gates
 
 1. `make phase-37-m2-check`: 95/95 pass, 0 fail/skip/tmo/crash.
 2. Focused Lisp assertions cover promise shape, constructor/thisArg, async and
-   array-like inputs, mapping, and rejection.
+ array-like inputs, mapping, and rejection.
 3. `make build`, focused tests, `make purity` pass.
 4. Pass-list remains monotonic when updated by the release/integration unit.
 5. Phase 37 stays open; measured residual ownership after m2 is **603** fail rows
-   (from 708: −95 fromAsync + −10 additional syntax-unlock paths in the full ledger).
+ (from 708: −95 fromAsync + −10 additional syntax-unlock paths in the full ledger).
 
 ## SemVer
 

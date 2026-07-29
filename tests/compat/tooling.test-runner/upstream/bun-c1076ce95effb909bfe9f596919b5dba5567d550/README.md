@@ -43,7 +43,7 @@ CLUN_BUN_SOURCE=/path/to/bun-c1076ce95e make test-test-runner-manifest
 ```
 
 Bun is MIT licensed. The manifest records provenance and digests but does not copy Bun implementation code.
-Clun's implementation remains independently written in Common Lisp under GPL-3.0-or-later.
+Clun's implementation remains independently written in Common Lisp under MIT.
 
 ## Yes disposition (Issue #127 / 0.1.0-dev.34)
 

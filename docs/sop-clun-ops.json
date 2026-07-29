@@ -41,7 +41,7 @@
           ["Site", "https://clun.sh · https://clun.f00.sh"],
           ["Installer", "https://clun.sh/install"],
           ["Repository", "github.com/f00-sh/clun"],
-          ["License", "GPL-3.0-or-later"],
+          ["License", "MIT"],
           ["Implementation", "Pure Common Lisp (SBCL); no CFFI product path"],
           ["Command shape", "Bun-compatible CLI and APIs"],
           ["Platforms", "Linux and macOS, x64 and arm64"],

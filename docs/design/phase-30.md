@@ -8,8 +8,8 @@ complete Bun-shaped public Glob surface to Clun:
 ```js
 const glob = new Clun.Glob(pattern);
 
-glob.match(path);          // boolean
-glob.scan(optionsOrCwd);   // AsyncIterableIterator<string>
+glob.match(path); // boolean
+glob.scan(optionsOrCwd); // AsyncIterableIterator<string>
 glob.scanSync(optionsOrCwd); // IterableIterator<string>
 ```
 
@@ -50,7 +50,7 @@ Evidence priority is:
 3. stable tests and implementation at the exact stable commit;
 4. safety and correctness fixes in the exact engineering commit; and
 5. explicitly recorded Clun improvements where Bun makes no ordering promise or the stable behavior
-   is unsafe.
+ is unsafe.
 
 The stable upstream inventory has 1,519 `expect` sites in `match.test.ts`, 54 in `scan.test.ts`,
 four in `proto.test.ts`, and the path-length, stress, and leak suites. The engineering inventory has
@@ -160,10 +160,10 @@ synchronously with a JavaScript `TypeError`; no Common Lisp condition may cross 
 brand-check-then-ordinary-`ToString` algorithm as the constructor:
 
 ```text
-missing        -> Error: Glob.matchString: expected 1 arguments, got 0
+missing -> Error: Glob.matchString: expected 1 arguments, got 0
 undefined/null/number/Symbol/plain object
-               -> Error: Glob.matchString: first argument is not a string
-boxed String   -> accepted; its ordinary conversion hooks are observable
+ -> Error: Glob.matchString: first argument is not a string
+boxed String -> accepted; its ordinary conversion hooks are observable
 ```
 
 Plain-object hooks are not called. Boxed-String hooks may return a non-String primitive, which is
@@ -237,8 +237,8 @@ Backslash escapes a following character. The frozen implementation also recogniz
 escape values:
 
 ```text
-\\a -> a       \\b -> backspace       \\n -> newline
-\\r -> carriage return                 \\t -> tab
+\\a -> a \\b -> backspace \\n -> newline
+\\r -> carriage return \\t -> tab
 ```
 
 Every other escaped character is literal. A trailing backslash is an invalid pattern and matches
@@ -288,12 +288,12 @@ Both scan methods accept the same optional argument:
 
 ```ts
 type GlobScanOptions = {
-  cwd?: string;
-  dot?: boolean;
-  absolute?: boolean;
-  followSymlinks?: boolean;
-  throwErrorOnBrokenSymlink?: boolean;
-  onlyFiles?: boolean;
+ cwd?: string;
+ dot?: boolean;
+ absolute?: boolean;
+ followSymlinks?: boolean;
+ throwErrorOnBrokenSymlink?: boolean;
+ onlyFiles?: boolean;
 };
 ```
 
@@ -394,11 +394,11 @@ With `dot: false`, wildcard components cannot consume a segment whose first char
 An explicitly dot-prefixed component is still honored:
 
 ```text
-.env                    finds .env
-.dotdir/*.txt           enters .dotdir and finds visible .txt children
-.*/inner.txt            can match .dotdir/inner.txt
-**/.dotdir/inner.txt    can advance to an explicitly named .dotdir
-**/*.txt                does not recurse through hidden directories
+.env finds .env
+.dotdir/*.txt enters .dotdir and finds visible .txt children
+.*/inner.txt can match .dotdir/inner.txt
+**/.dotdir/inner.txt can advance to an explicitly named .dotdir
+**/*.txt does not recurse through hidden directories
 ```
 
 The look-ahead for an explicit dot component works for real directories, symlinked directories,
@@ -414,7 +414,7 @@ broken links. With `onlyFiles: false`, matching directories and symlink entries 
 
 - a literal `linkdir/file.txt` or `linkdir/**/*.txt` resolves through `linkdir` even when false;
 - `*/file.txt`, `link*/file.txt`, and a globstar do not descend through a directory symlink when
-  false; and
+ false; and
 - wildcard traversal descends through such links when true.
 
 Broken symlinks are included only when `onlyFiles` is false. `throwErrorOnBrokenSymlink` has an
@@ -475,13 +475,13 @@ the generator methods and tag, and inherit from `%IteratorPrototype%` or
 
 ```text
 Reflect.ownKeys(Object.getPrototypeOf(syncResult))
-  === ["next", "return", "throw", "constructor", Symbol.toStringTag]
+ === ["next", "return", "throw", "constructor", Symbol.toStringTag]
 Object.getPrototypeOf(syncResult) === %GeneratorPrototype%
 Object.getPrototypeOf(%GeneratorPrototype%) === %IteratorPrototype%
 Object.getPrototypeOf(syncResult1) === Object.getPrototypeOf(syncResult2)
 
 Reflect.ownKeys(Object.getPrototypeOf(asyncResult))
-  === ["next", "return", "throw", "constructor", Symbol.toStringTag]
+ === ["next", "return", "throw", "constructor", Symbol.toStringTag]
 Object.getPrototypeOf(asyncResult) === %AsyncGeneratorPrototype%
 Object.getPrototypeOf(%AsyncGeneratorPrototype%) === %AsyncIteratorPrototype%
 Object.getPrototypeOf(asyncResult1) === Object.getPrototypeOf(asyncResult2)
@@ -527,22 +527,22 @@ transitions below are serialized on the event-loop thread; the token is the only
 worker.
 
 - A worker success or failure becomes observable only when its loop callback commits `ready` or
-  `failed`. If that commit wins, queued requests are processed in AsyncGenerator FIFO order: ready
-  values satisfy preceding `next` requests; the first applicable `next` observes a filesystem
-  failure; later `return`/`throw` use ordinary completed-generator rules.
+ `failed`. If that commit wins, queued requests are processed in AsyncGenerator FIFO order: ready
+ values satisfy preceding `next` requests; the first applicable `next` observes a filesystem
+ failure; later `return`/`throw` use ordinary completed-generator rules.
 - Enqueuing the first `return` or `throw` while the producer is still `traversing` wins cancellation
-  even if the worker has finished but its callback has not committed. The producer becomes
-  `cancelling`, the token and job are cancelled once, and a late worker value or error is discarded.
+ even if the worker has finished but its callback has not committed. The producer becomes
+ `cancelling`, the token and job are cancelled once, and a late worker value or error is discarded.
 - After cancellation acknowledgement, every earlier pending `next` resolves to
-  `{ value: undefined, done: true }`. The winning `return(value)` then Await-adopts `value` and
-  resolves `{ value, done: true }`, or rejects with the adoption failure. A winning `throw(reason)`
-  rejects with the identical reason. Requests queued later observe ordinary completed-generator
-  behavior. This is the named Clun cancellation extension and has explicit differential fixtures.
+ `{ value: undefined, done: true }`. The winning `return(value)` then Await-adopts `value` and
+ resolves `{ value, done: true }`, or rejects with the adoption failure. A winning `throw(reason)`
+ rejects with the identical reason. Requests queued later observe ordinary completed-generator
+ behavior. This is the named Clun cancellation extension and has explicit differential fixtures.
 - If success/failure already committed before the abrupt request is enqueued, no cancellation is
-  attempted. Realm teardown first cancels every registered scan producer, waits for running jobs to
-  acknowledge and release their loop resources, suppresses their late callbacks, and only then
-  destroys the loop. Because the realm and its pending capabilities are then unreachable, teardown
-  does not invent post-destruction Promise settlement; tests inspect resource release directly.
+ attempted. Realm teardown first cancels every registered scan producer, waits for running jobs to
+ acknowledge and release their loop resources, suppresses their late callbacks, and only then
+ destroys the loop. Because the realm and its pending capabilities are then unreachable, teardown
+ does not invent post-destruction Promise settlement; tests inspect resource release directly.
 
 Cancellation closes every open traversal resource under `unwind-protect`, releases the job handle,
 publishes no late values, and does not affect another scan using the same immutable Glob. Generator
@@ -593,19 +593,19 @@ overflow the Lisp stack or hang.
 The implementation has four ownership layers:
 
 1. `src/glob/matcher.lisp` owns immutable pattern compilation, Unicode/lone-surrogate iteration,
-   negation, classes, braces, wildcard/globstar transitions, budgets, and direct matching. It has no
-   engine or filesystem dependency.
+ negation, classes, braces, wildcard/globstar transitions, budgets, and direct matching. It has no
+ engine or filesystem dependency.
 2. `src/glob/walker.lisp` owns raw-slash pattern components, path-prefix and trailing-directory
-   semantics, dot filtering, duplicate suppression, deterministic ordering, symlink ancestry,
-   per-entry cancellation checks, and an incremental accessor protocol used by real and synthetic
-   filesystems. It depends only on `clun.sys` and the matcher.
+ semantics, dot filtering, duplicate suppression, deterministic ordering, symlink ancestry,
+ per-entry cancellation checks, and an incremental accessor protocol used by real and synthetic
+ filesystems. It depends only on `clun.sys` and the matcher.
 3. `src/sys/fs.lisp` adds an error-preserving directory-entry primitive based on
-   `sb-ext:map-directory` with `:classify-symlinks nil`, followed by explicit `lstat`/`stat`. This is
-   required to see broken links; the existing `read-directory` loses that information and must not
-   be used by the Glob walker.
+ `sb-ext:map-directory` with `:classify-symlinks nil`, followed by explicit `lstat`/`stat`. This is
+ required to see broken links; the existing `read-directory` loses that information and must not
+ be used by the Glob walker.
 4. `src/runtime/clun-glob.lisp` owns the class/prototype descriptors, branded-String conversion,
-   mitigated option lookup, error conversion, worker submission, direct intrinsic result prototypes,
-   producer construction, and cancellation/settlement state machine.
+ mitigated option lookup, error conversion, worker submission, direct intrinsic result prototypes,
+ producer construction, and cancellation/settlement state machine.
 
 `clun.asd` loads the new engine-free `glob` module after `sys` and before `engine`, then loads the
 runtime bridge before `clun-global.lisp`. `src/packages.lisp` exports only the narrow matcher/walker
@@ -633,16 +633,16 @@ The realistic unit is approximately 3.5-4.5k implementation LOC plus generated/t
 data, not the old 2.5k sketch. It can be developed in parallel behind stable internal contracts:
 
 1. **Matcher and corpus:** engine-free compiler/matcher, stable and engineering row inventory,
-   malformed/adversarial tests, and direct Bun differential runner.
+ malformed/adversarial tests, and direct Bun differential runner.
 2. **Filesystem walker:** incremental entry accessor, raw-slash/trailing-directory component model,
-   absolute-literal fix, symlinks/cycles/errors, deterministic dedupe/order, cancellation bounds,
-   synthetic accessor, and stress tests.
+ absolute-literal fix, symlinks/cycles/errors, deterministic dedupe/order, cancellation bounds,
+ synthetic accessor, and stress tests.
 3. **Runtime and loop core:** exact class/descriptors/branded-String coercions, shared direct
-   intrinsic result prototypes, producer-backed Generator/AsyncGenerator paths, cancellable worker jobs,
-   deterministic settlement races, and ordinary generator/worker regression tests.
+ intrinsic result prototypes, producer-backed Generator/AsyncGenerator paths, cancellable worker jobs,
+ deterministic settlement races, and ordinary generator/worker regression tests.
 4. **Integration and release evidence:** combine the three behind `Clun.Glob`, run the complete
-   shipped-binary corpus, update ledgers/public docs/version in one release unit, and obtain all
-   target receipts.
+ shipped-binary corpus, update ledgers/public docs/version in one release unit, and obtain all
+ target receipts.
 
 Matcher and walker contracts should land together in the Phase 30 PR unless issue #4 is explicitly
 split into reviewed child milestones. No child milestone may promote the public ledger early.
@@ -690,7 +690,7 @@ the squash-merge commit and is never moved or reused.
 After all candidate evidence is green, the same reviewed release unit updates:
 
 - `compat/features.tsv`, `compat/evidence.tsv`, all four `compat/platforms.tsv` rows, references,
-  and release metadata;
+ and release metadata;
 - `src/version.lisp`, ASDF/core version assertions, installer default, and version tests;
 - generated `README.md`, `site/index.html`, and `docs/releases/current.md`;
 - `PLAN.md`, `STATE.md`, `DECISIONS.md`, this design, and the canonical issue.
@@ -705,25 +705,25 @@ identify the same commit and release.
 Phase 30 is complete only when all of these are true:
 
 1. `make test-glob` passes the complete matcher, real/virtual walker, runtime, security, stress,
-   leak, cancellation, and upstream-inventory suites.
+ leak, cancellation, and upstream-inventory suites.
 2. `make compat FEATURE=filesystem.glob` passes every registered shipped-binary and static evidence
-   row with no skipped applicable upstream row.
+ row with no skipped applicable upstream row.
 3. The SHA-pinned Bun oracle differential passes on `linux-x64`, `linux-arm64`, `darwin-x64`, and
-   `darwin-arm64`; engineering-only fixes have separate named expectations and issue decisions.
+ `darwin-arm64`; engineering-only fixes have separate named expectations and issue decisions.
 4. The 10,000-branch cap, deep malformed patterns, path ceilings, million-entry virtual tree,
-   symlink cycles/cousins, 1,000 concurrent scans, and cancellation bounds all pass with recorded
-   resource receipts.
+ symlink cycles/cousins, 1,000 concurrent scans, and cancellation bounds all pass with recorded
+ resource receipts.
 5. `make build`, `make test`, and `make purity` pass.
 6. `make docs-check`, `make public-claims-check`, `make roadmap-check`, and live roadmap verification
-   pass after the issue and generated public claim are synchronized.
+ pass after the issue and generated public claim are synchronized.
 7. `BASE_SHA=<phase-base> HEAD_SHA=<candidate> make version-transition-check` accepts the exact
-   release unit as `minor`, version `0.1.0-dev.12`, and agrees with issue #4.
+ release unit as `minor`, version `0.1.0-dev.12`, and agrees with issue #4.
 8. Compatibility CI produces successful exact-candidate receipts for all four supported targets.
 9. Independent review confirms the descriptor/coercion contract, complete corpus ownership,
-   matcher bounds, path and symlink discipline, async cancellation, pure-CL implementation, and
-   absence of public overclaims.
+ matcher bounds, path and symlink discipline, async cancellation, pure-CL implementation, and
+ absence of public overclaims.
 10. Release assets, checksums, Pages, `https://clun.sh/install`, ledger, README, site, release notes,
-    `STATE.md`, and issue #4 agree before the issue closes.
+ `STATE.md`, and issue #4 agree before the issue closes.
 
 ## 14. Explicit nonclaims and pre-implementation blockers
 

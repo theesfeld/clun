@@ -42,24 +42,24 @@ Each is minimal, documented in-file with a `;; clun purity patch (Phase 19):` co
 in DECISIONS.md. The upstream `precise-time` CFFI issue is filed (note in DECISIONS.md).
 
 1. **precise-time** — its `.asd` pulls `(:feature (:not :mezzano) :cffi)` and loads `posix.lisp`,
-   which calls `cffi:foreign-funcall "clock_gettime"`. Replace `posix.lisp` with a pure SBCL
-   implementation using `sb-unix:clock-gettime` (verified available: returns integer secs+nsecs
-   for `sb-unix:clock-realtime`/`clock-monotonic`), and drop the CFFI dep + the win/mac/nx platform
-   files from the `.asd`. `protocol.lisp` already provides `get-internal-real-time` fallbacks, so
-   even the pure override is belt-and-suspenders. Nanosecond precision preserved.
+ which calls `cffi:foreign-funcall "clock_gettime"`. Replace `posix.lisp` with a pure SBCL
+ implementation using `sb-unix:clock-gettime` (verified available: returns integer secs+nsecs
+ for `sb-unix:clock-realtime`/`clock-monotonic`), and drop the CFFI dep + the win/mac/nx platform
+ files from the `.asd`. `protocol.lisp` already provides `get-internal-real-time` fallbacks, so
+ even the pure override is belt-and-suspenders. Nanosecond precision preserved.
 
 2. **trivial-features/src/tf-sbcl.lisp** — replaces an `sb-alien` endianness probe (write `#xfeff`,
-   read a byte) with a reader conditional: SBCL already publishes `:little-endian`/`:big-endian` in
-   `*features*` (verified), so `#+little-endian (pushnew :little-endian *features*)` etc. is exact
-   and pure. Strip `trivial-features-tests.asd` + `tests/` (a test carries `cffi`).
+ read a byte) with a reader conditional: SBCL already publishes `:little-endian`/`:big-endian` in
+ `*features*` (verified), so `#+little-endian (pushnew :little-endian *features*)` etc. is exact
+ and pure. Strip `trivial-features-tests.asd` + `tests/` (a test carries `cffi`).
 
 3. **usocket/backend/sbcl.lisp** — the non-win32 `get-host-name` is already pure
-   (`sb-unix:unix-gethostname`); the only Linux `sb-alien` is `wait-for-input-internal`'s
-   `fd-set` + `unix-fast-select`. Replace it with `sb-sys:wait-until-fd-usable` (the pure
-   serve-event primitive; per-socket loop — usocket is used ONLY by pure-tls's `x509/crl.lisp`,
-   i.e. single-socket CRL fetch, so this suffices; multi-socket precision is a documented
-   divergence). Delete the dead `#+win32` block (never compiled on Linux, but the token scanner
-   reads it) and the `sb-alien` mention in a comment. Strip usocket's test files carrying tokens.
+ (`sb-unix:unix-gethostname`); the only Linux `sb-alien` is `wait-for-input-internal`'s
+ `fd-set` + `unix-fast-select`. Replace it with `sb-sys:wait-until-fd-usable` (the pure
+ serve-event primitive; per-socket loop — usocket is used ONLY by pure-tls's `x509/crl.lisp`,
+ i.e. single-socket CRL fetch, so this suffices; multi-socket precision is a documented
+ divergence). Delete the dead `#+win32` block (never compiled on Linux, but the token scanner
+ reads it) and the `sb-alien` mention in a comment. Strip usocket's test files carrying tokens.
 
 pure-tls's own `.asd` lists `(:feature :windows "cffi")` / `(:feature (:or :darwin :macos) "cffi")`
 — never loaded on Linux, but the literal string trips the scanner: strip those two lines from the
@@ -89,11 +89,11 @@ CFFI-only cert path (win/mac) it is `:feature`-guarded off on Linux.
 ## 5. Risks / fallbacks (PLAN §7)
 
 - **pure-tls is young/unaudited (High):** vendored + pinned; its suites in our CI; SRI sha512 is
-  the independent integrity check (Phase 22); fail-closed certs; posture labeling in README
-  (Phase 20/26). MIT permits the maintained fork.
+ the independent integrity check (Phase 22); fail-closed certs; posture labeling in README
+ (Phase 20/26). MIT permits the maintained fork.
 - **Dep version conflicts under ASDF:** all deps pinned + vendored; no quicklisp. If a transitive
-  version mismatch surfaces, pin the compatible SHA and log it.
+ version mismatch surfaces, pin the compatible SHA and log it.
 - **usocket wait-for-input divergence:** single-socket only exercised (CRL); documented.
 - **If pure-tls cannot be made to load/pass purely within the spike:** milestone 1 (ironclad +
-  KATs, self-contained, half the gate) commits independently; pure-tls status recorded in STATE.md
-  under Blocked, and Phase 20 (its only dependent) waits — the rest of the plan is unblocked.
+ KATs, self-contained, half the gate) commits independently; pure-tls status recorded in STATE.md
+ under Blocked, and Phase 20 (its only dependent) waits — the rest of the plan is unblocked.

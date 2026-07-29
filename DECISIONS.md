@@ -35,24 +35,24 @@ These are carried forward from PLAN.md §3 so the log is self-contained. Fallbac
 the plan; a fallback taken becomes its own dated entry here.
 
 - **Engine execution**: compile analyzed AST → CL closures (pre-resolved slots); never
-  `COMPILE`-per-function at load (0.16–0.5 ms/fn → 10–25 s startup). cl-js is a design blueprint,
-  not vendored (ES3).
+ `COMPILE`-per-function at load (0.16–0.5 ms/fn → 10–25 s startup). cl-js is a design blueprint,
+ not vendored (ES3).
 - **Strings**: CL strings, one char = one UTF-16 code unit; astral → surrogate pairs; lone
-  surrogates legal (verified). UTF-8/WTF-8 conversion only at host boundaries.
+ surrogates legal (verified). UTF-8/WTF-8 conversion only at host boundaries.
 - **Numbers**: `double-float` + `with-float-traps-masked (:overflow :invalid :divide-by-zero)` at
-  engine entry; Int32 via `ldb`; Ryū port for Number→String; BigInt late.
+ engine entry; Int32 via `ldb`; Ryū port for Number→String; BigInt late.
 - **Object model**: spec internal-methods as struct-dispatched functions, Proxy-shaped for post-v1;
-  structs never hash-table-per-object (4× memory / 2.7× GC win). Shapes/ICs deferred to Phase 25.
+ structs never hash-table-per-object (4× memory / 2.7× GC win). Shapes/ICs deferred to Phase 25.
 - **Scoping**: parser does full scope analysis; strict AND sloppy from day one, including `with`
-  and direct eval.
+ and direct eval.
 - **Async/generators**: regenerator-style state-machine lowering (AST→AST) before closure emission.
 - **RegExp**: own JS-regex parser → CL-PPCRE parse trees; documented gaps error loudly.
 - **Event loop**: hybrid — one JS thread owns heap/timers/microtasks + serve-event reactor; worker
-  pool for blocking ops; self-pipe wakeup; interrupt handlers enqueue-only.
+ pool for blocking ops; self-pipe wakeup; interrupt handlers enqueue-only.
 - **TLS**: vendor pure-tls (+ ~40-line cl-cancel purity patch) atop ironclad; unaudited, fail-closed
-  certs, SRI sha512 independent integrity. Default cipher TLS_CHACHA20_POLY1305_SHA256.
+ certs, SRI sha512 independent integrity. Default cipher TLS_CHACHA20_POLY1305_SHA256.
 - **Package manager**: npm abbreviated metadata; hand-rolled ustar/pax tar reader; hoisted
-  node_modules; `clun.lock` versioned JSON; lifecycle scripts never executed.
+ node_modules; `clun.lock` versioned JSON; lifecycle scripts never executed.
 - **TypeScript**: type-stripping (whitespace-preserving), not transpilation; no sourcemaps by design.
 
 ---
@@ -256,40 +256,40 @@ reject a non-object argArray. Rule going forward: any builtin comparing a possib
 
 ### 2026-07-10 — Phase 04: Reflect included; Math.random fixed-seed; Date local == UTC
 - **Reflect** (§28.1) is implemented (thin wrappers over the object internal methods) though not in the
-  literal Phase 04 list: it is stdlib-core and unblocks the `isConstructor.js` harness (`Reflect.construct`)
-  that `is-a-constructor` tests across every intrinsic depend on. **Proxy** stays deferred.
+ literal Phase 04 list: it is stdlib-core and unblocks the `isConstructor.js` harness (`Reflect.construct`)
+ that `is-a-constructor` tests across every intrinsic depend on. **Proxy** stays deferred.
 - **Math.random** uses a fixed-seed xorshift64* — deterministic and pure. Unpredictability is not
-  observable by test262 (only the [0,1) range/type are), so no entropy source is pulled in.
+ observable by test262 (only the [0,1) range/type are), so no entropy source is pulled in.
 - **Date**: local time == UTC (`getTimezoneOffset()` ≡ 0); the UTC and "local" getter/setter families
-  are aliased. `Date.now` uses `get-universal-time` (second precision; determinism/purity over
-  sub-ms). Gregorian⇄ms is pure integer CL (exact: |tv| ≤ 8.64e15 < 2^53). TZif local zones deferred
-  to Phase 26 (PLAN.md §3.1).
+ are aliased. `Date.now` uses `get-universal-time` (second precision; determinism/purity over
+ sub-ms). Gregorian⇄ms is pure integer CL (exact: |tv| ≤ 8.64e15 < 2^53). TZif local zones deferred
+ to Phase 26 (PLAN.md §3.1).
 - **Function constructor** (`new Function(args…, body)`) compiles `(function anonymous(params){body})`
-  via `indirect-eval` in global scope; SyntaxError in either part propagates as a JS SyntaxError.
+ via `indirect-eval` in global scope; SyntaxError in either part propagates as a JS SyntaxError.
 
 ### 2026-07-11 — Phase 04 review panel: 20 confirmed / 0 refuted, all fixed (verified by running JS)
 A 6-dimension adversarial panel (each finding re-verified by running the repro against the built
 engine) surfaced 20 genuine spec divergences, all fixed before the phase commit:
 - **JSON.parse host crashes at EOF** (`"tru"`, `"\`, `"\u12`): `jr-next` did an unchecked `(char …)`
-  → SBCL INVALID-ARRAY-INDEX escaping JS try/catch. Now EOF-safe → JS SyntaxError.
+ → SBCL INVALID-ARRAY-INDEX escaping JS try/catch. Now EOF-safe → JS SyntaxError.
 - **padStart/padEnd/repeat heap-exhaustion** on Infinity/1e9 length: `%int` maps ∞→fixnum, then a
-  ~GB string was materialized and killed the process. Added `+max-js-string-length+` (2^28) cap →
-  RangeError("Invalid string length"). A clun materialization limit under the host heap, not a spec bound.
+ ~GB string was materialized and killed the process. Added `+max-js-string-length+` (2^28) cap →
+ RangeError("Invalid string length"). A clun materialization limit under the host heap, not a spec bound.
 - **toExponential/toPrecision ties-to-even**: `%round-to-k` (CL `round`) is correct for the Ryū
-  shortest-digits path but §21.1.3 wants ties-away ("pick the larger n"). Split off `%round-to-digits`
-  with half-away rounding; Ryū/oracle path unchanged. (toFixed was already correct.)
+ shortest-digits path but §21.1.3 wants ties-away ("pick the larger n"). Split off `%round-to-digits`
+ with half-away rounding; Ryū/oracle path unchanged. (toFixed was already correct.)
 - **JSON.stringify(x, [])** serialized all keys: `(or prop-list …)` can't tell an empty whitelist from
-  "no array replacer". Added a `prop-list-p` presence flag.
+ "no array replacer". Added a `prop-list-p` presence flag.
 - **Set −0 not canonicalized**: `md-set` canonicalized the entry KEY but stored the VALUE raw, and Set
-  iteration reads the value. Set add/ctor now store `(%svz-store element)` in both slots (Map values
-  stay raw — only Set elements are SameValueZero-canonicalized).
+ iteration reads the value. Set add/ctor now store `(%svz-store element)` in both slots (Map values
+ stay raw — only Set elements are SameValueZero-canonicalized).
 - **Date.parse over-permissive**: blanket `(<= 1 date 31)` rolled Feb 29 (non-leap)/Apr 31 into the next
-  month, and hour 24 was accepted with nonzero min/sec/ms. Now validates day against leap-aware
-  days-in-month and requires min=sec=ms=0 when hour=24.
+ month, and hour 24 was accepted with nonzero min/sec/ms. Now validates day against leap-aware
+ days-in-month and requires min=sec=ms=0 when hour=24.
 - **String.lastIndexOf ignored its position arg**: now clamps position and bounds the from-end search.
 - **Math.clz32** returned −1 near 2^32 (log2 rounds up) → `(- 32 (integer-length …))`, always 0..32.
 - **Math.log10** of exact powers of ten (1000→2.9999999999999996): special-cased to the exact exponent
-  for Node parity (spec permits approximation, but Node is the stated oracle).
+ for Node parity (spec permits approximation, but Node is the stated oracle).
 Panel method note: findings are only counted when the verifier reproduced the divergence by running the
 repro; 0 were refuted this round (the reviewers had a working JS-eval harness, so raised findings were
 already run-confirmed).
@@ -309,48 +309,48 @@ The loop (`src/loop/`) is callback-agnostic: tasks/microtasks/nextTicks are opaq
 Phase 05 (the gate's "stub queue"); Phase 06 pushes JS Promise jobs into `enqueue-microtask` and
 `process.nextTick` callbacks into `enqueue-next-tick` without changing the loop. Decisions:
 - **Time base** `now-ms` = `(floor (get-internal-real-time) 1000)` (internal-time-units-per-second is
-  1e6 here); integer ms throughout, no floats in the timer path.
+ 1e6 here); integer ms throughout, no floats in the timer path.
 - **Timers**: own binary min-heap keyed (deadline, seq); seq breaks ties FIFO (Node). Cancellation is
-  lazy (mark + skip on pop) — simpler than O(log n) sifted removal; a cancelled-timer flood is
-  acceptable for v1. A per-batch `max-seq` snapshot stops a 0 ms timer scheduled inside a callback
-  from re-firing the same turn (Node-faithful).
+ lazy (mark + skip on pop) — simpler than O(log n) sifted removal; a cancelled-timer flood is
+ acceptable for v1. A per-batch `max-seq` snapshot stops a 0 ms timer scheduled inside a callback
+ from re-firing the same turn (Node-faithful).
 - **Liveness**: a `handle` contributes to `ref-count` exactly while refd∧active. `loop-alive-p` =
-  ref-count>0 ∨ immediate-work. Unref'd timers/handles never keep the loop alive. Ref'd timers and
-  in-flight worker jobs own handles.
+ ref-count>0 ∨ immediate-work. Unref'd timers/handles never keep the loop alive. Ref'd timers and
+ in-flight worker jobs own handles.
 - **Signals**: OS handler does only `(sb-ext:atomic-incf (aref counts signo))` + `self-pipe-wake`
-  (§6 iron rule; allocation-free). The loop thread compares counts to a `seen` high-water mark and
-  runs each pending listener once per turn (coalescing, like Node signal events).
+ (§6 iron rule; allocation-free). The loop thread compares counts to a `seen` high-water mark and
+ runs each pending listener once per turn (coalescing, like Node signal events).
 - **Wake safety**: `self-pipe-wake` writes one byte via `sb-unix:unix-write` from a `defglobal` pinned
-  buffer — no consing, no locks — so it is legal from signal/interrupt context. Full-pipe EAGAIN is a
-  no-op (a wake is already pending). unix-write never signals on EAGAIN, so no condition is consed.
+ buffer — no consing, no locks — so it is legal from signal/interrupt context. Full-pipe EAGAIN is a
+ no-op (a wake is already pending). unix-write never signals on EAGAIN, so no condition is consed.
 - **Timeout cap** 1 s: bounds a dropped wake; real latency is self-pipe-immediate, not cap-bound.
 - **Contribs**: `clun.asd` now `:depends-on ((:require "sb-posix") (:require "sb-concurrency"))`;
-  sb-thread is built in. Internal SBCL APIs (unix-write, make-fd-stream, poll probe) are quarantined
-  in `src/sys/sbcl-compat.lisp` per §3.2/§6. Note: the `make purity` token scan matches inside
-  comments — the sbcl-compat header says "no foreign code", never the literal forbidden tokens.
+ sb-thread is built in. Internal SBCL APIs (unix-write, make-fd-stream, poll probe) are quarantined
+ in `src/sys/sbcl-compat.lisp` per §3.2/§6. Note: the `make purity` token scan matches inside
+ comments — the sbcl-compat header says "no foreign code", never the literal forbidden tokens.
 
 ### 2026-07-11 — Phase 05 review panel: 6 confirmed / 0 refuted, all fixed (verified by running Lisp)
 A 4-dimension adversarial panel (each finding re-verified by running Lisp against the built loop)
 found six genuine defects, all fixed before the phase commit:
 - **Liveness ignored the cross-thread mailbox.** `immediate-work-p` checked only the three JS FIFOs,
-  so a `loop-post` that was the last pending work — an external post, a worker completion's follow-up
-  post, or a post from the final timer callback (whose one-shot handle already deactivated ref-count
-  to 0) — was stranded in the mailbox and the loop exited. Fix: `immediate-work-p` now also counts a
-  non-empty mailbox. (`loop-timeout` already consulted it; the two are now consistent.)
+ so a `loop-post` that was the last pending work — an external post, a worker completion's follow-up
+ post, or a post from the final timer callback (whose one-shot handle already deactivated ref-count
+ to 0) — was stranded in the mailbox and the loop exited. Fix: `immediate-work-p` now also counts a
+ non-empty mailbox. (`loop-timeout` already consulted it; the two are now consistent.)
 - **Liveness ignored pending signal deltas.** A signal delivered exactly as the last ref'd handle
-  deactivated was dropped (the OS handler bumped the counter + woke the pipe, but the top-of-iteration
-  liveness gate exited before `drain-signals`). Fix: new `pending-signals-p` (any counts[s] > seen[s])
-  is part of `immediate-work-p`.
+ deactivated was dropped (the OS handler bumped the counter + woke the pipe, but the top-of-iteration
+ liveness gate exited before `drain-signals`). Fix: new `pending-signals-p` (any counts[s] > seen[s])
+ is part of `immediate-work-p`.
 - **destroy-event-loop left OS signal handlers installed.** The surviving sigaction closes over the
-  loop's self-pipe; after `self-pipe-close` the write fd is closed and may be recycled, so the next
-  delivery wrote the wake byte into an unrelated object's fd (measured: a 0x01 byte injected into a
-  fresh pipe that reused the number) or hit EBADF — a §6 interrupt-context use-after-close. Fix:
-  destroy uninstalls every installed signo (→ `enable-interrupt :default`) before closing the pipe.
+ loop's self-pipe; after `self-pipe-close` the write fd is closed and may be recycled, so the next
+ delivery wrote the wake byte into an unrelated object's fd (measured: a 0x01 byte injected into a
+ fresh pipe that reused the number) or hit EBADF — a §6 interrupt-context use-after-close. Fix:
+ destroy uninstalls every installed signo (→ `enable-interrupt :default`) before closing the pipe.
 - **Per-loop install flag guarded a process-global enable-interrupt.** `sb-sys:enable-interrupt` is
-  process-wide, but the `installed` guard was a per-loop signal-state slot, so a second live loop
-  installing the same signo silently overwrote the first loop's handler. Clun is single-loop (§3.2);
-  fix: a process-global `*signal-owners*` makes a conflicting live registration a loud error, and
-  `remove-signal-handler`/destroy release ownership (so sequential loops reclaim it cleanly).
+ process-wide, but the `installed` guard was a per-loop signal-state slot, so a second live loop
+ installing the same signo silently overwrote the first loop's handler. Clun is single-loop (§3.2);
+ fix: a process-global `*signal-owners*` makes a conflicting live registration a loud error, and
+ `remove-signal-handler`/destroy release ownership (so sequential loops reclaim it cleanly).
 All six are locked as parachute regressions in tests/lisp/loop/loop-tests.lisp (680 unit tests total).
 
 ### 2026-07-11 — Phase 06: generators/async via thread-coroutines, NOT state-machine lowering
@@ -1126,32 +1126,32 @@ Vendored the pure-CL crypto/TLS foundation (§3.4), pinned + `.git`-stripped und
 by scripts/registry.lisp's vendor/*/ scan. 20 systems added this phase (documentation-utils was already
 present from parachute; reused by precise-time). Pinned SHAs:
 - ironclad `f6519450` (all primitives; SBCL VOPs, zero foreign code) · alexandria `f283e25e` ·
-  bordeaux-threads `92da6b9d` · global-vars `c749f32c` · trivial-features `18a5cfaf` ·
-  trivial-garbage `3474f641` (bordeaux-threads dep, missed on first pass — its `.asd` requires it) ·
-  babel `4eaf3f22` (usocket dep) · trivial-gray-streams `fd5fed1c` · flexi-streams `4951d575` ·
-  cl-base64 `80496b74` · split-sequence `89a10b4d` · idna `bf789e60` · usocket `d492f746` ·
-  atomics `bf0e2619` · precise-time `e0bf77d7` · cl-cancel `bec34fb3` · pure-tls `ebfb60f0` ·
-  fiveam `e43d6c8e` + asdf-flv `3f1de416` + trivial-backtrace `43ef7d94` (to run pure-tls's own suites).
+ bordeaux-threads `92da6b9d` · global-vars `c749f32c` · trivial-features `18a5cfaf` ·
+ trivial-garbage `3474f641` (bordeaux-threads dep, missed on first pass — its `.asd` requires it) ·
+ babel `4eaf3f22` (usocket dep) · trivial-gray-streams `fd5fed1c` · flexi-streams `4951d575` ·
+ cl-base64 `80496b74` · split-sequence `89a10b4d` · idna `bf789e60` · usocket `d492f746` ·
+ atomics `bf0e2619` · precise-time `e0bf77d7` · cl-cancel `bec34fb3` · pure-tls `ebfb60f0` ·
+ fiveam `e43d6c8e` + asdf-flv `3f1de416` + trivial-backtrace `43ef7d94` (to run pure-tls's own suites).
 **Purity (§1.1) — the scanner does a full DIRECTORY scan of vendor/ (not just the load plan), so every
 foreign-token file, including non-Linux code paths, had to go.** Four patches + strips, each marked with a
 `;; clun purity patch (Phase 19):` in-file comment:
 1. **precise-time** — its `.asd` pulled a foreign-lib dep and its posix/darwin/windows/nx files made a C
-   `clock_gettime` foreign call. Rewrote posix.lisp to use `sb-unix:clock-gettime` (CLOCK_REALTIME/
-   CLOCK_MONOTONIC — verified: returns integer secs+nsecs; pure contrib, §1.1), dropped the foreign dep +
-   deleted the darwin/windows/nx files. Nanosecond precision preserved. **Upstream issue to file:**
-   Shinmera/precise-time should offer an SBCL-native backend so it need not pull a foreign-FFI lib on SBCL.
+ `clock_gettime` foreign call. Rewrote posix.lisp to use `sb-unix:clock-gettime` (CLOCK_REALTIME/
+ CLOCK_MONOTONIC — verified: returns integer secs+nsecs; pure contrib, §1.1), dropped the foreign dep +
+ deleted the darwin/windows/nx files. Nanosecond precision preserved. **Upstream issue to file:**
+ Shinmera/precise-time should offer an SBCL-native backend so it need not pull a foreign-FFI lib on SBCL.
 2. **trivial-features/tf-sbcl.lisp** — replaced an endianness probe through the foreign-pointer API with a
-   reader conditional on SBCL's own `:little-endian`/`:big-endian` feature (verified present). Stripped its
-   test system + tests/.
+ reader conditional on SBCL's own `:little-endian`/`:big-endian` feature (verified present). Stripped its
+ test system + tests/.
 3. **usocket/backend/sbcl.lisp** — the only Linux foreign use was `wait-for-input-internal`'s alien fd-set +
-   `unix-fast-select`; replaced with `sb-sys:wait-until-fd-usable` (SBCL's pure serve-event readiness
-   primitive). usocket is used ONLY by pure-tls's x509/crl.lisp (single-socket CRL fetch), so a per-socket
-   wait suffices (multi-socket timeout precision is a documented divergence). Deleted the dead `#+win32` WSA
-   block + the ecl/cmucl backends + a udp test (all foreign, none loaded on SBCL). get-host-name already had
-   a pure `sb-unix:unix-gethostname` non-win32 branch.
+ `unix-fast-select`; replaced with `sb-sys:wait-until-fd-usable` (SBCL's pure serve-event readiness
+ primitive). usocket is used ONLY by pure-tls's x509/crl.lisp (single-socket CRL fetch), so a per-socket
+ wait suffices (multi-socket timeout precision is a documented divergence). Deleted the dead `#+win32` WSA
+ block + the ecl/cmucl backends + a udp test (all foreign, none loaded on SBCL). get-host-name already had
+ a pure `sb-unix:unix-gethostname` non-win32 branch.
 4. **pure-tls** — stripped the two `:feature`-guarded win/mac native-cert-validation foreign deps from its
-   `.asd` + deleted src/x509/{windows,macos}-verify.lisp (Windows/macOS are non-goals; the literal token
-   tripped the scan). `verify.lisp` does not reference them on Linux.
+ `.asd` + deleted src/x509/{windows,macos}-verify.lisp (Windows/macOS are non-goals; the literal token
+ tripped the scan). `verify.lisp` does not reference them on Linux.
 The main `clun` binary is UNCHANGED (crypto stays test-only this phase; `crypto.getRandomValues`/`randomUUID`
 keep their existing pure `/dev/urandom` path — routing them through ironclad's os-prng is a deferred, non-
 gate-blocking follow-up). ironclad is a `clun/tests` dep (for the KATs); pure-tls loads standalone. Phase 20
@@ -1599,14 +1599,14 @@ FP-trap masking (`arch_set_fp_modes`, from operators.lisp wrapping every float o
 and un-inlined descriptor predicates (`pd-set-p` 2.9%, `data-descriptor-p` 2.3%). So shapes/ICs shifted to
 m3/m4 and this milestone took four BEHAVIOR-PRESERVING, no-kernel-rewrite changes:
 1. **FP-mask coarsening** (numbers.lisp/functions.lisp): a per-thread `*fp-masked*` special makes
-   `with-js-floats` cheap when a mask is already active; coarse masks at `jm-call`/`jm-construct` cover a
-   whole JS call chain so the per-op uses nest for free. No `with-js-floats` site was REMOVED (each still
-   masks if none is active), so float semantics can't break — verified sound (fresh SBCL threads get global
-   specials + default-enabled FPU traps, so the flag and the FPU word stay consistent per-thread).
+ `with-js-floats` cheap when a mask is already active; coarse masks at `jm-call`/`jm-construct` cover a
+ whole JS call chain so the per-op uses nest for free. No `with-js-floats` site was REMOVED (each still
+ masks if none is active), so float semantics can't break — verified sound (fresh SBCL threads get global
+ specials + default-enabled FPU traps, so the flag and the FPU word stay consistent per-thread).
 2. **Write fast-path** (ordinary-set-with-own-desc): a plain `obj.x = v` to an existing own writable DATA
-   property mutates the live stored descriptor in place, skipping validate-and-apply + a fresh descriptor.
+ property mutates the live stored descriptor in place, skipping validate-and-apply + a fresh descriptor.
 3. **Tight `ptable-pos` scan**: direct `string=` (string keys) / `eq` (symbol keys), no generic
-   `position`/`equal` dispatch. Provably identical (a key is a string or a js-symbol).
+ `position`/`equal` dispatch. Provably identical (a key is a string or a js-symbol).
 4. **Inlined** `pd-set-p`/`data-descriptor-p`/`accessor-descriptor-p`/`generic-descriptor-p`.
 **Measured (best of 5, same host/compiler as the baseline):** richards 3600.4→2262.0 ms (1.59×), deltablue
 2942.0→2182.0 (1.35×), splay 1520.3→901.2 (1.69×); geomean ≈1.53×. `make test-lisp` 2627/0/0; `make purity`
@@ -2340,7 +2340,7 @@ This scheme is informed by observable behavior and the state/queue/wrapper separ
 `c9ad5813fd23bd8b98b0738abc3d037ec716aa92`, specifically `JSAsyncGenerator`,
 `AsyncGeneratorPrototype.js`, `AsyncFromSyncIteratorPrototype.js`, `BytecodeGenerator.cpp`, and shared
 iterator operations. No Bun or JSC implementation text or storage layout is copied; Clun's implementation
-is independent GPL-3.0-or-later Common Lisp.
+is independent MIT Common Lisp.
 
 The implementation passes the frozen focused gate exactly: 407 m6-owned pass, seven m11 fail, 95 Phase-37
 fail, and zero skip, timeout, or crash. The confirmed default/off ledger is 25,461 pass, 2,702 fail,
@@ -3228,7 +3228,7 @@ Spikes recorded in `docs/design/phase-58.md`:
 
 1. Darwin Keychain has no pure user-space protocol under the purity contract.
 2. Pure D-Bus Secret Service is theoretically possible on Linux only and does not clear the
-   four-target `Yes` gate.
+ four-target `Yes` gate.
 3. A pure-CL encrypted file vault is not OS keychain parity and must never be relabeled as such.
 4. No purity-contract amendment is requested or recorded.
 
@@ -3293,13 +3293,13 @@ additional shell-language inventory sites after #122/#123 (overall
 Ship Bun-shaped pure-CL compression and archive surface without a new ledger row:
 
 - **Matrix lock:** `compat-validate` requires exactly 30 `features.tsv` rows. There is no
-  `archive-compression` summary ID. Do **not** invent a 31st Yes row.
+ `archive-compression` summary ID. Do **not** invent a 31st Yes row.
 - **APIs on `Clun`:** `gzipSync`/`gunzipSync`/`deflateSync`/`inflateSync`,
-  `zipSync`/`unzipSync`, `Archive` (tar + optional gzip), fail-closed `zstd*`.
+ `zipSync`/`unzipSync`, `Archive` (tar + optional gzip), fail-closed `zstd*`.
 - **Codecs:** vendored **salza2** (compress) + existing **chipz** (decompress); ustar
-  writer + hardened extract reusing Phase-22 path checks; pure-CL ZIP (store+deflate).
+ writer + hardened extract reusing Phase-22 path checks; pure-CL ZIP (store+deflate).
 - **Evidence:** `tests/lisp/archive/*`, `tests/js/archive/basic.js`; claim lives under
-  Phase 74 / issue #134, not a matrix Yes promotion.
+ Phase 74 / issue #134, not a matrix Yes promotion.
 - SemVer minor → `0.1.0-dev.34` / `v0.1.0-dev.34`.
 
 
@@ -3308,11 +3308,11 @@ Ship Bun-shaped pure-CL compression and archive surface without a new ledger row
 Ship Bun-shaped pure-CL compression and archive surface without a new ledger row:
 
 - **Matrix lock:** `compat-validate` requires exactly 30 `features.tsv` rows. No
-  `archive-compression` summary ID — do **not** invent a 31st Yes row.
+ `archive-compression` summary ID — do **not** invent a 31st Yes row.
 - **APIs on `Clun`:** `gzipSync`/`gunzipSync`/`deflateSync`/`inflateSync`,
-  `zipSync`/`unzipSync`, `Archive` (tar + optional gzip), fail-closed `zstd*`.
+ `zipSync`/`unzipSync`, `Archive` (tar + optional gzip), fail-closed `zstd*`.
 - **Codecs:** vendored **salza2** (compress) + existing **chipz** (decompress); ustar
-  writer + hardened extract; pure-CL ZIP (store+deflate).
+ writer + hardened extract; pure-CL ZIP (store+deflate).
 - SemVer minor → `0.1.0-dev.35` (free slot after master cron `0.1.0-dev.34`).
 
 
@@ -3329,7 +3329,7 @@ Ship Bun-shaped pure-CL compression and archive surface without a new ledger row
 ## 2026-07-18 — Phase 47 runtime.node-compatibility Partial→Yes (#132)
 
 - Selected pure-CL Node surface complete: path (posix+win32), fs, url, buffer, events,
-  assert, util, timers(/promises), querystring, os, process globals, crypto helpers.
+ assert, util, timers(/promises), querystring, os, process globals, crypto helpers.
 - Eleven shipped-binary evidence fixtures; four-target `supported`; ledger `Yes`.
 - Honest bounds: not full Node.js module/API/CLI or V8 parity.
 - Canonical release record remains Phase 47 issue #21 (roadmap-verify-live); unit #132.
@@ -3380,7 +3380,7 @@ Candidate `0.1.0-dev.54`. Parent epic #177.
 Pure-CL single-file executables: `clun build --compile` / `Clun.build({compile})` with
 module graph, embedded assets, Ed25519/HMAC sign+verify, cross-target offline portable
 CLUNSEA packages, and native SBCL image-dump packaging (append trailers break SBCL core-at-EOF).
-Exceeds Bun: all-platform signatures, `Clun.compile.registerTemplate`, `CLUN_BE_CLUN`, GPL source
+Exceeds Bun: all-platform signatures, `Clun.compile.registerTemplate`, `CLUN_BE_CLUN`, source
 notice, reproducible build-id. Coexists with bundler `Clun.build` (#180): compile option routes
 to SFE; default remains production bundle. Ledger Yes, gap `-`, four-target supported.
 Slot `0.1.0-dev.57` after master frontend-dev Yes `0.1.0-dev.56`.
@@ -3448,12 +3448,12 @@ The post-fullport adversarial audit supersedes the `Yes` dispositions from PR #2
 PR #194 / #179 without discarding their implemented subsets:
 
 - `runtime.native-addons` is **Partial**. The shipped pure-CL registered-library host, virtual
-  memory, addon registry, and `.claddon` packs are real. They do not load or call machine-code
-  `.so`, `.dylib`, or `.node` addons and do not satisfy canonical Phase 48's complete frozen
-  N-API/V8/FFI corpus gate on four targets.
+ memory, addon registry, and `.claddon` packs are real. They do not load or call machine-code
+ `.so`, `.dylib`, or `.node` addons and do not satisfy canonical Phase 48's complete frozen
+ N-API/V8/FFI corpus gate on four targets.
 - `security.encrypted-secrets` is **Partial**. The shipped AES-256-GCM file vault and Bun-shaped
-  operations are real. They do not implement the row's operating-system keychain capability,
-  including native ACL/prompt/locked-store semantics or Keychain/libsecret interoperability.
+ operations are real. They do not implement the row's operating-system keychain capability,
+ including native ACL/prompt/locked-store semantics or Keychain/libsecret interoperability.
 
 All eight platform rows return to `unverified` for the full capabilities while retaining receipts
 for the implemented subsets. This follows the permanent rule that a qualified `Yes` is not `Yes`;
@@ -3465,65 +3465,65 @@ Refs: #215, #178, #179, #22, #32, #177
 ## 2026-07-19 — global CLI distribution contract (#221)
 
 - Fresh installs target `~/.local/bin/clun`; `INSTALL_DIR` is the exact binary
-  directory and `INSTALL_VERSION` or a positional version pins a strict SemVer release.
+ directory and `INSTALL_VERSION` or a positional version pins a strict SemVer release.
 - Missing-PATH installs print a current-shell export and manage one marked Bash,
-  Zsh, or Fish rc block by default; `ADD_PATH=0/1` controls that behavior.
+ Zsh, or Fish rc block by default; `ADD_PATH=0/1` controls that behavior.
 - Installer and pure-CL updater resolve the browser-equivalent
-  `github.com/f00-sh/clun/releases/latest` redirect first. The Releases API
-  honors `GITHUB_TOKEN` / `GH_TOKEN`, and a public Releases Atom feed provides a
-  non-API fallback for prerelease-only discovery after API 403. Listing fallbacks
-  select the highest suitable SemVer rather than trusting response order.
+ `github.com/f00-sh/clun/releases/latest` redirect first. The Releases API
+ honors `GITHUB_TOKEN` / `GH_TOKEN`, and a public Releases Atom feed provides a
+ non-API fallback for prerelease-only discovery after API 403. Listing fallbacks
+ select the highest suitable SemVer rather than trusting response order.
 - Updates use direct pure-CL HTTPS/TLS, verify the published SHA-256 and exact
-  archive version, stage and validate the complete versioned bundle, then
-  atomically switch the installer-managed stable launcher. Any failure leaves the
-  prior launcher and bundle intact.
+ archive version, stage and validate the complete versioned bundle, then
+ atomically switch the installer-managed stable launcher. Any failure leaves the
+ prior launcher and bundle intact.
 - Existing `CLUN_INSTALL=~/.clun`, `CLUN_VERSION`, and `CLUN_NO_MODIFY_PATH`
-  callers remain compatible. The no-argument installer embeds the release ledger's
-  verified installable boundary; explicit `INSTALL_VERSION=latest` retains dynamic
-  redirect/API/Atom discovery. Publication reconciliation advances only that embedded
-  boundary after immutable assets exist, before Pages deploy and hosted smoke.
+ callers remain compatible. The no-argument installer embeds the release ledger's
+ verified installable boundary; explicit `INSTALL_VERSION=latest` retains dynamic
+ redirect/API/Atom discovery. Publication reconciliation advances only that embedded
+ boundary after immutable assets exist, before Pages deploy and hosted smoke.
 - Candidate Pages runs now deploy the honest candidate site and smoke the ledger's
-  previously verified installer boundary. Published runs additionally wait for the
-  matching immutable assets before deployment. This supersedes the 2026-07-16
-  decision that candidate Pages only validate without deployment. Candidate ledger
-  rows always record `pending`; the exact tag commit is recorded with `published`.
+ previously verified installer boundary. Published runs additionally wait for the
+ matching immutable assets before deployment. This supersedes the 2026-07-16
+ decision that candidate Pages only validate without deployment. Candidate ledger
+ rows always record `pending`; the exact tag commit is recorded with `published`.
 - Shell-profile edits resolve the complete parent/symlink chain and proceed only for
-  writable user-owned files canonically inside HOME. Externally managed targets are
-  reported and left unchanged.
+ writable user-owned files canonically inside HOME. Externally managed targets are
+ reported and left unchanged.
 - The contract is breaking in intent (`semver:major`); under pre-1.0 policy it
-  starts the `0.2.0` minor core at `0.2.0-dev.1`. The immutable dev.69 and dev.70
-  tags produced no GitHub Release assets; published dev.21 remains the verified
-  installable boundary until the new candidate is released and checked.
+ starts the `0.2.0` minor core at `0.2.0-dev.1`. The immutable dev.69 and dev.70
+ tags produced no GitHub Release assets; published dev.21 remains the verified
+ installable boundary until the new candidate is released and checked.
 
 Refs: #221
 
 ## 2026-07-19 — public npm commands and bounded TLS 1.2 fallback (#233)
 
 - `clun install <pkg…>` is the Bun-compatible package-add spelling and shares
-  the same manifest edit plus install path as `clun add <pkg…>`; no-argument
-  `clun install` continues to install the existing manifest.
+ the same manifest edit plus install path as `clun add <pkg…>`; no-argument
+ `clun install` continues to install the existing manifest.
 - Public npm release evidence must exercise both spellings from empty manifests,
-  include a transitive public dependency graph, assert manifest and lock entries,
-  execute both installed packages, verify registry SRI, and prove byte-identical
-  frozen offline reinstalls with the configured registry unreachable and an
-  explicit empty `SSL_CERT_FILE`, so neither public metadata nor HTTPS tarballs
-  can be fetched. Clun treats that named empty trust source as authoritative and
-  fails instead of falling back to system or custom public roots.
+ include a transitive public dependency graph, assert manifest and lock entries,
+ execute both installed packages, verify registry SRI, and prove byte-identical
+ frozen offline reinstalls with the configured registry unreachable and an
+ explicit empty `SSL_CERT_FILE`, so neither public metadata nor HTTPS tarballs
+ can be fetched. Clun treats that named empty trust source as authoritative and
+ fails instead of falling back to system or custom public roots.
 - The TLS 1.2 fallback remains reachable only after an exact fatal
-  `protocol_version` alert on the preferred TLS 1.3 connection and always uses a
-  fresh connection. Its ServerHello parser rejects both RFC 8446 downgrade
-  sentinels, duplicate or unsolicited extensions, malformed ALPN/point-format
-  acknowledgements, unsolicited session tickets, and peers that omit Extended
-  Master Secret.
+ `protocol_version` alert on the preferred TLS 1.3 connection and always uses a
+ fresh connection. Its ServerHello parser rejects both RFC 8446 downgrade
+ sentinels, duplicate or unsolicited extensions, malformed ALPN/point-format
+ acknowledgements, unsolicited session tickets, and peers that omit Extended
+ Master Secret.
 - The package-manager ledger row is Partial despite working public add/install:
-  Clun does not yet implement npm publishing or the full registry-auth and
-  publishing corpus. At this checkpoint the working public flow used an
-  experimental bounded TLS profile and Issue #234 WebPKI hardening was the next
-  release blocker; no browser-grade WebPKI claim was made.
+ Clun does not yet implement npm publishing or the full registry-auth and
+ publishing corpus. At this checkpoint the working public flow used an
+ experimental bounded TLS profile and Issue #234 WebPKI hardening was the next
+ release blocker; no browser-grade WebPKI claim was made.
 - SRI detects corruption or tampering relative to integrity already authenticated
-  and recorded in the lockfile. On fresh resolution, registry metadata supplies
-  both integrity and tarball URL, so SRI does not independently defeat a transport
-  compromise capable of replacing both.
+ and recorded in the lockfile. On fresh resolution, registry metadata supplies
+ both integrity and tarball URL, so SRI does not independently defeat a transport
+ compromise capable of replacing both.
 
 Refs: #233, #234
 
@@ -3534,25 +3534,25 @@ pure-tls's general-purpose defaults. Both TLS 1.3 and the TLS 1.2 ECDHE fallback
 policy:
 
 - DNS references require a matching dNSName SAN and IP references require the exact iPAddress SAN;
-  Common Name fallback is disabled.
+ Common Name fallback is disabled.
 - RSA server-auth keys require 2048 through 8192 bits, and peer-supplied paths are limited to eight
-  leaf-first entries.
+ leaf-first entries.
 - The supplied order is authoritative and must terminate at an explicit trust anchor, either by DER,
-  the same CA subject/public key (the RFC trust-anchor identity used for cross-signed roots), or a
-  terminal signature by that anchor. AIA fetching and alternate-path construction are not implemented.
+ the same CA subject/public key (the RFC trust-anchor identity used for cross-signed roots), or a
+ terminal signature by that anchor. AIA fetching and alternate-path construction are not implemented.
 - Leaf and non-anchor CA EKU constraints are cumulative for the requested purpose; malformed/empty
-  KU and EKU encodings reject instead of becoming indistinguishable from absent extensions.
+ KU and EKU encodings reject instead of becoming indistinguishable from absent extensions.
 - Critical-extension acceptance is centralized around semantics actually enforced, not symbolic OID
-  recognition. Every path containing nameConstraints rejects until permitted/excluded subtree
-  processing exists.
+ recognition. Every path containing nameConstraints rejects until permitted/excluded subtree
+ processing exists.
 - DER, Certificate/TBSCertificate, Name/RDN, Extension, validity, AlgorithmIdentifier, SPKI, RSA,
-  and ECDSA structures are fully consumed and schema-checked. Issuer/anchor names and SPKIs retain
-  their lossless DER identity; RDN SET OF order and canonical EC named-curve coordinates are exact;
-  unsupported SAN GeneralName forms fail closed; RSA representatives, modulus bounds, and declared
-  RSA-PSS salt/key restrictions are exact. Certificate PSS signatures verify the declared salt length,
-  while TLS CertificateVerify fixes salt length to the selected hash output length per RFC 8446.
+ and ECDSA structures are fully consumed and schema-checked. Issuer/anchor names and SPKIs retain
+ their lossless DER identity; RDN SET OF order and canonical EC named-curve coordinates are exact;
+ unsupported SAN GeneralName forms fail closed; RSA representatives, modulus bounds, and declared
+ RSA-PSS salt/key restrictions are exact. Certificate PSS signatures verify the declared salt length,
+ while TLS CertificateVerify fixes salt length to the selected hash output length per RFC 8446.
 - Resource limits apply before materialization: one MiB DER/certificate-list input, 32 nesting
-  levels, 4,096 nodes, eight peer certificates, and 16 extensions per TLS 1.3 CertificateEntry.
+ levels, 4,096 nodes, eight peer certificates, and 16 extensions per TLS 1.3 CertificateEntry.
 
 Validity, SAN identity, BasicConstraints, pathLen, KeyUsage, signatures, and cryptographic anchoring
 remain mandatory. Revocation, Certificate Transparency, and RFC 5280 policy-tree processing are not
@@ -3565,34 +3565,34 @@ Refs: #234, #233, #2
 ## 2026-07-19 — one-shot TLS fatal alerts and bidirectional clean closure (#235)
 
 - TLS 1.2 local failures carry explicit standard alert dispositions. The outer
-  client boundary emits a best-effort fatal alert once, then suppresses
-  `close_notify`; complete peer fatal alerts remain the reported cause and are
-  never answered.
+ client boundary emits a best-effort fatal alert once, then suppresses
+ `close_notify`; complete peer fatal alerts remain the reported cause and are
+ never answered.
 - TLS 1.3 applies the same terminal-state rule in the record layer and maps
-  certificate parsing, hostname, validity, usage, chain, and trust conditions to
-  non-sensitive certificate alert codes. RFC 9846 (July 2026), which obsoletes
-  RFC 8446, is the governing TLS 1.3 specification for these dispositions. An
-  empty or missing server Certificate is specifically `decode_error` per RFC
-  9846 section 4.5.1.3, never the
-  server-side client-auth `certificate_required` alert. Local diagnostic strings
-  are not sent.
+ certificate parsing, hostname, validity, usage, chain, and trust conditions to
+ non-sensitive certificate alert codes. RFC 9846 (July 2026), which obsoletes
+ RFC 8446, is the governing TLS 1.3 specification for these dispositions. An
+ empty or missing server Certificate is specifically `decode_error` per RFC
+ 9846 section 4.5.1.3, never the
+ server-side client-auth `certificate_required` alert. Local diagnostic strings
+ are not sent.
 - TLS 1.3 alert severity is derived from AlertDescription; RFC 9846 section 6
-  retains the legacy AlertLevel byte only for compatibility and requires receivers
-  to ignore it. Only `protocol_version` selects the fresh-connection TLS 1.2
-  fallback, so this correction does not broaden downgrade triggers.
+ retains the legacy AlertLevel byte only for compatibility and requires receivers
+ to ignore it. Only `protocol_version` selects the fresh-connection TLS 1.2
+ fallback, so this correction does not broaden downgrade triggers.
 - Peer close receipt and local close transmission are distinct state. RFC 9846
-  section 6.1 does not require a synchronous close reply; this implementation
-  safely elects to send exactly one reciprocal alert. TLS 1.2 terminal state
-  blocks normal reads and writes after either fatal direction or local close, and
-  peer close blocks application output while permitting only that explicit
-  reciprocal alert. Fatal termination suppresses later alerts and application
-  output.
+ section 6.1 does not require a synchronous close reply; this implementation
+ safely elects to send exactly one reciprocal alert. TLS 1.2 terminal state
+ blocks normal reads and writes after either fatal direction or local close, and
+ peer close blocks application output while permitting only that explicit
+ reciprocal alert. Fatal termination suppresses later alerts and application
+ output.
 - `make test-tls-alerts` uses exact wire fixtures for malformed records,
-  handshakes, certificates, peer fatal silence, and reciprocal closure. It is a
-  prerequisite of `make test-tls12`; the required CI, Compatibility, and Release
-  `make test-tls` gate includes that target plus the complete pure-tls suite.
-  OpenSSL remains a test oracle only; the bounded profile is not represented as
-  browser or BoringSSL parity.
+ handshakes, certificates, peer fatal silence, and reciprocal closure. It is a
+ prerequisite of `make test-tls12`; the required CI, Compatibility, and Release
+ `make test-tls` gate includes that target plus the complete pure-tls suite.
+ OpenSSL remains a test oracle only; the bounded profile is not represented as
+ browser or BoringSSL parity.
 
 SemVer impact is `patch` inside the pending `0.2.0-dev.1` prerelease.
 
@@ -3689,11 +3689,11 @@ Touch path filters so CI + Documentation + Compatibility all run on one master S
 Implemented proper shared-memory multithreading in pure Common Lisp:
 
 1. **SharedArrayBuffer** — per-realm wrappers around a process-shared `shared-data-block`
-   (byte vector + data mutex + waiter table). TypedArray/DataView accept SAB.
+ (byte vector + data mutex + waiter table). TypedArray/DataView accept SAB.
 2. **Atomics** — load/store/RMW/`wait`/`notify`/`isLockFree`/`pause` with mutex-serialized
-   multi-byte ops and condition-variable waiters on the data block (cross-thread proven).
+ multi-byte ops and condition-variable waiters on the data block (cross-thread proven).
 3. **worker_threads** — real `sb-thread` workers with isolated realms/heaps; MessagePort via
-   mailboxes + `loop-post`; SAB shared by data-block identity on `workerData`/`postMessage`.
+ mailboxes + `loop-post`; SAB shared by data-block identity on `workerData`/`postMessage`.
 
 Architecture constraint preserved: ordinary JS heaps stay single-owner-per-thread; the only
 shared mutable state is SAB data blocks. No CFFI.

@@ -15,10 +15,10 @@ Classify the completed unit before it is merged:
 - `minor`: backward-compatible public functionality;
 - `patch`: a backward-compatible bug fix with no new public functionality;
 - `none`: documentation or internal automation only, with no behavior change. A post-publication
-  evidence-only update may report an already verified release, assets, Pages deployment, or hosted
-  installer without a bump when it does not change the source version, installer target, packaged
-  artifacts, capabilities, or compatibility claims. The canonical GitHub issue must record the
-  evidence and explain why no version change is warranted.
+ evidence-only update may report an already verified release, assets, Pages deployment, or hosted
+ installer without a bump when it does not change the source version, installer target, packaged
+ artifacts, capabilities, or compatibility claims. The canonical GitHub issue must record the
+ evidence and explain why no version change is warranted.
 
 A unit containing more than one kind of change takes the highest applicable impact. A public API
 addition plus bug fixes is therefore `minor`, not `patch`.
@@ -204,7 +204,7 @@ For a release-bearing unit, all of these must agree before the PR is merged:
 - `CHANGELOG.md` using Keep a Changelog categories;
 - `site/install` verified default boundary plus redirect-first explicit-latest and version-pin contract;
 - `compat/release.tsv` recorded installable boundary, publication state, and exact tagged commit once
-  published;
+ published;
 - `README.md` and `site/index.html` release claims;
 - generated conformance evidence and the canonical issue.
 
@@ -237,31 +237,31 @@ Process constitution: `~/.config/agents/AGENTS.md` (branch → PR → squash-mer
 Do not land release-bearing work by pushing a feature commit straight to `origin/master`.
 
 1. Complete the bounded milestone and every required test, conformance, review, and public-claim
-   gate on a **topic branch**.
+ gate on a **topic branch**.
 2. Open a PR into `master`. Wait for exact-commit CI, Documentation, and Compatibility workflows on
-   the PR head (and again on the merge commit as required). Candidate Pages runs deploy the candidate
-   site while keeping its installer anchored to the recorded installable boundary; they are not a tag
-   prerequisite. Squash-merge only when gates are green.
+ the PR head (and again on the merge commit as required). Candidate Pages runs deploy the candidate
+ site while keeping its installer anchored to the recorded installable boundary; they are not a tag
+ prerequisite. Squash-merge only when gates are green.
 3. Create a new immutable annotated `v<version>` tag on the **merge commit** on `master` and push it.
-   Never move or reuse a tag. The release workflow independently requires those three successful
-   exact-SHA master runs for **CI, Documentation, and Compatibility** (Pages deploys after assets exist
+ Never move or reuse a tag. The release workflow independently requires those three successful
+ exact-SHA master runs for **CI, Documentation, and Compatibility** (Pages deploys after assets exist
 and is not a pre-tag gate — ElonOptimizer P1 / Issue #318). Repository-level GitHub release
 immutability is enabled; `gh release create`
-   creates a draft, attaches every asset, and publishes only after upload. Publication locks the
-   release assets and associated tag. Active no-bypass ruleset `19048471` separately permits initial
-   `refs/tags/v*` creation but rejects every update, non-fast-forward move, and deletion, including
-   during the build-to-publication window.
+ creates a draft, attaches every asset, and publishes only after upload. Publication locks the
+ release assets and associated tag. Active no-bypass ruleset `19048471` separately permits initial
+ `refs/tags/v*` creation but rejects every update, non-fast-forward move, and deletion, including
+ during the build-to-publication window.
 4. Wait for the release workflow to publish all four native archives and `checksums.txt`, and require GitHub
-   to report the resulting release as immutable.
+ to report the resulting release as immutable.
 5. Change the release ledger from `candidate`/`pending` to `published` plus the exact tagged commit and
-   installable boundary, advance `site/install`'s embedded verified tag to that same boundary,
-   regenerate README/site/release notes, record this evidence-only transition, and land it via PR (or
-   a follow-up PR) without changing the source version or any other installer behavior.
+ installable boundary, advance `site/install`'s embedded verified tag to that same boundary,
+ regenerate README/site/release notes, record this evidence-only transition, and land it via PR (or
+ a follow-up PR) without changing the source version or any other installer behavior.
 6. Wait for Pages to verify that exact tag commit and its assets, then deploy the matching site/installer.
 7. Verify checksums and run `https://clun.sh/install` against the published release on a supported
-   system.
+ system.
 8. Record commit, workflow, tag, assets, checksum, installer, and Pages evidence in the canonical
-   issue.
+ issue.
 
 If publication fails after step 3, the immutable tag still consumes that version. Keep the ledger
 in `candidate`, replace `pending` with the exact peeled tag commit, retain the prior verified installer

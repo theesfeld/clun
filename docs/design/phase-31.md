@@ -9,7 +9,7 @@ Lisp YAML implementation shared by the JavaScript API and the module loader. The
 surface is:
 
 ```js
-Clun.YAML.parse(input)                    // function length 1
+Clun.YAML.parse(input) // function length 1
 Clun.YAML.stringify(value, replacer, space) // function length 3
 ```
 
@@ -44,20 +44,20 @@ schema, flow/block, block-scalar, merge, identity, module, and exact stringify f
 Direct Bun 1.3.14 executable probes record these additional observable facts:
 
 - `Object.keys(Bun.YAML)` is `parse,stringify`; the methods report names `parse`/`stringify` and
-  lengths 1/3. The namespace is writable and enumerable but non-configurable. Methods are writable,
-  enumerable, and configurable.
+ lengths 1/3. The namespace is writable and enumerable but non-configurable. Methods are writable,
+ enumerable, and configurable.
 - `parse()` and `parse(undefined)` parse the string `"undefined"`; `null`, booleans, numbers, and
-  ordinary objects use the text-source coercion path. Symbol conversion throws a JavaScript
-  `TypeError`.
+ ordinary objects use the text-source coercion path. Symbol conversion throws a JavaScript
+ `TypeError`.
 - Empty input is `null`. A single document returns its value; two or more documents return an
-  array in source order.
+ array in source order.
 - Duplicate explicit mapping keys use the last value. Aliases of a completed mapping or sequence
-  preserve JavaScript identity.
+ preserve JavaScript identity.
 - Parse failures are `SyntaxError` instances whose message begins `YAML Parse error:`.
 - `stringify(undefined)`, a Symbol, or a function at the root returns `undefined`. BigInt throws.
-  A non-nullish replacer throws. A zero/negative/NaN indentation selects flow style; positive
-  numeric indentation is integer-truncated and clamped to 10; string indentation uses at most its
-  first 10 code units.
+ A non-nullish replacer throws. A zero/negative/NaN indentation selects flow style; positive
+ numeric indentation is integer-truncated and clamped to 10; string indentation uses at most its
+ first 10 code units.
 
 Executable observations are evidence, not implementation source. No Rust, Zig, JavaScript, or
 TypeScript implementation is copied into Clun.
@@ -72,12 +72,12 @@ The parser accepts the YAML 1.2 core-schema subset exercised by the pinned corpu
 - flow mappings and sequences, including nesting and trailing commas;
 - plain, single-quoted, and double-quoted scalars;
 - literal (`|`) and folded (`>`) block scalars, explicit indentation 1-9, and strip/clip/keep
-  chomping;
+ chomping;
 - comments and blank lines without treating `#` inside a quoted or non-separated plain scalar as
-  a comment;
+ a comment;
 - document directives, `---` document starts, `...` document ends, and multiple documents;
 - anchors, backward aliases, merge keys, and the standard `!!str`, `!!int`, `!!float`, `!!bool`,
-  `!!null`, `!!seq`, and `!!map` tags;
+ `!!null`, `!!seq`, and `!!map` tags;
 - empty nodes, explicit keys, and ordinary scalar mapping keys.
 
 YAML 1.2 core scalar resolution is exact rather than inherited from the Common Lisp reader:
@@ -125,7 +125,7 @@ For `<<` merge keys:
 - merged values are references to the existing graph nodes, not deep copies;
 - multiple merge entries are processed in source order under the same rules;
 - merge work is charged against the global edge budget so a merge bomb cannot create unbounded
-  host work from a small alias graph.
+ host work from a small alias graph.
 
 The literal key `"<<"` when explicitly tagged as a string is an ordinary key rather than a merge.
 JavaScript object conversion applies ordinary property-key string conversion. Dangerous-looking
@@ -167,9 +167,9 @@ escape JavaScript `try`/`catch`.
 `src/yaml/` defines a package that depends only on Common Lisp. Its public implementation types are:
 
 ```text
-yaml-stream  -> ordered vector of document root nodes
-yaml-node    -> kind, value, anchor, tag, source span
-yaml-pair    -> key node, value node, source span, merge marker
+yaml-stream -> ordered vector of document root nodes
+yaml-node -> kind, value, anchor, tag, source span
+yaml-pair -> key node, value node, source span, merge marker
 ```
 
 Node kinds are `:null`, `:boolean`, `:number`, `:string`, `:sequence`, and `:mapping`. Sequence
@@ -207,7 +207,7 @@ One engine adapter converts a `yaml-stream` to JavaScript:
 
 1. Empty/single/multiple document cardinality selects null, the root value, or a JavaScript array.
 2. On first visit to a sequence/mapping node, allocate the JavaScript container and enter it in an
-   EQ identity table before converting children.
+ EQ identity table before converting children.
 3. A later visit returns the existing container, preserving aliases and cycles.
 4. Mapping properties are created as own enumerable writable configurable data properties.
 5. Scalar nodes map only to null, boolean, Number, or string.
@@ -239,25 +239,25 @@ occurrences emit aliases. Because the object is registered before descending, cy
 The serializer contract is:
 
 - null/boolean/Number/string emit YAML core scalars; negative zero is `-0`, infinities are `.inf`
-  and `-.inf`, and NaN is `.nan`;
+ and `-.inf`, and NaN is `.nan`;
 - BigInt throws `YAML.stringify cannot serialize BigInt`;
 - root undefined/Symbol/function returns undefined; those object properties are omitted and those
-  array positions become null;
+ array positions become null;
 - a non-nullish replacer throws `YAML.stringify does not support the replacer argument` before
-  traversal;
+ traversal;
 - empty arrays/mappings are `[]`/`{}`;
 - no effective `space` emits flow form; effective `space` emits block form using the selected gap;
 - string quoting is round-trip driven: empty strings, core keywords/numbers, indicators, flow
-  punctuation, unsafe colon/comment contexts, leading/trailing whitespace, controls, line breaks,
-  and ambiguous document markers use double quotes with YAML escapes. Valid UTF-16 surrogate
-  pairs remain paired code units; a lone surrogate follows the pinned Bun emitter and remains a
-  raw code unit, while the parser continues to reject lone raw or escaped surrogates;
+ punctuation, unsafe colon/comment contexts, leading/trailing whitespace, controls, line breaks,
+ and ambiguous document markers use double quotes with YAML escapes. Valid UTF-16 surrogate
+ pairs remain paired code units; a lone surrogate follows the pinned Bun emitter and remains a
+ raw code unit, while the parser continues to reject lone raw or escaped surrogates;
 - ordinary objects serialize own enumerable string keys only. Getters run once per pass in the
-  same order as the pinned implementation, and abrupt completion propagates. A getter that adds a
-  previously undiscovered back-edge fails explicitly instead of emitting an unresolved alias;
+ same order as the pinned implementation, and abrupt completion propagates. A getter that adds a
+ previously undiscovered back-edge fails explicitly instead of emitting an unresolved alias;
 - anchor names are deterministic, safe plain tokens. A repeated property value prefers its safe
-  property name; array items and unsafe/colliding names use monotonic `itemN`/`valueN`; a repeated
-  root uses `root`.
+ property name; array items and unsafe/colliding names use monotonic `itemN`/`valueN`; a repeated
+ root uses `root`.
 
 Traversal has the same 256-depth, 1,000,000-edge, and 100,000-anchor limits as parsing. Output is
 capped at 32 MiB and checked after bounded traversal. Repeated references do not consume expansion
@@ -296,17 +296,17 @@ the extension-backed API must remain honest and the attribute form cannot be cla
 The focused phase corpus has five layers:
 
 1. Engine-free Lisp tests cover scanner states, core scalars, block/flow collections, quoted
-   escapes, block-scalar chomping/folding, documents/directives, tags, merges, duplicate keys,
-   locations, and all bounds.
+ escapes, block-scalar chomping/folding, documents/directives, tags, merges, duplicate keys,
+ locations, and all bounds.
 2. Runtime Lisp tests evaluate `Clun.YAML` through a real realm, including descriptors, coercion,
-   exact errors, values, stringify formatting, round trips, aliases, and cycles.
+ exact errors, values, stringify formatting, round trips, aliases, and cycles.
 3. Module fixtures exercise `.yaml` and `.yml` ESM default/named/namespace imports, CJS require,
-   realpath cache identity, empty/scalar/multi-document files, syntax errors, and retry behavior.
+ realpath cache identity, empty/scalar/multi-document files, syntax errors, and retry behavior.
 4. `tests/compat/data.yaml/` drives the shipped `build/clun` binary over a pinned differential
-   corpus. Expected files are locally derived facts and do not contain copied Bun implementation.
+ corpus. Expected files are locally derived facts and do not contain copied Bun implementation.
 5. Security/stress fixtures cover alias storms, merge amplification, deep flow/block structures,
-   huge scalars, malformed escapes, invalid UTF-8, duplicate anchors, unresolved aliases, unsafe
-   tags, `__proto__`, cycles, and repeated parse failures with bounded memory.
+ huge scalars, malformed escapes, invalid UTF-8, duplicate anchors, unresolved aliases, unsafe
+ tags, `__proto__`, cycles, and repeated parse failures with bounded memory.
 
 The YAML Test Suite slice used for conformance must be byte-pinned with its upstream license and a
 checked-in manifest. Cases outside the supported contract stay visible as failures during work;
@@ -331,19 +331,19 @@ partial corpus, or Linux-only result is a public support claim.
 Phase 31 is complete only when:
 
 1. `make test-yaml-upstream-full` passes all 402 cases in the byte-pinned Bun-generated corpus, and
-   `make compat FEATURE=data.yaml` passes the registered parse/stringify and module differential
-   corpus through `build/clun`.
+ `make compat FEATURE=data.yaml` passes the registered parse/stringify and module differential
+ corpus through `build/clun`.
 2. Serializer round trips, repeated-reference identity, supported cycles, duplicate-key policy,
-   merge precedence, and block-scalar matrices pass.
+ merge precedence, and block-scalar matrices pass.
 3. Alias/merge bombs, depth/source/node/output limits, unsafe tags, malformed input, and invalid
-   UTF-8 fail boundedly with catchable JavaScript errors.
+ UTF-8 fail boundedly with catchable JavaScript errors.
 4. `.yaml` and `.yml` default/named/namespace imports, CommonJS require, cache identity, and error
-   eviction pass.
+ eviction pass.
 5. `make build`, `make test`, `make purity`, and `make docs-check` pass.
 6. Any public-claim unit passes `make public-claims-check`, roadmap checks, and the exact
-   `BASE_SHA=<base> HEAD_SHA=<head> make version-transition-check` required by issue #5.
+ `BASE_SHA=<base> HEAD_SHA=<head> make version-transition-check` required by issue #5.
 7. Independent review confirms one parser, pure Common Lisp implementation, no host reader/eval,
-   no native dependency, bounded graph work, and no unsupported compatibility claim.
+ no native dependency, bounded graph work, and no unsupported compatibility claim.
 
 ## 10. Non-goals
 

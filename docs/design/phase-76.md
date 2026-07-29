@@ -1,6 +1,6 @@
 # Phase 76 — Cron, scheduling, and interactive REPL
 
-**Issue:** [#50](https://github.com/f00-sh/clun/issues/50)  
+**Issue:** [#50](https://github.com/f00-sh/clun/issues/50) 
 **Status:** Partial checkpoint — pure-CL `Clun.cron` parse + in-process jobs shipped; REPL and OS-level scheduler open.
 
 ## Scope of this unit (`0.1.0-dev.34`)
@@ -8,17 +8,17 @@
 ### Shipped (pure CL)
 
 1. **Expression grammar** matching frozen Bun `cron_parser`:
-   - five fields: minute hour day month weekday
-   - `*`, lists, ranges, steps; named months/weekdays (case-insensitive full or 3-letter)
-   - weekday `0` and `7` = Sunday; bit-7 fold after range expansion
-   - nicknames: `@yearly`/`@annually`, `@monthly`, `@weekly`, `@daily`/`@midnight`, `@hourly`
-   - POSIX OR when both DOM and DOW are restricted
+ - five fields: minute hour day month weekday
+ - `*`, lists, ranges, steps; named months/weekdays (case-insensitive full or 3-letter)
+ - weekday `0` and `7` = Sunday; bit-7 fold after range expansion
+ - nicknames: `@yearly`/`@annually`, `@monthly`, `@weekly`, `@daily`/`@midnight`, `@hourly`
+ - POSIX OR when both DOM and DOW are restricted
 2. **`Clun.cron.parse(expr, from?)`** — next UTC occurrence strictly after `from` (Date or ms), or `null` within 8 years.
 3. **`Clun.cron(schedule, handler)`** — in-process `CronJob`:
-   - `cron` getter, `stop()`, `ref()`, `unref()` (chainable)
-   - schedules via realm `setTimeout` so jest/vi fake timers control fire times
-   - no-overlap: next fire computed only after handler (and returned Promise) settles
-   - invalid expression or no future occurrences → TypeError at register
+ - `cron` getter, `stop()`, `ref()`, `unref()` (chainable)
+ - schedules via realm `setTimeout` so jest/vi fake timers control fire times
+ - no-overlap: next fire computed only after handler (and returned Promise) settles
+ - invalid expression or no future occurrences → TypeError at register
 4. **OS-level overloads** — `Clun.cron(path, schedule, title)` and `Clun.cron.remove(title)` validate Bun-shaped args then **reject** with a clear purity message (crontab/launchd/schtasks require host shell-out; not pure CL).
 
 ### Open (remain Partial / phase incomplete)

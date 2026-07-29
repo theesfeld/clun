@@ -17,32 +17,32 @@ existing event loop.
 `clun.test-runner` gains local-nicknames `(:eng :clun.engine) (:sys :clun.sys) (:rt :clun.runtime)`.
 Serial ASDF submodule after `runtime`, before `cli`:
 - `registry.lisp` — the test tree (describe/test/hook node structs) + the JS globals
-  (`describe`/`test`/`it` + `.skip/.todo/.only/.skipIf/.todoIf/.if/.each`, `beforeAll`/`beforeEach`/
-  `afterAll`/`afterEach`, `setDefaultTimeout`) installed on a realm; each records into the tree.
+ (`describe`/`test`/`it` + `.skip/.todo/.only/.skipIf/.todoIf/.if/.each`, `beforeAll`/`beforeEach`/
+ `afterAll`/`afterEach`, `setDefaultTimeout`) installed on a realm; each records into the tree.
 - `expect.lisp` — `expect(v)` → a matcher object; the ~22 matchers + `.not` + `.resolves`/`.rejects`
-  + `expect.assertions`/`hasAssertions`, on `eng:js-deep-equal` + `eng:inspect-value`.
+ + `expect.assertions`/`hasAssertions`, on `eng:js-deep-equal` + `eng:inspect-value`.
 - `diff.lisp` — LCS line diff producing Bun's `- Expected`/`+ Received` block.
 - `scheduler.lisp` — the hook-ordered executor; drives each callback to settlement with a timeout.
 - `reporter.lisp` — per-test lines + the summary block.
 - `discovery.lisp` — file discovery + positional substring filters.
 - `runner.lisp` — `run-test-command (argv cwd)`: parse test flags, discover, per-file realm →
-  load → schedule → report, aggregate, return the exit code.
+ load → schedule → report, aggregate, return the exit code.
 
 ## 2. Engine seams (added to the engine; keep the loop encapsulated)
 
 Running async test bodies needs to drive the per-realm loop *between* tests without tearing it down,
 and to time out. Three engine additions (exported):
 - `run-module-file (entry &key realm (teardown t))` — `teardown nil` loads + drives-to-idle but leaves
-  the loop + coroutines ALIVE and returns the realm. (Same for the internal load path.)
+ the loop + coroutines ALIVE and returns the realm. (Same for the internal load path.)
 - `teardown-realm (realm)` — `teardown-coroutines` + `destroy-realm-loop`; the runner calls it in an
-  unwind-protect per file.
+ unwind-protect per file.
 - `run-callback-to-settlement (thunk realm &key (timeout-ms 5000)) → (values kind value)` where
-  `kind ∈ :fulfilled :rejected :timeout`. Binds `*realm*`, `funcall`s THUNK (which `js-call`s the JS
-  callback). A synchronous JS throw → `(:rejected value)`. A pending Promise result → attach
-  `then(onOk,onErr)` reactions (each records the outcome + `lp:loop-stop`), arm a ref'd
-  `lp:set-timer` timeout (fires → `:timeout` + stop), `lp:run-loop`, then `lp:clear-timer`. A
-  non-promise / already-settled result → drain microtasks, return its state. This is the ONE place
-  the runner touches async; it lives in the engine because it uses the promise internals + loop.
+ `kind ∈ :fulfilled :rejected :timeout`. Binds `*realm*`, `funcall`s THUNK (which `js-call`s the JS
+ callback). A synchronous JS throw → `(:rejected value)`. A pending Promise result → attach
+ `then(onOk,onErr)` reactions (each records the outcome + `lp:loop-stop`), arm a ref'd
+ `lp:set-timer` timeout (fires → `:timeout` + stop), `lp:run-loop`, then `lp:clear-timer`. A
+ non-promise / already-settled result → drain microtasks, return its state. This is the ONE place
+ the runner touches async; it lives in the engine because it uses the promise internals + loop.
 
 ## 3. The tree + collection
 
@@ -58,13 +58,13 @@ the `.skip/.todo/.only` variant used. `.each(table)` expands to one registration
 
 Depth-first over the tree. Maintaining the ancestor describe chain [root … leaf-parent]:
 1. On ENTERING a describe (before its first executed test): run its `beforeAll` (outermost first —
-   the file root's, then each nested). Implemented by running a describe's beforeAll the first time a
-   descendant test is about to run; a `beforeAll` throw marks the describe **failed-skip** → its tests
-   report `(skip)`-to-fail and we jump to its `afterAll`.
+ the file root's, then each nested). Implemented by running a describe's beforeAll the first time a
+ descendant test is about to run; a `beforeAll` throw marks the describe **failed-skip** → its tests
+ report `(skip)`-to-fail and we jump to its `afterAll`.
 2. Per test (unless skip/todo-not-run/only-filtered): run beforeEach outer→inner; run the test; run
-   afterEach inner→outer (afterEach runs even if beforeEach or the test threw).
+ afterEach inner→outer (afterEach runs even if beforeEach or the test threw).
 3. On LEAVING a describe (after its last test): run its `afterAll` inner→outer; file root's afterAll
-   last.
+ last.
 Each hook + test body goes through `run-callback-to-settlement` (async-aware, timeout-enforced).
 **`.only`**: a first pass marks whether any test/describe in the FILE is `.only`; if so, only `.only`
 tests (and tests inside `.only` describes) run, the rest → `(skip)` (per-file, per Bun). **`.todo`**:

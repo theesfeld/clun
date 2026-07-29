@@ -12,18 +12,18 @@ Substrate phase — CL only, no JS surface (that is Phase 17 `Clun.serve`/fetch)
 
 - Non-blocking connect signals `sb-bsd-sockets:operation-in-progress` (EINPROGRESS).
 - Non-blocking `socket-accept`/`socket-receive` return **NIL** on EAGAIN; `socket-receive` returns
-  `(values buf 0)` on orderly EOF (peer closed).
+ `(values buf 0)` on orderly EOF (peer closed).
 - Non-blocking `socket-send` returns a **partial byte count** when the kernel buffer fills (it does NOT
-  signal EWOULDBLOCK) — so a large write drains over several writable events. `:nosignal t` turns
-  write-to-closed-peer into a catchable `socket-error` (no SIGPIPE).
+ signal EWOULDBLOCK) — so a large write drains over several writable events. `:nosignal t` turns
+ write-to-closed-peer into a catchable `socket-error` (no SIGPIPE).
 - **Accepted sockets are NOT non-blocking by default** — we set `non-blocking-mode` on each.
 - A failed async connect: `socket-peername` signals `not-connected-error`; a subsequent `socket-receive`
-  surfaces the real errno (`connection-refused-error` → ECONNREFUSED).
+ surfaces the real errno (`connection-refused-error` → ECONNREFUSED).
 - `socket-name` on a port-0 bind returns the real ephemeral port.
 - `socket-send` accepts a **displaced array** (a zero-copy view) — used for partial-send remainders.
 - `socket-error` subclasses present: connection-refused / network-unreachable / operation-timeout /
-  not-connected / address-in-use / operation-not-permitted / invalid-argument / bad-file-descriptor /
-  no-buffers / interrupted (no connection-reset or broken-pipe subclass → the base maps to a default).
+ not-connected / address-in-use / operation-not-permitted / invalid-argument / bad-file-descriptor /
+ no-buffers / interrupted (no connection-reset or broken-pipe subclass → the base maps to a default).
 
 `sb-bsd-sockets` was added to the system `:depends-on`.
 
@@ -44,15 +44,15 @@ SO_{SND,RCV}BUF (best-effort; the kernel clamps — this widens throughput margi
 round-trips).
 
 - **Read** (`%on-readable`): drain `socket-receive` into a reusable 256 KB buffer in a loop until NIL
-  (EAGAIN) or 0 (EOF→close); each chunk delivered to `on-data` as a fresh `subseq` (the buffer is reused).
+ (EAGAIN) or 0 (EOF→close); each chunk delivered to `on-data` as a fresh `subseq` (the buffer is reused).
 - **Write** (`tcp-write`/`%flush`): append `(octets . offset)` chunks to a FIFO; `%flush` sends the head
-  with `:nosignal`, advancing the offset on a partial send (via a displaced view — copying the remainder
-  would be O(n²) to drain a large write). On a partial send, register the `:output` handler and mark
-  `backpressured`; when the queue empties, drop `:output` and — **only if backpressured** — fire `on-drain`
-  once (Node's `drain` is an edge, not "queue is empty now"). A zero-length write is a no-op (socket-send
-  rejects an empty/wrong-type vector). Any non-socket condition from a send fails the connection cleanly.
+ with `:nosignal`, advancing the offset on a partial send (via a displaced view — copying the remainder
+ would be O(n²) to drain a large write). On a partial send, register the `:output` handler and mark
+ `backpressured`; when the queue empties, drop `:output` and — **only if backpressured** — fire `on-drain`
+ once (Node's `drain` is an edge, not "queue is empty now"). A zero-length write is a no-op (socket-send
+ rejects an empty/wrong-type vector). Any non-socket condition from a send fails the connection cleanly.
 - **Close** (`%finish-close`, idempotent): remove both reactor handlers, `socket-close :abort t`,
-  deactivate the handle, fire `on-close (tcp code)` exactly once. EOF → code NIL; error → the code string.
+ deactivate the handle, fire `on-close (tcp code)` exactly once. EOF → code NIL; error → the code string.
 
 ## 4. Connect / listen
 

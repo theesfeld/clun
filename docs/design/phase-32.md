@@ -67,12 +67,12 @@ All other observed behavior follows the public baseline unless this document rec
 correctness or safety decision. In particular:
 
 - constructor maxAge considers only an actual Number: NaN is the absent sentinel, positive and
-  negative Infinity serialize as Max-Age=Infinity and Max-Age=-Infinity, and the getter preserves
-  negative zero even though serialization spells it 0; the setter rejects non-finite coercions;
+ negative Infinity serialize as Max-Age=Infinity and Max-Age=-Infinity, and the getter preserves
+ negative zero even though serialization spells it 0; the setter rejects non-finite coercions;
 - creation and mutation do not enforce __Secure- or __Host- prefix invariants;
 - Partitioned does not implicitly require Secure;
 - CookieMap iterators remain live, including pinned repetition behavior after front-of-view
-  mutation; and
+ mutation; and
 - standalone Cookie and CookieMap inputs have no phase-specific fixed size cap.
 
 Those are observable compatibility choices, not recommendations for browser cookie policy. Future
@@ -97,7 +97,7 @@ Cookie has name Cookie and length 2. Its name and length properties are non-writ
 non-enumerable, and configurable. Its prototype property is non-writable, non-enumerable, and
 non-configurable. Calling it without new throws:
 
-    TypeError: Use `new Cookie(...)` instead of `Cookie(...)`
+ TypeError: Use `new Cookie(...)` instead of `Cookie(...)`
 
 Its static own properties appear after length, name, and prototype:
 
@@ -108,22 +108,22 @@ Its static own properties appear after length, name, and prototype:
 
 Cookie.prototype own property order is exactly:
 
-    constructor
-    name
-    value
-    domain
-    path
-    expires
-    maxAge
-    secure
-    httpOnly
-    sameSite
-    partitioned
-    isExpired
-    toString
-    toJSON
-    serialize
-    Symbol.toStringTag
+ constructor
+ name
+ value
+ domain
+ path
+ expires
+ maxAge
+ secure
+ httpOnly
+ sameSite
+ partitioned
+ isExpired
+ toString
+ toJSON
+ serialize
+ Symbol.toStringTag
 
 The constructor property is writable, non-enumerable, and configurable. Every string-named Cookie
 accessor and method is enumerable and configurable. Methods are writable and have length 0. name is
@@ -136,24 +136,24 @@ non-enumerable, configurable value Cookie. Object.prototype.toString therefore r
 CookieMap has name CookieMap and length 1. Its name, length, and prototype descriptors match
 Cookie's constructor descriptors. Calling it without new throws the corresponding error:
 
-    TypeError: Use `new CookieMap(...)` instead of `CookieMap(...)`
+ TypeError: Use `new CookieMap(...)` instead of `CookieMap(...)`
 
 CookieMap.prototype own property order is exactly:
 
-    constructor
-    get
-    toSetCookieHeaders
-    has
-    set
-    delete
-    entries
-    keys
-    values
-    forEach
-    toJSON
-    size
-    Symbol.iterator
-    Symbol.toStringTag
+ constructor
+ get
+ toSetCookieHeaders
+ has
+ set
+ delete
+ entries
+ keys
+ values
+ forEach
+ toJSON
+ size
+ Symbol.iterator
+ Symbol.toStringTag
 
 Method lengths are:
 
@@ -185,11 +185,11 @@ attaches the same code.
 
 The accepted forms are:
 
-    new Clun.Cookie(name, value, options?)
-    new Clun.Cookie(cookieHeaderString)
-    new Clun.Cookie(cookieInitObject)
-    Clun.Cookie.parse(cookieHeaderString)
-    Clun.Cookie.from(name, value, options?)
+ new Clun.Cookie(name, value, options?)
+ new Clun.Cookie(cookieHeaderString)
+ new Clun.Cookie(cookieInitObject)
+ Clun.Cookie.parse(cookieHeaderString)
+ Clun.Cookie.from(name, value, options?)
 
 Only an actual primitive string in the one-argument constructor selects header parsing. An object
 selects CookieInit member access. A missing argument throws Not enough arguments. A missing or empty
@@ -227,8 +227,8 @@ normal getter-only property TypeError.
 toString and serialize return the same full Set-Cookie serialization. isExpired returns a boolean.
 toJSON returns a new null-prototype object with this exact conditional key order:
 
-    name, value, [domain], path, [expires], [maxAge],
-    secure, sameSite, httpOnly, partitioned
+ name, value, [domain], path, [expires], [maxAge],
+ secure, sameSite, httpOnly, partitioned
 
 domain distinguishes absence from an explicit empty string. Omitted, null, or undefined domain
 produces a null getter. An explicitly supplied or assigned empty string produces an empty-string
@@ -252,7 +252,7 @@ validated in this exact order:
 
 1. name with ToUSVString; stop with name is required when empty;
 2. value with ToUSVString when present, otherwise the empty string; an explicitly present
-   undefined value becomes the string undefined;
+ undefined value becomes the string undefined;
 3. domain with ToUSVString;
 4. path with ToUSVString;
 5. expires with the expiration rules below;
@@ -312,7 +312,7 @@ Injected-clock tests freeze the equality boundary.
 The constructor accepts only lowercase strict, lax, and none for sameSite. The setter and header
 parser accept them case-insensitively and expose lowercase. Any other present value throws:
 
-    Invalid sameSite value. Must be 'strict', 'lax', or 'none'
+ Invalid sameSite value. Must be 'strict', 'lax', or 'none'
 
 secure, httpOnly, and partitioned use ToBoolean through JavaScript properties or CookieInit.
 
@@ -357,12 +357,12 @@ table is not permission to normalize unlisted errors.
 
 Cookie name validation is equivalent to:
 
-    ^[\u0021-\u003A\u003C\u003E-\u007E]+$
+ ^[\u0021-\u003A\u003C\u003E-\u007E]+$
 
 It excludes the empty string, semicolon, equals, controls, space, and non-ASCII characters. Cookie
 path validation is equivalent to:
 
-    ^[\u0020-\u003A\u003D-\u007E]*$
+ ^[\u0020-\u003A\u003D-\u007E]*$
 
 It excludes semicolon, less-than, controls, and non-ASCII characters. Programmatic paths need not
 begin with slash. Domain validation accepts only lowercase ASCII letters, digits, dot, and hyphen.
@@ -370,21 +370,21 @@ It intentionally does not perform complete DNS, public-suffix, or host/domain po
 
 Failures use:
 
-    Invalid cookie name: contains invalid characters
-    Invalid cookie path: contains invalid characters
-    Invalid cookie domain: contains invalid characters
+ Invalid cookie name: contains invalid characters
+ Invalid cookie path: contains invalid characters
+ Invalid cookie domain: contains invalid characters
 
 Serialization emits attributes in this exact order:
 
-    name=encoded-value
-    Domain=...
-    Path=...
-    Expires=...
-    Max-Age=...
-    Secure
-    HttpOnly
-    Partitioned
-    SameSite=...
+ name=encoded-value
+ Domain=...
+ Path=...
+ Expires=...
+ Max-Age=...
+ Secure
+ HttpOnly
+ Partitioned
+ SameSite=...
 
 Attributes are separated by semicolon plus one ASCII space. SameSite is always emitted, including
 the default SameSite=Lax. Domain is emitted only when present and nonempty; path is emitted whenever
@@ -392,7 +392,7 @@ its stored value is nonempty. SameSite uses Strict, Lax, or None title casing.
 
 The value uses the exact encodeURIComponent pass-through set:
 
-    A-Z a-z 0-9 - _ . ! ~ * ' ( )
+ A-Z a-z 0-9 - _ . ! ~ * ' ( )
 
 Every other scalar is replacement-mode UTF-8 encoded and every resulting byte is emitted as a
 percent sign plus two uppercase hexadecimal digits. Spaces, semicolons, plus, percent, and
@@ -401,16 +401,16 @@ percent-encoded. Fixtures exhaust every ASCII byte plus BMP, astral, and lone-su
 
 For years 0000 through 9999, Expires uses the engineering formatter's fixed shape:
 
-    Thu, 01 Jan 1970 00:00:00 GMT
+ Thu, 01 Jan 1970 00:00:00 GMT
 
 Years outside that interval cannot be IMF-fixdate and use an explicit extended
 Date.prototype.toUTCString-compatible spelling. A positive year above 9999 is unprefixed decimal;
 a negative year has a minus sign and at least four absolute digits. Examples are:
 
-    Sat, 01 Jan 10000 00:00:00 GMT
-    Sat, 13 Sep 275760 00:00:00 GMT
-    Fri, 01 Jan -0001 00:00:00 GMT
-    Tue, 20 Apr -271821 00:00:00 GMT
+ Sat, 01 Jan 10000 00:00:00 GMT
+ Sat, 13 Sep 275760 00:00:00 GMT
+ Fri, 01 Jan -0001 00:00:00 GMT
+ Tue, 20 Apr -271821 00:00:00 GMT
 
 The weekday is derived from the same internal UTC instant, day is always two digits, milliseconds
 are omitted, and neither host locale nor timezone is consulted. Documentation calls only the
@@ -472,12 +472,12 @@ retained; section 3.6 defines expiration precedence.
 The pure Common Lisp parser is table-driven and accepts exactly these ASCII, case-insensitive
 families:
 
-    IMF:      Wdy, DD Mon YYYY HH:MM:SS GMT
-    RFC850:   Weekday, DD-Mon-YY HH:MM:SS GMT
-    asctime:  Wdy SP Mon SP (SP DIGIT | 2DIGIT) SP HH:MM:SS SP YYYY
-    DMY:      [Wdy[,]] D[D] (SP|-) Mon (SP|-) (YY|YYYY) HH:MM:SS zone
-    MDY:      [Wdy] Mon D[D] YYYY HH:MM:SS zone
-    numeric:  MM/DD/YYYY HH:MM:SS zone
+ IMF: Wdy, DD Mon YYYY HH:MM:SS GMT
+ RFC850: Weekday, DD-Mon-YY HH:MM:SS GMT
+ asctime: Wdy SP Mon SP (SP DIGIT | 2DIGIT) SP HH:MM:SS SP YYYY
+ DMY: [Wdy[,]] D[D] (SP|-) Mon (SP|-) (YY|YYYY) HH:MM:SS zone
+ MDY: [Wdy] Mon D[D] YYYY HH:MM:SS zone
+ numeric: MM/DD/YYYY HH:MM:SS zone
 
 Wdy is an English three-letter weekday, Weekday is its full English spelling, and Mon is an
 English three-letter month. A supplied weekday is syntax only; a mismatch does not change or
@@ -557,12 +557,12 @@ and a valid-then-invalid repeated sequence.
 
 The accepted forms are:
 
-    new Clun.CookieMap()
-    new Clun.CookieMap(undefined)
-    new Clun.CookieMap(null)
-    new Clun.CookieMap(cookieHeaderString)
-    new Clun.CookieMap(arrayOfPairs)
-    new Clun.CookieMap(record)
+ new Clun.CookieMap()
+ new Clun.CookieMap(undefined)
+ new Clun.CookieMap(null)
+ new Clun.CookieMap(cookieHeaderString)
+ new Clun.CookieMap(arrayOfPairs)
+ new Clun.CookieMap(record)
 
 undefined, null, and an empty string create an empty map. Any other primitive initializer throws
 Invalid initializer type.
@@ -591,12 +591,12 @@ and a replaced lone surrogate's EF BF BD bytes become U+00EF U+00BF U+00BD.
 A percent sign starts this byte scanner:
 
 1. with fewer than two following bytes, append U+FFFD, consume only the percent byte, and process
-   the remaining byte normally;
+ the remaining byte normally;
 2. with two following bytes where either is not an ASCII hex digit, append U+FFFD and consume
-   percent plus both bytes;
+ percent plus both bytes;
 3. a valid %HH in 00-7F appends that ASCII code unit, including NUL, and consumes one triplet;
 4. a valid %HH whose byte has two, three, or four leading one bits starts a candidate of that many
-   bytes and requires the rest as immediately adjacent valid continuation %HH triplets;
+ bytes and requires the rest as immediately adjacent valid continuation %HH triplets;
 5. any other non-ASCII %HH cannot start a candidate, consumes its one triplet, and emits U+FFFD;
 6. scalar validation rejects overlong forms, surrogate scalars, and values above U+10FFFF; and
 7. a valid scalar appends one UTF-16 code unit or surrogate pair.
@@ -643,8 +643,8 @@ For pair-array initialization, the outer value and every element must be real Ja
 Each element has exactly two slots. The first value is converted with ToString before the second;
 holes become the string undefined. Conversion errors propagate immediately. Invalid entries throw:
 
-    Expected each element to be an array of two strings
-    Expected arrays of exactly two strings
+ Expected each element to be an array of two strings
+ Expected arrays of exactly two strings
 
 A Proxy is never unwrapped or enumerated by the pinned CookieMap initializer. Proxy(array),
 Proxy(record), Proxy(function), and a revoked Proxy are all accepted as empty initializers. No
@@ -671,9 +671,9 @@ though get and has observe the first value.
 
 set supports:
 
-    map.set(name, value, options?)
-    map.set(cookie)
-    map.set(cookieInitObject)
+ map.set(name, value, options?)
+ map.set(cookie)
+ map.set(cookieInitObject)
 
 A zero-argument set returns undefined without mutation. A one-argument primitive, including
 explicit undefined or null, throws Not enough arguments with ERR_MISSING_ARGS. Positional name and
@@ -701,7 +701,7 @@ member and before mutation.
 A successful delete removes every same-name original and prior modification, then appends exactly
 one tombstone, including for a nonexistent name:
 
-    name=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax
+ name=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax
 
 An explicitly empty path omits Path. Tombstones emit Domain only when domain is both present and
 nonempty; null, undefined, omitted, and explicit empty string all omit it. A name beginning
@@ -750,20 +750,20 @@ post-processing a comma-joined string.
 Required behavior is:
 
 - duplicate Cookie values combine with semicolon plus one space. This applies at the Headers level,
-  so new Headers([["cookie", "a=1"], ["cookie", "b=2"]]).get("cookie") is a=1; b=2 and its
-  entries view contains one ["cookie", "a=1; b=2"] pair;
+ so new Headers([["cookie", "a=1"], ["cookie", "b=2"]]).get("cookie") is a=1; b=2 and its
+ entries view contains one ["cookie", "a=1; b=2"] pair;
 - raw duplicate request Cookie fields use that same Headers behavior;
 - ordinary duplicate fields combine with comma plus one space;
 - every response Set-Cookie value remains an independent ordered field on the wire;
 - Headers.get("set-cookie") returns the pinned comma-plus-space joined view;
 - Headers.getAll("set-cookie") and Headers.getSetCookie() return fresh arrays preserving individual
-  values and order;
+ values and order;
 - Headers.entries, keys, values, and forEach expose every Set-Cookie value as a distinct repeated
-  entry instead of the get() joined spelling. Non-Set-Cookie names are sorted and merged first;
-  Set-Cookie entries follow them in insertion order. forEach receives
-  (value, "set-cookie", headers) once per field;
+ entry instead of the get() joined spelling. Non-Set-Cookie names are sorted and merged first;
+ Set-Cookie entries follow them in insertion order. forEach receives
+ (value, "set-cookie", headers) once per field;
 - Headers.getAll has length 1 and throws TypeError with Only "set-cookie" is supported. for any
-  other name;
+ other name;
 - Headers.getSetCookie has length 0; and
 - both new methods are writable, enumerable, and configurable.
 
@@ -793,16 +793,16 @@ the selected joined-versus-distinct views without a plain-object overwrite.
 Replacing early comma collapse must not weaken HTTP/1.1 request framing:
 
 - the configured 16 KiB maximum applies to the complete header section through CRLFCRLF, whether
-  the terminator arrives in the first feed or across feeds;
+ the terminator arrives in the first feed or across feeds;
 - finding CRLFCRLF in one oversized feed cannot bypass the limit; it returns 431 and closes;
 - every Content-Length field and comma-list member is parsed as an unsigned decimal. Multiple
-  values are accepted only when all are identical; malformed or conflicting values return 400;
+ values are accepted only when all are identical; malformed or conflicting values return 400;
 - any simultaneous Transfer-Encoding and Content-Length returns 400;
 - Transfer-Encoding is accepted only as one field whose normalized value is exactly chunked.
-  Duplicate Transfer-Encoding fields, repeated/comma-list chunked, unsupported coding, or a coding
-  before/after chunked returns 400;
+ Duplicate Transfer-Encoding fields, repeated/comma-list chunked, unsupported coding, or a coding
+ before/after chunked returns 400;
 - duplicate Connection fields are tokenized across every field in wire order. close dominates
-  keep-alive; HTTP/1.0 keep-alive applies only when requested and close is absent;
+ keep-alive; HTTP/1.0 keep-alive applies only when requested and close is absent;
 - Cookie combination occurs only after framing headers pass these checks; and
 - a framing or limit error consumes no pipelined successor request and never dispatches JavaScript.
 
@@ -818,11 +818,11 @@ All shared Headers entry points validate the converted name and value before cha
 store:
 
 - a name must be a nonempty ASCII HTTP token using letters, digits, and
-  !#$%&'*+-.^_`|~ only, then is lowercased;
+ !#$%&'*+-.^_`|~ only, then is lowercased;
 - a value uses the pinned ByteString boundary: every code unit must be at most U+00FF;
 - NUL, CR, and LF are rejected anywhere in a value;
 - every other ByteString code unit, including HTAB, other C0 controls, DEL, and obs-text, is
-  accepted;
+ accepted;
 - only after validation may leading/trailing ASCII space and tab be trimmed; and
 - no path strips, replaces, folds, or silently deletes an invalid character.
 
@@ -888,13 +888,13 @@ missing canonical constructor/instance wiring before adding cookies:
 
 1. installation creates one canonical realm-local Request.prototype;
 2. the global Request constructor gains a non-writable, non-enumerable, non-configurable own
-   prototype property pointing to that exact object, whose constructor property points back with
-   writable=true, enumerable=false, configurable=true;
+ prototype property pointing to that exact object, whose constructor property points back with
+ writable=true, enumerable=false, configurable=true;
 3. standalone new Request(...) and non-server internal request construction inherit that exact
-   object;
+ object;
 4. one realm-local server-request prototype inherits the canonical Request.prototype; and
 5. only %make-server-request, used by Clun.serve dispatch, creates a branded instance on the
-   server-request prototype.
+ server-request prototype.
 
 The server-request prototype owns the cookies accessor:
 
@@ -912,18 +912,18 @@ accessor above.
 
 For a freshly delivered server request:
 
-    Object.getPrototypeOf(request) === serverRequestPrototype
-    Object.getPrototypeOf(serverRequestPrototype) === Request.prototype
-    request instanceof Request
-    Object.prototype.hasOwnProperty.call(request, "cookies") === false
-    Object.prototype.hasOwnProperty.call(Request.prototype, "cookies") === false
-    "cookies" in request
+ Object.getPrototypeOf(request) === serverRequestPrototype
+ Object.getPrototypeOf(serverRequestPrototype) === Request.prototype
+ request instanceof Request
+ Object.prototype.hasOwnProperty.call(request, "cookies") === false
+ Object.prototype.hasOwnProperty.call(Request.prototype, "cookies") === false
+ "cookies" in request
 
 For a standalone Request:
 
-    Object.getPrototypeOf(new Request(url)) === Request.prototype
-    "cookies" in new Request(url) === false
-    new Request(url).cookies === undefined
+ Object.getPrototypeOf(new Request(url)) === Request.prototype
+ "cookies" in new Request(url) === false
+ new Request(url).cookies === undefined
 
 The server-request prototype is not installed as a global and cannot be used as a constructor. It
 is observable only through Object.getPrototypeOf on a server request. Repeated getter access on a
@@ -1031,8 +1031,8 @@ A new src/http/cookies.lisp module, in an engine-free package such as clun.cooki
 - percent encoding and forgiving value decoding;
 - original/modification ordering and mutation coalescing; and
 - the complete CookieMap state machine: construction from parsed pairs, get, has, set, delete,
-  duplicate/empty handling, size, live iteration views, JSON projection, tombstones,
-  toSetCookieHeaders, and response-field ordering.
+ duplicate/empty handling, size, live iteration views, JSON projection, tombstones,
+ toSetCookieHeaders, and response-field ordering.
 
 The core accepts ordinary Common Lisp strings, numbers, booleans, and explicit time values. It does
 not allocate JavaScript objects, read the clock implicitly in deterministic tests, or depend on
@@ -1048,9 +1048,9 @@ owns:
 - the shared branded Headers representation and cookie-specific header views in web-http;
 - exact property descriptor installation;
 - branded runtime allocation and private engine slots for Headers, Response, Cookie, CookieMap,
-  iterators, and server-request cookie state;
+ iterators, and server-request cookie state;
 - JavaScript overload resolution, member lookup order, ToString/ToUSVString/ToBoolean conversion,
-  and error mapping;
+ and error mapping;
 - JavaScript Date conversion and cached getter identity;
 - Clun namespace installation; and
 - the dedicated server-request prototype and cookies accessor.
@@ -1086,16 +1086,16 @@ Every public accessor and method checks its required brand before reading argume
 properties. Therefore:
 
 - Reflect.ownKeys on Headers, Response, Cookie, CookieMap, iterator, and server-request instances
-  excludes every internal state key;
+ excludes every internal state key;
 - Object.create(Headers.prototype), Object.create(Response.prototype),
-  Object.create(Cookie.prototype), Object.create(CookieMap.prototype), and
-  Object.create(serverRequestPrototype) do not create branded receivers;
+ Object.create(Cookie.prototype), Object.create(CookieMap.prototype), and
+ Object.create(serverRequestPrototype) do not create branded receivers;
 - borrowing methods/accessors onto plain objects or prototype-spoofed objects throws the exact
-  invalid-receiver error;
+ invalid-receiver error;
 - setting an object's prototype to a Clun prototype cannot acquire a brand;
 - copying prototype descriptors cannot acquire a brand; and
 - delete, assignment, or Object.defineProperty on any string or Symbol cannot remove, replace, or
-  forge the internal state.
+ forge the internal state.
 
 Ordinary JavaScript shadow properties remain governed by JavaScript semantics, but they are never
 consulted as the internal brand, Response body, Cookie record, map vectors, iterator cursor,
@@ -1109,21 +1109,21 @@ src/runtime/clun-serve.lisp receive scoped ordered-header and request-context ch
 
 - the parser handles duplicate Cookie without universal comma collapse;
 - the parser validates duplicate framing fields and its complete-one-feed size bound before
-  dispatch;
+ dispatch;
 - Headers preserves individual Set-Cookie values;
 - web-http installs and uses canonical Headers, Request, and Response prototype identities per
-  realm;
+ realm;
 - a private realm slot caches the server-request prototype whose parent is Request.prototype;
 - standalone/fetch construction uses the canonical Request prototype while Clun.serve uses the
-  branded server-request subtype;
+ branded server-request subtype;
 - Response construction/fetch use the branded private-body subtype and serve/error selection
-  rejects every unbranded result;
+ rejects every unbranded result;
 - fetch builds Headers from ordered pairs rather than an overwriting object;
 - serve serializes distinct Set-Cookie lines from a request-local copy without mutating Response;
 - dispatch carries one request context across synchronous, Promise, promised error-handler, and
-  default-error branches; and
+ default-error branches; and
 - a per-connection response sequencer preserves HTTP pipeline order and handles teardown before
-  settlement.
+ settlement.
 
 The old observable %RequestProto%, Headers %store%, and Response %body% properties are removed.
 Realm prototype caches and request context references live in private engine/runtime state. No
@@ -1137,7 +1137,7 @@ The implementation must satisfy all of these:
 - network Cookie input remains bounded by the existing 16 KiB aggregate request-header limit;
 - parsing, validation, date parsing, encoding, and decoding are iterative and linear in input size;
 - no regular-expression backtracking, recursive attribute parser, or recursive percent decoder is
-  used;
+ used;
 - malformed percent sequences produce the frozen replacement behavior and never read beyond input;
 - name, domain, and path validation prevents CR/LF response-header injection;
 - direct cookie-string validation rejects CR, LF, and NUL before parsing;
@@ -1147,7 +1147,7 @@ The implementation must satisfy all of these:
 - prototype spoofing and borrowed calls cannot bypass brand checks;
 - property deletion, assignment, and definition cannot detach or replace private state;
 - automatic-emission/network state cannot cross a keep-alive boundary or survive response
-  completion/teardown; user-retained JavaScript cookie state has a detached sink;
+ completion/teardown; user-retained JavaScript cookie state has a detached sink;
 - output-size arithmetic is checked before allocating encoded strings; and
 - Common Lisp conditions are translated at the JavaScript or HTTP boundary.
 
@@ -1202,11 +1202,11 @@ Engine-independent Lisp tests cover:
 
 - every validator boundary;
 - HTTP-date accept/reject, TimeClip boundaries, overflow rejection, and four-digit/extended
-  formatting vectors;
+ formatting vectors;
 - Set-Cookie and Cookie header parsing;
 - Max-Age sign/prefix, signed-i64 boundary, overflow, 2^53 rounding, and repeated-value vectors;
 - percent encode/decode vectors, including the complete malformed UTF-8 matrix, literal non-ASCII,
-  and the header-global percent switch;
+ and the header-global percent switch;
 - ordering, duplicate, empty-value, and coalescing rules;
 - expiry precedence with injected time;
 - prefix tombstones and injection prevention; and
@@ -1226,44 +1226,44 @@ editing or rebinding its skip rules and compares passes against the checked-in e
 
 ```sh
 RIPGREP_CONFIG_PATH= rg -l '\bProxy\b|\bProxy\.revocable\b' \
-  vendor-data/test262/test | sort -u > tmp-test/proxy-object-reflect-slice.list
+ vendor-data/test262/test | sort -u > tmp-test/proxy-object-reflect-slice.list
 
 CLUN_EXEC=1 sbcl --dynamic-space-size 4096 \
-  --non-interactive --no-userinit --no-sysinit \
-  --eval '(defvar cl-user::*clun-test262-library* t)' \
-  --load scripts/test262.lisp \
-  --eval '(in-package :clun.engine)' \
-  --eval '(let* ((manifest (merge-pathnames "tmp-test/proxy-object-reflect-slice.list" cl-user::*clun-root*))
-                 (paths (with-open-file (in manifest)
-                          (loop for line = (read-line in nil nil) while line
-                                collect (merge-pathnames line cl-user::*clun-root*))))
-                 (prior (make-hash-table :test (quote equal)))
-                 (current (make-hash-table :test (quote equal)))
-                 (pass 0) (fail 0) (skip 0) (crash 0)
-                 (new-pass nil) (regress nil) (failed nil))
-            (dolist (name (load-passlist)) (setf (gethash name prior) t))
-            (loop for path in paths for index from 1 do
-              (when (zerop (mod index 50)) (sb-ext:gc :full t))
-              (let* ((name (rel-name path)) (status (classify-exec path)))
-                (setf (gethash name current) status)
-                (case status
-                  (:pass (incf pass) (unless (gethash name prior) (push name new-pass)))
-                  (:fail (incf fail) (push name failed))
-                  (:skip (incf skip))
-                  (:crash (incf crash) (push name failed)))))
-            (dolist (path paths)
-              (let ((name (rel-name path)))
-                (when (and (gethash name prior)
-                           (not (eq :pass (gethash name current))))
-                  (push name regress))))
-            (format t "FOCUSED total=~d pass=~d fail=~d skip=~d crash=~d new-pass=~d regressions=~d~%"
-                    (length paths) pass fail skip crash (length new-pass) (length regress))
-            (dolist (name (sort new-pass (function string<)))
-              (format t "NEW-PASS ~a~%" name))
-            (dolist (name (sort regress (function string<)))
-              (format t "REGRESSION ~a -> ~(~a~)~%" name (gethash name current)))
-            (dolist (name (sort failed (function string<)))
-              (format t "NONPASS ~(~a~) ~a~%" (gethash name current) name)))'
+ --non-interactive --no-userinit --no-sysinit \
+ --eval '(defvar cl-user::*clun-test262-library* t)' \
+ --load scripts/test262.lisp \
+ --eval '(in-package :clun.engine)' \
+ --eval '(let* ((manifest (merge-pathnames "tmp-test/proxy-object-reflect-slice.list" cl-user::*clun-root*))
+ (paths (with-open-file (in manifest)
+ (loop for line = (read-line in nil nil) while line
+ collect (merge-pathnames line cl-user::*clun-root*))))
+ (prior (make-hash-table :test (quote equal)))
+ (current (make-hash-table :test (quote equal)))
+ (pass 0) (fail 0) (skip 0) (crash 0)
+ (new-pass nil) (regress nil) (failed nil))
+ (dolist (name (load-passlist)) (setf (gethash name prior) t))
+ (loop for path in paths for index from 1 do
+ (when (zerop (mod index 50)) (sb-ext:gc :full t))
+ (let* ((name (rel-name path)) (status (classify-exec path)))
+ (setf (gethash name current) status)
+ (case status
+ (:pass (incf pass) (unless (gethash name prior) (push name new-pass)))
+ (:fail (incf fail) (push name failed))
+ (:skip (incf skip))
+ (:crash (incf crash) (push name failed)))))
+ (dolist (path paths)
+ (let ((name (rel-name path)))
+ (when (and (gethash name prior)
+ (not (eq :pass (gethash name current))))
+ (push name regress))))
+ (format t "FOCUSED total=~d pass=~d fail=~d skip=~d crash=~d new-pass=~d regressions=~d~%"
+ (length paths) pass fail skip crash (length new-pass) (length regress))
+ (dolist (name (sort new-pass (function string<)))
+ (format t "NEW-PASS ~a~%" name))
+ (dolist (name (sort regress (function string<)))
+ (format t "REGRESSION ~a -> ~(~a~)~%" name (gethash name current)))
+ (dolist (name (sort failed (function string<)))
+ (format t "NONPASS ~(~a~) ~a~%" (gethash name current) name)))'
 ```
 
 Observed output on the Phase 32 candidate:
@@ -1302,10 +1302,10 @@ views.
 Prototype/brand regressions additionally prove:
 
 - Headers methods use the branded this receiver's private store, fake %store% properties do not
-  pass coercion/brand checks, CL serialization reads that same store, and constructor/prototype
-  identity plus descriptors are canonical;
+ pass coercion/brand checks, CL serialization reads that same store, and constructor/prototype
+ identity plus descriptors are canonical;
 - new Response, Response.json, and fetch responses carry the private body brand; fake/proxied/
-  prototype-spoofed results are rejected; %body% properties cannot influence serialization;
+ prototype-spoofed results are rejected; %body% properties cannot influence serialization;
 - Object.getPrototypeOf(new Request(url)) is the exact global Request.prototype;
 - Request's prototype and prototype.constructor descriptors have the frozen attributes;
 - every Clun.serve request is instanceof Request;
@@ -1316,7 +1316,7 @@ Prototype/brand regressions additionally prove:
 - the exact cookies descriptor lives only on the server-request prototype;
 - Object.create, borrowed calls, descriptor copying, and prototype spoofing fail brand checks;
 - Reflect.ownKeys exposes no Headers, Response, Cookie, CookieMap, iterator, or request-cache
-  state; and
+ state; and
 - delete, assignment, and defineProperty cannot mutate, detach, or forge private state.
 
 Constructor/date regressions prove ignored newTarget/subclass allocation, internal Date-value reads
@@ -1371,31 +1371,31 @@ Issue #6 may close and web.cookies may become Yes only when:
 
 1. the complete standalone API and raw HTTP differential corpus passes through build/clun;
 2. every stable/engineering/safety disposition has dedicated fixtures and issue/DECISIONS.md
-   records;
+ records;
 3. exact descriptors, coercion order, abrupt completion, errors, private-slot brands,
-   Reflect.ownKeys, spoofed/borrowed receiver failures, duplicate/header order, and live iteration
-   cases pass;
+ Reflect.ownKeys, spoofed/borrowed receiver failures, duplicate/header order, and live iteration
+ cases pass;
 4. canonical Request.prototype identity, standalone Request's negative cookie surface, the
-   server-only inherited accessor, pre-access request.headers set/append/delete and post-cache
-   independence, synchronous, asynchronous, promised-error, default-500, HEAD, pipelined,
-   shared-Response, mutation-cutoff, teardown, keep-alive, and concurrent tests prove subtype
-   identity, ordered isolation, nonmutation, and one-time emission;
+ server-only inherited accessor, pre-access request.headers set/append/delete and post-cache
+ independence, synchronous, asynchronous, promised-error, default-500, HEAD, pipelined,
+ shared-Response, mutation-cutoff, teardown, keep-alive, and concurrent tests prove subtype
+ identity, ordered isolation, nonmutation, and one-time emission;
 5. constructed/parser/fetch/serve Headers views, conflicting Content-Length, Transfer-Encoding
-   plus Content-Length, duplicate Transfer-Encoding/Connection, one-feed/split-feed 16 KiB limits,
-   malformed, injection, pollution, Date range/brand, exact Max-Age i64/Number boundaries,
-   Domain nonempty omission, the malformed-percent/header-global switch matrix, N/2N/4N
-   linear-allocation scaling, and bounded-network RSS-plateau tests pass;
+ plus Content-Length, duplicate Transfer-Encoding/Connection, one-feed/split-feed 16 KiB limits,
+ malformed, injection, pollution, Date range/brand, exact Max-Age i64/Number boundaries,
+ Domain nonempty omission, the malformed-percent/header-global switch matrix, N/2N/4N
+ linear-allocation scaling, and bounded-network RSS-plateau tests pass;
 6. executable compatibility receipts pass on all four supported targets;
 7. ledger, README, site, Issue, roadmap state, release notes, and version sources agree; and
 8. all commands below pass without weakening or skipping existing coverage:
 
-       make compat FEATURE=web.cookies
-       make build
-       make test
-       make purity
-       make docs-check
-       make public-claims-check
-       make roadmap-check
+ make compat FEATURE=web.cookies
+ make build
+ make test
+ make purity
+ make docs-check
+ make public-claims-check
+ make roadmap-check
 
 For a release-bearing unit, BASE_SHA=<base> HEAD_SHA=<head> make version-transition-check is also
 mandatory. Publication then verifies release assets and checksums plus

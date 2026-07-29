@@ -97,7 +97,7 @@ The complete selected grammar includes:
 - legacy comma and modern space/slash `hsl()` and `hsla()`, angle units, hue wrapping, and percentages;
 - `hwb()`, `lab()`, `lch()`, `oklab()`, and `oklch()`, including alpha and `none` where CSS permits it;
 - `color()` for `srgb`, `srgb-linear`, `display-p3`, `a98-rgb`, `prophoto-rgb`, `rec2020`, `xyz`,
-  `xyz-d50`, and `xyz-d65`;
+ `xyz-d50`, and `xyz-d65`;
 - alpha as a number or percentage with CSS clamping.
 
 Variables, `currentColor`, system colors, URL values, declarations, gradients, `calc()`, `var()`, `attr()`,
@@ -118,7 +118,7 @@ Conversion uses the CSS Color reference pipeline:
 4. convert XYZ to the destination space;
 5. convert to nonlinear sRGB for byte-oriented outputs;
 6. clip boundary values and round channel bytes to nearest, with half values away from negative infinity
-   as observed in Bun's byte conversion.
+ as observed in Bun's byte conversion.
 
 The implementation includes sRGB, linear sRGB, Display P3, A98 RGB, ProPhoto RGB, Rec.2020, XYZ D50/D65,
 CIE Lab/LCH, OKLab/OKLCH, HSL, and HWB conversions. Matrix constants are fixed double-float literals and
@@ -164,7 +164,7 @@ string, so parsing precedes automatic-depth early return.
 - named lookup is bounded by a static hash table;
 - output allocation has a fixed small upper bound except CSS spelling, which is still constant-size;
 - NaN and infinities produced inside a color conversion are rejected or mapped through the specified
-  powerless-component rule, never printed;
+ powerless-component rule, never printed;
 - no condition escapes as a Common Lisp debugger entry from the public runtime.
 
 ## Evidence And Promotion Gate
@@ -182,7 +182,7 @@ Promotion to `Yes` requires all of the following:
 - a million-code-unit invalid input and a large repeated-call stress case remain linear and bounded;
 - the shipped binary passes the compatibility fixture on the local target;
 - `make build`, focused Lisp/runtime tests, `make compat FEATURE=web.css-color`, `make purity`,
-  `make docs-check`, `make public-claims-check`, and `make roadmap-check` pass;
+ `make docs-check`, `make public-claims-check`, and `make roadmap-check` pass;
 - four release targets attach valid evidence to one immutable release;
 - the canonical issue, README, generated site, ledger, release metadata, PLAN, and STATE agree atomically.
 

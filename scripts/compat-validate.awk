@@ -379,7 +379,7 @@ FILENAME ~ /compat\/release\.tsv$/ {
     fail("recorded installer boundary must be a v-prefixed strict SemVer tag")
   if ($5 != "v" $2) fail("release tag must be v<version>")
   if ($6 != "candidate" && $6 != "published") fail("invalid publication state: " $6)
-  if ($7 != "GPL-3.0-or-later") fail("release license must be GPL-3.0-or-later")
+  if ($7 != "MIT") fail("release license must be MIT")
   if (!valid_phase($8) || !($8 in roadmap_phase)) fail("release active phase is undefined: " $8)
   if ($9 !~ /^[0-9]+$/ || ($9 + 0) < 1) fail("release issue must be a positive integer")
   if ($10 != "major" && $10 != "minor" && $10 != "patch" && $10 != "none")

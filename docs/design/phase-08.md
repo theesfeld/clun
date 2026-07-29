@@ -15,9 +15,9 @@ fresh realm with `console`, the full `process`, and a `Clun` stub. The CLI
 runtime, autoloads `.env`, runs the entry, and renders uncaught errors.
 
 ```
-clun.engine (inspect-value)  ◄── clun.runtime (console/process/Clun)
-       ▲                              ▲
-       └──────────── clun.cli / main (dispatch, flags, uncaught, .env)
+clun.engine (inspect-value) ◄── clun.runtime (console/process/Clun)
+ ▲ ▲
+ └──────────── clun.cli / main (dispatch, flags, uncaught, .env)
 ```
 
 ## 1. The inspector — `src/engine/inspect.lisp` (in clun.engine)
@@ -38,20 +38,20 @@ Depth budget decremented per container; beyond it a container renders `[Object .
 **Value rendering (Bun-faithful, verified against the fixture):**
 - number → `number->js-string`; `-0` → `"-0"`; NaN/±Infinity literal.
 - string → double-quoted with escapes (top-level strings from `console.log` print
-  RAW; only *nested* strings are quoted — handled by console, not the inspector).
+ RAW; only *nested* strings are quoted — handled by console, not the inspector).
 - symbol → `Symbol(desc)`; boolean/null/undefined literals.
 - `callable-p` → `[Function: name]`, anonymous → `[Function]` (Bun prints bare
-  `[Function]`); class → `[class X]` / `[class (anonymous)]`.
+ `[Function]`); class → `[class X]` / `[class (anonymous)]`.
 - wrapper (`js-object-class` ∈ number/string/boolean) → `[Number: 5]` / `[String: "…"]`.
 - array → inline `[ a, b, c ]`; holes coalesce to `<N empty items>`; `... N more
-  items` past `breadth`. (Arrays are inline; **objects are multiline**.)
+ items` past `breadth`. (Arrays are inline; **objects are multiline**.)
 - ordinary object → **multiline with a trailing comma**, even single-property:
-  `{\n  a: "",\n}`; empty → `{}`. Class instances → `Name {\n  …\n}` / `Name {}`.
-  Keys: identifier-like unquoted, else double-quoted; accessor descriptors →
-  `[Getter]`/`[Setter]`/`[Getter/Setter]` (never invoked); only enumerable own keys.
+ `{\n a: "",\n}`; empty → `{}`. Class instances → `Name {\n …\n}` / `Name {}`.
+ Keys: identifier-like unquoted, else double-quoted; accessor descriptors →
+ `[Getter]`/`[Setter]`/`[Getter/Setter]` (never invoked); only enumerable own keys.
 - `:map` → `Map(n) { k: v, … }` (Bun colon form); `:set` → `Set(n) { v, … }`;
-  `:promise` → `Promise { <pending> }` / `{ value }` / `{ <rejected> reason }`;
-  `:date` → ISO; `:error` → its `.stack` string.
+ `:promise` → `Promise { <pending> }` / `{ value }` / `{ <rejected> reason }`;
+ `:date` → ISO; `:error` → its `.stack` string.
 
 **Deferred (documented divergences):** exact 80-column wrapping heuristic (we use
 "objects always multiline, arrays inline unless they contain a multiline child");
@@ -135,18 +135,18 @@ first). Seed corpus: `console/`, `process/`, `eval/`, `errors/`.
 ## 9. Verified SBCL facts (Appendix-C-style, recorded in DECISIONS)
 
 - `sb-posix:isatty` does NOT exist → `sb-unix:unix-isatty (fd)` (fd of a stream via
-  `sb-sys:fd-stream-fd`). Quarantined in `src/sys/sbcl-compat.lisp`.
+ `sb-sys:fd-stream-fd`). Quarantined in `src/sys/sbcl-compat.lisp`.
 - `hrtime` via `sb-ext:get-time-of-day` (µs wall; nanos end in 000 — documented).
 - `memoryUsage().rss` via `/proc/self/statm` on Linux and `getrusage` peak RSS on
-  Darwin; heap fields via `sb-kernel:dynamic-usage` / `sb-ext:get-bytes-consed`.
+ Darwin; heap fields via `sb-kernel:dynamic-usage` / `sb-ext:get-bytes-consed`.
 - `sb-posix:getpid/getcwd/chdir`, `sb-ext:posix-environ/posix-getenv` all exist.
 - Node version pinned `22.11.0` ("Jod" LTS).
 
 ## 10. Top risks
 
 1. `-p` completion plumbing touches Phase-07 codegen — keep surgical (one slot +
-   flag); fall back to a `globalThis` wrap if it fights.
+ flag); fall back to a `globalThis` wrap if it fights.
 2. Inspector fidelity vs the Bun fixture — drive the suite off the real fixture
-   lines; document every divergence.
+ lines; document every divergence.
 3. `process.exit`/`on('exit')` unwinding through the loop-owning drive paths — model
-   exit as a dedicated condition caught only in `main`; fire `'exit'` exactly once.
+ exit as a dedicated condition caught only in `main`; fire `'exit'` exactly once.

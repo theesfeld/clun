@@ -1,8 +1,8 @@
 # Phases 69–70 — Formatter and Linter
 
-**Issue:** [#190](https://github.com/f00-sh/clun/issues/190)  
-**Parent epic:** [#177](https://github.com/f00-sh/clun/issues/177)  
-**Ledger:** `tooling.formatter-linter` → **Yes**  
+**Issue:** [#190](https://github.com/f00-sh/clun/issues/190) 
+**Parent epic:** [#177](https://github.com/f00-sh/clun/issues/177) 
+**Ledger:** `tooling.formatter-linter` → **Yes** 
 **SemVer:** `0.1.0-dev.57` / minor
 
 ## Decision
@@ -29,9 +29,9 @@ implementation language, not a feature exclusion. Soft-outs are rejected.
 ## Implementation
 
 - `src/fmt/format.lisp` — structural token reformatter (comment/string preserving,
-  format(format(x)) idempotent) + JSON pretty via `write-json` + CSS/YAML helpers
+ format(format(x)) idempotent) + JSON pretty via `write-json` + CSS/YAML helpers
 - `src/fmt/lint.lisp` — production parser + `ast->sexp` rule walk, scope model,
-  recommended rules, config load, fix application
+ recommended rules, config load, fix application
 - `src/runtime/clun-fmt-lint.lisp` — `Clun.format` / `Clun.lint` JS bindings
 - CLI dispatch in `src/main.lisp` / `src/cli/args.lisp`
 

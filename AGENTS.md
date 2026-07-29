@@ -8,7 +8,7 @@ It does **not** redefine process. On conflict, the user standard wins. **No lega
 |------|--------|
 | Class | **Product** (CLI) |
 | Default branch | `master` (do not rename; PR base only) |
-| License | GPL-3.0-or-later |
+| License | MIT |
 | Language | Pure Common Lisp (not Rust — no cargo-dist; **same release outcomes** as user standard §0.1 / §8) |
 | Install | `https://clun.sh/install` (alias `https://clun.f00.sh` → clun.sh) / Pages installer |
 | Bun reference | `/home/glenda/Projects/bun` — **read-only upstream**; never modify; never copy license-incompatible code |
@@ -25,8 +25,8 @@ Ship path: user standard **§5.0** (Issue → branch `…/issue-N-…` → PR �
 2. **There is no ledger `No` as a destination.** Every matrix row is a full-port target until **Yes**.
 3. **Purity = implementation language is Common Lisp** (no CFFI / native libs / shell-outs as product implementation shortcuts). Purity is **never** a license to skip features, fail closed forever, or mark a row `No`.
 4. **Qualified Yes is a No.** Soft ledger detail is forbidden:
-   - banned while `clun_state=Yes`: "selected surface", "not full", "out of scope", "not included in v0.1", "excluded by purity", "Yes but", "remain incomplete"
-   - if the port is incomplete, state is **Partial** (or **No** only while not started) — never a sugar-coated **Yes**
+ - banned while `clun_state=Yes`: "selected surface", "not full", "out of scope", "not included in v0.1", "excluded by purity", "Yes but", "remain incomplete"
+ - if the port is incomplete, state is **Partial** (or **No** only while not started) — never a sugar-coated **Yes**
 5. Agents must re-read this section every session on this repo.
 
 
@@ -63,8 +63,8 @@ Do not ask the user to paste a long phase prompt. Execute with maximum effort; k
 ## Implementation constraints
 
 - **Man page (hard rule):** `man clun` content must always match actual current CLI functionality.
-  Source of truth is `src/cli/catalog.lisp` (shared with `clun --help`). Regenerate with `make man`;
-  `make man-check` (CI + release packaging) fails on drift. Never hand-edit `docs/man/clun.1` except via `make man`.
+ Source of truth is `src/cli/catalog.lisp` (shared with `clun --help`). Regenerate with `make man`;
+ `make man-check` (CI + release packaging) fails on drift. Never hand-edit `docs/man/clun.1` except via `make man`.
 
 
 - Pure Common Lisp only: no CFFI, native libraries, implementation JS/TS, or shell-outs as implementation shortcuts.
@@ -85,8 +85,8 @@ Before merge of a phase/unit:
 - Required conformance / portability / security / stress / benchmark gates for that unit
 - When public docs/roadmap change: `make public-claims-check` and `make roadmap-check` (or live roadmap verify)
 - Release-bearing:
-  `BASE_SHA=<base> HEAD_SHA=<head> make version-transition-check`
-  (bounds exactly this unit; must match Issue SemVer disposition)
+ `BASE_SHA=<base> HEAD_SHA=<head> make version-transition-check`
+ (bounds exactly this unit; must match Issue SemVer disposition)
 
 Version files when behavior/claims change (same unit): `src/version.lisp`, ASDF core, version tests, installer default, README, site. Details: [`docs/versioning.md`](docs/versioning.md).
 

@@ -34,21 +34,21 @@ Tracking: [issue #58](https://github.com/f00-sh/clun/issues/58) (Phase 26 minor 
 
 ```
 ░▒▓████████████████████████████████████████████▓▒░
-█▓▒░  C L U N  ·  scene card  ·  v0.3.0        ░▒▓█
+█▓▒░ C L U N · scene card · v0.3.0 ░▒▓█
 ████████████████████████████████████████████████████
-█  ██████╗██╗     ██╗   ██╗███╗   ██╗           █
-█ ██╔════╝██║     ██║   ██║████╗  ██║  JS/TS    █
-█ ██║     ██║     ██║   ██║██╔██╗ ██║  pure CL  █
-█ ██║     ██║     ██║   ██║██║╚██╗██║  Bun shape█
-█ ╚██████╗███████╗╚██████╔╝██║ ╚████║           █
-█  ╚═════╝╚══════╝ ╚═════╝ ╚═╝  ╚═══╝           █
+█ ██████╗██╗ ██╗ ██╗███╗ ██╗ █
+█ ██╔════╝██║ ██║ ██║████╗ ██║ JS/TS █
+█ ██║ ██║ ██║ ██║██╔██╗ ██║ pure CL █
+█ ██║ ██║ ██║ ██║██║╚██╗██║ Bun shape█
+█ ╚██████╗███████╗╚██████╔╝██║ ╚████║ █
+█ ╚═════╝╚══════╝ ╚═════╝ ╚═╝ ╚═══╝ █
 ████████████████████████████████████████████████████
-█  GPL-3.0-or-later · 2026-07-27 · Linux+macOS  █
-█  shared-memory workers · zero hollow stubs    █
-█  NASA SOP + release memo on the GitHub Release█
-█  https://clun.sh · github:f00-sh/clun      █
+█ MIT · 2026-07-27 · Linux+macOS █
+█ shared-memory workers · zero hollow stubs █
+█ NASA SOP + release memo on the GitHub Release█
+█ https://clun.sh · github:f00-sh/clun █
 ████████████████████████████████████████████████████
-  ░▒▓  curl -fsSL https://clun.sh/install | sh  ▓▒░
+ ░▒▓ curl -fsSL https://clun.sh/install | sh ▓▒░
 ```
 
 ## Install
@@ -67,8 +67,8 @@ The published `v0.3.0` boundary includes the built-in updater (`clun --update` /
 ### Update
 
 ```sh
-clun --check-update   # non-mutating; exit 1 if behind
-clun --update         # verify and activate the complete release bundle
+clun --check-update # non-mutating; exit 1 if behind
+clun --update # verify and activate the complete release bundle
 ```
 
 The updater uses pure Common Lisp HTTPS. The updater uses the same assets as the installer.
@@ -113,7 +113,7 @@ July 16, 2026). Engineering pin: Bun `c1076ce95e` (`1.4.0-dev`).
 | WebSocket server | Yes: `Clun.serve` WebSocket upgrade, RFC 6455 framing, fragmentation reassembly, Pub/Sub (`publish`/`subscriberCount`/`subscribe`), permessage-deflate (chipz inflate + stored compress), and browser-shaped `WebSocket` client (`ws:`) |
 | HTTP server | Yes: HTTP/1.1 Clun.serve with streaming request/response bodies (chunked Transfer-Encoding), keep-alive, idleTimeout, maxRequestBodySize, stop(force) |
 | HTTP router | Yes: `Clun.serve({ routes })` and `Clun.FileSystemRouter` |
-| Single-file executables | Yes: `clun build --compile` / `Clun.build({compile})` pure-CL single-file executables with cross-target offline templates, embedded assets, Ed25519/HMAC sign+verify on every platform, GPL source notice, reproducible build-id, and CLUN_BE_CLUN CLI mode (exceeds Bun compile) |
+| Single-file executables | Yes: `clun build --compile` / `Clun.build({compile})` pure-CL single-file executables with cross-target offline templates, embedded assets, Ed25519/HMAC sign+verify on every platform, source notice, reproducible build-id, and CLUN_BE_CLUN CLI mode (exceeds Bun compile) |
 | YAML | Yes: `Clun.YAML` parser/stringifier and `.yaml`/`.yml` module loading |
 | Cookies API | Yes: `Clun.Cookie` and `Clun.CookieMap` with request/response integration |
 | Encrypted secrets storage | Yes: `Clun.secrets` Bun-shaped get/set/delete plus has/list/clear on pure-CL AES-256-GCM encrypted storage (exceeds Bun.secrets API; no Keychain/libsecret FFI) |
@@ -139,8 +139,8 @@ Bun exposes additional public APIs outside its homepage matrix. Clun may ship pu
 here **without** inventing a 31st `features.tsv` row or forging a matrix Yes:
 
 - **Shipped (Issue [#135](https://github.com/f00-sh/clun/issues/135), Phase 75 slice):**
-  `Clun.markdown.html` / `render` / `ansi` (GFM-oriented; `react` fail-closed) and global
-  `HTMLRewriter` (`on` / `onDocument` / `transform`). Not a ledger Yes — no feature ID exists.
+ `Clun.markdown.html` / `render` / `ansi` (GFM-oriented; `react` fail-closed) and global
+ `HTMLRewriter` (`on` / `onDocument` / `transform`). Not a ledger Yes — no feature ID exists.
 - **Still planned gates (not claims):** [73 inventory freeze](https://github.com/f00-sh/clun/issues?q=is%3Aissue%20label%3Aphase-73),
 [74 archive/compression](https://github.com/f00-sh/clun/issues?q=is%3Aissue%20label%3Aphase-74),
 [75 remaining formats (TOML/JSON5/JSONL) and full streaming rewriter](https://github.com/f00-sh/clun/issues?q=is%3Aissue%20label%3Aphase-75),
@@ -168,11 +168,11 @@ Capability matrix: 30 Yes / 0 Partial / 0 No.
 ## The purity contract
 
 - **Allowed:** ANSI Common Lisp, SBCL contribs, and third-party libraries written entirely in CL
-  (vendored + pinned under `vendor/`).
+ (vendored + pinned under `vendor/`).
 - **Forbidden:** CFFI or any foreign library; any JavaScript as part of the *implementation* (JS/TS
-  appears only as test fixtures). No shelling out to system tools as an implementation crutch.
+ appears only as test fixtures). No shelling out to system tools as an implementation crutch.
 - **Enforced:** `make purity` scans every source under `src/` and `vendor/` for foreign-code entry
-  points and fails on any hit. It runs at every phase gate.
+ points and fails on any hit. It runs at every phase gate.
 
 ## TLS / HTTPS security posture
 
@@ -227,10 +227,10 @@ Requirements: **SBCL 2.6.4** and **GNU Make** on `PATH`. No quicklisp; all CL de
 vendored under `vendor/` and located via `scripts/registry.lisp`.
 
 ```sh
-make build     # compile everything, save build/clun (save-lisp-and-die)
-make test      # run the CL suites and JS/TS fixture harnesses
-make purity    # fail on any CFFI/foreign-code token
-./build/clun --version   # => clun 0.3.0
+make build # compile everything, save build/clun (save-lisp-and-die)
+make test # run the CL suites and JS/TS fixture harnesses
+make purity # fail on any CFFI/foreign-code token
+./build/clun --version # => clun 0.3.0
 ```
 
 A fresh clone builds with `make build` alone: ASDF compiles the vendored closure and `src/` into
@@ -244,5 +244,5 @@ tooling), `docs/design/` (per-phase design notes).
 
 ## License
 
-GPL-3.0-or-later (`LICENSE` and `COPYING`). Vendored libraries retain their own licenses; see
+MIT (`LICENSE`). Vendored libraries retain their own licenses; see
 `DECISIONS.md` for pins.

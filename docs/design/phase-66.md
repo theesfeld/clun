@@ -27,7 +27,7 @@ The JavaScript surface is:
 - `spyOn(object, property)`, `jest.spyOn`, and `vi.spyOn`;
 - `.mock` call/result/context/instance/order history and `.getMockName()`;
 - clear, reset, restore, implementation, one-shot, return, resolved/rejected, return-this, and temporary
-  implementation methods;
+ implementation methods;
 - `jest`/`vi` clear-all, reset-all, and restore-all lifecycle operations;
 - Bun/Jest call and return matcher families, including documented aliases.
 

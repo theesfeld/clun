@@ -198,7 +198,7 @@ The focused deterministic Lisp suite covers:
 - ClientHello SNI, ALPN, EMS, and fallback SCSV;
 - exact fallback-alert selection;
 - downgrade sentinels, duplicate/unsolicited extensions, malformed EMS, ALPN,
-  and EC point-format acknowledgements, and unsolicited session tickets;
+ and EC point-format acknowledgements, and unsolicited session tickets;
 - plaintext record bounds;
 - authenticated EOF requirements; and
 - bounded, fail-closed content decoding.
@@ -274,7 +274,7 @@ evidence for at least:
 
 - origin-keyed pure-tls HTTPS idle pooling is landed; broader TLS/HTTP pool stress and eviction matrix remains;
 - HTTPS proxy endpoints, proxy object options and pooling, the broader proxy
-  stress/error matrix, and the remaining HTTPS cancellation-race/leak matrix;
+ stress/error matrix, and the remaining HTTPS cancellation-race/leak matrix;
 - the issue's large-transfer and adversarial transport fixtures; and
 - required Linux and macOS x64/arm64 evidence.
 

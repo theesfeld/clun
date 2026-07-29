@@ -13,7 +13,7 @@ Canonical live SoT: [issue #25](https://github.com/f00-sh/clun/issues/25) · Yes
 Answer, with evidence-shaped design rather than vapor:
 
 1. Is a **pure Common Lisp** WebSocket client/server + Bun-shaped Pub/Sub path feasible under the
-   purity contract (§1.1) without CFFI, OpenSSL, libuv, or uWebSockets?
+ purity contract (§1.1) without CFFI, OpenSSL, libuv, or uWebSockets?
 2. If yes, what is the architecture, milestone split, and purity risk register?
 3. Until implementation lands, how does `Clun.serve` fail **closed** with a clear, tested error?
 
@@ -31,19 +31,19 @@ This unit does **not** claim `Yes`, does **not** run `make compat FEATURE=websoc
 
 ```js
 Bun.serve({
-  fetch(req, server) {
-    if (server.upgrade(req, { data, headers })) return;
-    return new Response("Upgrade failed", { status: 500 });
-  },
-  websocket: {
-    message(ws, message) {},
-    open(ws) {},
-    close(ws, code, reason) {},
-    drain(ws) {},
-    // optional: ping, pong, error
-    // limits: maxPayloadLength, backpressureLimit, closeOnBackpressureLimit,
-    //         idleTimeout, publishToSelf, sendPings, perMessageDeflate
-  },
+ fetch(req, server) {
+ if (server.upgrade(req, { data, headers })) return;
+ return new Response("Upgrade failed", { status: 500 });
+ },
+ websocket: {
+ message(ws, message) {},
+ open(ws) {},
+ close(ws, code, reason) {},
+ drain(ws) {},
+ // optional: ping, pong, error
+ // limits: maxPayloadLength, backpressureLimit, closeOnBackpressureLimit,
+ // idleTimeout, publishToSelf, sendPings, perMessageDeflate
+ },
 });
 ```
 
@@ -66,16 +66,16 @@ existing event/callback patterns without inventing a second event system.
 ### 2.2 Protocol obligations (RFC 6455 + extensions)
 
 - Opening handshake: HTTP/1.1 `Upgrade: websocket`, `Connection: Upgrade`,
-  `Sec-WebSocket-Key` / `Sec-WebSocket-Accept` (SHA-1 + GUID, base64), optional subprotocol and
-  extension negotiation.
+ `Sec-WebSocket-Key` / `Sec-WebSocket-Accept` (SHA-1 + GUID, base64), optional subprotocol and
+ extension negotiation.
 - Framing: FIN/RSV/opcode, masking (client→server mandatory), payload length 7/16/64-bit,
-  continuation, close/ping/pong control frames, fragmentation rules.
+ continuation, close/ping/pong control frames, fragmentation rules.
 - Close handshake and error states; idle timeout / automatic pings when configured.
 - Optional **permessage-deflate** (RFC 7692) negotiation and bounded inflate/deflate.
 - Pub/Sub: topic membership tables, server-wide publish without running JS on the I/O path,
-  backpressure and cork batching, subscriber cleanup on close.
+ backpressure and cork batching, subscriber cleanup on close.
 - Bounds: max frame/message size, compression expansion caps, queue depths, connection caps
-  (compose with existing `*serve-max-connections*` shedding).
+ (compose with existing `*serve-max-connections*` shedding).
 
 ## 3. Constitutional feasibility decision
 
@@ -125,32 +125,32 @@ prohibition (contrast `runtime.native-addons` / Phase 48).
 ## 4. Architecture (target implementation)
 
 ```
-                    ┌─────────────────────────────────────┐
-  TCP accept ──────►│ clun-serve connection reader        │
-                    │  HTTP parse ──► fetch / routes      │
-                    │       │                             │
-                    │       └─ server.upgrade ──► handshake│
-                    └──────────────┬──────────────────────┘
-                                   │ protocol switch
-                                   ▼
-                    ┌─────────────────────────────────────┐
-                    │ clun.websocket framing I/O          │
-                    │  mask/unmask · control frames       │
-                    │  fragment reassembly (bounded)      │
-                    │  optional permessage-deflate        │
-                    └──────────────┬──────────────────────┘
-                                   │ schedule on JS loop
-                                   ▼
-                    ┌─────────────────────────────────────┐
-                    │ WebSocketHandler (open/message/…)   │
-                    │ ServerWebSocket brand + per-socket  │
-                    │ data · cork · readyState            │
-                    └──────────────┬──────────────────────┘
-                                   │
-                    ┌──────────────▼──────────────────────┐
-                    │ Topic hub (publish / subscribe)     │
-                    │  subscriberCount · cleanup on close │
-                    └─────────────────────────────────────┘
+ ┌─────────────────────────────────────┐
+ TCP accept ──────►│ clun-serve connection reader │
+ │ HTTP parse ──► fetch / routes │
+ │ │ │
+ │ └─ server.upgrade ──► handshake│
+ └──────────────┬──────────────────────┘
+ │ protocol switch
+ ▼
+ ┌─────────────────────────────────────┐
+ │ clun.websocket framing I/O │
+ │ mask/unmask · control frames │
+ │ fragment reassembly (bounded) │
+ │ optional permessage-deflate │
+ └──────────────┬──────────────────────┘
+ │ schedule on JS loop
+ ▼
+ ┌─────────────────────────────────────┐
+ │ WebSocketHandler (open/message/…) │
+ │ ServerWebSocket brand + per-socket │
+ │ data · cork · readyState │
+ └──────────────┬──────────────────────┘
+ │
+ ┌──────────────▼──────────────────────┐
+ │ Topic hub (publish / subscribe) │
+ │ subscriberCount · cleanup on close │
+ └─────────────────────────────────────┘
 ```
 
 **Package split (scaffold now, fill later):**
@@ -209,15 +209,15 @@ capability claims.
 Until M1 (superseded once M1 lands):
 
 1. `Clun.serve({ websocket: … })` and `server.reload({ websocket: … })` throw a **TypeError** whose
-   message states that WebSocket support is not implemented (Phase 51) and that a pure-CL path is
-   designed (`docs/design/phase-51.md`).
+ message states that WebSocket support is not implemented (Phase 51) and that a pure-CL path is
+ designed (`docs/design/phase-51.md`).
 2. Every `Clun.serve` server object exposes:
-   - `upgrade` → throws the same class of clear not-implemented error (never silently upgrades);
-   - `publish` → same;
-   - `subscriberCount` → same.
+ - `upgrade` → throws the same class of clear not-implemented error (never silently upgrades);
+ - `publish` → same;
+ - `subscriberCount` → same.
 3. Ordinary HTTP `fetch` / `routes` servers without a `websocket` option continue to work.
 4. No global `WebSocket` constructor is installed in this unit (client remains absent, not a silent
-   half-shim).
+ half-shim).
 
 ## 7. Acceptance for M0 only
 

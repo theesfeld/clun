@@ -1,6 +1,6 @@
 # Phase 48 — Native-addon host: pure-CL process/hook + machine load boundary
 
-**Issues:** [#22](https://github.com/f00-sh/clun/issues/22) (phase), [#265](https://github.com/f00-sh/clun/issues/265) (machine load/hook), [#178](https://github.com/f00-sh/clun/issues/178) (pure-CL subset)  
+**Issues:** [#22](https://github.com/f00-sh/clun/issues/22) (phase), [#265](https://github.com/f00-sh/clun/issues/265) (machine load/hook), [#178](https://github.com/f00-sh/clun/issues/178) (pure-CL subset) 
 **Release train:** `0.2.0-dev.7` (candidate; includes secrets Yes + colored CLI + this unit)
 
 ## Operator decision (2026-07-20)

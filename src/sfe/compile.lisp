@@ -9,7 +9,7 @@
 
 (defparameter +gpl-source-notice+
   (format nil "~
-Clun single-file executable — GPL-3.0-or-later.
+Clun single-file executable — MIT.
 Source for the Clun runtime is available from the Clun project distribution
 matching the embedded clunVersion. Application modules and assets embedded
 in this binary are subject to their own licenses as declared by the author.

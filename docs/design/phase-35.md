@@ -30,7 +30,7 @@ Observations from later Bun canaries may corroborate the engineering reading but
 
 ```js
 Clun.CSRF.generate(secret?, options?) // string, function length 1
-Clun.CSRF.verify(token, options?)      // boolean, function length 1
+Clun.CSRF.verify(token, options?) // boolean, function length 1
 ```
 
 There is no options-first overload.
@@ -85,10 +85,10 @@ These rules are fixtures, not implementation latitude.
 The interoperable wire payload is fixed:
 
 ```text
-timestamp milliseconds, unsigned 64-bit big-endian   8 bytes
-nonce, cryptographically secure random              16 bytes
-expiresIn milliseconds, unsigned 64-bit big-endian  8 bytes
-HMAC                                                 32, 48, or 64 bytes
+timestamp milliseconds, unsigned 64-bit big-endian 8 bytes
+nonce, cryptographically secure random 16 bytes
+expiresIn milliseconds, unsigned 64-bit big-endian 8 bytes
+HMAC 32, 48, or 64 bytes
 ```
 
 The raw token is therefore 64, 80, or 96 bytes. It serializes no version byte, algorithm, encoding, secret,
@@ -132,7 +132,7 @@ The Ironclad patch must include:
 - NIST empty and one-byte digest vectors;
 - a full-length Wycheproof HMAC vector whose 65-byte key detects the wrong block size;
 - a negative control proving the result differs from the first 32 bytes of ordinary HMAC-SHA-512 for the
-  identical key and message;
+ identical key and message;
 - unchanged BSD-3-Clause attribution and Ironclad's own generated test-vector coverage.
 
 ## Encoding And Bounded Decoding
@@ -149,17 +149,17 @@ Generation supports case-insensitive `base64`, `base64url`, and `hex`. Empty enc
 Verification retains canonical Bun interoperability without allowing unbounded work:
 
 - every base64-family input whose raw JavaScript-string length exceeds 256 code units is rejected from an
-  O(1) length check before stripping, trimming, scanning, or allocation;
+ O(1) length check before stripping, trimming, scanning, or allocation;
 - after that precheck, every format strips exactly one NUL only when it is the raw final code unit;
 - hex then accepts either case, requires an even length, rejects whitespace and invalid characters, and is
-  rejected before decoding above 192 remaining characters;
+ rejected before decoding above 192 remaining characters;
 - base64 and base64url share one decoder and accept either alphabet. After the one terminal-NUL step, they
-  trim endpoint CR, LF, TAB, space, and VT without stripping another NUL;
+ trim endpoint CR, LF, TAB, space, and VT without stripping another NUL;
 - the resulting spelling is rejected above 128 code units. ASCII letters, digits, `+`, `/`, `-`, and `_`
-  contribute sextets; `=` and other ASCII junk are ignored; any non-ASCII code unit rejects. Mixed alphabets
-  are accepted. One remaining sextet rejects; two or three produce one or two final bytes. Repeated NULs and
-  whitespace after the stripped terminal NUL are therefore governed by those exact steps, not by another
-  normalization pass;
+ contribute sextets; `=` and other ASCII junk are ignored; any non-ASCII code unit rejects. Mixed alphabets
+ are accepted. One remaining sextet rejects; two or three produce one or two final bytes. Repeated NULs and
+ whitespace after the stripped terminal NUL are therefore governed by those exact steps, not by another
+ normalization pass;
 - decoding stops and rejects before producing more than 96 bytes;
 - after decoding, the raw length must exactly equal `32 + selected digest length`;
 - every malformed nonempty token returns `false` rather than exposing a parser oracle.
@@ -195,11 +195,11 @@ that guarantee.
 - Both embedded `expiresIn` and verifier `maxAge` apply.
 - Future timestamps verify when the MAC is valid.
 - Generation requires the current timestamp to fit unsigned 64-bit and writes the validated JavaScript
-  `expiresIn` value without adding them. Like the pinned implementation, generation may create a token whose
-  eventual unsigned expiry sum overflows; verification rejects that token.
+ `expiresIn` value without adding them. Like the pinned implementation, generation may create a token whose
+ eventual unsigned expiry sum overflows; verification rejects that token.
 - Authenticated wire fields retain their full unsigned 64-bit domain. Verification uses exact Common Lisp
-  integer arithmetic and rejects only a sum above `2^64 - 1`, not a sum above `Number.MAX_SAFE_INTEGER`.
-  Both `timestamp + expiresIn` and `timestamp + maxAge` use this rule.
+ integer arithmetic and rejects only a sum above `2^64 - 1`, not a sum above `Number.MAX_SAFE_INTEGER`.
+ Both `timestamp + expiresIn` and `timestamp + maxAge` use this rule.
 
 Phase 35 follows the safer engineering-pin numeric contract: absent or explicit-`undefined` numeric options
 retain the default, while `-0` becomes zero. Invalid present numeric values throw `TypeError` with
@@ -262,13 +262,13 @@ getter order, and thrown kinds before the implementation claim is promoted.
 ## Security Properties And Limits
 
 - Tokens are bearer values and replayable until both configured age checks allow them; the API does not
-  provide one-time-use storage.
+ provide one-time-use storage.
 - `expiresIn = 0` disables only the embedded-expiry check, and `maxAge = 0` disables only the caller check.
 - Future timestamps are accepted after authentication, matching the pinned contract.
 - Noncanonical base64 spelling is textually malleable within the stated caps; authentication is over decoded
-  bytes, not the spelling.
+ bytes, not the spelling.
 - The default secret is process/runtime local and intentionally does not survive restart or coordinate across
-  processes. Applications that need stable or distributed verification must supply an explicit secret.
+ processes. Applications that need stable or distributed verification must supply an explicit secret.
 - Secret erasure is not guaranteed by the Common Lisp allocator or garbage collector.
 
 ## Architecture
@@ -276,15 +276,15 @@ getter order, and thrown kinds before the implementation claim is promoted.
 1. `clun.asd` declares Ironclad directly instead of relying on the transitive pure-tls dependency.
 2. `clun.csrf` is an engine-free package loaded after `clun.sys` and before the JavaScript engine.
 3. `src/security/csrf.lisp` owns wire encoding, bounded decoding, HMAC dispatch, timestamp arithmetic, and
-   deterministic core generate/verify entry points.
+ deterministic core generate/verify entry points.
 4. `src/sys/platform.lisp` gains an accurately named Unix-millisecond wall-clock primitive. The existing
-   monotonic-nanosecond name is not reused for epoch tokens.
+ monotonic-nanosecond name is not reused for epoch tokens.
 5. `src/engine/strings.lisp` owns replacement-mode UTF-8 because it operates on Clun's JavaScript string
-   representation.
+ representation.
 6. `src/runtime/clun-csrf.lisp` owns JS argument discrimination, property access order, errors, aliases,
-   descriptors, default-secret lifetime, and the production clock/CSPRNG boundary.
+ descriptors, default-secret lifetime, and the production clock/CSPRNG boundary.
 7. `src/runtime/clun-global.lisp` installs the namespace through a writable, enumerable, non-configurable
-   engine descriptor helper.
+ engine descriptor helper.
 
 No implementation JavaScript, CFFI, foreign library, shell-out, duplicated crypto primitive, or
 Test262/fixture-specific runtime path is permitted.
@@ -307,10 +307,10 @@ Test262/fixture-specific runtime path is permitted.
 - bytewise tampering across timestamp, nonce, expiry, and every MAC region;
 - truncation, extension, oversized text, malformed hex/base64, and seeded fuzz rejection;
 - raw million-code-unit whitespace/junk rejection before scanning, both base64 caps, incomplete sextets,
-  mixed alphabets, padding placement, repeated NULs, non-ASCII, and normalization-order fixtures;
+ mixed alphabets, padding placement, repeated NULs, non-ASCII, and normalization-order fixtures;
 - replacement-mode UTF-8 and explicit input caps;
 - authenticated `MAX_SAFE`, `2^64 - 1`, sum-overflow, future-timestamp, and zero-disablement
-  cases, with authentication observably preceding expiry decisions;
+ cases, with authentication observably preceding expiry decisions;
 - constant-time comparison path review.
 
 ### Runtime and shipped binary

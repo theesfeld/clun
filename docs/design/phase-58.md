@@ -29,9 +29,9 @@ parity; otherwise the ledger remains explicit non-parity with a tested clear err
 
 ```js
 // Object or positional overloads
-await secrets.get({ service, name })           // Promise<string | null>
+await secrets.get({ service, name }) // Promise<string | null>
 await secrets.set({ service, name, value, allowUnrestrictedAccess? })
-await secrets.delete({ service, name })        // Promise<boolean>
+await secrets.delete({ service, name }) // Promise<boolean>
 ```
 
 Argument validation (synchronous before threadpool work):
@@ -67,16 +67,16 @@ Secret Service is a D-Bus API. A pure Common Lisp D-Bus client over Unix domain 
 theoretically possible without CFFI. Barriers to ledger `Yes`:
 
 1. **Target matrix** — even a complete Secret Service client addresses only Linux, while Phase 58
-   `Yes` requires native jobs on Linux/macOS x64/arm64 with OS store behavior. Windows is part of
-   Bun's implementation inventory, not Clun's current four-target release gate.
+ `Yes` requires native jobs on Linux/macOS x64/arm64 with OS store behavior. Windows is part of
+ Bun's implementation inventory, not Clun's current four-target release gate.
 2. **Session reality** — CI and headless hosts often lack a session bus or unlocked collection;
-   Bun already surfaces `libsecret not available` / platform errors. Hermetic locked/unlocked
-   fixtures need a real agent, not a file.
+ Bun already surfaces `libsecret not available` / platform errors. Hermetic locked/unlocked
+ fixtures need a real agent, not a file.
 3. **Schema and ACL parity** — Bun uses libsecret schemas, search flags, unlock, and collection
-   creation. Reimplementing that surface is a multi-milestone product, not a checkpoint stub.
+ creation. Reimplementing that surface is a multi-milestone product, not a checkpoint stub.
 4. **Constitutional line** — a pure D-Bus client is not an OS-keychain amendment by itself, but
-   claiming `security.encrypted-secrets` `Yes` without Darwin/Windows (or with a fake store) would
-   relabel non-parity.
+ claiming `security.encrypted-secrets` `Yes` without Darwin/Windows (or with a fake store) would
+ relabel non-parity.
 
 **Result: pure D-Bus is research-interesting for a future optional Linux-only experiment; it does
 not clear Phase 58 `Yes` under the four-target gate.**
@@ -150,7 +150,7 @@ Clun.secrets.delete({ service, name }) // or delete(service, name)
 
 - `clun.secrets` — engine-free AES-256-GCM vault, key-file handling, serialization, and operations.
 - `clun.runtime` (`clun-secrets.lisp`) — JS coercion, Promise construction, errors, and installation
-  onto `Clun`.
+ onto `Clun`.
 - No CFFI, subprocess, Keychain, or libsecret integration.
 
 ## SemVer

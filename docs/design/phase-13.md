@@ -15,18 +15,18 @@ Phase 12 (the `*builtin-module-builder*` hook + `src/runtime/node/registry.lisp`
 The design mirrors Phase 07's discipline: nothing engine-aware sits below `src/runtime/`.
 
 1. **`src/sys/fs.lisp` (clun.sys)** — path-disciplined POSIX primitives over `sb-posix` + CL
-   streams. Every path crossing into a pathname goes through `native->pathname` (paths.lisp) so
-   `[`-bearing names never trip SBCL's wildcard reader. New this phase: a code-carrying condition,
-   the errno table, mutating ops, octet I/O, and stat.
+ streams. Every path crossing into a pathname goes through `native->pathname` (paths.lisp) so
+ `[`-bearing names never trip SBCL's wildcard reader. New this phase: a code-carrying condition,
+ the errno table, mutating ops, octet I/O, and stat.
 
 2. **`src/runtime/node/buffer.lisp`** — `node:buffer`, built on the Phase-11 typed-array machinery
-   via a small set of engine helpers (`eng:make-u8-array`, `eng:u8-from-octets`, `eng:ta-octets`,
-   `eng:ta-subview`, `eng:u8-over-arraybuffer`). Self-registers with the registry.
+ via a small set of engine helpers (`eng:make-u8-array`, `eng:u8-from-octets`, `eng:ta-octets`,
+ `eng:ta-subview`, `eng:u8-over-arraybuffer`). Self-registers with the registry.
 
 3. **`src/runtime/node/fs.lisp`** — `node:fs`, a thin JS-shaped skin over the sys layer. Self-registers.
 
 4. **`Clun.file`/`Clun.write`** in `src/runtime/clun-global.lisp` — Bun-shaped lazy file I/O, sharing
-   the same sys octet primitives; async members return real Promises.
+ the same sys octet primitives; async members return real Promises.
 
 ## 2. errno → a code-carrying condition (§6: no raw backtrace crosses to JS)
 
@@ -34,10 +34,10 @@ The design mirrors Phase 07's discipline: nothing engine-aware sits below `src/r
 every syscall body and maps BOTH failure shapes SBCL produces:
 
 - `sb-posix:syscall-error` → `%raise-fs` (errno straight off the condition → POSIX name via the
-  host-built `*errno-names*` table).
+ host-built `*errno-names*` table).
 - CL `file-error` (what `with-open-file`/`truename` signal) → `%raise-fs-file`, which PROBES the path
-  (`path-exists-p`/`directory-p`) to synthesize ENOENT/EISDIR/EACCES, then fills `errno` from the code
-  via `%errno-of-name` so callers can report Node's negative errno.
+ (`path-exists-p`/`directory-p`) to synthesize ENOENT/EISDIR/EACCES, then fills `errno` from the code
+ via `%errno-of-name` so callers can report Node's negative errno.
 
 `read-file-string`/`read-file-octets` guard a directory target up front (opening a dir stream signals a
 non-`file-error` otherwise) → EISDIR. The macro + condition are defined ABOVE the first `with-fs` use
@@ -60,16 +60,16 @@ whole TypedArray method surface are INHERITED for free; `%is-buffer` walks the p
 every method funnels through. `%buffer-from-octets` is the interop point fs uses to hand bytes to JS.
 
 - **Encodings** (hand-rolled, no external codec): utf8, hex, base64/base64url (own `+b64+`/`+b64url+`
-  alphabets), latin1/binary, ascii, ucs2/utf16le. utf8 reuses `eng:code-units->utf8`/`utf8->code-units`.
+ alphabets), latin1/binary, ascii, ucs2/utf16le. utf8 reuses `eng:code-units->utf8`/`utf8->code-units`.
 - **slice/subarray** share memory (`eng:ta-subview this start end *buffer-proto*`) — Node semantics:
-  writes through the view hit the parent. **copy** is memmove (backward copy on same-backing forward
-  overlap). **concat** allocates `totalLength` (zero-filled tail when it exceeds the sum; truncates when
-  smaller). **write(string[,offset[,length]][,encoding])** handles the 2-arg `write(str, encoding)` form.
+ writes through the view hit the parent. **copy** is memmove (backward copy on same-backing forward
+ overlap). **concat** allocates `totalLength` (zero-filled tail when it exceeds the sum; truncates when
+ smaller). **write(string[,offset[,length]][,encoding])** handles the 2-arg `write(str, encoding)` form.
 - **Numeric read/write** — `%read-uint`/`%write-uint` are the primitives; `%read-int` and the float
-  readers/writers (via `sb-kernel:make-single-float`/`make-double-float`, trap-masked) all route through
-  them, so ONE bounds check (`%num-bounds`, off < 0 ∨ off+n > backing-length → RangeError) covers every
-  accessor. `%write-f64` additionally guards its full 8 bytes up front so a boundary offset can't
-  partial-write across its two halves. OOB is a catchable RangeError, never a raw subscript abort.
+ readers/writers (via `sb-kernel:make-single-float`/`make-double-float`, trap-masked) all route through
+ them, so ONE bounds check (`%num-bounds`, off < 0 ∨ off+n > backing-length → RangeError) covers every
+ accessor. `%write-f64` additionally guards its full 8 bytes up front so a boundary offset can't
+ partial-write across its two halves. OOB is a catchable RangeError, never a raw subscript abort.
 
 ## 4. node:fs surface
 

@@ -522,7 +522,7 @@ Purity constrains Clun implementation, not user-loaded addons.")
    "Pure-CL single-file executables (FULL PORT #181 / epic #177).
     Compile, cross-compile via offline templates, embed assets, pure-CL sign/verify.
     Exceeds Bun compile: multi-target offline packaging, all-platform signatures,
-    registerTemplate, verify without codesign, GPL source notice, reproducible build-id.")
+    registerTemplate, verify without codesign, source notice, reproducible build-id.")
   (:export
    #:sfe-error #:sfe-error-kind #:sfe-error-detail
    #:+sea-magic+ #:+sea-version+

@@ -15,12 +15,12 @@ duplicate last-wins, header-before-pax ordering — every case rejected or handl
 
 Subresource-Integrity over the **gzipped `.tgz` bytes** (npm's `dist.integrity`).
 - `parse-sri` — `algo-base64[?opts]`, possibly space-separated (pick the strongest available:
-  sha512 > sha256 > sha1). A struct `(algorithm . digest-bytes)`.
+ sha512 > sha256 > sha1). A struct `(algorithm . digest-bytes)`.
 - `digest-bytes (algorithm octets)` → the raw digest (ironclad `:sha512`/`:sha256`/`:sha1`).
 - `sri-string (algorithm octets)` → `"sha512-<base64>"` (ironclad + cl-base64).
 - `verify-integrity (octets sri)` → T, or signals `integrity-error` (algorithm unsupported, or digest
-  mismatch — reporting expected vs got prefixes, never the raw bytes). Digest comparison is a plain
-  `equalp` on the digest byte vectors: the digest is public, not a secret, so constant-time is moot.
+ mismatch — reporting expected vs got prefixes, never the raw bytes). Digest comparison is a plain
+ `equalp` on the digest byte vectors: the digest is public, not a secret, so constant-time is moot.
 
 ## 2. Tar reader (`src/install/tarball.lisp`, package `clun.tarball`)
 
@@ -40,10 +40,10 @@ them terminate). **Every parsed size is validated**: non-negative and ≤ `min(r
 
 **Extension records, applied to the NEXT entry.**
 - pax `x` (per-entry) — data is `LEN KEY=VALUE\n` records; honour `path` (→ name), `linkpath`
-  (→ linkname), `size` (→ size). `g` (global) is parsed and ignored.
+ (→ linkname), `size` (→ size). `g` (global) is parsed and ignored.
 - GNU `L` longname / `K` longlink — the entry's *data* is the long name / linkname for the next entry.
 - A pending override struct is consumed by the next real (non-extension) entry; this is the
-  "header-before-pax ordering" contract.
+ "header-before-pax ordering" contract.
 
 The reader returns a list of resolved `tar-entry`s (overrides already applied); it does not touch the
 filesystem.
@@ -52,36 +52,36 @@ filesystem.
 
 `extract-package (tgz-octets dest &key integrity (strip-components 1))`:
 1. **Verify first.** If `integrity` is given, `verify-integrity` the `.tgz` bytes → else signal. No
-   byte is extracted before the whole archive's integrity is proven.
+ byte is extracted before the whole archive's integrity is proven.
 2. **Inflate + parse** (bounded, above).
 3. **Stage.** `make-temp-dir` a sibling of `dest` (same filesystem → atomic rename). Everything below
-   is written under `staging`.
+ is written under `staging`.
 4. **Per entry, in order** (duplicate entries → last-wins, natural from in-order overwrite):
-   - Compute the archive-relative name; strip `strip-components` leading segments (npm's `package/`
-     wrapper). Reject up front: an **empty**/`.`/absolute name, a name with an embedded **NUL**, or any
-     name containing a **`..`** segment — *after* pax/longname override + strip, so `..` arriving via
-     pax `path`, a GNU longname, or an embedded segment is all caught at this one choke point.
-   - `safe-descend (staging rel)` walks the parent components from `staging`: each existing component
-     must be a **real directory** (`lstat`; a symlink component → reject — this is the "symlink-escape
-     then write-through" defense: we never write *through* a symlink), a missing one is `mkdir`ed, a
-     non-dir → reject. Returns the final absolute path, guaranteed to have an all-real-dir parent chain
-     under `staging`.
-   - Dispatch on typeflag:
-     - regular (`0`/NUL) / contiguous (`7`) → write the data slice; `chmod` to `mode & #o777`
-       (**setuid/setgid/sticky stripped**), so an executable bit survives (bin package) but nothing
-       privileged does.
-     - directory (`5`) → `mkdir` (mode masked).
-     - symlink (`2`) → the linkname must be **relative** and must not lexically escape `staging`
-       (normalise `dirname(rel) + linkname`; reject absolute or a normalized path that leaves
-       `staging`) → then create the symlink. (Combined with never-write-through-a-symlink, an escaping
-       symlink is refused outright; an in-package symlink is preserved.)
-     - hardlink (`1`) → the linkname is archive-root-relative; resolve under `staging`, require it to
-       exist and stay within `staging` (`realpath` containment), then `sb-posix:link`. An escaping
-       target → reject.
-     - char/block device (`3`/`4`), FIFO (`6`) → **rejected** (never created).
+ - Compute the archive-relative name; strip `strip-components` leading segments (npm's `package/`
+ wrapper). Reject up front: an **empty**/`.`/absolute name, a name with an embedded **NUL**, or any
+ name containing a **`..`** segment — *after* pax/longname override + strip, so `..` arriving via
+ pax `path`, a GNU longname, or an embedded segment is all caught at this one choke point.
+ - `safe-descend (staging rel)` walks the parent components from `staging`: each existing component
+ must be a **real directory** (`lstat`; a symlink component → reject — this is the "symlink-escape
+ then write-through" defense: we never write *through* a symlink), a missing one is `mkdir`ed, a
+ non-dir → reject. Returns the final absolute path, guaranteed to have an all-real-dir parent chain
+ under `staging`.
+ - Dispatch on typeflag:
+ - regular (`0`/NUL) / contiguous (`7`) → write the data slice; `chmod` to `mode & #o777`
+ (**setuid/setgid/sticky stripped**), so an executable bit survives (bin package) but nothing
+ privileged does.
+ - directory (`5`) → `mkdir` (mode masked).
+ - symlink (`2`) → the linkname must be **relative** and must not lexically escape `staging`
+ (normalise `dirname(rel) + linkname`; reject absolute or a normalized path that leaves
+ `staging`) → then create the symlink. (Combined with never-write-through-a-symlink, an escaping
+ symlink is refused outright; an in-package symlink is preserved.)
+ - hardlink (`1`) → the linkname is archive-root-relative; resolve under `staging`, require it to
+ exist and stay within `staging` (`realpath` containment), then `sb-posix:link`. An escaping
+ target → reject.
+ - char/block device (`3`/`4`), FIFO (`6`) → **rejected** (never created).
 5. **Commit.** If `dest` exists, `remove-recursive` it, then `rename-path staging dest` (atomic).
 6. **On any error**, `remove-recursive staging` and re-signal a `tarball-error` — nothing partial is
-   ever committed (verify-then-commit).
+ ever committed (verify-then-commit).
 
 The single containment invariant: **every directory in the write path under `staging` is a real
 directory we created; `..`/absolute/NUL names are refused before use; symlink and hardlink *targets*
@@ -100,21 +100,21 @@ A CL **tar-writer test helper** builds byte-exact archives (stock `tar` cannot e
 shapes): `tar-header`/`tar-entry`/`pax-entry`/`gnu-longname-entry` + a zero-block terminator, gzipped
 with the Phase-21 `gzip-stored` encoder (valid gzip; chipz inflates it). The suite:
 - **Real-package corpus:** a synthetic **lodash-scale** archive (~200 nested files) round-trips
-  (every file present with correct contents); a **bin** package keeps its executable bit; the Phase-21
-  **pax-longname** tarball extracts to its 156-char path.
+ (every file present with correct contents); a **bin** package keeps its executable bit; the Phase-21
+ **pax-longname** tarball extracts to its 156-char path.
 - **Traversal suite (each must be refused/handled):** absolute `/etc/x`; `../escape`; `a/../../escape`
-  (embedded); `..` via a pax `path`; `..` via a GNU longname; a symlink `s -> /tmp` then a write to
-  `s/x` (write-through); a hardlink to `/etc/passwd`; a pax `linkpath` escape; a NUL-embedded / empty /
-  `.` name; a char-device + a FIFO entry; a base-256 size and an oversize size field; duplicate entries
-  (last wins); an `x`-header-then-entry ordering. Each asserts the escape did **not** happen (nothing
-  written outside `dest`; a temp probe file outside stays untouched) and a `tarball-error` is signalled
-  where the spec says reject.
+ (embedded); `..` via a pax `path`; `..` via a GNU longname; a symlink `s -> /tmp` then a write to
+ `s/x` (write-through); a hardlink to `/etc/passwd`; a pax `linkpath` escape; a NUL-embedded / empty /
+ `.` name; a char-device + a FIFO entry; a base-256 size and an oversize size field; duplicate entries
+ (last wins); an `x`-header-then-entry ordering. Each asserts the escape did **not** happen (nothing
+ written outside `dest`; a temp probe file outside stays untouched) and a `tarball-error` is signalled
+ where the spec says reject.
 - **Integrity:** the Phase-21 fixture tarballs verify against their advertised `dist.integrity`; a
-  flipped byte fails closed; the cache stores + re-fetches + rejects a corrupted entry.
+ flipped byte fails closed; the cache stores + re-fetches + rejects a corrupted entry.
 
 ## 6. Risks / notes
 
 - Extraction uses `sb-posix` directly (symlink/link/chmod/mkdtemp) via `clun.sys` wrappers — pure,
-  no CFFI. `realpath` is `clun.sys:realpath` (truename with a dangling-symlink handler).
+ no CFFI. `realpath` is `clun.sys:realpath` (truename with a dangling-symlink handler).
 - The reader is read-only + allocation-bounded; the extractor is the security surface and gets the
-  end-of-phase adversarial review panel (find → verify by crafting a bypass).
+ end-of-phase adversarial review panel (find → verify by crafting a bypass).

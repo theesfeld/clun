@@ -49,15 +49,15 @@ engine-independent except for the frozen JavaScript action values at terminal en
 
 - `Clun.serve({ routes })` accepts exact, `:parameter`, and terminal `*` patterns.
 - The legacy Bun `static` option compiles into the same immutable table. `routes` wins an identical
-  path/method tie, while an otherwise absent method can fall through to `static`.
+ path/method tie, while an otherwise absent method can fall through to `static`.
 - Route values may be a handler, a static `Response`, a direct `Clun.file(...)`, `false`, or a per-method
-  object. Direct files are materialized by M2's bounded file-response path.
+ object. Direct files are materialized by M2's bounded file-response path.
 - `fetch` is optional when at least one active route exists; an unmatched request receives 404 when absent.
 - `request.params` contains decoded values, including wildcard capture.
 - Exact/parameter/wildcard precedence, method fallback, implicit `HEAD`, async handlers, errors, and atomic
-  `server.reload` are executable through the shipped runtime.
+ `server.reload` are executable through the shipped runtime.
 - Invalid patterns, duplicate parameter names, invalid values, and an empty routes-without-fetch options
-  object fail before binding the listener.
+ object fail before binding the listener.
 
 M1 is complete and remains covered by the final M4 executable contract map.
 
@@ -65,7 +65,7 @@ M1 is complete and remains covered by the final M4 executable contract map.
 
 - Buffered static responses receive stable ETags and conditional `304` handling.
 - File-backed responses re-stat safely, implement single byte ranges and conditional modification checks,
-  and stream with backpressure rather than reading an unbounded file into memory.
+ and stream with backpressure rather than reading an unbounded file into memory.
 - Missing files become 404 without hiding unrelated errors.
 - Canonical-root checks reject traversal, symlink escape, special files, and time-of-check/time-of-use swaps.
 
@@ -105,7 +105,7 @@ and lifecycle evidence.
 
 - Execute the complete pinned stable and engineering route/static/FileSystemRouter manifest.
 - Pass malformed encoding, ambiguous precedence, traversal, symlink, range, conditional, and reload
-  adversaries on all four release targets.
+ adversaries on all four release targets.
 - Load 100,000 synthetic routes within recorded construction, lookup, and RSS bounds.
 - Run build, full tests, purity, documentation, public-claim, and four-target compatibility receipt gates.
 
@@ -150,7 +150,7 @@ Only M4 may change `server.router` to `Yes` or close the canonical phase issue.
 ## Bounds And Failure Policy
 
 - At most 100,000 routes, 1,024 segments per pattern, 1,024 parameters per pattern, and 16,384 UTF-16 code
-  units per pattern.
+ units per pattern.
 - Duplicate parameter names and parameter names beginning with a decimal digit are rejected.
 - Wildcards are terminal, capture the unmatched suffix, and never outrank exact or parameter routes.
 - Compilation completes before listener creation or reload publication; failure retains the prior table.

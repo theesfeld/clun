@@ -22,18 +22,18 @@ the `:bigint` arms already scaffolded in `js-loose-eq` light up.
 - `js-typeof` (`operators.lisp:9`): `(integer "bigint")`.
 - `js-strict-eq` (`operators.lisp:79`): `(:bigint (= x y))`.
 - `js-loose-eq`: BigInt==Number is **mathematical equality**, NOT auto-false (`1n == 1` → true): false
-  if the number is NaN/±Inf/non-integral, else `(= bigint (rational double))`; BigInt==String parses the
-  string to a BigInt (`nil` on parse fail); BigInt==Boolean routes through `1n/0n`.
+ if the number is NaN/±Inf/non-integral, else `(= bigint (rational double))`; BigInt==String parses the
+ string to a BigInt (`nil` on parse fail); BigInt==Boolean routes through `1n/0n`.
 - Arithmetic: one `numeric-binary` dispatch helper — `ToNumeric` both sides, both integer → CL bigint op,
-  exactly one integer → **TypeError** ("Cannot mix BigInt and other types"), else float path.
-  `js-add` keeps its string-concat branch first. `/` truncates toward zero (0 divisor → RangeError);
-  `%` uses `rem` (dividend sign); `**` negative exponent → RangeError (+ DoS guard on the exponent).
+ exactly one integer → **TypeError** ("Cannot mix BigInt and other types"), else float path.
+ `js-add` keeps its string-concat branch first. `/` truncates toward zero (0 divisor → RangeError);
+ `%` uses `rem` (dividend sign); `**` negative exponent → RangeError (+ DoS guard on the exponent).
 - Bitwise `& | ^ ~ << >>`: natural on CL integers (`logand/logior/logxor/lognot/ash`, arbitrary-precision,
-  two's-complement-consistent). Mixed → TypeError. `>>>` on BigInt → **TypeError** (spec).
+ two's-complement-consistent). Mixed → TypeError. `>>>` on BigInt → **TypeError** (spec).
 - Unary: `-10n` → `-10`; `+bigint` → **TypeError** (§13.5.4, the one asymmetry). `++`/`--`
-  (`compile-update`, `emitter.lisp`) switch to ToNumeric + integer/double branch.
+ (`compile-update`, `emitter.lisp`) switch to ToNumeric + integer/double branch.
 - Relational `%abstract-lt`: both integer → `(< a b)`; bigint↔double via rationals (NaN→undefined);
-  bigint↔numeric-string parses the string.
+ bigint↔numeric-string parses the string.
 
 **coercions.lisp:** `to-boolean` — `0n` falsy; `to-number` on a BigInt → **TypeError** (the honesty
 linchpin — no implicit BigInt→Number); `to-string` → `(format nil "~d" v)` (no `n`); add `to-numeric`
@@ -54,7 +54,7 @@ correctly TypeErrors on a BigInt arg — so `new Uint8Array(10n)` throws).
 Structs `:include js-object` (like `js-array`/`js-regexp`):
 - `js-array-buffer` — `bytes` = `(simple-array (unsigned-byte 8) (*))` | NIL when detached.
 - `js-typed-array` — `buffer kind byte-offset array-length content(:number|:bigint)`. ONE struct with a
-  `kind` slot (not 11 structs).
+ `kind` slot (not 11 structs).
 - `js-data-view` — `buffer byte-offset byte-length`.
 
 `*typed-array-kinds*` = the single-source alist: Int8/Uint8/Uint8Clamped/Int16/Uint16/Int32/Uint32/

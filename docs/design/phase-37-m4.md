@@ -37,31 +37,31 @@ Both methods (constructor `C` = `this`):
 2. `GetPromiseResolve(C)` — missing/non-callable `resolve` rejects the result.
 3. If `promises` is not an Object, reject with TypeError (do not throw).
 4. `PerformPromiseAllKeyed(variant, promises, C, capability, promiseResolve)`:
-   - `allKeys = promises.[[OwnPropertyKeys]]()`
-   - for each key with enumerable own descriptor: Get value, `Call(resolve, C, «value»)`,
-     attach then reactions indexed into an entries list
-   - `allKeyed`: on reject of any element → reject the result; on all fulfill → resolve
-   - `allSettledKeyed`: never rejects from element settlement; each entry is
-     `{status, value}` / `{status, reason}` on `%Object.prototype%`
+ - `allKeys = promises.[[OwnPropertyKeys]]()`
+ - for each key with enumerable own descriptor: Get value, `Call(resolve, C, «value»)`,
+ attach then reactions indexed into an entries list
+ - `allKeyed`: on reject of any element → reject the result; on all fulfill → resolve
+ - `allSettledKeyed`: never rejects from element settlement; each entry is
+ `{status, value}` / `{status, reason}` on `%Object.prototype%`
 5. Result object is `OrdinaryObjectCreate(null)` with data properties in
-   enumerable key order (`CreateKeyedPromiseCombinatorResultObject`).
+ enumerable key order (`CreateKeyedPromiseCombinatorResultObject`).
 6. Non-constructible; length 1; ordinary built-in property attributes.
 
 ## Architecture
 
 - Extend `src/engine/async/promise.lisp` only.
 - Reuse `new-promise-capability`, `promise-then-generic`, `%settled-record`,
-  `jm-own-property-keys`, `jm-get-own-property`, and IfAbruptRejectPromise.
+ `jm-own-property-keys`, `jm-get-own-property`, and IfAbruptRejectPromise.
 - Pure Common Lisp; no CFFI, fixture-specific dispatch, or skip-list changes.
 
 ## Evidence and gates
 
 1. `make phase-37-m4-check`: 74/74 pass, 0 fail/skip/tmo/crash.
 2. Focused Lisp assertions cover descriptors, key order, null-proto result,
-   allSettledKeyed status objects, non-object reject, and non-constructor this.
+ allSettledKeyed status objects, non-object reject, and non-constructor this.
 3. `make build`, focused tests, `make purity` pass.
 4. Phase 37 stays open; measured residual ownership after m4 is **378** fail
-   rows when pass-list is reclassified (452 − 74), still not a matrix Yes.
+ rows when pass-list is reclassified (452 − 74), still not a matrix Yes.
 
 ## SemVer
 

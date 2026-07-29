@@ -1,7 +1,7 @@
 # Phase 49 — HTTP server lifecycle slice (Partial)
 
-**Issue:** #23  
-**Ledger:** `server.http` stays **Partial**  
+**Issue:** #23 
+**Ledger:** `server.http` stays **Partial** 
 **SemVer:** `0.1.0-dev.30` / minor within the `0.1.0` prerelease train
 
 ## Goal

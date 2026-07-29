@@ -10,72 +10,72 @@ their contents cannot create operators, substitutions, redirects, globs, or extr
 ## Runtime contract
 
 - Lex quoting, escaping, comments, variables, `$?`, command substitution, pipelines, redirects, logical
-  operators, sequences, assignments, grouped subshells, tilde expansion, and `Clun.Glob` expansion into an
-  explicit AST.
+ operators, sequences, assignments, grouped subshells, tilde expansion, and `Clun.Glob` expansion into an
+ explicit AST.
 - Treat scalar interpolation as one inert argument and flatten array interpolation into inert arguments with
-  a bounded nesting depth. Only an explicit `{ raw: source }` interpolation opts source text into grammar.
+ a bounded nesting depth. Only an explicit `{ raw: source }` interpolation opts source text into grammar.
 - Execute `echo`, `basename`, `dirname`, `seq`, `yes`, `cat`, `mkdir`, `touch`, `rm`, `mv`, `ls`, `cp`, `pwd`, `cd`, `true`, `false`, `[[`,
-  `:`, `export`, `unset`, `which`, and `exit` internally. `seq` uses Bun-compatible f32 accumulation and
-  non-advance termination, bounds output to one million items, and additionally supports fixed-width and
-  one floating printf conversion. `yes` matches the pinned Bun byte-buffer contract by repeating its joined
-  arguments directly into the target typed-array view without constructing output proportional to the target.
-  It also streams from a fixed 64 KiB producer block into an otherwise external pipeline, stopping when the
-  consumer closes the pipe. Standalone unbounded `yes` still fails explicitly until job output can expose a
-  streaming sink. The filesystem builtins provide bounded binary concatenation, stdin,
-  display/numbering controls, parents/verbose/octal-mode creation, create-or-update timestamps, guarded
-  recursive deletion, symlink boundaries, force/verbose flags, root preservation, atomic same-filesystem
-  moves, multi-source directory targets, no-overwrite, and verbose move output. None of these paths delegates
-  to an external command. `ls` provides deterministic hidden-entry policy, multi-path and recursive output,
-  symlink-safe recursion, partial failures, reverse ordering, and lstat-based long metadata. `cp` streams
-  regular files through a 64 KiB buffer, preserves modes and symlinks, handles multi-source and recursive
-  targets, rejects identical/self-descendant copies, and replaces observed destination symlinks instead of
-  intentionally writing through them. Regular destinations are opened with `O_NOFOLLOW`, and copied modes
-  are applied to the open descriptor so a replacement race cannot redirect file contents or chmod.
+ `:`, `export`, `unset`, `which`, and `exit` internally. `seq` uses Bun-compatible f32 accumulation and
+ non-advance termination, bounds output to one million items, and additionally supports fixed-width and
+ one floating printf conversion. `yes` matches the pinned Bun byte-buffer contract by repeating its joined
+ arguments directly into the target typed-array view without constructing output proportional to the target.
+ It also streams from a fixed 64 KiB producer block into an otherwise external pipeline, stopping when the
+ consumer closes the pipe. Standalone unbounded `yes` still fails explicitly until job output can expose a
+ streaming sink. The filesystem builtins provide bounded binary concatenation, stdin,
+ display/numbering controls, parents/verbose/octal-mode creation, create-or-update timestamps, guarded
+ recursive deletion, symlink boundaries, force/verbose flags, root preservation, atomic same-filesystem
+ moves, multi-source directory targets, no-overwrite, and verbose move output. None of these paths delegates
+ to an external command. `ls` provides deterministic hidden-entry policy, multi-path and recursive output,
+ symlink-safe recursion, partial failures, reverse ordering, and lstat-based long metadata. `cp` streams
+ regular files through a 64 KiB buffer, preserves modes and symlinks, handles multi-source and recursive
+ targets, rejects identical/self-descendant copies, and replaces observed destination symlinks instead of
+ intentionally writing through them. Regular destinations are opened with `O_NOFOLLOW`, and copied modes
+ are applied to the open descriptor so a replacement race cannot redirect file contents or chmod.
 - Evaluate the active non-todo conditional-expression subgroup internally: nonempty/empty strings, regular
-  files, directories, character devices, and string equality/inequality. The same bounded evaluator handles
-  symlinks, file identity, strict integer comparisons, lexical ordering, repeated negation, `&&`/`||`
-  precedence, and parenthesized grouping. Conditional expansion preserves an unquoted empty variable as an
-  empty operand. Compound expressions are parsed and short-circuited internally rather than being mistaken
-  for outer script operators. Equality and inequality use shell-pattern matching while retaining a
-  per-character protection mask, so quoted/escaped metacharacters and ordinary template interpolations remain
-  literal while unquoted literal or variable-supplied patterns remain active. The same protection contract
-  applies to the unanchored `=~` regular-expression operator. Malformed evaluated regex operands return status
-  2, while a malformed operand in a short-circuited branch is not compiled. Integer comparison operands use a
-  bounded signed-64-bit arithmetic parser with literals through base 64, unset-as-zero recursive environment
-  names, parentheses, unary operators, exponentiation, multiplication/division/remainder, addition/subtraction,
-  shifts, comparisons, bitwise operators, and logical operators. Syntax errors, variable cycles, invalid shifts,
-  and zero division return status 1 without invoking a language evaluator.
+ files, directories, character devices, and string equality/inequality. The same bounded evaluator handles
+ symlinks, file identity, strict integer comparisons, lexical ordering, repeated negation, `&&`/`||`
+ precedence, and parenthesized grouping. Conditional expansion preserves an unquoted empty variable as an
+ empty operand. Compound expressions are parsed and short-circuited internally rather than being mistaken
+ for outer script operators. Equality and inequality use shell-pattern matching while retaining a
+ per-character protection mask, so quoted/escaped metacharacters and ordinary template interpolations remain
+ literal while unquoted literal or variable-supplied patterns remain active. The same protection contract
+ applies to the unanchored `=~` regular-expression operator. Malformed evaluated regex operands return status
+ 2, while a malformed operand in a short-circuited branch is not compiled. Integer comparison operands use a
+ bounded signed-64-bit arithmetic parser with literals through base 64, unset-as-zero recursive environment
+ names, parentheses, unary operators, exponentiation, multiplication/division/remainder, addition/subtraction,
+ shifts, comparisons, bitwise operators, and logical operators. Syntax errors, variable cycles, invalid shifts,
+ and zero division return status 1 without invoking a language evaluator.
 - Resolve external programs against the job's `PATH`, require executable permission, and use
-  `sb-ext:run-program` directly. The implementation does not invoke `sh`, `bash`, or another command parser.
+ `sb-ext:run-program` directly. The implementation does not invoke `sh`, `bash`, or another command parser.
 - Spawn every command in an external-only pipeline before waiting. Intermediate streams are connected while
-  the final stdout and all stderr are file-backed, preventing parent-side pipe-capacity deadlocks.
+ the final stdout and all stderr are file-backed, preventing parent-side pipe-capacity deadlocks.
 - Resolve supported output redirects left to right as descriptor destinations. `2>&1` and `1>&2` snapshot the current
-  destination, later redirects do not move the duplicated descriptor, superseded pathname redirects still
-  create or truncate their targets, and `&>` / `&>>` share one destination for both output streams.
+ destination, later redirects do not move the duplicated descriptor, superseded pathname redirects still
+ create or truncate their targets, and `&>` / `&>>` share one destination for both output streams.
 - Stream an internal `yes` producer into an otherwise external pipeline without invoking a host `yes` binary.
-  The producer uses bounded memory, observes downstream pipe closure, and preserves the last-command status.
+ The producer uses bounded memory, observes downstream pipe closure, and preserves the last-command status.
 - Isolate mutable cwd, environment, termination, and status state for every stage of a multi-command builtin
-  pipeline. Immediate builtins that do not consume stdin close an upstream `yes` producer without materializing
-  output, while the last stage still determines the pipeline exit code.
+ pipeline. Immediate builtins that do not consume stdin close an upstream `yes` producer without materializing
+ output, while the last stage still determines the pipeline exit code.
 - Parse nested parenthesized groups recursively and execute them with copied environment, cwd, termination,
-  and status state. Group stdin is propagated through the bounded pipeline executor, group output composes
-  with surrounding pipelines, and group-local `exit`, assignments, and directory changes never leak outward.
+ and status state. Group stdin is propagated through the bounded pipeline executor, group output composes
+ with surrounding pipelines, and group-local `exit`, assignments, and directory changes never leak outward.
 - Parse `if` / `elif` / `else` / `fi` as recursive compound-command nodes rather than keyword-shaped simple
-  commands. Conditions and branches retain ordered stdout and stderr, the selected branch determines status,
-  a false condition without an alternative returns zero, `!` negates command status, and redirects apply to
-  the whole compound command. Reserved words are structural only at command boundaries.
+ commands. Conditions and branches retain ordered stdout and stderr, the selected branch determines status,
+ a false condition without an alternative returns zero, `!` negates command status, and redirects apply to
+ the whole compound command. Reserved words are structural only at command boundaries.
 - Expose lazy job methods for cwd, environment, quiet/nothrow/throws, explicit one-shot `run`, Promise
-  chaining, text, JSON, bytes, array buffers, and lines. `lines()` is a lazy async iterator with JavaScript
-  split boundaries, including a trailing empty line after a final newline. Results and failures carry stdout,
-  stderr, exit code, and conversion methods.
+ chaining, text, JSON, bytes, array buffers, and lines. `lines()` is a lazy async iterator with JavaScript
+ split boundaries, including a trailing empty line after a final newline. Results and failures carry stdout,
+ stderr, exit code, and conversion methods.
 - Expose `new Clun.$.Shell()` as a callable shell tag with instance-local environment, cwd, and throw
-  defaults. Child configuration is isolated from the realm default tag in both directions, and calling the
-  class without `new` throws before creating an instance.
+ defaults. Child configuration is isolated from the realm default tag in both directions, and calling the
+ class without `new` throws before creating an instance.
 - Expand `Clun.$.braces()` with a bounded token/AST implementation: nested alternatives, adjacent-group
-  products, surrounding text, escaped delimiters, empty input, and debug token/parse JSON. More than 256
-  groups or 65,536 results is rejected before recursive expansion or result allocation can exhaust resources.
+ products, surrounding text, escaped delimiters, empty input, and debug token/parse JSON. More than 256
+ groups or 65,536 results is rejected before recursive expansion or result allocation can exhaust resources.
 - Give `Clun.$.ShellError` its own Error-derived constructor and prototype, including meaningful
-  `instanceof` behavior.
+ `instanceof` behavior.
 
 ## Evidence
 

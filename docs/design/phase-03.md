@@ -101,14 +101,14 @@ CL `unwind-protect`; `catch` is `handler-case` on `js-condition`. Labels attach 
 
 The emitter compiles:
 - expressions: literals, identifiers (resolved refs), `this`, member (dot/computed), call, new,
-  tagged template, unary/update, binary/logical (via §6 operators), assignment (+ compound +
-  destructuring targets), conditional, sequence, array/object literals (incl. spread, getters/
-  setters, computed keys, `__proto__`), function/arrow expressions, template literals.
+ tagged template, unary/update, binary/logical (via §6 operators), assignment (+ compound +
+ destructuring targets), conditional, sequence, array/object literals (incl. spread, getters/
+ setters, computed keys, `__proto__`), function/arrow expressions, template literals.
 - statements: expression, block (new declarative frame), if, for/for-in/for-of (for-in key order =
-  OwnPropertyKeys of the chain, §14.7.5.9), while/do-while, switch, try/catch/finally, throw, return,
-  break/continue (labelled), labelled, var/let/const (TDZ + init), function declaration (hoisted),
-  with, empty, debugger. `class` declarations are ES2015 but land here minimally (constructor +
-  methods + extends) since the object kernel is present.
+ OwnPropertyKeys of the chain, §14.7.5.9), while/do-while, switch, try/catch/finally, throw, return,
+ break/continue (labelled), labelled, var/let/const (TDZ + init), function declaration (hoisted),
+ with, empty, debugger. `class` declarations are ES2015 but land here minimally (constructor +
+ methods + extends) since the object kernel is present.
 
 ## 6. Operators (`src/engine/operators.lisp`)
 
@@ -148,10 +148,10 @@ zero pass-list regressions; zero crashes.
 ## Risks & sequencing
 
 - Object-model correctness (DefineOwnProperty descriptor merging, Array length invariants) is the
-  classic source of subtle bugs → dense parachute unit tests before wiring into the emitter.
+ classic source of subtle bugs → dense parachute unit tests before wiring into the emitter.
 - `this`/`arguments`/sloppy aliasing and strict-vs-sloppy divergence are error-prone → both modes
-  tested from the first executing program.
+ tested from the first executing program.
 - Scope resolution (TDZ, hoisting, with/eval dynamic path) → unit-test the ctenv resolver directly.
 - Build order: objects → environment → operators → emitter (expressions) → functions → emitter
-  (statements) → realm/intrinsics → harness/runner → measure → iterate to 70%. Expect multiple
-  milestones; each keeps `make build/test/purity/conformance` green.
+ (statements) → realm/intrinsics → harness/runner → measure → iterate to 70%. Expect multiple
+ milestones; each keeps `make build/test/purity/conformance` green.

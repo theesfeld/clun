@@ -50,7 +50,6 @@ else
   exit 1
 fi
 cp "$repo_root/LICENSE" "$package_dir/LICENSE"
-cp "$repo_root/COPYING" "$package_dir/COPYING"
 cp "$repo_root/THIRD_PARTY_NOTICES.md" "$package_dir/THIRD_PARTY_NOTICES.md"
 
 while IFS= read -r -d '' notice; do

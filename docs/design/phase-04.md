@@ -31,12 +31,12 @@ SBCL internals.
 ## JSON (§25.5)
 
 - `JSON.parse(text[, reviver])`: a hand-rolled recursive-descent JSON reader over code units (strict
-  JSON grammar — not the JS grammar); builds js-values (objects via new-object, arrays via new-array,
-  numbers via the number lexer path, strings with `\uXXXX`/escapes). Reviver walk post-parse.
+ JSON grammar — not the JS grammar); builds js-values (objects via new-object, arrays via new-array,
+ numbers via the number lexer path, strings with `\uXXXX`/escapes). Reviver walk post-parse.
 - `JSON.stringify(value[, replacer[, space]])`: SerializeJSONProperty with toJSON, replacer
-  (function or key array), indentation (space as number or string, clamped to 10), cycle detection
-  (TypeError), and the exact escaping (§25.5.2.2 QuoteJSONString). undefined/function/symbol → omitted
-  (property) or null (array element).
+ (function or key array), indentation (space as number or string, clamped to 10), cycle detection
+ (TypeError), and the exact escaping (§25.5.2.2 QuoteJSONString). undefined/function/symbol → omitted
+ (property) or null (array element).
 
 ## Collections: Map / Set / WeakMap / WeakSet (§24)
 
@@ -84,5 +84,5 @@ keys/values/entries/@@iterator, Array.of/from/isArray. Array `from` uses the ite
 - Ryū correctness is the one algorithmic risk → known-answer vectors + the naive oracle cross-check.
 - Map/Set key canonicalization (SameValueZero, −0/NaN, object identity) is subtle → unit-tested.
 - Breadth work fans out across `builtins-*.lisp`; each is integrated then verified by its test262
-  slice. Build order: number/Ryū + JSON (own), then the fan-out (math/array/string/object/iterator/
-  map-set/date/symbol), then measure → iterate to the gate. Each step keeps build/test/purity green.
+ slice. Build order: number/Ryū + JSON (own), then the fan-out (math/array/string/object/iterator/
+ map-set/date/symbol), then measure → iterate to the gate. Each step keeps build/test/purity green.

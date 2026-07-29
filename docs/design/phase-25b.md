@@ -41,10 +41,10 @@ is the sorted `PATH<TAB>CLASSIFICATION` ledger already emitted when
 parses each test's frontmatter, and writes two reviewable artifacts:
 
 - `tests/conformance/exec-gaps.tsv`: one sorted row per live failure, with the path owner,
-  orthogonal phase owner, exclusive work bucket, topic, and all raw `features`, `flags`, and
-  `includes` metadata (`-` is the explicit empty-list sentinel);
+ orthogonal phase owner, exclusive work bucket, topic, and all raw `features`, `flags`, and
+ `includes` metadata (`-` is the explicit empty-list sentinel);
 - `docs/conformance/test262-execution.md`: exact totals and deterministic cross-tabs by work
-  bucket, path owner, topic, raw feature, and harness include.
+ bucket, path owner, topic, raw feature, and harness include.
 
 The full 40,654-row execution ledger stays a generated scratch artifact. `make conformance-buckets`
 always deletes any prior ledger, reruns the execution corpus, and analyzes that fresh result in one
@@ -61,16 +61,16 @@ revision are ignored.
 The analyzer enforces these invariants:
 
 1. input paths are unique, sorted, and exactly equal the runner's complete pinned language plus
-   built-ins `.js` corpus after its `_FIXTURE` exclusion;
+ built-ins `.js` corpus after its `_FIXTURE` exclusion;
 2. classifications are limited to `pass`, `fail`, `skip`, and `crash`, with zero crashes;
 3. every checked-in execution pass-list entry appears exactly once and still classifies `pass`;
-   the m1 report records both the frozen baseline and the 34 passes then beyond it;
+ the m1 report records both the frozen baseline and the 34 passes then beyond it;
 4. every failure receives exactly one exclusive work bucket and remains visible on orthogonal
-   path-owner, phase-owner, topic, raw-feature, and raw-include axes; the exclusive axes reconcile
-   to 5,486, while feature/include counts are non-additive tag frequencies and their report tables
-   are deliberately top-25 truncated;
+ path-owner, phase-owner, topic, raw-feature, and raw-include axes; the exclusive axes reconcile
+ to 5,486, while feature/include counts are non-additive tag frequencies and their report tables
+ are deliberately top-25 truncated;
 5. a row is `skip` if and only if the runner's feature, module, raw, or negative-parse rules select
-   it, preventing either invented skips or impossible pass/fail classifications;
+ it, preventing either invented skips or impossible pass/fail classifications;
 6. all output tables reconcile to the ledger totals and repeat generation is byte-identical.
 
 The runner currently maps timeouts, parser/runtime JavaScript conditions, and incomplete async
@@ -154,23 +154,23 @@ Bun commit `c1076ce95effb909bfe9f596919b5dba5567d550` pins JavaScriptCore/WebKit
 the first two waves without importing implementation code:
 
 - JSC centralizes `SetIntegrityLevel` and `TestIntegrityLevel` in
-  `Source/JavaScriptCore/runtime/ObjectConstructor.cpp`, then uses those shared algorithms for
-  `Object.seal` and `Object.isSealed`. The four Annex-B accessor methods are registered and
-  implemented together in `ObjectPrototype.cpp`; lookup walks descriptors without invoking getters.
-  The six pinned test262 directories contain 181 files, 15 static skips, and 166 runnable controls:
-  162 m2-owned rows plus the four Phase-37 controls identified below. Before m2, Clun froze zero
-  passes from them. The focused post-implementation run now passes all 162 owned controls while the
-  four later-phase controls remain visible failures. This makes m2 bounded without copying JSC's
-  object-layout fast paths into a correctness phase.
+ `Source/JavaScriptCore/runtime/ObjectConstructor.cpp`, then uses those shared algorithms for
+ `Object.seal` and `Object.isSealed`. The four Annex-B accessor methods are registered and
+ implemented together in `ObjectPrototype.cpp`; lookup walks descriptors without invoking getters.
+ The six pinned test262 directories contain 181 files, 15 static skips, and 166 runnable controls:
+ 162 m2-owned rows plus the four Phase-37 controls identified below. Before m2, Clun froze zero
+ passes from them. The focused post-implementation run now passes all 162 owned controls while the
+ four later-phase controls remain visible failures. This makes m2 bounded without copying JSC's
+ object-layout fast paths into a correctness phase.
 - JSC's runtime built-ins use `IterationRecord` plus shared open/next/step/close operations in
-  `IteratorOperations.h/.cpp`. Its language `for-of` and array-destructuring paths implement the
-  same semantic shape through bytecompiler helpers in `BytecodeGenerator.cpp` and
-  `NodesCodegen.cpp`, caching the iterator and `next` method in registers rather than directly
-  consuming that runtime C++ record. Clun should adopt the shared semantic record discipline, not
-  claim those JSC layers are one call path. Clun currently materializes several iterable paths
-  eagerly, re-reads `next`, and suppresses close errors in `src/engine/emitter.lisp`. M3 must
-  therefore land a completion-aware iterator record first, migrate consumers second, and layer
-  lazy binding/assignment semantics on it third.
+ `IteratorOperations.h/.cpp`. Its language `for-of` and array-destructuring paths implement the
+ same semantic shape through bytecompiler helpers in `BytecodeGenerator.cpp` and
+ `NodesCodegen.cpp`, caching the iterator and `next` method in registers rather than directly
+ consuming that runtime C++ record. Clun should adopt the shared semantic record discipline, not
+ claim those JSC layers are one call path. Clun currently materializes several iterable paths
+ eagerly, re-reads `next`, and suppresses close errors in `src/engine/emitter.lisp`. M3 must
+ therefore land a completion-aware iterator record first, migrate consumers second, and layer
+ lazy binding/assignment semantics on it third.
 
 ## 5. Scope ownership without denominator gaming
 
@@ -237,25 +237,25 @@ The implementation stays behind Clun's existing object internal-method protocol.
 special case or Test262-specific branch is needed:
 
 1. Add shared `set-integrity-level` and `test-integrity-level` abstract operations beside the object
-   kernel. `set-integrity-level` first calls `[[PreventExtensions]]`, then snapshots
-   `[[OwnPropertyKeys]]`. For `sealed`, it applies the partial descriptor
-   `{ [[Configurable]]: false }` to every key with `DefinePropertyOrThrow`. The frozen branch is
-   retained in the abstract operation for spec completeness and sets `[[Writable]]` false only for
-   data descriptors. `test-integrity-level` first rejects an extensible object, then inspects every
-   own descriptor without invoking accessors; sealed requires only non-configurable properties,
-   while frozen also requires non-writable data properties.
+ kernel. `set-integrity-level` first calls `[[PreventExtensions]]`, then snapshots
+ `[[OwnPropertyKeys]]`. For `sealed`, it applies the partial descriptor
+ `{ [[Configurable]]: false }` to every key with `DefinePropertyOrThrow`. The frozen branch is
+ retained in the abstract operation for spec completeness and sets `[[Writable]]` false only for
+ data descriptors. `test-integrity-level` first rejects an extensible object, then inspects every
+ own descriptor without invoking accessors; sealed requires only non-configurable properties,
+ while frozen also requires non-writable data properties.
 2. Install `Object.seal` and `Object.isSealed` with arity 1 on the existing Object constructor.
-   Primitives are returned unchanged by `seal` and report true from `isSealed`. A false integrity
-   result becomes a `TypeError`; abrupt completions from internal methods propagate unchanged.
+ Primitives are returned unchanged by `seal` and report true from `isSealed`. A false integrity
+ result becomes a `TypeError`; abrupt completions from internal methods propagate unchanged.
 3. Install the four Annex-B methods on `Object.prototype` beside the existing `__proto__` accessor.
-   `__defineGetter__` and `__defineSetter__` perform `ToObject(this)` before validating the callback,
-   validate callability before coercing the key, then use `ToPropertyKey` and
-   `DefinePropertyOrThrow`. Their descriptors contain only the requested `[[Get]]` or `[[Set]]`
-   field plus enumerable/configurable true, so redefining one half preserves the other half.
+ `__defineGetter__` and `__defineSetter__` perform `ToObject(this)` before validating the callback,
+ validate callability before coercing the key, then use `ToPropertyKey` and
+ `DefinePropertyOrThrow`. Their descriptors contain only the requested `[[Get]]` or `[[Set]]`
+ field plus enumerable/configurable true, so redefining one half preserves the other half.
 4. `__lookupGetter__` and `__lookupSetter__` perform `ToObject(this)`, then `ToPropertyKey`, and walk
-   `[[GetOwnProperty]]` / `[[GetPrototypeOf]]` directly. The first matching data descriptor stops the
-   walk with undefined; an accessor returns its requested function or undefined. Lookup never calls
-   the accessor and preserves symbol keys and prototype order.
+ `[[GetOwnProperty]]` / `[[GetPrototypeOf]]` directly. The first matching data descriptor stops the
+ walk with undefined; an accessor returns its requested function or undefined. Lookup never calls
+ the accessor and preserves symbol keys and prototype order.
 
 Focused Lisp regressions cover primitive behavior, all integrity descriptor invariants, symbol and
 prototype-chain lookup, accessor-half preservation, non-extensible/non-configurable failures, and
@@ -296,34 +296,34 @@ residuals visible under their original phase owner.
 The implementation order is deliberately semantic rather than path-specific:
 
 1. Add `src/engine/iterator-operations.lisp` before the iterator and collection built-ins in the
-   ASDF load plan. Its `iterator-record` caches `[[Iterator]]` and `[[NextMethod]]` exactly once and
-   carries `[[Done]]`. Shared operations implement GetIteratorFromMethod, IteratorNext,
-   IteratorComplete, IteratorValue, IteratorStep/StepValue, and IteratorClose. Step, `done`, and
-   `value` abrupt completions mark the record done so a caller never incorrectly closes after an
-   iterator-protocol failure. IteratorClose preserves an in-flight throw over `return` lookup/call
-   failures, but a break/return/other non-throw completion observes close failures and rejects a
-   non-object return result.
+ ASDF load plan. Its `iterator-record` caches `[[Iterator]]` and `[[NextMethod]]` exactly once and
+ carries `[[Done]]`. Shared operations implement GetIteratorFromMethod, IteratorNext,
+ IteratorComplete, IteratorValue, IteratorStep/StepValue, and IteratorClose. Step, `done`, and
+ `value` abrupt completions mark the record done so a caller never incorrectly closes after an
+ iterator-protocol failure. IteratorClose preserves an in-flight throw over `return` lookup/call
+ failures, but a break/return/other non-throw completion observes close failures and rejects a
+ non-object return result.
 2. Remove the array/string eager shortcut from `iterable->list`; observable `@@iterator` lookup and
-   the cached `next` method apply uniformly. Migrate synchronous `for-of` to lazy stepping. Only
-   binding/body abrupt completion closes the iterator: failure in `next`, `done`, or `value` does
-   not. An unlabelled continue stays inside the loop without closing, while break, return, throw,
-   and control transfer to an outer label close exactly once.
+ the cached `next` method apply uniformly. Migrate synchronous `for-of` to lazy stepping. Only
+ binding/body abrupt completion closes the iterator: failure in `next`, `done`, or `value` does
+ not. An unlabelled continue stays inside the loop without closing, while break, return, throw,
+ and control transfer to an outer label close exactly once.
 3. Replace eager array-pattern materialization in declaration, parameter, catch, loop-head, and
-   assignment binders. Empty patterns do not step. Elisions step without reading `value`. Ordinary
-   elements step once, defaults run only for undefined, rest exhausts into a fresh Array, and a
-   non-rest pattern closes an iterator left open by early pattern completion. Nested binding/default
-   failure closes with the original throw taking precedence.
+ assignment binders. Empty patterns do not step. Elisions step without reading `value`. Ordinary
+ elements step once, defaults run only for undefined, rest exhausts into a fresh Array, and a
+ non-rest pattern closes an iterator left open by early pattern completion. Nested binding/default
+ failure closes with the original throw taking precedence.
 4. Keep object binding property-driven: ToObject once, computed keys in source order, Get before
-   nested binding, and named evaluation for identifier defaults. Object-rest execution tests remain
-   under the existing explicit `object-rest` skip and are not claimed by m3. Add anonymous
-   function/arrow/class name inference at identifier defaults, parameter TDZ initialization before
-   left-to-right binding, and the ECMAScript expected-argument-count rule for function `length`.
+ nested binding, and named evaluation for identifier defaults. Object-rest execution tests remain
+ under the existing explicit `object-rest` skip and are not claimed by m3. Add anonymous
+ function/arrow/class name inference at identifier defaults, parameter TDZ initialization before
+ left-to-right binding, and the ECMAScript expected-argument-count rule for function `length`.
 5. Migrate m3 iterable consumers that can fail after a value is produced: Array.from,
-   Object.fromEntries, Map/Set/WeakMap/WeakSet constructors, and shipped Promise combinators. Each
-   consumer processes one value at a time inside the shared close-on-abrupt boundary. TypedArray
-   residual algorithms remain m9-owned; yield delegation and async-iterator expansion remain m5/m6,
-   except that existing call sites may consume the shared record without claiming those later
-   feature gaps.
+ Object.fromEntries, Map/Set/WeakMap/WeakSet constructors, and shipped Promise combinators. Each
+ consumer processes one value at a time inside the shared close-on-abrupt boundary. TypedArray
+ residual algorithms remain m9-owned; yield delegation and async-iterator expansion remain m5/m6,
+ except that existing call sites may consume the shared record without claiming those later
+ feature gaps.
 
 Focused Lisp tests cover cached-next behavior, result validation, `done` transitions, close
 precedence, lazy pattern/elision/rest behavior, nested/default abrupt completion, function-name
@@ -448,59 +448,59 @@ origin buckets.
 The failure inventory resolves to six shared semantic defects rather than path-specific gaps:
 
 1. Every `super-node` currently throws an emitter-time `SyntaxError`, and only explicit class
-   constructors receive a home object. This owns the complete `expressions/super` family and masks
-   subclass, object-method, accessor, static-method, arrow-capture, and derived-constructor behavior.
+ constructors receive a home object. This owns the complete `expressions/super` family and masks
+ subclass, object-method, accessor, static-method, arrow-capture, and derived-constructor behavior.
 2. User functions have one undifferentiated call/construct path. `jm-construct` always preallocates
-   `this`, so class calls, derived uninitialized `this`, `super()` binding, repeated/missing `super`,
-   and derived return override rules cannot be represented.
+ `this`, so class calls, derived uninitialized `this`, `super()` binding, repeated/missing `super`,
+ and derived return override rules cannot be represented.
 3. Parameter, body-var, body-lexical, and named-function/class bindings share one compile-time scope
-   and runtime frame. Non-simple parameter scope, immutable inner names, and async parameter-rejection
-   timing are consequently wrong.
+ and runtime frame. Non-simple parameter scope, immutable inner names, and async parameter-rejection
+ timing are consequently wrong.
 4. Arguments are copied into an ordinary object. Sloppy simple-parameter mapping, duplicate-name
-   selection, descriptor-driven map detachment, deletion, and strict `callee`/`caller` poison pills
-   are absent.
+ selection, descriptor-driven map detachment, deletion, and strict `callee`/`caller` poison pills
+ are absent.
 5. Bound functions are anonymous native wrappers that are always constructable and always length
-   zero. Function name/length/prototype inheritance, target validation, construction delegation,
-   and OrdinaryHasInstance delegation are missing.
+ zero. Function name/length/prototype inheritance, target validation, construction delegation,
+ and OrdinaryHasInstance delegation are missing.
 6. Function intrinsic metadata, method constructability/name assignment, AsyncFunction prototype
-   identity, and callable `toString`/restricted-property behavior are incomplete.
+ identity, and callable `toString`/restricted-property behavior are incomplete.
 
 The implementation uses the existing closure emitter, environment chain, and object internal-method
 protocol; it does not add a second evaluator or Test262 branches:
 
 1. Extend callable metadata with an explicit function kind and constructor kind. Ordinary functions
-   retain normal call/base construction. Methods, arrows, generators, and async functions are never
-   constructors. Base class constructors allocate before entry but reject ordinary calls. Derived
-   class constructors enter with `this` uninitialized; `super()` constructs the active function's
-   superclass with the current `new.target` and initializes `this` exactly once. An object return
-   wins, undefined returns the initialized `this`, and every other primitive return throws.
+ retain normal call/base construction. Methods, arrows, generators, and async functions are never
+ constructors. Base class constructors allocate before entry but reject ordinary calls. Derived
+ class constructors enter with `this` uninitialized; `super()` constructs the active function's
+ superclass with the current `new.target` and initializes `this` exactly once. An object return
+ wins, undefined returns the initialized `this`, and every other primitive return throws.
 2. Model the FunctionEnvironment state required by `this`, `new.target`, the active function, and
-   home object in reserved lexical slots. Arrows inherit those slots; nested ordinary functions do
-   not. Set the home object on every object-literal and class instance/static method and accessor.
-   Compile SuperProperty as `[[Get]]`/`[[Set]]` on the home object's prototype with the actual `this`
-   receiver. Compile SuperCall separately, preserving base/key/argument evaluation and abrupt order.
+ home object in reserved lexical slots. Arrows inherit those slots; nested ordinary functions do
+ not. Set the home object on every object-literal and class instance/static method and accessor.
+ Compile SuperProperty as `[[Get]]`/`[[Set]]` on the home object's prototype with the actual `this`
+ receiver. Compile SuperCall separately, preserving base/key/argument evaluation and abrupt order.
 3. For a non-simple parameter list, compile defaults against a parameter scope parented to the
-   closure environment, then execute body vars/functions and body lexicals in child frames. Simple
-   parameters keep the shared var environment required by web-compatible semantics. Named function
-   and class expressions receive a private immutable name environment. Async functions convert
-   parameter-initialization failure into rejection instead of throwing before the Promise exists.
+ closure environment, then execute body vars/functions and body lexicals in child frames. Simple
+ parameters keep the shared var environment required by web-compatible semantics. Named function
+ and class expressions receive a private immutable name environment. Async functions convert
+ parameter-initialization failure into rejection instead of throwing before the Promise exists.
 4. Add an arguments exotic behind the existing internal-method generics. Sloppy simple lists map
-   only supplied indices selected by the last duplicate parameter name to frame cells. `[[Get]]`,
-   `[[Set]]`, `[[GetOwnProperty]]`, `[[DefineOwnProperty]]`, and `[[Delete]]` keep mapped values in sync
-   and sever mappings when required. Strict and non-simple lists are unmapped; their own `callee`
-   uses the realm's shared `%ThrowTypeError%`, while `caller` is absent. Length and iterator
-   descriptors retain the standard attributes.
+ only supplied indices selected by the last duplicate parameter name to frame cells. `[[Get]]`,
+ `[[Set]]`, `[[GetOwnProperty]]`, `[[DefineOwnProperty]]`, and `[[Delete]]` keep mapped values in sync
+ and sever mappings when required. Strict and non-simple lists are unmapped; their own `callee`
+ uses the realm's shared `%ThrowTypeError%`, while `caller` is absent. Length and iterator
+ descriptors retain the standard attributes.
 5. Represent BoundFunction explicitly with target, bound `this`, and bound arguments. Validate the
-   target at bind time, derive `name` and `length` observably, inherit the target function object's
-   prototype, expose construction only when the target is a constructor, thread a distinct
-   `new.target`, and delegate OrdinaryHasInstance to the target.
+ target at bind time, derive `name` and `length` observably, inherit the target function object's
+ prototype, expose construction only when the target is a constructor, thread a distinct
+ `new.target`, and delegate OrdinaryHasInstance to the target.
 6. Centralize SetFunctionName for ordinary/computed/symbol method names and get/set prefixes. Correct
-   Function.prototype metadata, restricted properties, non-generic `toString`, class constructor and
-   prototype descriptors, extends validation, class evaluation order, and AsyncFunction constructor/
-   prototype identity. Generators remain with m5, async generators/iteration with m6, species with
-   m7, dynamic eval/`with` with m11, tagged templates with m13, AggregateError with m14, and private
-   fields, coalescing/integer-separator syntax, WeakRef, and proposal-only APIs with Phase 37 unless a
-   shared m4 operation is required by an owned row.
+ Function.prototype metadata, restricted properties, non-generic `toString`, class constructor and
+ prototype descriptors, extends validation, class evaluation order, and AsyncFunction constructor/
+ prototype identity. Generators remain with m5, async generators/iteration with m6, species with
+ m7, dynamic eval/`with` with m11, tagged templates with m13, AggregateError with m14, and private
+ fields, coalescing/integer-separator syntax, WeakRef, and proposal-only APIs with Phase 37 unless a
+ shared m4 operation is required by an owned row.
 
 Implementation proceeds in that order because each later layer needs the callable and environment
 state established before it. Focused Lisp regressions cover descriptors, method names and
@@ -561,22 +561,22 @@ credited to m4.
 Independent review and full-corpus regression diagnosis produced shared fixes, not exclusions:
 
 1. An own `"use strict"` directive with non-simple parameters is an early error, and parameter/function
-   names parsed before the directive are revalidated against strict binding-name rules.
+ names parsed before the directive are revalidated against strict binding-name rules.
 2. `delete super[key]` first resolves `this`, then evaluates the computed key without applying
-   `ToPropertyKey`, and finally throws `ReferenceError`.
+ `ToPropertyKey`, and finally throws `ReferenceError`.
 3. The Annex-B `Object.prototype.__proto__` setter throws when immutable `[[SetPrototypeOf]]` returns
-   false, while same-prototype requests remain successful.
+ false, while same-prototype requests remain successful.
 4. Bound OrdinaryHasInstance re-enters `InstanceofOperator`, preserving a target's custom
-   `@@hasInstance`; bound native-source fallback is valid anonymous NativeFunction syntax.
+ `@@hasInstance`; bound native-source fallback is valid anonymous NativeFunction syntax.
 5. Static-method source spans exclude the `static` prefix and intervening comments while retaining
-   `async`, `get`, `set`, and generator markers. Explicit class constructors stringify as the whole
-   class, AsyncGeneratorFunction retains its correct intrinsic/dynamic source, and
-   `Object.prototype` uses the immutable-prototype exotic.
+ `async`, `get`, `set`, and generator markers. Explicit class constructors stringify as the whole
+ class, AsyncGeneratorFunction retains its correct intrinsic/dynamic source, and
+ `Object.prototype` uses the immutable-prototype exotic.
 6. The final documentation review corrected the unmapped-arguments contract: `callee` is poisoned;
-   `caller` is absent rather than another poison accessor.
+ `caller` is absent rather than another poison accessor.
 7. Final adversarial review found the source backend omitted exact source text for nested block and
-   switch function declarations. Both eager-emitter call sites now pass the declaration source span,
-   and focused off/eager regressions cover both paths.
+ switch function declarations. Both eager-emitter call sites now pass the declaration source span,
+ and focused off/eager regressions cover both paths.
 
 Two apparent review findings were rejected after checking the normative behavior and Test262
 assertions. An implicit/default class constructor may use the accepted native-function source
@@ -670,28 +670,28 @@ resumption in `Source/JavaScriptCore/builtins/GeneratorPrototype.js` and compila
 the delegation star while parsing the expression after it. Bun's `test/cli/run/syntax.test.ts`
 provides public runtime smoke for generator syntax, `yield`, `yield*`,
 try/finally, prototypes, for-of, dynamic functions, and generator methods. These references define
-observable behavior only; Clun implements it independently in GPL-3.0-or-later Common Lisp.
+observable behavior only; Clun implements it independently in MIT Common Lisp.
 
 The current failures reduce to four shared defects:
 
 1. `src/engine/async/generator.lisp` creates only `%GeneratorPrototype%`. It omits the callable and
-   constructable `%GeneratorFunction%` constructor, the ordinary non-callable
-   `%GeneratorFunction.prototype%`, their descriptors and tags, and
-   `%GeneratorPrototype%.constructor`. `instantiate-function` consequently gives synchronous
-   generator functions `%Function.prototype%`, so reflection, dynamic construction, default
-   prototypes, source text, and subclassing all observe the wrong graph.
+ constructable `%GeneratorFunction%` constructor, the ordinary non-callable
+ `%GeneratorFunction.prototype%`, their descriptors and tags, and
+ `%GeneratorPrototype%.constructor`. `instantiate-function` consequently gives synchronous
+ generator functions `%Function.prototype%`, so reflection, dynamic construction, default
+ prototypes, source text, and subclassing all observe the wrong graph.
 2. Generator methods have semantic function kind `:generator` but syntactic kind `:method`.
-   `instantiate-function` keys own `.prototype` creation from the latter, so object and class
-   generator methods incorrectly omit their required fresh prototype object.
+ `instantiate-function` keys own `.prototype` creation from the latter, so object and class
+ generator methods incorrectly omit their required fresh prototype object.
 3. `parse-yield` applies ordinary-yield line-termination after consuming `*`, rejecting the legal
-   `yield *\n expression` form. `parse-function` also parses a nested ordinary function expression's
-   name under the enclosing generator's `Yield` context, rejecting sloppy `(function yield(){})`.
+ `yield *\n expression` form. `parse-function` also parses a nested ordinary function expression's
+ name under the enclosing generator's `Yield` context, rejecting sloppy `(function yield(){})`.
 4. `%yield-delegate` extracts `IteratorValue` from every incomplete inner result and
-   `%generator-step` synthesizes a new `{ value, done: false }` object. The language requires the
-   validated inner result object itself to be forwarded while incomplete, without normalizing its
-   `done` property or touching its `value` getter. Delegated `throw` and `return` also use raw
-   property reads instead of `GetMethod`, conflating missing and non-callable methods and risking
-   incorrect iterator-close precedence.
+ `%generator-step` synthesizes a new `{ value, done: false }` object. The language requires the
+ validated inner result object itself to be forwarded while incomplete, without normalizing its
+ `done` property or touching its `value` getter. Delegated `throw` and `return` also use raw
+ property reads instead of `GetMethod`, conflating missing and non-callable methods and risking
+ incorrect iterator-close precedence.
 
 #### 6.4.2 Implementation shape
 
@@ -848,25 +848,25 @@ resumes only a resumable generator, and drains completion through promise jobs i
 falls back to that wrapper, and emits the `for await` close path. Shared iterator operations remain in
 `Source/JavaScriptCore/runtime/IteratorOperations.h/.cpp`. Clun adopts that state/queue/wrapper scheme only;
 it does not copy JSC source, storage layout, built-in code, or Bun parser code. The implementation is
-independent GPL-3.0-or-later Common Lisp and is judged by observable Test262 behavior.
+independent MIT Common Lisp and is judged by observable Test262 behavior.
 
 The immutable dev.5 implementation has four shared defects:
 
 1. `js-async-generator` stores only a coroutine and a `done` bit. `%async-gen-step` immediately drives
-   each call, so concurrent `next`/`return`/`throw` requests can resume an executing coroutine and have no
-   per-request promise capability or FIFO settlement order. `this-async-generator` throws before a
-   promise exists, so invalid receivers escape synchronously instead of returning rejected promises.
+ each call, so concurrent `next`/`return`/`throw` requests can resume an executing coroutine and have no
+ per-request promise capability or FIFO settlement order. `this-async-generator` throws before a
+ promise exists, so invalid receivers escape synchronously instead of returning rejected promises.
 2. `%async-gen-drive` resolves a yielded iterator-result immediately and marks return/throw completion
-   directly. It does not adopt ordinary yielded values before exposing them, inject rejected yields at the
-   suspended expression, await `.return()` values in start/yield/completed states, or drain queued requests
-   after completion.
+ directly. It does not adopt ordinary yielded values before exposing them, inject rejected yields at the
+ suspended expression, await `.return()` values in start/yield/completed states, or drain queued requests
+ after completion.
 3. `get-iterator` represents async-from-sync as a boolean beside the original synchronous iterator record.
-   It has no wrapper object with promise-returning `next`/`return`/`throw`, so wrapper identity, poisoned
-   result access, rejection, missing-method, and close precedence cannot be expressed once and reused.
+ It has no wrapper object with promise-returning `next`/`return`/`throw`, so wrapper identity, poisoned
+ result access, rejection, missing-method, and close precedence cannot be expressed once and reused.
 4. Async `yield*` asks for an ordinary iterator and suspends on a raw inner value without awaiting the
-   inner result promise or applying async-generator resumption rules. `for await` separately awaits and
-   performs best-effort cleanup under `ignore-errors`; it does not implement completion-aware
-   AsyncIteratorClose, including awaited return results and the distinct throw/non-throw precedence.
+ inner result promise or applying async-generator resumption rules. `for await` separately awaits and
+ performs best-effort cleanup under `ignore-errors`; it does not implement completion-aware
+ AsyncIteratorClose, including awaited return results and the distinct throw/non-throw precedence.
 
 #### 6.5.2 Implementation shape
 

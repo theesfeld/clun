@@ -25,4 +25,4 @@ commented sites, platform exclusions, and named cross-feature behavior such as B
 Special files are also explicit: Clun's router serves regular files and rejects FIFO/device routes fail-closed.
 
 The vendored sources retain Bun's MIT license. `BUN-LICENSE.md` is the upstream license text from the same
-checkout. Clun remains GPL-3.0-or-later.
+checkout. Clun remains MIT.

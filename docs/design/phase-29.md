@@ -12,7 +12,7 @@ The public contract is:
 
 ```js
 Clun.semver.satisfies(version, range) // boolean
-Clun.semver.order(a, b)               // -1 | 0 | 1
+Clun.semver.order(a, b) // -1 | 0 | 1
 ```
 
 `Bun.semver` is the upstream behavioral shape. Clun exposes the object on its existing `Clun`
@@ -79,16 +79,16 @@ function properties. This matches Bun's observable `Object.keys` and method desc
 the non-enumerable convention used by many prototype methods:
 
 - Both methods first require two supplied arguments and otherwise throw a catchable JavaScript
-  `Error` with Bun's `Expected two arguments` message.
+ `Error` with Bun's `Expected two arguments` message.
 - `satisfies(version, range)` then performs JavaScript `ToString` left-to-right, applies the same
-  narrow single-`=` version-prefix option, and calls `clun.install:version-satisfies`; invalid
-  version/range or non-ASCII inputs return the JavaScript boolean `false`.
+ narrow single-`=` version-prefix option, and calls `clun.install:version-satisfies`; invalid
+ version/range or non-ASCII inputs return the JavaScript boolean `false`.
 - `order(a, b)` then performs JavaScript `ToString` left-to-right, accepts Bun's observed single
-  optional `=` prefix through an explicit parser option, and otherwise uses the strict shared
-  parser before `clun.install:version-compare`; the integer result is returned as a JavaScript number. An
-  `invalid-version` condition is translated to a catchable JavaScript `Error` rather than escaping
-  as a host Common Lisp condition. If either coerced string is non-ASCII, the method returns `0`
-  before parsing, matching the pinned Bun bridge.
+ optional `=` prefix through an explicit parser option, and otherwise uses the strict shared
+ parser before `clun.install:version-compare`; the integer result is returned as a JavaScript number. An
+ `invalid-version` condition is translated to a catchable JavaScript `Error` rather than escaping
+ as a host Common Lisp condition. If either coerced string is non-ASCII, the method returns `0`
+ before parsing, matching the pinned Bun bridge.
 
 The bridge coerces the Common Lisp comparison integer to `double-float`; returning the host integer
 directly would expose a JavaScript BigInt in Clun's value model. Fixtures assert both the values and
@@ -112,20 +112,20 @@ deleted through `Reflect`.
 The phase uses four complementary layers:
 
 1. The existing Lisp SemVer suite continues to run every applicable vendored node-semver fixture
-   against the shared engine. This is the full parser/range regression layer and remains part of
-   `make test`.
+ against the shared engine. This is the full parser/range regression layer and remains part of
+ `make test`.
 2. Runtime tests evaluate JavaScript in a real Clun realm. They cover object/method presence,
-   argument-count checks, left-to-right string coercion, invalid/non-ASCII behavior, error
-   catchability, prerelease precedence, ignored build metadata, and representative exact/caret/
-   tilde/hyphen/x/star/OR ranges.
+ argument-count checks, left-to-right string coercion, invalid/non-ASCII behavior, error
+ catchability, prerelease precedence, ignored build metadata, and representative exact/caret/
+ tilde/hyphen/x/star/OR ranges.
 3. `tests/compat/utility.semver/basic.js` crosses the built `build/clun` process boundary and checks
-   the pinned Bun public shape, valid behavior, coercion, errors, and measured strict divergences with
-   exact output.
+ the pinned Bun public shape, valid behavior, coercion, errors, and measured strict divergences with
+ exact output.
 4. `tests/compat/utility.semver/corpus.js` drives every applicable strict public `satisfies`/`order`
-   row from the vendored node-semver fixtures through `build/clun`. Rows requiring the non-public
-   `loose` or `includePrerelease` options are explicitly outside Bun's two-method API. The full
-   15-file engine corpus, including increment/truncate/outside/intersection operations that Bun does
-   not expose here, remains mandatory under `make test`.
+ row from the vendored node-semver fixtures through `build/clun`. Rows requiring the non-public
+ `loose` or `includePrerelease` options are explicitly outside Bun's two-method API. The full
+ 15-file engine corpus, including increment/truncate/outside/intersection operations that Bun does
+ not expose here, remains mandatory under `make test`.
 
 `compat/evidence.tsv` registers the public, Bun-edge, and node-corpus executable fixtures for all four
 release targets and a static trace to the full engine suite.
@@ -187,17 +187,17 @@ reconciliation/deployment does not rebuild native release artifacts.
 The implementation is complete only when all of the following are true:
 
 1. `make compat FEATURE=utility.semver` passes the pinned Bun public differential and every applicable
-   strict public node-semver row through `build/clun`.
+ strict public node-semver row through `build/clun`.
 2. The complete existing 15-file installer/node-semver engine suite passes with no regression under
-   `make test`.
+ `make test`.
 3. `make build`, `make test`, and `make purity` pass.
 4. `make docs-check`, `make public-claims-check`, and roadmap checks pass.
 5. `BASE_SHA=<phase-base> HEAD_SHA=<candidate> make version-transition-check` accepts the exact
-   `minor` dev.7-to-dev.8 transition recorded on issue #3.
+ `minor` dev.7-to-dev.8 transition recorded on issue #3.
 6. Compatibility CI executes the public fixture successfully on `linux-x64`, `linux-arm64`,
-   `darwin-x64`, and `darwin-arm64`, producing receipts tied to the exact candidate commit.
+ `darwin-x64`, and `darwin-arm64`, producing receipts tied to the exact candidate commit.
 7. Review confirms that invalid inputs cannot escape as host conditions, the runtime does not fork
-   the parser, and the ledger does not overclaim a `Bun` global/module alias.
+ the parser, and the ledger does not overclaim a `Bun` global/module alias.
 
 ## 8. Explicit non-goals and handoff
 

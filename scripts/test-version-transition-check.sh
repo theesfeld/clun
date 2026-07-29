@@ -361,7 +361,7 @@ write_release_ledger() {
   fixture_file=$5
   printf '%b\n' \
     'release_id\tversion\tasdf_core\tinstaller_default\ttag\tpublication_state\tlicense\tactive_phase\tissue\tsemver_impact\tprevious_version\tversion_source\tasdf_source\tinstaller_source\trelease_commit' \
-    "clun-$fixture_version\t$fixture_version\t1.3.0\t$fixture_installer\tv$fixture_version\t$fixture_state\tGPL-3.0-or-later\t31\t91\tpatch\t1.3.0-dev.1\tsrc/version.lisp\tclun.asd\tsite/install\t$fixture_commit" \
+    "clun-$fixture_version\t$fixture_version\t1.3.0\t$fixture_installer\tv$fixture_version\t$fixture_state\tMIT\t31\t91\tpatch\t1.3.0-dev.1\tsrc/version.lisp\tclun.asd\tsite/install\t$fixture_commit" \
     >"$fixture_file"
 }
 

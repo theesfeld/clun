@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- Relicense product source to MIT (vendored third-party licenses unchanged)
+
+
 All notable changes to Clun are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
@@ -118,160 +125,160 @@ or assets and are not installable release checkpoints.
 ### Added
 
 - `clun publish` â pure-CL pack + authenticated npm registry publish (`NPM_TOKEN` /
-  `.npmrc` `_authToken`), with `--dry-run` packing a `package/`-prefixed tarball and SRI
-  (Issue #262).
+ `.npmrc` `_authToken`), with `--dry-run` packing a `package/`-prefixed tarball and SRI
+ (Issue #262).
 
 ### Changed
 
 - Promote `package-manager.npm` to **Yes**: install + publish surfaces complete on the
-  pure-CL registry client (30 Yes / 0 Partial / 0 No).
+ pure-CL registry client (30 Yes / 0 Partial / 0 No).
 
 ## [0.2.0-dev.7] - 2026-07-20
 
 ### Added
 
 - User native-addon load/hook: real `.so` / `.dylib` / `.node` open + typed call through
-  a narrow allowlisted machine boundary; pure-CL host processes specs, marshalling, and
-  registry (Issue #265 / Phase 48).
+ a narrow allowlisted machine boundary; pure-CL host processes specs, marshalling, and
+ registry (Issue #265 / Phase 48).
 - ANSI-colored CLI help/version/update status (honors `NO_COLOR` and non-TTY).
 - Braille spinner animation during `clun --update` asset download when attached to a TTY.
 
 ### Changed
 
 - Promote `security.encrypted-secrets` to **Yes**: pure-CL AES-256-GCM vault is the
-  purity-compatible full-port surface (exceeds Bun with has/list/clear). OS Keychain
-  FFI is out of scope, not a Partial hold.
+ purity-compatible full-port surface (exceeds Bun with has/list/clear). OS Keychain
+ FFI is out of scope, not a Partial hold.
 - Promote `runtime.native-addons` to **Yes**: purity constrains Clun implementation, not
-  user-loaded machine code; Clun processes and hooks addons in Common Lisp.
+ user-loaded machine code; Clun processes and hooks addons in Common Lisp.
 
 ## [0.2.0-dev.6] - 2026-07-20
 
 ### Fixed
 
 - Stop pure-tls system CA bundle loading from emitting a WARNING for every
-  unparseable PEM (legacy serial/GeneralizedTime/SAN forms). Trust-store skips
-  match OpenSSL behavior; handshake verification remains fail-closed.
+ unparseable PEM (legacy serial/GeneralizedTime/SAN forms). Trust-store skips
+ match OpenSSL behavior; handshake verification remains fail-closed.
 
 ## [0.2.0-dev.5] - 2026-07-20
 
 ### Fixed
 
 - Stop release packaging validation from false-failing under `set -o pipefail` when
-  `tar -tzf` receives SIGPIPE after an early `grep` match for `bin/clun` (Linux x64/arm64
-  Release archives contained the entry but still failed closed).
+ `tar -tzf` receives SIGPIPE after an early `grep` match for `bin/clun` (Linux x64/arm64
+ Release archives contained the entry but still failed closed).
 
 ### Changed
 
 - Advance the recovery candidate past immutable tag-only `v0.2.0-dev.4` (Linux packaging
-  validation false-failed; Darwin assets built but publish was skipped); verified installer
-  remains `v0.1.0-dev.21` until publication of `v0.2.0-dev.5` assets succeeds.
+ validation false-failed; Darwin assets built but publish was skipped); verified installer
+ remains `v0.1.0-dev.21` until publication of `v0.2.0-dev.5` assets succeeds.
 
 ## [0.2.0-dev.4] - 2026-07-20
 
 ### Fixed
 
 - Package release archives as portable ustar without macOS AppleDouble noise so the
-  pure-CL extractor materializes `bin/clun` on every platform.
+ pure-CL extractor materializes `bin/clun` on every platform.
 - Raise packaged-updater and self-update asset ceilings to 300 MiB for full SBCL
-  bundles.
+ bundles.
 - Auto-create `package.json` on empty-directory `clun add` / `clun install <pkg>`.
 - Repair site compatibility intro baseline-refresh contract for CI/Docs gates.
 
 ### Changed
 
 - Advance the recovery candidate past immutable tag-only `v0.2.0-dev.2` (Release
-  gates failed before assets); verified installer remains `v0.1.0-dev.21` until
-  publication of `v0.2.0-dev.4` assets succeeds.
+ gates failed before assets); verified installer remains `v0.1.0-dev.21` until
+ publication of `v0.2.0-dev.4` assets succeeds.
 
 ## [0.2.0-dev.2] - 2026-07-19
 
 ### Changed
 
 - Advance the recovery candidate without moving or reusing immutable,
-  tag-only `v0.2.0-dev.1`; the verified installer remains pinned to published
-  `v0.1.0-dev.21` until the new four-platform assets pass every release gate.
+ tag-only `v0.2.0-dev.1`; the verified installer remains pinned to published
+ `v0.1.0-dev.21` until the new four-platform assets pass every release gate.
 - Correct README and Pages status to the verified current 19,848-assertion
-  Common Lisp suite and make the still-missing npm publish and full registry-auth
-  support visible alongside the working add/install path.
+ Common Lisp suite and make the still-missing npm publish and full registry-auth
+ support visible alongside the working add/install path.
 
 ### Fixed
 
 - Commit concurrently downloaded package tarballs to `node_modules` in
-  deterministic ancestor-before-descendant order, independent of lockfile JSON
-  member order, so a later parent extraction cannot erase an already-materialized
-  nested dependency. Queue completed bodies through the verified cache or a
-  cleaned disk spool instead of retaining an unbounded ready set in memory.
+ deterministic ancestor-before-descendant order, independent of lockfile JSON
+ member order, so a later parent extraction cannot erase an already-materialized
+ nested dependency. Queue completed bodies through the verified cache or a
+ cleaned disk spool instead of retaining an unbounded ready set in memory.
 - Regenerate three dependency-bearing registry fixtures with valid package
-  manifests so install-layout tests verify identity from extracted bytes.
+ manifests so install-layout tests verify identity from extracted bytes.
 
 ## [0.2.0-dev.1] - 2026-07-19
 
 ### Added
 
 - Add public Releases Atom-feed fallback for prerelease-only discovery when
-  the unauthenticated GitHub Releases API returns 403.
+ the unauthenticated GitHub Releases API returns 403.
 - Add packaged full-bundle updater smoke coverage against real release archives.
 
 ### Changed
 
 - Change the default installation destination to `~/.local/bin/clun`, with
-  complete versioned bundles stored below the XDG data root.
+ complete versioned bundles stored below the XDG data root.
 - Bind no-argument installs to the ledger's verified boundary; explicit
-  `INSTALL_VERSION=latest` retains redirect-first dynamic discovery.
+ `INSTALL_VERSION=latest` retains redirect-first dynamic discovery.
 - Select the highest suitable SemVer from fallback release listings rather
-  than trusting chronological response order.
+ than trusting chronological response order.
 - Update an installation by staging and validating the complete release
-  bundle, then atomically switching the installer-managed stable launcher.
+ bundle, then atomically switching the installer-managed stable launcher.
 - Record the distribution-contract break as `major` intent while publishing
-  it on the conventional pre-1.0 `0.2.0` minor core.
+ it on the conventional pre-1.0 `0.2.0` minor core.
 - Classify npm package management as Partial until a real publish command and
-  the remaining registry-auth/publishing corpus exist; do not conflate working
-  public add/install with the complete Bun package-manager surface.
+ the remaining registry-auth/publishing corpus exist; do not conflate working
+ public add/install with the complete Bun package-manager surface.
 
 ### Fixed
 
 - Emit one typed fatal TLS alert for local TLS 1.2 failures and TLS 1.3
-  certificate failures, never answer peer fatal alerts, and reciprocate a valid
-  `close_notify` exactly once with independent receive/send state.
+ certificate failures, never answer peer fatal alerts, and reciprocate a valid
+ `close_notify` exactly once with independent receive/send state.
 - Preserve Linux wrapper loaders and `libexec/clun` instead of replacing only
-  the running core image.
+ the running core image.
 - Resolve bare `argv[0]` only through `PATH`, preventing an updater from
-  overwriting an unrelated file in the current directory.
+ overwriting an unrelated file in the current directory.
 - Preserve shell-profile symlinks whose canonical targets remain inside HOME;
-  externally managed targets are reported and left unchanged.
+ externally managed targets are reported and left unchanged.
 - Retain the prior launcher and bundle on checksum, archive, version, layout,
-  executable, or post-activation validation failure.
+ executable, or post-activation validation failure.
 - Ship public npm metadata and tarball access through the experimental bounded pure-CL TLS
-  1.3-to-1.2 fallback, and exercise both `clun add <pkg>` and `clun install
-  <pkg>`, SRI, package execution, and byte-identical frozen offline reinstalls
-  in the live, non-hermetic smoke required by Compatibility and Release. The
-  frozen proof makes the registry unreachable and supplies an explicit empty TLS
-  trust source so public tarballs cannot be downloaded as a fallback; the
-  bounded WebPKI hardening recorded below now protects the authenticated path.
+ 1.3-to-1.2 fallback, and exercise both `clun add <pkg>` and `clun install
+ <pkg>`, SRI, package execution, and byte-identical frozen offline reinstalls
+ in the live, non-hermetic smoke required by Compatibility and Release. The
+ frozen proof makes the registry unreachable and supplies an explicit empty TLS
+ trust source so public tarballs cannot be downloaded as a fallback; the
+ bounded WebPKI hardening recorded below now protects the authenticated path.
 - Make `clun install <pkgâ¦>` a Bun-compatible alias for adding the named
-  dependencies and installing them; retain no-argument `clun install` for the
-  existing manifest.
+ dependencies and installing them; retain no-argument `clun install` for the
+ existing manifest.
 
 ### Security
 
 - Fetch updater metadata and assets through direct pure-Common-Lisp HTTPS/TLS;
-  no updater path synthesizes or evaluates JavaScript.
+ no updater path synthesizes or evaluates JavaScript.
 - Require the archive `VERSION` and staged executable version to match the
-  requested immutable tag exactly before activation.
+ requested immutable tag exactly before activation.
 - Harden HTTPS identity and path validation with SAN-only DNS/IP matching,
-  2048â8192-bit RSA server keys, and an eight-certificate ordered-path bound.
+ 2048â8192-bit RSA server keys, and an eight-certificate ordered-path bound.
 - Enforce non-anchor CA EKU constraints and reject malformed/empty KU/EKU,
-  unsupported critical policy semantics, and every path containing
-  `nameConstraints` until cumulative subtree processing is implemented.
+ unsupported critical policy semantics, and every path containing
+ `nameConstraints` until cumulative subtree processing is implemented.
 - Consume DER, Certificate/TBSCertificate, Name, Extension, validity,
-  AlgorithmIdentifier, SPKI, RSA, and ECDSA structures exactly; reject
-  noncanonical RDN ordering and EC field coordinates, off-curve EC public keys,
-  unsupported SAN GeneralName choices, noncanonical signature representatives,
-  oversized/infeasible or declaration-mismatched RSA-PSS salts, and mismatched
-  RSA-PSS key restrictions. TLS CertificateVerify fixes PSS salt length to the
-  selected hash output length as required by the protocol.
+ AlgorithmIdentifier, SPKI, RSA, and ECDSA structures exactly; reject
+ noncanonical RDN ordering and EC field coordinates, off-curve EC public keys,
+ unsupported SAN GeneralName choices, noncanonical signature representatives,
+ oversized/infeasible or declaration-mismatched RSA-PSS salts, and mismatched
+ RSA-PSS key restrictions. TLS CertificateVerify fixes PSS salt length to the
+ selected hash output length as required by the protocol.
 - Bound DER and TLS certificate materialization by bytes, nesting, node count,
-  chain entries, and per-CertificateEntry extension count before allocation.
+ chain entries, and per-CertificateEntry extension count before allocation.
 
 ## [0.1.0-dev.70] - 2026-07-19
 
@@ -279,32 +286,32 @@ or assets and are not installable release checkpoints.
 
 - Add a root Keep a Changelog record covering every published checkpoint.
 - Include the built-in `--update`, `update`, and non-mutating `check-update`
-  surfaces staged by the tag-only dev.69 candidate.
+ surfaces staged by the tag-only dev.69 candidate.
 
 ### Changed
 
 - Carry the Phase 82 candidate forward from immutable, tag-only
-  `v0.1.0-dev.69` into a new recovery slot without moving or reusing a tag.
+ `v0.1.0-dev.69` into a new recovery slot without moving or reusing a tag.
 - Preserve `v0.1.0-dev.21` as the installer default until dev.70 assets are
-  published and verified.
+ published and verified.
 - Correct public capability claims to the evidence-backed 28 Yes / 2 Partial /
-  0 No snapshot and enforce complete canonical Issue labels.
+ 0 No snapshot and enforce complete canonical Issue labels.
 
 ### Fixed
 
 - Resolve workspace-link endpoints canonically so relative package links remain
-  valid through Darwin's `/tmp` to `/private/tmp` alias.
+ valid through Darwin's `/tmp` to `/private/tmp` alias.
 - Make CookieMap scaling evidence deterministic with rotated paired trials and
-  median ratios while retaining the strict `< 3.25` timing bound and allocation
-  checks.
+ median ratios while retaining the strict `< 3.25` timing bound and allocation
+ checks.
 - Make blocking HTTPS frame-aware so complete Content-Length and chunked bodies
-  finish without waiting for EOF, while truncated and until-close bodies still
-  fail closed without authenticated `close_notify`.
+ finish without waiting for EOF, while truncated and until-close bodies still
+ fail closed without authenticated `close_notify`.
 
 ### Security
 
 - Remove the image-provided untrusted `aws/tap` before Homebrew dependency
-  resolution on Darwin compatibility and release runners.
+ resolution on Darwin compatibility and release runners.
 
 ## [0.1.0-dev.21] - 2026-07-17
 
@@ -345,7 +352,7 @@ or assets and are not installable release checkpoints.
 ### Fixed
 
 - Recover the Phase 31 YAML API and module-loading release after the tag-only
-  dev.15 attempt.
+ dev.15 attempt.
 
 ## [0.1.0-dev.14] - 2026-07-17
 

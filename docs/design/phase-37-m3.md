@@ -39,15 +39,15 @@ All seven methods:
 
 1. Require the receiver to be a Set (`[[SetData]]` / `js-set-p`).
 2. Call `GetSetRecord(other)`: object with `size` (ToNumber → NaN TypeError,
-   negative RangeError), callable `has`, callable `keys` — all observed even
-   when a given algorithm never invokes `has` or `keys`.
+ negative RangeError), callable `has`, callable `keys` — all observed even
+ when a given algorithm never invokes `has` or `keys`.
 3. Accept Set-like objects and Maps; reject arrays and primitives.
 4. Compare `SetDataSize(this)` with `otherRecord.[[Size]]` to choose the
-   cheaper iteration strategy for intersection / difference / isDisjointFrom.
+ cheaper iteration strategy for intersection / difference / isDisjointFrom.
 5. Canonicalize keys with SameValueZero (`-0` → `+0`).
 6. Constructing methods return an ordinary Set with `%Set.prototype%` — never
-   `Symbol.species` and never a subclass instance. They write `[[SetData]]`
-   directly and never call `Set.prototype.add`.
+ `Symbol.species` and never a subclass instance. They write `[[SetData]]`
+ directly and never call `Set.prototype.add`.
 
 | Method | Core contract |
 | --- | --- |
@@ -63,17 +63,17 @@ All seven methods:
 
 - Extend `src/engine/builtins-collections.lisp` only.
 - Reuse existing map/set data (`md-*`), SameValueZero keys, iterator records,
-  and `IteratorClose` / `GetIteratorFromMethod` via `get-iterator-record`.
+ and `IteratorClose` / `GetIteratorFromMethod` via `get-iterator-record`.
 - Pure Common Lisp; no CFFI, fixture-specific dispatch, or skip-list changes.
 
 ## Evidence and gates
 
 1. `make phase-37-m3-check`: 151/151 pass, 0 fail/skip/tmo/crash.
 2. Focused Lisp assertions cover descriptors, combinators, Set-like objects,
-   species/subclass, `-0`, and GetSetRecord errors.
+ species/subclass, `-0`, and GetSetRecord errors.
 3. `make build`, focused tests, `make purity` pass.
 4. Phase 37 stays open; measured residual ownership after m3 is **452** fail
-   rows when pass-list is reclassified (603 − 151), still not a matrix Yes.
+ rows when pass-list is reclassified (603 − 151), still not a matrix Yes.
 
 ## SemVer
 

@@ -28,7 +28,7 @@ leaving SQL drivers unimplemented or claiming soft Yes.
 ## Non-goals for this unit
 
 - Full SQLite B-tree file format compatibility with upstream libsqlite binaries
-  (Clun uses a pure-CL on-disk format; the **API** matches Bun.SQL SQLite)
+ (Clun uses a pure-CL on-disk format; the **API** matches Bun.SQL SQLite)
 - Every PG type OID / COPY binary protocol variant (extensible; core query path Yes)
 
 ## Evidence

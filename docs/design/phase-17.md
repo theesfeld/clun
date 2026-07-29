@@ -10,29 +10,29 @@ plateau; examples/serve.ts smoke logged.
 ## 1. Layering
 
 - **`src/net/http-parser.lisp` (clun.net, pure CL, no engine)** — an incremental request parser fed the
-  octets the Phase-16 socket delivers. Highest §6 risk (adversarial lengths) → unit-tested standalone.
+ octets the Phase-16 socket delivers. Highest §6 risk (adversarial lengths) → unit-tested standalone.
 - **`src/runtime/web/` (clun.runtime, engine-facing)** — the JS classes `Headers`, `Request`, `Response`
-  (installed as realm globals; reused by fetch in Phase 18).
+ (installed as realm globals; reused by fetch in Phase 18).
 - **`src/runtime/clun-serve.lisp` (clun.runtime)** — `Clun.serve`: wires the socket layer + parser + JS
-  classes + the user's JS `fetch` handler; owns keep-alive, limits, graceful stop, 503 shedding.
+ classes + the user's JS `fetch` handler; owns keep-alive, limits, graceful stop, 503 shedding.
 
 ## 2. The parser — "accumulate then parse" (robust over a byte-FSM)
 
 `make-http-parser (&key (max-header 16384) (max-body (* 100 1024 1024)))`; `parser-feed (p octets) →
 (values event data)`, event ∈ `:need-more | :request | :error`.
 - Accumulate delivered octets into an adjustable buffer. **Headers phase:** scan for CRLFCRLF. Not found
-  and buffer > max-header → `(:error 431)`. Found at p → parse the request line (`METHOD SP target SP
-  HTTP/1.x`; reject anything else → 400) + header lines (`Name: value`, folding rejected, dup headers
-  comma-joined; a bad line → 400). Determine framing: `Transfer-Encoding: chunked` (chunked) else
-  `Content-Length: N` (validated non-negative integer; bad → 400; > max-body → 413) else no body.
+ and buffer > max-header → `(:error 431)`. Found at p → parse the request line (`METHOD SP target SP
+ HTTP/1.x`; reject anything else → 400) + header lines (`Name: value`, folding rejected, dup headers
+ comma-joined; a bad line → 400). Determine framing: `Transfer-Encoding: chunked` (chunked) else
+ `Content-Length: N` (validated non-negative integer; bad → 400; > max-body → 413) else no body.
 - **Body phase:** content-length → wait for N bytes past the header terminator; chunked → de-chunk
-  (hex size CRLF data CRLF … `0` CRLF CRLF; a size > remaining-body-budget → 413; malformed → 400). When
-  the body is complete → `(:request REQ)`; leftover bytes (a pipelined next request) stay buffered and the
-  parser resets for the next request (keep-alive). Everything is bounded by max-header + max-body — no
-  unbounded growth, never a crash (§6): every malformed shape is a classified `:error <code>`.
+ (hex size CRLF data CRLF … `0` CRLF CRLF; a size > remaining-body-budget → 413; malformed → 400). When
+ the body is complete → `(:request REQ)`; leftover bytes (a pipelined next request) stay buffered and the
+ parser resets for the next request (keep-alive). Everything is bounded by max-header + max-body — no
+ unbounded growth, never a crash (§6): every malformed shape is a classified `:error <code>`.
 - `REQ`: method, target, version, headers (alist of lowercased-name . value), body (octet vector),
-  keep-alive-p (HTTP/1.1 default keep-alive unless `Connection: close`; HTTP/1.0 close unless
-  `Connection: keep-alive`).
+ keep-alive-p (HTTP/1.1 default keep-alive unless `Connection: close`; HTTP/1.0 close unless
+ `Connection: keep-alive`).
 
 ## 3. Web classes (`Headers`/`Request`/`Response`)
 

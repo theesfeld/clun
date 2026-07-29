@@ -1,2 +1,2 @@
 release_id	version	asdf_core	installer_default	tag	publication_state	license	active_phase	issue	semver_impact	previous_version	version_source	asdf_source	installer_source	release_commit
-clun-0.3.0	0.3.0	0.3.0	v0.3.0	v0.3.0	published	GPL-3.0-or-later	26	58	minor	0.2.2	src/version.lisp	clun.asd	site/install	ef20681c87864f554d8224f69743cc8488e38176
+clun-0.3.0	0.3.0	0.3.0	v0.3.0	v0.3.0	published	MIT	26	58	minor	0.2.2	src/version.lisp	clun.asd	site/install	ef20681c87864f554d8224f69743cc8488e38176

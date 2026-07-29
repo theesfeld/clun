@@ -37,16 +37,16 @@ call.
 
 - Password and encoded-hash inputs are bounded before parsing or allocation.
 - Argon2 generation and verification enforce the public minimums plus explicit
-  memory/time ceilings before allocating a work area.
+ memory/time ceilings before allocating a work area.
 - Argon2 generation uses one lane, exactly as the pinned public API does;
-  verification schedules up to 64 encoded PHC lanes sequentially with the
-  specification's slice barriers and cross-lane reference indexing.
+ verification schedules up to 64 encoded PHC lanes sequentially with the
+ specification's slice barriers and cross-lane reference indexing.
 - Bcrypt costs are validated before exponentiation; malformed MCF/PHC strings
-  fail without entering the KDF.
+ fail without entering the KDF.
 - Async jobs are admitted only through the fixed worker pool, so submissions do
-  not create unbounded threads.
+ not create unbounded threads.
 - Salt, derived-key, and copied password vectors are overwritten where the
-  implementation retains ownership.
+ implementation retains ownership.
 
 ## Evidence
 

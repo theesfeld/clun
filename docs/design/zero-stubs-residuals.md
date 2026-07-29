@@ -38,5 +38,5 @@ Only **documented intentional design no-ops** remain (not incomplete-but-Yes):
 ## Notes
 
 - Depth limits (full HPACK peer interop, full CDP, V8-precise coverage maps) are
-  progressive quality — exported APIs perform real work, not ignore→undefined.
+ progressive quality — exported APIs perform real work, not ignore→undefined.
 - **Qualified Yes is a No** — this inventory does not soft-Yes incomplete exports.

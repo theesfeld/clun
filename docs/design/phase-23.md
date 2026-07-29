@@ -12,9 +12,9 @@ drift errors; an opt-in logged live `clun add ms` smoke.
 ## Milestones (a ~4k-LOC phase; one committed-green milestone per iteration)
 
 1. **Install engine** (this milestone): a JSON writer; the resolver; placement (hoist); the linker
-   (download → cache → extract → link + bin); the lockfile; a top-level `install`; a hermetic CL-level e2e.
+ (download → cache → extract → link + bin); the lockfile; a top-level `install`; a hermetic CL-level e2e.
 2. **CLI wiring**: `clun install`/`add`/`remove` dispatch, package.json editing (`-d/-D`, `-E`), flags
-   (`--dry-run`/`--production`/`--no-save`/`--frozen-lockfile`), `clun run <app>` e2e, live smoke.
+ (`--dry-run`/`--production`/`--no-save`/`--frozen-lockfile`), `clun run <app>` e2e, live smoke.
 
 ## 1. JSON writer (`src/sys/json.lisp`, +`write-json`)
 
@@ -28,14 +28,14 @@ a trailing `.0`. No new dependency (PLAN §3.5: one hand-rolled JSON file).
 Breadth-first, highest-satisfying, cycle-safe, over the async registry client. `resolve-install (loop
 root-deps &key registry on-ok on-err)`:
 - `need-metadata name k` fetches `name`'s abbreviated metadata ONCE (cached per name; `fetch-metadata-async`)
-  then calls `k`; a pending counter fires `on-ok` when every in-flight fetch has settled.
+ then calls `k`; a pending counter fires `on-ok` when every in-flight fetch has settled.
 - `resolve-edge parent name range`: pick the highest version in the metadata satisfying `range`
-  (`clun.install:version-satisfies` + `version-compare`; a `dist-tag` like `latest` resolves via
-  `dist-tags`); record an `inst-node` (name, version, resolved deps, dist tarball+integrity, bin) keyed
-  `name@version`; recurse into its deps. A `name@version` already resolved is reused (cycle-safe — the edge
-  is still recorded for placement, but resolution does not recurse again).
+ (`clun.install:version-satisfies` + `version-compare`; a `dist-tag` like `latest` resolves via
+ `dist-tags`); record an `inst-node` (name, version, resolved deps, dist tarball+integrity, bin) keyed
+ `name@version`; recurse into its deps. A `name@version` already resolved is reused (cycle-safe — the edge
+ is still recorded for placement, but resolution does not recurse again).
 - Output: `(values nodes edges)` — `nodes` = hash `name@version → inst-node`; `edges` = list of
-  `(parent-key name version)` (parent-key is `:root` or a `name@version`).
+ `(parent-key name version)` (parent-key is `:root` or a `name@version`).
 
 ## 3. Placement / hoist (`src/install/resolver.lisp`)
 
@@ -79,9 +79,9 @@ BYTE-IDENTICAL lock; assert `--frozen-lockfile` errors when a dep is bumped.
 ## 7. Risks / notes
 
 - Async resolution is a pending-counter work loop over `fetch-metadata-async`; a single `run-loop` drives
-  resolve + download. Extraction is blocking but fast (fixtures); it runs inline on the loop thread between
-  downloads (acceptable for v1; a worker offload is post-v1).
+ resolve + download. Extraction is blocking but fast (fixtures); it runs inline on the loop thread between
+ downloads (acceptable for v1; a worker offload is post-v1).
 - Placement is the subtle part; the diamond-conflict fixture is the gate's discriminator. A 3rd conflicting
-  version (post-v1) would need deeper nesting — v1 handles one level of nesting per name honestly.
+ version (post-v1) would need deeper nesting — v1 handles one level of nesting per name honestly.
 - The security-critical extraction is Phase 22 (already adversarially reviewed); this milestone's review
-  focuses on resolution correctness, hoist correctness, offline-reinstall determinism, and lock drift.
+ focuses on resolution correctness, hoist correctness, offline-reinstall determinism, and lock drift.

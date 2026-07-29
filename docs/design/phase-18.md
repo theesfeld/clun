@@ -7,13 +7,13 @@ timeouts within 1.5×; a URL corpus (WPT-derived subset).
 ## 1. Layers
 
 - **`src/runtime/web-url.lisp` (clun.runtime)** — the `URL` + `URLSearchParams` JS classes (a WHATWG URL
-  parser in CL) + `node:url` (legacy parse/format) + the existing fileURLToPath/pathToFileURL. Self-
-  contained + heavily unit-testable (no network).
+ parser in CL) + `node:url` (legacy parse/format) + the existing fileURLToPath/pathToFileURL. Self-
+ contained + heavily unit-testable (no network).
 - **`src/net/http-client.lisp` (clun.net, pure CL)** — a reactor HTTP/1.1 client over the Phase-16
-  `tcp-connect`: send a request, parse the response (a response parser added to http-parser.lisp),
-  de-chunk, gunzip (chipz), follow redirects, enforce timeouts, support abort. Callback-based.
+ `tcp-connect`: send a request, parse the response (a response parser added to http-parser.lisp),
+ de-chunk, gunzip (chipz), follow redirects, enforce timeouts, support abort. Callback-based.
 - **`src/runtime/web-fetch.lisp` (clun.runtime)** — the `fetch(input, init)` global tying URL + the client
-  + Headers/Request/Response (Phase 17) + AbortSignal (Phase 14) together; returns a `Promise<Response>`.
+ + Headers/Request/Response (Phase 17) + AbortSignal (Phase 14) together; returns a `Promise<Response>`.
 
 ## 2. URL parser (WHATWG subset)
 

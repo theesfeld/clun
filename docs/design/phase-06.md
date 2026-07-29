@@ -11,19 +11,19 @@ The plan's primary bet is regenerator-style AST→AST state-machine lowering; §
 fallback **deliberately and up front** (logged in DECISIONS). Rationale specific to this engine:
 
 - Clun compiles AST **directly to CL closures** that run on the real CL stack; its try/finally,
-  loops, labels, and TDZ are already implemented via CL `unwind-protect`/`catch`/`handler-case`
-  (emitter.lisp). State-machine lowering would require **reimplementing all of that a second time**
-  in resumable switch-state form with try-entry tables — the exact "try/finally × yield × return"
-  correctness risk the Risk Register flags, with silent-wrong-answer failure modes, on the critical
-  path of a phase whose gate is only ≥75% and whose real content is Promises + ESM.
+ loops, labels, and TDZ are already implemented via CL `unwind-protect`/`catch`/`handler-case`
+ (emitter.lisp). State-machine lowering would require **reimplementing all of that a second time**
+ in resumable switch-state form with try-entry tables — the exact "try/finally × yield × return"
+ correctness risk the Risk Register flags, with silent-wrong-answer failure modes, on the critical
+ path of a phase whose gate is only ≥75% and whose real content is Promises + ESM.
 - A coroutine runs the **ordinary** compiled body closure on a dedicated thread; `yield`/`await`
-  become plain calls that suspend via a semaphore handoff. try/finally × yield × return works **for
-  free** because the CL stack is preserved across suspension. ~150 LOC for the primitive vs
-  ~1500–2000 for lowering.
+ become plain calls that suspend via a semaphore handoff. try/finally × yield × return works **for
+ free** because the CL stack is preserved across suspension. ~150 LOC for the primitive vs
+ ~1500–2000 for lowering.
 - Cooperative single-heap-owner is preserved: strict semaphore alternation means exactly one of
-  {driver, coroutine} is runnable at any instant — never concurrent heap mutation.
+ {driver, coroutine} is runnable at any instant — never concurrent heap mutation.
 - Cost: two context switches per yield/await (slow). §3.1 rules this acceptable; generators are rare
-  and async is I/O-bound; **Phase 25** may revisit hot-path generators behind the same object contract.
+ and async is I/O-bound; **Phase 25** may revisit hot-path generators behind the same object contract.
 
 The one genuine liability — parked threads for never-finished generators in the 30k-test run — is
 mechanical (pool + teardown + finalizers), not a correctness risk.
@@ -32,7 +32,7 @@ mechanical (pool + teardown + finalizers), not a correctness risk.
 
 ```
 (defstruct coroutine thread (state :suspended-start) resume-sem yield-sem
-                     in-box out-box body realm)
+ in-box out-box body realm)
 ```
 Two `sb-thread:semaphore`s at count 0. **Strict alternation**: `coroutine-resume` (driver thread)
 sets `in-box=(mode . value)`, posts `resume-sem` (or lazily spawns the thread on first resume), then
@@ -43,9 +43,9 @@ sets `in-box=(mode . value)`, posts `resume-sem` (or lazily spawns the thread on
 Thread body (spawned lazily): **rebinds `*realm*` and re-enters `with-js-floats`** (both required —
 the coroutine runs outside the caller's dynamic extent), waits for the first resume, then
 ```
-(catch '%coroutine-return%                       ; .return(v) unwinds here through finalizers
-  (handler-case (cons :return (funcall body))    ; normal completion / return-tag value
-    (js-condition (c) (cons :throw (js-condition-value c)))))
+(catch '%coroutine-return% ; .return(v) unwinds here through finalizers
+ (handler-case (cons :return (funcall body)) ; normal completion / return-tag value
+ (js-condition (c) (cons :throw (js-condition-value c)))))
 ```
 `coroutine-suspend (co value)` (coroutine thread): `out-box=(:yield . value)`, post `yield-sem`, wait
 `resume-sem`, then dispatch the injection: `:next`→return value; `:throw`→`throw-js-value`; `:return`
@@ -64,25 +64,25 @@ existing gc-every-500 triggers finalizers.
 ## Emitter changes (`emitter.lisp`)
 
 - Thread `:generator`/`:async` from the parser flags through `compile-function-expr`, the
-  `function-node` decl branch, `global-instantiate`, block func-decls, `compile-arrow` (async only),
-  and methods into `compile-function-common` (`&key generator async`).
+ `function-node` decl branch, `global-instantiate`, block func-decls, `compile-arrow` (async only),
+ and methods into `compile-function-common` (`&key generator async`).
 - Reserve a hidden frame slot `%coro%` (like `%this%`) in generator/async functions; a dynamic
-  `*compiling-coro-kind*` tells the yield/await compilers their target.
+ `*compiling-coro-kind*` tells the yield/await compilers their target.
 - At the tail of `compile-function-common`, keep the existing inner thunk
-  `(lambda () (catch return-tag (funcall body-fn frame) +undefined+))` and **wrap** it:
-  `wrap-generator` / `wrap-async` / `wrap-async-generator` set `%coro%` and build the right object.
-  Normal functions are unchanged. Because the body thunk is untouched, every statement compiler works
-  verbatim inside a coroutine.
+ `(lambda () (catch return-tag (funcall body-fn frame) +undefined+))` and **wrap** it:
+ `wrap-generator` / `wrap-async` / `wrap-async-generator` set `%coro%` and build the right object.
+ Normal functions are unchanged. Because the body thunk is untouched, every statement compiler works
+ verbatim inside a coroutine.
 - `yield-expression` → `(coroutine-suspend %coro% arg)`; `yield*` delegation drives an inner iterator
-  step-wise, threading the driver's injected mode into inner next/throw/return.
+ step-wise, threading the driver's injected mode into inner next/throw/return.
 - `await-expression` → `(await-value %coro% arg)` (§async).
 - `for-of-statement` gains an `await` field (parser already accepts the keyword); `compile-for-of`
-  branches to a lazy async-iterator loop that awaits each step.
+ branches to a lazy async-iterator loop that awaits each step.
 
 ## Promise + job queue (`src/engine/async/promise.lisp`) and the drive path
 
 `(defstruct (js-promise (:include js-object (class :promise))) (pstate :pending) value
-             (fulfill-reactions '()) (reject-reactions '()) (handled nil))`. Resolve does thenable
+ (fulfill-reactions '()) (reject-reactions '()) (handled nil))`. Resolve does thenable
 adoption (callable `then` → adopt via a microtask); settling schedules each reaction as a microtask
 via `(enqueue-microtask (realm-loop *realm*) …)` — the single seam to Phase 05. then/catch/finally +
 all/race/allSettled/any (`any` needs an `AggregateError` intrinsic). nextTick sits ahead of
@@ -93,10 +93,10 @@ Realm gains slots: `loop` (event-loop, lazy, **`:workers 0`** — coroutines use
 ```
 bind *realm*; loop = (or (realm-loop r) (setf (realm-loop r) (make-event-loop :workers 0)))
 unwind-protect
-  run top-level (may schedule microtasks/timers; module path wraps in an async coroutine for TLA)
-  (run-loop loop)                       ; drain micro/macro/timers/nextTick to idle
-  (report-unhandled-rejections r)       ; still-unhandled reject → js-condition (→ exit 1 at CLI)
-  cleanup: (teardown-coroutines r) (destroy-event-loop loop)
+ run top-level (may schedule microtasks/timers; module path wraps in an async coroutine for TLA)
+ (run-loop loop) ; drain micro/macro/timers/nextTick to idle
+ (report-unhandled-rejections r) ; still-unhandled reject → js-condition (→ exit 1 at CLI)
+ cleanup: (teardown-coroutines r) (destroy-event-loop loop)
 ```
 `eval-source` keeps returning the top-level completion value (drives the loop after capturing it).
 `queueMicrotask` / `Promise` / (minimal) `setTimeout`+`queueMicrotask`+`process.nextTick` globals are
@@ -105,13 +105,13 @@ wired for the ordering corpus.
 ## async function / async generator / Generator object
 
 - **Generator**: `(defstruct (js-generator (:include js-object (class :generator))) coroutine)`;
-  `%GeneratorPrototype%` next/return/throw → `coroutine-resume :next/:return/:throw` → `{value,done}`
-  (`done` when kind is `:return`); `@@iterator` returns this; `%GeneratorFunction%` intrinsic.
+ `%GeneratorPrototype%` next/return/throw → `coroutine-resume :next/:return/:throw` → `{value,done}`
+ (`done` when kind is `:return`); `@@iterator` returns this; `%GeneratorFunction%` intrinsic.
 - **async function**: returns a promise `P`; body runs in a coroutine driven as microtasks.
-  `await-value (co v)`: `then` the resolved `v` with reactions that `coroutine-resume` `:next`/`:throw`
-  on the loop thread (never concurrent). `:return`→resolve `P`; `:throw`→reject `P`.
+ `await-value (co v)`: `then` the resolved `v` with reactions that `coroutine-resume` `:next`/`:throw`
+ on the loop thread (never concurrent). `:return`→resolve `P`; `:throw`→reject `P`.
 - **async generator**: `@@asyncIterator`; next/throw/return return promises; a request queue
-  serializes overlapping `next()`; `yield` suspends to the consumer, `await` to a promise reaction.
+ serializes overlapping `next()`; `yield` suspends to the consumer, `await` to a promise reaction.
 
 ## ESM (in-memory) + TLA — Phase 06 scope
 
@@ -130,19 +130,19 @@ expose `$DONE`, run then drive the loop to idle, pass iff `$DONE()` called with 
 ## Milestones (build+test+purity green after each; zero pass-list regressions)
 
 1. Coroutine primitive + Generator object + emitter flag plumbing + yield (no delegate). Parachute
-   tests only (no 262 unskip) → passlist untouched.
+ tests only (no 262 unskip) → passlist untouched.
 2. yield* delegation; unskip `generators`; regenerate passlist.
 3. Promise + job queue + run-source/eval-source loop hosting; ordering parachute tests; Promise
-   built-ins.
+ built-ins.
 4. async/await + for-await + async generators; unskip async dirs; runner `async`/`$DONE`.
 5. ESM in-memory linking + TLA; route `module`.
 6. Gate: full exec run, regenerate passlists, thread-count leak assertion, adversarial review panel,
-   DECISIONS entry (the (B)-over-(A) fallback), commit.
+ DECISIONS entry (the (B)-over-(A) fallback), commit.
 
 ## Risks
 
 - Thread leak (mitigated: pool + teardown + finalizer + gc-every-500).
 - Deadlock if a reaction resumes a `:running` coroutine — `coroutine-resume` asserts state ∈
-  {suspended-start, suspended-yield}; async-generator request queue serializes `next()`.
+ {suspended-start, suspended-yield}; async-generator request queue serializes `next()`.
 - `*realm*` / float-trap not rebound in the thread — both are required one-liners at the thread top;
-  unit-tested (a generator reads the right realm's globals; a generator doing float math doesn't trap).
+ unit-tested (a generator reads the right realm's globals; a generator doing float math doesn't trap).

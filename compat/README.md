@@ -16,22 +16,22 @@ workload or metric requires a new `.vN` ID.
 ## Tables
 
 - `baselines.tsv` pins the four selected runtime/channel roles with strict versions, full revisions,
-  coherent tags, semantic snapshot dates, revision-pinned sources, and upstream licenses.
+ coherent tags, semantic snapshot dates, revision-pinned sources, and upstream licenses.
 - `features.tsv` owns every shared README/site matrix field and the primary/integration phase map.
 - `platforms.tsv` records all four release targets for every feature. `unverified` is not support.
 - `evidence.tsv` references existing shipped-binary fixtures, checked end-to-end scripts, and static
-  suites. A `clun-fixture` row compares exact process output; a `checked-script` row must prove its
-  own binary-level assertions and exit successfully. A `static` row is supporting seed evidence,
-  not a passing platform attestation.
+ suites. A `clun-fixture` row compares exact process output; a `checked-script` row must prove its
+ own binary-level assertions and exit successfully. A `static` row is supporting seed evidence,
+ not a passing platform attestation.
 - `references.tsv` maps each summary feature independently to stable and engineering Bun sources plus
-  pinned Node.js and Deno primary-repository sources. Comparison assertions exactly snapshot each
-  runtime's `state: detail` fields from `features.tsv`.
+ pinned Node.js and Deno primary-repository sources. Comparison assertions exactly snapshot each
+ runtime's `state: detail` fields from `features.tsv`.
 - `release.tsv` reconciles the current Clun version, ASDF core, installer default, tag, publication
-  state, and canonical STATE phase/issue. Candidate rows use `pending`; the exact immutable tag commit
-  is recorded only when the matching GitHub Release is published.
+ state, and canonical STATE phase/issue. Candidate rows use `pending`; the exact immutable tag commit
+ is recorded only when the matching GitHub Release is published.
 - `upstream-assets.tsv` pins the four Bun 1.3.14 release binaries used by later stable probes.
 - `benchmarks/workloads.tsv` and `benchmarks/metrics.tsv` freeze the four existing Phase 25
-  self-relative workloads. They contain no Clun-versus-Bun performance claim.
+ self-relative workloads. They contain no Clun-versus-Bun performance claim.
 
 Feature states are `Yes`, `Partial`, `No`, or `Separate`. Platform support states are `supported`,
 `unverified`, `unsupported`, and `not-applicable`. The validator rejects a Clun `Yes` unless
@@ -45,7 +45,7 @@ tokens are `clun-fixture`, `checked-script`, and `static`. Executable rows decla
 four-target scope; `-` denotes supporting evidence without an independent platform attestation.
 
 The compatibility metadata in this directory is part of Clun and is distributed under
-GPL-3.0-or-later. Upstream paths, URLs, release hashes, names, and factual assertions are references,
+MIT. Upstream paths, URLs, release hashes, names, and factual assertions are references,
 not copied Bun, Node.js, or Deno implementation code. Their source repositories retain the licenses
 recorded in `baselines.tsv`. The existing benchmark sources are referenced by path and digest rather
 than copied into this directory; their source headers and `docs/benchmarks.md` remain the provenance

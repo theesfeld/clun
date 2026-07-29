@@ -1,7 +1,7 @@
 # Phase 26 — Final hardening, docs, and release
 
-**Canonical issue:** [#58](https://github.com/f00-sh/clun/issues/58)  
-**Status:** active → first stable `0.2.0`  
+**Canonical issue:** [#58](https://github.com/f00-sh/clun/issues/58) 
+**Status:** active → first stable `0.2.0` 
 **Deps:** Phase 82 (#56) complete
 
 ## Goal

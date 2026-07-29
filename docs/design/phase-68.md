@@ -1,8 +1,8 @@
 # Phase 68 — Frontend development server and HMR
 
-**Issue:** [#189](https://github.com/f00-sh/clun/issues/189)  
-**Parent epic:** [#177](https://github.com/f00-sh/clun/issues/177)  
-**Ledger:** `tooling.frontend-dev-server` → **Yes**  
+**Issue:** [#189](https://github.com/f00-sh/clun/issues/189) 
+**Parent epic:** [#177](https://github.com/f00-sh/clun/issues/177) 
+**Ledger:** `tooling.frontend-dev-server` → **Yes** 
 **SemVer:** `0.1.0-dev.54` / minor
 
 ## Decision

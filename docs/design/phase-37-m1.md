@@ -62,15 +62,15 @@ observable order. `ArrayCreate` rejects lengths above `2^32 - 1` before element 
 
 - `toReversed()` reads from highest source index to lowest and writes ascending result indices.
 - `toSorted(compareFn)` rejects a present non-callable comparator before coercing the receiver or reading
-  its length, reads all values in ascending order,
-  performs a stable sort with `undefined` after defined values, treats comparator `NaN` as zero, and never
-  calls the comparator for `undefined` values.
+ its length, reads all values in ascending order,
+ performs a stable sort with `undefined` after defined values, treats comparator `NaN` as zero, and never
+ calls the comparator for `undefined` values.
 - `toSpliced(start, deleteCount, ...items)` implements the omitted-argument distinctions, computes the new
-  length before source element access, throws `TypeError` above `2^53 - 1`, then applies the Array length
-  ceiling. Prefix and suffix gets occur in ascending order.
+ length before source element access, throws `TypeError` above `2^53 - 1`, then applies the Array length
+ ceiling. Prefix and suffix gets occur in ascending order.
 - `with(index, value)` applies `ToIntegerOrInfinity`; a negative finite index is relative to the captured
-  length. Out-of-range indices, including either infinity, throw `RangeError` before allocation or element
-  access. The replacement index is not read from the source.
+ length. Out-of-range indices, including either infinity, throw `RangeError` before allocation or element
+ access. The replacement index is not read from the source.
 
 ### Well-formed strings
 
@@ -99,29 +99,29 @@ behavior are preserved. The method is non-constructible and has length 0.
 ## Architecture
 
 - Extend the existing Object, Array, String, Error, and Promise bootstrap modules; do not add fixture-specific
-  dispatch or a second object model.
+ dispatch or a second object model.
 - Reuse `jm-get-own-property`, `to-property-key`, array-like abstract operations, Promise capability creation,
-  and the existing stable sort only where their observable contract matches this design.
+ and the existing stable sort only where their observable contract matches this design.
 - Keep implementation in pure Common Lisp. No CFFI, implementation JavaScript, native dependency, or shell-out
-  is permitted.
+ is permitted.
 - Any shared abstract operation added here must be named for the ECMAScript operation it implements and must
-  remain usable by later Phase 37 milestones.
+ remain usable by later Phase 37 milestones.
 
 ## Evidence and gates
 
 The milestone is accepted only when all of the following hold on the implementation commit:
 
 1. Every selected Test262 row passes through the ordinary execution runner in both applicable strictness
-   modes, with zero crash, timeout, skip, or regression. The exact pass delta is measured against entry commit
-   `7f443be629d66f5d11f3a81590de8160b6522ab0`.
+ modes, with zero crash, timeout, skip, or regression. The exact pass delta is measured against entry commit
+ `7f443be629d66f5d11f3a81590de8160b6522ab0`.
 2. Focused Lisp tests cover descriptors, coercion order, abrupt completion, Proxy interactions, sparse arrays,
-   length ceilings, stable sorting, mutation during reads/comparison, surrogate edges, Error impostors, Promise
-   subclassing, and hostile constructors.
+ length ceilings, stable sorting, mutation during reads/comparison, surrogate edges, Error impostors, Promise
+ subclassing, and hostile constructors.
 3. The shipped-runtime fixture matches the committed expected output; pinned Bun 1.3.14 matches all common
-   observables, and every divergence is structured, reviewable, and backed by normative Test262 evidence.
+ observables, and every divergence is structured, reviewable, and backed by normative Test262 evidence.
 4. The complete frozen execution pass list remains monotonic; no selected feature is added to a skip list.
 5. `make build`, focused tests, `make test`, `make purity`, and `make docs-check` pass. Full Phase 37 completion
-   additionally retains every gate in the canonical Phase 37 issue and `PLAN.md`.
+ additionally retains every gate in the canonical Phase 37 issue and `PLAN.md`.
 
 The public compatibility ledger, README, site, release notes, version, `STATE.md`, and `PLAN.md` are owned by
 the release integration unit and intentionally remain unchanged on this implementation branch.

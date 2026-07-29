@@ -28,19 +28,19 @@ children by `funcall`ing their closures and threading the runtime frame `env` th
 Concretely, the emitter produces exactly these shapes (verbatim from the source):
 
 - Non-computed member read (`emitter.lisp:289–296`):
-  ```lisp
-  (let ((key (identifier-name ...)) (cache (%make-ic)))
-    (lambda (env) (%ic-read (funcall obj-fn env) key cache)))
-  ```
+ ```lisp
+ (let ((key (identifier-name ...)) (cache (%make-ic)))
+ (lambda (env) (%ic-read (funcall obj-fn env) key cache)))
+ ```
 - Method call (`emitter.lisp:322–328`):
-  ```lisp
-  (lambda (env) (let* ((o (funcall obj-fn env)) (f (%ic-read o key cache)))
-                  (js-call f o (funcall args-fn env))))
-  ```
+ ```lisp
+ (lambda (env) (let* ((o (funcall obj-fn env)) (f (%ic-read o key cache)))
+ (js-call f o (funcall args-fn env))))
+ ```
 - Local variable read (`emitter.lisp:229–231`): `(lambda (env) (frame-ref env depth index name))`.
 - Return (`emitter.lisp:689–730`): the body is wrapped in
-  `(catch return-tag (funcall body-fn frame) +undefined+)`; `return e` compiles to
-  `(throw return-tag <value>)`.
+ `(catch return-tag (funcall body-fn frame) +undefined+)`; `return e` compiles to
+ `(throw return-tag <value>)`.
 
 ### 1.2 The overhead
 
@@ -101,65 +101,65 @@ same analyzed AST and returns CL *forms* (not closures). The generated function 
 form; call it with the emitter's existing frame protocol.
 
 - **Frame / locals.** A local read `frame-ref(env, depth, index, name)` becomes a literal
-  call `(frame-ref env <depth> <index> "<name>")` with `depth`/`index` as compile-time
-  constants (they are already constant-folded into the closures at
-  `emitter.lisp:229–269`). Writes → `(frame-set env <depth> <index> <vform>)`, TDZ-bypassing
-  declaration init → `(frame-init …)`. `env` is the frame the wrapper hands to the body.
-  The reserved slots `%this%`, `%new.target%`, `%coro%`, and `arguments` keep their existing
-  slot indices; `this` reads compile to `(frame-ref env <d> <i> "this")` exactly as today
-  (`emitter.lisp:237`). **No change to the frame model** — the generated code calls the same
-  three frame primitives.
+ call `(frame-ref env <depth> <index> "<name>")` with `depth`/`index` as compile-time
+ constants (they are already constant-folded into the closures at
+ `emitter.lisp:229–269`). Writes → `(frame-set env <depth> <index> <vform>)`, TDZ-bypassing
+ declaration init → `(frame-init …)`. `env` is the frame the wrapper hands to the body.
+ The reserved slots `%this%`, `%new.target%`, `%coro%`, and `arguments` keep their existing
+ slot indices; `this` reads compile to `(frame-ref env <d> <i> "this")` exactly as today
+ (`emitter.lisp:237`). **No change to the frame model** — the generated code calls the same
+ three frame primitives.
 
 - **Member read.** The closure form
-  `(lambda (env) (%ic-read (funcall obj-fn env) key cache))` becomes the source
-  `(%ic-read <obj-form> "<key>" #.<ic-cell>)`. The **per-site IC cell is preserved by
-  reference**: at source-generation time we allocate the `(%make-ic)` cell exactly as the
-  closure backend does, then splat that *live object* into the generated form as a literal
-  (load-time-value / quoted object handed to `cl:compile`'s environment; §3.4). So the
-  compiled body closes over the identical `ic` struct and mutates the identical cache cell
-  the interpreter would have. IC warmup done under the interpreter is **not lost** — if we
-  reuse the interpreter's existing cells for that call-site (the tier can hold the closure
-  tree's cells and reuse them), the compiled body starts warm; if we allocate fresh cells,
-  they simply refill on first hit. Either is correct; reusing is a performance nicety, not a
-  correctness requirement.
+ `(lambda (env) (%ic-read (funcall obj-fn env) key cache))` becomes the source
+ `(%ic-read <obj-form> "<key>" #.<ic-cell>)`. The **per-site IC cell is preserved by
+ reference**: at source-generation time we allocate the `(%make-ic)` cell exactly as the
+ closure backend does, then splat that *live object* into the generated form as a literal
+ (load-time-value / quoted object handed to `cl:compile`'s environment; §3.4). So the
+ compiled body closes over the identical `ic` struct and mutates the identical cache cell
+ the interpreter would have. IC warmup done under the interpreter is **not lost** — if we
+ reuse the interpreter's existing cells for that call-site (the tier can hold the closure
+ tree's cells and reuse them), the compiled body starts warm; if we allocate fresh cells,
+ they simply refill on first hit. Either is correct; reusing is a performance nicety, not a
+ correctness requirement.
 
 - **Member write.** `obj.x = v` → `(%ic-write <obj-form> "<key>" <v-form> #.<ic-cell> <strict>)`,
-  same cell-by-reference rule. Computed member → `(js-getv o (to-property-key <k>))` /
-  `(js-set o (to-property-key <k>) v strict)` (no cell).
+ same cell-by-reference rule. Computed member → `(js-getv o (to-property-key <k>))` /
+ `(js-set o (to-property-key <k>) v strict)` (no cell).
 
 - **Calls.** Plain call → `(js-call <callee-form> +undefined+ <args-form>)`. Method call →
-  `(let* ((o <obj-form>) (f (%ic-read o "<key>" #.<ic-cell>))) (js-call f o <args-form>))`,
-  mirroring `emitter.lisp:322–328`. `<args-form>` for the simple (no-spread) case is
-  `(list <a1> <a2> …)` — the source backend can build the arg list inline instead of
-  `mapcar`ing over child closures, which is one of the concrete wins. Spread args fall back
-  to the existing `iterable->list` append loop, or exclude the function from the subset for
-  m1/m2.
+ `(let* ((o <obj-form>) (f (%ic-read o "<key>" #.<ic-cell>))) (js-call f o <args-form>))`,
+ mirroring `emitter.lisp:322–328`. `<args-form>` for the simple (no-spread) case is
+ `(list <a1> <a2> …)` — the source backend can build the arg list inline instead of
+ `mapcar`ing over child closures, which is one of the concrete wins. Spread args fall back
+ to the existing `iterable->list` append loop, or exclude the function from the subset for
+ m1/m2.
 
 - **Arithmetic / operators.** `a + b` → `(js-add <a-form> <b-form>)`; likewise `js-sub`,
-  `js-mul`, `js-div`, `js-mod`, `js-exp`, the bitwise ops, `js-lt`/`js-le`/…,
-  `js-strict-eq`/`js-loose-eq`, `js-typeof`, `js-neg`, etc. — the identical operator
-  functions, now nested as direct calls so SBCL can keep intermediates in registers across
-  the tree.
+ `js-mul`, `js-div`, `js-mod`, `js-exp`, the bitwise ops, `js-lt`/`js-le`/…,
+ `js-strict-eq`/`js-loose-eq`, `js-typeof`, `js-neg`, etc. — the identical operator
+ functions, now nested as direct calls so SBCL can keep intermediates in registers across
+ the tree.
 
 - **`if` / `while` / `for` / `do-while`.** `if (t) c else a` → `(if (js-truthy <t-form>) <c> <a>)`.
-  Loops → CL `loop`/`do` with the existing break/continue **catch-tag protocol reproduced
-  in source**: allocate the same fresh tag objects (`(list 'break)`, `(list 'continue)`) as
-  lexical bindings in the generated body and emit
-  `(catch <break-tag> (loop … (catch <continue-tag> <body-form>) …))`, `break` →
-  `(throw <break-tag> :break)`, `continue` → `(throw <continue-tag> :continue)`. This is a
-  literal transcription of `emitter.lisp:917–1051`'s runtime shape into source, so behavior
-  is identical.
+ Loops → CL `loop`/`do` with the existing break/continue **catch-tag protocol reproduced
+ in source**: allocate the same fresh tag objects (`(list 'break)`, `(list 'continue)`) as
+ lexical bindings in the generated body and emit
+ `(catch <break-tag> (loop … (catch <continue-tag> <body-form>) …))`, `break` →
+ `(throw <break-tag> :break)`, `continue` → `(throw <continue-tag> :continue)`. This is a
+ literal transcription of `emitter.lisp:917–1051`'s runtime shape into source, so behavior
+ is identical.
 
 - **Return.** The whole body form is wrapped `(catch '<return-tag> <body-form> +undefined+)`
-  and `return e` → `(throw '<return-tag> <e-form>)`, matching `emitter.lisp:689–730`. The
-  tag is a fresh per-compile gensym/list object bound in the generated lambda, so nested
-  and recursive calls each get their own dynamic extent exactly as the closure version does.
+ and `return e` → `(throw '<return-tag> <e-form>)`, matching `emitter.lisp:689–730`. The
+ tag is a fresh per-compile gensym/list object bound in the generated lambda, so nested
+ and recursive calls each get their own dynamic extent exactly as the closure version does.
 
 - **Parameter binding.** For the coverable subset, all params are plain identifiers
-  (`simple-params`, already computed at `emitter.lisp:681`). Binding compiles to
-  `(frame-init env 0 <i> (nth <i> args))`-style stores (or the existing `bind-parameters`
-  call for the fallback shape). Destructuring / defaults / rest are **out of the subset**
-  (§5, §6) and force fallback.
+ (`simple-params`, already computed at `emitter.lisp:681`). Binding compiles to
+ `(frame-init env 0 <i> (nth <i> args))`-style stores (or the existing `bind-parameters`
+ call for the fallback shape). Destructuring / defaults / rest are **out of the subset**
+ (§5, §6) and force fallback.
 
 The `setup-frame` half of the wrapper (allocate the frame, seed reserved slots, hoist
 nested declarations) is **kept as-is** from `compile-function-common`; only the `run-body`
@@ -175,16 +175,16 @@ keeps the swap surface tiny and the frame semantics literally identical.
 Add one slot to `js-function` (`objects.lisp`, the struct at 538–547):
 
 ```lisp
-(call-count 0 :type fixnum)   ; Phase-25 COMPILE tier: hot-function trigger
+(call-count 0 :type fixnum) ; Phase-25 COMPILE tier: hot-function trigger
 ```
 
 `jm-call` (`functions.lisp:14–15`) increments it on entry:
 
 ```lisp
 (defmethod jm-call ((f js-function) this args)
-  (with-js-floats
-    (when (< (the fixnum (incf (js-function-call-count f))) most-positive-fixnum) nil)
-    (funcall (js-function-compiled-body f) f this args +undefined+)))
+ (with-js-floats
+ (when (< (the fixnum (incf (js-function-call-count f))) most-positive-fixnum) nil)
+ (funcall (js-function-compiled-body f) f this args +undefined+)))
 ```
 
 The increment is a plain (non-atomic) `incf`; the counter is a *heuristic*, not a
@@ -232,28 +232,28 @@ extra time on the old body.
 `cl:compile` on SBCL is thread-safe to *call* from a background thread. The subtle points:
 
 - **The generated form must not capture thread-local dynamic state.** `with-js-floats`
-  masks FP traps per call chain via the `*fp-masked*` special (`phase-25.md` m2;
-  `numbers.lisp` notes a fresh thread sees the global value). The **compiler thread only
-  compiles**; it never *runs* the JS body, so its FP environment is irrelevant. The body
-  runs later on the main thread, which enters through `jm-call`'s `with-js-floats` exactly
-  as before. Confirmed safe as long as the generated body does **not** itself re-establish
-  or assume FP state — it must inherit the caller's, which it does because
-  `jm-call`/`jm-construct` still wrap it.
+ masks FP traps per call chain via the `*fp-masked*` special (`phase-25.md` m2;
+ `numbers.lisp` notes a fresh thread sees the global value). The **compiler thread only
+ compiles**; it never *runs* the JS body, so its FP environment is irrelevant. The body
+ runs later on the main thread, which enters through `jm-call`'s `with-js-floats` exactly
+ as before. Confirmed safe as long as the generated body does **not** itself re-establish
+ or assume FP state — it must inherit the caller's, which it does because
+ `jm-call`/`jm-construct` still wrap it.
 - **Referencing the same realm/intrinsics.** The generated code references `+undefined+`,
-  `+true+`, IC cells, and runtime functions — all global, load-time constants or
-  process-global structs. It does **not** bake in a `*realm*` pointer; per-realm data is
-  reached through the frame/`env` and the objects passed in at call time, identical to the
-  closure backend. So a body compiled while the main thread mutates realm state is fine: it
-  reads realm state only when *run*, on the main thread, through the same channels.
+ `+true+`, IC cells, and runtime functions — all global, load-time constants or
+ process-global structs. It does **not** bake in a `*realm*` pointer; per-realm data is
+ reached through the frame/`env` and the objects passed in at call time, identical to the
+ closure backend. So a body compiled while the main thread mutates realm state is fine: it
+ reads realm state only when *run*, on the main thread, through the same channels.
 - **Splatting the live IC cell into the form.** Handing a live struct to `cl:compile` as a
-  literal is done via `load-time-value` of a captured lexical, or by compiling a form
-  returned from a closure that lexically binds the cells (compile a
-  `(lambda () (lambda (fn this args new-target) …))` whose outer lambda binds the cells, then
-  funcall it). The cells are allocated on the compiler thread but only *mutated* later on the
-  main thread; if the interpreter also holds them, hand-off must ensure no concurrent
-  mutation during the window — simplest is to allocate **fresh** cells for the compiled body
-  (they refill on first use), sidestepping any shared-mutation race entirely. m1 uses fresh
-  cells; reusing warm cells is an optional m4 optimization gated on a soundness check.
+ literal is done via `load-time-value` of a captured lexical, or by compiling a form
+ returned from a closure that lexically binds the cells (compile a
+ `(lambda () (lambda (fn this args new-target) …))` whose outer lambda binds the cells, then
+ funcall it). The cells are allocated on the compiler thread but only *mutated* later on the
+ main thread; if the interpreter also holds them, hand-off must ensure no concurrent
+ mutation during the window — simplest is to allocate **fresh** cells for the compiled body
+ (they refill on first use), sidestepping any shared-mutation race entirely. m1 uses fresh
+ cells; reusing warm cells is an optional m4 optimization gated on a soundness check.
 
 ---
 
@@ -269,28 +269,28 @@ intent; verification must *prove* the transcription has no gaps.
 **Verification harness (proposed, built in m1, extended each milestone):**
 
 1. **Differential runner.** A debug switch `*compile-tier-mode*` with values:
-   - `:off` — current behavior (closure tree only).
-   - `:eager` — **compile every coverable user function at definition time** (threshold 0,
-     synchronous), fall back for non-coverable. This is the coverage shake-out mode: it
-     maximizes how much generated code executes so subset bugs surface immediately.
-   - `:threshold` — production behavior (background tier-up at `T`).
-   Run the whole test/benchmark corpus under `:off` and under `:eager` and **assert
-   byte-identical stdout + identical thrown-error taxonomy + identical final heap-visible
-   state** (e.g. serialize benchmark result objects). Any divergence is a coverage bug →
-   the offending construct is removed from the subset (fail closed) and a regression probe
-   added. This is the "tier-up forced at N=1 vs disabled, assert identical" test the operator
-   asked for, generalized to eager-compile-all.
+ - `:off` — current behavior (closure tree only).
+ - `:eager` — **compile every coverable user function at definition time** (threshold 0,
+ synchronous), fall back for non-coverable. This is the coverage shake-out mode: it
+ maximizes how much generated code executes so subset bugs surface immediately.
+ - `:threshold` — production behavior (background tier-up at `T`).
+ Run the whole test/benchmark corpus under `:off` and under `:eager` and **assert
+ byte-identical stdout + identical thrown-error taxonomy + identical final heap-visible
+ state** (e.g. serialize benchmark result objects). Any divergence is a coverage bug →
+ the offending construct is removed from the subset (fail closed) and a regression probe
+ added. This is the "tier-up forced at N=1 vs disabled, assert identical" test the operator
+ asked for, generalized to eager-compile-all.
 2. **Full test262 G1.** The gate is the frozen pass-list (conformance 22,643 at m9,
-   `phase-25.md` m3–m9). Run the entire G1 suite under `:eager` and require the pass-list to
-   be **unchanged**. Because non-coverable tests fall back to the interpreter, and coverable
-   ones must match it, the only acceptable delta is zero. A single regression blocks the
-   milestone.
+ `phase-25.md` m3–m9). Run the entire G1 suite under `:eager` and require the pass-list to
+ be **unchanged**. Because non-coverable tests fall back to the interpreter, and coverable
+ ones must match it, the only acceptable delta is zero. A single regression blocks the
+ milestone.
 3. **Benchmark equivalence.** deltablue/richards/splay each produce a checksummable result
-   (deltablue verifies its plan; richards/splay have known outputs). Assert identical result
-   under `:off`, `:eager`, and `:threshold` before trusting any timing number.
+ (deltablue verifies its plan; richards/splay have known outputs). Assert identical result
+ under `:off`, `:eager`, and `:threshold` before trusting any timing number.
 4. **Differential fuzz (m2+).** Feed random small programs restricted to the coverable subset
-   through `:off` vs `:eager`, diff outputs. Cheap, and it finds transcription corners the
-   fixed corpus misses.
+ through `:off` vs `:eager`, diff outputs. Cheap, and it finds transcription corners the
+ fixed corpus misses.
 
 The correctness argument reduces to: *the subset predicate is conservative, the fallback is
 the shipping interpreter, and eager-compile + G1 + differential prove the compiled path
@@ -305,15 +305,15 @@ function is first compiled, and cached in the proposed `compilable` slot. A func
 coverable iff **all** hold (grounded in the coverability map and the emitter):
 
 - Not a generator, not async (`emitter.lisp:673–674` — these inject `%coro%` and run
-  coroutine state machines; **hard**, always interpret).
+ coroutine state machines; **hard**, always interpret).
 - No `with` in the body (`emitter.lisp:1274–1277` — dynamic scope; **hard**).
 - No direct `eval(...)` call site (`emitter.lisp:329` — direct eval unsupported; **hard**).
 - **Simple params only** — every param a plain identifier (`simple-params`, already computed
-  at `emitter.lisp:681`); no destructuring, defaults, or rest (those spawn nested thunks,
-  `emitter.lisp:764–769`).
+ at `emitter.lisp:681`); no destructuring, defaults, or rest (those spawn nested thunks,
+ `emitter.lisp:764–769`).
 - No labeled break/continue that crosses a scope boundary, and no `try`/`finally` where
-  `finally` must run on a labeled break/continue escape (`emitter.lisp:1199–1272`). Plain
-  `try`/`catch` and innermost-loop unlabeled `break`/`continue` are in.
+ `finally` must run on a labeled break/continue escape (`emitter.lisp:1199–1272`). Plain
+ `try`/`catch` and innermost-loop unlabeled `break`/`continue` are in.
 - (m1 only) additionally no spread args, no nested function declarations — widened in m2.
 
 Everything failing the predicate keeps `compilable = nil` and runs the closure tree forever.
@@ -333,30 +333,30 @@ we take the off-ramp.
 ## 6. Risks
 
 - **Startup / closure count.** Only hot functions compile, and only on a background thread,
-  so startup is unaffected — this is exactly the constraint `phase-25.md` §5 / PLAN §3.1
-  imposed ("never COMPILE-per-function at load; 0.16–0.5 ms/fn → 10–25 s on big bundles").
-  Confirmed: with `:threshold` mode the main thread never calls `cl:compile`; the `:eager`
-  mode that *does* compile-at-definition is **debug-only** and never shipped on. Risk: low,
-  by construction.
+ so startup is unaffected — this is exactly the constraint `phase-25.md` §5 / PLAN §3.1
+ imposed ("never COMPILE-per-function at load; 0.16–0.5 ms/fn → 10–25 s on big bundles").
+ Confirmed: with `:threshold` mode the main thread never calls `cl:compile`; the `:eager`
+ mode that *does* compile-at-definition is **debug-only** and never shipped on. Risk: low,
+ by construction.
 - **Correctness of source regeneration.** The real risk. Mitigation: aggressive fallback
-  (§5), eager-compile shake-out + full G1 + differential (§4), and a hard rule that an
-  un-transcribed/untested construct is excluded, not guessed.
+ (§5), eager-compile shake-out + full G1 + differential (§4), and a hard rule that an
+ un-transcribed/untested construct is excluded, not guessed.
 - **Background-thread hazards.** Benign counter race, benign swap race (§3.3); `cl:compile`
-  thread-safety and no captured thread-local FP/realm state (§3.4). Bound to one compiler
-  thread to cap contention/memory. The genuine hazard is the shared IC-cell mutation window
-  — eliminated in m1 by using **fresh** cells for compiled bodies.
+ thread-safety and no captured thread-local FP/realm state (§3.4). Bound to one compiler
+ thread to cap contention/memory. The genuine hazard is the shared IC-cell mutation window
+ — eliminated in m1 by using **fresh** cells for compiled bodies.
 - **Memory / compiled-code retention.** Each `cl:compile`d body is retained machine code
-  plus its code component; it is never freed while the `js-function` is live. Only hot
-  functions compile, so the count is bounded by the working set, not the bundle size. Risk:
-  small for benchmarks; for long-lived processes add a cap on total compiled functions (LRU
-  or simply stop compiling past a ceiling) — deferred past m4.
+ plus its code component; it is never freed while the `js-function` is live. Only hot
+ functions compile, so the count is bounded by the working set, not the bundle size. Risk:
+ small for benchmarks; for long-lived processes add a cap on total compiled functions (LRU
+ or simply stop compiling past a ceiling) — deferred past m4.
 - **The tier may not help deltablue.** If deltablue's *hot* functions are dominated by
-  property-dispatch cost that already lives inside `%ic-read`/`js-call` (which the tier does
-  **not** speed up — it only removes the per-node `funcall` glue), then removing the glue may
-  not reach 5×. m2 must measure the ceiling: eager-compile deltablue and see the number
-  **before** building the async machinery in m3. If eager-compiled deltablue is still under
-  5×, the background tier cannot beat it (it does strictly less compiling) — take the
-  off-ramp (§7). This gate is the point of ordering m2 before m3.
+ property-dispatch cost that already lives inside `%ic-read`/`js-call` (which the tier does
+ **not** speed up — it only removes the per-node `funcall` glue), then removing the glue may
+ not reach 5×. m2 must measure the ceiling: eager-compile deltablue and see the number
+ **before** building the async machinery in m3. If eager-compiled deltablue is still under
+ 5×, the background tier cannot beat it (it does strictly less compiling) — take the
+ off-ramp (§7). This gate is the point of ordering m2 before m3.
 
 ---
 
@@ -391,17 +391,17 @@ sub stmts)`.
 
 Verified:
 - **Differential `:off` vs `:eager` byte-identical** across the whole m1 subset — `scripts/ct-diff.lisp`
-  and the permanent parachute test `compile-source/differential-off-vs-eager` cover reads/writes,
-  computed member, static/computed method calls, constructors, arithmetic, **every** relational/
-  equality/bit operator, logical `&&`/`||`/`??`, conditional, `if`/`else`, `return`, `typeof`, unary,
-  and identical-throw parity (member read on `undefined`). The source backend compiled ≥1 function in
-  every case (non-vacuous); zero divergences.
+ and the permanent parachute test `compile-source/differential-off-vs-eager` cover reads/writes,
+ computed member, static/computed method calls, constructors, arithmetic, **every** relational/
+ equality/bit operator, logical `&&`/`||`/`??`, conditional, `if`/`else`, `return`, `typeof`, unary,
+ and identical-throw parity (member read on `undefined`). The source backend compiled ≥1 function in
+ every case (non-vacuous); zero divergences.
 - `??` coverage is emitter-level only: Clun's ES2017 parser deliberately rejects coalescing syntax, so
-  these regressions construct the AST directly and do not claim user-facing parser support.
+ these regressions construct the AST directly and do not claim user-facing parser support.
 - **`make test-lisp` green: 2670 / 0** with the tier present (default `:off`).
 - The harness caught two real transcription bugs before they could ship — relational/equality
-  primitives return **CL** booleans, so the generated form must keep `compile-binary`'s `(js-boolean …)`
-  wrapper, and `!=`/`!==` are `(js-boolean (not (js-loose-eq …)))` with no standalone negated primitive.
+ primitives return **CL** booleans, so the generated form must keep `compile-binary`'s `(js-boolean …)`
+ wrapper, and `!=`/`!==` are `(js-boolean (not (js-loose-eq …)))` with no standalone negated primitive.
 
 Scoped to m2 (not m1): the **full test262 G1 pass-list under `:eager`** is deferred to m2, where the
 subset is widened to cover real loop/var bodies and eager coverage on the suite becomes substantial
@@ -444,26 +444,26 @@ semantics at the emitter level. Fixed language-oracle tests cover each case.
 Evidence:
 
 - `scripts/ct-diff.lisp`: **51 passed, 0 failed**, including structured thrown-value identity and 32
-  deterministic fuzz programs (`25C0FFEE` -> `D714294E`).
+ deterministic fuzz programs (`25C0FFEE` -> `D714294E`).
 - Full Lisp suite: **2,721 passed, 0 failed, 0 skipped**.
 - DeltaBlue coverage: **72/72** user bodies compiled, **69** executed under trace, exactly one
-  ineligible generated CommonJS wrapper, zero fallback, digest `4551897514`.
+ ineligible generated CommonJS wrapper, zero fallback, digest `4551897514`.
 - Best of nine on the final compact image (same frozen timed bodies):
 
-  | Workload | Default `off` | Diagnostic `eager` | Eager vs. Phase-24 baseline |
-  |---|---:|---:|---:|
-  | Richards | 539.3 ms | 444.6 ms | 8.10x |
-  | DeltaBlue | 764.5 ms | **694.6 ms** | **4.24x** |
-  | Splay | 283.9 ms | 249.7 ms | 6.09x |
+ | Workload | Default `off` | Diagnostic `eager` | Eager vs. Phase-24 baseline |
+ |---|---:|---:|---:|
+ | Richards | 539.3 ms | 444.6 ms | 8.10x |
+ | DeltaBlue | 764.5 ms | **694.6 ms** | **4.24x** |
+ | Splay | 283.9 ms | 249.7 ms | 6.09x |
 
 - Complete Test262 execution classifications are byte-identical across `off` and `eager`: 40,654
-  files; 22,676 pass today; all 22,643 frozen pass-list entries hold; 5,487 gaps; 12,491 skips; zero
-  crashes. Eager compiled 978,168 bodies, rejected 50,874 as ineligible, and recorded **zero fallback**.
-  The gate rejects eager fallback and forces tracing off so the result cannot pass vacuously or inherit
-  timing-affecting ambient instrumentation.
+ files; 22,676 pass today; all 22,643 frozen pass-list entries hold; 5,487 gaps; 12,491 skips; zero
+ crashes. Eager compiled 978,168 bodies, rejected 50,874 as ineligible, and recorded **zero fallback**.
+ The gate rejects eager fallback and forces tracing off so the result cannot pass vacuously or inherit
+ timing-affecting ambient instrumentation.
 - A two-process build (disposable ASDF compile image, then clean FASL load/save image) prevents cold
-  compiler state from inflating the executable from 512-632 MiB; the measured final image is about
-  125 MiB.
+ compiler state from inflating the executable from 512-632 MiB; the measured final image is about
+ 125 MiB.
 
 DeltaBlue's eager ceiling is 105.8 ms above target. Because m3 threshold mode would compile a strict
 subset of what eager mode already compiled, background tier-up cannot exceed this ceiling. The §8
@@ -485,11 +485,11 @@ what eager mode already compiled) and building it is wasted risk. In that case t
 recommendation is:
 
 1. **Do not build m3/m4.** Keep the m1/m2 source backend behind `:off` (or drop it) — it has
-   value as a validated second backend even if unshipped.
+ value as a validated second backend even if unshipped.
 2. **Return to `phase-25.md` m10 option A:** accept G2 on the geomean/majority basis
-   (richards 6.62×, splay 5.30×, geomean ≈5.1×), document deltablue at its best achieved
-   number as the tree-walker holdout (`phase-25.md` §8.1), and proceed to the next phase.
-   This is the pre-approved fallback and requires no new risk.
+ (richards 6.62×, splay 5.30×, geomean ≈5.1×), document deltablue at its best achieved
+ number as the tree-walker holdout (`phase-25.md` §8.1), and proceed to the next phase.
+ This is the pre-approved fallback and requires no new risk.
 
 Equally, if at **m3** the background-thread correctness story cannot be made airtight (any
 G1 regression or swap-race divergence that is not quickly closed), fall back to eager-only

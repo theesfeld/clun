@@ -42,28 +42,28 @@ duplicate named group → SyntaxError. Surrogates without u = two independent co
 `(translate-regex disjunction group-count name-alist flags) → parse-tree`. Node map +
 the JS-vs-PPCRE fixes (PPCRE would silently differ — verified in vendor/cl-ppcre):
 - **`.`** (no s) → `(:inverted-char-class #\Newline #\Return #  # )`; with s →
-  `:everything` (scanner `:single-line-mode t`).
+ `:everything` (scanner `:single-line-mode t`).
 - **`\s`/`\S`** → explicit `(:char-class …JS-whitespace…)` / inverted (PPCRE's
-  whitespace class is only 5 chars — wrong). JS set = 09 0A 0B 0C 0D 20 A0 1680
-  2000–200A 2028 2029 202F 205F 3000 FEFF.
+ whitespace class is only 5 chars — wrong). JS set = 09 0A 0B 0C 0D 20 A0 1680
+ 2000–200A 2028 2029 202F 205F 3000 FEFF.
 - **`\w`/`\W`** → explicit ASCII `[A-Za-z0-9_]` / inverted (PPCRE's is Unicode — wrong).
 - **`\d`/`\D`** → `:digit-class`/`:non-digit-class` (matches JS `[0-9]`).
 - **`^`/`$`** (no m) → `:modeless-start-anchor` / `:modeless-end-anchor-no-newline`
-  (JS `$` doesn't match before a trailing `\n`); with m → `:start-anchor`/`:end-anchor`.
+ (JS `$` doesn't match before a trailing `\n`); with m → `:start-anchor`/`:end-anchor`.
 - **`\b`/`\B`** → `:word-boundary`/`:non-word-boundary` (PPCRE uses Unicode word-chars;
-  non-ASCII `\b` divergence is a documented gap — ASCII is correct).
+ non-ASCII `\b` divergence is a documented gap — ASCII is correct).
 - flags: i→`:case-insensitive-mode`, m→`:multi-line-mode`, s→`:single-line-mode`; g/y
-  drive exec/lastIndex (not the tree); u affects only parsing.
+ drive exec/lastIndex (not the tree); u affects only parsing.
 - groups → `:register` / `:named-register` (auto-number matches JS left-paren order);
-  backref → `(:back-reference n)` (1-based); named backref resolved via name-alist.
+ backref → `(:back-reference n)` (1-based); named backref resolved via name-alist.
 - **unparticipated-group backref fix** (§3.1 "fix earliest"): translate a backref to a
-  `(:filter …)` closure that reads `cl-ppcre::*reg-starts*` and matches empty when the
-  register didn't participate (JS semantics; PPCRE's plain back-reference fails). The
-  ONE deliberate `cl-ppcre::` internal touch — documented in DECISIONS; guarded in one
-  function + unit-tested (`(a)?\1`).
+ `(:filter …)` closure that reads `cl-ppcre::*reg-starts*` and matches empty when the
+ register didn't participate (JS semantics; PPCRE's plain back-reference fails). The
+ ONE deliberate `cl-ppcre::` internal touch — documented in DECISIONS; guarded in one
+ function + unit-tested (`(a)?\1`).
 - **loud gaps** (`throw-syntax-error`): variable-length lookbehind (compute body
-  min/max; PPCRE is fixed-length only), `\p{…}`/`\P{…}`, astral-requiring `u`
-  constructs, any unmappable node.
+ min/max; PPCRE is fixed-length only), `\p{…}`/`\P{…}`, astral-requiring `u`
+ constructs, any unmappable node.
 
 ## 4. RegExp object (regex/regexp-object.lisp)
 

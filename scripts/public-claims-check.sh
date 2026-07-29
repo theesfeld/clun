@@ -76,7 +76,7 @@ EOF
 [ "$release_version" = "$version" ] || fail "release ledger version $release_version disagrees with source $version"
 [ "$release_asdf" = "$asdf_version" ] || fail "release ledger ASDF core disagrees with clun.asd"
 [ "$release_tag" = "v$version" ] || fail "release ledger tag disagrees with source version"
-[ "$release_license" = GPL-3.0-or-later ] || fail 'release ledger license must be GPL-3.0-or-later'
+[ "$release_license" = MIT ] || fail 'release ledger license must be MIT'
 [ "$version_source:$asdf_source:$installer_source" = 'src/version.lisp:clun.asd:site/install' ] ||
   fail 'release ledger source paths drifted'
 case "$release_state" in candidate|published) ;; *) fail "invalid release state: $release_state" ;; esac

@@ -19,38 +19,38 @@ thunks with JS job invocations without changing this file's contract.
 ## Files (`src/loop/`, package `:clun.loop`; raw fd bits quarantined in `src/sys/sbcl-compat.lisp`)
 
 - **`src/sys/sbcl-compat.lisp`** (`:clun.sys`) — the only place internal SBCL APIs live (§3.2/§6).
-  `self-pipe`: `sb-posix:pipe` → non-blocking read end wrapped as an `(unsigned-byte 8)` fd-stream
-  (loop-thread-only drain via `listen`/`read-byte`), write end kept raw for `self-pipe-wake`
-  (`sb-unix:unix-write` of one byte from a pinned static buffer — allocation-free, so it is legal
-  from signal/interrupt context). `poll-backend-p` = `(fboundp 'sb-unix:unix-poll)` (Appendix C.5).
+ `self-pipe`: `sb-posix:pipe` → non-blocking read end wrapped as an `(unsigned-byte 8)` fd-stream
+ (loop-thread-only drain via `listen`/`read-byte`), write end kept raw for `self-pipe-wake`
+ (`sb-unix:unix-write` of one byte from a pinned static buffer — allocation-free, so it is legal
+ from signal/interrupt context). `poll-backend-p` = `(fboundp 'sb-unix:unix-poll)` (Appendix C.5).
 - **`loop-core.lisp`** — the `event-loop` struct (all slots), the O(1) `fifo` (head/tail cons
-  queue), the `handle` refcount object, the three JS-facing queues (next-tick, microtask, task) +
-  `drain-microtasks`, `now-ms`, and `loop-alive-p`.
+ queue), the `handle` refcount object, the three JS-facing queues (next-tick, microtask, task) +
+ `drain-microtasks`, `now-ms`, and `loop-alive-p`.
 - **`timers.lisp`** — binary min-heap keyed `(deadline . seq)` (seq breaks ties FIFO, Node-faithful);
-  `set-timer`/`clear-timer` (lazy cancel), `expire-due-timers`, `next-timer-delay`.
+ `set-timer`/`clear-timer` (lazy cancel), `expire-due-timers`, `next-timer-delay`.
 - **`reactor.lisp`** — `reactor-add`/`reactor-remove` (`sb-sys:add-fd-handler`) and `reactor-poll`
-  (`sb-sys:serve-event` with a seconds timeout); startup `probe-reactor` (Appendix C.5).
+ (`sb-sys:serve-event` with a seconds timeout); startup `probe-reactor` (Appendix C.5).
 - **`signals.lisp`** — `install-signal-handler`: `sb-sys:enable-interrupt` body does **only**
-  `(sb-ext:atomic-incf (aref counts signo))` + `self-pipe-wake` (iron rule §6). `drain-signals`
-  reads the atomic counts on the loop thread and enqueues each pending signal's listener as a task.
+ `(sb-ext:atomic-incf (aref counts signo))` + `self-pipe-wake` (iron rule §6). `drain-signals`
+ reads the atomic counts on the loop thread and enqueues each pending signal's listener as a task.
 - **`workers.lisp`** — fixed pool of N `sb-thread`s draining a job mailbox; `worker-submit` runs a
-  blocking fn on a worker, captures `(:ok v)`/`(:err condition)`, and `loop-post`s the on-done
-  thunk back. An in-flight ref'd handle keeps the loop alive until completion. `stop-workers` joins.
+ blocking fn on a worker, captures `(:ok v)`/`(:err condition)`, and `loop-post`s the on-done
+ thunk back. An in-flight ref'd handle keeps the loop alive until completion. `stop-workers` joins.
 - **`event-loop.lisp`** — `make-event-loop` (creates self-pipe + registers its reactor handler +
-  completion mailbox + worker pool + probe), `run-loop`, `loop-post` (thread-safe: mailbox + wake),
-  `loop-stop` (graceful), and the per-iteration drivers.
+ completion mailbox + worker pool + probe), `run-loop`, `loop-post` (thread-safe: mailbox + wake),
+ `loop-stop` (graceful), and the per-iteration drivers.
 
 ## The loop iteration (`run-loop`)
 
 ```
-drain-microtasks                      ; honor any work queued before run
+drain-microtasks ; honor any work queued before run
 while (loop-alive-p):
-  timeout = loop-timeout              ; 0 if immediate work; else min(next-timer, cap=1s); cap if only refs
-  reactor-poll timeout                ; blocks in poll; dispatches fd handlers (self-pipe drain, later sockets)
-  process-completions                 ; drain mailbox -> each done-thunk at a dispatch point
-  drain-signals                       ; atomic counts -> signal listeners at dispatch points
-  expire-due-timers                   ; each fired timer at a dispatch point (repeating re-inserted)
-  process-tasks                       ; queued macrotasks, each at a dispatch point
+ timeout = loop-timeout ; 0 if immediate work; else min(next-timer, cap=1s); cap if only refs
+ reactor-poll timeout ; blocks in poll; dispatches fd handlers (self-pipe drain, later sockets)
+ process-completions ; drain mailbox -> each done-thunk at a dispatch point
+ drain-signals ; atomic counts -> signal listeners at dispatch points
+ expire-due-timers ; each fired timer at a dispatch point (repeating re-inserted)
+ process-tasks ; queued macrotasks, each at a dispatch point
 ```
 
 A **dispatch point** = run one thunk, then `drain-microtasks` (next-tick fully, then one microtask,
@@ -85,9 +85,9 @@ socket handlers from the loop thread too (e.g. via a `loop-post`, never directly
 ## Risks
 
 - serve-event is process-global (`add-fd-handler` mutates SBCL's descriptor table). v1 has one loop;
-  documented, revisit only if multi-loop is ever needed (non-goal).
+ documented, revisit only if multi-loop is ever needed (non-goal).
 - Multi-thread wakes race on the write fd: safe because a 1-byte pipe write is atomic and the raw
-  path shares no stream state (the loop thread alone owns the read stream).
+ path shares no stream state (the loop thread alone owns the read stream).
 - Timeout cap (1 s) trades a hair of idle wakeups for robustness against a dropped wake.
 
 ## Gate

@@ -18,11 +18,11 @@ rendered by copying the source and space-filling each span (newlines kept). It
 `src/transpiler/` (package `clun.transpiler`, loads after the engine module):
 - `conditions.lisp` — `unsupported-ts-syntax` (message + line + col + path).
 - `ts-type.lisp` — the balanced type-expression skipper (`skip-type`) + `<…>`
-  type-args disambiguation, with `>>`/`>>>`/`>=` over-close splitting.
+ type-args disambiguation, with `>>`/`>>>`/`>=` over-close splitting.
 - `ts-scan.lisp` — `advance-tok` (the lexer driver) + the JS-structure tracker that
-  finds type positions and calls the skipper.
+ finds type positions and calls the skipper.
 - `strip.lisp` — public `strip-types (source path) -> stripped-string` + the
-  erase-plan renderer.
+ erase-plan renderer.
 
 ## 1. The lexer driver (make-or-break) — `advance-tok`
 
@@ -30,14 +30,14 @@ The lexer defaults `/`→divide and needs parser context for regex/templates. Th
 scanner replicates both via the lexer's own `reread-regexp`/`reread-template`:
 
 - **regex-vs-divide:** track `prev-tok` (last significant token). A `/`/`/=` is a
-  regex iff a `/` there begins an expression — i.e. `prev-tok` is nil or a punct
-  other than `) ] } ++ --`, or a regex-preceding keyword (`return typeof delete void
-  in instanceof do else yield await case new`). Else divide. Regexes are never type
-  positions but MUST be re-lexed or offsets desync.
+ regex iff a `/` there begins an expression — i.e. `prev-tok` is nil or a punct
+ other than `) ] } ++ --`, or a regex-preceding keyword (`return typeof delete void
+ in instanceof do else yield await case new`). Else divide. Regexes are never type
+ positions but MUST be re-lexed or offsets desync.
 - **template `${}`:** a `tmpl-stack` of per-substitution net-brace-depth ints. On a
-  `:template` head/middle → push 0. Inside a substitution: `{`→inc top, `}`→ if top>0
-  dec else pop + `(setf lexer-pos (1+ start))` + `reread-template` (push 0 again if
-  the continuation is `:middle`).
+ `:template` head/middle → push 0. Inside a substitution: `{`→inc top, `}`→ if top>0
+ dec else pop + `(setf lexer-pos (1+ start))` + `reread-template` (push 0 again if
+ the continuation is `:middle`).
 
 Every rule reads tokens only through `advance-tok`, so the scanner sees the same
 stream the parser will see on the stripped output.
@@ -55,14 +55,14 @@ Erase spans:
 - `: Type` in var/let/const declarators, params, return type, class fields, `catch`.
 - optional `?` before `:`/`,`/`)` in a param/field position (single char).
 - decl generics `<T,U extends V=W>` after a function/class/interface/type name; arrow
-  generics `<T,>(x)=>…`; call/`new` type-args `foo<T>(…)`/`new Foo<T>()`.
+ generics `<T,>(x)=>…`; call/`new` type-args `foo<T>(…)`/`new Foo<T>()`.
 - `as`/`satisfies Type` (contextual keyword in expression tail).
 - postfix `!` (`x!`, `x!.y`, `f()!`) — distinguished from prefix `!x` by `prev-tok`.
 - `interface X …{…}` (whole); `type X … = …;` (whole).
 - `declare …` (whole ambient decl); `abstract`/`public`/`private`/`protected`/
-  `readonly`/`override` (keyword span only — whitespace untouched, so column holds).
+ `readonly`/`override` (keyword span only — whitespace untouched, so column holds).
 - `import type …`/`export type …` (whole); inline `{type A, B}` (the `type A` + one
-  adjacent comma).
+ adjacent comma).
 - `class C implements I, J` (the `implements` clause).
 - bodyless overload signatures (whole line).
 
