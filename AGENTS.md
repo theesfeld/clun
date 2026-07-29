@@ -98,6 +98,12 @@ Historical train notes (keep accurate via Issues): active `0.1.0-dev.N` work; Ph
 
 - Org: `f00-sh`
 - Catalog SSOT: https://f00.sh/catalog.json
-- Theme: https://f00.sh/theme/f00-theme-13.css (Heartbox palette — do not redefine brand colors/fonts)
+- Theme: https://f00.sh/theme/f00-theme-14.css (Heartbox palette — do not redefine brand colors/fonts)
 - Card on hub only when catalog `status=released`
+
+## Visual law (all f00 products)
+
+- **Contrasts:** Nirvana *Heart-Shaped Box* video / Heartbox palette — hospital-night bg, cream fg, poppy accent, verse sky, silver metal.
+- **Text & boxes:** Nirvana *Bleach* album — hard square frames, catalog mono labels, no rounded glass, thin rules, raw liner-note density.
+- Theme CSS: `https://f00.sh/theme/f00-theme-14.css` (do not invent brand hex or soft UI radii).
 
