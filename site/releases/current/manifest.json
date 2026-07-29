@@ -3,14 +3,14 @@
   "version": "0.3.0",
   "tag": "v0.3.0",
   "channel": "current",
-  "download_base": "https://github.com/f00-sh/clun/releases/download/v0.3.0",
+  "download_base": "https://dist.f00.sh/clun/current",
   "assets": {
-    "linux-x64": "https://github.com/f00-sh/clun/releases/download/v0.3.0/clun-linux-x64.tar.gz",
-    "linux-arm64": "https://github.com/f00-sh/clun/releases/download/v0.3.0/clun-linux-arm64.tar.gz",
-    "darwin-x64": "https://github.com/f00-sh/clun/releases/download/v0.3.0/clun-darwin-x64.tar.gz",
-    "darwin-arm64": "https://github.com/f00-sh/clun/releases/download/v0.3.0/clun-darwin-arm64.tar.gz",
-    "checksums": "https://github.com/f00-sh/clun/releases/download/v0.3.0/checksums.txt"
+    "linux-x64": "https://dist.f00.sh/clun/current/clun-linux-x64.tar.gz",
+    "linux-arm64": "https://dist.f00.sh/clun/current/clun-linux-arm64.tar.gz",
+    "darwin-x64": "https://dist.f00.sh/clun/current/clun-darwin-x64.tar.gz",
+    "darwin-arm64": "https://dist.f00.sh/clun/current/clun-darwin-arm64.tar.gz",
+    "checksums": "https://dist.f00.sh/clun/current/checksums.txt"
   },
   "github_repo": "f00-sh/clun",
-  "note": "Binaries ship from GitHub Releases; install script + VERSION/manifest live on Cloudflare edge. current = latest published tag."
+  "note": "Packages on Cloudflare R2 (dist.f00.sh); install script on clun.f00.sh."
 }

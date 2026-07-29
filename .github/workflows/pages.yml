@@ -23,7 +23,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Seed releases/current channel metadata
+      - name: Seed releases/current metadata (packages live on R2)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -37,7 +37,7 @@ jobs:
           from pathlib import Path
           ver = Path("site/releases/current/VERSION").read_text().strip()
           tag = f"v{ver}"
-          base = f"https://github.com/f00-sh/clun/releases/download/{tag}"
+          base = "https://dist.f00.sh/clun/current"
           Path("site/releases/current/manifest.json").write_text(
               json.dumps(
                   {
@@ -54,7 +54,7 @@ jobs:
                           "checksums": f"{base}/checksums.txt",
                       },
                       "github_repo": "f00-sh/clun",
-                      "note": "Install script + current metadata on Cloudflare Pages; release tarballs on GitHub Releases (code/CI).",
+                      "note": "Packages on Cloudflare R2 (dist.f00.sh); install script on clun.f00.sh.",
                   },
                   indent=2,
               )

@@ -433,3 +433,50 @@ jobs:
             --dir "$published_assets"
           sh scripts/release/verify-assets.sh "$published_assets"
           echo "fresh immutable release $GITHUB_REF_NAME and downloaded checksums verified"
+
+      - name: Publish current channel to Cloudflare R2
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          VER="${GITHUB_REF_NAME#v}"
+          PREFIX="clun/current"
+          STAGE=$(mktemp -d)
+          cp dist/clun-*.tar.gz dist/checksums.txt "$STAGE/"
+          printf '%s\n' "$VER" > "$STAGE/VERSION"
+          python3 - <<PY
+          import json
+          from pathlib import Path
+          ver = "${VER}"
+          base = "https://dist.f00.sh/clun/current"
+          Path("${STAGE}/manifest.json").write_text(
+              json.dumps(
+                  {
+                      "product": "clun",
+                      "version": ver,
+                      "tag": f"v{ver}",
+                      "channel": "current",
+                      "download_base": base,
+                      "assets": {
+                          "linux-x64": f"{base}/clun-linux-x64.tar.gz",
+                          "linux-arm64": f"{base}/clun-linux-arm64.tar.gz",
+                          "darwin-x64": f"{base}/clun-darwin-x64.tar.gz",
+                          "darwin-arm64": f"{base}/clun-darwin-arm64.tar.gz",
+                          "checksums": f"{base}/checksums.txt",
+                      },
+                      "github_repo": "f00-sh/clun",
+                      "note": "Packages on Cloudflare R2 (dist.f00.sh); install script on clun.f00.sh.",
+                  },
+                  indent=2,
+              )
+              + "\n"
+          )
+          PY
+          npm install -g wrangler@4
+          for f in VERSION manifest.json checksums.txt \
+                   clun-linux-x64.tar.gz clun-linux-arm64.tar.gz \
+                   clun-darwin-x64.tar.gz clun-darwin-arm64.tar.gz; do
+            wrangler r2 object put "f00-releases/${PREFIX}/${f}" --file="$STAGE/$f" --remote
+            wrangler r2 object put "f00-releases/clun/${VER}/${f}" --file="$STAGE/$f" --remote
+          done

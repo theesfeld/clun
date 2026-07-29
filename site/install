@@ -4,6 +4,8 @@ set -eu
 
 repo=${CLUN_GITHUB_REPO:-f00-sh/clun}
 CLUN_EDGE_BASE=${CLUN_EDGE_BASE:-https://clun.f00.sh}
+# Package host: Cloudflare R2 custom domain (current channel)
+CLUN_DIST_BASE=${CLUN_DIST_BASE:-https://dist.f00.sh/clun/current}
 verified_installer_tag=v0.3.0
 [ "$#" -le 1 ] || {
   printf 'clun: error: usage: install [VERSION]\n' >&2
@@ -11,8 +13,10 @@ verified_installer_tag=v0.3.0
 }
 requested_version=${1:-${INSTALL_VERSION:-${CLUN_VERSION:-}}}
 if [ -z "$requested_version" ]; then
-  # current channel from Cloudflare edge
-  if edge_ver=$(curl -fsSL "$CLUN_EDGE_BASE/releases/current/VERSION" 2>/dev/null | tr -d ' \t\r\n'); then
+  # current channel: R2 first, then product edge, then pin
+  if edge_ver=$(curl -fsSL "$CLUN_DIST_BASE/VERSION" 2>/dev/null | tr -d ' \t\r\n'); then
+    requested_version="v${edge_ver#v}"
+  elif edge_ver=$(curl -fsSL "$CLUN_EDGE_BASE/releases/current/VERSION" 2>/dev/null | tr -d ' \t\r\n'); then
     requested_version="v${edge_ver#v}"
   else
     requested_version=$verified_installer_tag
@@ -160,6 +164,21 @@ download() {
     wget --quiet --tries=3 --output-document="$download_output" "$download_url"
   else
     fail "curl or wget is required to download Clun"
+  fi
+}
+
+# Non-fatal download for R2 → GitHub fallback
+try_download() {
+  download_url=$1
+  download_output=$2
+
+  if command_exists curl; then
+    curl --fail --location --silent --show-error --retry 2 \
+      --output "$download_output" "$download_url" 2>/dev/null
+  elif command_exists wget; then
+    wget --quiet --tries=2 --output-document="$download_output" "$download_url" 2>/dev/null
+  else
+    return 1
   fi
 }
 
@@ -352,12 +371,12 @@ is_release_tag "$requested_version" ||
 
 if [ -n "${CLUN_DOWNLOAD_BASE:-}" ]; then
   download_base=${CLUN_DOWNLOAD_BASE%/}
-elif manifest=$(curl -fsSL "$CLUN_EDGE_BASE/releases/current/manifest.json" 2>/dev/null); then
-  # Edge points packages; binaries still from GH release assets until R2
-  download_base="https://github.com/$repo/releases/download/$requested_version"
 else
-  download_base="https://github.com/$repo/releases/download/$requested_version"
+  # Cloudflare R2 current channel (production package host)
+  download_base=${CLUN_DIST_BASE%/}
 fi
+# Fallback to GitHub Releases if R2 asset miss
+EDGE_FALLBACK_BASE="https://github.com/$repo/releases/download/$requested_version"
 
 tmp_root=${TMPDIR:-/tmp}
 tmp_dir=$(mktemp -d "$tmp_root/clun-install.XXXXXX") || fail "could not create a temporary directory"
@@ -390,8 +409,14 @@ archive_names="$tmp_dir/archive.names"
 archive_types="$tmp_dir/archive.types"
 
 say "Downloading Clun for $target..."
-download "$download_base/$asset" "$archive"
-download "$download_base/checksums.txt" "$checksums"
+if ! try_download "$download_base/$asset" "$archive"; then
+  say "retry $EDGE_FALLBACK_BASE/$asset"
+  download "$EDGE_FALLBACK_BASE/$asset" "$archive"
+fi
+if ! try_download "$download_base/checksums.txt" "$checksums"; then
+  say "retry $EDGE_FALLBACK_BASE/checksums.txt"
+  download "$EDGE_FALLBACK_BASE/checksums.txt" "$checksums"
+fi
 
 expected=$(awk -v name="$asset" '$2 == name || $2 == "*" name { print $1; exit }' "$checksums")
 [ -n "$expected" ] || fail "checksums.txt does not contain $asset"
