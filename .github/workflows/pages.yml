@@ -23,19 +23,21 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Seed releases/current metadata (packages live on R2)
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Seed releases/current metadata from R2
         run: |
           set -euo pipefail
           mkdir -p site/releases/current
-          tag=$(gh api repos/f00-sh/clun/releases/latest --jq .tag_name)
-          ver=${tag#v}
+          base="https://dist.f00.sh/clun/current"
+          ver=$(curl -fsSL "$base/VERSION" | tr -d ' \t\r\n' || true)
+          if [ -z "$ver" ]; then
+            ver=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || true)
+          fi
+          [ -n "$ver" ] || { echo "could not resolve VERSION from R2 or git" >&2; exit 1; }
           printf '%s\n' "$ver" > site/releases/current/VERSION
           python3 - <<PY
           import json
           from pathlib import Path
-          ver = Path("site/releases/current/VERSION").read_text().strip()
+          ver = Path("site/releases/current/VERSION").read_text().strip().lstrip("v")
           tag = f"v{ver}"
           base = "https://dist.f00.sh/clun/current"
           Path("site/releases/current/manifest.json").write_text(

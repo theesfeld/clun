@@ -1,18 +1,22 @@
-;;;; update.lisp — built-in self-update from GitHub Releases (user standard §8.3).
+;;;; update.lisp — built-in self-update (user standard §8.3).
 ;;;; Uses the direct pure-CL HTTP/TLS transport so update does not depend on a
 ;;;; JavaScript realm (or evaluate synthesized JavaScript).
-;;;; Resolves a channel-suitable release through the browser redirect first,
-;;;; downloads the same archive assets as site/install, verifies SHA-256, and
-;;;; stages a complete versioned release bundle and atomically switches the
-;;;; stable installer-managed launcher, retaining the prior bundle for rollback.
+;;;; Prefers Cloudflare R2 current channel (dist.f00.sh), then falls back to
+;;;; GitHub Releases. Downloads the same archive assets as site/install,
+;;;; verifies SHA-256, and stages a complete versioned release bundle and
+;;;; atomically switches the stable installer-managed launcher, retaining the
+;;;; prior bundle for rollback.
 
 (in-package :clun.cli)
 
 (defparameter *update-repo* "f00-sh/clun"
-  "owner/repo for GitHub Releases.")
+  "owner/repo for GitHub Releases (fallback only).")
+
+(defparameter *update-dist-base* "https://dist.f00.sh/clun"
+  "Cloudflare R2 package host (custom domain) for current/versioned assets.")
 
 (defparameter *update-user-agent* "clun-update/0.1"
-  "GitHub requires a User-Agent on unauthenticated downloads.")
+  "User-Agent for unauthenticated HTTPS downloads.")
 
 (defparameter *update-max-asset-bytes* (* 300 1024 1024)
   "Hard upper bound for a downloaded release asset (300 MiB).
@@ -250,6 +254,19 @@ a newer prerelease or a stable release. Preference uses Clun maturity rank so
               (when token
                 (list (cons "Authorization" (format nil "Bearer ~a" token))))))))
 
+(defun %normalize-release-tag (raw)
+  "Normalize VERSION/tag text to a v-prefixed release tag, or NIL."
+  (let ((text (string-trim '(#\Space #\Tab #\Newline #\Return) (or raw ""))))
+    (when (plusp (length text))
+      (let ((tag (if (char= (char text 0) #\v) text (format nil "v~a" text))))
+        (and (%release-tag-p tag) tag)))))
+
+(defun %resolve-dist-tag ()
+  "Read current channel VERSION from Cloudflare R2 (dist.f00.sh)."
+  (let* ((url (format nil "~a/current/VERSION" *update-dist-base*))
+         (tag (%normalize-release-tag (%fetch-text url))))
+    (or tag (error "R2 current VERSION is missing or invalid"))))
+
 (defun %resolve-redirect-tag ()
   (let ((url (format nil "https://github.com/~a/releases/latest" *update-repo*)))
     (multiple-value-bind (body final-url)
@@ -273,14 +290,20 @@ a newer prerelease or a stable release. Preference uses Clun maturity rank so
     (or tag (error "no suitable release tag in GitHub Releases feed"))))
 
 (defun resolve-latest-release-tag (&key (current-version (%update-current-version)))
-  "Resolve a suitable Release through github.com/releases/latest first.
-The API is fallback-only (including when a prerelease install is newer than
-the latest stable redirect). GITHUB_TOKEN/GH_TOKEN authenticate that fallback.
-If the API is unavailable or rate-limited, GitHub's public Releases Atom feed
-provides a non-API fallback. A usable redirect is retained if both fail."
-  (let ((redirect-tag nil)
+  "Resolve a suitable release: R2 current first, then GitHub fallbacks.
+GITHUB_TOKEN/GH_TOKEN only authenticate the GitHub API fallback path."
+  (let ((dist-tag nil)
+        (dist-error nil)
+        (redirect-tag nil)
         (redirect-error nil)
         (api-error nil))
+    (handler-case
+        (setf dist-tag (%resolve-dist-tag))
+      (error (e) (setf dist-error (format nil "~a" e))))
+    (when (and dist-tag
+               (or (not (%prerelease-version-p current-version))
+                   (not (%version< dist-tag current-version))))
+      (return-from resolve-latest-release-tag (values dist-tag nil)))
     (handler-case
         (setf redirect-tag (%resolve-redirect-tag))
       (error (e) (setf redirect-error (format nil "~a" e))))
@@ -295,11 +318,12 @@ provides a non-API fallback. A usable redirect is retained if both fail."
     (handler-case
         (values (%resolve-atom-tag current-version) nil)
       (error (atom-error)
-        (if redirect-tag
-            (values redirect-tag nil)
+        (or (and dist-tag (values dist-tag nil))
+            (and redirect-tag (values redirect-tag nil))
             (values nil
                     (format nil
-                            "latest redirect failed (~a); API fallback failed (~a); Releases feed fallback failed (~a)"
+                            "R2 current failed (~a); latest redirect failed (~a); API fallback failed (~a); Releases feed fallback failed (~a)"
+                            (or dist-error "no release tag")
                             (or redirect-error "no release tag")
                             (or api-error "no release tag") atom-error)))))))
 
@@ -309,16 +333,36 @@ provides a non-API fallback. A usable redirect is retained if both fail."
 (defun %release-asset-basename ()
   (format nil "~a.tar.gz" (%release-package-basename)))
 
+(defun %asset-candidate-urls (tag relative-name)
+  "Ordered download URLs: R2 current, R2 versioned, GitHub Releases."
+  (let ((ver (string-left-trim '(#\v #\V) tag)))
+    (list (format nil "~a/current/~a" *update-dist-base* relative-name)
+          (format nil "~a/~a/~a" *update-dist-base* ver relative-name)
+          (format nil "https://github.com/~a/releases/download/~a/~a"
+                  *update-repo* tag relative-name))))
+
 (defun %download-release-bytes (tag relative-name)
-  (let ((url (format nil "https://github.com/~a/releases/download/~a/~a"
-                     *update-repo* tag relative-name)))
-    (let ((payload (%fetch-text url :binary t :timeout-ms 600000)))
-      (unless (typep payload '(vector (unsigned-byte 8)))
-        (error "release asset transport did not return octets"))
-      (when (> (length payload) *update-max-asset-bytes*)
-        (error "release asset exceeds the ~d-byte update limit"
-               *update-max-asset-bytes*))
-      payload)))
+  (let ((last-error nil))
+    (dolist (url (%asset-candidate-urls tag relative-name))
+      (handler-case
+          (let ((payload (%fetch-text url :binary t :timeout-ms 600000)))
+            (unless (typep payload '(vector (unsigned-byte 8)))
+              (error "release asset transport did not return octets"))
+            (when (> (length payload) *update-max-asset-bytes*)
+              (error "release asset exceeds the ~d-byte update limit"
+                     *update-max-asset-bytes*))
+            (return-from %download-release-bytes payload))
+        (error (e) (setf last-error e))))
+    (error "could not download ~a for ~a~@[ (~a)~]"
+           relative-name tag last-error)))
+
+(defun %fetch-checksums-text (tag)
+  (let ((last-error nil))
+    (dolist (url (%asset-candidate-urls tag "checksums.txt"))
+      (handler-case
+          (return-from %fetch-checksums-text (%fetch-text url))
+        (error (e) (setf last-error e))))
+    (error "could not download checksums.txt for ~a~@[ (~a)~]" tag last-error)))
 
 (defun %checksums-map (checksums-text)
   (let ((table (make-hash-table :test #'equal)))
@@ -797,9 +841,7 @@ Never fails the calling command — network/TLS errors are silent here."
              (format nil "fetching ~a" asset)
              (lambda ()
                (let* ((context (%managed-install-context))
-                      (sum-text (%fetch-text
-                                 (format nil "https://github.com/~a/releases/download/~a/checksums.txt"
-                                         *update-repo* tag)))
+                      (sum-text (%fetch-checksums-text tag))
                       (sums (%checksums-map sum-text))
                       (want (gethash asset sums))
                       (payload (%download-release-bytes tag asset))

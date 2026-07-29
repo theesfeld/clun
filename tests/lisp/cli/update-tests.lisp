@@ -12,17 +12,20 @@
            (sb-posix:setenv ,name old-value 1)
            (sb-posix:unsetenv ,name)))))
 
-(define-test update/redirect-first-skips-api
+(define-test update/r2-current-first-skips-github
   (let* ((calls '())
          (clun.cli::*update-fetch-function*
            (lambda (url &key &allow-other-keys)
              (push url calls)
-             (values "" "https://github.com/f00-sh/clun/releases/tag/v9.0.0"))))
+             (cond
+               ((search "dist.f00.sh/clun/current/VERSION" url)
+                (values "9.0.0" url))
+               (t (error "unexpected update URL ~a" url))))))
     (multiple-value-bind (tag error)
         (cli:resolve-latest-release-tag :current-version "0.1.0-dev.69")
       (false error)
       (is string= "v9.0.0" tag)
-      (is equal (list "https://github.com/f00-sh/clun/releases/latest")
+      (is equal (list "https://dist.f00.sh/clun/current/VERSION")
           (nreverse calls)))))
 
 (define-test update/api-fallback-honors-token-and-channel
@@ -33,11 +36,12 @@
          (clun.cli::*update-fetch-function*
            (lambda (url &key headers &allow-other-keys)
              (push url calls)
-             (if (search "/releases/latest" url)
-                 (error "redirect unavailable")
-                 (progn
-                   (setf api-headers headers)
-                   (values payload url))))))
+             (cond
+               ((search "dist.f00.sh" url) (error "R2 unavailable"))
+               ((search "/releases/latest" url) (error "redirect unavailable"))
+               (t
+                (setf api-headers headers)
+                (values payload url))))))
     (with-update-test-env ("GITHUB_TOKEN" "issue-221-token")
       (multiple-value-bind (tag error)
           (cli:resolve-latest-release-tag :current-version "1.5.0-dev.1")
@@ -45,7 +49,8 @@
         (is string= "v1.5.0-dev.2" tag)))
     (is equal '(("Authorization" . "Bearer issue-221-token"))
         (remove-if-not (lambda (header) (string= (car header) "Authorization")) api-headers))
-    (is equal (list "https://github.com/f00-sh/clun/releases/latest"
+    (is equal (list "https://dist.f00.sh/clun/current/VERSION"
+                    "https://github.com/f00-sh/clun/releases/latest"
                     "https://api.github.com/repos/f00-sh/clun/releases?per_page=10")
         (nreverse calls))
     ;; Stable installs never opt into a prerelease from the fallback list.
@@ -69,16 +74,18 @@
          (clun.cli::*update-fetch-function*
            (lambda (url &key &allow-other-keys)
              (incf calls)
-             (if (search "/releases/latest" url)
-                 (values "" "https://github.com/f00-sh/clun/releases/tag/v0.1.0-dev.21")
-                 (if (search "api.github.com" url)
-                     (error "HTTP 403 for unauthenticated Releases API")
-                     (error "Releases feed unavailable"))))))
+             (cond
+               ((search "dist.f00.sh" url) (error "R2 unavailable"))
+               ((search "/releases/latest" url)
+                (values "" "https://github.com/f00-sh/clun/releases/tag/v0.1.0-dev.21"))
+               ((search "api.github.com" url)
+                (error "HTTP 403 for unauthenticated Releases API"))
+               (t (error "Releases feed unavailable"))))))
     (multiple-value-bind (tag error)
         (cli:resolve-latest-release-tag :current-version "0.1.0-dev.69")
       (false error)
       (is string= "v0.1.0-dev.21" tag)
-      (is = 3 calls))))
+      (is = 4 calls))))
 
 (define-test update/prerelease-atom-fallback-survives-api-403
   (let* ((calls '())
@@ -93,6 +100,7 @@
            (lambda (url &key &allow-other-keys)
              (push url calls)
              (cond
+               ((search "dist.f00.sh" url) (error "R2 unavailable"))
                ((search "/releases/latest" url)
                 (values "" "https://github.com/f00-sh/clun/releases/tag/v0.0.9"))
                ((search "api.github.com" url)
@@ -103,7 +111,8 @@
         (cli:resolve-latest-release-tag :current-version "0.1.0-dev.69")
       (false error)
       (is string= "v0.1.0-dev.70" tag))
-    (is equal (list "https://github.com/f00-sh/clun/releases/latest"
+    (is equal (list "https://dist.f00.sh/clun/current/VERSION"
+                    "https://github.com/f00-sh/clun/releases/latest"
                     "https://api.github.com/repos/f00-sh/clun/releases?per_page=10"
                     "https://github.com/f00-sh/clun/releases.atom")
         (nreverse calls))
@@ -177,11 +186,13 @@
 (defun %update-fetch-fixture (remote-tag payload checksums)
   (lambda (url &key binary &allow-other-keys)
     (cond
+      ((search "dist.f00.sh/clun/current/VERSION" url)
+       (values (string-left-trim '(#\v #\V) remote-tag) url))
+      ((search "checksums.txt" url) (values checksums url))
+      (binary (values payload url))
       ((search "/releases/latest" url)
        (values "" (format nil "https://github.com/f00-sh/clun/releases/tag/~a"
                           remote-tag)))
-      ((search "checksums.txt" url) (values checksums url))
-      (binary (values payload url))
       (t (error "unexpected update URL ~a" url)))))
 
 (define-test update/full-bundle-path-discovery-and-activation

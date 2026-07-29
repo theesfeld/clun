@@ -87,27 +87,19 @@
     });
   }
 
-  /* GitHub stats */
-  const formatCount = (n) => {
-    if (n == null || Number.isNaN(n)) return "—";
-    if (n >= 1000) return `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k`;
-    return String(n);
-  };
-
+  /* Version from Cloudflare R2 current channel (no GitHub API) */
   const setAll = (sel, value) => {
     $$(sel).forEach((el) => {
       el.textContent = value;
     });
   };
 
-  fetch("https://api.github.com/repos/f00-sh/clun")
-    .then((r) => (r.ok ? r.json() : null))
-    .then((data) => {
-      if (!data) return;
-      setAll("[data-github-stars]", formatCount(data.stargazers_count));
-      setAll("[data-github-forks]", formatCount(data.forks_count));
-      setAll("[data-github-watchers]", formatCount(data.subscribers_count));
-      setAll("[data-github-issues]", formatCount(data.open_issues_count));
+  fetch("https://dist.f00.sh/clun/current/VERSION", { cache: "no-cache" })
+    .then((r) => (r.ok ? r.text() : null))
+    .then((text) => {
+      if (!text) return;
+      const ver = String(text).trim().replace(/^v/i, "");
+      if (ver) setAll("[data-version]", `v${ver}`);
     })
     .catch(() => {});
 })();
