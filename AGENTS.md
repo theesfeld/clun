@@ -93,3 +93,11 @@ Version files when behavior/claims change (same unit): `src/version.lisp`, ASDF 
 Publication evidence order (after squash-merge to `master`): tag → release assets + checksums → ledger/README/site → Pages → `https://clun.f00.sh/install` smoke → Issue comments. Never move/reuse tags.
 
 Historical train notes (keep accurate via Issues): active `0.1.0-dev.N` work; Phase 26 deferred until after Phase 82.
+
+## f00 membership
+
+- Org: `f00-sh`
+- Catalog SSOT: https://f00.sh/catalog.json
+- Theme: https://f00.sh/theme/f00-theme-13.css (Heartbox palette — do not redefine brand colors/fonts)
+- Card on hub only when catalog `status=released`
+
