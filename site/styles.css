@@ -1,6 +1,6 @@
 /* Clun public site — calm product presentation */
 
-/* Brand tokens: https://f00.sh/theme/f00-theme.css */
+/* Brand: https://f00.sh/theme/f00-theme-11.css — Onyx brand · zine body · chip headers */
 :root {
   --radius: 10px;
   --shell: min(1120px, calc(100% - 2.5rem));
