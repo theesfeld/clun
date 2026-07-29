@@ -10,7 +10,7 @@ It does **not** redefine process. On conflict, the user standard wins. **No lega
 | Default branch | `master` (do not rename; PR base only) |
 | License | GPL-3.0-or-later |
 | Language | Pure Common Lisp (not Rust — no cargo-dist; **same release outcomes** as user standard §0.1 / §8) |
-| Install | `https://clun.sh/install` / Pages installer |
+| Install | `https://clun.sh/install` (alias `https://clun.f00.sh` → clun.sh) / Pages installer |
 | Bun reference | `/home/glenda/Projects/bun` — **read-only upstream**; never modify; never copy license-incompatible code |
 
 Ship path: user standard **§5.0** (Issue → branch `…/issue-N-…` → PR → squash-merge into `master`). No direct push to `master` as the ship path.

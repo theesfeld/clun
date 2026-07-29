@@ -26,7 +26,7 @@ Tracking: [issue #58](https://github.com/theesfeld/clun/issues/58) (Phase 26 min
 | Operator SOP (NASA) | [`docs/sop-clun-ops.pdf`](docs/sop-clun-ops.pdf) · [JSON source](docs/sop-clun-ops.json) |
 | Release memo 0.3.0 | [`docs/memo-release-0.3.0.pdf`](docs/memo-release-0.3.0.pdf) · [JSON source](docs/memo-release-0.3.0.json) |
 | Changelog | [`CHANGELOG.md`](CHANGELOG.md) |
-| Site | [https://clun.sh](https://clun.sh) |
+| Site | [https://clun.sh](https://clun.sh) · [https://clun.f00.sh](https://clun.f00.sh) |
 | Man page | `man clun` (generated; must match live `clun --help`) |
 | Scene card | [`file_id.diz`](file_id.diz) (also a GitHub Release asset) |
 

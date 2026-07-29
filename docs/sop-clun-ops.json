@@ -38,7 +38,7 @@
         "rows": [
           ["Product name", "Clun"],
           ["Binary", "clun"],
-          ["Site", "https://clun.sh"],
+          ["Site", "https://clun.sh · https://clun.f00.sh"],
           ["Installer", "https://clun.sh/install"],
           ["Repository", "github.com/theesfeld/clun"],
           ["License", "GPL-3.0-or-later"],
