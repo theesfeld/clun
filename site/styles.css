@@ -1,20 +1,7 @@
 /* Clun public site — calm product presentation */
 
+/* Brand tokens: https://f00.sh/theme/f00-theme.css */
 :root {
-  --bg: #0b0c0e;
-  --bg-elevated: #12141a;
-  --bg-muted: #0f1115;
-  --border: rgba(255, 255, 255, 0.08);
-  --text: #e8eaed;
-  --text-muted: #9aa0a6;
-  --text-dim: #6b7280;
-  --accent: #7c9cff;
-  --accent-soft: rgba(124, 156, 255, 0.12);
-  --ok: #3ecf8e;
-  --partial: #e6b84d;
-  --no: #e06c75;
-  --font: "DM Sans", system-ui, sans-serif;
-  --mono: "JetBrains Mono", ui-monospace, monospace;
   --radius: 10px;
   --shell: min(1120px, calc(100% - 2.5rem));
   --header-h: 3.5rem;
@@ -90,7 +77,7 @@ pre {
   top: -3rem;
   z-index: 100;
   padding: 0.5rem 0.75rem;
-  background: #0e1014;
+  background: #0a0a0a;
   border: 1px solid var(--border);
   border-radius: 6px;
 }
@@ -216,7 +203,7 @@ pre {
 
 .btn-primary {
   background: var(--accent);
-  color: #0b0c0e;
+  color: #000000;
 }
 
 .btn-primary:hover {
@@ -231,7 +218,7 @@ pre {
 }
 
 .btn-ghost:hover {
-  background: #0e1014;
+  background: #0a0a0a;
   text-decoration: none;
 }
 
@@ -270,7 +257,7 @@ pre {
   object-fit: contain;
   border-radius: 20px;
   border: 1px solid var(--border);
-  background: #0e1014;
+  background: #0a0a0a;
 }
 
 .hero .eyebrow {
@@ -319,7 +306,7 @@ pre {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 1.2rem 1.3rem;
-  background: #0e1014;
+  background: #0a0a0a;
 }
 
 .feature h3 {
@@ -353,7 +340,7 @@ pre {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 1.2rem 1.25rem;
-  background: #0e1014;
+  background: #0a0a0a;
 }
 
 .lisp-card h3 {
@@ -372,7 +359,7 @@ pre {
 .installer {
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: #0e1014;
+  background: #0a0a0a;
   padding: 1.25rem 1.35rem;
   margin: 0 0 1.5rem;
 }
@@ -408,7 +395,7 @@ pre {
   gap: 0.65rem;
   padding: 0.75rem 0.9rem;
   border-radius: 8px;
-  background: #08090b;
+  background: #000000;
   border: 1px solid var(--border);
   overflow-x: auto;
 }
@@ -428,7 +415,7 @@ pre {
 .code-copy-button {
   flex-shrink: 0;
   border: 1px solid var(--border);
-  background: #0e1014;
+  background: #0a0a0a;
   color: var(--text-muted);
   border-radius: 6px;
   padding: 0.35rem 0.65rem;
@@ -524,7 +511,7 @@ pre {
 }
 
 .doc-list a:hover {
-  color: var(--accent, #8ab4f8);
+  color: var(--accent);
 }
 
 .muted {
@@ -538,9 +525,9 @@ pre {
   overflow-x: auto;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: #0a0b0d;
+  background: #000000;
   color: var(--text-muted);
-  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-family: var(--mono);
   font-size: 0.72rem;
   line-height: 1.35;
   white-space: pre;
@@ -556,7 +543,7 @@ pre {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 1.15rem 1.2rem;
-  background: #0e1014;
+  background: #0a0a0a;
 }
 
 .card h3 {
@@ -614,7 +601,7 @@ pre {
 .code-window {
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: #08090b;
+  background: #000000;
   overflow: hidden;
 }
 
@@ -636,10 +623,10 @@ pre {
   line-height: 1.5;
 }
 
-.tok-key { color: #c792ea; }
-.tok-str { color: #c3e88d; }
-.tok-num { color: #f78c6c; }
-.tok-type { color: #82aaff; }
+.tok-key { color: #ffffff; }
+.tok-str { color: #e5e5e5; }
+.tok-num { color: #cccccc; }
+.tok-type { color: #ffffff; }
 
 /* Matrix table — fit viewport; wrap cells; no horizontal scroll */
 .table-wrap {
@@ -647,7 +634,7 @@ pre {
   max-width: 100%;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: #0e1014;
+  background: #0a0a0a;
 }
 
 .compare-table {
@@ -752,7 +739,7 @@ pre {
   padding: 1rem 1.1rem;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: #0e1014;
+  background: #0a0a0a;
 }
 
 .contract-list li > span {
@@ -799,7 +786,7 @@ pre {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 1rem;
-  background: #0e1014;
+  background: #0a0a0a;
 }
 
 .stat-value {
@@ -935,7 +922,7 @@ pre {
     align-items: stretch;
     gap: 0;
     padding: 0.5rem 1.25rem 1rem;
-    background: #0e1014;
+    background: #0a0a0a;
     border-bottom: 1px solid var(--border);
   }
 
