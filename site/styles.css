@@ -88,7 +88,9 @@ pre {
   top: 1rem;
 }
 
-/* Announcement */
+/* Announcement — hidden */
+.announcement { display: none !important; }
+/* Announcement (legacy) */
 .announcement {
   border-bottom: 1px solid var(--border);
   background: transparent;
@@ -119,7 +121,7 @@ pre {
 
 /* Header */
 .site-header {
-  position: sticky;
+  position: relative; /* was sticky — scrolls away */
   top: 0;
   z-index: 50;
   height: var(--header-h);
@@ -663,7 +665,7 @@ pre {
   background: transparent;
   font-weight: 600;
   font-size: 0.85rem;
-  position: sticky;
+  position: relative; /* was sticky — scrolls away */
   top: 0;
 }
 

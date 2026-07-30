@@ -17,17 +17,8 @@
  <script src="app.js" defer></script>
  </head>
  <body>
+<!-- banner-removed -->
  <a class="skip-link" href="#main">Skip to content</a>
-
- <div class="announcement">
-<!-- clun-generated:release:begin -->
-<a href="https://github.com/f00-sh/clun/releases/tag/v0.3.0">
- <span>Available now</span>
- v0.3.0
- <span aria-hidden="true">-&gt;</span>
-</a>
-<!-- clun-generated:release:end -->
- </div>
 
  <header class="site-header">
  <div class="nav-shell">
@@ -666,17 +657,10 @@ Only Clun’s column marks where Clun <em>exceeds</em> the others.
  </footer>
  <span class="sr-only" role="status" aria-live="polite" data-copy-feedback></span>
    <script data-f00-stars-script>
-/* f00 GitHub stars — shared by hub + all project sites
-   Usage:
-     <a data-f00-stars data-repo="f00-sh/clun" href="https://github.com/f00-sh/clun">★ …</a>
-     <a data-f00-stars-total href="https://github.com/f00-sh">★ …</a>
-*/
+/* f00 GitHub stars — hub + project footers (also SPA-safe) */
 (() => {
-  const fmt = (n) => {
-    if (typeof n !== "number" || !Number.isFinite(n)) return "—";
-    return n.toLocaleString("en-US");
-  };
-
+  const fmt = (n) =>
+    typeof n === "number" && Number.isFinite(n) ? n.toLocaleString("en-US") : "—";
   const cache = new Map();
 
   const fetchRepo = async (repo) => {
@@ -685,32 +669,33 @@ Only Clun’s column marks where Clun <em>exceeds</em> the others.
       headers: { Accept: "application/vnd.github+json" },
     })
       .then((r) => (r.ok ? r.json() : null))
-      .then((j) => (j && typeof j.stargazers_count === "number" ? j.stargazers_count : 0))
+      .then((j) =>
+        j && typeof j.stargazers_count === "number" ? j.stargazers_count : 0
+      )
       .catch(() => 0);
     cache.set(repo, p);
     return p;
   };
 
   const projectsFromCatalog = async () => {
-    const urls = [
+    for (const url of [
       "https://f00.sh/catalog.json",
       "/catalog.json",
       "catalog.json",
-    ];
-    for (const url of urls) {
+    ]) {
       try {
         const r = await fetch(url, { credentials: "omit" });
         if (!r.ok) continue;
         const j = await r.json();
         const list = j.projects || j.products || [];
-        return list
+        const repos = list
           .filter((p) => p && p.status === "released" && p.repo_slug)
           .map((p) => p.repo_slug);
+        if (repos.length) return repos;
       } catch {
-        /* try next */
+        /* next */
       }
     }
-    // fallback known set
     return [
       "f00-sh/f00tils",
       "f00-sh/clun",
@@ -720,37 +705,52 @@ Only Clun’s column marks where Clun <em>exceeds</em> the others.
     ];
   };
 
-  const paint = (el, n, href) => {
+  const paint = (el, n) => {
+    if (el.dataset.f00StarsPainted === String(n)) return;
     el.textContent = `★ ${fmt(n)}`;
     el.setAttribute("aria-label", `${fmt(n)} GitHub stars`);
-    if (href && !el.getAttribute("href")) el.setAttribute("href", href);
+    el.dataset.f00StarsPainted = String(n);
   };
 
+  let totalCache = null;
   const run = async () => {
-    const singles = document.querySelectorAll("[data-f00-stars]");
+    const singles = document.querySelectorAll(
+      "[data-f00-stars]:not([data-f00-stars-painted])"
+    );
     for (const el of singles) {
-      const repo = el.getAttribute("data-repo") || el.dataset.repo;
+      const repo = el.getAttribute("data-repo");
       if (!repo) continue;
-      const n = await fetchRepo(repo);
-      paint(el, n, el.getAttribute("href") || `https://github.com/${repo}`);
+      paint(el, await fetchRepo(repo));
     }
 
-    const totals = document.querySelectorAll("[data-f00-stars-total]");
+    const totals = document.querySelectorAll(
+      "[data-f00-stars-total]:not([data-f00-stars-painted])"
+    );
     if (totals.length) {
-      const repos = await projectsFromCatalog();
-      // include hub repo itself? user said "all f00 projects" — catalog released projects
-      const counts = await Promise.all(repos.map(fetchRepo));
-      const sum = counts.reduce((a, b) => a + b, 0);
-      for (const el of totals) {
-        paint(el, sum, el.getAttribute("href") || "https://github.com/f00-sh");
+      if (totalCache === null) {
+        const repos = await projectsFromCatalog();
+        const counts = await Promise.all(repos.map(fetchRepo));
+        totalCache = counts.reduce((a, b) => a + b, 0);
       }
+      for (const el of totals) paint(el, totalCache);
     }
+  };
+
+  const boot = () => {
+    run();
+    // SPA: re-run when React mounts footers
+    const mo = new MutationObserver(() => {
+      run();
+    });
+    mo.observe(document.documentElement, { childList: true, subtree: true });
+    // also a few delayed passes
+    [100, 500, 1500, 3000].forEach((ms) => setTimeout(run, ms));
   };
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", run);
+    document.addEventListener("DOMContentLoaded", boot);
   } else {
-    run();
+    boot();
   }
 })();
 
