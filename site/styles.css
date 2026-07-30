@@ -627,10 +627,10 @@ pre {
   line-height: 1.5;
 }
 
-.tok-key { color: #ffffff; }
+.tok-key { color: #EDE6DE; }
 .tok-str { color: #e5e5e5; }
 .tok-num { color: #cccccc; }
-.tok-type { color: #ffffff; }
+.tok-type { color: #EDE6DE; }
 
 /* Matrix table — fit viewport; wrap cells; no horizontal scroll */
 .table-wrap {
