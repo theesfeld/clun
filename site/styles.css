@@ -1,3 +1,4 @@
+/* Layout only. Brand shell: https://f00.sh/theme/f00-theme.css (sky / white boxes / poppy). */
 /* Layout only. Brand: https://f00.sh/theme/f00-theme.css (ONE shared org CSS). */
 
 /* Brand: https://f00.sh/theme/f00-theme.css — Heartbox · Onyx brand · zine body · chip headers */
@@ -30,7 +31,7 @@ body {
   line-height: 1.6;
   line-height: 1.55;
   color: var(--text);
-  background: var(--bg);
+  background: transparent;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -90,7 +91,7 @@ pre {
 /* Announcement */
 .announcement {
   border-bottom: 1px solid var(--border);
-  background: var(--bg-muted);
+  background: transparent;
   text-align: center;
   font-size: 0.9rem;
 }
@@ -456,7 +457,7 @@ pre {
   border: 1px solid var(--border);
   border-radius: 0;
   padding: 0.85rem 1rem;
-  background: var(--bg-muted);
+  background: transparent;
 }
 
 .stat-strip dt {
@@ -478,7 +479,7 @@ pre {
 }
 
 .section-muted {
-  background: var(--bg-muted);
+  background: transparent;
 }
 
 .section-intro {
@@ -659,7 +660,7 @@ pre {
 }
 
 .compare-table thead th {
-  background: var(--bg-muted);
+  background: transparent;
   font-weight: 600;
   font-size: 0.85rem;
   position: sticky;
@@ -680,7 +681,7 @@ pre {
 }
 
 .compare-group th {
-  background: var(--bg-muted);
+  background: transparent;
   font-size: 0.85rem;
 }
 
@@ -988,7 +989,7 @@ pre {
 }
 
 .compat-table thead th {
-  background: var(--bg-muted);
+  background: transparent;
   font-weight: 600;
   font-size: 0.85rem;
 }
@@ -1008,7 +1009,7 @@ pre {
 }
 
 .compat-table .compare-group th {
-  background: var(--bg-muted);
+  background: transparent;
   font-size: 0.85rem;
 }
 
