@@ -399,19 +399,20 @@ pre {
   gap: 0.65rem;
   padding: 0.75rem 0.9rem;
   border-radius: 0;
-  background: var(--f00-ink, #1a1214);
-  border: 1px solid var(--border);
+  background: var(--f00-code-bg, #050404);
+  border: 1px solid #C8CED4;
   overflow-x: auto;
 }
 
 .command-row .prompt {
-  color: var(--text-dim);
+  color: #8A7874;
   user-select: none;
 }
 
 .command-row code {
   flex: 1;
-  color: var(--text);
+  color: #EDE6DE;
+  background: transparent;
   white-space: nowrap;
 }
 
@@ -603,19 +604,19 @@ pre {
 }
 
 .code-window {
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--f00-ink, #1a1214);
+  border: 1px solid #C8CED4;
+  border-radius: 0;
+  background: var(--f00-code-bg, #050404);
   overflow: hidden;
+  color: #EDE6DE;
 }
-
 .code-window-bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 0.55rem 0.85rem;
-  border-bottom: 1px solid var(--border);
-  color: var(--text-dim);
+  border-bottom: 1px solid #3A3232;
+  color: #8A7874;
   font-size: 0.85rem;
   font-family: var(--mono);
 }
@@ -625,12 +626,20 @@ pre {
   padding: 1rem 1.1rem 1.2rem;
   overflow-x: auto;
   line-height: 1.5;
+  background: transparent !important;
+  color: #EDE6DE !important;
+  border: 0 !important;
 }
 
-.tok-key { color: #EDE6DE; }
-.tok-str { color: #e5e5e5; }
-.tok-num { color: #cccccc; }
-.tok-type { color: #EDE6DE; }
+/* Heartbox syntax dye */
+.tok-key { color: #C47A72; }
+.tok-str { color: #C49A3C; }
+.tok-num { color: #C45A20; }
+.tok-type { color: #3A94D8; }
+.tok-fn { color: #1E78C8; }
+.tok-comment { color: #8A7874; }
+.tok-const { color: #454B93; }
+.tok-punct { color: #B8BEC2; }
 
 /* Matrix table — fit viewport; wrap cells; no horizontal scroll */
 .table-wrap {
