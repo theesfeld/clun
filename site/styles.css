@@ -606,9 +606,9 @@ pre {
 .code-window {
   border: 1px solid #C8CED4;
   border-radius: 0;
-  background: var(--f00-code-bg, #050404);
+  background: #050404 !important;
   overflow: hidden;
-  color: #EDE6DE;
+  color: #EDE6DE !important;
 }
 .code-window-bar {
   display: flex;
